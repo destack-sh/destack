@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{CheckState, Origin};
 
 impl CheckState<'_> {
     /// Decide whether one type has a supported atomic representation.
@@ -9,8 +9,8 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let root = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<bool> {
+        let root = self.reduce_type_head(origin, ty)?;
         let is_supported = match self.ty(root)? {
             // admit supported scalar representations
             dir::Type::Primitive(dir::PrimitiveType::Boolean) => true,
@@ -25,6 +25,6 @@ impl CheckState<'_> {
             _ => false,
         };
 
-        Ok(Answer::Ready(is_supported))
+        Ok(is_supported)
     }
 }

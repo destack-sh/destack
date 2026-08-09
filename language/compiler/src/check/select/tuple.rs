@@ -2,10 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{
-    Answer, BodyState, Cause, CauseKind, Constraint, Decision, FlowPointId, Origin, Relation,
-    answer,
-};
+use crate::check::{BodyState, Cause, CauseKind, Constraint, FlowPointId, Origin, Relation};
 
 impl BodyState<'_, '_> {
     /// Select one tuple pattern, projecting elements by position.
@@ -17,7 +14,7 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
         self.check_pattern_bindings(module, fields)?;
 
@@ -69,12 +66,12 @@ impl BodyState<'_, '_> {
             if let Some(target) = target {
                 if target.local_id.ty == dir::NodeType::Pattern {
                     let pattern = dir::LocalNodeId::<dir::Pattern>::new(target.local_id.id);
-                    answer!(self.check_pattern_projection(
+                    self.check_pattern_projection(
                         flow,
                         scope,
                         projected_value,
                         pattern.into_global_any(module),
-                    )?);
+                    )?;
                 } else {
                     let hole = self.require_node_type(target)?;
                     let cause = self
@@ -85,7 +82,7 @@ impl BodyState<'_, '_> {
                         projected_value,
                         hole,
                         cause,
-                    ));
+                    ))?;
                 }
             }
             projected.push(dir::PatternFieldResolution {
@@ -106,11 +103,9 @@ impl BodyState<'_, '_> {
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Destructure(Box::new(
-                dir::PatternDestructureResolution::Tuple(dir::PatternTupleDestructureResolution {
-                    fields: projected,
-                }),
-            )),
+            dir::PatternDecision::Destructure(Box::new(dir::PatternDestructureResolution::Tuple(
+                dir::PatternTupleDestructureResolution { fields: projected },
+            ))),
         )
     }
 
@@ -123,20 +118,20 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let module = node.module_id;
         if !self.check_assign_pattern_rest_fields(module, fields) {
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
+            self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         // reject non-tuple sources before projecting fields
         let dir::Type::Tuple(tuple) = self.ty(scrutinee)? else {
             self.report_pattern_source_not_tuple_shaped(origin, scrutinee)?;
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
+            self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         };
         let elements = self
             .tuple_elements(scrutinee.module_id, tuple.elements)?
@@ -165,12 +160,12 @@ impl BodyState<'_, '_> {
                 continue;
             };
 
-            answer!(self.check_pattern_projection(
+            self.check_pattern_projection(
                 flow,
                 scope,
                 projected_value,
                 pattern.into_global_any(module),
-            )?);
+            )?;
             projected.push(dir::AssignPatternFieldResolution {
                 source: field.into_global_any(module),
                 projection: dir::Projection::Field(dir::FieldResolution {
@@ -187,13 +182,13 @@ impl BodyState<'_, '_> {
             position += 1;
         }
 
-        let () = answer!(self.commit_assign_pattern(
+        let () = self.commit_assign_pattern(
             node,
-            dir::AssignPatternResolution::Tuple(dir::AssignPatternTupleResolution {
+            dir::AssignPatternDecision::Tuple(dir::AssignPatternTupleResolution {
                 fields: projected,
             }),
-        )?);
+        )?;
 
-        Ok(Answer::Ready(true))
+        Ok(true)
     }
 }

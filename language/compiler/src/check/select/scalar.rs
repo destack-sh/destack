@@ -1,11 +1,8 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
-use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{
-    Answer, BodyState, Dependency, FlowPointId, FlowSite, Origin, PlaceUse, answer,
-};
+use crate::check::{BodyState, FlowPointId, FlowSite, Origin, PlaceUse};
 
 impl BodyState<'_, '_> {
     /// Select one literal pattern from its closed expression value.
@@ -17,25 +14,31 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         value: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
         let value_node = value.into_global_any(module);
 
         // select declaration-backed variants from the matched input
-        if let Some(case) = answer!(self.variant_expression_case(module, value)?) {
+        if let Some(case) = self.variant_expression_case(module, value)? {
+            // decide bound qualifier segments for their reference facts
+            if let dir::Expression::Member { left, .. } = self.module(module).view().get(value) {
+                let left = *left;
+                self.decide_qualifier_segments(module, left)?;
+            }
+
             return self.select_variant_pattern(node, origin, flow, scope, case, &[]);
         }
 
         // infer ordinary closed pattern expressions
-        let ty = answer!(self.infer_node_type(
+        let ty = self.infer_node_type(
             FlowSite {
                 node: value_node,
                 flow,
                 scope,
             },
-            PlaceUse::Read
-        )?);
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+            PlaceUse::Read,
+        )?;
+        let ty = self.reduce_type_head(origin, ty)?;
 
         // closed literal values select literal predicates
         let literal = match self.ty(ty)? {
@@ -54,7 +57,7 @@ impl BodyState<'_, '_> {
 
                 self.commit_pattern(
                     node,
-                    dir::PatternResolution::Test(Box::new(dir::PatternPredicateResolution {
+                    dir::PatternDecision::Test(Box::new(dir::PatternPredicateResolution {
                         predicate,
                     })),
                 )
@@ -62,7 +65,7 @@ impl BodyState<'_, '_> {
             None => {
                 self.report_expression_pattern_not_literal(module, node.local_id.into_any());
 
-                self.commit_pattern(node, dir::PatternResolution::Ignore)
+                self.commit_pattern(node, dir::PatternDecision::Ignore)
             }
         }
     }
@@ -78,39 +81,28 @@ impl BodyState<'_, '_> {
         start: Option<dir::LocalNodeId<dir::Expression>>,
         end: Option<dir::LocalNodeId<dir::Expression>>,
         end_kind: dir::RangeEnd,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
 
         // reduce both written bounds to literals
         let mut bounds = [None, None];
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for (slot, bound) in [start, end].into_iter().enumerate() {
             let Some(bound) = bound else {
                 continue;
             };
             let bound_node = bound.into_global_any(module);
-            let ty = answer!(self.infer_node_type(
+            let ty = self.infer_node_type(
                 FlowSite {
                     node: bound_node,
                     flow,
                     scope,
                 },
-                PlaceUse::Read
-            )?);
-            let ty = match self.reduce_type_head(origin, ty)? {
-                Answer::Ready(ty) => ty,
-                Answer::Pending(dependencies) => {
-                    blockers.extend(dependencies);
-
-                    continue;
-                }
-            };
+                PlaceUse::Read,
+            )?;
+            let ty = self.reduce_type_head(origin, ty)?;
             if let dir::Type::Literal(literal) = self.ty(ty)? {
                 bounds[slot] = Some(literal);
             }
-        }
-        if !blockers.is_empty() {
-            return Ok(Answer::pending(blockers));
         }
 
         // narrow successful matches to the represented interval
@@ -130,7 +122,7 @@ impl BodyState<'_, '_> {
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Test(Box::new(dir::PatternPredicateResolution { predicate })),
+            dir::PatternDecision::Test(Box::new(dir::PatternPredicateResolution { predicate })),
         )
     }
 

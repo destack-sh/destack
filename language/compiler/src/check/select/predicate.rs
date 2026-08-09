@@ -1,11 +1,10 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, Decision, DecisionKind, FlowSite, Obligation, Origin, PlaceUse, Relation,
-    RuntimePredicateObligation, answer,
+    BodyState, FlowSite, Obligation, Origin, PlaceUse, Relation, RuntimePredicateObligation,
 };
-use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
     /// Select one `value is T` predicate.
@@ -14,7 +13,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         target: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
@@ -23,13 +22,13 @@ impl BodyState<'_, '_> {
         let target_node = target.into_global_any(module);
 
         // reduce the tested value and target types
-        let value_site = self.node_site(value_node)?;
-        let value = answer!(self.predicate_operand_type(origin, value_site)?);
+        let value_site = self.visit_site(value_node)?;
+        let value = self.predicate_operand_type(origin, value_site)?;
         let target = self.require_node_type(target_node)?;
-        let target = answer!(self.reduce_type_head(origin, target)?);
-        let predicate = answer!(self.select_guard_predicate(origin, value, target, target_node)?);
+        let target = self.reduce_type_head(origin, target)?;
+        let predicate = self.select_guard_predicate(origin, value, target, target_node)?;
 
-        let resolution = dir::GuardResolution::Is(dir::IsGuardResolution {
+        let resolution = dir::GuardDecision::Is(dir::IsGuardDecision {
             value_type: value,
             target_type: target,
             predicate,
@@ -44,7 +43,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         target: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
@@ -53,38 +52,36 @@ impl BodyState<'_, '_> {
         let target_node = target.into_global_any(module);
 
         // reduce the tested value type
-        let value_site = self.node_site(value_node)?;
-        let value = answer!(self.predicate_operand_type(origin, value_site)?);
+        let value_site = self.visit_site(value_node)?;
+        let value = self.predicate_operand_type(origin, value_site)?;
 
         // reject failed target expressions without a second diagnostic
         if matches!(
-            self.decision_kind(target_node),
-            Some(DecisionKind::Rejected | DecisionKind::Poisoned)
+            self.decision(target_node),
+            Some(dir::Decision::Rejected | dir::Decision::Poisoned)
         ) {
-            self.commit_decision(node, Decision::Rejected)?;
+            self.commit_decision(node, dir::Decision::Rejected)?;
             self.commit_error_node(node)?;
 
-            return Ok(Answer::Ready(()));
+            return Ok(());
         }
 
         // resolve the class target after name and instantiation selection
-        let Some((target, target_type)) =
-            answer!(self.instanceof_target_type(origin, target_node)?)
-        else {
+        let Some((target, target_type)) = self.instanceof_target_type(origin, target_node)? else {
             self.report_instanceof_target_not_class(target_node)?;
-            self.commit_decision(node, Decision::Rejected)?;
+            self.commit_decision(node, dir::Decision::Rejected)?;
             self.commit_error_node(node)?;
 
-            return Ok(Answer::Ready(()));
+            return Ok(());
         };
-        let predicate = answer!(self.unary_predicate(
+        let predicate = self.unary_predicate(
             origin,
             value,
             target_type,
             dir::PredicateCondition::Subtype(target_type),
-        )?);
+        )?;
 
-        let resolution = dir::GuardResolution::InstanceOf(dir::InstanceOfGuardResolution {
+        let resolution = dir::GuardDecision::InstanceOf(dir::InstanceOfGuardDecision {
             value_type: value,
             target,
             target_type,
@@ -99,53 +96,38 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         target: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<Option<(dir::GlobalSymbolId, dir::GlobalTypeId)>>> {
+    ) -> CompilerResult<Option<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
         let module = origin.module();
-        let target_node = target;
-        let kind = answer!(self.decide_node(target)?);
 
-        // read the selected target symbol and written arguments
-        let resolutions = self.resolutions(target.module_id);
-        let target = match kind {
-            DecisionKind::Name => {
-                let Some(resolution) = resolutions.name_resolution(target) else {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "instanceof target {target:?} has a name decision without a resolution"
-                        ),
-                    });
-                };
+        // decide the target reference and read its selected symbol
+        let resolution = self.decide_reference(target)?;
+        let named = match resolution {
+            Some(resolution) => match resolution.symbols() {
+                [symbol] => Some((*symbol, None)),
+                _ => None,
+            },
+            None => match self.decide_node(target)? {
+                dir::Decision::Instantiation(resolution) => {
+                    let resolution = &resolution;
+                    let arguments =
+                        dir::GenericArgumentBinding::values(&resolution.generic_arguments)
+                            .collect();
 
-                match resolution.symbols() {
-                    [symbol] => Some((*symbol, None)),
-                    _ => None,
+                    Some((resolution.symbol, Some(arguments)))
                 }
-            }
-            DecisionKind::Instantiation => {
-                let Some(resolution) = resolutions.instantiation_resolution(target) else {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "instanceof target {target:?} has an instantiation decision without a resolution"
-                        ),
-                    });
-                };
-                let arguments =
-                    dir::GenericArgumentBinding::values(&resolution.generic_arguments).collect();
-
-                Some((resolution.symbol, Some(arguments)))
-            }
-            DecisionKind::Rejected | DecisionKind::Poisoned => return Ok(Answer::Ready(None)),
-            _ => None,
+                dir::Decision::Rejected | dir::Decision::Poisoned => return Ok(None),
+                _ => None,
+            },
         };
-        let Some((symbol, arguments)) = target else {
-            return Ok(Answer::Ready(None));
+        let Some((symbol, arguments)) = named else {
+            return Ok(None);
         };
 
         // guard targets read as their declaration reference
         let reference = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
-        self.commit_node_type(target_node, reference)?;
+        self.commit_node_type(target, reference)?;
         if self.symbol_kind_maybe(symbol)? != Some(dir::SymbolKind::Class) {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
         // bare generic class targets are existential over their type arguments
@@ -159,7 +141,7 @@ impl BodyState<'_, '_> {
             arguments,
         }))?;
 
-        Ok(Answer::Ready(Some((symbol, target))))
+        Ok(Some((symbol, target)))
     }
 
     /// Return erased arguments for one bare `instanceof` class target.
@@ -187,7 +169,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         key: dir::LocalNodeId<dir::Expression>,
         receiver: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
@@ -196,16 +178,16 @@ impl BodyState<'_, '_> {
         let receiver_node = receiver.into_global_any(module);
 
         // reduce both operand types
-        let key_site = self.node_site(key_node)?;
-        let receiver_site = self.node_site(receiver_node)?;
-        let key_type = answer!(self.predicate_operand_type(origin, key_site)?);
-        let receiver_type = answer!(self.predicate_operand_type(origin, receiver_site)?);
+        let key_site = self.visit_site(key_node)?;
+        let receiver_site = self.visit_site(receiver_node)?;
+        let key_type = self.predicate_operand_type(origin, key_site)?;
+        let receiver_type = self.predicate_operand_type(origin, receiver_site)?;
         let key = self.module(module).view().get(key).static_key();
 
         // select visible structural membership
-        let predicate = answer!(self.membership_predicate(origin, receiver_type, key_type, key)?);
+        let predicate = self.membership_predicate(origin, receiver_type, key_type, key)?;
 
-        let resolution = dir::GuardResolution::In(dir::InGuardResolution {
+        let resolution = dir::GuardDecision::In(dir::InGuardDecision {
             key_type,
             receiver_type,
             predicate,
@@ -219,8 +201,8 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         site: FlowSite,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let ty = answer!(self.infer_node_type(site, PlaceUse::Read)?);
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let ty = self.infer_node_type(site, PlaceUse::Read)?;
 
         self.reduce_type_head(origin, ty)
     }
@@ -232,18 +214,18 @@ impl BodyState<'_, '_> {
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         target_node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<dir::Predicate>> {
-        let target = answer!(self.reduce_type_head(origin, target)?);
-        let value = answer!(self.reduce_type_head(origin, value)?);
+    ) -> CompilerResult<dir::Predicate> {
+        let target = self.reduce_type_head(origin, target)?;
+        let value = self.reduce_type_head(origin, value)?;
 
         // use executable RTTI predicates when the target names one
-        if let Some(predicate) = answer!(self.runtime_predicate(origin, value, target)?) {
-            return Ok(Answer::Ready(predicate));
+        if let Some(predicate) = self.runtime_predicate(origin, value, target)? {
+            return Ok(predicate);
         }
 
         // reduce structural targets when the source type already decides them
-        if let Some(predicate) = answer!(self.static_predicate(origin, value, target)?) {
-            return Ok(Answer::Ready(predicate));
+        if let Some(predicate) = self.static_predicate(origin, value, target)? {
+            return Ok(predicate);
         }
 
         self.report_runtime_predicate_not_testable(target_node, target)?;
@@ -257,7 +239,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::Predicate>>> {
+    ) -> CompilerResult<Option<dir::Predicate>> {
         let condition = match self.ty(target)? {
             dir::Type::Any | dir::Type::Unknown => dir::PredicateCondition::Always,
             // refinements test through their base application
@@ -291,7 +273,7 @@ impl BodyState<'_, '_> {
                     Some(
                         dir::SymbolKind::Struct | dir::SymbolKind::Enum | dir::SymbolKind::Newtype,
                     ) => dir::PredicateCondition::Type(target),
-                    _ => return Ok(Answer::Ready(None)),
+                    _ => return Ok(None),
                 }
             }
             dir::Type::Tuple(_)
@@ -299,27 +281,26 @@ impl BodyState<'_, '_> {
             | dir::Type::FixedArray(_)
             | dir::Type::Slice(_) => dir::PredicateCondition::Type(target),
             dir::Type::Form(_) => dir::PredicateCondition::Type(target),
-            dir::Type::Shape(_) | dir::Type::Object(_) => return Ok(Answer::Ready(None)),
+            dir::Type::Shape(_) | dir::Type::Object(_) => return Ok(None),
             dir::Type::Union(union) => {
                 let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
                 let mut alternatives = Vec::with_capacity(elements.len());
                 for element in elements {
-                    let element = answer!(self.reduce_type_head(origin, element)?);
-                    let Some(predicate) = answer!(self.runtime_predicate(origin, value, element)?)
-                    else {
-                        return Ok(Answer::Ready(None));
+                    let element = self.reduce_type_head(origin, element)?;
+                    let Some(predicate) = self.runtime_predicate(origin, value, element)? else {
+                        return Ok(None);
                     };
                     alternatives.push(predicate);
                 }
 
-                let predicate = answer!(self.predicate_with_narrowing(
+                let predicate = self.predicate_with_narrowing(
                     origin,
                     dir::Predicate::new(dir::PredicateTest::Any(alternatives)),
                     value,
                     target,
-                )?);
+                )?;
 
-                return Ok(Answer::Ready(Some(predicate)));
+                return Ok(Some(predicate));
             }
             dir::Type::Dynamic(_) => dir::PredicateCondition::Type(target),
             dir::Type::Error
@@ -337,12 +318,12 @@ impl BodyState<'_, '_> {
             | dir::Type::FunctionSignature(_)
             | dir::Type::Function(_)
             | dir::Type::FunctionPointer(_)
-            | dir::Type::Intersection(_) => return Ok(Answer::Ready(None)),
+            | dir::Type::Intersection(_) => return Ok(None),
         };
 
-        let predicate = answer!(self.unary_predicate(origin, value, target, condition)?);
+        let predicate = self.unary_predicate(origin, value, target, condition)?;
 
-        Ok(Answer::Ready(Some(predicate)))
+        Ok(Some(predicate))
     }
 
     /// Reduce a non-executable predicate from static source and target types.
@@ -351,60 +332,52 @@ impl BodyState<'_, '_> {
         origin: Origin,
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::Predicate>>> {
+    ) -> CompilerResult<Option<dir::Predicate>> {
         match self.ty(value)? {
             // reject erased values, they have no testable type
-            dir::Type::Dynamic(_) => Ok(Answer::Ready(None)),
+            dir::Type::Dynamic(_) => Ok(None),
 
             // tagged unions can still test their known arms
             dir::Type::Union(union) => {
                 let elements = self.type_ids(value.module_id, union.elements)?.to_vec();
                 let mut alternatives = Vec::with_capacity(elements.len());
                 for element in elements {
-                    let element = answer!(self.reduce_type_head(origin, element)?);
-                    let satisfies = answer!(self.decide_relation(
-                        origin,
-                        Relation::Satisfies,
-                        element,
-                        target
-                    )?);
+                    let element = self.reduce_type_head(origin, element)?;
+                    let satisfies =
+                        self.decide_relation(origin, Relation::Satisfies, element, target)?;
                     let predicate = self.runtime_union_arm_predicate(origin, value, element)?;
-                    if satisfies && let Some(predicate) = answer!(predicate) {
+                    if satisfies && let Some(predicate) = predicate {
                         alternatives.push(predicate);
                     }
                 }
 
                 let predicate = match alternatives.len() {
-                    0 => answer!(self.unary_predicate(
-                        origin,
-                        value,
-                        target,
-                        dir::PredicateCondition::Never,
-                    )?),
+                    0 => {
+                        self.unary_predicate(origin, value, target, dir::PredicateCondition::Never)?
+                    }
                     1 => alternatives.remove(0),
-                    _ => answer!(self.predicate_with_narrowing(
+                    _ => self.predicate_with_narrowing(
                         origin,
                         dir::Predicate::new(dir::PredicateTest::Any(alternatives)),
                         value,
                         target,
-                    )?),
+                    )?,
                 };
 
-                Ok(Answer::Ready(Some(predicate)))
+                Ok(Some(predicate))
             }
 
             // plain values either satisfy the target statically or never can
             _ => {
-                let satisfies =
-                    answer!(self.decide_relation(origin, Relation::Satisfies, value, target)?);
+                let satisfies = self.decide_relation(origin, Relation::Satisfies, value, target)?;
                 let condition = if satisfies {
                     dir::PredicateCondition::Always
                 } else {
                     dir::PredicateCondition::Never
                 };
-                let predicate = answer!(self.unary_predicate(origin, value, target, condition,)?);
+                let predicate = self.unary_predicate(origin, value, target, condition)?;
 
-                Ok(Answer::Ready(Some(predicate)))
+                Ok(Some(predicate))
             }
         }
     }
@@ -415,22 +388,19 @@ impl BodyState<'_, '_> {
         origin: Origin,
         value: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::Predicate>>> {
-        if let Some(predicate) = answer!(self.runtime_predicate(origin, value, ty)?) {
-            return Ok(Answer::Ready(Some(predicate)));
+    ) -> CompilerResult<Option<dir::Predicate>> {
+        if let Some(predicate) = self.runtime_predicate(origin, value, ty)? {
+            return Ok(Some(predicate));
         }
 
         let predicate = match self.ty(ty)? {
-            dir::Type::Shape(_) | dir::Type::Object(_) => Some(answer!(self.unary_predicate(
-                origin,
-                value,
-                ty,
-                dir::PredicateCondition::Type(ty),
-            )?)),
+            dir::Type::Shape(_) | dir::Type::Object(_) => {
+                Some(self.unary_predicate(origin, value, ty, dir::PredicateCondition::Type(ty))?)
+            }
             _ => None,
         };
 
-        Ok(Answer::Ready(predicate))
+        Ok(predicate)
     }
 
     /// Return one structural membership predicate.
@@ -440,7 +410,7 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         key_type: dir::GlobalTypeId,
         key: Option<dir::StaticKey>,
-    ) -> CompilerResult<Answer<dir::Predicate>> {
+    ) -> CompilerResult<dir::Predicate> {
         let receiver_type = receiver;
         let receiver = dir::PredicateOperand::direct(receiver_type);
         let static_key = key;
@@ -452,11 +422,11 @@ impl BodyState<'_, '_> {
         let predicate = dir::Predicate::new(dir::PredicateTest::Membership(Box::new(test)));
 
         let Some(key) = static_key else {
-            return Ok(Answer::Ready(predicate));
+            return Ok(predicate);
         };
-        let narrowed = answer!(self.narrow_membership_receiver(origin, receiver_type, key)?);
+        let narrowed = self.narrow_membership_receiver(origin, receiver_type, key)?;
 
-        Ok(Answer::Ready(predicate.with_narrowed(narrowed)))
+        Ok(predicate.with_narrowed(narrowed))
     }
 
     /// Select one unary predicate and its successful branch value.
@@ -466,17 +436,17 @@ impl BodyState<'_, '_> {
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         condition: dir::PredicateCondition,
-    ) -> CompilerResult<Answer<dir::Predicate>> {
-        let value = answer!(self.reduce_type_head(origin, value)?);
-        let target = answer!(self.reduce_type_head(origin, target)?);
-        let operand = answer!(self.predicate_operand(origin, value, &condition)?);
+    ) -> CompilerResult<dir::Predicate> {
+        let value = self.reduce_type_head(origin, value)?;
+        let target = self.reduce_type_head(origin, target)?;
+        let operand = self.predicate_operand(origin, value, &condition)?;
         let predicate = dir::Predicate::unary(operand, condition);
         let predicate = match predicate.is_never() {
             true => predicate,
-            false => answer!(self.predicate_with_narrowing(origin, predicate, value, target)?),
+            false => self.predicate_with_narrowing(origin, predicate, value, target)?,
         };
 
-        Ok(Answer::Ready(predicate))
+        Ok(predicate)
     }
 
     /// Return one predicate with its successful branch narrowing.
@@ -486,20 +456,20 @@ impl BodyState<'_, '_> {
         predicate: dir::Predicate,
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::Predicate>> {
+    ) -> CompilerResult<dir::Predicate> {
         let operation = self.intern_operation(dir::TypeOperation::Narrow(dir::NarrowType {
             source: value,
             target,
             is_positive: true,
         }))?;
-        let narrowed = answer!(self.reduce_type_head(origin, operation)?);
+        let narrowed = self.reduce_type_head(origin, operation)?;
         let predicate = predicate.with_narrowed(narrowed);
         let predicate = match self.predicate_projection(value, target)? {
             Some(projection) => predicate.with_projection(projection),
             None => predicate,
         };
 
-        Ok(Answer::Ready(predicate))
+        Ok(predicate)
     }
 
     /// Select the operand read by one unary predicate.
@@ -508,7 +478,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         value: dir::GlobalTypeId,
         condition: &dir::PredicateCondition,
-    ) -> CompilerResult<Answer<dir::PredicateOperand>> {
+    ) -> CompilerResult<dir::PredicateOperand> {
         let input = match condition {
             dir::PredicateCondition::Type(_) | dir::PredicateCondition::Subtype(_)
                 if matches!(self.ty(value)?, dir::Type::Dynamic(_)) =>
@@ -520,7 +490,7 @@ impl BodyState<'_, '_> {
             _ => dir::PredicateOperand::direct(value),
         };
 
-        Ok(Answer::Ready(input))
+        Ok(input)
     }
 
     /// Select the projected value exposed by one predicate.
@@ -557,14 +527,14 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeIdAny,
         left: dir::GlobalNodeIdAny,
         right: dir::GlobalNodeIdAny,
-        resolution: dir::GuardResolution,
-    ) -> CompilerResult<Answer<()>> {
+        resolution: dir::GuardDecision,
+    ) -> CompilerResult<()> {
         self.push_runtime_predicate_obligation(origin, node, left, right, resolution.clone())?;
-        self.commit_decision(node, Decision::Guard(resolution))?;
+        self.commit_decision(node, dir::Decision::Guard(resolution))?;
         let boolean = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
         self.commit_node_type(node, boolean)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Push one runtime predicate obligation.
@@ -574,7 +544,7 @@ impl BodyState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         left: dir::GlobalNodeIdAny,
         right: dir::GlobalNodeIdAny,
-        predicate: dir::GuardResolution,
+        predicate: dir::GuardDecision,
     ) -> CompilerResult<()> {
         let obligation = RuntimePredicateObligation {
             source,

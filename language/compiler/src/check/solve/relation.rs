@@ -1,6 +1,8 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 
+use crate::check::Scope;
+
 /// One type relation kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum Relation {
@@ -71,25 +73,16 @@ impl Relation {
     }
 }
 
-/// One relation pair identity over two reduced roots.
-type RelationKey = (
-    Relation,
-    dir::GlobalTypeId,
-    dir::GlobalTypeId,
-    Option<dir::GlobalGenericTemplateId>,
-);
+/// One relation pair identity closed under its assuming scope.
+pub(in crate::check) type RelationKey = (Relation, dir::GlobalTypeId, dir::GlobalTypeId, Scope);
 
-/// One memoized relation decision.
+/// One in-flight relation decision.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RelationDecision {
     /// The pair is being decided at one active stack index.
     InProgress(usize),
     /// The pair held provisionally through the active cycle at one stack index.
     Provisional(usize),
-    /// The pair holds unconditionally.
-    Holds,
-    /// The pair fails unconditionally.
-    Fails,
 }
 
 /// One active relation decision attempt.
@@ -110,108 +103,36 @@ struct RelationStackEntry {
     dependency: usize,
 }
 
-/// Memoized relation decisions.
+/// In-flight relation decisions with their cycle stack.
+///
+/// This state unwinds with the deciding recursion itself: every entered
+/// attempt is finished or cancelled before its caller returns.
 #[derive(Debug)]
-pub(in crate::check) struct RelationCache {
-    /// The decisions keyed by relation pair.
+pub(in crate::check) struct RelationStack {
+    /// The in-flight decisions keyed by relation pair.
     decisions: FxIndexMap<RelationKey, RelationDecision>,
     /// The active decision attempts, outermost first.
     stack: Vec<RelationStackEntry>,
     /// Provisional holds with the cycle attempt they depend on.
     provisional: Vec<(RelationKey, usize)>,
-    /// Decision map entries to undo when a snapshot rolls back.
-    undo: Vec<DecisionUndo>,
-    /// The number of nested snapshots.
-    snapshot_depth: usize,
 }
 
-/// Relation cache snapshot mark.
-#[derive(Debug)]
-pub(in crate::check) struct RelationCacheSnapshot {
-    /// The undo log length before the snapshot.
-    undo: usize,
-    /// The active decision stack before the snapshot.
-    stack: Vec<RelationStackEntry>,
-    /// The provisional decision list before the snapshot.
-    provisional: Vec<(RelationKey, usize)>,
-}
-
-/// One relation decision-map undo entry.
-#[derive(Debug, Clone, Copy)]
-struct DecisionUndo {
-    /// The changed relation key.
-    key: RelationKey,
-    /// The previous decision for the key.
-    previous: Option<RelationDecision>,
-}
-
-impl RelationCache {
-    /// Create an empty relation cache.
+impl RelationStack {
+    /// Create an empty relation stack.
     pub(in crate::check) fn new() -> Self {
         Self {
             decisions: FxIndexMap::default(),
             stack: Vec::new(),
             provisional: Vec::new(),
-            undo: Vec::new(),
-            snapshot_depth: 0,
         }
     }
 
-    /// Snapshot the cache before one probe.
-    pub(in crate::check) fn snapshot(&mut self) -> RelationCacheSnapshot {
-        self.snapshot_depth += 1;
+    /// Return the in-flight answer for one pair, recording cycle use.
+    pub(in crate::check) fn lookup(&mut self, key: &RelationKey) -> Option<bool> {
+        let verdict = *self.decisions.get(key)?;
 
-        RelationCacheSnapshot {
-            undo: self.undo.len(),
-            stack: self.stack.clone(),
-            provisional: self.provisional.clone(),
-        }
-    }
-
-    /// Roll back to one relation snapshot.
-    pub(in crate::check) fn rollback(&mut self, snapshot: RelationCacheSnapshot) {
-        while self.undo.len() > snapshot.undo {
-            let Some(undo) = self.undo.pop() else {
-                unreachable!("relation undo length checked before pop");
-            };
-
-            match undo.previous {
-                Some(previous) => {
-                    self.decisions.insert(undo.key, previous);
-                }
-                None => {
-                    self.decisions.swap_remove(&undo.key);
-                }
-            }
-        }
-
-        self.stack = snapshot.stack;
-        self.provisional = snapshot.provisional;
-        self.snapshot_depth -= 1;
-    }
-
-    /// Commit decisions made after one relation snapshot.
-    pub(in crate::check) fn commit(&mut self, _snapshot: RelationCacheSnapshot) {
-        self.snapshot_depth -= 1;
-        if self.snapshot_depth == 0 {
-            self.undo.clear();
-        }
-    }
-
-    /// Return the memoized answer for one pair, recording cycle use.
-    pub(in crate::check) fn lookup(
-        &mut self,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-        scope: Option<dir::GlobalGenericTemplateId>,
-    ) -> Option<bool> {
-        let verdict = *self.decisions.get(&(relation, source, target, scope))?;
-
+        // make the consuming attempt depend on the encountered cycle
         match verdict {
-            RelationDecision::Holds => Some(true),
-            RelationDecision::Fails => Some(false),
-            // make the consuming attempt depend on the encountered cycle
             RelationDecision::InProgress(index) | RelationDecision::Provisional(index) => {
                 if let Some(top) = self.stack.last_mut() {
                     top.dependency = top.dependency.min(index);
@@ -223,17 +144,11 @@ impl RelationCache {
     }
 
     /// Begin one decision attempt for an undecided pair.
-    pub(in crate::check) fn enter(
-        &mut self,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-        scope: Option<dir::GlobalGenericTemplateId>,
-    ) -> RelationAttempt {
-        let key = (relation, source, target, scope);
+    pub(in crate::check) fn enter(&mut self, key: RelationKey) -> RelationAttempt {
         let index = self.stack.len();
 
-        self.set_decision(key, RelationDecision::InProgress(index));
+        self.decisions
+            .insert(key, RelationDecision::InProgress(index));
         self.stack.push(RelationStackEntry {
             key,
             dependency: index,
@@ -242,30 +157,46 @@ impl RelationCache {
         RelationAttempt { key, index }
     }
 
-    /// Finish one attempt with its decided answer.
-    pub(in crate::check) fn finish(&mut self, attempt: RelationAttempt, holds: bool) {
+    /// Finish one attempt, returning the decision when it became durable.
+    ///
+    /// Durable attempts decide closed pairs: the caller records the returned
+    /// decision as a relation fact. Cycle-provisional holds stay in flight
+    /// and open answers are not retained at all.
+    pub(in crate::check) fn finish(
+        &mut self,
+        attempt: RelationAttempt,
+        holds: bool,
+        durable: bool,
+    ) -> Option<(RelationKey, bool)> {
         let entry = self.pop(attempt);
 
         // failure is robust: cycle hypotheses only widen relations,
         //  so a failure reached under one holds without it
         if !holds {
             self.resolve_dependents(attempt.index, None);
-            self.set_decision(attempt.key, RelationDecision::Fails);
+            self.decisions.swap_remove(&attempt.key);
+
+            return durable.then_some((attempt.key, false));
         }
+
         // pass provisional holds through the outer cycle
-        else if entry.dependency < attempt.index {
+        if entry.dependency < attempt.index {
             self.resolve_dependents(attempt.index, Some(entry.dependency));
-            self.set_decision(attempt.key, RelationDecision::Provisional(entry.dependency));
+            self.decisions
+                .insert(attempt.key, RelationDecision::Provisional(entry.dependency));
             self.provisional.push((attempt.key, entry.dependency));
             if let Some(top) = self.stack.last_mut() {
                 top.dependency = top.dependency.min(entry.dependency);
             }
+
+            return None;
         }
+
         // settle holds justified by this attempt
-        else {
-            self.resolve_dependents(attempt.index, Some(attempt.index));
-            self.set_decision(attempt.key, RelationDecision::Holds);
-        }
+        self.resolve_dependents(attempt.index, Some(attempt.index));
+        self.decisions.swap_remove(&attempt.key);
+
+        durable.then_some((attempt.key, true))
     }
 
     /// Cancel one attempt without an answer, forgetting its dependents.
@@ -273,7 +204,7 @@ impl RelationCache {
         self.pop(attempt);
 
         self.resolve_dependents(attempt.index, None);
-        self.remove_decision(attempt.key);
+        self.decisions.swap_remove(&attempt.key);
     }
 
     /// Pop one attempt off the stack, requiring LIFO closing.
@@ -299,45 +230,22 @@ impl RelationCache {
             match outcome {
                 // the cycle settled true on its own
                 Some(target) if target == index => {
-                    self.set_decision(key, RelationDecision::Holds);
+                    self.decisions.swap_remove(&key);
                     self.provisional.swap_remove(position);
                 }
                 // pass the dependency to the outer attempt
                 Some(target) => {
-                    self.set_decision(key, RelationDecision::Provisional(target));
+                    self.decisions
+                        .insert(key, RelationDecision::Provisional(target));
                     self.provisional[position] = (key, target);
                     position += 1;
                 }
                 // the cycle failed or stayed undecided
                 None => {
-                    self.remove_decision(key);
+                    self.decisions.swap_remove(&key);
                     self.provisional.swap_remove(position);
                 }
             }
         }
-    }
-
-    /// Set one decision-map entry.
-    fn set_decision(&mut self, key: RelationKey, decision: RelationDecision) {
-        self.record_decision(key);
-        self.decisions.insert(key, decision);
-    }
-
-    /// Remove one decision-map entry.
-    fn remove_decision(&mut self, key: RelationKey) {
-        self.record_decision(key);
-        self.decisions.swap_remove(&key);
-    }
-
-    /// Record one decision-map entry before mutating it.
-    fn record_decision(&mut self, key: RelationKey) {
-        if self.snapshot_depth == 0 {
-            return;
-        }
-
-        self.undo.push(DecisionUndo {
-            key,
-            previous: self.decisions.get(&key).copied(),
-        });
     }
 }

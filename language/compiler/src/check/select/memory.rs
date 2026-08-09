@@ -1,8 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{
-    Answer, BodyState, FlowPointId, Origin, Value, answer, unary_operator_protocols,
-};
+use crate::check::{BodyState, FlowPointId, Origin, Value, unary_operator_protocols};
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
@@ -12,8 +10,8 @@ impl BodyState<'_, '_> {
         origin: Origin,
         input: Value,
         access: dir::Access,
-    ) -> CompilerResult<Answer<Option<dir::DereferenceResolution>>> {
-        let input_type = answer!(self.reduce_type_head(origin, input.ty)?);
+    ) -> CompilerResult<Option<dir::DereferenceResolution>> {
+        let input_type = self.reduce_type_head(origin, input.ty)?;
         let input = Value {
             ty: input_type,
             ..input
@@ -28,11 +26,11 @@ impl BodyState<'_, '_> {
                 let held = self.check.type_borrow(input.ty.module_id, borrow)?.access;
                 let requested =
                     self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(access)))?;
-                if !answer!(
-                    self.check
-                        .constrain_access_assignable(origin, held, requested,)?
-                ) {
-                    return Ok(Answer::Ready(None));
+                if !self
+                    .check
+                    .constrain_access_assignable(origin, held, requested)?
+                {
+                    return Ok(None);
                 }
             }
 
@@ -42,20 +40,18 @@ impl BodyState<'_, '_> {
                 ty: form.value,
             };
 
-            return Ok(Answer::Ready(Some(dir::OperationResolution::One(
-                dereference,
-            ))));
+            return Ok(Some(dir::OperationResolution::One(dereference)));
         }
 
         // union values select one exact dereference operation for every runtime arm
-        if let Some(arms) = answer!(self.union_arms(origin, input.ty)?) {
+        if let Some(arms) = self.union_arms(origin, input.ty)? {
             let mut resolutions = Vec::with_capacity(arms.len());
             let mut types = Vec::with_capacity(arms.len());
             for arm in arms {
                 let Some(resolution) =
-                    answer!(self.select_dereference(origin, Value { ty: arm, ..input }, access,)?)
+                    self.select_dereference(origin, Value { ty: arm, ..input }, access)?
                 else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
 
                 let dir::OperationResolution::One(dereference) = resolution else {
@@ -68,17 +64,17 @@ impl BodyState<'_, '_> {
             }
             let ty = self.normalized_union_type(types)?;
 
-            return Ok(Answer::Ready(Some(dir::OperationResolution::Union {
+            return Ok(Some(dir::OperationResolution::Union {
                 arms: resolutions,
                 ty,
-            })));
+            }));
         }
 
         // protocol dereference handles smart pointer values
         for operator_protocol in unary_operator_protocols(dir::UnaryOperator::Dereference, access) {
             let key = operator_protocol.method.key(self.strings());
             let protocol = self.operator_protocol(origin, &operator_protocol, &[])?;
-            let Some(call) = answer!(self.select_protocol_call(
+            let Some(call) = self.select_protocol_call(
                 origin,
                 input,
                 input.ty,
@@ -86,14 +82,15 @@ impl BodyState<'_, '_> {
                 key,
                 &protocol,
                 &[],
-            )?) else {
+            )?
+            else {
                 continue;
             };
-            let ty = answer!(self.operator_expression_type(
+            let ty = self.operator_expression_type(
                 origin,
                 operator_protocol.expression_result,
                 call.return_type,
-            )?);
+            )?;
 
             let dir::OperationResolution::One(call) = call.resolution else {
                 return Err(CompilerError::Internal {
@@ -106,12 +103,10 @@ impl BodyState<'_, '_> {
                 ty,
             };
 
-            return Ok(Answer::Ready(Some(dir::OperationResolution::One(
-                dereference,
-            ))));
+            return Ok(Some(dir::OperationResolution::One(dereference)));
         }
 
-        Ok(Answer::Ready(None))
+        Ok(None)
     }
 
     /// Select one borrow pattern projection.
@@ -123,7 +118,7 @@ impl BodyState<'_, '_> {
         input: dir::GlobalTypeId,
         pattern: dir::LocalNodeId<dir::Pattern>,
         mutability: Option<dir::Mutability>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
         let access = mutability
             .map(dir::Mutability::access)
@@ -136,16 +131,11 @@ impl BodyState<'_, '_> {
         let form = self.intern_borrow(lifetime, access_type)?;
         let projected = self.intern_type(dir::Type::Form(dir::FormType { form, value: input }))?;
 
-        answer!(self.check_pattern_projection(
-            flow,
-            scope,
-            projected,
-            pattern.into_global_any(module)
-        )?);
+        self.check_pattern_projection(flow, scope, projected, pattern.into_global_any(module))?;
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Project(Box::new(dir::PatternProjectionResolution {
+            dir::PatternDecision::Project(Box::new(dir::PatternProjectionResolution {
                 projection: dir::Projection::Borrow {
                     access: Some(access),
                     ty: projected,
@@ -165,20 +155,15 @@ impl BodyState<'_, '_> {
         input: dir::GlobalTypeId,
         pattern: dir::LocalNodeId<dir::Pattern>,
         mutability: Option<dir::Mutability>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
         let access = mutability.map(dir::Mutability::access);
 
-        answer!(self.check_pattern_projection(
-            flow,
-            scope,
-            input,
-            pattern.into_global_any(module)
-        )?);
+        self.check_pattern_projection(flow, scope, input, pattern.into_global_any(module))?;
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Project(Box::new(dir::PatternProjectionResolution {
+            dir::PatternDecision::Project(Box::new(dir::PatternProjectionResolution {
                 projection: dir::Projection::Move { access, ty: input }.into(),
                 pattern: Some(pattern.into_global_any(module)),
             })),
@@ -194,28 +179,29 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         pattern: dir::LocalNodeId<dir::Pattern>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
-        let Some(selection) = answer!(self.select_dereference(
+        let Some(selection) = self.select_dereference(
             origin,
             Value {
                 ty: input,
                 place: None,
             },
             dir::Access::Readonly,
-        )?) else {
+        )?
+        else {
             return self.commit_rejected_pattern(node);
         };
-        answer!(self.check_pattern_projection(
+        self.check_pattern_projection(
             flow,
             scope,
             selection.ty(),
-            pattern.into_global_any(module)
-        )?);
+            pattern.into_global_any(module),
+        )?;
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Project(Box::new(dir::PatternProjectionResolution {
+            dir::PatternDecision::Project(Box::new(dir::PatternProjectionResolution {
                 projection: selection.into(),
                 pattern: Some(pattern.into_global_any(module)),
             })),

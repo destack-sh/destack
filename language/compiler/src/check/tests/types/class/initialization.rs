@@ -321,9 +321,6 @@ class Foo {
 }
 "#,
         r#"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=3 column=5 span="like" line_source="like"
-/// @diagnostic.help message="annotate the type explicitly"
 /// @diagnostic.error id=missing-type-annotation message="missing type annotation"
 /// @diagnostic.label line=3 column=5 span="like" line_source="like"
 "#,

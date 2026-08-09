@@ -78,6 +78,7 @@ let [...middle, last] = [1, 2, 3];
 
 === checked ===
 let [...middle, last] = [1, 2, 3];
+/// @resolution.rejected source=[...middle, last]
 /// @type.symbol symbol=middle source=middle type=<error>
 /// @type.symbol symbol=last source=last type=<error>
 /// @type.node source=[1, 2, 3] type=Array<float64>
@@ -109,6 +110,7 @@ let [head, ...middle, ...tail] = [1, 2, 3];
 
 === checked ===
 let [head, ...middle, ...tail] = [1, 2, 3];
+/// @resolution.rejected source=[head, ...middle, ...tail]
 /// @type.symbol symbol=head source=head type=<error>
 /// @type.symbol symbol=middle source=middle type=<error>
 /// @type.symbol symbol=tail source=tail type=<error>

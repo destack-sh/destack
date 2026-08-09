@@ -1,16 +1,15 @@
-use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Cause, CauseKind, CheckState, Constraint, Expectation, FlowPointId, FlowSite, FlowState,
+    Cause, CauseKind, CheckState, Constraint, DeferredCheck, Expectation, FlowSite, FlowState,
     Origin, Relation, ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
 /// State used only while walking one module.
 pub(in crate::check) struct WalkState<'check, 'state> {
-    /// The component check state being populated.
+    /// The module check state being populated.
     pub(in crate::check) check: &'check mut CheckState<'state>,
     /// The visible DIR tree being walked.
     pub(in crate::check) tree: dir::View<'check>,
@@ -20,12 +19,6 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     borrow_lifetime_elision: BorrowLifetimeElision,
     /// Elided borrow lifetimes tracked by the active return type.
     return_borrow_lifetimes: Vec<dir::TypeVariableId>,
-    /// Flow state for the current module walk.
-    flow: FlowState,
-    /// Entry flow point for each source node occurrence walked in this module.
-    node_flows: FxIndexMap<dir::GlobalNodeIdAny, FlowPointId>,
-    /// Generic template assumed by each checked source node.
-    node_scopes: FxIndexMap<dir::GlobalNodeIdAny, Option<dir::GlobalGenericTemplateId>>,
 }
 
 /// How elided borrow lifetimes are handled while walking types.
@@ -41,6 +34,20 @@ enum BorrowLifetimeElision {
     Static,
 }
 
+impl<'state> std::ops::Deref for WalkState<'_, 'state> {
+    type Target = CheckState<'state>;
+
+    fn deref(&self) -> &Self::Target {
+        self.check
+    }
+}
+
+impl std::ops::DerefMut for WalkState<'_, '_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.check
+    }
+}
+
 impl<'check, 'state> WalkState<'check, 'state> {
     /// Create walk state for one module.
     pub(in crate::check) fn new(
@@ -54,48 +61,40 @@ impl<'check, 'state> WalkState<'check, 'state> {
             module,
             borrow_lifetime_elision: BorrowLifetimeElision::Generate,
             return_borrow_lifetimes: Vec::new(),
-            flow: FlowState::default(),
-            node_flows: FxIndexMap::default(),
-            node_scopes: FxIndexMap::default(),
         }
     }
 
     /// Return flow state for the active module.
     pub(in crate::check) fn flow(&self) -> &FlowState {
-        &self.flow
+        &self.check.flow
     }
 
     /// Return mutable flow state for the active module.
     pub(in crate::check) fn flow_mut(&mut self) -> &mut FlowState {
-        &mut self.flow
+        &mut self.check.flow
     }
 
-    /// Commit completed walk state back into check state.
-    pub(in crate::check) fn commit(self) -> CompilerResult<()> {
+    /// Flush the cursor's durable points into the module flow table.
+    ///
+    /// Sites mint directly into module state at their first visit, so
+    /// syncing the point log is all a flush commits.
+    pub(in crate::check) fn flush_flows(&mut self) -> CompilerResult<()> {
         let module = self.module;
+        let flow = std::mem::take(&mut self.check.flow);
         let state = self.check.module_mut(module);
-        let offset = self.flow.append_to(&mut state.flows);
+        flow.sync_to(&mut state.flows);
+        self.check.flow = flow;
 
-        // commit every node at its rebased durable flow point
-        for (node, flow) in self.node_flows {
-            let flow = flow.appended(offset);
-            if let Some(previous) = state.node_flows.insert(node, flow) {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "check node {node:?} was committed at both {previous:?} and {flow:?}"
-                    ),
-                });
-            }
-        }
+        Ok(())
+    }
 
-        // commit every node's lexical generic scope
-        for (node, scope) in self.node_scopes {
-            if state.node_scopes.insert(node, scope).is_some() {
-                return Err(CompilerError::Internal {
-                    message: format!("check node {node:?} received two generic scopes"),
-                });
-            }
-        }
+    /// Commit one completed walk and reset the flow cursor.
+    ///
+    /// The point log survives the restart, so ids stay durable without
+    /// any rebasing.
+    pub(in crate::check) fn commit(mut self) -> CompilerResult<()> {
+        self.flush_flows()?;
+        self.check.flow.reset_cursor();
 
         Ok(())
     }
@@ -105,26 +104,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         id: dir::LocalNodeId<T>,
     ) -> CompilerResult<FlowSite> {
-        let node = id.into_global_any(self.module);
-        let flow = self.flow().point();
-        let scope = self.flow().template_scope();
-
-        // reject repeated node walks
-        if let Some(previous) = self.node_flows.get(&node) {
-            let label = self.check.node_label(node);
-
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "check node {label} was walked more than once at flow {previous:?} and {flow:?}"
-                ),
-            });
-        }
-
-        // record the node's flow site
-        self.node_flows.insert(node, flow);
-        self.node_scopes.insert(node, scope);
-
-        Ok(FlowSite { node, flow, scope })
+        // sites mint once and replay at every later visit
+        self.check.visit_site(id.into_global_any(self.module))
     }
 
     /// Return one source node occurrence site already reached by the walk.
@@ -132,48 +113,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &self,
         id: dir::LocalNodeId<T>,
     ) -> CompilerResult<FlowSite> {
-        let node = id.into_global_any(self.module);
-        let Some(flow) = self.node_flows.get(&node).copied() else {
-            let node = self.check.node_label(node);
-
-            return Err(CompilerError::Internal {
-                message: format!("walk node {node} has no recorded runtime flow"),
-            });
-        };
-        let Some(scope) = self.node_scopes.get(&node).copied() else {
-            let node = self.check.node_label(node);
-
-            return Err(CompilerError::Internal {
-                message: format!("check node {node} has no recorded origin"),
-            });
-        };
-
-        Ok(FlowSite { node, flow, scope })
+        self.check.node_site(id.into_global_any(self.module))
     }
 
-    /// Commit the generic template active at one source node.
-    pub(in crate::check) fn commit_node_scope<T: dir::Node>(
-        &mut self,
-        id: dir::LocalNodeId<T>,
-    ) -> CompilerResult<()> {
-        let node = id.into_global_any(self.module);
-        let scope = self.flow().template_scope();
-        if let Some(previous) = self.node_scopes.insert(node, scope)
-            && previous != scope
-        {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "check node {} received two generic scopes",
-                    self.check.node_label(node)
-                ),
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Queue one source node to satisfy an assignable target.
-    pub(in crate::check) fn queue_assignable<T: dir::Node>(
+    /// Check one source node against an assignable target.
+    pub(in crate::check) fn check_assignable<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
         target: dir::GlobalTypeId,
@@ -183,7 +127,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let site = self.node_site(id)?;
         let cause = self.check.intern_cause(Cause::root(site.origin(), kind));
         let expectation = Expectation::assignable(target, cause, use_);
-        self.check.queue_check(site, expectation);
+        self.check
+            .register_check(DeferredCheck::Expect { site, expectation });
 
         Ok(())
     }
@@ -247,11 +192,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // body positions close elided lifetimes at the enclosing frame
         if self.borrow_lifetime_elision == BorrowLifetimeElision::Frame {
             return self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
                 dir::Lifetime::Frame,
             )));
         }
+
         // ambient module bindings outlive every frame
         if self.borrow_lifetime_elision == BorrowLifetimeElision::Static {
             return self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
@@ -351,9 +298,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         id: dir::LocalNodeId<T>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.commit_node_scope(id)?;
-
         let node = id.into_global_any(self.module);
+        self.check.visit_site(node)?;
         self.check.commit_node_type(node, ty)?;
 
         Ok(ty)
@@ -367,10 +313,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) {
+    ) -> CompilerResult<()> {
         let cause = self.check.intern_cause(Cause::root(origin, kind));
         self.check
-            .push_constraint(Constraint::r#type(origin, relation, source, target, cause));
+            .push_constraint(Constraint::r#type(origin, relation, source, target, cause))?;
+
+        Ok(())
     }
 
     /// Return one symbol's type slot.
@@ -544,7 +492,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         refined: dir::RefinedType,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.intern_refined(self.module, refined)
+        self.check.intern_refined(refined)
     }
 
     /// Intern one function signature into this module's working segment.
@@ -576,7 +524,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         values: &[dir::TypeElement],
     ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_elements(self.module, values)
+        self.check.intern_elements(values)
     }
 
     /// Intern one shape property list into this module's working segment.
@@ -584,7 +532,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         values: &[dir::TypeProperty],
     ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_properties(self.module, values)
+        self.check.intern_properties(values)
     }
 
     /// Intern one function parameter list into this module's working segment.
@@ -600,7 +548,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         values: &[dir::TypeIndexSignature],
     ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_index_signatures(self.module, values)
+        self.check.intern_index_signatures(values)
     }
 
     /// Intern one string list into this module's working segment.
@@ -608,7 +556,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         values: &[destack_source::StringId],
     ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_strings(self.module, values)
+        self.check.intern_strings(values)
     }
 
     /// Return a normalized union type.

@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
-use crate::check::{AssignedPlace, MoveSite, Obligation, UseAfterMoveObligation, WalkState};
+use crate::check::{AssignedPlace, CheckState, MoveSite, Obligation, UseAfterMoveObligation};
 
-impl WalkState<'_, '_> {
+impl CheckState<'_> {
     /// Check that one local binding is assigned before a read.
     pub(in crate::check) fn check_assigned_read(
         &mut self,
@@ -10,9 +10,8 @@ impl WalkState<'_, '_> {
         symbol: dir::GlobalSymbolId,
     ) {
         // only local variable bindings have definite assignment state
-        if symbol.module_id != self.module
+        if symbol.module_id != self.module_id
             || self
-                .check
                 .own_symbol_kind(symbol)
                 .is_none_or(|kind| !kind.is_binding())
         {
@@ -20,7 +19,7 @@ impl WalkState<'_, '_> {
         }
 
         // bindings owned by an outer flow are assigned in that flow's order
-        if let Some(function) = self.flow().current_function_symbol()
+        if let Some(function) = self.flow.current_function_symbol()
             && !self.is_symbol_owned_by_function(symbol, function)
         {
             return;
@@ -28,27 +27,22 @@ impl WalkState<'_, '_> {
 
         // moved places defer to the obligation, where the selected transfer
         // and copyability decide whether the move was real
-        if let Some(site) = self.flow().moved_site(AssignedPlace::Symbol(symbol)) {
-            self.check.push_obligation(
+        if let Some(site) = self.flow.moved_site(AssignedPlace::Symbol(symbol)) {
+            self.push_obligation(
                 Obligation::UseAfterMove(UseAfterMoveObligation {
-                    source: source.into_global(self.module),
+                    source: source.into_global(self.module_id),
                     symbol,
                     site,
                 }),
-                self.flow().template_scope(),
+                self.flow.template_scope(),
             );
 
             return;
         }
 
         // report unassigned reads at the read occurrence
-        if !self
-            .flow()
-            .assigned
-            .contains(&AssignedPlace::Symbol(symbol))
-        {
-            self.check
-                .report_use_before_assigned(self.module, source, symbol);
+        if !self.flow.assigned.contains(&AssignedPlace::Symbol(symbol)) {
+            self.report_use_before_assigned(self.module_id, source, symbol);
         }
     }
 
@@ -63,10 +57,10 @@ impl WalkState<'_, '_> {
         call: Option<dir::LocalNodeId<dir::Expression>>,
         target: Option<dir::GlobalSymbolId>,
     ) {
-        let node = source.into_global_any(self.module);
+        let node = source.into_global_any(self.module_id);
         let site = MoveSite {
             node,
-            call: call.map(|call| call.into_global_any(self.module)),
+            call: call.map(|call| call.into_global_any(self.module_id)),
             target,
         };
         self.mark_moved_identifier(source, site);
@@ -83,8 +77,8 @@ impl WalkState<'_, '_> {
         call: dir::LocalNodeId<dir::Expression>,
     ) {
         let site = MoveSite {
-            node: argument.into_global_any(self.module),
-            call: Some(call.into_global_any(self.module)),
+            node: argument.into_global_any(self.module_id),
+            call: Some(call.into_global_any(self.module_id)),
             target: None,
         };
         self.mark_moved_identifier(value, site);
@@ -93,13 +87,13 @@ impl WalkState<'_, '_> {
     /// Mark one identifier source's place with one move site.
     fn mark_moved_identifier(&mut self, source: dir::LocalNodeId<dir::Expression>, site: MoveSite) {
         // only identifier sources move a tracked place
-        if !matches!(self.tree.get(source), dir::Expression::Identifier { .. }) {
+        let node = self.module(self.module_id).view().get(source).clone();
+        if !matches!(node, dir::Expression::Identifier { .. }) {
             return;
         }
-        let node = source.into_global_any(self.module);
+        let node = source.into_global_any(self.module_id);
         let Some(symbol) = self
-            .check
-            .resolutions(self.module)
+            .resolutions(self.module_id)
             .name_resolution(node)
             .and_then(|resolution| resolution.symbols().first().copied())
         else {
@@ -107,20 +101,18 @@ impl WalkState<'_, '_> {
         };
         // foreign symbols are never movable places
         if self
-            .check
             .own_symbol_kind(symbol)
             .is_none_or(|kind| !kind.is_binding())
         {
             return;
         }
 
-        self.flow_mut()
-            .mark_moved(AssignedPlace::Symbol(symbol), site);
+        self.flow.mark_moved(AssignedPlace::Symbol(symbol), site);
     }
 
     /// Mark one local flow place as assigned.
     pub(in crate::check) fn mark_place_assigned(&mut self, place: AssignedPlace) {
-        self.flow_mut().mark_assigned(place);
+        self.flow.mark_assigned(place);
     }
 
     /// Mark bindings assigned by one initialized or ambient declarator.
@@ -163,8 +155,8 @@ impl WalkState<'_, '_> {
 
     /// Mark the symbol declared by one binding source.
     fn mark_declared_binding(&mut self, source: dir::LocalNodeIdAny) {
-        if let Some(symbol) = self.check.module(self.module).declaration_symbol(source) {
-            self.flow_mut().mark_assigned(AssignedPlace::Symbol(symbol));
+        if let Some(symbol) = self.module(self.module_id).declaration_symbol(source) {
+            self.flow.mark_assigned(AssignedPlace::Symbol(symbol));
         }
     }
 
@@ -173,12 +165,13 @@ impl WalkState<'_, '_> {
         self.mark_declared_binding(id.into_any());
 
         // walk parameter binding shape
-        match self.tree.get(id) {
+        let node = self.module(self.module_id).view().get(id).clone();
+        match node {
             // ({ name })
             dir::Parameter::Pattern { pattern, .. }
             // (...{ name })
             | dir::Parameter::VariadicPattern { pattern, .. } => {
-                self.mark_pattern_bindings_assigned(*pattern);
+                self.mark_pattern_bindings_assigned(pattern);
             }
             // (name)
             dir::Parameter::Named { .. }
@@ -194,7 +187,8 @@ impl WalkState<'_, '_> {
         self.mark_declared_binding(id.into_any());
 
         // walk pattern binding shape
-        match self.tree.get(id) {
+        let node = self.module(self.module_id).view().get(id).clone();
+        match node {
             // name: pattern
             dir::Pattern::Binding {
                 pattern: Some(pattern),
@@ -210,7 +204,7 @@ impl WalkState<'_, '_> {
             | dir::Pattern::DereferenceOf { right: pattern }
             // pattern = value
             | dir::Pattern::Default { pattern, .. } => {
-                self.mark_pattern_bindings_assigned(*pattern);
+                self.mark_pattern_bindings_assigned(pattern);
             }
             // [a, b]
             dir::Pattern::Tuple { fields }
@@ -224,14 +218,14 @@ impl WalkState<'_, '_> {
             | dir::Pattern::NominalObject { fields, .. } => {
                 // mark each nested field pattern
                 for field in fields {
-                    self.mark_pattern_field_bindings_assigned(*field);
+                    self.mark_pattern_field_bindings_assigned(field);
                 }
             }
             // a | b
             dir::Pattern::Union { patterns } => {
                 // mark each alternative binding pattern
                 for pattern in patterns {
-                    self.mark_pattern_bindings_assigned(*pattern);
+                    self.mark_pattern_bindings_assigned(pattern);
                 }
             }
             // name
@@ -250,7 +244,8 @@ impl WalkState<'_, '_> {
         self.mark_declared_binding(id.into_any());
 
         // walk pattern field binding shape
-        match self.tree.get(id) {
+        let node = self.module(self.module_id).view().get(id).clone();
+        match node {
             // { name: pattern }
             dir::PatternField::Named {
                 pattern: Some(pattern),
@@ -264,7 +259,7 @@ impl WalkState<'_, '_> {
             | dir::PatternField::Computed { pattern, .. }
             // [pattern]
             | dir::PatternField::Positional { pattern } => {
-                self.mark_pattern_bindings_assigned(*pattern);
+                self.mark_pattern_bindings_assigned(pattern);
             }
             // { name }
             dir::PatternField::Named { pattern: None, .. }

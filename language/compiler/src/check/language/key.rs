@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, FlowSite, Origin, PlaceUse, Relation, answer};
+use crate::check::{CheckState, FlowSite, Origin, PlaceUse, Relation};
 
 impl CheckState<'_> {
     /// Return whether values of one type may contain an additional member.
@@ -12,7 +12,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         key: dir::StaticKey,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let mut active = FxIndexSet::default();
 
         self.type_may_have_additional_member(origin, ty, key, &mut active)
@@ -25,10 +25,10 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         key: dir::StaticKey,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<bool>> {
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<bool> {
+        let ty = self.reduce_type_head(origin, ty)?;
         if !active.insert(ty) {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         let answer = self.constructor_may_have_additional_member(origin, ty, key, active);
@@ -44,7 +44,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         key: dir::StaticKey,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         match self.ty(ty)? {
             // accept every open type, its values may hold additional members
             dir::Type::Any
@@ -56,7 +56,7 @@ impl CheckState<'_> {
             | dir::Type::This
             | dir::Type::Dynamic(_)
             | dir::Type::Member(_)
-            | dir::Type::Operation(_) => Ok(Answer::Ready(true)),
+            | dir::Type::Operation(_) => Ok(true),
 
             // accept a shape key admitted by one of its index signatures
             dir::Type::Shape(shape) | dir::Type::Object(shape) => {
@@ -65,43 +65,41 @@ impl CheckState<'_> {
                     .shape_index_signatures(ty.module_id, shape.index_signatures)?
                     .to_vec();
                 for signature in signatures {
-                    if answer!(self.decide_relation(
+                    if self.decide_relation(
                         origin,
                         Relation::Assignable,
                         key_type,
                         signature.key_type,
-                    )?) {
-                        return Ok(Answer::Ready(true));
+                    )? {
+                        return Ok(true);
                     }
                 }
 
-                Ok(Answer::Ready(false))
+                Ok(false)
             }
 
             // accept when any union alternative may supply the member
             dir::Type::Union(union) => {
                 let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
                 for element in elements {
-                    if answer!(self.type_may_have_additional_member(origin, element, key, active,)?)
-                    {
-                        return Ok(Answer::Ready(true));
+                    if self.type_may_have_additional_member(origin, element, key, active)? {
+                        return Ok(true);
                     }
                 }
 
-                Ok(Answer::Ready(false))
+                Ok(false)
             }
 
             // accept when any conjunct may contribute the member
             dir::Type::Intersection(intersection) => {
                 let elements = self.type_ids(ty.module_id, intersection.elements)?.to_vec();
                 for element in elements {
-                    if answer!(self.type_may_have_additional_member(origin, element, key, active,)?)
-                    {
-                        return Ok(Answer::Ready(true));
+                    if self.type_may_have_additional_member(origin, element, key, active)? {
+                        return Ok(true);
                     }
                 }
 
-                Ok(Answer::Ready(false))
+                Ok(false)
             }
 
             // look through wrappers to the value they hold
@@ -119,20 +117,20 @@ impl CheckState<'_> {
 
             // read extensibility from the nominal declaration
             dir::Type::Application(instance) => match self.definition(instance.symbol)?.cloned() {
-                Some(dir::Definition::Interface(_)) => Ok(Answer::Ready(true)),
-                Some(dir::Definition::Class(definition)) => Ok(Answer::Ready(!definition.is_final)),
+                Some(dir::Definition::Interface(_)) => Ok(true),
+                Some(dir::Definition::Class(definition)) => Ok(!definition.is_final),
                 Some(dir::Definition::Newtype(_)) => {
                     let Some(instance) = self.decompose_newtype(origin, ty)? else {
-                        return Ok(Answer::Ready(false));
+                        return Ok(false);
                     };
 
                     self.type_may_have_additional_member(origin, instance.backing, key, active)
                 }
-                _ => Ok(Answer::Ready(false)),
+                _ => Ok(false),
             },
 
             // reject every remaining type, their member sets are closed
-            _ => Ok(Answer::Ready(false)),
+            _ => Ok(false),
         }
     }
 
@@ -141,28 +139,28 @@ impl CheckState<'_> {
         &mut self,
         site: FlowSite,
         key: dir::Key,
-    ) -> CompilerResult<Answer<Option<dir::StaticKey>>> {
+    ) -> CompilerResult<Option<dir::StaticKey>> {
         let key = match key {
             dir::Key::Name(name) => Some(name.static_key()),
             dir::Key::Expression(expression) => {
                 let expression_site =
-                    self.node_site(expression.into_global_any(site.node.module_id))?;
-                answer!(self.select_static_key(expression_site)?)
+                    self.visit_site(expression.into_global_any(site.node.module_id))?;
+                self.select_static_key(expression_site)?
             }
         };
 
-        Ok(Answer::Ready(key))
+        Ok(key)
     }
 
     /// Select the exact static key named by one checked expression.
     pub(in crate::check) fn select_static_key(
         &mut self,
         site: FlowSite,
-    ) -> CompilerResult<Answer<Option<dir::StaticKey>>> {
-        let ty = answer!(self.body().infer_node_type(site, PlaceUse::Read)?);
+    ) -> CompilerResult<Option<dir::StaticKey>> {
+        let ty = self.body().infer_node_type(site, PlaceUse::Read)?;
         let key = self.static_key_from_type(ty)?;
 
-        Ok(Answer::Ready(key))
+        Ok(key)
     }
 
     /// Evaluate the static key named by one expression before body checking.
@@ -221,7 +219,7 @@ impl CheckState<'_> {
             self.import_external_module(symbol.module_id)?;
         }
 
-        // use singleton values recorded while walking this component
+        // use singleton values recorded while walking this module
         if let Some(value) = self.static_value(symbol) {
             return self.static_key_from_type(value);
         }

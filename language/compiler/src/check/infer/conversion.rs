@@ -1,10 +1,11 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, BorrowConversion, CandidateOutcome, CandidateVerdict, CauseId, CheckFailure,
-    CheckOutcome, CheckState, Dependency, FlowSite, InferMode, Origin, Relation, Value,
-    ValueConversion, ValueUse, answer,
+    BodyState, BorrowConversion, CandidateOutcome, CandidateVerdict, CauseId, CheckFailure,
+    CheckOutcome, CheckState, DeferredCheck, Expectation, FlowSite, InferMode, Origin, Relation,
+    Value, ValueConversion, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -50,9 +51,10 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         use_: ValueUse,
         mode: InferMode,
-    ) -> CompilerResult<Answer<ValueConversion>> {
-        source.ty = self.settled_root(source.ty)?;
-        let mut target = self.settled_root(target)?;
+    ) -> CompilerResult<ValueConversion> {
+        // resolve both sides and collect the variables they still hold open
+        source.ty = self.shallow_resolve(source.ty)?;
+        let mut target = self.shallow_resolve(target)?;
         let mut variables = self.type_variables(source.ty)?;
         variables.extend(self.type_variables(target)?);
 
@@ -65,20 +67,53 @@ impl BodyState<'_, '_> {
                 ty: candidate,
                 ..source
             };
-            let holds = answer!(
-                self.constrain_conversion(site, cause, relation, candidate, target, use_,)?
-            );
+            let holds =
+                self.constrain_conversion(site, cause, relation, candidate, target, use_)?;
 
-            // finish accepted conversions after their participating variables close
+            // open conversions finish once the enclosing inference closes
             if holds {
-                source.ty = self.settled_root(source.ty)?;
-                target = self.settled_root(target)?;
+                source.ty = self.shallow_resolve(source.ty)?;
+                target = self.shallow_resolve(target)?;
                 variables = self.type_variables(source.ty)?;
                 variables.extend(self.type_variables(target)?);
-                if !variables.is_empty() {
-                    let blockers = variables.into_iter().map(Dependency::Variable);
+                if !variables.is_empty() && !self.check.infer.forcing {
+                    self.check.register_check(DeferredCheck::Convert {
+                        site,
+                        source,
+                        expectation: Expectation {
+                            cause,
+                            relation,
+                            target,
+                            use_,
+                            mode,
+                        },
+                    });
 
-                    return Ok(Answer::pending(blockers));
+                    return Ok(ValueConversion {
+                        outcome: CheckOutcome::Holds,
+                        target,
+                        coercion: None,
+                    });
+                }
+                // at the statement close, the conversion settles its own variables
+                if !variables.is_empty() {
+                    self.resolve_variables(&variables)?;
+                    source.ty = self.shallow_resolve(source.ty)?;
+                    target = self.shallow_resolve(target)?;
+                    variables = self.type_variables(source.ty)?;
+                    variables.extend(self.type_variables(target)?);
+                }
+                // unsolvable conversions report and poison the source
+                if !variables.is_empty() {
+                    let mut reported = FxIndexSet::default();
+                    for variable in variables {
+                        let origin = self.infer.variable(variable)?.origin;
+                        let origin = self.infer.origin(origin);
+                        self.report_cannot_infer_type(origin, Some(variable), &mut reported)?;
+                    }
+                    let error = self.intern_type(dir::Type::Error)?;
+                    source.ty = error;
+                    target = error;
                 }
             }
 
@@ -92,18 +127,17 @@ impl BodyState<'_, '_> {
 
         // complete a relation that participated in inference
         if let Some(holds) = inferred {
-            let outcome = answer!(
-                self.complete_constraint_check(origin, relation, source.ty, target, holds,)?
-            );
+            let outcome =
+                self.complete_constraint_check(origin, relation, source.ty, target, holds)?;
             if outcome != CheckOutcome::Holds
                 || relation != Relation::Assignable
                 || !use_.requires_runtime_coercion()
             {
-                return Ok(Answer::Ready(ValueConversion {
+                return Ok(ValueConversion {
                     outcome,
                     target,
                     coercion: None,
-                }));
+                });
             }
         }
 
@@ -111,33 +145,30 @@ impl BodyState<'_, '_> {
         if inferred.is_none()
             && (relation != Relation::Assignable || !use_.requires_runtime_coercion())
         {
-            let holds =
-                answer!(self.constrain_conversion(site, cause, relation, source, target, use_,)?);
-            let outcome = answer!(
-                self.complete_constraint_check(origin, relation, source.ty, target, holds,)?
-            );
+            let holds = self.constrain_conversion(site, cause, relation, source, target, use_)?;
+            let outcome =
+                self.complete_constraint_check(origin, relation, source.ty, target, holds)?;
 
-            return Ok(Answer::Ready(ValueConversion {
+            return Ok(ValueConversion {
                 outcome,
                 target,
                 coercion: None,
-            }));
+            });
         }
 
         // materialize the closed runtime conversion
-        let conversion =
-            answer!(self.convert_closed_value(site, origin, cause, source, target, use_,)?);
+        let conversion = self.convert_closed_value(site, origin, cause, source, target, use_)?;
 
         let (outcome, coercion) = match conversion {
             Ok(coercion) => (CheckOutcome::Holds, coercion),
             Err(failure) => (CheckOutcome::Fails(failure), None),
         };
 
-        Ok(Answer::Ready(ValueConversion {
+        Ok(ValueConversion {
             outcome,
             target,
             coercion,
-        }))
+        })
     }
 
     /// Constrain the logical types carried through one value conversion.
@@ -149,13 +180,13 @@ impl BodyState<'_, '_> {
         source: Value,
         target: dir::GlobalTypeId,
         use_: ValueUse,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let origin = site.origin();
 
         // explicit and implicit borrowing use the same value place
         if matches!(relation, Relation::Assignable | Relation::Castable)
             && use_.requires_runtime_coercion()
-            && let Some(conversion) = answer!(self.borrow_conversion(origin, source.ty, target)?)
+            && let Some(conversion) = self.borrow_conversion(origin, source.ty, target)?
         {
             return self.constrain_borrow(origin, cause, Relation::Assignable, source, &conversion);
         }
@@ -181,7 +212,7 @@ impl BodyState<'_, '_> {
         let is_owned = source_chain
             .ownership_form()
             .is_some_and(|form| form.form == dir::Form::Owned);
-        let target_ownership = answer!(self.form_ownership(origin, &target_chain)?);
+        let target_ownership = self.form_ownership(origin, &target_chain)?;
         if is_owned && target_ownership == Some(dir::Ownership::Managed) {
             let source_value = source_chain
                 .ownership_form()
@@ -210,8 +241,8 @@ impl BodyState<'_, '_> {
         relation: Relation,
         source: Value,
         conversion: &BorrowConversion,
-    ) -> CompilerResult<Answer<bool>> {
-        let place = answer!(self.value_place(origin, source)?);
+    ) -> CompilerResult<bool> {
+        let place = self.value_place(origin, source)?;
         let dir::Form::Borrowed(target_borrow) = conversion.borrow.form else {
             return Err(CompilerError::Internal {
                 message: "borrow conversion has no borrow constructor".into(),
@@ -227,7 +258,7 @@ impl BodyState<'_, '_> {
                 place.placement,
                 target_place,
             )?;
-            if !placement.is_ready_true() {
+            if !placement {
                 return Ok(placement);
             }
         }
@@ -241,13 +272,13 @@ impl BodyState<'_, '_> {
             place.lifetime,
             borrow.lifetime,
         )?;
-        if !lifetime.is_ready_true() {
+        if !lifetime {
             return Ok(lifetime);
         }
 
         // constrain the borrow through the source value place
         let access = self.constrain_access_assignable(origin, place.access, borrow.access)?;
-        if !access.is_ready_true() {
+        if !access {
             return Ok(access);
         }
 
@@ -277,30 +308,29 @@ impl BodyState<'_, '_> {
         source: Value,
         target: dir::GlobalTypeId,
         use_: ValueUse,
-    ) -> CompilerResult<Answer<Result<Option<Box<dir::Coercion>>, CheckFailure>>> {
-        let source_type = answer!(self.reduce_named_head(origin, source.ty)?);
+    ) -> CompilerResult<Result<Option<Box<dir::Coercion>>, CheckFailure>> {
+        let source_type = self.reduce_named_head(origin, source.ty)?;
         let source = Value {
             ty: source_type,
             ..source
         };
-        let target = answer!(self.reduce_named_head(origin, target)?);
+        let target = self.reduce_named_head(origin, target)?;
 
-        // a scalar singleton widens first: materialization leads the ladder,
+        // a scalar singleton widens first: materialization leads the chain,
         //  and the widened runtime value converts like any other
-        let source_value = answer!(self.strip_form(origin, source.ty)?);
+        let source_value = self.strip_form(origin, source.ty)?;
         if let dir::Type::Literal(literal) = self.ty(source_value)? {
-            let base = answer!(self.strip_form(origin, target)?);
+            let base = self.strip_form(origin, target)?;
             let base_head = self.ty(base)?;
             let is_runtime = matches!(base_head, dir::Type::Primitive(_) | dir::Type::Range(_));
             if is_runtime && literal.widens_to(&base_head) {
                 let widened = Value { ty: base, ..source };
-                let rest =
-                    answer!(self.convert_closed_value(site, origin, cause, widened, target, use_)?);
-                let rung = dir::CoercionAdjustment::Widen { target: base };
+                let rest = self.convert_closed_value(site, origin, cause, widened, target, use_)?;
+                let widen = dir::CoercionAdjustment::Widen { target: base };
 
-                return Ok(Answer::Ready(match rest {
+                return Ok(match rest {
                     Ok(Some(coercion)) => {
-                        let mut adjustments = vec![rung];
+                        let mut adjustments = vec![widen];
                         adjustments.extend(coercion.adjustments);
 
                         Ok(Some(Box::new(dir::Coercion::new(
@@ -311,19 +341,18 @@ impl BodyState<'_, '_> {
                     }
                     Ok(None) => Ok(Some(Box::new(dir::Coercion::new(
                         source.ty,
-                        vec![rung],
+                        vec![widen],
                         dir::CastOrigin::Implicit,
                     )))),
                     Err(failure) => Err(failure),
-                }));
+                });
             }
         }
 
         // a generic callable reference instantiates first: the selection leads
-        //  the ladder, and the instantiated runtime value converts like any other
-        let required = answer!(self.strip_form(origin, target)?);
-        if let Some(instantiation) =
-            answer!(self.instantiate_signature(origin, source_value, required)?)
+        //  the chain, and the instantiated runtime value converts like any other
+        let required = self.strip_form(origin, target)?;
+        if let Some(instantiation) = self.instantiate_signature(origin, source_value, required)?
             && let Some(arguments) = instantiation.arguments
             && !arguments.is_empty()
         {
@@ -331,16 +360,15 @@ impl BodyState<'_, '_> {
                 ty: instantiation.signature,
                 ..source
             };
-            let rest =
-                answer!(self.convert_closed_value(site, origin, cause, selected, target, use_)?);
-            let rung = dir::CoercionAdjustment::Instantiate {
+            let rest = self.convert_closed_value(site, origin, cause, selected, target, use_)?;
+            let instantiate = dir::CoercionAdjustment::Instantiate {
                 target: instantiation.signature,
                 arguments,
             };
 
-            return Ok(Answer::Ready(match rest {
+            return Ok(match rest {
                 Ok(Some(coercion)) => {
-                    let mut adjustments = vec![rung];
+                    let mut adjustments = vec![instantiate];
                     adjustments.extend(coercion.adjustments);
 
                     Ok(Some(Box::new(dir::Coercion::new(
@@ -351,16 +379,17 @@ impl BodyState<'_, '_> {
                 }
                 Ok(None) => Ok(Some(Box::new(dir::Coercion::new(
                     source.ty,
-                    vec![rung],
+                    vec![instantiate],
                     dir::CastOrigin::Implicit,
                 )))),
                 Err(failure) => Err(failure),
-            }));
+            });
         }
 
+        // stored positions convert into the target's storage representation
         let target = match use_.requires_storage() {
             true => {
-                let target = answer!(self.reduce_type(origin, target)?);
+                let target = self.reduce_type(origin, target)?;
 
                 self.storage_type(origin, target)?
             }
@@ -368,18 +397,18 @@ impl BodyState<'_, '_> {
         };
 
         // identical and unreachable values need no adjustment
-        if answer!(self.decide_relation(origin, Relation::Equal, source.ty, target)?) {
-            return Ok(Answer::Ready(Ok(None)));
+        if self.decide_relation(origin, Relation::Equal, source.ty, target)? {
+            return Ok(Ok(None));
         }
-        let source_value = answer!(self.strip_form(origin, source.ty)?);
+        let source_value = self.strip_form(origin, source.ty)?;
         if matches!(self.ty(source_value)?, dir::Type::Never) {
-            return Ok(Answer::Ready(Ok(None)));
+            return Ok(Ok(None));
         }
 
         // apply memory carrier conversions before inspecting their payload cases
         let source_chain = self.form_chain(origin, source.ty)?;
         let target_chain = self.form_chain(origin, target)?;
-        let borrows = answer!(self.borrow_conversion(origin, source.ty, target)?).is_some();
+        let borrows = self.borrow_conversion(origin, source.ty, target)?.is_some();
         let reads = source_chain
             .ownership_form()
             .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)))
@@ -391,8 +420,8 @@ impl BodyState<'_, '_> {
         }
 
         // map every concrete source case through the target conversion
-        if let Some(sources) = answer!(self.conversion_source_cases(origin, source.ty)?) {
-            let targets = answer!(self.union_arms(origin, target)?);
+        if let Some(sources) = self.conversion_source_cases(origin, source.ty)? {
+            let targets = self.union_arms(origin, target)?;
             let mut cases = Vec::with_capacity(sources.len());
             for source_case in sources {
                 let source_case = Value {
@@ -401,32 +430,32 @@ impl BodyState<'_, '_> {
                 };
                 let (target_case, conversion) = match &targets {
                     Some(targets) => {
-                        let (target, conversion) = match answer!(self.convert_union_case(
+                        let (target, conversion) = match self.convert_union_case(
                             site,
                             origin,
                             cause,
                             source_case,
                             targets,
                             use_,
-                        )?) {
+                        )? {
                             Ok(selection) => selection,
-                            Err(failure) => return Ok(Answer::Ready(Err(failure))),
+                            Err(failure) => return Ok(Err(failure)),
                         };
 
                         (target, conversion)
                     }
                     None => {
-                        let conversion = answer!(self.convert_closed_value(
+                        let conversion = self.convert_closed_value(
                             site,
                             origin,
                             cause,
                             source_case,
                             target,
                             use_,
-                        )?);
+                        )?;
                         let conversion = match conversion {
                             Ok(conversion) => conversion,
-                            Err(failure) => return Ok(Answer::Ready(Err(failure))),
+                            Err(failure) => return Ok(Err(failure)),
                         };
 
                         (target, conversion)
@@ -444,17 +473,16 @@ impl BodyState<'_, '_> {
             let coercion =
                 dir::Coercion::union(source.ty, target, cases, dir::CastOrigin::Implicit);
 
-            return Ok(Answer::Ready(Ok(Some(Box::new(coercion)))));
+            return Ok(Ok(Some(Box::new(coercion))));
         }
 
         // inject one singular source into its selected target union case
-        if let Some(targets) = answer!(self.union_arms(origin, target)?) {
-            let (member, conversion) = match answer!(
-                self.convert_union_case(site, origin, cause, source, &targets, use_,)?
-            ) {
-                Ok(selection) => selection,
-                Err(failure) => return Ok(Answer::Ready(Err(failure))),
-            };
+        if let Some(targets) = self.union_arms(origin, target)? {
+            let (member, conversion) =
+                match self.convert_union_case(site, origin, cause, source, &targets, use_)? {
+                    Ok(selection) => selection,
+                    Err(failure) => return Ok(Err(failure)),
+                };
             let adjustments = conversion
                 .map(|coercion| coercion.adjustments)
                 .unwrap_or_default();
@@ -466,7 +494,7 @@ impl BodyState<'_, '_> {
             let coercion =
                 dir::Coercion::union(source.ty, target, vec![case], dir::CastOrigin::Implicit);
 
-            return Ok(Answer::Ready(Ok(Some(Box::new(coercion)))));
+            return Ok(Ok(Some(Box::new(coercion))));
         }
 
         self.convert_existing_value(site, origin, cause, source, target, use_)
@@ -477,25 +505,25 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<SmallVec<[dir::GlobalTypeId; 4]>>>> {
-        if let Some(cases) = answer!(self.union_arms(origin, source)?) {
-            return Ok(Answer::Ready(Some(cases)));
+    ) -> CompilerResult<Option<SmallVec<[dir::GlobalTypeId; 4]>>> {
+        if let Some(cases) = self.union_arms(origin, source)? {
+            return Ok(Some(cases));
         }
 
         // rigid parameters convert case by case over their settled domain
-        let source_value = answer!(self.strip_form(origin, source)?);
+        let source_value = self.strip_form(origin, source)?;
         let dir::Type::Parameter(parameter) = self.ty(source_value)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
-        let Some(domain) = answer!(self.parameter_domain(origin, parameter)?) else {
-            return Ok(Answer::Ready(None));
+        let Some(domain) = self.parameter_domain(origin, parameter)? else {
+            return Ok(None);
         };
-        let cases = match answer!(self.union_arms(origin, domain)?) {
+        let cases = match self.union_arms(origin, domain)? {
             Some(cases) => cases,
             None => SmallVec::from_slice(&[domain]),
         };
 
-        Ok(Answer::Ready(Some(cases)))
+        Ok(Some(cases))
     }
 
     /// Select and convert one source into a declared target union case.
@@ -507,61 +535,59 @@ impl BodyState<'_, '_> {
         source: Value,
         targets: &[dir::GlobalTypeId],
         use_: ValueUse,
-    ) -> CompilerResult<Answer<Result<(dir::GlobalTypeId, Option<Box<dir::Coercion>>), CheckFailure>>>
-    {
+    ) -> CompilerResult<Result<(dir::GlobalTypeId, Option<Box<dir::Coercion>>), CheckFailure>> {
         // exact cases preserve their declared identity
         for target in targets.iter().copied() {
-            if answer!(self.decide_relation(origin, Relation::Equal, source.ty, target)?) {
-                return Ok(Answer::Ready(Ok((target, None))));
+            if self.decide_relation(origin, Relation::Equal, source.ty, target)? {
+                return Ok(Ok((target, None)));
             }
         }
 
         // identify every represented case the source can enter
         let mut selected = None;
         for target in targets.iter().copied() {
-            let verdict = answer!(self.probe_candidate(|state| {
-                let conversion = answer!(
-                    state.convert_closed_value(site, origin, cause, source, target, use_,)?
-                );
+            let verdict = self.probe_candidate(|state| {
+                let conversion =
+                    state.convert_closed_value(site, origin, cause, source, target, use_)?;
                 let outcome = match conversion {
                     Ok(coercion) => CandidateOutcome::Accepted(coercion),
                     Err(_) => CandidateOutcome::Rejected(()),
                 };
 
-                Ok(Answer::Ready(outcome))
-            })?);
+                Ok(outcome)
+            })?;
             if matches!(
                 verdict,
                 CandidateVerdict::Viable | CandidateVerdict::Indeterminate
             ) {
                 if selected.is_some() {
-                    return Ok(Answer::Ready(Err(CheckFailure::AmbiguousUnionCoercion)));
+                    return Ok(Err(CheckFailure::AmbiguousUnionCoercion));
                 }
                 selected = Some(target);
             }
         }
         let Some(target) = selected else {
-            return Ok(Answer::Ready(Err(CheckFailure::Relation)));
+            return Ok(Err(CheckFailure::Relation));
         };
 
         // commit the sole viable conversion
-        let conversion = answer!(self.confirm_candidate(|state| {
+        let conversion = self.confirm_candidate(|state| {
             let conversion =
-                answer!(state.convert_closed_value(site, origin, cause, source, target, use_,)?);
+                state.convert_closed_value(site, origin, cause, source, target, use_)?;
             let outcome = match conversion {
                 Ok(coercion) => CandidateOutcome::Accepted(coercion),
                 Err(_) => CandidateOutcome::Rejected(()),
             };
 
-            Ok(Answer::Ready(outcome))
-        })?);
+            Ok(outcome)
+        })?;
         let Some(conversion) = conversion else {
             return Err(CompilerError::Internal {
                 message: "selected union conversion failed during confirmation".into(),
             });
         };
 
-        Ok(Answer::Ready(Ok((target, conversion))))
+        Ok(Ok((target, conversion)))
     }
 
     /// Convert one existing value after checking its logical relation.
@@ -573,25 +599,24 @@ impl BodyState<'_, '_> {
         source: Value,
         target: dir::GlobalTypeId,
         use_: ValueUse,
-    ) -> CompilerResult<Answer<Result<Option<Box<dir::Coercion>>, CheckFailure>>> {
+    ) -> CompilerResult<Result<Option<Box<dir::Coercion>>, CheckFailure>> {
         let relation = Relation::Assignable;
-        let holds =
-            answer!(self.constrain_conversion(site, cause, relation, source, target, use_,)?);
-        let outcome =
-            answer!(self.complete_constraint_check(origin, relation, source.ty, target, holds,)?);
+        let holds = self.constrain_conversion(site, cause, relation, source, target, use_)?;
+        let outcome = self.complete_constraint_check(origin, relation, source.ty, target, holds)?;
         if let CheckOutcome::Fails(failure) = outcome {
-            return Ok(Answer::Ready(Err(failure)));
+            return Ok(Err(failure));
         }
 
         // borrowing creates a reference to the complete source storage
-        if answer!(self.borrow_conversion(origin, source.ty, target)?).is_some() {
+        if self.borrow_conversion(origin, source.ty, target)?.is_some() {
             let adjustment = dir::CoercionAdjustment::Borrow { target };
             let coercion =
                 dir::Coercion::new(source.ty, vec![adjustment], dir::CastOrigin::Implicit);
 
-            return Ok(Answer::Ready(Ok(Some(Box::new(coercion)))));
+            return Ok(Ok(Some(Box::new(coercion))));
         }
 
+        // classify the memory carrier on each side
         let source_chain = self.form_chain(origin, source.ty)?;
         let target_chain = self.form_chain(origin, target)?;
         let source_borrowed = source_chain
@@ -608,17 +633,11 @@ impl BodyState<'_, '_> {
                 ty: payload,
                 place: None,
             };
-            let conversion = answer!(self.convert_closed_value(
-                site,
-                origin,
-                cause,
-                payload_value,
-                target,
-                use_,
-            )?);
+            let conversion =
+                self.convert_closed_value(site, origin, cause, payload_value, target, use_)?;
             let conversion = match conversion {
                 Ok(conversion) => conversion,
-                Err(failure) => return Ok(Answer::Ready(Err(failure))),
+                Err(failure) => return Ok(Err(failure)),
             };
             let mut adjustments = Vec::with_capacity(
                 conversion
@@ -631,7 +650,7 @@ impl BodyState<'_, '_> {
             }
             let coercion = dir::Coercion::new(source.ty, adjustments, dir::CastOrigin::Implicit);
 
-            return Ok(Answer::Ready(Ok(Some(Box::new(coercion)))));
+            return Ok(Ok(Some(Box::new(coercion))));
         }
 
         let adjustment = {
@@ -649,8 +668,8 @@ impl BodyState<'_, '_> {
             // explicit ownership changes select a different runtime carrier
             else if (source_chain.ownership_form().is_some()
                 || target_chain.ownership_form().is_some())
-                && answer!(self.form_ownership(origin, &source_chain)?)
-                    != answer!(self.form_ownership(origin, &target_chain)?)
+                && self.form_ownership(origin, &source_chain)?
+                    != self.form_ownership(origin, &target_chain)?
             {
                 Some(dir::CoercionAdjustment::Carrier { target })
             }
@@ -660,11 +679,11 @@ impl BodyState<'_, '_> {
             }
         };
         let Some(adjustment) = adjustment else {
-            return Ok(Answer::Ready(Ok(None)));
+            return Ok(Ok(None));
         };
 
         let coercion = dir::Coercion::new(source.ty, vec![adjustment], dir::CastOrigin::Implicit);
 
-        Ok(Answer::Ready(Ok(Some(Box::new(coercion)))))
+        Ok(Ok(Some(Box::new(coercion))))
     }
 }

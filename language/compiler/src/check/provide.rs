@@ -10,7 +10,7 @@ use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{Content, ModuleId};
 
-use crate::check::{AnnotatedSource, CheckState};
+use crate::check::{AnnotatedSource, CheckState, Pass};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 /// The foreign modules one module's check reads through resolution targets.
@@ -109,22 +109,116 @@ impl Compiler {
             None,
             environment,
             module,
-            false,
+            Pass::Declare,
             options.emit_events || context.emit_events(),
         )?;
-        check.solve()?;
+        check.run_declare()?;
 
         // emit solver counters for the declaration pass
         let stats = check.stats();
         context.emit_counter("solve.variables", stats.variables as u64);
         context.emit_counter("solve.constraints", stats.constraints as u64);
-        context.emit_counter("solve.types", stats.types as u64);
 
-        // write declared DIR tables and report the pass's diagnostics
-        let (declared, diagnostics) = check.write_declared(module)?;
+        // package declared DIR tables and report the pass's diagnostics
+        let (declared, diagnostics) = check.finish_declare(module)?;
         context.emit_diagnostics(diagnostics);
 
         Ok(ArtifactPayload::DirDeclared(Arc::new(declared)))
+    }
+
+    /// Collect inputs for one elaborated DIR module.
+    pub(crate) fn collect_dir_elaborated(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactDependencySet> {
+        let mut dependencies = ArtifactDependencySet::default();
+        dependencies.require(ArtifactKey::dir_parsed(module));
+        dependencies.require(ArtifactKey::dir_bound(module, profile));
+        dependencies.require(ArtifactKey::dir_resolved(module, profile));
+        dependencies.require(ArtifactKey::dir_expanded(module, profile));
+        dependencies.require(ArtifactKey::dir_declared(module, profile));
+        dependencies.require_projection(
+            ArtifactKey::environment_bound(profile),
+            ArtifactProjectionKey::Content,
+        );
+        dependencies.require_projection(
+            ArtifactKey::environment_declared(profile),
+            ArtifactProjectionKey::Content,
+        );
+
+        // observe package config for check options
+        let repository_module = self.module(context.revision(), module)?;
+        self.observe_package_config(context, repository_module.package_id, &mut dependencies)?;
+
+        // require declared artifacts of direct imports and implicit globals
+        let artifacts = self.artifact_reader(context);
+        let Some(references) = referenced_modules(&artifacts, module, profile)? else {
+            dependencies.mark_partial();
+
+            return Ok(dependencies);
+        };
+        for import in references.targets {
+            dependencies.require_projection(
+                ArtifactKey::dir_declared(import, profile),
+                ArtifactProjectionKey::Declared,
+            );
+            dependencies.require_projection(
+                ArtifactKey::dir_bound(import, profile),
+                ArtifactProjectionKey::Content,
+            );
+            dependencies.require_projection(
+                ArtifactKey::dir_expanded(import, profile),
+                ArtifactProjectionKey::Content,
+            );
+            dependencies.require_projection(
+                ArtifactKey::dir_resolved(import, profile),
+                ArtifactProjectionKey::Content,
+            );
+        }
+
+        Ok(dependencies)
+    }
+
+    /// Provide one elaborated DIR module.
+    pub(crate) fn provide_dir_elaborated(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactPayload> {
+        let artifacts = self.artifact_reader(context);
+        let global = artifacts
+            .environment_bound_content(profile)
+            .map_err(CompilerError::from)?;
+        let declared_environment = artifacts
+            .environment_declared(profile)
+            .map_err(CompilerError::from)?;
+        let environment = self.environment(context.revision())?;
+        let repository_module = self.module(context.revision(), module)?;
+        let options = self.workspace_compiler_options(context, repository_module.as_ref())?;
+
+        // flatten the module's declared owners
+        let mut check = CheckState::new(
+            self,
+            context,
+            &artifacts,
+            profile,
+            global,
+            Some(declared_environment),
+            environment,
+            module,
+            Pass::Elaborate,
+            options.emit_events || context.emit_events(),
+        )?;
+        check.run_elaborate()?;
+
+        // package elaborated DIR tables and report the pass's diagnostics
+        let (elaborated, diagnostics) = check.finish_elaborate(module)?;
+        context.emit_diagnostics(diagnostics);
+
+        Ok(ArtifactPayload::DirElaborated(Arc::new(elaborated)))
     }
 
     /// Collect inputs for one checked DIR module.
@@ -150,8 +244,9 @@ impl Compiler {
             ArtifactProjectionKey::Content,
         );
 
-        // seed the checking pass from the module's own declared artifact
+        // seed the checking pass from the module's own committed artifacts
         dependencies.require(ArtifactKey::dir_declared(module, profile));
+        dependencies.require(ArtifactKey::dir_elaborated(module, profile));
 
         // observe package config for check options
         let repository_module = self.module(context.revision(), module)?;
@@ -168,6 +263,10 @@ impl Compiler {
             dependencies.require_projection(
                 ArtifactKey::dir_declared(import, profile),
                 ArtifactProjectionKey::Declared,
+            );
+            dependencies.require_projection(
+                ArtifactKey::dir_elaborated(import, profile),
+                ArtifactProjectionKey::Elaborated,
             );
             dependencies.require_projection(
                 ArtifactKey::dir_bound(import, profile),
@@ -215,16 +314,15 @@ impl Compiler {
             Some(declared_environment),
             environment,
             module,
-            true,
+            Pass::Check,
             emit_events,
         )?;
-        check.solve()?;
+        check.run_check()?;
 
         // emit solver counters and optional trace sidecars
         let stats = check.stats();
         context.emit_counter("solve.variables", stats.variables as u64);
         context.emit_counter("solve.constraints", stats.constraints as u64);
-        context.emit_counter("solve.types", stats.types as u64);
         context.emit_counter("solve.bounds", stats.bounds as u64);
         context.emit_counter("solve.decisions", stats.decisions as u64);
         if options.emit_stats {
@@ -233,20 +331,17 @@ impl Compiler {
         }
         let events = emit_events.then(|| check.events());
 
-        // close solved state, then render checked type annotations so
-        //  the echo reflects write-derived values like parameter variance
-        let closed = check.close_checked(module)?;
-        if options.emit_checked_types {
-            for source in check.render_annotated_sources()? {
-                context.emit_sidecar(annotated_sidecar(source));
-            }
-        }
         if let Some(events) = events {
             context.emit_sidecar(check_sidecar("events", events.render()));
         }
 
-        // write checked DIR tables and report the pass's diagnostics
-        let (checked, diagnostics) = check.write_checked(closed)?;
+        // write checked DIR tables and report the pass's diagnostics;
+        //  annotations render inside, after the write settles every type
+        let (checked, diagnostics, annotated) =
+            check.finish_check(module, options.emit_checked_types)?;
+        for source in annotated {
+            context.emit_sidecar(annotated_sidecar(source));
+        }
         context.emit_diagnostics(diagnostics);
 
         Ok(ArtifactPayload::DirChecked(Arc::new(checked)))

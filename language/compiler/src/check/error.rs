@@ -9,7 +9,7 @@ pub enum CheckError {
     // -------------------------------------------------------------------------
     // inference
     // -------------------------------------------------------------------------
-    /// Solver could not determine a required type or static value.
+    /// Inference could not determine a required type or static value.
     ///
     /// ```ds
     /// const value = _;

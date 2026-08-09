@@ -3,9 +3,10 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, Expectation, FlowSite,
-    ForInSourceObligation, InferMode, Obligation, Origin, PlaceUse, Relation, StaticPresence,
-    ValueCheck, ValueUse, answer,
+    BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, ConditionBranch, Constraint,
+    ControlTargetForm, Expectation, ExpectedType, FlowBranch, FlowSite, ForInSourceObligation,
+    InferMode, Obligation, Origin, PatternArm, PatternCoverage, PatternCoverageObligation,
+    PlaceUse, Relation, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -15,14 +16,14 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         inner: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node;
         let module = node.module_id;
-        let inner_site = self.node_site(inner.into_global_any(module))?;
-        let ty = answer!(self.infer_node_type(inner_site, PlaceUse::Read)?);
+        let inner_site = self.visit_site(inner.into_global_any(module))?;
+        let ty = self.infer_node_type(inner_site, PlaceUse::Read)?;
 
         // add undefined where the chain can short circuit
-        let result = match answer!(self.chain_short_circuits(site.origin(), module, inner)?) {
+        let result = match self.chain_short_circuits(site.origin(), module, inner)? {
             true => {
                 let undefined = self.check.intern_type(dir::Type::Undefined)?;
                 self.check.normalized_union_type([ty, undefined])?
@@ -32,7 +33,7 @@ impl BodyState<'_, '_> {
         self.check.commit_node_type(node, result)?;
         self.check.commit_chain_access(node)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Return whether one optional chain drops a nullish receiver.
@@ -41,7 +42,8 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         inner: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
+        // step inward through the chain's accesses
         let mut current = inner;
         loop {
             let (left, is_optional) = match self.module(module).view().get(current) {
@@ -57,67 +59,110 @@ impl BodyState<'_, '_> {
                 dir::Expression::Instantiation { left, .. }
                 | dir::Expression::Maybe { left, .. }
                 | dir::Expression::Must { left, .. } => (*left, false),
-                _ => return Ok(Answer::Ready(false)),
+                _ => return Ok(false),
             };
 
+            // an optional access over a nullish receiver drops the chain
             if is_optional {
                 let receiver = self.require_node_type(left.into_global_any(module))?;
-                if answer!(self.split_nullish_type(origin, receiver)?).is_some() {
-                    return Ok(Answer::Ready(true));
+                if self.split_nullish_type(origin, receiver)?.is_some() {
+                    return Ok(true);
                 }
             }
+
             current = left;
         }
     }
 
-    /// Infer one if expression from its branches.
+    /// Infer one if expression with isolated branch flow.
     pub(in crate::check) fn infer_if_expression(
         &mut self,
         site: FlowSite,
+        condition: &dir::Condition,
         then_expression: dir::LocalNodeId<dir::Expression>,
         else_expression: Option<dir::LocalNodeId<dir::Expression>>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let then_site = self.node_site(then_expression.into_global_any(module))?;
-        let then_type = answer!(self.infer_node_type(then_site, PlaceUse::Read)?);
+        let before = self.check.fork_flow();
+
+        // check the true branch under the narrowed condition
+        self.check
+            .narrow_condition(condition, ConditionBranch::True)?;
+        let then_site = self.visit_site(then_expression.into_global_any(module))?;
+        let then_type = self.infer_node_type(then_site, PlaceUse::Read)?;
+        let mut branches = SmallVec::<[FlowBranch; 2]>::new();
+        if self.check.expression_can_complete_normally(then_expression) {
+            branches.push(self.check.collect_flow_branch(before));
+        }
+
+        // check the false branch, joining a missing else as void
         let result = if let Some(else_expression) = else_expression {
-            let else_site = self.node_site(else_expression.into_global_any(module))?;
-            let else_type = answer!(self.infer_node_type(else_site, PlaceUse::Read)?);
+            self.check.restore_flow(before);
+            self.check
+                .narrow_condition(condition, ConditionBranch::False)?;
+            let else_site = self.visit_site(else_expression.into_global_any(module))?;
+            let else_type = self.infer_node_type(else_site, PlaceUse::Read)?;
+            if self.check.expression_can_complete_normally(else_expression) {
+                branches.push(self.check.collect_flow_branch(before));
+            }
+
             self.normalized_union_type([then_type, else_type])?
         } else {
+            self.check.restore_flow(before);
+            self.check
+                .narrow_condition(condition, ConditionBranch::False)?;
+            branches.push(self.check.collect_flow_branch(before));
             let void = self.intern_type(dir::Type::Void)?;
+
             self.normalized_union_type([then_type, void])?
         };
+
+        // merge normally completed branches
+        self.check.merge_flow_branches_from(before, &branches);
         self.commit_node_type(node.into_any(), result)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Check one if expression under an expected result type.
     pub(in crate::check) fn check_if_expression(
         &mut self,
         site: FlowSite,
+        condition: &dir::Condition,
         then_expression: dir::LocalNodeId<dir::Expression>,
         else_expression: Option<dir::LocalNodeId<dir::Expression>>,
         expectation: Expectation,
-    ) -> CompilerResult<Answer<CheckAttempt>> {
+    ) -> CompilerResult<CheckAttempt> {
         let module = site.node.module_id;
         let target = expectation.target;
         let relation = expectation.relation;
+        let before = self.check.fork_flow();
 
         // check the then branch against the incoming expectation
-        let then_site = self.node_site(then_expression.into_global_any(module))?;
-        let then_check = answer!(self.check_node(then_site, expectation)?);
+        self.check
+            .narrow_condition(condition, ConditionBranch::True)?;
+        let then_site = self.visit_site(then_expression.into_global_any(module))?;
+        let then_check = self.check_node(then_site, expectation)?;
         let then_type = then_check.source;
         let mut check = then_check.outcome;
+        let mut branches = SmallVec::<[FlowBranch; 2]>::new();
+        if self.check.expression_can_complete_normally(then_expression) {
+            branches.push(self.check.collect_flow_branch(before));
+        }
 
         // check an else branch, or make the missing branch explicit as void
         let result = if let Some(else_expression) = else_expression {
-            let else_site = self.node_site(else_expression.into_global_any(module))?;
-            let else_check = answer!(self.check_node(else_site, expectation)?);
+            self.check.restore_flow(before);
+            self.check
+                .narrow_condition(condition, ConditionBranch::False)?;
+            let else_site = self.visit_site(else_expression.into_global_any(module))?;
+            let else_check = self.check_node(else_site, expectation)?;
             let else_type = else_check.source;
             check = check.and(else_check.outcome);
+            if self.check.expression_can_complete_normally(else_expression) {
+                branches.push(self.check.collect_flow_branch(before));
+            }
 
             // use the target when both branches hold and produce a value
             let joined = self.normalized_union_type([then_type, else_type])?;
@@ -130,45 +175,200 @@ impl BodyState<'_, '_> {
                 _ => joined,
             }
         } else {
+            self.check.restore_flow(before);
+            self.check
+                .narrow_condition(condition, ConditionBranch::False)?;
+            branches.push(self.check.collect_flow_branch(before));
             let void = self.intern_type(dir::Type::Void)?;
 
             self.normalized_union_type([then_type, void])?
         };
+
+        // merge normally completed branches
+        self.check.merge_flow_branches_from(before, &branches);
         self.commit_node_type(site.node, result)?;
 
-        Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+        Ok(CheckAttempt::Checked(ValueCheck {
             source: result,
             outcome: check,
             target,
-        })))
+        }))
     }
 
-    /// Infer one try expression from its body and catch branches.
+    /// Infer one try expression with branch flow for catch.
     pub(in crate::check) fn infer_try_expression(
         &mut self,
         site: FlowSite,
         body: dir::LocalNodeId<dir::Expression>,
         catch: Option<dir::LocalNodeId<dir::Catch>>,
-    ) -> CompilerResult<Answer<()>> {
+        finally: Option<dir::LocalNodeId<dir::Expression>>,
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let body_site = self.node_site(body.into_global_any(module))?;
-        let body_type = answer!(self.infer_node_type(body_site, PlaceUse::Read)?);
+        let before = self.check.fork_flow();
 
-        // read the catch result recorded when the handler was checked
-        let catch_type = catch.and_then(|catch| {
-            self.check
-                .catch_results
-                .get(&catch.into_global_any(module))
-                .copied()
-        });
-        let result = match catch_type {
-            Some(catch_type) => self.normalized_union_type([body_type, catch_type])?,
+        // check the body branch from the incoming flow, collecting residuals
+        if catch.is_some() {
+            self.check.enter_try_target();
+        }
+        let body_site = self.visit_site(body.into_global_any(module))?;
+        let body_type = self.infer_node_type(body_site, PlaceUse::Read)?;
+        let catch_failure = match catch {
+            Some(_) => Some(self.check.leave_try_target()?),
+            None => None,
+        };
+        let body_flow = self.check.collect_flow_branch(before);
+        let body_can_complete = self.check.expression_can_complete_normally(body);
+
+        // check the catch branch from the collected failure
+        let catch_branch = if let Some(catch) = catch {
+            self.check.restore_flow(before);
+            let catch_type = self.check_catch(module, catch, catch_failure)?;
+            let catch_body = self.module(module).view().get(catch).body;
+            let catch_can_complete = self.check.expression_can_complete_normally(catch_body);
+            let catch_flow = self.check.collect_flow_branch(before);
+
+            Some((catch_type, catch_can_complete, catch_flow))
+        } else {
+            None
+        };
+
+        // merge only branches that continue normally
+        let has_normal_flow = match &catch_branch {
+            // join the completing sides of body and catch
+            Some((_, catch_can_complete, catch_flow)) => {
+                match (body_can_complete, *catch_can_complete) {
+                    (true, true) => {
+                        self.check
+                            .merge_flow_branches(before, &body_flow, catch_flow);
+
+                        true
+                    }
+                    (true, false) => {
+                        self.check.restore_flow_branch(before, &body_flow);
+
+                        true
+                    }
+                    (false, true) => {
+                        self.check.restore_flow_branch(before, catch_flow);
+
+                        true
+                    }
+                    (false, false) => {
+                        self.check.restore_flow(before);
+
+                        false
+                    }
+                }
+            }
+            // an uncaught body continues on its own
+            None if body_can_complete => {
+                self.check.restore_flow_branch(before, &body_flow);
+
+                true
+            }
+            // no branch continues
+            None => {
+                self.check.restore_flow(before);
+
+                false
+            }
+        };
+
+        // check finally even when no normal path remains
+        if let Some(finally) = finally {
+            let finally_site = self.visit_site(finally.into_global_any(module))?;
+            self.attempt_node(finally_site, PlaceUse::Read, None)?;
+            if !has_normal_flow || !self.check.expression_can_complete_normally(finally) {
+                self.check.restore_flow(before);
+            }
+        } else if !has_normal_flow {
+            self.check.restore_flow(before);
+        }
+
+        // join the body and catch results
+        let result = match catch_branch {
+            Some((catch_type, ..)) => self.normalized_union_type([body_type, catch_type])?,
             None => body_type,
         };
         self.commit_node_type(node.into_any(), result)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
+    }
+
+    /// Check one catch clause against its collected failure.
+    fn check_catch(
+        &mut self,
+        module: ModuleId,
+        id: dir::LocalNodeId<dir::Catch>,
+        failure: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // skip statically absent handlers
+        if !self.check.decide_static_presence(id.into_any())? {
+            return self.check.intern_type(dir::Type::Never);
+        }
+        let catch = self.module(module).view().get(id).clone();
+        let (pattern, ty, body) = (catch.pattern, catch.ty, catch.body);
+
+        // catch (error: T): the failure must match the annotation
+        let expected = match ty {
+            Some(ty) => {
+                self.walk_body_type_expression(module, ty)?;
+
+                Some(self.require_node_type(ty.into_global_any(module))?)
+            }
+            None => None,
+        };
+        if let (Some(failure), Some(expected)) = (failure, expected) {
+            let origin = Origin::Node(id.into_global_any(module), self.check.flow.template_scope());
+            let cause = self
+                .check
+                .intern_cause(Cause::root(origin, CauseKind::Expression));
+            self.check.push_constraint(Constraint::r#type(
+                origin,
+                Relation::Assignable,
+                failure,
+                expected,
+                cause,
+            ))?;
+        }
+
+        // catch (error): flow the caught value into the pattern
+        if let Some(pattern) = pattern {
+            if let Some(value) = expected.or(failure) {
+                let pattern_site = self.visit_site(pattern.into_global_any(module))?;
+                let cause = self.check.intern_cause(Cause::root(
+                    pattern_site.origin(),
+                    CauseKind::Pattern {
+                        pattern: pattern.into_global_any(module),
+                    },
+                ));
+                self.check_node_expected(
+                    pattern_site,
+                    value,
+                    Relation::Assignable,
+                    cause,
+                    ValueUse::Store,
+                    InferMode::Exact,
+                )?;
+                let scope = self.check.flow.template_scope();
+                self.check.push_obligation(
+                    Obligation::PatternCoverage(PatternCoverageObligation {
+                        source: pattern.into_global_any(module),
+                        value: ExpectedType::Type(value),
+                        coverage: PatternCoverage::Catch {
+                            pattern: pattern.into_global(module),
+                        },
+                    }),
+                    scope,
+                );
+            }
+            self.check.mark_bindings_assigned(pattern.into_any());
+        }
+
+        // catch (...) { ... }: the handler value joins the try result
+        let body_site = self.visit_site(body.into_global_any(module))?;
+        self.infer_node_type(body_site, PlaceUse::Read)
     }
 
     /// Infer one match expression from its arm values.
@@ -177,17 +377,18 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         arms: &[dir::LocalNodeId<dir::MatchArm>],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
+        let first_visit = self.check.committed_node_type(node.into_any()).is_none();
         let arms = self.present_match_arms(module, arms)?;
-        answer!(self.infer_match_patterns(module, value, &arms)?);
+
+        // type the selected value ahead of the arm patterns
+        let value_site = self.check.visit_site(value.into_global_any(module))?;
+        let scrutinee = self.infer_node_type(value_site, PlaceUse::Read)?;
+        let (values, _, coverage) = self.check_match_arms(module, value, &arms, scrutinee, None)?;
 
         // join every arm body into the match value
-        let mut values = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        for arm in &arms {
-            values.push(answer!(self.infer_match_arm_body(module, *arm)?));
-        }
         let result = if values.is_empty() {
             self.intern_type(dir::Type::Never)?
         } else {
@@ -195,123 +396,234 @@ impl BodyState<'_, '_> {
         };
         self.commit_node_type(node.into_any(), result)?;
 
-        Ok(Answer::Ready(()))
+        // queue exhaustiveness checking at the first visit
+        if first_visit {
+            self.queue_match_coverage(module, node.local_id, value, coverage);
+        }
+
+        Ok(())
     }
 
-    /// Infer one switch statement and its case bodies.
+    /// Infer one switch statement with ordered selection and fallthrough.
     pub(in crate::check) fn infer_switch_statement(
         &mut self,
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         cases: &[dir::LocalNodeId<dir::SwitchCase>],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let cases = self.present_switch_cases(module, cases)?;
-        answer!(self.infer_switch_selectors(module, value, &cases)?);
 
-        // infer case bodies in source order without joining their values
-        for case in &cases {
-            let body = self.module(module).view().get(*case).body;
-            let site = self.node_site(body.into_global_any(module))?;
-            answer!(self.infer_node_type(site, PlaceUse::Read)?);
+        // type the selected value ahead of the case selectors
+        let value_site = self.check.visit_site(value.into_global_any(module))?;
+        let scrutinee = self.infer_node_type(value_site, PlaceUse::Read)?;
+        let before = self.check.fork_flow();
+        self.check
+            .enter_control_target(None, ControlTargetForm::Switch);
+
+        // evaluate selectors in source order and retain each equality branch
+        let mut selectors = Vec::new();
+        let mut direct = vec![None; cases.len()];
+        let mut default_index = None;
+        for (index, case) in cases.iter().enumerate() {
+            let selector = self.module(module).view().get(*case).selector;
+            match selector {
+                dir::SwitchSelector::Case(selected) => {
+                    let selected_site = self.visit_site(selected.into_global_any(module))?;
+                    let selected_type = self.infer_node_type(selected_site, PlaceUse::Read)?;
+                    selectors.push((
+                        case.into_global_any(module),
+                        selected.into_global_any(module),
+                        selected_type,
+                    ));
+
+                    // narrow the equality into the selected branch
+                    let after_selector = self.check.fork_flow();
+                    let case_node = case.into_global_any(module);
+                    self.check
+                        .narrow_by_equality(case_node, value, selected, true);
+                    direct[index] = Some(self.check.collect_flow_branch(before));
+
+                    // continue selection under the failed equality
+                    self.check.restore_flow(after_selector);
+                    self.check
+                        .narrow_by_equality(case_node, value, selected, false);
+                }
+                dir::SwitchSelector::Default => default_index = Some(index),
+            }
         }
+        self.select_switch_equality(value.into_global_any(module), scrutinee, &selectors)?;
+
+        // route the unmatched flow into the default case
+        let unmatched = self.check.collect_flow_branch(before);
+        let unmatched = match default_index {
+            Some(index) => {
+                direct[index] = Some(unmatched);
+
+                None
+            }
+            None => Some(unmatched),
+        };
+
+        // execute bodies in source order and join adjacent fallthrough
+        let mut fallthrough: Option<FlowBranch> = None;
+        for (index, case) in cases.iter().enumerate() {
+            let Some(selected) = direct[index].as_ref() else {
+                return Err(CompilerError::Internal {
+                    message: format!("switch case {case:?} has no selection entry"),
+                });
+            };
+            if let Some(previous) = &fallthrough {
+                self.check.merge_flow_branches(before, selected, previous);
+            } else {
+                self.check.restore_flow_branch(before, selected);
+            }
+
+            let body = self.module(module).view().get(*case).body;
+            let body_site = self.visit_site(body.into_global_any(module))?;
+            self.infer_node_type(body_site, PlaceUse::Read)?;
+            fallthrough = self
+                .check
+                .block_can_complete_normally(body)
+                .then(|| self.check.collect_flow_branch(before));
+        }
+
+        // join explicit breaks, final fallthrough, and an unmatched value
+        let mut exits = self.check.leave_control_target();
+        exits.extend(fallthrough);
+        exits.extend(unmatched);
+        if exits.is_empty() {
+            self.check
+                .module_mut(module)
+                .unreachable_ends
+                .insert(node.local_id.into_any());
+        }
+        self.check.merge_flow_branches_from(before, &exits);
+
         let result = self.end_type(module, node.local_id.into_any())?;
         self.commit_node_type(node.into_any(), result)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
-    /// Infer match patterns against one selected value.
-    fn infer_match_patterns(
+    /// Check present match arms with isolated branch flow.
+    fn check_match_arms(
         &mut self,
         module: ModuleId,
         value: dir::LocalNodeId<dir::Expression>,
         arms: &[dir::LocalNodeId<dir::MatchArm>],
-    ) -> CompilerResult<Answer<()>> {
-        let value_site = self.check.node_site(value.into_global_any(module))?;
-        let scrutinee = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+        scrutinee: dir::GlobalTypeId,
+        expectation: Option<Expectation>,
+    ) -> CompilerResult<(
+        SmallVec<[dir::GlobalTypeId; 4]>,
+        CheckOutcome,
+        Vec<PatternArm>,
+    )> {
+        let value_path = self.check.lexical_access_path(value);
+        let before = self.check.fork_flow();
+        let mut coverage = Vec::new();
+        let mut excluded: Vec<dir::GlobalNodeId<dir::Pattern>> = Vec::new();
+        let mut merged: Option<FlowBranch> = None;
+        let mut values = SmallVec::new();
+        let mut outcome = CheckOutcome::Holds;
 
-        // check every pattern and guard against the selected value
         for arm in arms {
-            let arm = self.module(module).view().get(*arm);
-            let pattern = arm.pattern();
-            let guard = arm.guard();
-            answer!(self.infer_match_pattern(module, pattern, scrutinee)?);
+            // replay exclusions from previous arms
+            self.check.restore_flow(before);
+            if let Some(path) = &value_path {
+                for pattern in &excluded {
+                    self.check.exclude_match_pattern(path.clone(), *pattern);
+                }
+            }
+
+            // check the pattern against the selected value
+            let arm_node = self.module(module).view().get(*arm).clone();
+            let pattern = arm_node.pattern();
+            let guard = arm_node.guard();
+            let pattern_site = self.check.visit_site(pattern.into_global_any(module))?;
+            self.check_pattern(
+                pattern.into_global(module),
+                pattern_site.flow,
+                pattern_site.scope,
+                scrutinee,
+            )?;
+            if let Some(path) = &value_path {
+                self.check.narrow_pattern(path.clone(), pattern, true)?;
+            }
+            self.check.mark_bindings_assigned(pattern.into_any());
+
+            // apply the optional arm guard
             if let Some(guard) = guard {
-                answer!(self.check_match_guard(module, guard)?);
+                self.check_match_guard(module, guard)?;
+                self.check.narrow_expression(guard, ConditionBranch::True)?;
+            }
+
+            // check the arm body under the narrowed flow
+            let body = match &arm_node {
+                dir::MatchArm::Expression { body, .. } => body.into_global_any(module),
+                dir::MatchArm::Block { body, .. } => body.into_global_any(module),
+            };
+            let body_site = self.visit_site(body)?;
+            match expectation {
+                Some(expectation) => {
+                    let body_check = self.check_node(body_site, expectation)?;
+                    outcome = body_check.outcome.and(outcome);
+                    values.push(body_check.source);
+                }
+                None => values.push(self.infer_node_type(body_site, PlaceUse::Read)?),
+            }
+
+            // record coverage and unguarded exclusions
+            coverage.push(PatternArm {
+                pattern: pattern.into_global(module),
+                is_guarded: guard.is_some(),
+            });
+            if guard.is_none() {
+                excluded.push(pattern.into_global(module));
+            }
+
+            // merge completing arms into the post-match flow
+            if self.check.match_arm_can_complete_normally(&arm_node) {
+                let branch = self.check.collect_flow_branch(before);
+                merged = match merged.take() {
+                    Some(previous) => {
+                        self.check.merge_flow_branches(before, &previous, &branch);
+
+                        Some(self.check.collect_flow_branch(before))
+                    }
+                    None => Some(branch),
+                };
             }
         }
 
-        Ok(Answer::Ready(()))
-    }
-
-    /// Infer switch selectors against one selected value.
-    fn infer_switch_selectors(
-        &mut self,
-        module: ModuleId,
-        value: dir::LocalNodeId<dir::Expression>,
-        cases: &[dir::LocalNodeId<dir::SwitchCase>],
-    ) -> CompilerResult<Answer<()>> {
-        let value_site = self.check.node_site(value.into_global_any(module))?;
-        let scrutinee = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-        let mut selectors = Vec::new();
-
-        // infer every case selector before selecting their shared equality
-        for case in cases {
-            let dir::SwitchSelector::Case(selected) =
-                self.module(module).view().get(*case).selector
-            else {
-                continue;
-            };
-            let selected_site = self.node_site(selected.into_global_any(module))?;
-            let selected_type = answer!(self.infer_node_type(selected_site, PlaceUse::Read)?);
-            selectors.push((
-                case.into_global_any(module),
-                selected.into_global_any(module),
-                selected_type,
-            ));
+        // restore the merged output or the pre-match input
+        if let Some(merged) = merged {
+            self.check.restore_flow_branch(before, &merged);
+        } else {
+            self.check.restore_flow(before);
         }
 
-        answer!(self.select_switch_equality(
-            value.into_global_any(module),
-            scrutinee,
-            &selectors,
-        )?);
-
-        Ok(Answer::Ready(()))
+        Ok((values, outcome, coverage))
     }
 
-    /// Infer one match pattern against its selected value.
-    fn infer_match_pattern(
+    /// Queue coverage checking for one match expression.
+    fn queue_match_coverage(
         &mut self,
         module: ModuleId,
-        pattern: dir::LocalNodeId<dir::Pattern>,
-        scrutinee: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
-        let pattern_site = self.check.node_site(pattern.into_global_any(module))?;
-
-        self.check_pattern(
-            pattern.into_global(module),
-            pattern_site.flow,
-            pattern_site.scope,
-            scrutinee,
-        )
-    }
-
-    /// Infer one match arm body.
-    fn infer_match_arm_body(
-        &mut self,
-        module: ModuleId,
-        arm: dir::LocalNodeId<dir::MatchArm>,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let body = match self.module(module).view().get(arm) {
-            dir::MatchArm::Expression { body, .. } => body.into_global_any(module),
-            dir::MatchArm::Block { body, .. } => body.into_global_any(module),
-        };
-        let body_site = self.node_site(body)?;
-
-        self.infer_node_type(body_site, PlaceUse::Read)
+        id: dir::LocalNodeId<dir::Expression>,
+        value: dir::LocalNodeId<dir::Expression>,
+        arms: Vec<PatternArm>,
+    ) {
+        let scope = self.check.flow.template_scope();
+        self.check.push_obligation(
+            Obligation::PatternCoverage(PatternCoverageObligation {
+                source: id.into_global_any(module),
+                value: ExpectedType::Node(value.into_global_any(module)),
+                coverage: PatternCoverage::Match { arms },
+            }),
+            scope,
+        );
     }
 
     /// Check one match expression under an expected result type.
@@ -321,33 +633,29 @@ impl BodyState<'_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         arms: &[dir::LocalNodeId<dir::MatchArm>],
         expectation: Expectation,
-    ) -> CompilerResult<Answer<CheckAttempt>> {
+    ) -> CompilerResult<CheckAttempt> {
         let module = site.node.module_id;
         let target = expectation.target;
         let relation = expectation.relation;
+        let first_visit = self.check.committed_node_type(site.node).is_none();
         let arms = self.present_match_arms(module, arms)?;
 
-        // type the matched value and its patterns like the inferred form
-        let value_site = self.check.node_site(value.into_global_any(module))?;
-        let scrutinee = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-        for arm in &arms {
-            let arm = self.module(module).view().get(*arm);
-            let pattern = arm.pattern();
-            let guard = arm.guard();
-            let pattern_site = self.check.node_site(pattern.into_global_any(module))?;
-            answer!(self.check_pattern(
-                pattern.into_global(module),
-                pattern_site.flow,
-                pattern_site.scope,
-                scrutinee,
-            )?);
-            if let Some(guard) = guard {
-                answer!(self.check_match_guard(module, guard)?);
-            }
+        // type the selected value ahead of the arm patterns
+        let value_site = self.check.visit_site(value.into_global_any(module))?;
+        let scrutinee = self.infer_node_type(value_site, PlaceUse::Read)?;
+
+        // check every arm body against the incoming expectation
+        let (values, check, coverage) =
+            self.check_match_arms(module, value, &arms, scrutinee, Some(expectation))?;
+
+        // queue exhaustiveness checking at the first visit
+        if first_visit {
+            let node = site.node.into_typed::<dir::Expression>();
+            self.queue_match_coverage(module, node.local_id, value, coverage);
         }
 
         // return never for an empty match
-        if arms.is_empty() {
+        if values.is_empty() {
             let never = self.intern_type(dir::Type::Never)?;
             self.commit_node_type(site.node, never)?;
             let check = ValueCheck {
@@ -356,21 +664,7 @@ impl BodyState<'_, '_> {
                 target,
             };
 
-            return Ok(Answer::Ready(CheckAttempt::Checked(check)));
-        }
-
-        // check every arm body against the incoming expectation
-        let mut values = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        let mut check = CheckOutcome::Holds;
-        for arm in &arms {
-            let body = match self.module(module).view().get(*arm) {
-                dir::MatchArm::Expression { body, .. } => body.into_global_any(module),
-                dir::MatchArm::Block { body, .. } => body.into_global_any(module),
-            };
-            let body_site = self.node_site(body)?;
-            let body_check = answer!(self.check_node(body_site, expectation)?);
-            check = body_check.outcome.and(check);
-            values.push(body_check.source);
+            return Ok(CheckAttempt::Checked(check));
         }
 
         // use the target when every arm holds and produces a value
@@ -385,23 +679,23 @@ impl BodyState<'_, '_> {
         };
         self.commit_node_type(site.node, result)?;
 
-        Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+        Ok(CheckAttempt::Checked(ValueCheck {
             source: result,
             outcome: check,
             target,
-        })))
+        }))
     }
 
     /// Return the statically present arms of one match expression.
     fn present_match_arms(
-        &self,
+        &mut self,
         module: ModuleId,
         arms: &[dir::LocalNodeId<dir::MatchArm>],
     ) -> CompilerResult<Vec<dir::LocalNodeId<dir::MatchArm>>> {
         let mut present = Vec::new();
         for arm in arms {
             let node = arm.into_global_any(module);
-            if self.check.static_gate(node)? == StaticPresence::Present {
+            if self.check.decide_static_presence(node.local_id)? {
                 present.push(*arm);
             }
         }
@@ -411,14 +705,14 @@ impl BodyState<'_, '_> {
 
     /// Return the statically present cases of one switch statement.
     fn present_switch_cases(
-        &self,
+        &mut self,
         module: ModuleId,
         cases: &[dir::LocalNodeId<dir::SwitchCase>],
     ) -> CompilerResult<Vec<dir::LocalNodeId<dir::SwitchCase>>> {
         let mut present = Vec::new();
         for case in cases {
             let node = case.into_global_any(module);
-            if self.check.static_gate(node)? == StaticPresence::Present {
+            if self.check.decide_static_presence(node.local_id)? {
                 present.push(*case);
             }
         }
@@ -431,8 +725,8 @@ impl BodyState<'_, '_> {
         &mut self,
         module: ModuleId,
         guard: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
-        let site = self.check.node_site(guard.into_global_any(module))?;
+    ) -> CompilerResult<()> {
+        let site = self.check.visit_site(guard.into_global_any(module))?;
         let boolean = self
             .check
             .intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
@@ -446,54 +740,64 @@ impl BodyState<'_, '_> {
             use_: ValueUse::Condition,
             mode: InferMode::Exact,
         };
-        answer!(self.attempt_node(site, PlaceUse::Read, Some(expectation))?);
+        self.attempt_node(site, PlaceUse::Read, Some(expectation))?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Infer one for-in or for-of expression.
     pub(in crate::check) fn infer_for_each_expression(
         &mut self,
         site: FlowSite,
+        label: Option<dir::StringId>,
         operator: dir::ForEachOperator,
         binding: dir::ForEachBinding,
         iterator: dir::LocalNodeId<dir::Expression>,
         body: dir::LocalNodeId<dir::Block>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let iterator_site = self.node_site(iterator.into_global_any(module))?;
-        let iterator_type =
-            answer!(self.infer_node(iterator_site, PlaceUse::Read, InferMode::Mutable,)?);
-        let iterator_type = answer!(self.flow_type_at(iterator_site, iterator_type)?);
-        let target =
-            answer!(self.for_each_value_type(site.origin(), site.node, operator, iterator_type)?);
+        let iterator_site = self.visit_site(iterator.into_global_any(module))?;
+        let iterator_type = self.infer_node(iterator_site, PlaceUse::Read, InferMode::Mutable)?;
+        let iterator_type = self.flow_type_at(iterator_site, iterator_type)?;
+        let target = self.for_each_value_type(site.origin(), site.node, operator, iterator_type)?;
 
         // check the binding against the value produced by the iteration source
         let pattern = match binding {
             dir::ForEachBinding::Pattern { pattern, .. }
             | dir::ForEachBinding::Using { pattern, .. } => pattern,
         };
-        let pattern_site = self.node_site(pattern.into_global_any(module))?;
+        let pattern_site = self.visit_site(pattern.into_global_any(module))?;
         let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
-        answer!(self.check_node_expected(
+        self.check_node_expected(
             pattern_site,
             target,
             Relation::Assignable,
             cause,
             ValueUse::Store,
             InferMode::Exact,
-        )?);
+        )?;
 
-        // check the loop body under the bound pattern
-        let body_site = self.node_site(body.into_global_any(module))?;
-        answer!(self.attempt_node(body_site, PlaceUse::Read, None)?);
+        // check the loop body with the iteration bindings assigned
+        self.check
+            .enter_control_target(label, ControlTargetForm::Iteration);
+        let before_body = self.check.fork_flow();
+        self.check.mark_bindings_assigned(pattern.into_any());
+        let body_site = self.visit_site(body.into_global_any(module))?;
+        self.attempt_node(body_site, PlaceUse::Read, None)?;
+        self.check.restore_flow(before_body);
+
+        // merge break branches with the normal exit
+        let normal_flow = self.check.collect_flow_branch(before_body);
+        let mut branches = self.check.leave_control_target();
+        branches.push(normal_flow);
+        self.check.merge_flow_branches_from(before_body, &branches);
 
         // for-in and for-of evaluate to void
         let void = self.intern_type(dir::Type::Void)?;
         self.commit_node_type(site.node, void)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Return the value type bound by one for-in or for-of source.
@@ -503,7 +807,7 @@ impl BodyState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         operator: dir::ForEachOperator,
         iterator_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         match operator {
             dir::ForEachOperator::In => self.for_in_value_type(origin, source, iterator_type),
             dir::ForEachOperator::Of => self.for_of_value_type(origin, source, iterator_type),
@@ -516,7 +820,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         source: dir::GlobalNodeIdAny,
         iterator_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let scope = self.origin_scope(origin)?;
         self.push_obligation(
             Obligation::ForInSource(ForInSourceObligation {
@@ -527,7 +831,7 @@ impl BodyState<'_, '_> {
         );
         let string = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::String))?;
 
-        Ok(Answer::Ready(string))
+        Ok(string)
     }
 
     /// Return the yielded value type of one for-of source.
@@ -536,12 +840,13 @@ impl BodyState<'_, '_> {
         origin: Origin,
         source: dir::GlobalNodeIdAny,
         iterator_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // select the source's iterator member through the Iterable protocol
         let anchored = self.origin_at(origin, source)?;
         let key = dir::StaticKey::Name(self.strings().intern("iterator"));
-        let source_site = self.node_site(source)?;
-        let source_value = answer!(self.expression_value(source_site, iterator_type)?);
-        let selected = answer!(self.select_language_protocol_call(
+        let source_site = self.visit_site(source)?;
+        let source_value = self.expression_value(source_site, iterator_type)?;
+        let selected = self.select_language_protocol_call(
             anchored,
             source_value,
             iterator_type,
@@ -551,12 +856,13 @@ impl BodyState<'_, '_> {
             &[],
             &[],
             &[],
-        )?);
+        )?;
+        // sources without an implementation cannot be iterated
         let Some((protocol, _call)) = selected else {
             self.report_for_of_source_not_iterable(source);
             let error = self.intern_type(dir::Type::Error)?;
 
-            return Ok(Answer::Ready(error));
+            return Ok(error);
         };
         let Some(value) = protocol.arguments.first().copied() else {
             return Err(CompilerError::Internal {
@@ -564,6 +870,6 @@ impl BodyState<'_, '_> {
             });
         };
 
-        Ok(Answer::Ready(value))
+        Ok(value)
     }
 }

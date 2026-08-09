@@ -99,6 +99,8 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     /// @resolution.name source=sink target=write.sink
     /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=sink root=write.sink
+    /// @resolution.rejected source=sink.write
+    /// @resolution.rejected source=sink.write(value)
     /// @resolution.name source=value target=write.value
 
 }
@@ -234,6 +236,8 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     /// @resolution.name source=sink target=write.sink
     /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=sink root=write.sink
+    /// @resolution.rejected source=sink.write
+    /// @resolution.rejected source=sink.write(value)
     /// @generic.instance source=sink id=SinkFor<T#2>
     /// @resolution.name source=value target=write.value
 

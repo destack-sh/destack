@@ -77,17 +77,27 @@ impl CheckState<'_> {
             }
         }
 
-        // append unmet expectations owned by compiler warnings
-        for ((_, table), matched) in controls.iter().zip(&matched_controls) {
-            append_unmet_expectations(table, matched, &mut errors, self.strings());
+        // append unmet expectations once bodies produced every warning
+        if self.is_checking() {
+            for ((_, table), matched) in controls.iter().zip(&matched_controls) {
+                append_unmet_expectations(table, matched, &mut errors, self.strings());
+            }
         }
 
-        // record diagnostics in production order
+        // record diagnostics in source order
         let mut records = Vec::with_capacity(errors.len() + controlled_warnings.len());
         for diagnostic in errors {
             records.push(diagnostic.to_record(self.context)?);
         }
         records.extend(controlled_warnings);
+        records.sort_by_key(|record| {
+            let span = record.diagnostic.primary.target.span();
+
+            (
+                span.map_or(0, |span| span.start),
+                span.map_or(0, |span| span.end),
+            )
+        });
 
         Ok(records)
     }

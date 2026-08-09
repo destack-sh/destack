@@ -12,7 +12,7 @@ const value: Person = { name: "Ada", extra: true };
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 type Person = { name: string };
@@ -31,8 +31,6 @@ const value: Person = { name: "Ada", extra: true };
 /// @type.node source={ name: "Ada", extra: true } type={ name: string }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
-
-/// @check.stats.solve variables=0 types=8 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type 'Person'"
@@ -57,7 +55,7 @@ const value: Person = source;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 type Person = { name: string };
@@ -85,8 +83,6 @@ const value: Person = source;
 /// @resolution.name source=source target=source
 /// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=source root=source
-
-/// @check.stats.solve variables=1 types=13 constraints=0 obligations=2 solutions=1 bounds=0 decisions=3
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ name: string; extra: boolean }' is not assignable to type 'Person'"

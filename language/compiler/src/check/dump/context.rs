@@ -2,8 +2,7 @@ use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
 use crate::check::{
-    CheckState, ConstraintId, Dependency, ExpectedType, FlowPointId, FlowSite, ObligationId,
-    Origin, Relation, TypeBound, Widening,
+    CheckState, ConstraintId, ExpectedType, ObligationId, Origin, Relation, TypeBound, Widening,
 };
 
 /// Rendering context for check trace values.
@@ -30,9 +29,9 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
     /// Return a compact type variable label.
     pub(in crate::check) fn variable_label(&self, id: dir::TypeVariableId) -> String {
-        match self.check.solver.variable(id) {
+        match self.check.infer.variable(id) {
             Ok(state) => {
-                let origin = self.check.solver.origin(state.origin);
+                let origin = self.check.infer.origin(state.origin);
                 let module = self.module_label(origin.module());
 
                 format!("{module}:v{}", id.0)
@@ -47,20 +46,6 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         let kind = node.local_id.ty.name().replace(' ', "_");
 
         format!("{module}:{kind}#{}", node.local_id.id)
-    }
-
-    /// Return a compact flow point label.
-    pub(in crate::check) fn flow_label(&self, flow: FlowPointId) -> String {
-        format!("f{}", flow.index())
-    }
-
-    /// Return a compact source use label.
-    pub(in crate::check) fn flow_site_label(&self, site: FlowSite) -> String {
-        format!(
-            "{}@{}",
-            self.node_label(site.node),
-            self.flow_label(site.flow)
-        )
     }
 
     /// Return the source location for one node.
@@ -118,43 +103,22 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         }
     }
 
-    /// Return a compact dependency label.
-    pub(in crate::check) fn dependency_label(&self, dependency: Dependency) -> String {
-        match dependency {
-            Dependency::Variable(variable) => self.variable_label(variable),
-            Dependency::NodeType(node) => self.node_label(node),
-        }
-    }
-
-    /// Return a compact dependency list label.
-    pub(in crate::check) fn dependency_list_label(&self, dependencies: &[Dependency]) -> String {
-        if dependencies.is_empty() {
-            return "none".to_string();
-        }
-
-        dependencies
-            .iter()
-            .map(|dependency| self.dependency_label(*dependency))
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
-
     /// Return one variable's origin label.
     pub(in crate::check) fn variable_origin_label(&self, variable: dir::TypeVariableId) -> String {
-        let Ok(state) = self.check.solver.variable(variable) else {
+        let Ok(state) = self.check.infer.variable(variable) else {
             return "unknown".to_string();
         };
 
-        self.origin_label(self.check.solver.origin(state.origin))
+        self.origin_label(self.check.infer.origin(state.origin))
     }
 
     /// Return one variable's source location.
     pub(in crate::check) fn variable_source_label(&self, variable: dir::TypeVariableId) -> String {
-        let Ok(state) = self.check.solver.variable(variable) else {
+        let Ok(state) = self.check.infer.variable(variable) else {
             return "unknown".to_string();
         };
 
-        self.origin_source_label(self.check.solver.origin(state.origin))
+        self.origin_source_label(self.check.infer.origin(state.origin))
     }
 
     /// Return a compact static key label.

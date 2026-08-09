@@ -113,6 +113,7 @@ let { value } = 1;
 
 === checked ===
 let { value } = 1;
+/// @resolution.rejected source={ value }
 /// @type.symbol symbol=value source=value type=<error>
 /// @type.node source=1 type=1
 "#,

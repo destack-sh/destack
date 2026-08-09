@@ -2,8 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Decision, GenericArgument, Origin, Receiver, TypeSubstitution, VariableRole, WalkState,
-    Widening,
+    GenericArgument, Origin, Receiver, TypeSubstitution, VariableRole, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -541,10 +540,8 @@ impl WalkState<'_, '_> {
                 for symbol in symbols.iter().copied() {
                     self.capture_symbol_reference(symbol);
                 }
-                self.check.commit_decision(
-                    source,
-                    Decision::Name(dir::NameResolution::from_symbols(symbols.to_vec())),
-                )?;
+                self.check
+                    .commit_name(source, dir::NameResolution::from_symbols(symbols.to_vec()))?;
 
                 Ok(true)
             }
@@ -583,7 +580,7 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
-        self.commit_node_scope(id)?;
+        self.check.visit_site(id.into_global_any(self.module))?;
 
         if matches!(
             self.tree.get(id),
@@ -761,7 +758,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         self.capture_symbol_reference(symbol);
         self.check
-            .commit_decision(source, Decision::Name(dir::NameResolution::new(symbol)))
+            .commit_name(source, dir::NameResolution::new(symbol))
     }
 
     /// Return the type for one resolver-bound reference annotation.
@@ -848,7 +845,7 @@ impl WalkState<'_, '_> {
         applied: &[GenericArgument],
     ) -> CompilerResult<dir::GlobalTypeId> {
         // return the parameter type for generic parameter names
-        if let Some(parameter) = self.check.generics.parameter_by_symbol(symbol) {
+        if let Some(parameter) = self.check.parameter_by_symbol(symbol) {
             if !applied.is_empty() {
                 let name = self.check.format_symbol(symbol);
                 self.check
@@ -1388,7 +1385,7 @@ impl WalkState<'_, '_> {
         let constraint = self.walk_type_expression(source_type)?;
 
         // create a local generic parameter for the mapped key
-        let binder = match self.check.generics.parameter_by_symbol(symbol) {
+        let binder = match self.check.parameter_by_symbol(symbol) {
             Some(binder) => binder,
             None => {
                 let template = self

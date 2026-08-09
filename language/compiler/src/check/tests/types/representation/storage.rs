@@ -478,7 +478,7 @@ player.mode satisfies Mode;
 type Mode = "active" | "paused";
 
 struct Player {
-    mode: Mode;
+    mode: "active" | "paused";
 }
 
 const player: Player = Player {
@@ -495,10 +495,10 @@ type Mode = "active" | "paused";
 struct Player {
 /// @type.symbol symbol=Player type=Player
 /// @definition.struct symbol=Player
-/// @definition.field symbol=Player.mode source="mode: Mode" key=mode type=Mode
+/// @definition.field symbol=Player.mode source="mode: Mode" key=mode type="active" | "paused"
 
     mode: Mode;
-    /// @type.symbol symbol=Player.mode source="mode: Mode" type=Mode reduced="active" | "paused"
+    /// @type.symbol symbol=Player.mode source="mode: Mode" type="active" | "paused"
     /// @resolution.name source=Mode target=Mode
 
 }
@@ -513,7 +513,7 @@ const player = Player {
 
 player.mode satisfies Mode;
 /// @resolution.name source=player target=player
-/// @resolution.member source=player.mode receiver=Player type=Mode kind=field target_receiver=Player key=mode target=Player.mode target_type=Mode
+/// @resolution.member source=player.mode receiver=Player type="active" | "paused" kind=field target_receiver=Player key=mode target=Player.mode target_type="active" | "paused"
 /// @resolution.place source=player placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=player root=player
 /// @resolution.place source=player.mode placement="local" lifetime="static" access="exclusive"

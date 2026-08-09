@@ -4,7 +4,7 @@ use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{Answer, CheckState, DecoratorApplication, Origin};
+use crate::check::{CheckState, DecoratorApplication, Origin};
 use crate::{CompilerError, CompilerResult};
 
 /// One Tagged provider configuration.
@@ -127,7 +127,7 @@ impl CheckState<'_> {
     /// Derive every tagged newtype definition the declared identities name.
     pub(in crate::check) fn derive_tagged_definitions(&mut self) -> CompilerResult<()> {
         // derive the rows the declare pass deferred on foreign content
-        if self.is_checking {
+        if !self.is_declaration() {
             return self.derive_deferred_tagged_definitions();
         }
 
@@ -262,7 +262,7 @@ impl CheckState<'_> {
         active.insert(symbol);
         let Some(arms) = self.tagged_arms(origin, backing, &mut active)? else {
             // defer foreign or invalid arms to the checking pass
-            if self.is_checking {
+            if !self.is_declaration() {
                 self.report_invalid_tagged_variant(origin)?;
             }
 
@@ -275,16 +275,9 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
-        // derived types intern into the checking module's working tables
-        let intern_module = self.module_id;
         let mut variants = Vec::with_capacity(arms.len());
         for (arm, discriminant) in arms.into_iter().zip(discriminants) {
-            variants.push(self.derive_tagged_variant(
-                intern_module,
-                arm,
-                discriminator,
-                discriminant,
-            )?);
+            variants.push(self.derive_tagged_variant(arm, discriminator, discriminant)?);
         }
 
         // validate every generated key before binding the identities
@@ -292,14 +285,14 @@ impl CheckState<'_> {
         let mut distinct_keys = FxIndexSet::default();
         for variant in variants {
             let Some(name) = options.case_name(variant.discriminant, self.strings()) else {
-                if self.is_checking {
+                if !self.is_declaration() {
                     self.report_invalid_tagged_case(origin, variant.discriminant)?;
                 }
 
                 return Ok(None);
             };
             if !distinct_keys.insert(name) {
-                if self.is_checking {
+                if !self.is_declaration() {
                     self.report_duplicate_tagged_case(origin, name)?;
                 }
 
@@ -459,7 +452,7 @@ impl CheckState<'_> {
 
             return Ok(());
         };
-        let (backing, template, is_tagged) = match self.definition_maybe(symbol) {
+        let (backing, _template, is_tagged) = match self.definition_maybe(symbol) {
             Some(dir::Definition::Newtype(definition)) => (
                 definition.backing,
                 definition
@@ -478,8 +471,6 @@ impl CheckState<'_> {
 
             return Ok(());
         }
-
-        let _ = template;
 
         // count the written backing arms
         let mut active = FxIndexSet::default();
@@ -575,18 +566,8 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<Option<Vec<TaggedArm>>> {
-        let ty = self.settled_root(ty)?;
-        let ty = match self.reduce_type_head(origin, ty)? {
-            Answer::Ready(ty) => ty,
-            Answer::Pending(blockers) => {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "Tagged backing {ty:?} remained blocked after decorator checking: \
-                         {blockers:?}"
-                    ),
-                });
-            }
-        };
+        let ty = self.shallow_resolve(ty)?;
+        let ty = self.reduce_type_head(origin, ty)?;
 
         match self.ty(ty)? {
             // flatten direct union arms in declaration order
@@ -625,28 +606,8 @@ impl CheckState<'_> {
                 match self.definition(instance.symbol)? {
                     // return one struct arm with its instantiated fields
                     Some(dir::Definition::Struct(_)) => {
-                        let declared_fields = match self.struct_fields(origin, ty)? {
-                            Answer::Ready(fields) => fields,
-                            Answer::Pending(blockers) => {
-                                return Err(CompilerError::Internal {
-                                    message: format!(
-                                        "Tagged struct {ty:?} remained blocked after decorator \
-                                         checking: {blockers:?}"
-                                    ),
-                                });
-                            }
-                        };
-                        let constructor_fields = match self.struct_constructor_fields(origin, ty)? {
-                            Answer::Ready(fields) => fields,
-                            Answer::Pending(blockers) => {
-                                return Err(CompilerError::Internal {
-                                    message: format!(
-                                        "Tagged struct constructor {ty:?} remained blocked after \
-                                         decorator checking: {blockers:?}"
-                                    ),
-                                });
-                            }
-                        };
+                        let declared_fields = self.struct_fields(origin, ty)?;
+                        let constructor_fields = self.struct_constructor_fields(origin, ty)?;
                         let arm = TaggedArm {
                             backing: ty,
                             declared_fields: declared_fields.into_vec(),
@@ -694,14 +655,14 @@ impl CheckState<'_> {
             let Some(discriminants) =
                 self.collect_tagged_discriminants(origin, discriminator, arms)?
             else {
-                if self.is_checking {
+                if !self.is_declaration() {
                     self.report_invalid_tagged_discriminator(origin, discriminator)?;
                 }
 
                 return Ok(None);
             };
             if let Some(duplicate) = Self::duplicate_tagged_discriminant(&discriminants) {
-                if self.is_checking {
+                if !self.is_declaration() {
                     self.report_duplicate_tagged_discriminant(origin, duplicate)?;
                 }
 
@@ -729,14 +690,14 @@ impl CheckState<'_> {
         match candidates.as_slice() {
             [(discriminator, discriminants)] => Ok(Some((*discriminator, discriminants.clone()))),
             [] if duplicates.len() == 1 => {
-                if self.is_checking {
+                if !self.is_declaration() {
                     self.report_duplicate_tagged_discriminant(origin, duplicates[0])?;
                 }
 
                 Ok(None)
             }
             [] => {
-                if self.is_checking {
+                if !self.is_declaration() {
                     self.report_missing_tagged_discriminator(origin)?;
                 }
 
@@ -744,7 +705,7 @@ impl CheckState<'_> {
             }
             _ => {
                 let discriminators = candidates.iter().map(|(key, _)| *key).collect::<Vec<_>>();
-                if self.is_checking {
+                if !self.is_declaration() {
                     self.report_ambiguous_tagged_discriminator(origin, &discriminators)?;
                 }
 
@@ -769,17 +730,7 @@ impl CheckState<'_> {
             else {
                 return Ok(None);
             };
-            let field_type = match self.reduce_type_head(origin, field.access.store())? {
-                Answer::Ready(ty) => ty,
-                Answer::Pending(blockers) => {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "Tagged discriminator field {:?} remained blocked after decorator checking: {blockers:?}",
-                            field.access.store(),
-                        ),
-                    });
-                }
-            };
+            let field_type = self.reduce_type_head(origin, field.access.store())?;
             let dir::Type::Literal(dir::ScalarLiteral::String(discriminant)) =
                 self.ty(field_type)?
             else {
@@ -804,7 +755,6 @@ impl CheckState<'_> {
     /// Derive one Tagged variant from a selected arm.
     fn derive_tagged_variant(
         &mut self,
-        module: ModuleId,
         arm: TaggedArm,
         discriminator: dir::StaticKey,
         discriminant: dir::StringId,
@@ -819,7 +769,7 @@ impl CheckState<'_> {
         let argument = if argument_fields.is_empty() {
             None
         } else {
-            let fields = self.intern_properties(module, &argument_fields)?;
+            let fields = self.intern_properties(&argument_fields)?;
             let shape = dir::ShapeType {
                 properties: fields,
                 call_signatures: dir::TypeListId::EMPTY,

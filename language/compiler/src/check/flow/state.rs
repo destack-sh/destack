@@ -15,15 +15,15 @@ pub(in crate::check) struct FlowState {
     pub(in crate::check::flow) functions: Vec<FunctionFrame>,
     /// Contextual receiver scopes currently visible outside function bodies.
     pub(in crate::check::flow) receivers: Vec<Option<Receiver>>,
-    /// Generic template scopes enclosing the current walk point.
+    /// Generic template scopes enclosing the current flow point.
     pub(in crate::check::flow) template_scopes: Vec<dir::GlobalGenericTemplateId>,
     /// Control targets currently visible to `break` and `continue`.
     pub(in crate::check::flow) targets: Vec<ControlTarget>,
     /// Try targets currently visible to `?`.
     pub(in crate::check::flow) tries: Vec<TryTarget>,
-    /// Places definitely assigned at the current walk point.
+    /// Places definitely assigned at the current flow point.
     pub(in crate::check::flow) assigned: FxIndexSet<AssignedPlace>,
-    /// Places moved out at the current walk point, keyed to their move site.
+    /// Places moved out at the current flow point, keyed to their move site.
     pub(in crate::check::flow) moved: FxIndexMap<AssignedPlace, MoveSite>,
     /// Flow narrowings keyed by static path.
     pub(in crate::check::flow) narrowings:
@@ -62,7 +62,7 @@ impl Default for FlowState {
     }
 }
 
-/// A durable point in the flow walk.
+/// The id of one durable flow point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct FlowPointId {
     /// The point index in the flow point table.
@@ -76,17 +76,6 @@ impl FlowPointId {
     /// Return the index in the module flow table.
     pub(in crate::check) fn index(self) -> usize {
         self.index as usize
-    }
-
-    /// Return this point after its flow graph is appended at one offset.
-    pub(in crate::check) fn appended(self, offset: usize) -> Self {
-        if self == Self::ROOT {
-            Self::ROOT
-        } else {
-            Self {
-                index: offset as u32 + self.index - 1,
-            }
-        }
     }
 }
 
@@ -128,7 +117,7 @@ pub(in crate::check) struct FlowCheckpoint {
 }
 
 /// Flow changes produced by one branch after a checkpoint.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub(in crate::check) struct FlowBranch {
     /// Places assigned by this branch.
     assigned: FxIndexSet<AssignedPlace>,
@@ -139,15 +128,6 @@ pub(in crate::check) struct FlowBranch {
 }
 
 impl FlowBranch {
-    /// Return an empty flow branch.
-    pub(in crate::check) fn empty() -> Self {
-        Self {
-            assigned: FxIndexSet::default(),
-            moved: FxIndexMap::default(),
-            narrowings: FxIndexMap::default(),
-        }
-    }
-
     /// Return whether this branch assigns one place.
     pub(in crate::check) fn assigns(&self, place: AssignedPlace) -> bool {
         self.assigned.contains(&place)
@@ -243,26 +223,42 @@ pub(in crate::check) enum FlowPredicate {
 }
 
 impl FlowState {
-    /// Append this walk's durable graph to one module flow table.
-    pub(in crate::check) fn append_to(self, points: &mut Vec<FlowPoint>) -> usize {
-        if points.is_empty() {
-            *points = self.points;
-
-            return 1;
+    /// Sync this walk's durable graph into one module flow table it owns.
+    ///
+    /// The body walk is the only writer of its module's flow store, so
+    /// walk-local point ids stay durable identity ids.
+    pub(in crate::check) fn sync_to(&self, points: &mut Vec<FlowPoint>) {
+        while points.len() < self.points.len() {
+            points.push(self.points[points.len()].clone());
         }
+    }
 
-        let offset = points.len();
-        for mut point in self.points.into_iter().skip(1) {
-            point.parent = point.parent.map(|parent| parent.appended(offset));
-            points.push(point);
-        }
-
-        offset
+    /// Restart the cursor context while keeping the durable point log.
+    ///
+    /// The next walk continues appending to the same log, so point ids
+    /// stay durable identity ids without any rebasing.
+    pub(in crate::check) fn reset_cursor(&mut self) {
+        self.functions.clear();
+        self.receivers.clear();
+        self.template_scopes.clear();
+        self.targets.clear();
+        self.tries.clear();
+        self.assigned.clear();
+        self.moved.clear();
+        self.narrowings.clear();
+        self.unbound_jumps.clear();
+        self.changes.clear();
+        self.push_point(FlowPointChange::Start);
     }
 
     /// Return the current durable flow point.
     pub(in crate::check) fn point(&self) -> FlowPointId {
         self.current
+    }
+
+    /// Return the cursor's flow point graph.
+    pub(in crate::check) fn points(&self) -> &[FlowPoint] {
+        &self.points
     }
 
     /// Append one durable flow point.
@@ -287,7 +283,7 @@ impl FlowState {
         self.unbound_jumps.contains(&source)
     }
 
-    /// Enter one function body while walking.
+    /// Enter one function body frame.
     pub(in crate::check) fn push_function(&mut self, function: FunctionFrame) {
         self.functions.push(function);
     }
@@ -564,12 +560,12 @@ impl FlowState {
         self.assigned.shift_remove(&place);
     }
 
-    /// Return the recorded move site of one place at the current walk point.
+    /// Return the recorded move site of one place at the current flow point.
     pub(in crate::check) fn moved_site(&self, place: AssignedPlace) -> Option<MoveSite> {
         self.moved.get(&place).copied()
     }
 
-    /// Narrow one path at the current walk point.
+    /// Narrow one path at the current flow point.
     pub(in crate::check) fn apply_narrowing(
         &mut self,
         path: dir::AccessPath,

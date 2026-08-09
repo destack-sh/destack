@@ -916,7 +916,7 @@ export struct Trigger {
 /// @definition.field symbol=Trigger.predicate source="predicate?: Predicate" key=predicate type=Predicate
 
     predicate?: Predicate;
-    /// @type.symbol symbol=Trigger.predicate source="predicate?: Predicate" type=Predicate reduced=Function<(&type_expression.'a readonly Attempt,), boolean>
+    /// @type.symbol symbol=Trigger.predicate source="predicate?: Predicate" type=Predicate
     /// @resolution.name source=Predicate target=Predicate
 
 }

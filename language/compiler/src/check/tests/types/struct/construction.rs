@@ -72,7 +72,7 @@ function wrap<T>(value: T): Box<T> {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 struct Box<out T> {
@@ -118,8 +118,6 @@ function wrap<T>(value: T): Box<T> {
 }
 
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
-
-/// @check.stats.solve variables=0 types=11 constraints=0 obligations=2 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -507,6 +505,7 @@ struct Point {
 const point = new Point(1, 2);
 /// @type.symbol symbol=point source=point type=<error>
 /// @resolution.pattern source=point kind=binding target=point
+/// @resolution.rejected source="new Point(1, 2)"
 /// @resolution.name source=Point target=Point
 "#,
         r#"
@@ -698,7 +697,7 @@ struct Entry<'a> {
 }
 
 function make(options?: Options): Entry<"static"> {
-    const entry: Entry<"static"> = Entry<"static"> { message: options?.message };
+    const entry: Entry<"frame"> = Entry<"frame"> { message: options?.message };
 
     return entry;
 }
@@ -735,7 +734,7 @@ function make(options?: Options): Entry {
 /// @resolution.name source=Entry target=Entry
 
     const entry = Entry { message: options?.message };
-    /// @type.symbol symbol=make.entry source=entry type=Entry<"static">
+    /// @type.symbol symbol=make.entry source=entry type=Entry<"frame">
     /// @resolution.pattern source=entry kind=binding target=make.entry
     /// @resolution.name source=Entry target=Entry
     /// @resolution.name source=options target=make.options
@@ -752,6 +751,7 @@ function make(options?: Options): Entry {
 
 }
 
+/// @generic.instance id="Entry<\"frame\">" template=Entry arguments=("frame")
 /// @generic.instance id="Entry<\"static\">" template=Entry arguments=("static")
 "#,
     );

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, answer};
+use crate::check::{CheckState, Origin, Relation};
 
 impl CheckState<'_> {
     /// Decide explicit castability.
@@ -10,13 +10,13 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // lossless numeric widening requires explicit cast
         if let (dir::Type::Primitive(source), dir::Type::Primitive(target)) =
             (self.ty(source)?, self.ty(target)?)
             && source.widens_to(target)
         {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         // machine scalars convert explicitly to any numeric width;
@@ -24,7 +24,7 @@ impl CheckState<'_> {
         if matches!(
             self.ty(target)?,
             dir::Type::Primitive(dir::PrimitiveType::Integer(_) | dir::PrimitiveType::Float(_))
-        ) && let Some(families) = answer!(self.scalar_families(origin, source)?)
+        ) && let Some(families) = self.scalar_families(origin, source)?
             && !families.is_empty()
             && families.iter().all(|family| {
                 matches!(
@@ -37,28 +37,22 @@ impl CheckState<'_> {
                 )
             })
         {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         // concrete newtypes project explicitly to their backing type
         if let Some(instance) = self.decompose_newtype(origin, source)? {
             let backing = instance.backing;
-            let projected = self.decide_relation(origin, Relation::Castable, backing, target)?;
-            if !matches!(projected, Answer::Ready(false)) {
-                return Ok(projected);
+            if self.decide_relation(origin, Relation::Castable, backing, target)? {
+                return Ok(true);
             }
         }
 
-        let forward = self.decide_assignable(origin, Relation::Assignable, source, target)?;
-        if forward.is_ready_true() {
-            return Ok(Answer::Ready(true));
+        // an assignable relation in either direction admits an explicit cast
+        if self.decide_assignable(origin, Relation::Assignable, source, target)? {
+            return Ok(true);
         }
 
-        let backward = self.decide_assignable(origin, Relation::Assignable, target, source)?;
-        if backward.is_ready_true() {
-            return Ok(Answer::Ready(true));
-        }
-
-        Ok(forward.or(backward))
+        self.decide_assignable(origin, Relation::Assignable, target, source)
     }
 }

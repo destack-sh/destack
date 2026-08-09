@@ -1,9 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{
-    Answer, CheckState, DecisionKind, ObligationCheck, ObligationFailure, Origin, PatternArm,
-    answer,
-};
+use crate::check::{CheckState, ObligationCheck, ObligationFailure, Origin, PatternArm};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -14,7 +11,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
         arms: &[PatternArm],
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // collect unguarded patterns with valid pattern decisions
         let mut patterns = Vec::new();
         for arm in arms {
@@ -23,10 +20,10 @@ impl CheckState<'_> {
                 continue;
             }
 
-            match self.decision_kind(arm.pattern.into_any()) {
-                Some(DecisionKind::Pattern) => patterns.push(arm.pattern),
-                Some(DecisionKind::Rejected | DecisionKind::Poisoned) => {
-                    return Ok(Answer::Ready(ObligationCheck::holds()));
+            match self.decision(arm.pattern.into_any()) {
+                Some(dir::Decision::Pattern(_)) => patterns.push(arm.pattern),
+                Some(dir::Decision::Rejected | dir::Decision::Poisoned) => {
+                    return Ok(ObligationCheck::holds());
                 }
                 decision => {
                     let label = self.node_label(arm.pattern.into_any());
@@ -38,14 +35,14 @@ impl CheckState<'_> {
         }
 
         // accept any covering pattern alternative
-        let check = if answer!(self.decide_patterns_cover(origin, &patterns, value)?) {
+        let check = if self.decide_patterns_cover(origin, &patterns, value)? {
             ObligationCheck::holds()
         } else {
-            let missing = answer!(self.uncovered_value(origin, &patterns, value)?);
+            let missing = self.uncovered_value(origin, &patterns, value)?;
 
             ObligationCheck::fail(ObligationFailure::NonExhaustivePattern { source, missing })
         };
 
-        Ok(Answer::Ready(check))
+        Ok(check)
     }
 }

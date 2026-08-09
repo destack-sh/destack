@@ -13,7 +13,7 @@ let value = (1, "two", true);
         DirRows::checked()
             .with_reference_types()
             .with_coercion()
-            .with_check_stats(),
+            ,
         r#"
 === annotated ===
 let value: (float64, string, boolean) = (1, "two", true);
@@ -29,8 +29,6 @@ let value = (1, "two", true);
 /// @coercion.node source="\"two\"" from="two" adjustments=[{ kind: widen, target: string }] origin=implicit
 /// @type.node source=true type=true
 /// @coercion.node source=true from=true adjustments=[{ kind: widen, target: boolean }] origin=implicit
-
-/// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -45,7 +43,7 @@ const value = (1, "two", true) as const;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: readonly (1, "two", true) = (1, "two", true) as const;
@@ -59,8 +57,6 @@ const value = (1, "two", true) as const;
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true
-
-/// @check.stats.solve variables=1 types=7 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -75,7 +71,7 @@ const value = (1, "two", true);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: (float64, string, boolean) = (1, "two", true);
@@ -88,8 +84,6 @@ const value = (1, "two", true);
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true
-
-/// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -104,7 +98,7 @@ const value = (1, (2, 3));
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: (float64, (float64, float64)) = (1, (2, 3));
@@ -118,8 +112,6 @@ const value = (1, (2, 3));
 /// @type.node source=(2, 3) type=(float64, float64)
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
-
-/// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -134,7 +126,7 @@ const value: (1 | 2, "a" | "b") = (1, "a");
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: (1 | 2, "a" | "b") = (1 as 1 | 2, "a" as "a" | "b");
@@ -146,8 +138,6 @@ const value: (1 | 2, "a" | "b") = (1, "a");
 /// @type.node source=(1, "a") type=(1 | 2, "a" | "b")
 /// @type.node source=1 type=1
 /// @type.node source="\"a\"" type="a"
-
-/// @check.stats.solve variables=0 types=9 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -162,7 +152,7 @@ const value: (number, string) = (1, 2);
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: (float64, string) = (1, 2);
@@ -174,8 +164,6 @@ const value: (number, string) = (1, 2);
 /// @type.node source=(1, 2) type=(float64, string)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
-
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '2' is not assignable to type 'string'"

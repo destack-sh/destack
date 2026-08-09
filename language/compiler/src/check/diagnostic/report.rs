@@ -7,7 +7,7 @@ use destack_source::{
 
 use crate::check::{
     BoundSide, CauseId, CauseKind, CheckFailure, CheckState, ObligationFailure, OperatorOperands,
-    Origin, Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse, Variance,
+    Origin, Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse, Variance, Verdict,
 };
 use crate::{CheckError, CheckWarning, CompilerError, CompilerResult, DiagnosticAnchor};
 
@@ -720,7 +720,7 @@ impl CheckState<'_> {
         let mut bounds = Vec::new();
         for side in [BoundSide::Lower, BoundSide::Upper] {
             bounds.extend(
-                self.solver
+                self.infer
                     .variables
                     .side_bounds(variable, side)?
                     .map(|bound| (side, bound)),
@@ -1256,8 +1256,11 @@ impl CheckState<'_> {
                 self.report_wrong_argument_count(origin, expected, supplied)?;
             }
 
-            // report the selected mismatch at its authored cause
+            // report the selected mismatch at its authored cause; an
+            //  ambiguous mismatch retries once its variables solve, so
+            //  only the final round records it
             SignatureRejection::Mismatch {
+                verdict,
                 cause,
                 relation,
                 use_,
@@ -1265,7 +1268,9 @@ impl CheckState<'_> {
                 target,
                 failure,
             } => {
-                self.record_failure(cause, relation, use_, source, target, failure);
+                if verdict != Verdict::Ambiguous || self.is_final_round() {
+                    self.record_failure(cause, relation, use_, source, target, failure)?;
+                }
             }
 
             // report receiver mismatch on the call itself

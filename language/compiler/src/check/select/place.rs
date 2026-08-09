@@ -3,24 +3,24 @@ use destack_source::ModuleId;
 use smallvec::smallvec;
 
 use crate::check::{
-    Answer, AssignmentSelection, BodyState, FlowSite, MemberCandidate, MemberLookup, MemberRole,
-    Origin, PlaceUse, Value, WriteMode, answer,
+    AssignmentSelection, BodyState, FlowSite, MemberCandidate, MemberLookup, MemberRole, Origin,
+    PlaceUse, Value, WriteMode,
 };
 use crate::{CompilerError, CompilerResult};
 
 /// One member place selected from a member lookup.
 pub(in crate::check) struct MemberAssignmentSelection {
     /// The member read before an update, when required.
-    pub(in crate::check) read: Option<dir::MemberResolution>,
+    pub(in crate::check) read: Option<dir::MemberDecision>,
     /// The selected member write.
-    write: dir::MemberResolution,
+    write: dir::MemberDecision,
 }
 
 impl MemberAssignmentSelection {
     /// Return the selected read and write member resolutions.
     pub(in crate::check) fn into_resolutions(
         self,
-    ) -> (Option<dir::MemberResolution>, dir::MemberResolution) {
+    ) -> (Option<dir::MemberDecision>, dir::MemberDecision) {
         (self.read, self.write)
     }
 }
@@ -31,14 +31,14 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Value>> {
-        answer!(self.commit_expression_place(site, ty)?);
+    ) -> CompilerResult<Value> {
+        self.commit_expression_place(site, ty)?;
         let place = self
-            .resolutions(site.node.module_id)
+            .decisions(site.node.module_id)
             .place_resolution(site.node)
             .copied();
 
-        Ok(Answer::Ready(Value { ty, place }))
+        Ok(Value { ty, place })
     }
 
     /// Record the addressable storage designated by one checked expression.
@@ -46,10 +46,13 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
+        // only expressions designate storage
         if site.node.local_id.ty != dir::NodeType::Expression {
-            return Ok(Answer::Ready(()));
+            return Ok(());
         }
+
+        // select the place each addressable expression form designates
         let expression = site.node.into_typed::<dir::Expression>();
         let expression_kind = self
             .module(expression.module_id)
@@ -57,26 +60,26 @@ impl BodyState<'_, '_> {
             .get(expression.local_id)
             .clone();
         let place = match expression_kind {
-            dir::Expression::Identifier { .. } => answer!(self.binding_place(site, ty)?),
-            dir::Expression::This | dir::Expression::Super => Some(answer!(self.root_place(
+            dir::Expression::Identifier { .. } => self.binding_place(site, ty)?,
+            dir::Expression::This | dir::Expression::Super => Some(self.root_place(
                 site.origin(),
                 site.node.module_id,
                 ty,
                 dir::Space::Local,
                 dir::Lifetime::Frame,
-            )?)),
+            )?),
             dir::Expression::Member { left, .. } => {
                 let resolution = self
-                    .resolutions(expression.module_id)
-                    .member_resolution(site.node)
+                    .decisions(expression.module_id)
+                    .member_decision(site.node)
                     .cloned();
                 match resolution {
                     Some(resolution) if resolution.is_stored() => {
-                        Some(answer!(self.project_expression_place(site, left, ty)?))
+                        Some(self.project_expression_place(site, left, ty)?)
                     }
                     Some(_) => None,
                     None if self.reference_symbol(site.node).is_some() => {
-                        answer!(self.binding_place(site, ty)?)
+                        self.binding_place(site, ty)?
                     }
                     None => None,
                 }
@@ -87,12 +90,12 @@ impl BodyState<'_, '_> {
                 ..
             } => {
                 let resolution = self
-                    .resolutions(expression.module_id)
-                    .subscript_resolution(site.node)
+                    .decisions(expression.module_id)
+                    .subscript_decision(site.node)
                     .cloned();
                 match resolution {
                     Some(resolution) if resolution.is_stored() => {
-                        Some(answer!(self.project_expression_place(site, left, ty)?))
+                        Some(self.project_expression_place(site, left, ty)?)
                     }
                     Some(_) | None => None,
                 }
@@ -100,16 +103,16 @@ impl BodyState<'_, '_> {
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Dereference,
                 right,
-            } => Some(answer!(self.project_expression_place(site, right, ty)?)),
+            } => Some(self.project_expression_place(site, right, ty)?),
             _ => None,
         };
         let Some(place) = place else {
-            return Ok(Answer::Ready(()));
+            return Ok(());
         };
 
         self.commit_place(site.node, place)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Return one lexical binding place.
@@ -117,18 +120,19 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::PlaceResolution>>> {
+    ) -> CompilerResult<Option<dir::PlaceResolution>> {
         let Some(symbol) = self.reference_symbol(site.node) else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         // foreign symbols never denote body places
         if self
             .symbol_kind_maybe(symbol)?
             .is_none_or(|kind| !kind.is_binding())
         {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
+        // module bindings live for the program, body bindings for their frame
         let bindings = self.binding_table(symbol.module_id);
         let binding = bindings.get_symbol(symbol.local_id);
         let is_static = binding.scope.id == bindings.module_scope().id;
@@ -140,7 +144,7 @@ impl BodyState<'_, '_> {
         let space = binding.binding_space.unwrap_or(dir::Space::Local);
 
         self.root_place(site.origin(), site.node.module_id, ty, space, lifetime)
-            .map(|place| place.map(Some))
+            .map(Some)
     }
 
     /// Return one root storage place.
@@ -151,7 +155,7 @@ impl BodyState<'_, '_> {
         ty: dir::GlobalTypeId,
         space: dir::Space,
         lifetime: dir::Lifetime,
-    ) -> CompilerResult<Answer<dir::PlaceResolution>> {
+    ) -> CompilerResult<dir::PlaceResolution> {
         let placement = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
             dir::Place::Space(space),
         )))?;
@@ -163,7 +167,7 @@ impl BodyState<'_, '_> {
             dir::Space::Shared => {
                 let chain = self.form_chain(origin, ty)?;
 
-                answer!(self.form_ownership(origin, &chain)?) == Some(dir::Ownership::Owned)
+                self.form_ownership(origin, &chain)? == Some(dir::Ownership::Owned)
             }
         };
         let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
@@ -186,9 +190,9 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         value: Value,
-    ) -> CompilerResult<Answer<dir::PlaceResolution>> {
+    ) -> CompilerResult<dir::PlaceResolution> {
         if let Some(place) = value.place {
-            return Ok(Answer::Ready(place));
+            return Ok(place);
         }
 
         self.root_place(
@@ -206,28 +210,27 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         receiver: dir::LocalNodeId<dir::Expression>,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::PlaceResolution>> {
+    ) -> CompilerResult<dir::PlaceResolution> {
         let module = site.node.module_id;
-        let receiver_site = self.node_site(receiver.into_global_any(module))?;
-        let receiver_type = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
+        let receiver_site = self.visit_site(receiver.into_global_any(module))?;
+        let receiver_type = self.infer_node_type(receiver_site, PlaceUse::Read)?;
         let receiver_place = match self
-            .resolutions(module)
+            .decisions(module)
             .place_resolution(receiver_site.node)
             .copied()
         {
             Some(place) => place,
-            None => answer!(self.root_place(
+            None => self.root_place(
                 receiver_site.origin(),
                 receiver_site.node.module_id,
                 receiver_type,
                 dir::Space::Local,
                 dir::Lifetime::Frame,
-            )?),
+            )?,
         };
-        let place =
-            answer!(self.project_place(site.origin(), receiver_type, ty, receiver_place,)?);
+        let place = self.project_place(site.origin(), receiver_type, ty, receiver_place)?;
 
-        Ok(Answer::Ready(place))
+        Ok(place)
     }
 
     /// Project one place through a checked type.
@@ -237,12 +240,12 @@ impl BodyState<'_, '_> {
         qualifier: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
         mut place: dir::PlaceResolution,
-    ) -> CompilerResult<Answer<dir::PlaceResolution>> {
+    ) -> CompilerResult<dir::PlaceResolution> {
         let chain = self.check.form_chain(origin, qualifier)?;
 
         // project explicit placement
         if let Some(placement) = chain.place() {
-            let root = answer!(self.reduce_type_head(origin, placement)?);
+            let root = self.reduce_type_head(origin, placement)?;
             if !matches!(
                 self.ty(root)?,
                 dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Relative))
@@ -274,12 +277,13 @@ impl BodyState<'_, '_> {
                 dir::Access::Readonly,
             )))?;
         }
+
         // the projected value can further qualify its storage view
         if qualifier != ty {
             return self.project_place(origin, ty, ty, place);
         }
 
-        Ok(Answer::Ready(place))
+        Ok(place)
     }
 
     /// Commit one expression's selected place.
@@ -288,13 +292,14 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeIdAny,
         place: dir::PlaceResolution,
     ) -> CompilerResult<()> {
-        if let Some(previous) = self.resolutions(node.module_id).place_resolution(node) {
+        if let Some(previous) = self.decisions(node.module_id).place_resolution(node) {
             if previous == &place {
                 return Ok(());
             }
 
-            // keep the first resolution, lifetimes are proof-only
-            if previous.placement == place.placement && previous.access == place.access {
+            // keep the first resolution: lifetime and access are proofs, and
+            //  independent settlements of one node may pick distinct proofs
+            if previous.placement == place.placement {
                 return Ok(());
             }
 
@@ -307,7 +312,7 @@ impl BodyState<'_, '_> {
         }
 
         self.module_mut(node.module_id)
-            .resolutions
+            .decisions
             .set_place_resolution(node, place);
 
         Ok(())
@@ -319,7 +324,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         expression: dir::LocalNodeId<dir::Expression>,
         use_: PlaceUse,
-    ) -> CompilerResult<Answer<Option<AssignmentSelection>>> {
+    ) -> CompilerResult<Option<AssignmentSelection>> {
         let module = site.node.module_id;
         let source = site.node;
         let origin = site.origin();
@@ -357,24 +362,19 @@ impl BodyState<'_, '_> {
 
                 let initializes = self.initializing_owner(module, left);
                 let receiver_node = left.into_global_any(module);
-                let receiver_site = self.node_site(receiver_node)?;
-                let mut receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
-                let receiver_value = answer!(self.expression_value(receiver_site, receiver)?);
-                let receiver_place =
-                    answer!(self.value_place(receiver_site.origin(), receiver_value)?);
-                if let Some(split) = answer!(self.split_nullish_type(origin, receiver)?) {
+                let receiver_site = self.visit_site(receiver_node)?;
+                let mut receiver = self.infer_node_type(receiver_site, PlaceUse::Read)?;
+                let receiver_value = self.expression_value(receiver_site, receiver)?;
+                let receiver_place = self.value_place(receiver_site.origin(), receiver_value)?;
+                if let Some(split) = self.split_nullish_type(origin, receiver)? {
                     self.report_possibly_nullish(origin, split.rejected.label().to_string())?;
                     receiver = split.value;
                 }
-                let receiver = answer!(self.reduce_type_head(origin, receiver)?);
+                let receiver = self.reduce_type_head(origin, receiver)?;
 
                 // a place projected through a readonly view stays readonly for writes
-                let receiver = answer!(self.readonly_write_receiver(
-                    origin,
-                    use_,
-                    receiver,
-                    receiver_place,
-                )?);
+                let receiver =
+                    self.readonly_write_receiver(origin, use_, receiver, receiver_place)?;
                 let receiver_value = Value {
                     ty: receiver,
                     ..receiver_value
@@ -382,22 +382,18 @@ impl BodyState<'_, '_> {
                 let space = self.member_receiver_space(receiver_node, receiver)?;
                 let key = dir::StaticKey::Name(name);
                 let subject = dir::MemberSubject::new(receiver, receiver, space);
-                let lookup = answer!(self.lookup_member(origin, module, subject, key)?);
+                let lookup = self.lookup_member(origin, module, subject, key)?;
 
-                let Some(selection) = answer!(self.select_member_assignment(
-                    origin,
-                    receiver_value,
-                    key,
-                    use_,
-                    lookup,
-                )?) else {
-                    return Ok(Answer::Ready(None));
+                let Some(selection) =
+                    self.select_member_assignment(origin, receiver_value, key, use_, lookup)?
+                else {
+                    return Ok(None);
                 };
                 let stored_key = selection.write.stored_key();
                 let read = selection.read.map(dir::ReadResolution::Member);
                 let write = dir::WriteResolution::Member(selection.write);
 
-                let target = answer!(self.assignment_target(
+                let target = self.assignment_target(
                     origin,
                     read,
                     write,
@@ -405,14 +401,14 @@ impl BodyState<'_, '_> {
                     receiver,
                     receiver_place,
                     initializes,
-                )?);
+                )?;
 
                 // record the stored member path
                 if let Some(key) = stored_key {
                     self.commit_projected_access(source, receiver_node, key)?;
                 }
 
-                Ok(Answer::Ready(Some(target)))
+                Ok(Some(target))
             }
             // value[index]
             dir::Expression::Index {
@@ -422,30 +418,25 @@ impl BodyState<'_, '_> {
             } => {
                 let initializes = self.initializing_owner(module, left);
                 let receiver_node = left.into_global_any(module);
-                let receiver_site = self.node_site(receiver_node)?;
-                let receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
-                let receiver_value = answer!(self.expression_value(receiver_site, receiver)?);
-                let receiver_place =
-                    answer!(self.value_place(receiver_site.origin(), receiver_value)?);
+                let receiver_site = self.visit_site(receiver_node)?;
+                let receiver = self.infer_node_type(receiver_site, PlaceUse::Read)?;
+                let receiver_value = self.expression_value(receiver_site, receiver)?;
+                let receiver_place = self.value_place(receiver_site.origin(), receiver_value)?;
 
                 // a place projected through a readonly view stays readonly for writes
-                let receiver = answer!(self.readonly_write_receiver(
-                    origin,
-                    use_,
-                    receiver,
-                    receiver_place,
-                )?);
+                let receiver =
+                    self.readonly_write_receiver(origin, use_, receiver, receiver_place)?;
                 let receiver_value = Value {
                     ty: receiver,
                     ..receiver_value
                 };
                 let index_node = index.into_global_any(module);
                 let index_key = self.module(module).view().get(index).static_key();
-                let index_site = self.node_site(index_node)?;
-                let index = answer!(self.infer_node_type(index_site, PlaceUse::Read)?);
+                let index_site = self.visit_site(index_node)?;
+                let index = self.infer_node_type(index_site, PlaceUse::Read)?;
                 let receiver_type = self.readable_value(receiver)?;
                 let space = self.member_receiver_space(receiver_node, receiver)?;
-                let Some(selection) = answer!(self.select_subscript(
+                let Some(selection) = self.select_subscript(
                     origin,
                     module,
                     use_,
@@ -454,19 +445,20 @@ impl BodyState<'_, '_> {
                     space,
                     index_node,
                     index,
-                )?) else {
-                    return Ok(Answer::Ready(None));
+                )?
+                else {
+                    return Ok(None);
                 };
                 // require one key conversion across every selected runtime arm
-                if !answer!(self.check_subscript_key(index_site, index, selection.key_types())?) {
-                    return Ok(Answer::Ready(None));
+                if !self.check_subscript_key(index_site, index, selection.key_types())? {
+                    return Ok(None);
                 }
                 let writes_storage = selection.writes_storage();
                 let Some((read, write)) = selection.into_place() else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
 
-                let target = answer!(self.assignment_target(
+                let target = self.assignment_target(
                     origin,
                     read,
                     write,
@@ -474,14 +466,14 @@ impl BodyState<'_, '_> {
                     receiver,
                     receiver_place,
                     initializes,
-                )?);
+                )?;
 
                 // record the stored subscript path
                 if writes_storage && let Some(key) = index_key {
                     self.commit_projected_access(source, receiver_node, key)?;
                 }
 
-                Ok(Answer::Ready(Some(target)))
+                Ok(Some(target))
             }
             // *value
             dir::Expression::Unary {
@@ -489,21 +481,16 @@ impl BodyState<'_, '_> {
                 right,
             } => {
                 let receiver_node = right.into_global_any(module);
-                let receiver_site = self.node_site(receiver_node)?;
-                let receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
-                let receiver_value = answer!(self.expression_value(receiver_site, receiver)?);
-                let Some(write) = answer!(self.select_dereference(
-                    origin,
-                    receiver_value,
-                    dir::Access::Mutable
-                )?) else {
+                let receiver_site = self.visit_site(receiver_node)?;
+                let receiver = self.infer_node_type(receiver_site, PlaceUse::Read)?;
+                let receiver_value = self.expression_value(receiver_site, receiver)?;
+                let Some(write) =
+                    self.select_dereference(origin, receiver_value, dir::Access::Mutable)?
+                else {
                     // a readable place that rejects writes lacks the access
-                    if answer!(self.select_dereference(
-                        origin,
-                        receiver_value,
-                        dir::Access::Readonly,
-                    )?)
-                    .is_some()
+                    if self
+                        .select_dereference(origin, receiver_value, dir::Access::Readonly)?
+                        .is_some()
                     {
                         self.check.report_borrow_access_not_granted(
                             origin,
@@ -513,16 +500,14 @@ impl BodyState<'_, '_> {
                         )?;
                     }
 
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
                 let read = match use_ {
                     PlaceUse::Update => {
-                        let Some(read) = answer!(self.select_dereference(
-                            origin,
-                            receiver_value,
-                            dir::Access::Readonly,
-                        )?) else {
-                            return Ok(Answer::Ready(None));
+                        let Some(read) =
+                            self.select_dereference(origin, receiver_value, dir::Access::Readonly)?
+                        else {
+                            return Ok(None);
                         };
 
                         Some(dir::ReadResolution::Dereference(read))
@@ -531,12 +516,12 @@ impl BodyState<'_, '_> {
                 };
                 let write = dir::WriteResolution::Dereference(write);
 
-                Ok(Answer::Ready(Some(AssignmentSelection {
+                Ok(Some(AssignmentSelection {
                     read,
                     write,
                     mode: WriteMode::Indirect { receiver },
                     source,
-                })))
+                }))
             }
             _ => Err(CompilerError::Internal {
                 message: format!("assignment pattern place {source:?} is not writable"),
@@ -552,7 +537,7 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         use_: PlaceUse,
         lookup: MemberLookup,
-    ) -> CompilerResult<Answer<Option<MemberAssignmentSelection>>> {
+    ) -> CompilerResult<Option<MemberAssignmentSelection>> {
         match lookup {
             MemberLookup::Field(field) => {
                 let read = if use_ != PlaceUse::Write {
@@ -565,14 +550,11 @@ impl BodyState<'_, '_> {
 
                 // read-only properties select no write resolution
                 let Some(write) = field.write_access(receiver.ty, key) else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
                 let write = dir::OperationResolution::One(write);
 
-                Ok(Answer::Ready(Some(MemberAssignmentSelection {
-                    read,
-                    write,
-                })))
+                Ok(Some(MemberAssignmentSelection { read, write }))
             }
             MemberLookup::Found(candidates) => {
                 self.select_member_candidate_write(origin, receiver, key, use_, candidates)
@@ -581,7 +563,7 @@ impl BodyState<'_, '_> {
                 let mut reads = Vec::with_capacity(lookups.len());
                 let mut writes = Vec::with_capacity(lookups.len());
                 for arm in lookups {
-                    let Some(selection) = answer!(self.select_member_assignment(
+                    let Some(selection) = self.select_member_assignment(
                         origin,
                         Value {
                             ty: arm.receiver,
@@ -590,8 +572,9 @@ impl BodyState<'_, '_> {
                         key,
                         use_,
                         arm.lookup,
-                    )?) else {
-                        return Ok(Answer::Ready(None));
+                    )?
+                    else {
+                        return Ok(None);
                     };
                     if let Some(read) = selection.read {
                         let dir::OperationResolution::One(read) = read else {
@@ -622,36 +605,30 @@ impl BodyState<'_, '_> {
                     None
                 };
 
-                Ok(Answer::Ready(Some(MemberAssignmentSelection {
-                    read,
-                    write,
-                })))
+                Ok(Some(MemberAssignmentSelection { read, write }))
             }
             MemberLookup::Intersection(lookups) => {
                 let mut reads = Vec::with_capacity(lookups.len());
                 let mut writes = Vec::with_capacity(lookups.len());
                 for lookup in lookups {
-                    let Some(selection) = answer!(
-                        self.select_member_assignment(origin, receiver, key, use_, lookup,)?
-                    ) else {
-                        return Ok(Answer::Ready(None));
+                    let Some(selection) =
+                        self.select_member_assignment(origin, receiver, key, use_, lookup)?
+                    else {
+                        return Ok(None);
                     };
                     reads.extend(selection.read);
                     writes.push(selection.write);
                 }
-                let write = self.intersect_member_resolutions(origin, writes)?;
+                let write = self.intersect_member_decisions(origin, writes)?;
                 let read = if reads.is_empty() {
                     None
                 } else {
-                    Some(self.intersect_member_resolutions(origin, reads)?)
+                    Some(self.intersect_member_decisions(origin, reads)?)
                 };
 
-                Ok(Answer::Ready(Some(MemberAssignmentSelection {
-                    read,
-                    write,
-                })))
+                Ok(Some(MemberAssignmentSelection { read, write }))
             }
-            MemberLookup::Missing => Ok(Answer::Ready(None)),
+            MemberLookup::Missing => Ok(None),
         }
     }
 
@@ -663,7 +640,8 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         use_: PlaceUse,
         candidates: Vec<MemberCandidate>,
-    ) -> CompilerResult<Answer<Option<MemberAssignmentSelection>>> {
+    ) -> CompilerResult<Option<MemberAssignmentSelection>> {
+        // split the candidates by the role each declares
         let fields = candidates
             .iter()
             .filter(|candidate| candidate.role == MemberRole::Field)
@@ -677,13 +655,15 @@ impl BodyState<'_, '_> {
             .filter(|candidate| candidate.role == MemberRole::Setter)
             .collect::<Vec<_>>();
 
+        // reject a key that several candidates would write
         if fields.len() > 1 || setters.len() > 1 || (fields.len() == 1 && setters.len() == 1) {
             let key = self.format_static_key(&key);
             self.report_ambiguous_member(origin, key)?;
 
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
+        // a field writes its own storage directly
         if let Some(field) = fields.into_iter().next() {
             let read_type = field.read_type(origin.module(), self)?;
             let read = match (use_, read_type) {
@@ -697,21 +677,19 @@ impl BodyState<'_, '_> {
             let write =
                 dir::OperationResolution::One(field.access(receiver.ty, key, field.access_type));
 
-            return Ok(Answer::Ready(Some(MemberAssignmentSelection {
-                read,
-                write,
-            })));
+            return Ok(Some(MemberAssignmentSelection { read, write }));
         }
 
+        // otherwise the write goes through a setter call
         let Some(setter) = setters.into_iter().next() else {
             if !getters.is_empty() {
                 let key = self.format_static_key(&key);
                 self.report_readonly_member(origin, key)?;
             }
 
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
-        let call = answer!(self.select_setter_call(origin, receiver, setter)?);
+        let call = self.select_setter_call(origin, receiver, setter)?;
         let write = dir::MemberAccess::new(
             receiver.ty,
             dir::MemberTarget::Call(Box::new(call)),
@@ -721,9 +699,8 @@ impl BodyState<'_, '_> {
         let read = match use_ {
             PlaceUse::Update => match getters.as_slice() {
                 [getter] => {
-                    let Some(call) = answer!(self.select_getter_call(origin, receiver, getter)?)
-                    else {
-                        return Ok(Answer::Ready(None));
+                    let Some(call) = self.select_getter_call(origin, receiver, getter)? else {
+                        return Ok(None);
                     };
                     let read = dir::MemberAccess::new(
                         receiver.ty,
@@ -737,23 +714,20 @@ impl BodyState<'_, '_> {
                     let key = self.format_static_key(&key);
                     self.report_write_only_member(origin, key)?;
 
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
                 _ => {
                     let key = self.format_static_key(&key);
                     self.report_ambiguous_member(origin, key)?;
 
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
             },
             PlaceUse::Write => None,
-            PlaceUse::Read => return Ok(Answer::Ready(None)),
+            PlaceUse::Read => return Ok(None),
         };
 
-        Ok(Answer::Ready(Some(MemberAssignmentSelection {
-            read,
-            write,
-        })))
+        Ok(Some(MemberAssignmentSelection { read, write }))
     }
 
     /// Build one write target with the stability its place requires.
@@ -766,11 +740,11 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         place: dir::PlaceResolution,
         initializes: Option<dir::GlobalSymbolId>,
-    ) -> CompilerResult<Answer<AssignmentSelection>> {
+    ) -> CompilerResult<AssignmentSelection> {
         let mode = if let Some(owner) = initializes {
             WriteMode::Initialize { owner }
         } else {
-            match answer!(self.access_literal(origin, place.access)?) {
+            match self.access_literal(origin, place.access)? {
                 Some(dir::Access::Exclusive) => WriteMode::Direct,
                 Some(dir::Access::Mutable | dir::Access::Readonly) | None => {
                     WriteMode::Indirect { receiver }
@@ -778,12 +752,12 @@ impl BodyState<'_, '_> {
             }
         };
 
-        Ok(Answer::Ready(AssignmentSelection {
+        Ok(AssignmentSelection {
             read,
             write,
             mode,
             source,
-        }))
+        })
     }
 
     /// Return the declaration initialized through one direct constructor receiver.
@@ -805,9 +779,9 @@ impl BodyState<'_, '_> {
         use_: PlaceUse,
         receiver: dir::GlobalTypeId,
         place: dir::PlaceResolution,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        if use_ == PlaceUse::Read || !answer!(self.access_is_readonly(origin, place.access)?) {
-            return Ok(Answer::Ready(receiver));
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if use_ == PlaceUse::Read || !self.access_is_readonly(origin, place.access)? {
+            return Ok(receiver);
         }
 
         let readonly = self.intern_type(dir::Type::Form(dir::FormType {
@@ -815,7 +789,7 @@ impl BodyState<'_, '_> {
             value: receiver,
         }))?;
 
-        Ok(Answer::Ready(readonly))
+        Ok(readonly)
     }
 
     /// Select one assignment place resolved as a lexical name.
@@ -824,7 +798,7 @@ impl BodyState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         path: &dir::Path,
         use_: PlaceUse,
-    ) -> CompilerResult<Answer<Option<AssignmentSelection>>> {
+    ) -> CompilerResult<Option<AssignmentSelection>> {
         let reference = self
             .module(source.module_id)
             .resolved
@@ -839,9 +813,20 @@ impl BodyState<'_, '_> {
                     self.report_ambiguous_reference(source.module_id, source.local_id, path);
                     self.commit_error_node(source)?;
 
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
-                let ty = answer!(self.symbol_type(*symbol)?);
+                // decide the place name and record its capture
+                if self
+                    .resolutions(source.module_id)
+                    .name_resolution(source)
+                    .is_none()
+                {
+                    self.check.capture_symbol_reference(*symbol);
+                    self.check
+                        .commit_name(source, dir::NameResolution::new(*symbol))?;
+                }
+
+                let ty = self.symbol_type(*symbol)?;
                 let read = (use_ != PlaceUse::Write).then_some(dir::ReadResolution::Binding {
                     symbol: *symbol,
                     ty,
@@ -854,30 +839,30 @@ impl BodyState<'_, '_> {
                 // record the binding path
                 self.commit_access(source, dir::AccessPath::symbol(*symbol))?;
 
-                Ok(Answer::Ready(Some(AssignmentSelection {
+                Ok(Some(AssignmentSelection {
                     read,
                     write,
                     mode: WriteMode::Direct,
                     source,
-                })))
+                }))
             }
             Some(dir::Reference::Namespace(_)) => {
                 self.report_invalid_assignment_target(source.module_id, source.local_id);
                 self.commit_error_node(source)?;
 
-                Ok(Answer::Ready(None))
+                Ok(None)
             }
             Some(dir::Reference::Ambiguous(_)) => {
                 self.report_ambiguous_reference(source.module_id, source.local_id, path);
                 self.commit_error_node(source)?;
 
-                Ok(Answer::Ready(None))
+                Ok(None)
             }
             Some(dir::Reference::Missing) | None => {
                 self.reject_unresolved_reference(source.module_id, source.local_id, path);
                 self.commit_error_node(source)?;
 
-                Ok(Answer::Ready(None))
+                Ok(None)
             }
             Some(dir::Reference::Projected { .. }) => Err(CompilerError::Internal {
                 message: format!("assignment name {source:?} has a projected reference"),

@@ -46,6 +46,7 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         default_mode: InferMode,
     ) -> CompilerResult<InferMode> {
+        // start the search at the written target position
         let mut pending = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(&[target]);
         let mut visited = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         let mut selected = None;
@@ -58,23 +59,29 @@ impl BodyState<'_, '_> {
             visited.push(target);
 
             match self.ty(target)? {
-                // take the mode the bound generic parameter demands
+                // take the mode the open target position demands
                 dir::Type::Variable(variable) => {
-                    let VariableRole::Instantiation { parameter } =
-                        self.solver.variable_role(variable)?
-                    else {
-                        continue;
-                    };
-                    let binding = self.require_generic_parameter(parameter)?;
-                    let mode = if binding.is_const {
-                        InferMode::Const
-                    } else {
-                        match self.solver.variable(variable)?.widening {
-                            Widening::Never => InferMode::Exact,
-                            Widening::Aggregate => default_mode,
-                            Widening::Multiple => InferMode::Mutable,
-                            Widening::Always => InferMode::Widen,
+                    let mode = match self.infer.variable_role(variable)? {
+                        // take the mode the bound generic parameter demands
+                        VariableRole::Instantiation { parameter } => {
+                            let binding = self.require_generic_parameter(parameter)?;
+                            if binding.is_const {
+                                InferMode::Const
+                            } else {
+                                match self.infer.variable(variable)?.widening {
+                                    Widening::Never => InferMode::Exact,
+                                    Widening::Aggregate => default_mode,
+                                    Widening::Multiple => InferMode::Mutable,
+                                    Widening::Always => InferMode::Widen,
+                                }
+                            }
                         }
+                        // literals widen into an inferred return
+                        VariableRole::Return => match default_mode {
+                            InferMode::Const => InferMode::Const,
+                            _ => InferMode::Widen,
+                        },
+                        _ => continue,
                     };
                     if selected.is_some_and(|selected| selected != mode) {
                         return Ok(default_mode);
@@ -84,7 +91,7 @@ impl BodyState<'_, '_> {
                 }
                 // look through the form to its value
                 dir::Type::Form(form) => pending.push(form.value),
-                // visit every alternative of a composed type
+                // visit every alternative of a union
                 dir::Type::Union(union) => {
                     pending.extend(
                         self.type_ids(target.module_id, union.elements)?
@@ -92,6 +99,7 @@ impl BodyState<'_, '_> {
                             .copied(),
                     );
                 }
+                // visit every member of an intersection
                 dir::Type::Intersection(intersection) => {
                     pending.extend(
                         self.type_ids(target.module_id, intersection.elements)?
@@ -99,6 +107,7 @@ impl BodyState<'_, '_> {
                             .copied(),
                     );
                 }
+                // look through the head of a type operation
                 dir::Type::Operation(_) => match self.operation_head(target)? {
                     // template literals consume scalar precision
                     Some(dir::TypeOperation::TemplateLiteral(_)) => {

@@ -79,6 +79,7 @@ declare const values: [int32; 1];
 /// @type.node source="[value = fallback] = values" type=FixedArray<int32, 1>
 /// @resolution.pattern.assign source=[value = fallback] kind=sequence element=int32 arity=1 fields=(value)
 /// @type.node source=value type=int32
+/// @resolution.name source=value target=value
 /// @resolution.pattern.assign source="value = fallback" kind=default pattern=value value=expression
 /// @resolution.pattern.assign source=value kind=place
 /// @resolution.access source=value root=value

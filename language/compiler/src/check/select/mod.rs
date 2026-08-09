@@ -20,6 +20,7 @@ mod property;
 mod protocol;
 mod receiver;
 mod scalar;
+mod selection;
 mod sequence;
 mod signature;
 mod tagged;
@@ -30,12 +31,13 @@ mod tuple;
 pub(in crate::check) use instantiation::TypeArgumentInference;
 pub(in crate::check) use member::*;
 pub(in crate::check) use newtype::{
-    NewtypeMatch, NewtypeOverload, NewtypeRejection, NewtypeSignature,
+    NewtypeInstance, NewtypeMatch, NewtypeOverload, NewtypeRejection, NewtypeSignature,
 };
 pub(in crate::check) use operator::OperatorOperands;
 pub(in crate::check) use protocol::*;
 pub(in crate::check) use receiver::ReceiverSteps;
+pub(in crate::check) use selection::*;
 pub(in crate::check) use signature::{
-    CallableArgument, SignatureMatch, SignatureRejection, SignatureSelection,
+    CallableArgument, SignatureInstance, SignatureMatch, SignatureRejection, SignatureSelection,
 };
 pub(in crate::check) use tagged::VariantOwner;

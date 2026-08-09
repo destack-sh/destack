@@ -4,11 +4,12 @@ use destack_artifact::DirResolved;
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
+use rustc_hash::FxHashMap;
 
-use super::CheckState;
+use super::{CheckState, Pass};
 use crate::{CompilerError, CompilerResult};
 
-/// Committed tables loaded for one out-of-component external module.
+/// Committed tables loaded for one external module.
 pub(in crate::check) struct CheckExternalModuleState {
     /// The resolved external module holding the import alias targets.
     pub(in crate::check) resolved: Arc<DirResolved>,
@@ -22,6 +23,34 @@ pub(in crate::check) struct CheckExternalModuleState {
     pub(in crate::check) generics: dir::GenericTable<'static>,
     /// The committed definition table.
     pub(in crate::check) definitions: dir::DefinitionTable<'static>,
+    /// The committed member table, elaborated while checking.
+    pub(in crate::check) members: dir::MemberTable<'static>,
+    /// The modules the elaborated rows mention, empty while elaborating.
+    pub(in crate::check) references: Vec<ModuleId>,
+}
+
+/// External module states keyed by module id.
+#[derive(Default)]
+pub(in crate::check) struct ExternalModuleTable {
+    /// One state per loaded external module.
+    slots: FxHashMap<ModuleId, CheckExternalModuleState>,
+}
+
+impl ExternalModuleTable {
+    /// Return one loaded external module state.
+    pub(in crate::check) fn get(&self, module: &ModuleId) -> Option<&CheckExternalModuleState> {
+        self.slots.get(module)
+    }
+
+    /// Return whether one external module is loaded.
+    pub(in crate::check) fn contains_key(&self, module: &ModuleId) -> bool {
+        self.slots.contains_key(module)
+    }
+
+    /// Store one loaded external module state.
+    pub(in crate::check) fn insert(&mut self, module: ModuleId, state: CheckExternalModuleState) {
+        self.slots.insert(module, state);
+    }
 }
 
 impl CheckState<'_> {
@@ -29,7 +58,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn external_module(&self, module: ModuleId) -> &CheckExternalModuleState {
         self.external_modules
             .get(&module)
-            .unwrap_or_else(|| unreachable!("external module {module:?} was not loaded"))
+            .unwrap_or_else(|| panic!("external module {module:?} was not loaded"))
     }
 
     /// Read one external module's resolved import targets.
@@ -44,7 +73,7 @@ impl CheckState<'_> {
             return Ok(Arc::clone(resolved));
         }
 
-        // read the resolve stage directly, it never depends on declared modules
+        // read the resolve stage directly; it never depends on declared modules
         let resolved = self
             .artifacts
             .dir_resolved_content(module, self.profile)
@@ -59,16 +88,13 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Option<&CheckExternalModuleState>> {
-        // declared tables of other modules are checking inputs only
-        if !self.is_checking {
+        // skip external reads while declaring
+        if self.is_declaration() {
             return Ok(None);
         }
 
         if !self.external_modules.contains_key(&module) {
             let external = self.import_external_module_state(module)?;
-
-            self.generics
-                .index_template_symbols(module, external.generics.iter_templates());
             self.external_modules.insert(module, external);
         }
 
@@ -168,27 +194,47 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Import directly imported external modules and record their visibility.
+    /// Import external modules and record the direct imports' visibility.
+    ///
+    /// Elaborated member bindings embed types from their module's own
+    /// imports, so the load walks the import closure to a fixpoint.
     pub(in crate::check) fn import_external_modules(&mut self) -> CompilerResult<()> {
-        let modules = vec![self.module_id];
-        for module in modules {
-            // record visibility and load the foreign modules
-            let visible = self.external_module_ids(module);
-            for external in &visible {
-                self.import_external_module(*external)?;
+        // record the direct imports' visibility in every pass
+        let module = self.module_id;
+        let visible = self.external_module_ids(module);
+        self.module_mut(module)
+            .external_modules
+            .extend(visible.iter().copied());
+
+        // skip external reads while declaring
+        if self.is_declaration() {
+            return Ok(());
+        }
+
+        // load the modules the loaded tables mention, to a fixpoint
+        let mut queue = visible.iter().copied().collect::<Vec<_>>();
+        for external in &visible {
+            self.import_external_module(*external)?;
+        }
+        while let Some(loaded) = queue.pop() {
+            for referenced in self.external_module(loaded).references.clone() {
+                if referenced == self.module_id || self.external_modules.contains_key(&referenced) {
+                    continue;
+                }
+                self.import_external_module(referenced)?;
+                queue.push(referenced);
             }
-            self.module_mut(module).external_modules.extend(visible);
         }
 
         Ok(())
     }
 
-    /// Return external modules that can be named from one component module.
+    /// Return external modules that can be named from the checked module.
     fn external_module_ids(&self, module: ModuleId) -> FxIndexSet<ModuleId> {
         let mut external_modules = FxIndexSet::default();
         let imports = &self.module(module).resolved.imports;
 
-        // collect resolved target modules outside the component
+        // collect resolved target modules outside the checked module
         for external_module in imports.target_modules() {
             if !self.is_own_module(external_module) {
                 external_modules.insert(external_module);
@@ -216,18 +262,59 @@ impl CheckState<'_> {
             .dir_resolved_content(module, self.profile)
             .map_err(CompilerError::from)?;
 
-        // read the module's sealed declared module
+        // read the module's declared artifact
         let declared = self
             .artifacts
             .dir_declared_projected(module, self.profile)
             .map_err(CompilerError::from)?;
 
+        // read stored member bindings while checking; elaborate reads none
+        let elaborated = match self.pass {
+            Pass::Check => Some(
+                self.artifacts
+                    .dir_elaborated(module, self.profile)
+                    .map_err(CompilerError::from)?,
+            ),
+            _ => None,
+        };
+        let members = match &elaborated {
+            Some(elaborated) => elaborated.member_table(),
+            None => declared.member_table(),
+        };
+        let mut references = declared.references.clone();
+        if let Some(elaborated) = &elaborated {
+            references.extend(elaborated.references.iter().copied());
+        }
+        let types = match &elaborated {
+            Some(elaborated) => elaborated.type_table(bound.as_ref(), expanded.as_ref(), &declared),
+            None => declared.type_table(bound.as_ref(), expanded.as_ref()),
+        };
+        let bindings = match &elaborated {
+            Some(elaborated) => {
+                elaborated.binding_table(bound.as_ref(), expanded.as_ref(), &declared)
+            }
+            None => declared.binding_table(bound.as_ref(), expanded.as_ref()),
+        };
+
         Ok(CheckExternalModuleState {
-            bindings: declared.binding_table(bound.as_ref(), expanded.as_ref()),
-            types: declared.type_table(bound.as_ref(), expanded.as_ref()),
-            statics: declared.static_table(bound.as_ref(), expanded.as_ref()),
-            generics: declared.generic_table(),
-            definitions: declared.definition_table(),
+            bindings,
+            types,
+            statics: match &elaborated {
+                Some(elaborated) => {
+                    elaborated.static_table(bound.as_ref(), expanded.as_ref(), &declared)
+                }
+                None => declared.static_table(bound.as_ref(), expanded.as_ref()),
+            },
+            generics: match &elaborated {
+                Some(elaborated) => elaborated.generic_table(&declared),
+                None => declared.generic_table(),
+            },
+            definitions: match &elaborated {
+                Some(elaborated) => elaborated.definition_table(),
+                None => declared.definition_table(),
+            },
+            members,
+            references,
             resolved,
         })
     }

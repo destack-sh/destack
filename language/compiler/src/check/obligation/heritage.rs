@@ -1,11 +1,8 @@
 use destack_dir as dir;
 
-use smallvec::SmallVec;
-
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Dependency, MemberRole, ObligationCheck, ObligationFailure, Origin,
-    Relation, TypeSubstitution, answer,
+    CheckState, MemberRole, ObligationCheck, ObligationFailure, Origin, Relation, TypeSubstitution,
 };
 
 /// One class instance member that participates in heritage checks.
@@ -39,14 +36,14 @@ impl CheckState<'_> {
     fn class_member(
         &mut self,
         member: &dir::DefinitionMember,
-    ) -> CompilerResult<Answer<Option<ClassMember>>> {
+    ) -> CompilerResult<Option<ClassMember>> {
         match member {
             dir::DefinitionMember::Field(field) if field.space == dir::MemberSpace::Instance => {
-                let Some(ty) = answer!(self.definition_member_type(member)?) else {
-                    return Ok(Answer::Ready(None));
+                let Some(ty) = self.definition_member_type(member)? else {
+                    return Ok(None);
                 };
 
-                Ok(Answer::Ready(Some(ClassMember {
+                Ok(Some(ClassMember {
                     key: field.key,
                     ty,
                     source: field.source,
@@ -54,20 +51,20 @@ impl CheckState<'_> {
                     is_overridable: field.is_abstract,
                     is_override: field.is_override,
                     is_abstract: field.is_abstract,
-                })))
+                }))
             }
             dir::DefinitionMember::Method(method) if method.space == dir::MemberSpace::Instance => {
                 let dir::MemberSlot::Key(key) = method.slot else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
-                let Some(ty) = answer!(self.definition_member_type(member)?) else {
-                    return Ok(Answer::Ready(None));
+                let Some(ty) = self.definition_member_type(member)? else {
+                    return Ok(None);
                 };
                 let is_abstract = method.abstraction == dir::MethodAbstraction::Abstract;
                 let is_virtual = method.abstraction == dir::MethodAbstraction::Virtual;
                 let is_overridable = is_abstract || is_virtual;
 
-                Ok(Answer::Ready(Some(ClassMember {
+                Ok(Some(ClassMember {
                     key,
                     ty,
                     source: method.source,
@@ -75,9 +72,9 @@ impl CheckState<'_> {
                     is_overridable,
                     is_override: method.is_override,
                     is_abstract,
-                })))
+                }))
             }
-            _ => Ok(Answer::Ready(None)),
+            _ => Ok(None),
         }
     }
 
@@ -86,11 +83,11 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         let source = self.origin_source(origin)?;
         let instance = self.declaration_instance(symbol)?;
         let ty = self.intern_type(dir::Type::Application(instance))?;
-        let closure = answer!(self.heritage_closure(origin, ty)?);
+        let closure = self.heritage_closure(origin, ty)?;
 
         // report graph errors before class member rules
         let mut failures = Vec::new();
@@ -109,7 +106,7 @@ impl CheckState<'_> {
             });
         }
         if !failures.is_empty() {
-            return Ok(Answer::Ready(ObligationCheck::from_failures(failures)));
+            return Ok(ObligationCheck::from_failures(failures));
         }
 
         // require one concrete space across the declaration and its heritage
@@ -136,7 +133,7 @@ impl CheckState<'_> {
                         conflict: instance.symbol,
                     };
 
-                    return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+                    return Ok(ObligationCheck::fail(failure));
                 }
             }
         }
@@ -159,10 +156,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         let source = self.origin_source(origin)?;
         let Some(dir::Definition::Class(class)) = self.definition(symbol)? else {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+            return Ok(ObligationCheck::holds());
         };
         let is_abstract = class.is_abstract;
         let extends = class.extends.clone();
@@ -171,17 +168,16 @@ impl CheckState<'_> {
         let members = class.members.clone();
         let mut own = Vec::new();
         for member in &members {
-            if let Some(member) = answer!(self.class_member(member)?) {
+            if let Some(member) = self.class_member(member)? {
                 own.push(member);
             }
         }
 
         // collect inherited members walking up the extends chain
-        let heritage = answer!(self.class_heritage(origin, extends)?);
+        let heritage = self.class_heritage(origin, extends)?;
 
         // decide every rule before reporting anything
         let mut failures = Vec::new();
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for member in &own {
             let base = heritage
                 .members
@@ -213,8 +209,8 @@ impl CheckState<'_> {
                             None,
                         )?;
                         match assignment {
-                            Answer::Ready(true) => {}
-                            Answer::Ready(false) => {
+                            true => {}
+                            false => {
                                 failures.push(ObligationFailure::IncompatibleOverride {
                                     source: member.source,
                                     member: member.key,
@@ -222,7 +218,6 @@ impl CheckState<'_> {
                                     target_ty: base.ty,
                                 });
                             }
-                            Answer::Pending(pending) => blockers.extend(pending),
                         }
                     }
                 }
@@ -277,14 +272,9 @@ impl CheckState<'_> {
             failures.push(ObligationFailure::FinalClassExtended { source, base });
         }
 
-        // park until every override decision closes
-        if !blockers.is_empty() {
-            return Ok(Answer::Pending(blockers));
-        }
-
         let check = ObligationCheck::from_failures(failures);
 
-        Ok(Answer::Ready(check))
+        Ok(check)
     }
 
     /// Return the inherited class member view.
@@ -292,7 +282,7 @@ impl CheckState<'_> {
         &mut self,
         _origin: Origin,
         extends: Option<dir::NominalHeritage>,
-    ) -> CompilerResult<Answer<ClassHeritage>> {
+    ) -> CompilerResult<ClassHeritage> {
         let mut members = Vec::<ClassMember>::new();
         let mut final_base = None;
         let mut substitution = TypeSubstitution::default();
@@ -320,7 +310,7 @@ impl CheckState<'_> {
             // apply this base's parameters to its inherited member types
             substitution = self.instance_substitution(instance_module, &instance)?;
             for member in &base_members {
-                let Some(mut member) = answer!(self.class_member(member)?) else {
+                let Some(mut member) = self.class_member(member)? else {
                     continue;
                 };
                 member.ty = self.substitute_type(member.ty, &substitution)?;
@@ -328,10 +318,10 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(Answer::Ready(ClassHeritage {
+        Ok(ClassHeritage {
             members,
             final_base,
-        }))
+        })
     }
 
     /// Return one declaration's own generic application.

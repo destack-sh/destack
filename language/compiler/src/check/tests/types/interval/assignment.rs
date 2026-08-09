@@ -115,9 +115,9 @@ const bad: Edge = 128;
 === annotated ===
 type Edge = 0..=3 | 252..=255;
 
-const low: Edge = 2 as 0..=3 | 252..=255;
-const high: Edge = 254 as 0..=3 | 252..=255;
-const bad: Edge = 128;
+const low: 0..=3 | 252..=255 = 2 as 0..=3 | 252..=255;
+const high: 0..=3 | 252..=255 = 254 as 0..=3 | 252..=255;
+const bad: 0..=3 | 252..=255 = 128;
 
 === checked ===
 type Edge = 0..=3 | 252..=255;
@@ -125,25 +125,24 @@ type Edge = 0..=3 | 252..=255;
 /// @definition.type symbol=Edge source="type Edge = 0..=3 | 252..=255" value=0..=3 | 252..=255
 
 const low: Edge = 2;
-/// @type.symbol symbol=low source=low type=Edge reduced=0..=3 | 252..=255
+/// @type.symbol symbol=low source=low type=0..=3 | 252..=255
 /// @resolution.pattern source=low kind=binding target=low
 /// @resolution.name source=Edge target=Edge
 
 const high: Edge = 254;
-/// @type.symbol symbol=high source=high type=Edge reduced=0..=3 | 252..=255
+/// @type.symbol symbol=high source=high type=0..=3 | 252..=255
 /// @resolution.pattern source=high kind=binding target=high
 /// @resolution.name source=Edge target=Edge
 
 const bad: Edge = 128;
-/// @type.symbol symbol=bad source=bad type=Edge reduced=0..=3 | 252..=255
+/// @type.symbol symbol=bad source=bad type=0..=3 | 252..=255
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Edge target=Edge
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '128' is not assignable to type 'Edge'"
+/// @diagnostic.error id=not-assignable message="type '128' is not assignable to type '0..=3 | 252..=255'"
 /// @diagnostic.label line=6 column=19 span="128" line_source="const bad: Edge = 128;"
 /// @diagnostic.related line=6 column=12 span="Edge" line_source="const bad: Edge = 128;" message="expected due to this annotation"
-/// @diagnostic.note message="'Edge' reduces to '0..=3 | 252..=255'"
 "#,
     );
 }

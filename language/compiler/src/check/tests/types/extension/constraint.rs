@@ -267,6 +267,8 @@ boxed.read();
 /// @resolution.name source=boxed target=boxed
 /// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=boxed root=boxed
+/// @resolution.rejected source=boxed.read
+/// @resolution.rejected source=boxed.read()
 /// @generic.instance source=boxed id=Box<Token>
 
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)

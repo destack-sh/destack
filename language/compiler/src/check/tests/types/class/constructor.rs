@@ -412,6 +412,7 @@ class Box {
 
 new Box(true);
 /// @type.node source="new Box(true)" type=<error>
+/// @resolution.rejected source="new Box(true)"
 /// @resolution.name source=Box target=Box
 /// @type.node source=true type=true
 "#,
@@ -606,6 +607,7 @@ class Dog extends Animal {
 
         super(name);
         /// @resolution.receiver source=super kind=this declaration=Dog type=Dog
+        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=super root=this
         /// @resolution.construct source=super(name) parameters=(string) arguments=(provided(name) as string) return=void kind=class target=Animal constructor=Animal.constructor
         /// @resolution.name source=name target=Dog.constructor.name

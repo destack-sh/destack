@@ -3,12 +3,10 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{
-    Answer, CheckState, ObligationCheck, ObligationFailure, Origin, Relation, answer,
-};
+use crate::check::{CheckState, ObligationCheck, ObligationFailure, Origin, Relation, Scope};
 use crate::{CompilerError, CompilerResult};
 
-/// The representation property being checked.
+/// The representation interface being checked.
 #[derive(Debug, Clone, Copy)]
 enum RepresentationCheck {
     /// Every stored value must have a fixed representation.
@@ -43,19 +41,27 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
+        let ty = self.reduce_type_head(origin, ty)?;
+        if self.is_representation_proven(origin, ty, dir::AutoInterface::Concrete)? {
+            return Ok(true);
+        }
+
         let source = self.origin_source(origin)?;
         let interface = self.language_type(dir::LanguageItem::Concrete, &[])?;
         let mut visited = FxIndexSet::default();
-        let failure = answer!(self.representation_failure(
+        let failure = self.representation_failure(
             origin,
             ty,
             source,
             RepresentationCheck::Concrete { interface },
             &mut visited,
-        )?);
+        )?;
+        if failure.is_none() {
+            self.prove_representation(origin, ty, dir::AutoInterface::Concrete)?;
+        }
 
-        Ok(Answer::Ready(failure.is_none()))
+        Ok(failure.is_none())
     }
 
     /// Decide whether one type's values may live in shared space.
@@ -63,10 +69,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
+        let ty = self.reduce_type_head(origin, ty)?;
+        if self.is_representation_proven(origin, ty, dir::AutoInterface::SharedSafe)? {
+            return Ok(true);
+        }
+
         // reject intrinsically local declarations
-        let value = answer!(self.strip_form(origin, ty)?);
-        let value = answer!(self.reduce_type_head(origin, value)?);
+        let value = self.strip_form(origin, ty)?;
+        let value = self.reduce_type_head(origin, value)?;
         let symbol = match self.ty(value)? {
             dir::Type::Application(instance) => Some(instance.symbol),
             dir::Type::Reference(reference) => Some(reference.symbol),
@@ -75,7 +86,7 @@ impl CheckState<'_> {
         if let Some(symbol) = symbol
             && self.nominal_space(symbol)? == Some(dir::Space::Local)
         {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         // walk the stored representation for shared containment
@@ -84,7 +95,7 @@ impl CheckState<'_> {
             dir::Place::Space(dir::Space::Shared),
         )))?;
         let mut visited = FxIndexSet::default();
-        let failure = answer!(self.representation_failure(
+        let failure = self.representation_failure(
             origin,
             ty,
             source,
@@ -93,9 +104,12 @@ impl CheckState<'_> {
                 use_fields: false,
             },
             &mut visited,
-        )?);
+        )?;
+        if failure.is_none() {
+            self.prove_representation(origin, ty, dir::AutoInterface::SharedSafe)?;
+        }
 
-        Ok(Answer::Ready(failure.is_none()))
+        Ok(failure.is_none())
     }
 
     /// Check the finite and shared-safety properties of one stored type.
@@ -103,27 +117,39 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
+        let ty = self.reduce_type_head(origin, ty)?;
+        if let Some(key) = self.storage_key(origin, ty)?
+            && self.proven_storage.contains(&key)
+        {
+            return Ok(ObligationCheck::holds());
+        }
+
         let source = self.origin_source(origin)?;
         let mut visited = FxIndexSet::default();
-        let failure = answer!(self.representation_failure(
+        let failure = self.representation_failure(
             origin,
             ty,
             source,
             RepresentationCheck::Finite,
             &mut visited,
-        )?);
+        )?;
 
         // check shared reachability only from concretely shared roots
+        let mut is_declaration_site = false;
         let failure = match failure {
             Some(failure) => Some(failure),
             None => {
                 let chain = self.form_chain(origin, ty)?;
                 let Some(place) = chain.place() else {
-                    return Ok(Answer::Ready(ObligationCheck::holds()));
+                    self.prove_storage(origin, ty)?;
+
+                    return Ok(ObligationCheck::holds());
                 };
                 if self.place_space(place)? != Some(dir::Space::Shared) {
-                    return Ok(Answer::Ready(ObligationCheck::holds()));
+                    self.prove_storage(origin, ty)?;
+
+                    return Ok(ObligationCheck::holds());
                 }
                 let use_fields = match self.ty(chain.base())? {
                     dir::Type::Application(instance) => {
@@ -136,15 +162,16 @@ impl CheckState<'_> {
                     }
                     _ => false,
                 };
+                is_declaration_site = use_fields;
                 visited.clear();
 
-                answer!(self.representation_failure(
+                self.representation_failure(
                     origin,
                     ty,
                     source,
                     RepresentationCheck::Shared { place, use_fields },
                     &mut visited,
-                )?)
+                )?
             }
         };
         let failure = match failure {
@@ -159,10 +186,100 @@ impl CheckState<'_> {
             Some(RepresentationFailure::LocalReference(source)) => {
                 ObligationFailure::LocalReferenceInSharedStorage { source }
             }
-            None => return Ok(Answer::Ready(ObligationCheck::holds())),
+            None => {
+                // fields report at their own declaration, so that site
+                //  proves nothing for other uses of the type
+                if !is_declaration_site {
+                    self.prove_storage(origin, ty)?;
+                }
+
+                return Ok(ObligationCheck::holds());
+            }
         };
 
-        Ok(Answer::Ready(ObligationCheck::fail(failure)))
+        Ok(ObligationCheck::fail(failure))
+    }
+
+    /// Return whether one type already proved a representation interface.
+    fn is_representation_proven(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        interface: dir::AutoInterface,
+    ) -> CompilerResult<bool> {
+        let Some(key) = self.representation_key(origin, ty, interface)? else {
+            return Ok(false);
+        };
+
+        Ok(self.conforms.get(&key) == Some(&true))
+    }
+
+    /// Record one proven representation interface.
+    fn prove_representation(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        interface: dir::AutoInterface,
+    ) -> CompilerResult<()> {
+        if let Some(key) = self.representation_key(origin, ty, interface)? {
+            self.conforms.insert(key, true);
+        }
+
+        Ok(())
+    }
+
+    /// Record one proven storable representation.
+    fn prove_storage(&mut self, origin: Origin, ty: dir::GlobalTypeId) -> CompilerResult<()> {
+        if let Some(key) = self.storage_key(origin, ty)? {
+            self.proven_storage.insert(key);
+        }
+
+        Ok(())
+    }
+
+    /// Key one proven storable representation by its assuming scope.
+    ///
+    /// Open types prove nothing durable: their properties depend on the
+    /// inference state, so they have no key.
+    fn storage_key(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<(dir::GlobalTypeId, Scope)>> {
+        let flags = self.type_flags(ty)?;
+        if flags.has_variable() {
+            return Ok(None);
+        }
+        let scope = if flags.has_parameter() || flags.has_this() {
+            self.assuming_scope(origin)?
+        } else {
+            None
+        };
+
+        Ok(Some((ty, scope)))
+    }
+
+    /// Key one representation interface by its assuming scope.
+    ///
+    /// Open types prove nothing durable: their properties depend on the
+    /// inference state, so they have no key.
+    fn representation_key(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        interface: dir::AutoInterface,
+    ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::AutoInterface, Scope)>> {
+        let flags = self.type_flags(ty)?;
+        if flags.has_variable() {
+            return Ok(None);
+        }
+        let scope = if flags.has_parameter() || flags.has_this() {
+            self.assuming_scope(origin)?
+        } else {
+            None
+        };
+
+        Ok(Some((ty, interface, scope)))
     }
 
     /// Return the first invalid stored representation beneath one type.
@@ -173,34 +290,50 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         check: RepresentationCheck,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<Option<RepresentationFailure>>> {
-        let mut ty = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<Option<RepresentationFailure>> {
+        let mut ty = self.reduce_type_head(origin, ty)?;
         let check = match check {
             RepresentationCheck::Concrete { interface } => {
                 RepresentationCheck::Concrete { interface }
             }
             RepresentationCheck::Finite => RepresentationCheck::Finite,
             RepresentationCheck::Shared { place, use_fields } => {
-                ty = answer!(self.resolve_relative_place(origin, ty, place)?);
+                ty = self.resolve_relative_place(origin, ty, place)?;
                 let chain = self.form_chain(origin, ty)?;
                 let place = chain.place().unwrap_or(place);
-                let ownership = answer!(self.form_ownership(origin, &chain)?);
+                let ownership = self.form_ownership(origin, &chain)?;
 
                 // skip raw pointers, they are an explicit unchecked escape
                 if ownership == Some(dir::Ownership::Raw) {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
                 let is_local = self.place_space(place)? == Some(dir::Space::Local);
-                if is_local && answer!(self.form_is_reference(origin, &chain)?) {
-                    return Ok(Answer::Ready(Some(RepresentationFailure::LocalReference(
-                        source,
-                    ))));
+                if is_local && self.form_is_reference(origin, &chain)? {
+                    return Ok(Some(RepresentationFailure::LocalReference(source)));
                 }
                 ty = chain.base();
 
                 RepresentationCheck::Shared { place, use_fields }
             }
         };
+
+        // reuse per-node proofs: concrete and finite walks are place
+        //  independent, so a proven subtree never re-walks
+        match check {
+            RepresentationCheck::Concrete { .. } => {
+                if self.is_representation_proven(origin, ty, dir::AutoInterface::Concrete)? {
+                    return Ok(None);
+                }
+            }
+            RepresentationCheck::Finite => {
+                if let Some(key) = self.storage_key(origin, ty)?
+                    && self.proven_storage.contains(&key)
+                {
+                    return Ok(None);
+                }
+            }
+            RepresentationCheck::Shared { .. } => {}
+        }
 
         // fail inline storage on a cycle and stop the shared walk
         if !visited.insert(ty) {
@@ -210,12 +343,25 @@ impl CheckState<'_> {
                 RepresentationCheck::Shared { .. } => None,
             };
 
-            return Ok(Answer::Ready(failure));
+            return Ok(failure);
         }
         let failure = ensure_sufficient_stack(|| {
             self.representation_child_failure(origin, ty, source, check, visited)
         });
         visited.swap_remove(&ty);
+
+        // prove the walked subtree once its children hold
+        if let Ok(None) = &failure {
+            match check {
+                RepresentationCheck::Concrete { .. } => {
+                    self.prove_representation(origin, ty, dir::AutoInterface::Concrete)?;
+                }
+                RepresentationCheck::Finite => {
+                    self.prove_storage(origin, ty)?;
+                }
+                RepresentationCheck::Shared { .. } => {}
+            }
+        }
 
         failure
     }
@@ -228,17 +374,17 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         check: RepresentationCheck,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<Option<RepresentationFailure>>> {
+    ) -> CompilerResult<Option<RepresentationFailure>> {
         let owner = ty.module_id;
         let slots: SmallVec<[(dir::GlobalTypeId, dir::GlobalNodeIdAny); 4]> = match self.ty(ty)? {
             // generic slots require an explicit concrete bound
             dir::Type::Parameter(_) => {
                 let RepresentationCheck::Concrete { interface } = check else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
                 let holds = self.decide_relation(origin, Relation::Satisfies, ty, interface)?;
 
-                return Ok(holds.map(|holds| (!holds).then_some(RepresentationFailure::Abstract)));
+                return Ok((!holds).then_some(RepresentationFailure::Abstract));
             }
             // skip abstract type expressions, they select no runtime representation
             dir::Type::Any
@@ -253,7 +399,7 @@ impl CheckState<'_> {
             | dir::Type::Intersection(_)
                 if matches!(check, RepresentationCheck::Concrete { .. }) =>
             {
-                return Ok(Answer::Ready(Some(RepresentationFailure::Abstract)));
+                return Ok(Some(RepresentationFailure::Abstract));
             }
             // follow direct forms, which shared checking already stripped
             dir::Type::Form(form) => match form.form {
@@ -261,7 +407,7 @@ impl CheckState<'_> {
                     SmallVec::from_slice(&[(form.value, source)])
                 }
                 dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
             },
             dir::Type::Array(array) if matches!(check, RepresentationCheck::Shared { .. }) => {
@@ -292,7 +438,7 @@ impl CheckState<'_> {
                     origin, owner, &instance, source, check, visited,
                 );
             }
-            _ => return Ok(Answer::Ready(None)),
+            _ => return Ok(None),
         };
 
         self.representation_slot_failure(origin, &slots, check, visited)
@@ -307,7 +453,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         check: RepresentationCheck,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<Option<RepresentationFailure>>> {
+    ) -> CompilerResult<Option<RepresentationFailure>> {
         // vectors store their element inline, other opaque intrinsics store no visible children
         if let Some(item) = self.language_item(instance.symbol)? {
             if item == dir::LanguageItem::Vector
@@ -316,7 +462,7 @@ impl CheckState<'_> {
                 return self.representation_failure(origin, element, source, check, visited);
             }
 
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
         let storage = match self.definition(instance.symbol)?.cloned() {
@@ -326,7 +472,7 @@ impl CheckState<'_> {
             Some(dir::Definition::Interface(_))
                 if matches!(check, RepresentationCheck::Concrete { .. }) =>
             {
-                return Ok(Answer::Ready(Some(RepresentationFailure::Abstract)));
+                return Ok(Some(RepresentationFailure::Abstract));
             }
             // collect struct fields always and class fields only for reachability
             Some(definition @ (dir::Definition::Struct(_) | dir::Definition::Class(_)))
@@ -342,7 +488,7 @@ impl CheckState<'_> {
                     if field.space != dir::MemberSpace::Instance {
                         continue;
                     }
-                    let Some(ty) = answer!(self.definition_member_type(member)?) else {
+                    let Some(ty) = self.definition_member_type(member)? else {
                         continue;
                     };
                     let field_source = match check {
@@ -358,7 +504,7 @@ impl CheckState<'_> {
 
                 fields
             }
-            _ => return Ok(Answer::Ready(None)),
+            _ => return Ok(None),
         };
 
         // substitute the applied arguments once before checking stored children
@@ -378,15 +524,14 @@ impl CheckState<'_> {
         slots: &[(dir::GlobalTypeId, dir::GlobalNodeIdAny)],
         check: RepresentationCheck,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<Option<RepresentationFailure>>> {
+    ) -> CompilerResult<Option<RepresentationFailure>> {
         for (ty, source) in slots {
-            let failure =
-                answer!(self.representation_failure(origin, *ty, *source, check, visited)?);
+            let failure = self.representation_failure(origin, *ty, *source, check, visited)?;
             if failure.is_some() {
-                return Ok(Answer::Ready(failure));
+                return Ok(failure);
             }
         }
 
-        Ok(Answer::Ready(None))
+        Ok(None)
     }
 }

@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Dependency, Origin, answer};
+use crate::check::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
 /// One head reduction outcome, keeping blocked heads visible.
@@ -12,19 +12,7 @@ enum HeadReduction {
     /// The chain closed on one head normal form.
     Closed(dir::GlobalTypeId),
     /// The chain blocked at one head awaiting open dependencies.
-    Blocked(dir::GlobalTypeId, SmallVec<[Dependency; 2]>),
-}
-
-/// Unwrap one inner reduction, reporting the blocked head on open dependencies.
-macro_rules! blocked {
-    ($id:expr, $answer:expr) => {
-        match $answer {
-            Answer::Ready(value) => value,
-            Answer::Pending(dependencies) => {
-                return Ok(HeadReduction::Blocked($id, dependencies));
-            }
-        }
-    };
+    Blocked(dir::GlobalTypeId),
 }
 
 impl CheckState<'_> {
@@ -39,6 +27,7 @@ impl CheckState<'_> {
             return Ok(ty);
         }
 
+        // track the aliases expanded along this chain
         let mut aliases = FxIndexSet::default();
 
         self.normalize_storage_type(origin, ty, &mut aliases)
@@ -53,10 +42,12 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // keep written types while declaring, checking selects storage
         if self.is_declaration() {
             return Ok(ty);
         }
 
+        // signatures canonicalize per parameter, other values canonicalize whole
         let origin = Origin::Symbol(symbol);
         match self.ty(ty)? {
             dir::Type::Function(function) => {
@@ -99,6 +90,7 @@ impl CheckState<'_> {
             .signature_parameters(ty.module_id, signature.parameters)?
             .to_vec();
 
+        // store each written parameter like a walked parameter declaration
         let mut stored = Vec::with_capacity(parameters.len());
         let mut changed = false;
         for parameter in parameters {
@@ -125,7 +117,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         aliases: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.settled_root(ty)?;
+        let ty = self.shallow_resolve(ty)?;
 
         // expand aliases only when their bodies require storage adaptation
         if self.is_alias_instance(ty)? {
@@ -140,17 +132,10 @@ impl CheckState<'_> {
                 });
             };
             let body = match self.type_alias_body(origin, ty.module_id, &instance)? {
-                Answer::Ready(Some(body)) => body,
-                Answer::Ready(None) => {
+                Some(body) => body,
+                None => {
                     return Err(CompilerError::Internal {
                         message: format!("storage alias {ty:?} has no transparent body"),
-                    });
-                }
-                Answer::Pending(blockers) => {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "storage alias {ty:?} depends on open inference state {blockers:?}"
-                        ),
                     });
                 }
             };
@@ -160,6 +145,7 @@ impl CheckState<'_> {
             return Ok(if storage == body { ty } else { storage });
         }
 
+        // erase constraint-only types behind a dynamic handle
         if self.is_dynamic_storage_constraint(ty)? {
             let dynamic =
                 self.intern_type(dir::Type::Dynamic(dir::DynamicType { constraint: ty }))?;
@@ -182,6 +168,7 @@ impl CheckState<'_> {
             return Ok(dynamic);
         }
 
+        // normalize composite storage through its elements
         match self.ty(ty)? {
             dir::Type::Union(union) => {
                 let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
@@ -232,34 +219,34 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let id = self.settled_root(id)?;
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let id = self.shallow_resolve(id)?;
 
         // key parameter reductions by their assuming scope
-        let scope = match self.type_flags(id)?.has_parameter() {
-            true => self.origin_scope(origin)?,
-            false => None,
+        let scope = if self.type_flags(id)?.has_parameter() {
+            self.assuming_scope(origin)?
+        } else {
+            None
         };
-        if let Some(reduced) = self.reduced_graphs.get(&(id, scope)) {
-            return Ok(Answer::Ready(*reduced));
+        if scope.is_none()
+            && let Some(reduced) = self.module.types_tail.get_reduced_type_id(id)
+        {
+            return Ok(reduced);
         }
-
-        let mut memo = FxIndexMap::default();
-        let mut active = FxIndexSet::default();
 
         // fold the root, then normalize children with aliases kept symbolic
-        let reduced = answer!(self.reduce_type_head(origin, id)?);
-        let answer = self.reduce_type_graph(origin, reduced, &mut memo, &mut active)?;
+        let mut memo = FxIndexMap::default();
+        let mut active = FxIndexSet::default();
+        let head = self.reduce_type_head(origin, id)?;
+        let reduced = self.reduce_type_graph(origin, head, &mut memo, &mut active)?;
 
-        // memoize complete closed reductions
-        if let Answer::Ready(reduced) = answer
-            && self.type_variables(id)?.is_empty()
-            && self.type_variables(reduced)?.is_empty()
-        {
-            self.reduced_graphs.insert((id, scope), reduced);
+        // record complete reductions as type tail entries; each id reduces
+        //  under its own declaration scope, so entries key by the id alone
+        if !self.type_flags(id)?.has_variable() && !self.type_flags(reduced)?.has_variable() {
+            self.module.types_tail.set_type_reduction(id, reduced);
         }
 
-        Ok(answer)
+        Ok(reduced)
     }
 
     /// Splat one signature's closed tuple rest parameter into positional parameters.
@@ -268,7 +255,7 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
         signature: dir::FunctionSignatureType,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let parameters = self
             .signature_parameters(id.module_id, signature.parameters)?
             .to_vec();
@@ -277,11 +264,11 @@ impl CheckState<'_> {
             .enumerate()
             .find(|(_, parameter)| parameter.is_rest)
         else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
-        let rest_ty = answer!(self.reduce_type_head(origin, rest.ty)?);
+        let rest_ty = self.reduce_type_head(origin, rest.ty)?;
         let dir::Type::Tuple(tuple) = self.ty(rest_ty)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         // rebuild positional parameters from the tuple elements
@@ -297,14 +284,14 @@ impl CheckState<'_> {
             });
         }
         rebuilt.extend(parameters[rest_index + 1..].iter().copied());
-        let _module = id.module_id;
+
         let parameters = self.intern_parameters(&rebuilt)?;
         let splatted = self.intern_signature(dir::FunctionSignatureType {
             parameters,
             ..signature
         })?;
 
-        Ok(Answer::Ready(Some(splatted)))
+        Ok(Some(splatted))
     }
 
     /// Reduce the head of one type to an honest value form, keeping authored names.
@@ -312,20 +299,20 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let mut id = self.settled_root(id)?;
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let mut id = self.shallow_resolve(id)?;
         loop {
             let reduced = match self.ty(id)? {
                 // resolve meta heads: they name computations, not values
                 dir::Type::Member(_) | dir::Type::Operation(_) => {
-                    answer!(self.reduce_type_head(origin, id)?)
+                    self.reduce_type_head(origin, id)?
                 }
                 // drop redundant forms while the payload keeps its spelling
-                dir::Type::Form(_) => answer!(self.reduce_redundant_forms(origin, id)?),
-                _ => return Ok(Answer::Ready(id)),
+                dir::Type::Form(_) => self.reduce_redundant_forms(origin, id)?,
+                _ => return Ok(id),
             };
             if reduced == id {
-                return Ok(Answer::Ready(id));
+                return Ok(id);
             }
             id = reduced;
         }
@@ -336,21 +323,11 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        Ok(match self.head_reduction(origin, id)? {
-            HeadReduction::Closed(reduced) => Answer::Ready(reduced),
-            HeadReduction::Blocked(_, dependencies) => Answer::Pending(dependencies),
-        })
-    }
-
-    /// Return the apparent head of one type under the current solutions.
-    pub(in crate::check) fn apparent_head(
-        &mut self,
-        origin: Origin,
-        id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // an open head reduces to itself: the variable is its own value form
         Ok(match self.head_reduction(origin, id)? {
-            HeadReduction::Closed(head) | HeadReduction::Blocked(head, _) => head,
+            HeadReduction::Closed(reduced) => reduced,
+            HeadReduction::Blocked(head) => head,
         })
     }
 
@@ -360,28 +337,31 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<HeadReduction> {
-        let id = self.settled_root(id)?;
+        let id = self.shallow_resolve(id)?;
 
         // key parameter reductions by their assuming scope
-        let scope = match self.type_flags(id)?.has_parameter() {
-            true => self.origin_scope(origin)?,
-            false => None,
+        let scope = if self.type_flags(id)?.has_parameter() {
+            self.assuming_scope(origin)?
+        } else {
+            None
         };
 
-        // replay memoized closed reductions
-        if let Some(reduced) = self.reduced_heads.get(&(id, scope)) {
+        // replay decided reductions of closed types
+        if let Some(reduced) = self.reduces.get(&(id, scope)) {
             return Ok(HeadReduction::Closed(*reduced));
         }
 
         let mut expanding = FxIndexSet::default();
         let reduction = self.reduce_type_chain(origin, id, &mut expanding)?;
 
-        // memoize closed reductions
+        // decide closed reductions once, identity included: loads run
+        //  synchronously inside the chain, so a closed head's reduction
+        //  is final the moment it completes
         if let HeadReduction::Closed(reduced) = reduction
-            && self.type_variables(id)?.is_empty()
-            && self.type_variables(reduced)?.is_empty()
+            && !self.type_flags(id)?.has_variable()
+            && !self.type_flags(reduced)?.has_variable()
         {
-            self.reduced_heads.insert((id, scope), reduced);
+            self.reduces.insert((id, scope), reduced);
         }
 
         Ok(reduction)
@@ -407,7 +387,6 @@ impl CheckState<'_> {
         // report circular expansions and complete the chain with the error type
         if !expanding.insert(id) {
             self.report_circular_type(origin)?;
-            let _module = origin.module();
             let error = self.intern_type(dir::Type::Error)?;
 
             return Ok(HeadReduction::Closed(error));
@@ -415,14 +394,23 @@ impl CheckState<'_> {
 
         match self.ty(id)? {
             // open variables block the chain as its own head
-            dir::Type::Variable(variable) => Ok(HeadReduction::Blocked(
-                id,
-                SmallVec::from_iter([Dependency::Variable(variable)]),
-            )),
+            dir::Type::Variable(_) => Ok(HeadReduction::Blocked(id)),
+
+            // unions normalize their canonical elements in place
+            dir::Type::Union(union) => {
+                let elements = self.type_ids(id.module_id, union.elements)?.to_vec();
+                let normalized = self.normalized_union_type(elements)?;
+                if normalized == id {
+                    return Ok(HeadReduction::Closed(id));
+                }
+
+                self.reduce_type_chain_recursive(origin, normalized, expanding)
+            }
+
             // rest parameters with closed tuple types splat positionally
             dir::Type::FunctionSignature(signature) => {
                 let signature = self.type_signature(id.module_id, signature)?;
-                match blocked!(id, self.reduce_signature_rest_splat(origin, id, signature)?) {
+                match self.reduce_signature_rest_splat(origin, id, signature)? {
                     Some(splatted) => Ok(HeadReduction::Closed(splatted)),
                     None => Ok(HeadReduction::Closed(id)),
                 }
@@ -452,16 +440,15 @@ impl CheckState<'_> {
                 }
 
                 // reduce intrinsic references to their builtin forms
-                if let Some(reduced) = blocked!(
-                    id,
+                if let Some(reduced) =
                     self.reduce_intrinsic_reference(origin, id.module_id, &instance)?
-                ) {
+                {
                     return self.head_reduction(origin, reduced);
                 }
 
-                match blocked!(id, self.type_alias_body(origin, id.module_id, &instance)?) {
+                match self.type_alias_body(origin, id.module_id, &instance)? {
                     Some(value) => {
-                        let value = self.settled_root(value)?;
+                        let value = self.shallow_resolve(value)?;
 
                         self.reduce_type_chain(origin, value, expanding)
                     }
@@ -472,10 +459,9 @@ impl CheckState<'_> {
             // member projections resolve through their owners
             dir::Type::Member(member) => {
                 let member = self.type_member(id.module_id, member)?;
-
                 // close the owner and keep its memory form
-                let owner = blocked!(id, self.reduce_type_head(origin, member.owner)?);
-                let peeled = blocked!(id, self.strip_form(origin, owner)?);
+                let owner = self.reduce_type_head(origin, member.owner)?;
+                let peeled = self.strip_form(origin, owner)?;
 
                 // error owners poison their projections
                 if matches!(self.ty(peeled)?, dir::Type::Error) {
@@ -487,11 +473,9 @@ impl CheckState<'_> {
                 // unqualified projections select one declaring interface
                 let mut qualifier = member.qualifier;
                 if qualifier.is_none() {
-                    qualifier = blocked!(
-                        id,
-                        self.body()
-                            .select_associated_qualifier(origin, peeled, member.key)?
-                    );
+                    qualifier = self
+                        .body()
+                        .select_associated_qualifier(origin, peeled, member.key)?;
                 }
 
                 // shed owner forms for unqualified member lookup
@@ -514,10 +498,10 @@ impl CheckState<'_> {
                 }
 
                 let projection = self.body().project_member(origin, &member)?;
-                let Some(projected) = blocked!(id, projection) else {
+                let Some(projected) = projection else {
                     return Ok(HeadReduction::Closed(id));
                 };
-                let projected = self.settled_root(projected)?;
+                let projected = self.shallow_resolve(projected)?;
 
                 self.reduce_type_chain(origin, projected, expanding)
             }
@@ -527,10 +511,10 @@ impl CheckState<'_> {
                 let operation = self.type_operation(id.module_id, operation)?;
                 let reduction = self.reduce_operation(origin, id, &operation)?;
 
-                let Some(reduced) = blocked!(id, reduction) else {
+                let Some(reduced) = reduction else {
                     return Ok(HeadReduction::Closed(id));
                 };
-                let reduced = self.settled_root(reduced)?;
+                let reduced = self.shallow_resolve(reduced)?;
 
                 self.reduce_type_chain(origin, reduced, expanding)
             }
@@ -540,23 +524,14 @@ impl CheckState<'_> {
                 let borrow = self.type_borrow(id.module_id, borrow)?;
 
                 // close the lifetime and access components
-                let closed_lifetime = match self.reduce_type_head(origin, borrow.lifetime)? {
-                    Answer::Ready(closed) => closed,
-                    Answer::Pending(_) => borrow.lifetime,
-                };
-                let closed_access = match self.reduce_type_head(origin, borrow.access)? {
-                    Answer::Ready(closed) => closed,
-                    Answer::Pending(_) => borrow.access,
-                };
+                let closed_lifetime = self.reduce_type_head(origin, borrow.lifetime)?;
+                let closed_access = self.reduce_type_head(origin, borrow.access)?;
+                let value = self.reduce_type_head(origin, form.value)?;
 
-                let value = match self.reduce_type_head(origin, form.value)? {
-                    Answer::Ready(value) => value,
-                    // open payloads stay structural until they close
-                    Answer::Pending(_) => return Ok(HeadReduction::Closed(id)),
-                };
-                let (inner, closed_access, place) =
+                // absorb the payload forms the borrow carries itself
+                let (payload, closed_access, place) =
                     self.reduce_borrow_payload(origin, value, closed_access)?;
-                if inner == form.value
+                if payload == form.value
                     && closed_lifetime == borrow.lifetime
                     && closed_access == borrow.access
                     && place.is_none()
@@ -567,7 +542,7 @@ impl CheckState<'_> {
                 let closed_form = self.intern_borrow(closed_lifetime, closed_access)?;
                 let mut rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
                     form: closed_form,
-                    value: inner,
+                    value: payload,
                 }))?;
                 if let Some(place) = place {
                     rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
@@ -581,13 +556,10 @@ impl CheckState<'_> {
 
             // non-borrow forms close their payload head
             dir::Type::Form(form) => {
-                let value = match self.reduce_type_head(origin, form.value)? {
-                    Answer::Ready(value) => value,
-                    Answer::Pending(_) => return Ok(HeadReduction::Closed(id)),
-                };
+                let value = self.reduce_type_head(origin, form.value)?;
 
                 // redundant wrappers reduce to their payload
-                if blocked!(id, self.is_redundant_form(origin, form.form, value)?) {
+                if self.is_redundant_form(origin, form.form, value)? {
                     return self.reduce_type_chain(origin, value, expanding);
                 }
 
@@ -607,7 +579,7 @@ impl CheckState<'_> {
             dir::Type::Intersection(intersection) => {
                 let elements: SmallVec<[_; 4]> =
                     SmallVec::from_slice(self.type_ids(id.module_id, intersection.elements)?);
-                let merged = blocked!(id, self.reduce_intersection(origin, id, &elements)?);
+                let merged = self.reduce_intersection(origin, id, &elements)?;
 
                 Ok(HeadReduction::Closed(merged))
             }
@@ -631,36 +603,36 @@ impl CheckState<'_> {
         let mut place = None;
 
         // absorb each value form exposed by alias reduction
-        while let dir::Type::Form(inner) = self.ty(value)? {
-            match inner.form {
+        while let dir::Type::Form(payload) = self.ty(value)? {
+            match payload.form {
                 // readonly payloads clamp the borrow access
                 dir::Form::Readonly => {
                     access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
                         dir::Access::Readonly,
                     )))?;
-                    value = inner.value;
+                    value = payload.value;
                 }
 
                 // borrowed payloads reborrow at the clamped access
-                dir::Form::Borrowed(inner_borrow) => {
-                    let inner_access = self.type_borrow(value.module_id, inner_borrow)?.access;
-                    let inner_access = self.settled_root(inner_access)?;
+                dir::Form::Borrowed(payload_borrow) => {
+                    let payload_access = self.type_borrow(value.module_id, payload_borrow)?.access;
+                    let payload_access = self.shallow_resolve(payload_access)?;
                     if matches!(
-                        self.ty(inner_access)?,
+                        self.ty(payload_access)?,
                         dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))
                     ) {
-                        access = inner_access;
+                        access = payload_access;
                     }
-                    value = inner.value;
+                    value = payload.value;
                 }
 
                 // ownership forms contribute storage rather than another handle layer
-                dir::Form::Managed | dir::Form::Owned => value = inner.value,
+                dir::Form::Managed | dir::Form::Owned => value = payload.value,
 
                 // placement qualifies the resulting borrow handle
                 dir::Form::Placed { place: current } => {
                     place = Some(current);
-                    value = inner.value;
+                    value = payload.value;
                 }
 
                 // raw payloads keep their written form
@@ -678,61 +650,53 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         memo: &mut FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // replay the reduction already recorded for this node
         if let Some(done) = memo.get(&id).copied() {
-            return Ok(Answer::Ready(done));
+            return Ok(done);
         }
 
         let original = id;
 
         // keep transparent alias references symbolic in child positions
-        let id = self.settled_root(id)?;
+        let id = self.shallow_resolve(id)?;
         let id = match self.is_alias_instance(id)? {
             true => id,
-            false => answer!(self.reduce_type_head(origin, id)?),
+            false => self.reduce_type_head(origin, id)?,
         };
         if let Some(done) = memo.get(&id).copied() {
             memo.insert(original, done);
 
-            return Ok(Answer::Ready(done));
+            return Ok(done);
         }
         if !active.insert(id) {
             memo.insert(original, id);
 
-            return Ok(Answer::Ready(id));
+            return Ok(id);
         }
 
         // reduce children first so rebuilt composite roots can reduce
         let mut replacements = FxIndexMap::default();
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
         let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         let root = self.ty(id)?;
         self.for_each_type_child(id.module_id, &root, |child| children.push(child))?;
         for child in children {
-            match self.reduce_type_graph(origin, child, memo, active)? {
-                Answer::Ready(reduced) => {
-                    if reduced != child {
-                        replacements.insert(child, reduced);
-                    }
-                }
-                Answer::Pending(dependencies) => blockers.extend(dependencies),
+            let reduced = self.reduce_type_graph(origin, child, memo, active)?;
+            if reduced != child {
+                replacements.insert(child, reduced);
             }
         }
-        if !blockers.is_empty() {
-            active.swap_remove(&id);
-
-            return Ok(Answer::pending(blockers));
-        }
+        // keep an unchanged local root as it stands
         let target = origin.module();
         let is_union = matches!(root, dir::Type::Union(_));
         if replacements.is_empty() && id.module_id == target && !is_union {
             active.swap_remove(&id);
             memo.insert(original, id);
 
-            return Ok(Answer::Ready(id));
+            return Ok(id);
         }
 
-        // read payloads from their owner, intern the rebuilt type in this component
+        // read payloads from their owner, intern the rebuilt type in this module
         let ty = self.ty(id)?;
         let ty = self.map_type_children(id.module_id, target, ty, &mut |_state, child| {
             Ok(replacements.get(&child).copied().unwrap_or(child))
@@ -745,15 +709,16 @@ impl CheckState<'_> {
             }
             ty => self.intern_type(ty)?,
         };
+        // reduce the rebuilt root once more when it moved
         active.swap_remove(&id);
         let rebuilt = if rebuilt == id {
             rebuilt
         } else {
-            answer!(self.reduce_type_graph(origin, rebuilt, memo, active)?)
+            self.reduce_type_graph(origin, rebuilt, memo, active)?
         };
         memo.insert(original, rebuilt);
 
-        Ok(Answer::Ready(rebuilt))
+        Ok(rebuilt)
     }
 
     /// Return whether one type is a transparent alias application.
@@ -821,14 +786,14 @@ impl CheckState<'_> {
         _origin: Origin,
         instance_module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // expand transparent alias definitions only
         let value = {
             let Some(definition) = self.definition(instance.symbol)? else {
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             };
             let dir::Definition::TypeAlias(definition) = definition else {
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             };
 
             definition.value
@@ -839,6 +804,6 @@ impl CheckState<'_> {
         // substitute applied arguments through the body
         let substituted = self.substitute_type(value, &substitution)?;
 
-        Ok(Answer::Ready(Some(substituted)))
+        Ok(Some(substituted))
     }
 }

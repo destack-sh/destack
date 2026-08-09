@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BodyState, FlowSite, PlaceUse, answer};
+use crate::check::{BodyState, FlowSite, PlaceUse};
 
 impl BodyState<'_, '_> {
     /// Infer one borrow expression from its borrowed value and lifetime.
@@ -10,12 +10,12 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         mutability: Option<dir::Mutability>,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
-        let right_site = self.node_site(right.into_global_any(node.module_id))?;
-        let ty = answer!(self.infer_node_type(right_site, PlaceUse::Read)?);
-        let value = answer!(self.expression_value(right_site, ty)?);
-        let place = answer!(self.value_place(right_site.origin(), value)?);
+        let right_site = self.visit_site(right.into_global_any(node.module_id))?;
+        let ty = self.infer_node_type(right_site, PlaceUse::Read)?;
+        let value = self.expression_value(right_site, ty)?;
+        let place = self.value_place(right_site.origin(), value)?;
 
         // derive borrow form parameters from the place and written mutability
         let lifetime = place.lifetime;
@@ -27,13 +27,11 @@ impl BodyState<'_, '_> {
 
         // require the requested access from the selected place
         let origin = site.origin();
-        let is_granted = answer!(self.check.constrain_access_assignable(
-            origin,
-            place.access,
-            access,
-        )?);
+        let is_granted = self
+            .check
+            .constrain_access_assignable(origin, place.access, access)?;
         if !is_granted {
-            let granted = answer!(self.check.access_literal(origin, place.access)?);
+            let granted = self.check.access_literal(origin, place.access)?;
             self.check
                 .report_borrow_access_not_granted(origin, requested, granted, value.ty)?;
         }
@@ -44,9 +42,9 @@ impl BodyState<'_, '_> {
             form,
             value: value.ty,
         }))?;
-        let borrowed = answer!(self.reduce_type_head(site.origin(), borrowed)?);
+        let borrowed = self.reduce_type_head(site.origin(), borrowed)?;
         self.commit_node_type(node.into_any(), borrowed)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 }

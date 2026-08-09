@@ -142,6 +142,7 @@ function run(): void {
         a += 1;
         /// @type.node source="a += 1" type=float64
         /// @type.node source=a type=float64
+        /// @resolution.name source=a target=run.a
         /// @resolution.operator source="a += 1" type=float64 operator="+" kind=builtin operands=[a as float64 families=(float), 1 as float64 families=(float)]
         /// @resolution.pattern.assign source=a kind=place
         /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
@@ -152,6 +153,7 @@ function run(): void {
         b += 1;
         /// @type.node source="b += 1" type=float64
         /// @type.node source=b type=float64
+        /// @resolution.name source=b target=run.b
         /// @resolution.operator source="b += 1" type=float64 operator="+" kind=builtin operands=[b as float64 families=(float), 1 as float64 families=(float)]
         /// @resolution.pattern.assign source=b kind=place
         /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
@@ -173,6 +175,7 @@ function run(): void {
         b += 1;
         /// @type.node source="b += 1" type=float64
         /// @type.node source=b type=float64
+        /// @resolution.name source=b target=run.b
         /// @resolution.operator source="b += 1" type=float64 operator="+" kind=builtin operands=[b as float64 families=(float), 1 as float64 families=(float)]
         /// @resolution.pattern.assign source=b kind=place
         /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
@@ -183,6 +186,7 @@ function run(): void {
         c += 1;
         /// @type.node source="c += 1" type=float64
         /// @type.node source=c type=float64
+        /// @resolution.name source=c target=run.c
         /// @resolution.operator source="c += 1" type=float64 operator="+" kind=builtin operands=[c as float64 families=(float), 1 as float64 families=(float)]
         /// @resolution.pattern.assign source=c kind=place
         /// @resolution.place source=c placement="local" lifetime="frame" access="exclusive"
@@ -417,6 +421,7 @@ function connect(): void {
         count += 1;
         /// @type.node source="count += 1" type=float64
         /// @type.node source=count type=float64
+        /// @resolution.name source=count target=connect.count
         /// @resolution.operator source="count += 1" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), 1 as float64 families=(float)]
         /// @resolution.pattern.assign source=count kind=place
         /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"

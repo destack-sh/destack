@@ -3,9 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{
-    Answer, CheckState, Dependency, GenericParameterId, Origin, Relation, TypeSubstitution, answer,
-};
+use crate::check::{CheckState, GenericParameterId, Origin, Relation, TypeSubstitution};
 
 impl CheckState<'_> {
     /// Decompose two same-constructor types into fixed slot pairs.
@@ -362,24 +360,18 @@ impl CheckState<'_> {
         parameters: &[GenericParameterId],
         substitution: &mut TypeSubstitution,
         pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         for (pattern, actual) in pairs.iter().copied() {
             // matching binds parameters; assignability judges the rest later
             if !self.type_flags(pattern)?.has_parameter() {
                 continue;
             }
-            if !answer!(self.match_generic_type(
-                origin,
-                parameters,
-                substitution,
-                pattern,
-                actual,
-            )?) {
-                return Ok(Answer::Ready(false));
+            if !self.match_generic_type(origin, parameters, substitution, pattern, actual)? {
+                return Ok(false);
             }
         }
 
-        Ok(Answer::Ready(true))
+        Ok(true)
     }
 
     /// Match one generic type pattern without opening inference variables.
@@ -390,24 +382,33 @@ impl CheckState<'_> {
         substitution: &mut TypeSubstitution,
         pattern: dir::GlobalTypeId,
         actual: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // bind direct parameters before reducing the authored argument
-        let pattern = self.settled_root(pattern)?;
-        if let dir::Type::Parameter(parameter) = self.ty(pattern)?
-            && parameters.contains(&parameter)
-        {
-            let actual = self.settled_root(actual)?;
+        let pattern = self.shallow_resolve(pattern)?;
+        if let dir::Type::Parameter(parameter) = self.ty(pattern)? {
+            // an already-bound rigid parameter defers open actuals to
+            //  the relation, which judges them after matching
+            if !parameters.contains(&parameter) {
+                let actual = self.shallow_resolve(actual)?;
+                if self.root_variable(actual)?.is_some() {
+                    return Ok(true);
+                }
+            }
+            // bind open extension parameters directly
+            else {
+                let actual = self.shallow_resolve(actual)?;
 
-            return self.bind_generic_argument(origin, substitution, parameter, actual);
+                return self.bind_generic_argument(origin, substitution, parameter, actual);
+            }
         }
 
         // expose one constructor while preserving its authored child types
-        let pattern = answer!(self.reduce_type_head(origin, pattern)?);
-        let actual = self.settled_root(actual)?;
+        let pattern = self.reduce_type_head(origin, pattern)?;
+        let actual = self.shallow_resolve(actual)?;
         let actual = if self.root_variable(actual)?.is_some() {
             actual
         } else {
-            answer!(self.reduce_type_head(origin, actual)?)
+            self.reduce_type_head(origin, actual)?
         };
 
         let pattern_type = self.ty(pattern)?;
@@ -417,12 +418,12 @@ impl CheckState<'_> {
         //  so they never gate matching: elided implementation lifetimes
         //  serve any spread of required ones
         if self.is_lifetime_slot(&pattern_type)? && self.is_lifetime_slot(&actual_type)? {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         // decompose identical parameterized types to record bindings
         if pattern == actual && !self.type_flags(pattern)?.has_parameter() {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         // unions and intersections match as unordered type sets
@@ -457,21 +458,16 @@ impl CheckState<'_> {
             let arms = SmallVec::<[_; 4]>::from_slice(
                 self.type_ids(actual.module_id, actual_union.elements)?,
             );
-            let mut blockers = SmallVec::<[Dependency; 2]>::new();
             for arm in arms {
                 let mut scratch = substitution.clone();
-                match self.match_generic_type(origin, parameters, &mut scratch, pattern, arm)? {
-                    Answer::Ready(true) => {
-                        *substitution = scratch;
+                if self.match_generic_type(origin, parameters, &mut scratch, pattern, arm)? {
+                    *substitution = scratch;
 
-                        return Ok(Answer::Ready(true));
-                    }
-                    Answer::Ready(false) => {}
-                    Answer::Pending(pending) => blockers.extend(pending),
+                    return Ok(true);
                 }
             }
 
-            return Ok(Answer::ready_unless_blocked(false, blockers));
+            return Ok(false);
         }
 
         // decompose fixed slots beneath one shared constructor
@@ -480,7 +476,7 @@ impl CheckState<'_> {
             return self.match_generic_arguments(origin, parameters, substitution, &pairs);
         }
 
-        Ok(Answer::Ready(pattern_type == actual_type))
+        Ok(pattern_type == actual_type)
     }
 
     /// Match two unordered type sets wherever each pattern has one viable target.
@@ -491,15 +487,14 @@ impl CheckState<'_> {
         substitution: &mut TypeSubstitution,
         mut patterns: SmallVec<[dir::GlobalTypeId; 4]>,
         mut actuals: SmallVec<[dir::GlobalTypeId; 4]>,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         if patterns.len() != actuals.len() {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         // commit only matches whose target is unambiguous under current bindings
         while !patterns.is_empty() {
             let mut selected = None;
-            let mut blockers = SmallVec::<[Dependency; 2]>::new();
             for (pattern_index, pattern) in patterns.iter().copied().enumerate() {
                 let mut candidate = None;
                 let mut is_ambiguous = false;
@@ -512,10 +507,9 @@ impl CheckState<'_> {
                         pattern,
                         actual,
                     )? {
-                        Answer::Ready(true) if candidate.is_some() => is_ambiguous = true,
-                        Answer::Ready(true) => candidate = Some((actual_index, matched)),
-                        Answer::Ready(false) => {}
-                        Answer::Pending(dependencies) => blockers.extend(dependencies),
+                        true if candidate.is_some() => is_ambiguous = true,
+                        true => candidate = Some((actual_index, matched)),
+                        false => {}
                     }
                 }
                 if !is_ambiguous && let Some((actual_index, matched)) = candidate {
@@ -525,19 +519,16 @@ impl CheckState<'_> {
                 }
             }
 
-            // consume one unambiguous pair, or wait for the unresolved ones
-            if let Some((pattern_index, actual_index, matched)) = selected {
-                *substitution = matched;
-                patterns.remove(pattern_index);
-                actuals.remove(actual_index);
-            } else if !blockers.is_empty() {
-                return Ok(Answer::Pending(blockers));
-            } else {
-                return Ok(Answer::Ready(false));
-            }
+            // consume one unambiguous pair, or reject the whole set
+            let Some((pattern_index, actual_index, matched)) = selected else {
+                return Ok(false);
+            };
+            *substitution = matched;
+            patterns.remove(pattern_index);
+            actuals.remove(actual_index);
         }
 
-        Ok(Answer::Ready(true))
+        Ok(true)
     }
 
     /// Return whether one matched slot is lifetime-shaped.
@@ -560,11 +551,11 @@ impl CheckState<'_> {
         substitution: &mut TypeSubstitution,
         parameter: GenericParameterId,
         argument: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let Some(bound) = substitution.argument(parameter) else {
             substitution.bind(parameter, argument)?;
 
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         };
 
         self.decide_relation(origin, Relation::Equal, bound, argument)
@@ -577,22 +568,14 @@ impl CheckState<'_> {
         parameters: &[GenericParameterId],
         substitution: &mut TypeSubstitution,
         pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
-    ) -> CompilerResult<Answer<bool>> {
-        let mut decision = Answer::Ready(true);
+    ) -> CompilerResult<bool> {
         for (pattern, actual) in pairs.iter().copied() {
-            decision = decision.and(self.match_generic_type(
-                origin,
-                parameters,
-                substitution,
-                pattern,
-                actual,
-            )?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !self.match_generic_type(origin, parameters, substitution, pattern, actual)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 }
 

@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{CheckState, Origin};
 
 /// Maximum alternatives one template literal expands into.
 const TEMPLATE_EXPANSION_LIMIT: usize = 4096;
@@ -16,22 +16,22 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         mapping: dir::StringMapping,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let target = answer!(self.reduce_type_head(origin, target)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let target = self.reduce_type_head(origin, target)?;
 
         match self.ty(target)? {
             // map one closed string literal
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
                 let mapped = self.reduce_string_mapping(id.module_id, mapping, value)?;
 
-                Ok(Answer::Ready(Some(mapped)))
+                Ok(Some(mapped))
             }
 
             // map one exact name key
             dir::Type::Key(dir::StaticKey::Name(value)) => {
                 let mapped = self.reduce_string_mapping(id.module_id, mapping, value)?;
 
-                Ok(Answer::Ready(Some(mapped)))
+                Ok(Some(mapped))
             }
 
             // distribute string mappings across union elements
@@ -39,21 +39,19 @@ impl CheckState<'_> {
                 let elements: SmallVec<[_; 4]> =
                     SmallVec::from_slice(self.type_ids(target.module_id, union.elements)?);
                 let module = id.module_id;
-                let Some(mapped) = answer!(self.reduce_distributed_operation(
-                    origin,
-                    elements,
-                    |state, element| {
+                let Some(mapped) =
+                    self.reduce_distributed_operation(origin, elements, |state, element| {
                         state.reduce_string_mapping_arm(origin, module, mapping, element)
-                    }
-                )?) else {
-                    return Ok(Answer::Ready(None));
+                    })?
+                else {
+                    return Ok(None);
                 };
 
-                Ok(Answer::Ready(Some(mapped)))
+                Ok(Some(mapped))
             }
 
             // open values stay symbolic
-            _ => Ok(Answer::Ready(None)),
+            _ => Ok(None),
         }
     }
 
@@ -63,7 +61,7 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
         template: &dir::TemplateLiteralType,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let strings = self
             .template_strings(id.module_id, template.strings)?
             .to_vec();
@@ -72,14 +70,11 @@ impl CheckState<'_> {
         // close every interpolated span to its printable choices
         let mut printed: Vec<Vec<String>> = Vec::with_capacity(spans.len());
         for span in spans {
-            let span = match self.reduce_type_head(origin, span)? {
-                Answer::Ready(span) => span,
-                Answer::Pending(_) => return Ok(Answer::Ready(None)),
-            };
+            let span = self.reduce_type_head(origin, span)?;
 
             // a never span empties the whole template
             if matches!(self.ty(span)?, dir::Type::Never) {
-                return Ok(Answer::Ready(Some(self.intern_type(dir::Type::Never)?)));
+                return Ok(Some(self.intern_type(dir::Type::Never)?));
             }
 
             // union spans distribute their printable alternatives
@@ -88,13 +83,10 @@ impl CheckState<'_> {
                     let elements = self.type_ids(span.module_id, union.elements)?.to_vec();
                     let mut choices = Vec::with_capacity(elements.len());
                     for element in elements {
-                        let element = match self.reduce_type_head(origin, element)? {
-                            Answer::Ready(element) => element,
-                            Answer::Pending(_) => return Ok(Answer::Ready(None)),
-                        };
+                        let element = self.reduce_type_head(origin, element)?;
                         match self.template_piece_text(element)? {
                             Some(text) => choices.push(text),
-                            None => return Ok(Answer::Ready(None)),
+                            None => return Ok(None),
                         }
                     }
 
@@ -102,7 +94,7 @@ impl CheckState<'_> {
                 }
                 _ => match self.template_piece_text(span)? {
                     Some(text) => vec![text],
-                    None => return Ok(Answer::Ready(None)),
+                    None => return Ok(None),
                 },
             };
             printed.push(choices);
@@ -111,7 +103,7 @@ impl CheckState<'_> {
         // wide distributions stay symbolic
         let combinations: usize = printed.iter().map(Vec::len).product();
         if combinations > TEMPLATE_EXPANSION_LIMIT {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
         // interleave literal segments with every printed alternative
@@ -142,7 +134,7 @@ impl CheckState<'_> {
             _ => self.normalized_union_type(literals)?,
         };
 
-        Ok(Answer::Ready(Some(reduced)))
+        Ok(Some(reduced))
     }
 
     /// Evaluate one static binary operation over literal operands.
@@ -150,8 +142,8 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         binary: dir::StaticBinaryType,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let left = answer!(self.reduce_type_head(origin, binary.left)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let left = self.reduce_type_head(origin, binary.left)?;
         let left_literal = match self.ty(left)? {
             dir::Type::Literal(literal) => Some(literal),
             _ => None,
@@ -161,16 +153,14 @@ impl CheckState<'_> {
         if let Some(dir::ScalarLiteral::Boolean(value)) = left_literal {
             match (binary.operator, value) {
                 (dir::StaticBinaryOperator::And, false) | (dir::StaticBinaryOperator::Or, true) => {
-                    return Ok(Answer::Ready(Some(left)));
+                    return Ok(Some(left));
                 }
                 (dir::StaticBinaryOperator::And, true) | (dir::StaticBinaryOperator::Or, false) => {
-                    let right = answer!(self.reduce_type_head(origin, binary.right)?);
+                    let right = self.reduce_type_head(origin, binary.right)?;
 
                     return match self.ty(right)? {
-                        dir::Type::Literal(dir::ScalarLiteral::Boolean(_)) => {
-                            Ok(Answer::Ready(Some(right)))
-                        }
-                        _ => Ok(Answer::Ready(None)),
+                        dir::Type::Literal(dir::ScalarLiteral::Boolean(_)) => Ok(Some(right)),
+                        _ => Ok(None),
                     };
                 }
                 _ => {}
@@ -178,13 +168,13 @@ impl CheckState<'_> {
         }
 
         // close the right operand after short-circuiting
-        let right = answer!(self.reduce_type_head(origin, binary.right)?);
+        let right = self.reduce_type_head(origin, binary.right)?;
         let right_literal = match self.ty(right)? {
             dir::Type::Literal(literal) => Some(literal),
             _ => None,
         };
         let (Some(left_literal), Some(right_literal)) = (left_literal, right_literal) else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         // concatenate string literals through module storage
@@ -203,7 +193,7 @@ impl CheckState<'_> {
             let joined = self.strings().intern(&joined);
             let literal = dir::Type::Literal(dir::ScalarLiteral::String(joined));
 
-            return Ok(Answer::Ready(Some(self.intern_type(literal)?)));
+            return Ok(Some(self.intern_type(literal)?));
         }
 
         // evaluate scalar operators directly
@@ -211,12 +201,12 @@ impl CheckState<'_> {
             Ok(literal) => {
                 let id = self.intern_type(dir::Type::Literal(literal))?;
 
-                Ok(Answer::Ready(Some(id)))
+                Ok(Some(id))
             }
             Err(message) => {
                 self.report_static_operation(origin, message)?;
 
-                Ok(Answer::Ready(None))
+                Ok(None)
             }
         }
     }
@@ -226,11 +216,11 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         unary: dir::StaticUnaryType,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let target = answer!(self.reduce_type_head(origin, unary.target)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let target = self.reduce_type_head(origin, unary.target)?;
         let literal = match self.ty(target)? {
             dir::Type::Literal(literal) => literal,
-            _ => return Ok(Answer::Ready(None)),
+            _ => return Ok(None),
         };
 
         // evaluate operators that are defined for the closed literal
@@ -261,9 +251,9 @@ impl CheckState<'_> {
             Some(literal) => {
                 let id = self.intern_type(dir::Type::Literal(literal))?;
 
-                Ok(Answer::Ready(Some(id)))
+                Ok(Some(id))
             }
-            None => Ok(Answer::Ready(None)),
+            None => Ok(None),
         }
     }
 
@@ -289,8 +279,8 @@ impl CheckState<'_> {
         module: ModuleId,
         mapping: dir::StringMapping,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let target = answer!(self.reduce_type_head(origin, target)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let target = self.reduce_type_head(origin, target)?;
         let reduced = match self.ty(target)? {
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
                 self.reduce_string_mapping(module, mapping, value)?
@@ -301,6 +291,6 @@ impl CheckState<'_> {
             _ => self.intern_operation(dir::TypeOperation::StringMapping { mapping, target })?,
         };
 
-        Ok(Answer::Ready(Some(reduced)))
+        Ok(Some(reduced))
     }
 }

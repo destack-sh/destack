@@ -47,9 +47,7 @@ if (true) {}
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_decorators(),
+        DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
 @deny("constant-condition")
@@ -121,9 +119,7 @@ const value = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_decorators(),
+        DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
 @expect("constant-condition", { reason: "intentional assertion" })
@@ -202,9 +198,7 @@ if (true) {}
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_decorators(),
+        DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
 @forbid("constant-condition")
@@ -251,9 +245,7 @@ const value = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_decorators(),
+        DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
 @allow("not-a-diagnostic")
@@ -290,9 +282,7 @@ const value = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_decorators(),
+        DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
 @allow("not-assignable")

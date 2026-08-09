@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
-use crate::check::WalkState;
+use crate::check::CheckState;
 
-impl WalkState<'_, '_> {
+impl CheckState<'_> {
     /// Return whether one block can complete normally.
     ///
     /// Example:
@@ -12,7 +12,12 @@ impl WalkState<'_, '_> {
     ///     value
     /// }
     /// ```
-    pub(in crate::check) fn block_can_complete_normally(&self, block: &dir::Block) -> bool {
+    pub(in crate::check) fn block_can_complete_normally(
+        &self,
+        block: dir::LocalNodeId<dir::Block>,
+    ) -> bool {
+        let view = self.module(self.module_id).view();
+        let block = view.get(block);
         for expression in &block.leading_expressions {
             if !self.expression_can_complete_normally(*expression) {
                 return false;
@@ -35,10 +40,11 @@ impl WalkState<'_, '_> {
         &self,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        match self.tree.get(id) {
+        let view = self.module(self.module_id).view();
+        match view.get(id) {
             // unbound jumps already emitted diagnostics
             dir::Expression::Break { .. } | dir::Expression::Continue { .. }
-                if self.flow().is_unbound_jump(id.into_any()) =>
+                if self.flow.is_unbound_jump(id.into_any()) =>
             {
                 true
             }
@@ -51,9 +57,7 @@ impl WalkState<'_, '_> {
                 self.expression_can_complete_normally(*expression)
             }
             // { ... }
-            dir::Expression::Block(block) => {
-                self.block_can_complete_normally(self.tree.get(*block))
-            }
+            dir::Expression::Block(block) => self.block_can_complete_normally(*block),
             // if condition { then } else { otherwise }
             dir::Expression::If {
                 then_expression,
@@ -71,11 +75,10 @@ impl WalkState<'_, '_> {
             // match (value) { pattern => body }
             dir::Expression::Match { arms, .. } => arms
                 .iter()
-                .any(|arm| self.match_arm_can_complete_normally(self.tree.get(*arm))),
+                .any(|arm| self.match_arm_can_complete_normally(view.get(*arm))),
             // switch (value) { case pattern: body }
             dir::Expression::Switch { .. } => !self
-                .check
-                .module(self.module)
+                .module(self.module_id)
                 .unreachable_ends
                 .contains(&id.into_any()),
             // try { value } catch (error) { recover(error) }
@@ -86,7 +89,7 @@ impl WalkState<'_, '_> {
             } => {
                 let body = self.expression_can_complete_normally(*body);
                 let catch = catch.is_some_and(|catch| {
-                    self.expression_can_complete_normally(self.tree.get(catch).body)
+                    self.expression_can_complete_normally(view.get(catch).body)
                 });
                 let finally = if let Some(finally) = finally {
                     self.expression_can_complete_normally(*finally)
@@ -98,7 +101,6 @@ impl WalkState<'_, '_> {
             }
             // expressions that do not force control transfer by form
             dir::Expression::Declaration(_)
-            | dir::Expression::Label { .. }
             | dir::Expression::Import { .. }
             | dir::Expression::Export { .. }
             | dir::Expression::Let { .. }
@@ -165,9 +167,7 @@ impl WalkState<'_, '_> {
             // pattern => expression
             dir::MatchArm::Expression { body, .. } => self.expression_can_complete_normally(*body),
             // pattern => { ... }
-            dir::MatchArm::Block { body, .. } => {
-                self.block_can_complete_normally(self.tree.get(*body))
-            }
+            dir::MatchArm::Block { body, .. } => self.block_can_complete_normally(*body),
         }
     }
 }

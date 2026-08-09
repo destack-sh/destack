@@ -3,7 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirResolved,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported,
+    DirResolved,
 };
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
@@ -39,6 +40,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) definitions: Option<dir::DefinitionTable<'static>>,
     /// The visible type table used by layout anchors.
     pub(super) types: Option<dir::TypeTable<'static>>,
+    /// The lexical resolution table used by place labels.
+    pub(super) names: Option<dir::ResolutionTable<'static>>,
     /// The visible static table used by type labels.
     pub(super) statics: Option<dir::StaticTable<'static>>,
     /// Module paths used in multi-module snapshots.
@@ -96,6 +99,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             generics: None,
             definitions: None,
             types: None,
+            names: None,
             statics: None,
             module_path_by_id: None,
             foreign_bindings: BTreeMap::new(),
@@ -259,6 +263,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         bound: &DirBound,
         expanded: &DirExpanded,
         declared: &DirDeclared,
+        elaborated: &DirElaborated,
         checked: &DirChecked,
     ) {
         self.summaries = selection.summaries;
@@ -266,11 +271,11 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.type_references = selection.type_references;
 
         if selection.uses_type_labels() {
-            self.generics = Some(checked.generic_table(declared));
-            self.definitions = Some(checked.definition_table(declared));
+            self.generics = Some(checked.generic_table(declared, elaborated));
+            self.definitions = Some(elaborated.definition_table());
 
-            let types = checked.type_table(bound, expanded, declared);
-            let statics = checked.static_table(bound, expanded, declared);
+            let types = checked.type_table(bound, expanded, declared, elaborated);
+            let statics = checked.static_table(bound, expanded, declared, elaborated);
             self.types = Some(types.clone());
             self.statics = Some(statics.clone());
             self.add_static_labels(&statics);
@@ -279,34 +284,43 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.types {
             self.add_table(declared.types.as_ref());
+            self.add_table(elaborated.types.as_ref());
             self.add_table(checked.types.as_ref());
         }
 
         if selection.decorators {
             self.add_table(declared.decorators.as_ref());
+            self.add_table(elaborated.decorators.as_ref());
             self.add_table(checked.decorators.as_ref());
         }
 
         if selection.statics {
+            for (_, application) in elaborated.decorators.iter_applications() {
+                self.decorator_statics.insert(application.value);
+            }
             for (_, application) in checked.decorators.iter_applications() {
                 self.decorator_statics.insert(application.value);
             }
             self.add_table(declared.statics.as_ref());
+            self.add_table(elaborated.statics.as_ref());
             self.add_table(checked.statics.as_ref());
         }
 
         if selection.resolution {
             // stack the layers so instance rows derive from winning rows only
-            self.add_table(&checked.resolution_table(declared));
+            self.names = Some(checked.resolution_table(declared, elaborated));
+            self.add_table(&checked.resolution_table(declared, elaborated));
+            self.add_table(&checked.decision_table(declared, elaborated));
         }
 
         if selection.generics {
             self.add_table(declared.generics.as_ref());
+            self.add_table(elaborated.generics.as_ref());
             self.add_table(checked.generics.as_ref());
         }
 
         if selection.definitions {
-            self.add_table(checked.definitions.as_ref());
+            self.add_table(elaborated.definitions.as_ref());
         }
 
         if selection.coercion {

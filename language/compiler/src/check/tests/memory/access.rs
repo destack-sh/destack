@@ -444,6 +444,7 @@ function update(value: &readonly int32): void {
 /// @type.symbol symbol=update.value source="value: &readonly int32" type=&update.'a readonly int32
 
     *value = 1;
+    /// @resolution.rejected source=*value
     /// @resolution.name source=value target=update.value
     /// @resolution.place source=value placement="local" lifetime=update.'a access="readonly"
     /// @resolution.access source=value root=update.value

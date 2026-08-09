@@ -3,8 +3,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, BodyState, Decision, DecoratorApplication, FlowSite, NewtypeMatch, NewtypeOverload,
-    NewtypeRejection, Origin, SelectedDecorator, ValueUse, answer,
+    BodyState, DecoratorApplication, FlowSite, NewtypeMatch, NewtypeOverload, NewtypeRejection,
+    Origin, PlaceUse, SelectedDecorator, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -24,7 +24,7 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         application: DecoratorApplication,
-    ) -> CompilerResult<Answer<Option<SelectedDecorator>>> {
+    ) -> CompilerResult<Option<SelectedDecorator>> {
         let module = site.node.module_id;
 
         // collect explicit decorator type arguments
@@ -42,6 +42,12 @@ impl BodyState<'_, '_> {
         let reference = self.intern_type(reference)?;
         self.commit_node_type(target, reference)?;
 
+        // decide the target reference for its own resolution fact
+        if self.resolutions(module).name_resolution(target).is_none() {
+            self.check
+                .commit_name(target, dir::NameResolution::new(application.symbol))?;
+        }
+
         // dispatch compiler-owned derive to its intrinsic backing
         if self.environment_bound.language.item(application.symbol)
             == Some(dir::LanguageItem::Derive)
@@ -50,7 +56,7 @@ impl BodyState<'_, '_> {
         }
 
         // select the decorator backing
-        let matched = answer!(self.match_newtype(
+        let matched = self.match_newtype(
             site.origin(),
             application.symbol,
             &application.expression.arguments,
@@ -58,7 +64,7 @@ impl BodyState<'_, '_> {
             None,
             NewtypeOverload::Unambiguous,
             ValueUse::Comptime,
-        )?);
+        )?;
         let (selection, parameters, return_type) = match matched {
             NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => (
                 signature.selection,
@@ -72,17 +78,27 @@ impl BodyState<'_, '_> {
                 )?;
                 self.commit_error_node(site.node)?;
 
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             }
             NewtypeMatch::Rejected(rejection) => {
                 self.report_decorator_rejection(site.origin(), rejection)?;
                 self.commit_error_node(site.node)?;
 
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             }
         };
 
-        // commit the decorator-specific resolution
+        // type argument values their selection left uncommitted
+        for argument in &application.expression.arguments {
+            if let Some(value) = self.argument_expression(module, *argument)
+                && self.check.committed_node_type(value).is_none()
+            {
+                let value_site = self.check.visit_site(value)?;
+                self.attempt_node(value_site, PlaceUse::Read, None)?;
+            }
+        }
+
+        // name the decorator target and bind its written arguments
         let target = match self.environment_bound.language.item(application.symbol) {
             Some(item) => dir::DecoratorTarget::LanguageItem {
                 symbol: application.symbol,
@@ -103,6 +119,7 @@ impl BodyState<'_, '_> {
             &parameters,
         )?;
 
+        // commit the selected newtype backing as the decorator's resolution
         let resolution = dir::DecoratorResolution {
             target,
             selection: dir::DecoratorSelection::Newtype {
@@ -113,10 +130,10 @@ impl BodyState<'_, '_> {
         };
         self.commit_node_type(site.node, resolution.ty)?;
 
-        Ok(Answer::Ready(Some(SelectedDecorator {
+        Ok(Some(SelectedDecorator {
             application,
             resolution,
-        })))
+        }))
     }
 
     /// Select one compiler-owned derive decorator and its providers.
@@ -124,7 +141,7 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         application: DecoratorApplication,
-    ) -> CompilerResult<Answer<Option<SelectedDecorator>>> {
+    ) -> CompilerResult<Option<SelectedDecorator>> {
         let module = site.node.module_id;
 
         // reject written generic arguments, derive takes none
@@ -139,24 +156,24 @@ impl BodyState<'_, '_> {
             );
             self.commit_error_node(site.node)?;
 
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
         // select every provider as nominal newtype data
         let mut providers = Vec::with_capacity(application.expression.arguments.len());
         let mut selected_symbols = FxIndexSet::default();
         for argument in application.expression.arguments.iter().copied() {
-            let selected = answer!(self.select_derive_provider(module, argument)?);
+            let selected = self.select_derive_provider(module, argument)?;
             let Some(selected) = selected else {
                 self.commit_error_node(site.node)?;
 
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             };
             // reject duplicate providers without a second report
             if !selected_symbols.insert(selected.newtype.symbol) {
                 self.commit_error_node(site.node)?;
 
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             }
             providers.push(selected);
         }
@@ -187,10 +204,10 @@ impl BodyState<'_, '_> {
         };
         self.commit_node_type(site.node, ty)?;
 
-        Ok(Answer::Ready(Some(SelectedDecorator {
+        Ok(Some(SelectedDecorator {
             application,
             resolution,
-        })))
+        }))
     }
 
     /// Select one compiler-owned derive provider.
@@ -198,7 +215,7 @@ impl BodyState<'_, '_> {
         &mut self,
         module: ModuleId,
         argument: dir::LocalNodeId<dir::Argument>,
-    ) -> CompilerResult<Answer<Option<SelectedDeriveProvider>>> {
+    ) -> CompilerResult<Option<SelectedDeriveProvider>> {
         let Some(expression) = self.argument_expression(module, argument) else {
             return Err(CompilerError::Internal {
                 message: format!("derive provider argument {argument:?} has no expression"),
@@ -220,7 +237,7 @@ impl BodyState<'_, '_> {
             let Some(symbol) = self.reference_symbol(target) else {
                 self.report_invalid_derive_provider(origin)?;
 
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             };
             let symbol = self.resolve_symbol_alias(symbol)?;
 
@@ -231,7 +248,7 @@ impl BodyState<'_, '_> {
             {
                 self.report_invalid_derive_provider(origin)?;
 
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             }
             let reference = dir::Type::Reference(dir::TypeReference { symbol });
             let reference = self.intern_type(reference)?;
@@ -244,7 +261,7 @@ impl BodyState<'_, '_> {
             }
 
             // select the only viable provider backing
-            let matched = answer!(self.match_newtype(
+            let matched = self.match_newtype(
                 origin,
                 symbol,
                 &arguments,
@@ -252,7 +269,7 @@ impl BodyState<'_, '_> {
                 None,
                 NewtypeOverload::Unambiguous,
                 ValueUse::Comptime,
-            )?);
+            )?;
             let (selection, parameters, return_type) = match matched {
                 NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => (
                     signature.selection,
@@ -266,18 +283,18 @@ impl BodyState<'_, '_> {
                     )?;
                     self.commit_error_node(expression.into_global_any(module))?;
 
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
                 NewtypeMatch::Rejected(rejection) => {
                     self.report_decorator_rejection(origin, rejection)?;
                     self.commit_error_node(expression.into_global_any(module))?;
 
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
             };
 
             // retain the selected provider construction for static evaluation
-            let resolution = dir::ConstructResolution::new(
+            let resolution = dir::ConstructDecision::new(
                 dir::ConstructTarget::Newtype(selection.clone()),
                 self.argument_bindings(
                     Origin::Node(expression.into_global_any(module), None),
@@ -289,7 +306,7 @@ impl BodyState<'_, '_> {
             );
             self.commit_decision(
                 expression.into_global_any(module),
-                Decision::Construct(resolution),
+                dir::Decision::Construct(resolution),
             )?;
             self.commit_node_type(expression.into_global_any(module), return_type)?;
 
@@ -301,7 +318,7 @@ impl BodyState<'_, '_> {
             let Some(symbol) = self.reference_symbol(source) else {
                 self.report_invalid_derive_provider(origin)?;
 
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             };
             let symbol = self.resolve_symbol_alias(symbol)?;
 
@@ -312,9 +329,9 @@ impl BodyState<'_, '_> {
             {
                 self.report_invalid_derive_provider(origin)?;
 
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             }
-            let matched = answer!(self.match_newtype(
+            let matched = self.match_newtype(
                 origin,
                 symbol,
                 &[],
@@ -322,7 +339,7 @@ impl BodyState<'_, '_> {
                 None,
                 NewtypeOverload::Unambiguous,
                 ValueUse::Comptime,
-            )?);
+            )?;
             let (selection, return_type) = match matched {
                 NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => {
                     (signature.selection, signature.return_type)
@@ -334,13 +351,13 @@ impl BodyState<'_, '_> {
                     )?;
                     self.commit_error_node(source)?;
 
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
                 NewtypeMatch::Rejected(rejection) => {
                     self.report_decorator_rejection(origin, rejection)?;
                     self.commit_error_node(source)?;
 
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
             };
             self.commit_node_type(source, return_type)?;
@@ -353,14 +370,14 @@ impl BodyState<'_, '_> {
         {
             self.report_invalid_derive_provider(origin)?;
 
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
-        Ok(Answer::Ready(Some(SelectedDeriveProvider {
+        Ok(Some(SelectedDeriveProvider {
             argument: argument.into_global(module),
             newtype: selection,
             ty,
-        })))
+        }))
     }
 
     /// Report one rejected decorator newtype selection.

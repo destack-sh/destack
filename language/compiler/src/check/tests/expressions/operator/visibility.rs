@@ -205,6 +205,7 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=<error>
 /// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
+/// @resolution.rejected source="force * 2.0"
 /// @resolution.place source=force placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=force root=force
 "#,

@@ -1,4 +1,3 @@
-const CHECK_STATS_ROWS: &[&str] = &["check.stats.solve"];
 const CHECK_EVENT_ROWS: &[&str] = &["check.events"];
 const CHECK_EVENT_ENV: &str = "DESTACK_TEST_CHECK_EVENTS";
 const BIND_STATS_ROWS: &[&str] = &["bind.stats"];
@@ -177,12 +176,6 @@ impl DirRows {
     /// Include export table rows.
     pub(crate) const fn with_export(mut self) -> Self {
         self.export = true;
-        self
-    }
-
-    /// Include check stats rows.
-    pub(crate) const fn with_check_stats(mut self) -> Self {
-        self.metadata_rows = CHECK_STATS_ROWS;
         self
     }
 

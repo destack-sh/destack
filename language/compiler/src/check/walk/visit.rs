@@ -1,15 +1,13 @@
 use std::slice::from_ref;
 
-use destack_artifact::DirResolved;
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use rustc_hash::FxHashMap;
 
 use crate::CompilerResult;
 use crate::check::{
-    Cause, CauseKind, CheckState, Constraint, GenericTemplateId, Obligation, Origin, PlaceUse,
-    Relation, Task, TemplatePass, TypeSubstitution, WalkState, WellFormedTypeObligation,
+    Cause, CauseKind, CheckState, Constraint, GenericTemplateId, InferMode, Obligation, Origin,
+    PlaceUse, Relation, TemplatePass, TypeSubstitution, WalkState, WellFormedTypeObligation,
 };
 
 impl CheckState<'_> {
@@ -71,14 +69,33 @@ impl CheckState<'_> {
         let expanded = input.expanded.clone();
         let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
 
-        // walk and queue each root's bodies, inducing body-written lifetimes
+        // walk and type each root in source order: module flow is
+        //  authored order, and forward references read through symbol
+        //  holes that fulfillment resolves once their roots type
         let mut walk = WalkState::new(module, tree, self);
         for root in &expanded.roots {
-            walk.visit_body_expression(*root)?;
-            walk.queue_module_expression(*root)?;
-            walk.check.induce_signature_lifetimes()?;
+            walk.with_scope(|walk| {
+                walk.check.induce_signature_lifetimes()?;
+
+                // register root decorators and gate absent roots
+                if !walk.walk_decorators(root.into_any())? {
+                    return Ok(());
+                }
+                walk.type_body_root(module, *root)?;
+                walk.flush_flows()
+            })?;
         }
 
+        // check every function body after the roots, rustc's body order:
+        //  bodies are their own inference scopes over committed types
+        let bodies = walk.check.functions.values().cloned().collect::<Vec<_>>();
+        for function in bodies {
+            walk.check
+                .with_scope(|check| function.check(check, InferMode::Exact, None))?;
+            walk.flush_flows()?;
+        }
+
+        // commit the walk, then judge every written type
         walk.commit()?;
         self.judge_written_types(module)?;
 
@@ -98,9 +115,14 @@ impl CheckState<'_> {
                 }
             }
         }
-        written.extend(self.node_types.iter().map(|(node, ty)| (*node, *ty)));
+        let committed = self.node_types.nodes();
+        for node in committed {
+            if let Some(ty) = self.node_types.get(&node) {
+                written.push((node, ty));
+            }
+        }
 
-        let mut queued = FxIndexSet::default();
+        let mut judged = FxIndexSet::default();
         for (source, ty) in written {
             if source.try_into_typed::<dir::TypeExpression>().is_err() {
                 continue;
@@ -113,10 +135,10 @@ impl CheckState<'_> {
                 head = self.type_refined(head.module_id, refined)?.base;
             }
             if let dir::Type::Application(instance) = self.ty(head)?
-                && queued.insert(head)
+                && judged.insert(head)
             {
                 let scope = self.enclosing_declared_template(source)?;
-                self.queue_application_bounds(source, head, instance, scope)?;
+                self.collect_application_bounds(source, head, instance, scope)?;
             }
 
             let checked = matches!(self.operation_head(ty)?, Some(dir::TypeOperation::Index(_)))
@@ -146,10 +168,10 @@ impl CheckState<'_> {
                 if existing.is_none() || existing == Some(ty) {
                     self.commit_declaration_type(symbol, ty)?;
                 }
-                if queued.insert(ty) {
+                if judged.insert(ty) {
                     let source = self.symbol_source(symbol)?;
                     let scope = self.loaded_symbol_template(symbol);
-                    self.queue_application_bounds(source, ty, instance, scope)?;
+                    self.collect_application_bounds(source, ty, instance, scope)?;
                 }
             }
         }
@@ -192,8 +214,8 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Queue bound and predicate constraints for one application row.
-    fn queue_application_bounds(
+    /// Collect bound and predicate constraints for one application row.
+    fn collect_application_bounds(
         &mut self,
         source: dir::GlobalNodeIdAny,
         application: dir::GlobalTypeId,
@@ -222,7 +244,7 @@ impl CheckState<'_> {
             receiver: None,
         };
 
-        // enqueue parameter bounds as ordinary type relations
+        // collect parameter bounds as ordinary type relations
         for (index, (parameter, argument)) in parameters
             .iter()
             .copied()
@@ -257,10 +279,10 @@ impl CheckState<'_> {
                 constraint,
                 application,
                 cause,
-            ));
+            ))?;
         }
 
-        // enqueue declared where predicates with substituted sides,
+        // collect declared where predicates with substituted sides,
         //  leaving predicates over this to conformance sites
         for predicate in self.template_predicates(Some(template)) {
             if self.type_flags(predicate.left)?.has_this() {
@@ -276,7 +298,7 @@ impl CheckState<'_> {
                 left,
                 right,
                 cause,
-            ));
+            ))?;
         }
 
         Ok(())
@@ -334,32 +356,36 @@ impl CheckState<'_> {
         let expanded = input.expanded.clone();
         let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
 
-        // walk and queue module roots, referenced declarations first
-        let roots = ordered_roots(&input.resolved, &input.bindings, &tree, &expanded.roots);
+        // walk module roots in source order; forward references read
+        //  through symbol holes fulfillment resolves later
         let mut walk = WalkState::new(module, tree, self);
-        for root in &roots {
-            match tree.get(*root) {
-                dir::Expression::Declaration(declaration) => {
-                    let declaration = *declaration;
-                    walk.enter_node(*root)?;
-                    let void = walk.intern_type(dir::Type::Void)?;
-                    walk.commit_node_type(*root, void)?;
-                    walk.walk_declaration(declaration, &tree.get(declaration).clone())?;
-                }
-                dir::Expression::Let { .. } => {
-                    walk.enter_node(*root)?;
-                    // drop the whole root on a static gate, checking the
-                    //  let expression's ordinary decorators as values
-                    if !walk.decide_static_presence((*root).into_any())? {
-                        continue;
+        for root in &expanded.roots {
+            walk.with_scope(|walk| {
+                match tree.get(*root) {
+                    dir::Expression::Declaration(declaration) => {
+                        let declaration = *declaration;
+                        walk.enter_node(*root)?;
+                        let void = walk.intern_type(dir::Type::Void)?;
+                        walk.commit_node_type(*root, void)?;
+                        walk.walk_declaration(declaration, &tree.get(declaration).clone())?;
                     }
-                    walk.walk_let_bindings(*root)?;
+                    dir::Expression::Let { .. } => {
+                        walk.enter_node(*root)?;
+                        // drop the whole root on a static gate, checking the
+                        //  let expression's ordinary decorators as values
+                        if !walk.decide_static_presence((*root).into_any())? {
+                            return Ok(());
+                        }
+                        walk.walk_let_bindings(*root)?;
+                    }
+                    _ => return Ok(()),
                 }
-                _ => continue,
-            }
 
-            walk.queue_module_expression(*root)?;
-            walk.check.induce_signature_lifetimes()?;
+                walk.check.induce_signature_lifetimes()?;
+                walk.flush_flows()?;
+
+                walk.type_body_root(module, *root)
+            })?;
         }
 
         walk.commit()?;
@@ -369,143 +395,36 @@ impl CheckState<'_> {
 }
 
 impl WalkState<'_, '_> {
-    /// Queue one module-scope expression for inference.
-    fn queue_module_expression(
+    /// Type one walked body root, recursing into block members.
+    ///
+    /// Global and module blocks nest statement roots; roots the walk
+    /// never entered carry no flow and stay untyped.
+    fn type_body_root(
         &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
+        module: ModuleId,
+        node: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        let node = expression.into_global_any(self.module);
-        if self.check.is_absent(node) {
-            return Ok(());
-        }
-
-        // transcribe declarations / bindings only
-        if self.check.is_declaration()
-            && !matches!(
-                self.tree.get(expression),
-                dir::Expression::Declaration(_) | dir::Expression::Let { .. }
-            )
-        {
-            return Ok(());
-        }
-
-        let expressions = match self.tree.get(expression) {
-            dir::Expression::Declaration(declaration) => match self.tree.get(*declaration) {
-                dir::Declaration::Global(declaration) => Some(declaration.expressions.clone()),
-                dir::Declaration::Module(declaration) => Some(declaration.expressions.clone()),
+        if let dir::Expression::Declaration(declaration) = self.tree.get(node) {
+            let declaration = *declaration;
+            let members = match self.tree.get(declaration) {
+                dir::Declaration::Global(block) => Some(block.expressions.clone()),
+                dir::Declaration::Module(block) => Some(block.expressions.clone()),
                 _ => None,
-            },
-            _ => None,
-        };
+            };
+            if let Some(members) = members {
+                for member in members {
+                    self.type_body_root(module, member)?;
+                }
 
-        // queue expressions nested by global and module declarations
-        if let Some(expressions) = expressions {
-            for expression in expressions {
-                self.queue_module_expression(expression)?;
+                return Ok(());
             }
-
-            return Ok(());
         }
 
-        let site = self.node_site(expression)?;
-        self.check.queue_task(Task::Infer {
-            site,
-            use_: PlaceUse::Read,
-        });
+        let root_node = node.into_global_any(module);
+        let site = self.check.visit_site(root_node)?;
+        let mut body = self.check.body();
+        body.attempt_node(site, PlaceUse::Read, None)?;
 
         Ok(())
     }
-}
-
-/// Return one module's roots with referenced declarations ordered first.
-///
-/// Reference edges come from the resolve stage: a root walks after the
-/// roots declaring the symbols it references, so induced parameters exist
-/// when applications reach them. Cyclic groups keep their source order.
-fn ordered_roots(
-    resolved: &DirResolved,
-    bindings: &dir::BindingTable<'_>,
-    tree: &dir::View<'_>,
-    roots: &[dir::LocalNodeId<dir::Expression>],
-) -> Vec<dir::LocalNodeId<dir::Expression>> {
-    // map each root to its ordinal for edge building
-    let mut ordinals = FxHashMap::default();
-    for (ordinal, root) in roots.iter().enumerate() {
-        ordinals.insert(root.id, ordinal);
-    }
-
-    // climb one node to the root that owns it
-    let owner = |node: u32| -> Option<usize> {
-        let mut current = node;
-        loop {
-            if let Some(ordinal) = ordinals.get(&current) {
-                return Some(*ordinal);
-            }
-            current = tree.get_parent_id(current)?;
-        }
-    };
-
-    // collect reference edges between distinct roots
-    let module = resolved.references.module_id;
-    let mut edges: Vec<FxIndexSet<usize>> = vec![FxIndexSet::default(); roots.len()];
-    for (node, reference) in &resolved.references.target_by_node {
-        let dir::Reference::Bound(symbols) = reference else {
-            continue;
-        };
-        let Some(consumer) = owner(node.local_id.id) else {
-            continue;
-        };
-        for symbol in symbols {
-            if symbol.module_id != module {
-                continue;
-            }
-            let declaration = bindings.get_symbol(symbol.local_id).declaration;
-            let Some(target) = declaration.and_then(|node| owner(node.local_id.id)) else {
-                continue;
-            };
-            if target != consumer {
-                edges[consumer].insert(target);
-            }
-        }
-    }
-
-    // emit referenced roots before their consumers in source order
-    let mut ordered = Vec::with_capacity(roots.len());
-    let mut states = vec![VisitState::Fresh; roots.len()];
-    let mut stack = Vec::new();
-    for start in 0..roots.len() {
-        if states[start] != VisitState::Fresh {
-            continue;
-        }
-        stack.push((start, 0));
-        while let Some((root, next)) = stack.pop() {
-            if states[root] == VisitState::Emitted {
-                continue;
-            }
-            states[root] = VisitState::Visiting;
-            if let Some(target) = edges[root].get_index(next) {
-                stack.push((root, next + 1));
-                if states[*target] == VisitState::Fresh {
-                    stack.push((*target, 0));
-                }
-
-                continue;
-            }
-            states[root] = VisitState::Emitted;
-            ordered.push(roots[root]);
-        }
-    }
-
-    ordered
-}
-
-/// The visit state of one root during dependency ordering.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum VisitState {
-    /// Not yet reached.
-    Fresh,
-    /// On the visit stack, cycles fall back to source order.
-    Visiting,
-    /// Emitted into the ordered list.
-    Emitted,
 }

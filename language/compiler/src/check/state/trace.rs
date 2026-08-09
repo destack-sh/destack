@@ -3,13 +3,13 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CandidateVerdict, CheckState, ConstraintId, Dependency, DumpContext, ObligationId, Task,
-    TypeBound, Widening,
+    CandidateVerdict, CheckState, ConstraintId, DumpContext, ObligationId, TypeBound, Widening,
 };
 
+/// Environment variable naming the file check events stream into.
 const CHECK_EVENT_STREAM_ENV: &str = "DESTACK_CHECK_EVENT_STREAM";
 
-/// Derived size counters for one checked component.
+/// Derived size counters for one checked module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct CheckStats {
     /// The number of allocated variables.
@@ -18,8 +18,6 @@ pub(in crate::check) struct CheckStats {
     pub(in crate::check) constraints: usize,
     /// The number of collected obligations.
     pub(in crate::check) obligations: usize,
-    /// The number of allocated open types.
-    pub(in crate::check) types: usize,
     /// The number of solved variables.
     pub(in crate::check) solutions: usize,
     /// The total number of bounds.
@@ -47,7 +45,7 @@ pub(in crate::check) enum CheckEvent {
     },
     /// One speculative probe finished.
     ProbeFinished {
-        /// The winnowed verdict, absent when the probe parked externally.
+        /// The winnowed verdict, absent when the probe produced none.
         verdict: Option<CandidateVerdict>,
     },
     /// One variable was allocated.
@@ -71,42 +69,14 @@ pub(in crate::check) enum CheckEvent {
         /// The pushed bound.
         bound: TypeBound,
     },
-    /// The solver started.
-    SolveStarted {
-        /// The number of queued tasks.
-        tasks: usize,
-        /// The number of variables present before solving.
-        variables: usize,
-    },
-    /// One solver task ran once.
-    TaskRan {
-        /// The zero-based step index.
-        step: usize,
-        /// The task that ran.
-        task: Task,
-    },
-    /// One solver task parked on unresolved dependencies.
-    TaskParked {
-        /// The parked task.
-        task: Task,
-        /// The dependencies blocking the task.
-        blockers: SmallVec<[Dependency; 2]>,
-    },
-    /// The solver reached an empty queue.
-    SolveFinished {
-        /// The number of iterations run.
-        iterations: usize,
-        /// The number of variables present after solving.
-        variables: usize,
-    },
-    /// One relation constraint was checked or parked.
+    /// One relation constraint was checked.
     RelationChecked {
         /// The constraint.
         constraint: ConstraintId,
         /// Whether the constraint finished.
         is_finished: bool,
     },
-    /// One obligation was checked or parked.
+    /// One obligation was checked.
     ObligationChecked {
         /// The obligation.
         obligation: ObligationId,
@@ -123,11 +93,9 @@ pub(in crate::check) enum CheckEvent {
         /// The solved variable.
         variable: dir::TypeVariableId,
         /// The bounds present when the variable solved.
-        bounds: VariableBounds,
+        bounds: Box<VariableBounds>,
         /// The solution type.
         solution: dir::GlobalTypeId,
-        /// The number of tasks woken by this solution.
-        waiters: usize,
     },
 }
 
@@ -135,8 +103,6 @@ pub(in crate::check) enum CheckEvent {
 pub(in crate::check) struct CheckTrace {
     /// Trace events recorded while checking.
     pub(in crate::check) events: Vec<CheckEvent>,
-    /// Obligation steps run so far, for trace numbering.
-    pub(in crate::check) solve_steps: usize,
     /// Whether events are kept for artifact output.
     pub(in crate::check) emit: bool,
     /// Whether events print as they are recorded.
@@ -152,7 +118,6 @@ impl CheckTrace {
 
         Some(Box::new(Self {
             events: Vec::new(),
-            solve_steps: 0,
             emit,
             stream,
         }))
@@ -193,7 +158,7 @@ impl CheckState<'_> {
         eprint!("{}", log.render_plain());
     }
 
-    /// Return rendered event lines for this component.
+    /// Return rendered event lines for this module.
     pub(in crate::check) fn events(&self) -> ArtifactEventLog {
         let context = DumpContext::new(self);
         let mut log = ArtifactEventLog::new();
@@ -213,24 +178,20 @@ impl CheckState<'_> {
         log
     }
 
-    /// Return derived size counters for this component.
+    /// Return derived size counters for this module.
     pub(in crate::check) fn stats(&self) -> CheckStats {
-        let bounds = self.solver.variables.bound_count();
+        let bounds = self.infer.variables.bound_count();
         let mut solutions = 0;
-        for (_, state) in self.solver.variables() {
+        for (_, state) in self.infer.variables() {
             solutions += usize::from(!state.state.is_open());
         }
-        // count the types checking interned beyond the committed tables
-        let types = self.module.types_tail.type_count() as usize;
-
         CheckStats {
-            variables: self.solver.variable_count(),
-            constraints: self.solver.constraint_count(),
-            obligations: self.solver.obligation_count(),
-            types,
+            variables: self.infer.variable_count(),
+            constraints: self.infer.constraint_count(),
+            obligations: self.infer.obligation_count(),
             solutions,
             bounds,
-            decisions: self.decisions.count(),
+            decisions: self.module.decisions.decision_entries().count(),
         }
     }
 }
@@ -246,14 +207,12 @@ impl CheckStats {
         format!(
             "\
 check.stats.solve.variables={}
-check.stats.solve.types={}
 check.stats.solve.constraints={}
 check.stats.solve.obligations={}
 check.stats.solve.solutions={}
 check.stats.solve.bounds={}
 check.stats.solve.decisions={}",
             self.variables,
-            self.types,
             self.constraints,
             self.obligations,
             self.solutions,

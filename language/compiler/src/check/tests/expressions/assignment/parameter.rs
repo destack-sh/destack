@@ -29,6 +29,7 @@ function bump(value: int32): int32 {
     value = 2;
     /// @type.node source="value = 2" type=2
     /// @type.node source=value type=int32
+    /// @resolution.name source=value target=bump.value
     /// @resolution.pattern.assign source=value kind=place
     /// @resolution.access source=value root=bump.value
     /// @resolution.assignment source=value write=binding(bump.value) type=int32
@@ -80,6 +81,7 @@ function bump(value: int32): int32 {
     value += 2;
     /// @type.node source="value += 2" type=int32
     /// @type.node source=value type=int32
+    /// @resolution.name source=value target=bump.value
     /// @resolution.operator source="value += 2" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
     /// @resolution.pattern.assign source=value kind=place
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

@@ -87,9 +87,9 @@ for (const value of 1) {
         r#"
 /// @diagnostic.error id=for-of-source-not-iterable message="for-of source must be iterable"
 /// @diagnostic.label line=2 column=1 span="for (const value of 1) {\n    value;\n}" line_source="for (const value of 1) {"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Number' does not satisfy 'Iterator<_, void>'"
 /// @diagnostic.label line=2 column=1 span="for (const value of 1) {\n    value;\n}" line_source="for (const value of 1) {"
-/// @diagnostic.help message="annotate the type explicitly"
+/// @diagnostic.related file="iterator.ds" message="required by this bound on 'I'"
 "#,
     );
 }

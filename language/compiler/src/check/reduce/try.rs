@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{CheckState, Origin};
 
 /// One associated type projected from a tried value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,8 +20,8 @@ impl CheckState<'_> {
         origin: Origin,
         value: dir::GlobalTypeId,
         projection: TryProjection,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let value = answer!(self.reduce_type_head(origin, value)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let value = self.reduce_type_head(origin, value)?;
 
         // split nullish members from the remaining value arms
         let mut nullish = Vec::new();
@@ -30,7 +30,7 @@ impl CheckState<'_> {
             dir::Type::Union(union) => {
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(value.module_id, union.elements)?)
             }
-            dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
+            dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(None),
             _ => SmallVec::from_slice(&[value]),
         };
         for element in elements {
@@ -54,7 +54,7 @@ impl CheckState<'_> {
         // project each value through its Try implementation
         let mut projected = Vec::new();
         for value in values {
-            let selected = answer!(self.body().select_language_protocol_member(
+            let selected = self.body().select_language_protocol_member(
                 origin,
                 value,
                 value,
@@ -63,7 +63,7 @@ impl CheckState<'_> {
                 dir::LanguageItem::Try,
                 &[],
                 &[],
-            )?);
+            )?;
             match selected {
                 Some((_, member)) => projected.push(member.ty),
                 None if projection == TryProjection::Output => projected.push(value),
@@ -83,6 +83,6 @@ impl CheckState<'_> {
             _ => self.normalized_union_type(elements)?,
         };
 
-        Ok(Answer::Ready(Some(joined)))
+        Ok(Some(joined))
     }
 }

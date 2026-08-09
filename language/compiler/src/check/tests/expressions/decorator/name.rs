@@ -137,9 +137,7 @@ const value = 1;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_decorators(),
+        DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
 import * as marks from "./marks.ds";

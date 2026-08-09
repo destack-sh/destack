@@ -178,7 +178,7 @@ class Team {}
 type LocalChoice = local (User | shared Team);
 type CarrierPlace = PlaceOf<LocalChoice>;
 
-declare const localChoice: LocalChoice;
+declare const localChoice: local (User | shared Team);
 declare const carrierPlace: CarrierPlace;
 
 localChoice satisfies local (User | shared Team);
@@ -206,7 +206,7 @@ type CarrierPlace = PlaceOf<LocalChoice>;
 /// @resolution.name source=LocalChoice target=LocalChoice
 
 declare const localChoice: LocalChoice;
-/// @type.symbol symbol=localChoice source=localChoice type=LocalChoice reduced=Placed<User | Placed<Team, "shared">, "local">
+/// @type.symbol symbol=localChoice source=localChoice type=Placed<User | Placed<Team, "shared">, "local">
 /// @resolution.pattern source=localChoice kind=binding target=localChoice
 /// @resolution.name source=LocalChoice target=LocalChoice
 

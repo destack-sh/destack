@@ -3,8 +3,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, Cause, CauseId, CauseKind, CheckState, GenericTemplateId, Origin, Relation,
-    TypeSubstitution,
+    Cause, CauseId, CauseKind, CheckState, GenericTemplateId, Origin, Relation, TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -309,6 +308,11 @@ pub(in crate::check) struct FailedCheck {
     pub(in crate::check) target: dir::GlobalTypeId,
     /// The failure reason.
     pub(in crate::check) failure: CheckFailure,
+    /// Whether an open variable was load-bearing when the check judged.
+    ///
+    /// Provisional failures re-judge at report over solved types; only
+    /// a failure that still fails is a verdict.
+    pub(in crate::check) is_provisional: bool,
 }
 
 impl CheckState<'_> {
@@ -318,7 +322,7 @@ impl CheckState<'_> {
         origin: Origin,
         template: GenericTemplateId,
         substitution: &TypeSubstitution,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let mut constraints = self.substitute_argument_bounds(origin, substitution)?;
         constraints.extend(self.substitute_application_predicates(
             origin,
@@ -327,7 +331,6 @@ impl CheckState<'_> {
         )?);
 
         // require every substituted declaration constraint
-        let mut decision = Answer::Ready(true);
         for constraint in constraints {
             let mut satisfied = self.decide_relation(
                 constraint.origin,
@@ -338,7 +341,7 @@ impl CheckState<'_> {
 
             // try to prove rigid arguments through their declared bounds,
             //  only for relations transitive through an upper bound
-            if satisfied.is_ready_false()
+            if !satisfied
                 && constraint.relation == Relation::Satisfies
                 && let dir::Type::Parameter(parameter) = self.ty(constraint.source)?
                 && let Some(declared) = self
@@ -354,13 +357,12 @@ impl CheckState<'_> {
                 )?;
             }
 
-            decision = decision.and(satisfied);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !satisfied {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Substitute the constraints enforced by one complete generic application.
@@ -559,8 +561,8 @@ impl CheckState<'_> {
         &self,
     ) -> CompilerResult<FxIndexSet<dir::GlobalTypeId>> {
         let mut applications = FxIndexSet::default();
-        for id in self.solver.constraints.failures_from(0) {
-            let constraint = self.solver.constraints.get(id)?;
+        for id in self.infer.constraints.failures_from(0) {
+            let constraint = self.infer.constraints.get(id)?;
             if let Some(application) = constraint.application {
                 applications.insert(application);
             }

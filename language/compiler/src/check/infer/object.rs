@@ -3,8 +3,8 @@ use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, CheckAttempt, CheckFailure, CheckOutcome, Decision,
-    Expectation, FlowSite, InferMode, Origin, PlaceUse, Relation, ValueCheck, ValueUse, answer,
+    BodyState, Cause, CauseKind, CheckAttempt, CheckFailure, CheckOutcome, Expectation, FlowSite,
+    InferMode, Origin, PlaceUse, Relation, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -15,7 +15,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         properties: &[dir::LocalNodeId<dir::Property>],
         mode: InferMode,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let mut fields = IndexMap::<dir::StaticKey, dir::TypeProperty>::new();
@@ -28,7 +28,7 @@ impl BodyState<'_, '_> {
             let property = *property;
             match self.module(module).view().get(property).clone() {
                 dir::Property::Field { key, value, .. } => {
-                    let Some(key) = answer!(self.select_property_key(site, key)?) else {
+                    let Some(key) = self.select_property_key(site, key)? else {
                         continue;
                     };
 
@@ -41,9 +41,9 @@ impl BodyState<'_, '_> {
                     }
 
                     // infer the written value under the field mode
-                    let value_site = self.node_site(value.into_global_any(module))?;
-                    let ty = answer!(self.infer_node(value_site, PlaceUse::Read, field_mode)?);
-                    let ty = answer!(self.flow_type_at(value_site, ty)?);
+                    let value_site = self.visit_site(value.into_global_any(module))?;
+                    let ty = self.infer_node(value_site, PlaceUse::Read, field_mode)?;
+                    let ty = self.flow_type_at(value_site, ty)?;
 
                     // record the field slot and the value that wrote it
                     let access = match mode.is_readonly() {
@@ -64,9 +64,9 @@ impl BodyState<'_, '_> {
                     sources.insert(key, value.into_global_any(module));
                 }
                 dir::Property::Method { key, .. } => {
-                    let Some(key) = answer!(match key {
+                    let Some(key) = (match key {
                         Some(key) => self.select_property_key(site, key)?,
-                        None => Answer::Ready(None),
+                        None => None,
                     }) else {
                         continue;
                     };
@@ -112,25 +112,23 @@ impl BodyState<'_, '_> {
                 dir::Property::Spread { value } => {
                     // infer the spread source
                     let source = value.into_global_any(module);
-                    let source_site = self.node_site(source)?;
-                    let spread = answer!(self.infer_node(source_site, PlaceUse::Read, mode)?);
-                    let spread = answer!(self.flow_type_at(source_site, spread)?);
+                    let source_site = self.visit_site(source)?;
+                    let spread = self.infer_node(source_site, PlaceUse::Read, mode)?;
+                    let spread = self.flow_type_at(source_site, spread)?;
 
                     // reject a source that carries no object fields
-                    let Some(spread_fields) = answer!(self.spread_fields(
-                        Origin::Node(source, site.scope),
-                        module,
-                        spread
-                    )?) else {
+                    let Some(spread_fields) =
+                        self.spread_fields(Origin::Node(source, site.scope), module, spread)?
+                    else {
                         self.report_spread_not_object(Origin::Node(source, site.scope), spread)?;
-                        self.commit_decision(node.into_any(), Decision::Rejected)?;
+                        self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
                         let error = self.commit_error_node(node.into_any())?;
 
-                        return Ok(Answer::Ready(error));
+                        return Ok(error);
                     };
 
                     // record the fields contributed by this spread
-                    let key_type = self.intern_shape(module, &spread_fields)?;
+                    let key_type = self.intern_shape(&spread_fields)?;
                     let subject =
                         dir::MemberSubject::new(spread, spread, dir::MemberSpace::Instance)
                             .with_scope(site.scope)
@@ -160,7 +158,7 @@ impl BodyState<'_, '_> {
 
         // intern the collected literal shape
         let fields: Vec<dir::TypeProperty> = fields.into_values().collect();
-        let fields = self.intern_properties(module, &fields)?;
+        let fields = self.intern_properties(&fields)?;
         let shape = self.intern_type(dir::Type::Object(dir::ShapeType {
             properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
@@ -177,7 +175,7 @@ impl BodyState<'_, '_> {
 
         // convert authored fields into the selected object slots
         let dir::Type::Object(shape) = self.ty(ty)? else {
-            return Ok(Answer::Ready(ty));
+            return Ok(ty);
         };
         let target_fields = self
             .shape_properties(ty.module_id, shape.properties)?
@@ -196,12 +194,12 @@ impl BodyState<'_, '_> {
                 Origin::Node(source, site.scope),
                 CauseKind::Field { key },
             ));
-            let source_site = self.node_site(source)?;
+            let source_site = self.visit_site(source)?;
             let expectation = Expectation::assignable(target_type, cause, ValueUse::Store);
-            answer!(self.check_value(source_site, source_type, expectation)?);
+            self.check_value(source_site, source_type, expectation)?;
         }
 
-        Ok(Answer::Ready(ty))
+        Ok(ty)
     }
 
     /// Check one object literal under an expected object type.
@@ -211,19 +209,19 @@ impl BodyState<'_, '_> {
         properties: &[dir::LocalNodeId<dir::Property>],
         target_value: dir::GlobalTypeId,
         expectation: Expectation,
-    ) -> CompilerResult<Answer<CheckAttempt>> {
+    ) -> CompilerResult<CheckAttempt> {
         let origin = site.origin();
         let node = site.node.into_typed::<dir::Expression>();
         let target = expectation.target;
 
         let Some((target_fields, index_signatures)) =
-            answer!(self.expected_object_members(origin, target_value)?)
+            self.expected_object_members(origin, target_value)?
         else {
-            return Ok(Answer::Ready(CheckAttempt::NotApplicable));
+            return Ok(CheckAttempt::NotApplicable);
         };
 
         // record the fields accepted by this literal
-        let key_type = self.intern_shape(node.module_id, &target_fields)?;
+        let key_type = self.intern_shape(&target_fields)?;
         let subject =
             dir::MemberSubject::new(target_value, target_value, dir::MemberSpace::Instance)
                 .with_scope(site.scope)
@@ -241,8 +239,8 @@ impl BodyState<'_, '_> {
             let property = *property;
             match self.module(node.module_id).view().get(property).clone() {
                 dir::Property::Field { key, value, .. } => {
-                    let Some(key) = answer!(self.select_property_key(site, key)?) else {
-                        return Ok(Answer::Ready(CheckAttempt::NotApplicable));
+                    let Some(key) = self.select_property_key(site, key)? else {
+                        return Ok(CheckAttempt::NotApplicable);
                     };
 
                     // report a key the literal already wrote
@@ -258,12 +256,12 @@ impl BodyState<'_, '_> {
                     if field.is_none() {
                         let key_type = self.static_key_type(key)?;
                         for signature in &index_signatures {
-                            let accepts = answer!(self.check.decide_relation(
+                            let accepts = self.check.decide_relation(
                                 origin,
                                 Relation::Assignable,
                                 key_type,
                                 signature.key_type,
-                            )?);
+                            )?;
                             if accepts {
                                 let access = match signature.is_readonly {
                                     true => dir::PropertyAccess::Read(signature.value_type),
@@ -285,10 +283,10 @@ impl BodyState<'_, '_> {
                     // type excess values without assigning them to target storage
                     let Some(field) = field else {
                         let child = value.into_global_any(node.module_id);
-                        let child_site = self.node_site(child)?;
+                        let child_site = self.visit_site(child)?;
                         let mode = expectation.mode.descend(false);
-                        let ty = answer!(self.infer_node(child_site, PlaceUse::Read, mode)?);
-                        let ty = answer!(self.flow_type_at(child_site, ty)?);
+                        let ty = self.infer_node(child_site, PlaceUse::Read, mode)?;
+                        let ty = self.flow_type_at(child_site, ty)?;
                         let storage = self.inference_candidate_type(ty, mode)?;
                         let access = match expectation.mode.is_readonly() {
                             true => dir::PropertyAccess::Read(storage),
@@ -313,7 +311,7 @@ impl BodyState<'_, '_> {
 
                     // check the written value against the selected field
                     let child = value.into_global_any(node.module_id);
-                    let child_site = self.node_site(child)?;
+                    let child_site = self.visit_site(child)?;
                     let field_cause = self.check.intern_cause(Cause::child(
                         Origin::Node(child, site.scope),
                         CauseKind::Field { key },
@@ -328,7 +326,7 @@ impl BodyState<'_, '_> {
                         mode,
                         ..expectation
                     };
-                    let child_check = answer!(self.check_node(child_site, child_expectation)?);
+                    let child_check = self.check_node(child_site, child_expectation)?;
 
                     // record the slot the checked value commits
                     let source_type = child_check.source;
@@ -359,14 +357,14 @@ impl BodyState<'_, '_> {
                     check = check.and(child_check.outcome);
                 }
                 dir::Property::Spread { .. } => {
-                    return Ok(Answer::Ready(CheckAttempt::NotApplicable));
+                    return Ok(CheckAttempt::NotApplicable);
                 }
                 dir::Property::Method { key, .. } => {
-                    let Some(key) = answer!(match key {
+                    let Some(key) = (match key {
                         Some(key) => self.select_property_key(site, key)?,
-                        None => Answer::Ready(None),
+                        None => None,
                     }) else {
-                        return Ok(Answer::Ready(CheckAttempt::NotApplicable));
+                        return Ok(CheckAttempt::NotApplicable);
                     };
 
                     // report a key the literal already wrote
@@ -426,10 +424,10 @@ impl BodyState<'_, '_> {
         let is_adopting = expectation.relation != Relation::Satisfies
             && matches!(self.ty(target_value)?, dir::Type::Object(_));
         let source = match is_adopting {
-            true => answer!(self.replace_form_value(origin, target, target_value)?),
+            true => self.replace_form_value(origin, target, target_value)?,
             false => {
                 let fields: Vec<_> = source_fields.into_values().collect();
-                let fields = self.intern_properties(node.module_id, &fields)?;
+                let fields = self.intern_properties(&fields)?;
                 self.intern_type(dir::Type::Object(dir::ShapeType {
                     properties: fields,
                     call_signatures: dir::TypeListId::EMPTY,
@@ -440,11 +438,11 @@ impl BodyState<'_, '_> {
         };
         self.commit_node_type(node.into_any(), source)?;
 
-        Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+        Ok(CheckAttempt::Checked(ValueCheck {
             source,
             outcome: check,
             target,
-        })))
+        }))
     }
 
     /// Return the members an object literal target expects.
@@ -453,12 +451,10 @@ impl BodyState<'_, '_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<
-        Answer<
-            Option<(
-                SmallVec<[dir::TypeProperty; 8]>,
-                SmallVec<[dir::TypeIndexSignature; 2]>,
-            )>,
-        >,
+        Option<(
+            SmallVec<[dir::TypeProperty; 8]>,
+            SmallVec<[dir::TypeIndexSignature; 2]>,
+        )>,
     > {
         match self.ty(target)? {
             // read fields and index signatures straight off a structural target
@@ -470,7 +466,7 @@ impl BodyState<'_, '_> {
                     self.shape_index_signatures(target.module_id, shape.index_signatures)?,
                 );
 
-                Ok(Answer::Ready(Some((fields, indexes))))
+                Ok(Some((fields, indexes)))
             }
             // read fields accepted by nominal struct construction
             dir::Type::Application(instance)
@@ -479,9 +475,9 @@ impl BodyState<'_, '_> {
                     Some(dir::Definition::Struct(_))
                 ) =>
             {
-                let fields = answer!(self.struct_constructor_fields(origin, target)?);
+                let fields = self.struct_constructor_fields(origin, target)?;
 
-                Ok(Answer::Ready(Some((fields, SmallVec::new()))))
+                Ok(Some((fields, SmallVec::new())))
             }
 
             // read fields from structural interfaces
@@ -491,14 +487,14 @@ impl BodyState<'_, '_> {
                     Some(dir::Definition::Interface(interface)) if !interface.is_nominal
                 ) =>
             {
-                let fields = answer!(self.check.interface_instance_fields(target, target)?);
+                let fields = self.check.interface_instance_fields(target, target)?;
                 let fields = fields.map(|fields| (SmallVec::from_vec(fields), SmallVec::new()));
 
-                Ok(Answer::Ready(fields))
+                Ok(fields)
             }
 
             // other targets do not accept object literal fields
-            _ => Ok(Answer::Ready(None)),
+            _ => Ok(None),
         }
     }
 }

@@ -251,7 +251,9 @@ impl WalkState<'_, '_> {
                 if condition.as_binding().is_some_and(|(_, _, declarator)| declarator == id)
         )
     }
+}
 
+impl CheckState<'_> {
     /// Narrow flow from one matched declarator pattern.
     ///
     /// Example:
@@ -276,7 +278,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declarator>,
         is_positive: bool,
     ) -> CompilerResult<()> {
-        let declarator = self.tree.get(id);
+        let declarator = self.module(self.module_id).view().get(id);
         let Some(value) = declarator.value else {
             return Ok(());
         };
@@ -299,7 +301,7 @@ impl WalkState<'_, '_> {
         pattern: dir::LocalNodeId<dir::Pattern>,
         is_positive: bool,
     ) -> CompilerResult<()> {
-        match self.tree.get(pattern) {
+        match self.module(self.module_id).view().get(pattern) {
             // pattern!
             dir::Pattern::Must(pattern)
             // pattern = value
@@ -323,26 +325,26 @@ impl WalkState<'_, '_> {
             | dir::Pattern::Range { .. }
             | dir::Pattern::Union { .. } => {
                 let predicate = FlowPredicate::Pattern {
-                    pattern: pattern.into_global(self.module),
+                    pattern: pattern.into_global(self.module_id),
                     is_positive,
                 };
 
-                self.flow_mut().apply_narrowing(path, predicate);
+                self.flow.apply_narrowing(path, predicate);
             }
             // T(a, b), T { name }
             dir::Pattern::NominalTuple { fields, .. }
             | dir::Pattern::NominalObject { fields, .. } => {
                 let fields = fields.clone();
                 let predicate = FlowPredicate::Pattern {
-                    pattern: pattern.into_global(self.module),
+                    pattern: pattern.into_global(self.module_id),
                     is_positive,
                 };
 
                 if is_positive {
-                    self.flow_mut().apply_narrowing(path.clone(), predicate);
+                    self.flow.apply_narrowing(path.clone(), predicate);
                     self.narrow_pattern_field_match(path, &fields)?;
                 } else {
-                    self.flow_mut().apply_narrowing(path, predicate);
+                    self.flow.apply_narrowing(path, predicate);
                 }
             }
             // { name }
@@ -374,7 +376,7 @@ impl WalkState<'_, '_> {
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<()> {
         for field in fields {
-            match self.tree.get(*field) {
+            match self.module(self.module_id).view().get(*field) {
                 // { name: pattern }
                 dir::PatternField::Named {
                     name,

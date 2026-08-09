@@ -1,9 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{
-    CaptureAnnotation, CheckModuleState, CheckState, DecoratorApplication, DecoratorObject,
-};
+use crate::check::{CaptureAnnotation, CheckModuleState, CheckState, DecoratorObject};
 use crate::{CompilerError, CompilerResult};
 
 /// The fields of one capture directive object.
@@ -30,13 +28,11 @@ impl CheckState<'_> {
     pub(in crate::check) fn apply_capture_decorator(
         &mut self,
         module: ModuleId,
-        application: &DecoratorApplication,
+        source: dir::GlobalNodeId<dir::Decorator>,
+        owner: dir::GlobalNodeIdAny,
         value: &dir::StaticTerm,
     ) -> CompilerResult<()> {
-        let source = application.expression.decorator.into_global(module);
-        let function = self
-            .module(module)
-            .declared_function(application.owner.local_id);
+        let function = self.module(module).declared_function(owner.local_id);
         let Some(function) = function else {
             self.report_invalid_capture_target(source)?;
 

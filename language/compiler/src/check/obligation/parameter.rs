@@ -2,36 +2,36 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, ObligationCheck, ObligationFailure, Variance, answer};
+use crate::check::{CheckState, ObligationCheck, ObligationFailure, Variance};
 
 impl CheckState<'_> {
     /// Check that every declared generic parameter occurs in its definition.
     pub(in crate::check) fn check_parameter_use(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         let Some(template) = self.symbol_template(symbol)? else {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+            return Ok(ObligationCheck::holds());
         };
         let parameters = self.generic_template_parameters(template)?;
         if parameters.is_empty() {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+            return Ok(ObligationCheck::holds());
         }
 
         // accept intrinsic newtypes, their parameters are compiler storage
         let backing = match self.definition(symbol)? {
             Some(dir::Definition::Newtype(newtype)) => Some(newtype.backing),
             Some(_) => None,
-            None => return Ok(Answer::Ready(ObligationCheck::holds())),
+            None => return Ok(ObligationCheck::holds()),
         };
         if let Some(backing) = backing
             && matches!(self.ty(backing)?, dir::Type::Intrinsic)
         {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+            return Ok(ObligationCheck::holds());
         }
 
         // check declared parameters against every exposed type
-        let types = answer!(self.definition_parameter_types(symbol)?);
+        let types = self.definition_parameter_types(symbol)?;
         let mut failures = Vec::new();
         for parameter in parameters {
             let Some(binding) = self.generic_parameter(parameter) else {
@@ -86,16 +86,16 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(Answer::Ready(ObligationCheck::from_failures(failures)))
+        Ok(ObligationCheck::from_failures(failures))
     }
 
     /// Collect the declaration types inspected for parameter occurrence.
     fn definition_parameter_types(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Vec<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let Some(definition) = self.definition(symbol)?.cloned() else {
-            return Ok(Answer::Ready(Vec::new()));
+            return Ok(Vec::new());
         };
         let mut types = Vec::new();
 
@@ -104,7 +104,7 @@ impl CheckState<'_> {
             match member {
                 // expose method inputs and non-constructing outputs
                 dir::DefinitionMember::Method(method) => {
-                    let Some(ty) = answer!(self.definition_member_type(member)?) else {
+                    let Some(ty) = self.definition_member_type(member)? else {
                         continue;
                     };
                     let Some(signature) = self.signature_head(ty)? else {
@@ -144,7 +144,7 @@ impl CheckState<'_> {
                 | dir::DefinitionMember::AssociatedConst(_)
                 | dir::DefinitionMember::CallSignature(_)
                 | dir::DefinitionMember::ConstructSignature(_) => {
-                    types.extend(answer!(self.definition_member_type(member)?));
+                    types.extend(self.definition_member_type(member)?);
                 }
             }
         }
@@ -157,7 +157,7 @@ impl CheckState<'_> {
             types.push(heritage.ty);
         }
 
-        Ok(Answer::Ready(types))
+        Ok(types)
     }
 
     /// Return whether one generic parameter occurs in one type graph.

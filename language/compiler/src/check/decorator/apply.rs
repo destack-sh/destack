@@ -48,8 +48,13 @@ impl CheckState<'_> {
                 Err(dir::LanguageItem::ReprDecorator) => {
                     self.apply_representation_decorator(module, &application, &value)?;
                 }
+                // capture directives apply in check, where walked captures
+                //  live; elaborate rows reach check through the segment
                 Err(dir::LanguageItem::Capture) => {
-                    self.apply_capture_decorator(module, &application, &value)?;
+                    if self.is_checking() {
+                        let source = application.expression.decorator.into_global(module);
+                        self.apply_capture_decorator(module, source, application.owner, &value)?;
+                    }
                 }
                 Err(_) => {}
             }

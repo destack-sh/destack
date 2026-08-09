@@ -98,7 +98,7 @@ struct InlineBuffer<T, comptime N: 0..=4096> {
 
 type TooLarge = InlineBuffer<uint8, 4097>;
 /// @type.symbol symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" type=<error>
-/// @definition.type symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" value=<error>
+/// @definition.type symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" value=InlineBuffer<uint8, 4097>
 /// @resolution.name source=InlineBuffer target=InlineBuffer
 "#,
         r#"

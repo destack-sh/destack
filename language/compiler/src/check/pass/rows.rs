@@ -1,6 +1,4 @@
-use std::mem::replace;
-
-use destack_core::{FxIndexMap, FxIndexSet};
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
@@ -10,7 +8,7 @@ use crate::{CompilerError, CompilerResult};
 impl CheckState<'_> {
     /// Write one solved module into its checked DIR segments.
     pub(in crate::check) fn write_module(&mut self, module: ModuleId) -> CompilerResult<()> {
-        // statement closes settled every type; only derived statics remain
+        // every type settled at its statement close; only derived statics remain
         let symbol_literals = self.static_symbol_literals(module)?;
 
         // write symbol values as final statics
@@ -32,7 +30,7 @@ impl CheckState<'_> {
             .map(|(symbol, value)| (*symbol, *value))
             .collect::<Vec<_>>();
         for (symbol, value) in identities {
-            let value = self.settle_type(value)?;
+            let value = self.resolve_committed_type(value, &FxIndexSet::default())?;
             let state = self.module_mut(module);
             if state.statics.get_symbol_static_id(symbol).is_some() {
                 continue;
@@ -44,6 +42,7 @@ impl CheckState<'_> {
                 .statics
                 .set_symbol_static(symbol, id.into_global(module));
         }
+
         // store evaluable module constants beside the literal statics
         let constants = self.static_module_constants(module)?;
         let state = self.module_mut(module);
@@ -68,12 +67,6 @@ impl CheckState<'_> {
 
         Ok(())
     }
-
-    /// Record derived parameter variances on the checked generic segment.
-    ///
-    /// Declared modifiers stay as written; unannotated nominal type
-    /// parameters record the default-context derivation the reifier and
-
 
     /// Write the declaration selected for each source path segment.
     fn write_path_segment_resolutions(&mut self, module: ModuleId) -> CompilerResult<()> {
@@ -165,13 +158,15 @@ impl CheckState<'_> {
             };
             let origin = Origin::Node(node, subject.scope);
             let subject = self.declared_member_subject(subject)?;
-            let bindings = self.body().resolve_member_bindings(origin, module, subject)?;
+            let bindings = self
+                .body()
+                .resolve_member_bindings(origin, module, subject)?;
             let resolution = bindings
                 .iter()
                 .find(|binding| binding.key == key)
                 .and_then(dir::MemberBinding::declaration_resolution);
             if let Some(resolution) = resolution {
-                self.commit_decision(node, dir::Resolution::Name(resolution))?;
+                self.commit_name(node, resolution)?;
             }
         }
 
@@ -245,32 +240,6 @@ impl CheckState<'_> {
         self.intern_type(dir::Type::Application(instance))
     }
 
-    /// Prune unresolved hole rows before the declared write reads symbols.
-    pub(in crate::check) fn prune_open_hole_symbols(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<()> {
-        // collect hole-typed symbols, their rows are not written forms
-        let mut open = Vec::new();
-        let rows = self
-            .declaration_types
-            .iter()
-            .chain(self.binding_types.iter());
-        for (symbol, ty) in rows {
-            if symbol.module_id == module && self.root_variable(*ty)?.is_some() {
-                open.push(*symbol);
-            }
-        }
-
-        // drop the collected rows from both symbol maps
-        for symbol in open {
-            self.declaration_types.swap_remove(&symbol);
-            self.binding_types.swap_remove(&symbol);
-        }
-
-        Ok(())
-    }
-
     /// Resolve one module's literal symbol values.
     fn static_symbol_literals(
         &mut self,
@@ -284,7 +253,7 @@ impl CheckState<'_> {
             .collect::<Vec<_>>();
         let mut literals = Vec::new();
         for (symbol, value) in static_values {
-            let value = self.settled_root(value)?;
+            let value = self.shallow_resolve(value)?;
             if let dir::Type::Literal(literal) = self.ty(value)? {
                 literals.push((symbol, literal));
             }
@@ -292,7 +261,6 @@ impl CheckState<'_> {
 
         Ok(literals)
     }
-
 
     /// Evaluate module-level const initializers into static values.
     ///

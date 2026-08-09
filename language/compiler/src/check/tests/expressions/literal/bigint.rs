@@ -10,7 +10,7 @@ const value = 42n;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 42n = 42n;
@@ -20,8 +20,6 @@ const value = 42n;
 /// @type.symbol symbol=value source=value type=42n
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
-
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -36,7 +34,7 @@ let value = 42n;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let value: bigint = 42n;
@@ -46,8 +44,6 @@ let value = 42n;
 /// @type.symbol symbol=value source=value type=bigint
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
-
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -62,7 +58,7 @@ const value: bigint = 42n;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: bigint = 42n;
@@ -72,8 +68,6 @@ const value: bigint = 42n;
 /// @type.symbol symbol=value source=value type=bigint
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -88,7 +82,7 @@ const value: number = 42n;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: float64 = 42n;
@@ -98,8 +92,6 @@ const value: number = 42n;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '42n' is not assignable to type 'float64'"
@@ -119,7 +111,7 @@ const value: bigint | string = 42n;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: bigint | string = 42n as bigint | string;
@@ -129,8 +121,6 @@ const value: bigint | string = 42n;
 /// @type.symbol symbol=value source=value type=bigint | string
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
-
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }

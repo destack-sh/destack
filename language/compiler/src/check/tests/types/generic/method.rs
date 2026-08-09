@@ -20,7 +20,7 @@ extension Arithmetic<T: Scalar> of T {
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 interface Scalar {}
@@ -89,8 +89,6 @@ extension Arithmetic<T: Scalar> of T {
 }
 
 /// @generic.instance id=checkedAdd<T#2> template=checkedAdd arguments=(T#2)
-
-/// @check.stats.solve variables=1 types=18 constraints=2 obligations=5 solutions=1 bounds=3 decisions=4
 "#,
         r#"
 "#,
@@ -115,7 +113,7 @@ extension Forward<T> of T {
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 function choose<T>(a: T, b: T): T {
@@ -179,8 +177,6 @@ extension Forward<T> of T {
 }
 
 /// @generic.instance id=choose<T#2> template=choose arguments=(T#2)
-
-/// @check.stats.solve variables=1 types=12 constraints=1 obligations=3 solutions=1 bounds=2 decisions=5
 "#,
         r#"
 "#,

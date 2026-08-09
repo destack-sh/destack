@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, AssignmentSelection, BodyState, Cause, CauseKind, Decision, Expectation, FlowPointId,
-    FlowSite, InferMode, Obligation, Origin, PlaceUse, Relation, ValueUse, Widening,
-    WritableTargetObligation, answer,
+    AssignmentSelection, BodyState, Cause, CauseKind, Expectation, FlowPointId, FlowSite,
+    InferMode, Obligation, Origin, PlaceUse, Relation, ValueUse, Widening,
+    WritableTargetObligation,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -17,7 +17,7 @@ impl BodyState<'_, '_> {
         flow: FlowPointId,
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         self.commit_node_type(node.into_any(), input)?;
 
         self.select_pattern(node, flow, scope, input)
@@ -31,11 +31,11 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         origin: Origin,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         self.commit_node_type(node.into_any(), input)?;
-        answer!(self.select_assign_pattern(node, flow, scope, input, origin)?);
+        self.select_assign_pattern(node, flow, scope, input, origin)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Select the assignment meaning of one assignment pattern node.
@@ -46,7 +46,7 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         input_origin: Origin,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let module = node.module_id;
         let pattern_origin = Origin::Node(node.into_any(), scope);
 
@@ -59,7 +59,7 @@ impl BodyState<'_, '_> {
                 | dir::AssignPattern::Object { .. }
         );
         let input = if needs_reduced_input {
-            answer!(self.reduce_type_head(pattern_origin, input)?)
+            self.reduce_type_head(pattern_origin, input)?
         } else {
             input
         };
@@ -67,21 +67,21 @@ impl BodyState<'_, '_> {
         match pattern {
             // x = value, obj.x = value
             dir::AssignPattern::Place { expression: value } => {
-                let Some(place) = answer!(self.select_assignment(
+                let Some(place) = self.select_assignment(
                     FlowSite {
                         node: value.into_global_any(module),
                         flow,
                         scope,
                     },
                     value,
-                    PlaceUse::Write
-                )?) else {
-                    self.commit_decision(node.into_any(), Decision::Rejected)?;
+                    PlaceUse::Write,
+                )?
+                else {
+                    self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
-                    return Ok(Answer::Ready(false));
+                    return Ok(false);
                 };
-                let target =
-                    answer!(self.commit_assign_pattern_place(input_origin, node, place)?);
+                let target = self.commit_assign_pattern_place(input_origin, node, place)?;
                 let pattern_cause = self.intern_cause(Cause::root(
                     input_origin,
                     CauseKind::Pattern {
@@ -94,40 +94,35 @@ impl BodyState<'_, '_> {
                     scope,
                 };
                 let expectation = Expectation::assignable(target, pattern_cause, ValueUse::Store);
-                answer!(self.check_value(pattern_site, input, expectation)?);
+                self.check_value(pattern_site, input, expectation)?;
 
-                Ok(Answer::Ready(true))
+                Ok(true)
             }
             // x = default
             dir::AssignPattern::Default { pattern, value } => {
                 let value_node = value.into_global_any(module);
-                let default = answer!(self.infer_node_type(
+                let default = self.infer_node_type(
                     FlowSite {
                         node: value_node,
                         flow,
                         scope,
                     },
-                    PlaceUse::Read
-                )?);
-                let input = answer!(self.defaulted_pattern_type(pattern_origin, input, default)?);
+                    PlaceUse::Read,
+                )?;
+                let input = self.defaulted_pattern_type(pattern_origin, input, default)?;
 
                 // flow the defaulted input into the nested target
-                answer!(self.check_pattern_projection(
-                    flow,
-                    scope,
-                    input,
-                    pattern.into_global_any(module)
-                )?);
+                self.check_pattern_projection(flow, scope, input, pattern.into_global_any(module))?;
 
-                let () = answer!(self.commit_assign_pattern(
+                let () = self.commit_assign_pattern(
                     node,
-                    dir::AssignPatternResolution::Default(dir::AssignPatternDefaultResolution {
+                    dir::AssignPatternDecision::Default(dir::AssignPatternDefaultResolution {
                         pattern: pattern.into_global_any(module),
                         value: value.into_global_any(module),
                     }),
-                )?);
+                )?;
 
-                Ok(Answer::Ready(true))
+                Ok(true)
             }
             // [a, ...rest] = values
             dir::AssignPattern::Sequence { fields } => {
@@ -163,7 +158,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         node: dir::GlobalNodeId<dir::AssignPattern>,
         place: AssignmentSelection,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         // commit the selected place occurrence
         let target_type = place.write.ty();
         let resolution = place.clone().resolution();
@@ -172,7 +167,7 @@ impl BodyState<'_, '_> {
             .as_ref()
             .map_or_else(|| resolution.write.ty(), dir::ReadResolution::ty);
         let source = resolution.target;
-        self.commit_decision(source, Decision::Assignment(resolution))?;
+        self.commit_decision(source, dir::Decision::Assignment(resolution))?;
         self.commit_node_type(source, source_type)?;
 
         // require the written place to be writable
@@ -186,9 +181,9 @@ impl BodyState<'_, '_> {
         );
 
         // commit the assignment pattern resolution
-        let () = answer!(self.commit_assign_pattern(node, dir::AssignPatternResolution::Place)?);
+        let () = self.commit_assign_pattern(node, dir::AssignPatternDecision::Place)?;
 
-        Ok(Answer::Ready(target_type))
+        Ok(target_type)
     }
 
     /// Select the pattern meaning of one pattern node.
@@ -198,7 +193,7 @@ impl BodyState<'_, '_> {
         flow: FlowPointId,
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
         let origin = Origin::Node(node.into_any(), scope);
 
@@ -209,32 +204,33 @@ impl BodyState<'_, '_> {
             dir::Pattern::Wildcard | dir::Pattern::Binding { .. }
         );
         let input = if needs_reduced_input {
-            answer!(self.reduce_type_head(origin, input)?)
+            self.reduce_type_head(origin, input)?
         } else {
             input
         };
-        let input = answer!(self.filter_destructuring_source(node, origin, input)?);
+        let input = self.filter_destructuring_source(node, origin, input)?;
 
         match &pattern {
             // _
-            dir::Pattern::Wildcard => self.commit_pattern(node, dir::PatternResolution::Ignore),
+            dir::Pattern::Wildcard => self.commit_pattern(node, dir::PatternDecision::Ignore),
 
             // name, name: pattern
             dir::Pattern::Binding { pattern, .. } => {
                 self.select_binding_pattern(node, flow, scope, input, *pattern)
             }
 
-            // pattern!, pattern = value
+            // pattern!
             dir::Pattern::Must(pattern) => {
                 let pattern = *pattern;
 
                 self.commit_pattern(
                     node,
-                    dir::PatternResolution::Must(dir::PatternMustResolution {
+                    dir::PatternDecision::Must(dir::PatternMustResolution {
                         pattern: pattern.into_global_any(module),
                     }),
                 )
             }
+            // pattern = value
             dir::Pattern::Default { pattern, value } => {
                 let (pattern, value) = (*pattern, *value);
 
@@ -243,29 +239,24 @@ impl BodyState<'_, '_> {
                     input
                 } else {
                     let value_node = value.into_global_any(module);
-                    let default = answer!(self.infer_node_type(
+                    let default = self.infer_node_type(
                         FlowSite {
                             node: value_node,
                             flow,
                             scope,
                         },
-                        PlaceUse::Read
-                    )?);
+                        PlaceUse::Read,
+                    )?;
 
-                    answer!(self.defaulted_pattern_type(origin, input, default)?)
+                    self.defaulted_pattern_type(origin, input, default)?
                 };
 
                 // flow the defaulted input into the nested pattern
-                answer!(self.check_pattern_projection(
-                    flow,
-                    scope,
-                    input,
-                    pattern.into_global_any(module)
-                )?);
+                self.check_pattern_projection(flow, scope, input, pattern.into_global_any(module))?;
 
                 self.commit_pattern(
                     node,
-                    dir::PatternResolution::Default(dir::PatternDefaultResolution {
+                    dir::PatternDecision::Default(dir::PatternDefaultResolution {
                         pattern: pattern.into_global_any(module),
                         value: value.into_global_any(module),
                     }),
@@ -325,11 +316,13 @@ impl BodyState<'_, '_> {
             // T(value), T { name }
             dir::Pattern::NominalTuple { ty, fields } => {
                 let (ty, fields) = (*ty, fields.iter().copied().collect::<SmallVec<[_; 4]>>());
+                self.walk_body_construct_type(module, ty)?;
 
                 self.select_newtype_pattern(node, origin, flow, scope, ty, &fields)
             }
             dir::Pattern::NominalObject { ty, fields } => {
                 let (ty, fields) = (*ty, fields.iter().copied().collect::<SmallVec<[_; 4]>>());
+                self.walk_body_construct_type(module, ty)?;
 
                 self.select_nominal_pattern(node, origin, flow, scope, ty, &fields)
             }
@@ -351,7 +344,7 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         pattern: Option<dir::LocalNodeId<dir::Pattern>>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
         let origin = Origin::Node(node.into_any(), scope);
         let symbol = self
@@ -360,6 +353,8 @@ impl BodyState<'_, '_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("binding pattern {node:?} has no symbol"),
             })?;
+
+        // take the bound type, or bind the captured input to the symbol
         let binding = self.check.symbol_type_maybe(symbol);
         let input = if binding == Some(input) {
             input
@@ -372,10 +367,8 @@ impl BodyState<'_, '_> {
                         pattern: node.into_any(),
                     },
                 ));
-                answer!(
-                    self.check
-                        .relate(origin, cause, Relation::Equal, input, binding,)?
-                );
+                self.check
+                    .relate(origin, cause, Relation::Equal, input, binding)?;
             } else {
                 self.check.commit_binding_type(symbol, input)?;
             }
@@ -385,17 +378,12 @@ impl BodyState<'_, '_> {
 
         // project the captured input into the nested pattern
         if let Some(pattern) = pattern {
-            answer!(self.check_pattern_projection(
-                flow,
-                scope,
-                input,
-                pattern.into_global_any(module)
-            )?);
+            self.check_pattern_projection(flow, scope, input, pattern.into_global_any(module))?;
         }
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Bind(dir::PatternBindingResolution {
+            dir::PatternDecision::Bind(dir::PatternBindingResolution {
                 symbol: Some(symbol),
                 pattern: pattern.map(|pattern| pattern.into_global_any(module)),
             }),
@@ -410,22 +398,17 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         patterns: &[dir::LocalNodeId<dir::Pattern>],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
 
         // match every branch against the same input
         for pattern in patterns {
-            answer!(self.check_pattern_projection(
-                flow,
-                scope,
-                input,
-                (*pattern).into_global_any(module)
-            )?);
+            self.check_pattern_projection(flow, scope, input, (*pattern).into_global_any(module))?;
         }
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Or(dir::PatternOrResolution {
+            dir::PatternDecision::Or(dir::PatternOrResolution {
                 patterns: patterns
                     .iter()
                     .map(|pattern| pattern.into_global_any(module))
@@ -438,22 +421,22 @@ impl BodyState<'_, '_> {
     pub(in crate::check) fn commit_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
-        resolution: dir::PatternResolution,
-    ) -> CompilerResult<Answer<()>> {
-        self.commit_decision(node.into_any(), Decision::Pattern(resolution))?;
+        resolution: dir::PatternDecision,
+    ) -> CompilerResult<()> {
+        self.commit_decision(node.into_any(), dir::Decision::Pattern(resolution))?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Commit one assignment pattern decision.
     pub(in crate::check) fn commit_assign_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::AssignPattern>,
-        resolution: dir::AssignPatternResolution,
-    ) -> CompilerResult<Answer<()>> {
-        self.commit_decision(node.into_any(), Decision::AssignPattern(resolution))?;
+        resolution: dir::AssignPatternDecision,
+    ) -> CompilerResult<()> {
+        self.commit_decision(node.into_any(), dir::Decision::AssignPattern(resolution))?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Reject one pattern whose tag is not nominal.
@@ -462,7 +445,7 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         tag: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         self.report_invalid_pattern_tag(origin, tag)?;
 
         self.commit_rejected_pattern(node)
@@ -472,11 +455,11 @@ impl BodyState<'_, '_> {
     pub(in crate::check) fn commit_rejected_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         self.poison_pattern(node)?;
-        self.commit_decision(node.into_any(), Decision::Rejected)?;
+        self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Bind every binding beneath one rejected pattern to the error type.
@@ -509,7 +492,7 @@ impl BodyState<'_, '_> {
             self.bind_symbol_type(symbol, error)?;
         }
 
-        // walk pattern binding shape
+        // recurse into the nested patterns each shape holds
         match self.module(module).view().get(node).clone() {
             // name: pattern
             dir::Pattern::Binding {
@@ -572,7 +555,7 @@ impl BodyState<'_, '_> {
             self.bind_symbol_type(symbol, error)?;
         }
 
-        // walk pattern field binding shape
+        // recurse into the nested pattern each field shape holds
         match self.module(module).view().get(field).clone() {
             // { name: pattern }
             dir::PatternField::Named {
@@ -614,7 +597,7 @@ impl BodyState<'_, '_> {
         }
         let widening = match slot {
             Some(slot) => match self.check.root_variable(slot)? {
-                Some(variable) => self.check.solver.variable(variable)?.widening,
+                Some(variable) => self.check.infer.variable(variable)?.widening,
                 // transcribed bindings widen by their written declarator
                 None => self.written_binding_widening(symbol)?,
             },
@@ -691,26 +674,28 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         source: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // only destructuring patterns over a union select alternatives
         let Some(requirement) = self.destructuring_requirement(node)? else {
-            return Ok(Answer::Ready(source));
+            return Ok(source);
         };
         if !matches!(self.ty(source)?, dir::Type::Union(_)) {
-            return Ok(Answer::Ready(source));
+            return Ok(source);
         }
 
+        // keep the alternatives that satisfy the pattern's shape
         let operation = dir::TypeOperation::Narrow(dir::NarrowType {
             source,
             target: requirement,
             is_positive: true,
         });
-        let narrowed = answer!(self.reduce_operation_type(origin, operation)?);
+        let narrowed = self.reduce_operation_type(origin, operation)?;
 
         // preserve the rejected source for the pattern diagnostic
         if matches!(self.ty(narrowed)?, dir::Type::Never) {
-            Ok(Answer::Ready(source))
+            Ok(source)
         } else {
-            Ok(Answer::Ready(narrowed))
+            Ok(narrowed)
         }
     }
 
@@ -756,7 +741,7 @@ impl BodyState<'_, '_> {
                 dir::PatternField::Computed { .. } | dir::PatternField::Rest { .. } => {}
             }
         }
-        let elements = self.intern_elements(module, &elements)?;
+        let elements = self.intern_elements(&elements)?;
         let tuple = dir::TupleType {
             form: dir::TupleForm::Tuple,
             elements,
@@ -786,7 +771,7 @@ impl BodyState<'_, '_> {
                 is_optional: false,
             });
         }
-        let fields = self.intern_properties(module, &required)?;
+        let fields = self.intern_properties(&required)?;
         let shape = dir::ShapeType {
             properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
@@ -827,7 +812,7 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         pattern: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let site = FlowSite {
             node: pattern,
             flow,
@@ -843,9 +828,9 @@ impl BodyState<'_, '_> {
             use_: ValueUse::Store,
             mode: InferMode::Exact,
         };
-        answer!(self.attempt_node(site, PlaceUse::Read, Some(expectation))?);
+        self.attempt_node(site, PlaceUse::Read, Some(expectation))?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Return the type produced by one defaulted pattern.
@@ -854,8 +839,8 @@ impl BodyState<'_, '_> {
         origin: Origin,
         input: dir::GlobalTypeId,
         default: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let input = answer!(self.reduce_type_head(origin, input)?);
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let input = self.reduce_type_head(origin, input)?;
         let mut kept = Vec::new();
         let mut has_undefined = false;
 
@@ -880,13 +865,18 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // add the default only when it can actually run
+        // add the default only when it can actually run; a fully absent
+        //  input widens the default's literal contribution
         if has_undefined {
+            let default = match kept.is_empty() {
+                true => self.widen_type(default)?,
+                false => default,
+            };
             kept.push(default);
         }
 
         let ty = self.normalized_union_type(kept)?;
 
-        Ok(Answer::Ready(ty))
+        Ok(ty)
     }
 }

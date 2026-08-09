@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{FlowPredicate, WalkState};
+use crate::check::{CheckState, FlowPredicate};
 
 /// The condition branch being entered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,7 +24,7 @@ impl ConditionBranch {
     }
 }
 
-impl WalkState<'_, '_> {
+impl CheckState<'_> {
     /// Narrow flow from one condition.
     ///
     /// Example:
@@ -69,7 +69,8 @@ impl WalkState<'_, '_> {
         &mut self,
         declarator: dir::LocalNodeId<dir::Declarator>,
     ) -> CompilerResult<()> {
-        self.mark_declarator_assigned(self.tree.get(declarator), false);
+        let node = self.module(self.module_id).view().get(declarator).clone();
+        self.mark_declarator_assigned(&node, false);
         self.narrow_declarator_match(declarator)
     }
 
@@ -84,13 +85,14 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         branch: ConditionBranch,
     ) -> CompilerResult<()> {
-        match self.tree.get(id) {
+        let node = self.module(self.module_id).view().get(id).clone();
+        match node {
             // !value
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Not,
                 right,
             } => {
-                self.narrow_expression(*right, branch.opposite())?;
+                self.narrow_expression(right, branch.opposite())?;
             }
             // left && right
             dir::Expression::Binary {
@@ -98,8 +100,8 @@ impl WalkState<'_, '_> {
                 operator: dir::BinaryOperator::And,
                 right,
             } if branch == ConditionBranch::True => {
-                self.narrow_expression(*left, branch)?;
-                self.narrow_expression(*right, branch)?;
+                self.narrow_expression(left, branch)?;
+                self.narrow_expression(right, branch)?;
             }
             // left || right
             dir::Expression::Binary {
@@ -107,8 +109,8 @@ impl WalkState<'_, '_> {
                 operator: dir::BinaryOperator::Or,
                 right,
             } if branch == ConditionBranch::False => {
-                self.narrow_expression(*left, branch)?;
-                self.narrow_expression(*right, branch)?;
+                self.narrow_expression(left, branch)?;
+                self.narrow_expression(right, branch)?;
             }
             // left === right
             dir::Expression::Binary {
@@ -120,7 +122,7 @@ impl WalkState<'_, '_> {
                     (false, ConditionBranch::True) | (true, ConditionBranch::False) => true,
                     (false, ConditionBranch::False) | (true, ConditionBranch::True) => false,
                 };
-                self.narrow_by_equality(id.into_global_any(self.module), *left, *right, is_equal);
+                self.narrow_by_equality(id.into_global_any(self.module_id), left, right, is_equal);
             }
             // key in value
             dir::Expression::Binary {
@@ -128,15 +130,15 @@ impl WalkState<'_, '_> {
                 right,
                 ..
             } => {
-                self.narrow_by_guard(id, *right, branch);
+                self.narrow_by_guard(id, right, branch);
             }
             // value is T
             dir::Expression::Is { value, .. } => {
-                self.narrow_by_guard(id, *value, branch);
+                self.narrow_by_guard(id, value, branch);
             }
             // value instanceof Target
             dir::Expression::InstanceOf { value, .. } => {
-                self.narrow_by_guard(id, *value, branch);
+                self.narrow_by_guard(id, value, branch);
             }
             // expressions without flow effects
             _ => {}
@@ -161,11 +163,24 @@ impl WalkState<'_, '_> {
             return;
         };
         let predicate = FlowPredicate::Guard {
-            guard: guard.into_global(self.module),
+            guard: guard.into_global(self.module_id),
             is_positive: branch == ConditionBranch::True,
         };
 
-        self.flow_mut().apply_narrowing(path, predicate);
+        self.flow.apply_narrowing(path, predicate);
+    }
+
+    /// Exclude one previously matched pattern from a flow path.
+    pub(in crate::check) fn exclude_match_pattern(
+        &mut self,
+        path: dir::AccessPath,
+        pattern: dir::GlobalNodeId<dir::Pattern>,
+    ) {
+        let predicate = FlowPredicate::Pattern {
+            pattern,
+            is_positive: false,
+        };
+        self.flow.apply_narrowing(path, predicate);
     }
 
     /// Narrow flow from one equality expression.
@@ -198,7 +213,7 @@ impl WalkState<'_, '_> {
         }
 
         for path in paths {
-            self.flow_mut().apply_narrowing(path, predicate);
+            self.flow.apply_narrowing(path, predicate);
         }
     }
 }

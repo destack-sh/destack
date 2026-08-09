@@ -166,6 +166,7 @@ declare function parse(value: int32): int32;
 parse(true);
 /// @type.node source=parse(true) type=<error>
 /// @resolution.name source=parse target=[parse#1, parse#2]
+/// @resolution.rejected source=parse(true)
 /// @type.node source=true type=true
 "#,
         r#"

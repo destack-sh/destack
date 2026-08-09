@@ -190,6 +190,7 @@ const missing = checked["missing"];
 /// @type.symbol symbol=missing source=missing type=<error>
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=checked target=checked
+/// @resolution.rejected source="checked[\"missing\"]"
 /// @resolution.place source=checked placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=checked root=checked
 "#,
@@ -717,6 +718,7 @@ const value = bag.missing;
 /// @resolution.name source=bag target=bag
 /// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bag root=bag
+/// @resolution.rejected source=bag.missing
 
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,

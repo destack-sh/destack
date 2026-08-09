@@ -1,19 +1,19 @@
-use crate::check::{FlowBranch, FlowCheckpoint, WalkState};
+use crate::check::{CheckState, FlowBranch, FlowCheckpoint};
 
-impl WalkState<'_, '_> {
+impl CheckState<'_> {
     /// Mark the current flow position for branch rollback.
     pub(in crate::check) fn fork_flow(&self) -> FlowCheckpoint {
-        self.flow().fork()
+        self.flow.fork()
     }
 
     /// Collect the flow changes since one checkpoint.
     pub(in crate::check) fn collect_flow_branch(&self, checkpoint: FlowCheckpoint) -> FlowBranch {
-        self.flow().branch(checkpoint)
+        self.flow.branch(checkpoint)
     }
 
     /// Restore current flow state to one checkpoint.
     pub(in crate::check) fn restore_flow(&mut self, checkpoint: FlowCheckpoint) {
-        self.flow_mut().restore(checkpoint);
+        self.flow.restore(checkpoint);
     }
 
     /// Restore one completed branch.
@@ -22,7 +22,7 @@ impl WalkState<'_, '_> {
         checkpoint: FlowCheckpoint,
         branch: &FlowBranch,
     ) {
-        self.flow_mut().restore_branch(checkpoint, branch);
+        self.flow.restore_branch(checkpoint, branch);
     }
 
     /// Merge two completed flow branches.
@@ -32,7 +32,7 @@ impl WalkState<'_, '_> {
         left: &FlowBranch,
         right: &FlowBranch,
     ) {
-        self.flow_mut().merge_branches(checkpoint, left, right);
+        self.flow.merge_branches(checkpoint, left, right);
     }
 
     /// Merge the state common to all completed flow branches.

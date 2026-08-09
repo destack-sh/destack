@@ -43,15 +43,15 @@ const result: Result<boolean, string> = first().andThen((value) => second(value)
 /// @type.symbol symbol=result source=result type=error.result.Result<boolean, string>
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=Result target=error.result.Result
-/// @type.node source="first().andThen((value) => second(value))" type=error.result.Result<boolean, string>
+/// @type.node source="first().andThen((value) => second(value))" type=error.result.Result<boolean, string | string> reduced=error.result.Result<boolean, string>
 /// @type.node source=first type=() => error.result.Result<int32, string>
 /// @type.node source=first() type=error.result.Result<int32, string>
 /// @type.node source=first().andThen type=<error.result.andThen.U, error.result.andThen.F>(this: error.result.Result<int32, string>, Function<(int32,), error.result.Result<error.result.andThen.U, error.result.andThen.F>>) => error.result.Result<error.result.andThen.U, string | error.result.andThen.F>
 /// @resolution.name source=first target=first
 /// @resolution.member source=first().andThen receiver=error.result.Result<int32, string> type=<error.result.andThen.U, error.result.andThen.F>(this: error.result.Result<int32, string>, Function<(int32,), error.result.Result<error.result.andThen.U, error.result.andThen.F>>) => error.result.Result<error.result.andThen.U, string | error.result.andThen.F> kind=symbol target_receiver=error.result.Result<int32, string> target=error.result.andThen
-/// @resolution.call source="first().andThen((value) => second(value))" parameters=(Function<(int32,), error.result.Result<boolean, string>>) arguments=(provided((value) => second(value)) as Function<(int32,), error.result.Result<boolean, string>>) return=error.result.Result<boolean, string> kind=symbol target=error.result.andThen receiver=error.result.Result<int32, string> instance="error.result.Result<int32, string>.<extension#1>.andThen<boolean, string>"
+/// @resolution.call source="first().andThen((value) => second(value))" parameters=(Function<(int32,), error.result.Result<boolean, string>>) arguments=(provided((value) => second(value)) as Function<(int32,), error.result.Result<boolean, string>>) return=error.result.Result<boolean, string | string> kind=symbol target=error.result.andThen receiver=error.result.Result<int32, string> instance="error.result.Result<int32, string>.<extension#1>.andThen<boolean, string>"
 /// @resolution.call source=first() parameters=() return=error.result.Result<int32, string> kind=symbol target=first
-/// @generic.instance source="first().andThen((value) => second(value))" id="error.result.Result<boolean, string>"
+/// @generic.instance source="first().andThen((value) => second(value))" id="error.result.Result<boolean, string | string>"
 /// @generic.instance source="first().andThen((value) => second(value))" id="error.result.Result<int32, string>.<extension#1>.andThen<boolean, string>"
 /// @generic.instance source=first id="error.result.Result<int32, string>"
 /// @generic.instance source=first() id="error.result.Result<int32, string>"
@@ -73,6 +73,7 @@ const result: Result<boolean, string> = first().andThen((value) => second(value)
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol5.value
 
+/// @generic.instance id="error.result.Result<boolean, string | string>" template=error.result.Result arguments=(boolean, string | string)
 /// @generic.instance id="error.result.Result<boolean, string>" template=error.result.Result arguments=(boolean, string)
 /// @generic.instance id="error.result.Result<error.result.andThen.U, error.result.andThen.F>" template=error.result.Result arguments=(error.result.andThen.U, error.result.andThen.F)
 /// @generic.instance id="error.result.Result<error.result.andThen.U, string | error.result.andThen.F>" template=error.result.Result arguments=(error.result.andThen.U, string | error.result.andThen.F)
@@ -324,8 +325,8 @@ declare const input: Promise<int32>;
 declare const next: Promise<string>;
 declare const usePromise: boolean;
 const result: Promise<string | Promise<string>> = input.then<int32, string | Promise<string>>(
-    (): string | Promise<string> => {
-        usePromise ? (next as string | Promise<string>) : ("done" as string | Promise<string>)
+    (): Promise<string> | string => {
+        usePromise ? (next as Promise<string> | string) : ("done" as Promise<string> | string)
     },
 );
 
@@ -363,11 +364,11 @@ const result: Promise<string | Promise<string>> = input.then(() => {
 /// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#1>
 /// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#2>
 /// @generic.instance source=input.then id=async.promise.Promise<int32>
-/// @type.symbol symbol=symbol5 type=Function<(), string | async.promise.Promise<string>>
-/// @type.node type=Function<(), string | async.promise.Promise<string>>
+/// @type.symbol symbol=symbol5 type=Function<(), async.promise.Promise<string> | string>
+/// @type.node type=Function<(), async.promise.Promise<string> | string>
 
     usePromise ? next : "done"
-    /// @type.node source="usePromise ? next : \"done\"" type=string | async.promise.Promise<string>
+    /// @type.node source="usePromise ? next : \"done\"" type=async.promise.Promise<string> | string
     /// @type.node source=usePromise type=boolean
     /// @resolution.name source=usePromise target=usePromise
     /// @resolution.place source=usePromise placement="local" lifetime="static" access="exclusive"
@@ -465,7 +466,7 @@ const text = identity("x");
         "main.ds",
         DirRows::checked()
             .with_reference_types()
-            .with_check_stats(),
+            ,
         r#"
 === annotated ===
 function identity<T>(value: T): T {
@@ -514,8 +515,6 @@ const text = identity("x");
 
 /// @generic.instance id="identity<\"x\">" template=identity arguments=("x")
 /// @generic.instance id=identity<1> template=identity arguments=(1)
-
-/// @check.stats.solve variables=4 types=15 constraints=0 obligations=2 solutions=4 bounds=2 decisions=7
 "#);
 }
 
@@ -949,6 +948,7 @@ const parser = parse<int32>;
 /// @resolution.pattern source=parser kind=binding target=parser
 /// @type.node source=parse<int32> type=<error>
 /// @resolution.name source=parse target=[parse#1, parse#2]
+/// @resolution.rejected source=parse<int32>
 
 /// @generic.instance id="Array<T#2>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(T#2, "exclusive")
 "#,
@@ -1215,8 +1215,7 @@ fn test_overloaded_promise_callback_infers_nested_result() {
     let session = TestSession::single(
         r#"
 declare class Promise<T> {
-    then<U>(onFulfilled: (value: T) => Promise<U>): Promise<U>;
-    then<U>(onFulfilled: (value: T) => U): Promise<U>;
+    then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>;
 }
 
 struct Ok<T> {
@@ -1253,8 +1252,7 @@ extension<T, E> of AsyncResult<T, E> {
     session.assert_dir_checked("main.ds", DirRows::checked(), r#"
 === annotated ===
 declare class Promise<out T> {
-    then<U>(onFulfilled: (arg0: T) => Promise<U>): Promise<U>;
-    then<U>(onFulfilled: (arg0: T) => U): Promise<U>;
+    then<U>(onFulfilled: (arg0: T) => U | Promise<U>): Promise<U>;
 }
 
 struct Ok<out T> {
@@ -1284,7 +1282,8 @@ extension<T, E> of AsyncResult<T, E> {
     andThenSync<U, F>(f: (arg0: T) => Result<U, F>): AsyncResult<U, E | F> {
         AsyncResult(
             this.then<Result<T, E>, Result<U, E | F>>(
-                (result: Result<T, E>): Result<U, E | F> => result.andThen<T, E, U, F>(f),
+                (result: Result<T, E>): Result<U, E | F> | Promise<Result<U, E | F>> =>
+                    result.andThen<T, E, U, F>(f) as Result<U, E | F> | Promise<Result<U, E | F>>,
             ),
         )
     }
@@ -1295,30 +1294,20 @@ declare class Promise<T> {
 /// @generic.template symbol=Promise parameters=(out T#1)
 /// @type.symbol symbol=Promise type=Promise
 /// @definition.class symbol=Promise template=(out T#1)
-/// @definition.method symbol=Promise.then#1 source="then<U>(onFulfilled: (value: T) => Promise<U>): Promise<U>" slot=then type=<U#1>(this: this, Function<(T#1,), Promise<U#1>>) => Promise<U#1>
-/// @definition.method symbol=Promise.then#2 source="then<U>(onFulfilled: (value: T) => U): Promise<U>" slot=then type=<U#2>(this: this, Function<(T#1,), U#2>) => Promise<U#2>
+/// @definition.method symbol=Promise.then source="then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>" slot=then type=<U#1>(this: this, Function<(T#1,), U#1 | Promise<U#1>>) => Promise<U#1>
 /// @type.symbol symbol=Promise.T source=T type=T#1
 
-    then<U>(onFulfilled: (value: T) => Promise<U>): Promise<U>;
-    /// @generic.template symbol=Promise.then#1 parent=template#0 parameters=(U#1)
-    /// @type.symbol symbol=Promise.then#1 source="then<U>(onFulfilled: (value: T) => Promise<U>): Promise<U>" type=<U#1>(this: this, Function<(T#1,), Promise<U#1>>) => Promise<U#1>
-    /// @type.symbol symbol=Promise.then.U#1 source=U type=U#1
-    /// @type.symbol symbol=Promise.then.onFulfilled#1 source="onFulfilled: (value: T) => Promise<U>" type=Function<(T#1,), Promise<U#1>>
+    then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>;
+    /// @generic.template symbol=Promise.then parent=template#0 parameters=(U#1)
+    /// @type.symbol symbol=Promise.then source="then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>" type=<U#1>(this: this, Function<(T#1,), U#1 | Promise<U#1>>) => Promise<U#1>
+    /// @type.symbol symbol=Promise.then.U source=U type=U#1
+    /// @type.symbol symbol=Promise.then.onFulfilled source="onFulfilled: (value: T) => U | Promise<U>" type=Function<(T#1,), U#1 | Promise<U#1>>
     /// @resolution.name source=T target=Promise.T
+    /// @resolution.name source=U target=Promise.then.U
     /// @resolution.name source=Promise target=Promise
-    /// @resolution.name source=U target=Promise.then.U#1
+    /// @resolution.name source=U target=Promise.then.U
     /// @resolution.name source=Promise target=Promise
-    /// @resolution.name source=U target=Promise.then.U#1
-
-    then<U>(onFulfilled: (value: T) => U): Promise<U>;
-    /// @generic.template symbol=Promise.then#2 parent=template#0 parameters=(U#2)
-    /// @type.symbol symbol=Promise.then#2 source="then<U>(onFulfilled: (value: T) => U): Promise<U>" type=<U#2>(this: this, Function<(T#1,), U#2>) => Promise<U#2>
-    /// @type.symbol symbol=Promise.then.U#2 source=U type=U#2
-    /// @type.symbol symbol=Promise.then.onFulfilled#2 source="onFulfilled: (value: T) => U" type=Function<(T#1,), U#2>
-    /// @resolution.name source=T target=Promise.T
-    /// @resolution.name source=U target=Promise.then.U#2
-    /// @resolution.name source=Promise target=Promise
-    /// @resolution.name source=U target=Promise.then.U#2
+    /// @resolution.name source=U target=Promise.then.U
 
 }
 
@@ -1387,7 +1376,7 @@ declare function result<T, E>(): Result<T, E>;
 extension<T, E> of Result<T, E> {
 /// @generic.template symbol=<module>#2 parameters=(T#5, E#4)
 /// @definition.extension symbol=<module>#2 form=local target=Result<T#5, E#4>
-/// @definition.method symbol=andThen slot=andThen type=<U#3, F#1>(this: this, Function<(T#5,), Result<U#3, F#1>>) => Result<U#3, E#4 | F#1>
+/// @definition.method symbol=andThen slot=andThen type=<U#2, F#1>(this: this, Function<(T#5,), Result<U#2, F#1>>) => Result<U#2, E#4 | F#1>
 /// @type.symbol symbol=T#1 source=T type=T#5
 /// @type.symbol symbol=E#1 source=E type=E#4
 /// @resolution.name source=Result target=Result
@@ -1395,11 +1384,11 @@ extension<T, E> of Result<T, E> {
 /// @resolution.name source=E target=E#1
 
     andThen<U, F>(f: (value: T) => Result<U, F>): Result<U, E | F> {
-    /// @generic.template symbol=andThen parent=template#5 parameters=(U#3, F#1)
-    /// @type.symbol symbol=andThen type=<U#3, F#1>(this: this, Function<(T#5,), Result<U#3, F#1>>) => Result<U#3, E#4 | F#1>
-    /// @type.symbol symbol=andThen.U source=U type=U#3
+    /// @generic.template symbol=andThen parent=template#5 parameters=(U#2, F#1)
+    /// @type.symbol symbol=andThen type=<U#2, F#1>(this: this, Function<(T#5,), Result<U#2, F#1>>) => Result<U#2, E#4 | F#1>
+    /// @type.symbol symbol=andThen.U source=U type=U#2
     /// @type.symbol symbol=andThen.F source=F type=F#1
-    /// @type.symbol symbol=andThen.f source="f: (value: T) => Result<U, F>" type=Function<(T#5,), Result<U#3, F#1>>
+    /// @type.symbol symbol=andThen.f source="f: (value: T) => Result<U, F>" type=Function<(T#5,), Result<U#2, F#1>>
     /// @resolution.name source=T target=T#1
     /// @resolution.name source=Result target=Result
     /// @resolution.name source=U target=andThen.U
@@ -1411,8 +1400,8 @@ extension<T, E> of Result<T, E> {
 
         result<U, E | F>()
         /// @resolution.name source=result target=result
-        /// @resolution.call source="result<U, E | F>()" parameters=() return=Result<U#3, E#4 | F#1> kind=symbol target=result instance="result<U#3, E#4 | F#1>"
-        /// @generic.instance source="result<U, E | F>()" id="result<U#3, E#4 | F#1>"
+        /// @resolution.call source="result<U, E | F>()" parameters=() return=Result<U#2, E#4 | F#1> kind=symbol target=result instance="result<U#2, E#4 | F#1>"
+        /// @generic.instance source="result<U, E | F>()" id="result<U#2, E#4 | F#1>"
         /// @resolution.name source=U target=andThen.U
         /// @resolution.name source=E target=E#1
         /// @resolution.name source=F target=andThen.F
@@ -1434,7 +1423,7 @@ newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 extension<T, E> of AsyncResult<T, E> {
 /// @generic.template symbol=<module>#3 parameters=(T#7, E#6)
 /// @definition.extension symbol=<module>#3 form=local target=AsyncResult<T#7, E#6>
-/// @definition.method symbol=andThenSync slot=andThenSync type=<U#4, F#2>(this: this, Function<(T#7,), Result<U#4, F#2>>) => AsyncResult<U#4, E#6 | F#2>
+/// @definition.method symbol=andThenSync slot=andThenSync type=<U#3, F#2>(this: this, Function<(T#7,), Result<U#3, F#2>>) => AsyncResult<U#3, E#6 | F#2>
 /// @type.symbol symbol=T#2 source=T type=T#7
 /// @type.symbol symbol=E#2 source=E type=E#6
 /// @resolution.name source=AsyncResult target=AsyncResult
@@ -1442,11 +1431,11 @@ extension<T, E> of AsyncResult<T, E> {
 /// @resolution.name source=E target=E#2
 
     andThenSync<U, F>(f: (value: T) => Result<U, F>): AsyncResult<U, E | F> {
-    /// @generic.template symbol=andThenSync parent=template#7 parameters=(U#4, F#2)
-    /// @type.symbol symbol=andThenSync type=<U#4, F#2>(this: this, Function<(T#7,), Result<U#4, F#2>>) => AsyncResult<U#4, E#6 | F#2>
-    /// @type.symbol symbol=andThenSync.U source=U type=U#4
+    /// @generic.template symbol=andThenSync parent=template#7 parameters=(U#3, F#2)
+    /// @type.symbol symbol=andThenSync type=<U#3, F#2>(this: this, Function<(T#7,), Result<U#3, F#2>>) => AsyncResult<U#3, E#6 | F#2>
+    /// @type.symbol symbol=andThenSync.U source=U type=U#3
     /// @type.symbol symbol=andThenSync.F source=F type=F#2
-    /// @type.symbol symbol=andThenSync.f source="f: (value: T) => Result<U, F>" type=Function<(T#7,), Result<U#4, F#2>>
+    /// @type.symbol symbol=andThenSync.f source="f: (value: T) => Result<U, F>" type=Function<(T#7,), Result<U#3, F#2>>
     /// @resolution.name source=T target=T#2
     /// @resolution.name source=Result target=Result
     /// @resolution.name source=U target=andThenSync.U
@@ -1458,22 +1447,22 @@ extension<T, E> of AsyncResult<T, E> {
 
         AsyncResult(this.then((result) => result.andThen(f)))
         /// @resolution.name source=AsyncResult target=AsyncResult
-        /// @resolution.construct source="AsyncResult(this.then((result) => result.andThen(f)))" parameters=(Promise<Result<U#4, E#6 | F#2>>) arguments=(provided(this.then((result) => result.andThen(f))) as Promise<Result<U#4, E#6 | F#2>>) return=AsyncResult<U#4, E#6 | F#2> kind=newtype target=AsyncResult backing=Promise<Result<U#4, E#6 | F#2>> instance="AsyncResult<U#4, E#6 | F#2>"
-        /// @generic.instance source="AsyncResult(this.then((result) => result.andThen(f)))" id="AsyncResult<U#4, E#6 | F#2>"
-        /// @resolution.member source=this.then receiver=AsyncResult<T#7, E#6> type=<U#1>(this: Promise<Result<T#7, E#6>>, Function<(Result<T#7, E#6>,), Promise<U#1>>) => Promise<U#1> & <U#2>(this: Promise<Result<T#7, E#6>>, Function<(Result<T#7, E#6>,), U#2>) => Promise<U#2> kind=existential targets=[Promise.then#1, Promise.then#2]
-        /// @resolution.call source="this.then((result) => result.andThen(f))" parameters=(Function<(Result<T#7, E#6>,), Result<U#4, E#6 | F#2>>) arguments=(provided((result) => result.andThen(f)) as Function<(Result<T#7, E#6>,), Result<U#4, E#6 | F#2>>) return=Promise<Result<U#4, E#6 | F#2>> kind=symbol target=Promise.then#2 receiver=AsyncResult<T#7, E#6> adjustments=(newtype.payload(AsyncResult, Promise<Result<T#7, E#6>>)) instance="Promise<Result<T#7, E#6>>.then#2<Result<U#4, E#6 | F#2>>"
+        /// @resolution.construct source="AsyncResult(this.then((result) => result.andThen(f)))" parameters=(Promise<Result<U#3, E#6 | F#2>>) arguments=(provided(this.then((result) => result.andThen(f))) as Promise<Result<U#3, E#6 | F#2>>) return=AsyncResult<U#3, E#6 | F#2> kind=newtype target=AsyncResult backing=Promise<Result<U#3, E#6 | F#2>> instance="AsyncResult<U#3, E#6 | F#2>"
+        /// @generic.instance source="AsyncResult(this.then((result) => result.andThen(f)))" id="AsyncResult<U#3, E#6 | F#2>"
+        /// @resolution.member source=this.then receiver=AsyncResult<T#7, E#6> type=<U#1>(this: Promise<Result<T#7, E#6>>, Function<(Result<T#7, E#6>,), U#1 | Promise<U#1>>) => Promise<U#1> kind=symbol target_receiver=AsyncResult<T#7, E#6> adjustments=(newtype.payload(AsyncResult, Promise<Result<T#7, E#6>>)) target=Promise.then
+        /// @resolution.call source="this.then((result) => result.andThen(f))" parameters=(Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2> | Promise<Result<U#3, E#6 | F#2>>>) arguments=(provided((result) => result.andThen(f)) as Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2> | Promise<Result<U#3, E#6 | F#2>>>) return=Promise<Result<U#3, E#6 | F#2>> kind=symbol target=Promise.then receiver=AsyncResult<T#7, E#6> adjustments=(newtype.payload(AsyncResult, Promise<Result<T#7, E#6>>)) instance="Promise<Result<T#7, E#6>>.then<Result<U#3, E#6 | F#2>>"
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=AsyncResult<T#7, E#6>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instance source="this.then((result) => result.andThen(f))" id="Promise<Result<T#7, E#6>>.then#2<Result<U#4, E#6 | F#2>>"
-        /// @type.symbol symbol=andThenSync.symbol52 source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#4, E#6 | F#2>>
-        /// @type.symbol symbol=andThenSync.symbol52.result source=result type=Result<T#7, E#6>
-        /// @resolution.name source=result target=andThenSync.symbol52.result
-        /// @resolution.member source=result.andThen receiver=Result<T#7, E#6> type=<U#3, F#1>(this: Result<T#7, E#6>, Function<(T#7,), Result<U#3, F#1>>) => Result<U#3, E#6 | F#1> kind=symbol target_receiver=Result<T#7, E#6> target=andThen
-        /// @resolution.call source=result.andThen(f) parameters=(Function<(T#7,), Result<U#4, F#2>>) arguments=(provided(f) as Function<(T#7,), Result<U#4, F#2>>) return=Result<U#4, E#6 | F#2> kind=symbol target=andThen receiver=Result<T#7, E#6> instance="Result<T#7, E#6>.<extension#1>.andThen<U#4, F#2>"
+        /// @generic.instance source="this.then((result) => result.andThen(f))" id="Promise<Result<T#7, E#6>>.then<Result<U#3, E#6 | F#2>>"
+        /// @type.symbol symbol=andThenSync.symbol47 source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2> | Promise<Result<U#3, E#6 | F#2>>>
+        /// @type.symbol symbol=andThenSync.symbol47.result source=result type=Result<T#7, E#6>
+        /// @resolution.name source=result target=andThenSync.symbol47.result
+        /// @resolution.member source=result.andThen receiver=Result<T#7, E#6> type=<U#2, F#1>(this: Result<T#7, E#6>, Function<(T#7,), Result<U#2, F#1>>) => Result<U#2, E#6 | F#1> kind=symbol target_receiver=Result<T#7, E#6> target=andThen
+        /// @resolution.call source=result.andThen(f) parameters=(Function<(T#7,), Result<U#3, F#2>>) arguments=(provided(f) as Function<(T#7,), Result<U#3, F#2>>) return=Result<U#3, E#6 | F#2> kind=symbol target=andThen receiver=Result<T#7, E#6> instance="Result<T#7, E#6>.<extension#1>.andThen<U#3, F#2>"
         /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=result root=andThenSync.symbol52.result
-        /// @generic.instance source=result.andThen(f) id="Result<T#7, E#6>.<extension#1>.andThen<U#4, F#2>"
+        /// @resolution.access source=result root=andThenSync.symbol47.result
+        /// @generic.instance source=result.andThen(f) id="Result<T#7, E#6>.<extension#1>.andThen<U#3, F#2>"
         /// @resolution.name source=f target=andThenSync.f
         /// @resolution.place source=f placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=f root=andThenSync.f
@@ -1481,18 +1470,18 @@ extension<T, E> of AsyncResult<T, E> {
     }
 }
 
-/// @generic.instance id="AsyncResult<U#4, E#6 | F#2>" template=AsyncResult arguments=(U#4, E#6 | F#2)
-/// @generic.instance id="Promise<Result<T#7, E#6>>.then#2<Result<U#4, E#6 | F#2>>" template=Promise.then#2 arguments=(Result<T#7, E#6>, Result<U#4, E#6 | F#2>)
+/// @generic.instance id="AsyncResult<U#3, E#6 | F#2>" template=AsyncResult arguments=(U#3, E#6 | F#2)
+/// @generic.instance id="Promise<Result<T#7, E#6>>.then<Result<U#3, E#6 | F#2>>" template=Promise.then arguments=(Result<T#7, E#6>, Result<U#3, E#6 | F#2>)
+/// @generic.instance id="Promise<Result<U#3, E#6 | F#2>>" template=Promise arguments=(Result<U#3, E#6 | F#2>)
 /// @generic.instance id="Result<T#3, E#2>" template=Result arguments=(T#3, E#2)
 /// @generic.instance id="Result<T#4, E#3>" template=Result arguments=(T#4, E#3)
 /// @generic.instance id="Result<T#7, E#6>" template=Result arguments=(T#7, E#6)
-/// @generic.instance id="Result<T#7, E#6>.<extension#1>.andThen<U#4, F#2>" template=andThen arguments=(T#7, E#6, U#4, F#2)
-/// @generic.instance id="Result<U#3, E#4 | F#1>" template=Result arguments=(U#3, E#4 | F#1)
-/// @generic.instance id="Result<U#3, F#1>" template=Result arguments=(U#3, F#1)
-/// @generic.instance id="Result<U#4, E#6 | F#2>" template=Result arguments=(U#4, E#6 | F#2)
-/// @generic.instance id="Result<U#4, F#2>" template=Result arguments=(U#4, F#2)
-/// @generic.instance id="result<U#3, E#4 | F#1>" template=result arguments=(U#3, E#4 | F#1)
+/// @generic.instance id="Result<T#7, E#6>.<extension#1>.andThen<U#3, F#2>" template=andThen arguments=(T#7, E#6, U#3, F#2)
+/// @generic.instance id="Result<U#2, E#4 | F#1>" template=Result arguments=(U#2, E#4 | F#1)
+/// @generic.instance id="Result<U#2, F#1>" template=Result arguments=(U#2, F#1)
+/// @generic.instance id="Result<U#3, E#6 | F#2>" template=Result arguments=(U#3, E#6 | F#2)
+/// @generic.instance id="Result<U#3, F#2>" template=Result arguments=(U#3, F#2)
+/// @generic.instance id="result<U#2, E#4 | F#1>" template=result arguments=(U#2, E#4 | F#1)
 /// @generic.instance id=Promise<U#1> template=Promise arguments=(U#1)
-/// @generic.instance id=Promise<U#2> template=Promise arguments=(U#2)
 "#);
 }

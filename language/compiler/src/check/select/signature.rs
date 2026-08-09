@@ -5,12 +5,13 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::infer::InferMode;
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome,
-    Constraint, Expectation, Origin, ReceiverSteps, Relation, TypeArgumentInference,
-    TypeSubstitution, Value, ValueUse, answer,
+    BodyState, CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome, Constraint,
+    Expectation, Origin, ReceiverSteps, Relation, TypeArgumentInference, TypeSubstitution, Value,
+    ValueUse, Verdict,
 };
 
 /// Callable signature accepted for an invocation.
+#[derive(Debug, Clone)]
 pub(in crate::check) struct SignatureSelection {
     /// The callable type after substitution.
     pub(in crate::check) callable: dir::GlobalTypeId,
@@ -24,6 +25,15 @@ pub(in crate::check) struct SignatureSelection {
     pub(in crate::check) receiver_steps: Option<ReceiverSteps>,
     /// Runtime coercions selected for the supplied arguments.
     pub(in crate::check) coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
+}
+
+/// One instantiated closed signature decision, replayed across call sites.
+#[derive(Debug, Clone)]
+pub(in crate::check) struct SignatureInstance {
+    /// The selected overload position within the callee's candidates.
+    pub(in crate::check) overload: usize,
+    /// The instantiated selection without per-site coercions.
+    pub(in crate::check) selection: SignatureSelection,
 }
 
 /// Result of matching one callable signature.
@@ -133,6 +143,8 @@ pub(in crate::check) enum SignatureRejection {
     },
     /// One invocation type relation failed.
     Mismatch {
+        /// The judged verdict: ambiguity retries once variables solve.
+        verdict: Verdict,
         /// Why the rejected relation exists.
         cause: CauseId,
         /// The rejected relation.
@@ -169,8 +181,8 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<(dir::GlobalTypeId, dir::FunctionSignatureType)>>> {
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::FunctionSignatureType)>> {
+        let ty = self.reduce_type_head(origin, ty)?;
         let signature = match self.ty(ty)? {
             dir::Type::FunctionSignature(signature) => {
                 Some((ty, self.type_signature(ty.module_id, signature)?))
@@ -184,7 +196,7 @@ impl BodyState<'_, '_> {
             _ => None,
         };
 
-        Ok(Answer::Ready(signature))
+        Ok(signature)
     }
 
     /// Create one substituted function signature type.
@@ -197,7 +209,7 @@ impl BodyState<'_, '_> {
         substitution: &TypeSubstitution,
         receiver: Option<dir::GlobalTypeId>,
         return_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let this_parameter = match signature.this_parameter {
             Some(this_parameter) => {
                 let this_parameter = self.substitute_type(this_parameter, substitution)?;
@@ -211,13 +223,13 @@ impl BodyState<'_, '_> {
             .signature_parameters(source, signature.parameters)?
             .to_vec()
         {
-            let ty = answer!(self.instantiate_parameter_type(
+            let ty = self.instantiate_parameter_type(
                 origin,
                 target,
                 parameter.ty,
                 substitution,
                 receiver,
-            )?);
+            )?;
             parameters.push(dir::FunctionParameterType {
                 ty,
                 is_optional: parameter.is_optional,
@@ -235,7 +247,7 @@ impl BodyState<'_, '_> {
             is_generator: signature.is_generator,
         })?;
 
-        Ok(Answer::Ready(signature))
+        Ok(signature)
     }
 
     /// Instantiate one selected parameter type.
@@ -246,12 +258,12 @@ impl BodyState<'_, '_> {
         parameter: dir::GlobalTypeId,
         substitution: &TypeSubstitution,
         receiver: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let parameter = self.substitute_type(parameter, substitution)?;
         let parameter = self.erase_inference_barriers(module, parameter)?;
-        let parameter = answer!(self.receiver_relative_type(origin, receiver, parameter)?);
+        let parameter = self.receiver_relative_type(origin, receiver, parameter)?;
 
-        Ok(Answer::Ready(parameter))
+        Ok(parameter)
     }
 
     /// Return the element type one rest parameter accepts per tail argument.
@@ -259,14 +271,14 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         rest: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let reduced = answer!(self.check.reduce_type(origin, rest)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let reduced = self.check.reduce_type(origin, rest)?;
 
         // project the element from the collection the annotation names
         match self.check.ty(reduced)? {
-            dir::Type::Array(array) => Ok(Answer::Ready(Some(array.element))),
-            dir::Type::Slice(slice) => Ok(Answer::Ready(Some(slice.element))),
-            dir::Type::FixedArray(array) => Ok(Answer::Ready(Some(array.element))),
+            dir::Type::Array(array) => Ok(Some(array.element)),
+            dir::Type::Slice(slice) => Ok(Some(slice.element)),
+            dir::Type::FixedArray(array) => Ok(Some(array.element)),
             dir::Type::Application(instance) => {
                 let item = self.check.language_item(instance.symbol)?;
                 let is_array = matches!(
@@ -278,11 +290,11 @@ impl BodyState<'_, '_> {
                     .to_vec();
 
                 match (is_array, arguments.as_slice()) {
-                    (true, [element, ..]) => Ok(Answer::Ready(Some(*element))),
-                    _ => Ok(Answer::Ready(None)),
+                    (true, [element, ..]) => Ok(Some(*element)),
+                    _ => Ok(None),
                 }
             }
-            _ => Ok(Answer::Ready(None)),
+            _ => Ok(None),
         }
     }
 
@@ -297,11 +309,11 @@ impl BodyState<'_, '_> {
         type_arguments: &[dir::GlobalTypeId],
         arguments: &[CallableArgument],
         expectation: Option<Expectation>,
-    ) -> CompilerResult<Answer<SignatureMatch>> {
+    ) -> CompilerResult<SignatureMatch> {
         let module = origin.module();
 
         // reduce the callable shape before selecting a signature
-        let function_type = answer!(self.reduce_type_head(origin, function_type)?);
+        let function_type = self.reduce_type_head(origin, function_type)?;
         let function = match self.ty(function_type)? {
             dir::Type::FunctionSignature(function) => {
                 self.type_signature(function_type.module_id, function)?
@@ -335,9 +347,9 @@ impl BodyState<'_, '_> {
                 );
             }
             _ => {
-                return Ok(Answer::Ready(SignatureMatch::Inapplicable(
+                return Ok(SignatureMatch::Inapplicable(
                     SignatureRejection::Inapplicable,
-                )));
+                ));
             }
         };
         let return_type = function.return_type;
@@ -371,7 +383,7 @@ impl BodyState<'_, '_> {
         receiver: Option<dir::GlobalTypeId>,
         arguments: &[CallableArgument],
         expectation: Option<Expectation>,
-    ) -> CompilerResult<Answer<SignatureMatch>> {
+    ) -> CompilerResult<SignatureMatch> {
         let receiver = receiver.map(|ty| Value { ty, place: None });
 
         self.constrain_signature(
@@ -403,7 +415,7 @@ impl BodyState<'_, '_> {
         receiver: Option<Value>,
         arguments: &[CallableArgument],
         expectation: Option<Expectation>,
-    ) -> CompilerResult<Answer<SignatureMatch>> {
+    ) -> CompilerResult<SignatureMatch> {
         // reject arities the signature cannot accept
         let signature_parameters = self
             .signature_parameters(signature_module, function.parameters)?
@@ -425,7 +437,7 @@ impl BodyState<'_, '_> {
                 supplied: supplied_count,
             };
 
-            return Ok(Answer::Ready(SignatureMatch::Inapplicable(rejection)));
+            return Ok(SignatureMatch::Inapplicable(rejection));
         }
 
         // bind the receiver before evaluating generic defaults
@@ -446,17 +458,17 @@ impl BodyState<'_, '_> {
                 return_type: function_return,
             },
         };
-        let substitution = answer!(self.instantiate_parameters(
+        let substitution = self.instantiate_parameters(
             origin,
             &parameters,
             type_arguments,
             substitution,
             inference,
-        )?);
+        )?;
         let Some(mut substitution) = substitution else {
-            return Ok(Answer::Ready(SignatureMatch::Inapplicable(
+            return Ok(SignatureMatch::Inapplicable(
                 SignatureRejection::Inapplicable,
-            )));
+            ));
         };
 
         // bind owner parameters that member lookup did not bind
@@ -465,17 +477,12 @@ impl BodyState<'_, '_> {
         {
             let mut parameters = self.generic_template_parameters(template)?;
             parameters.extend(self.owner_template_parameters(template)?);
-            let opened = answer!(self.instantiate_parameters(
-                origin,
-                &parameters,
-                &[],
-                substitution,
-                inference,
-            )?);
+            let opened =
+                self.instantiate_parameters(origin, &parameters, &[], substitution, inference)?;
             let Some(opened) = opened else {
-                return Ok(Answer::Ready(SignatureMatch::Inapplicable(
+                return Ok(SignatureMatch::Inapplicable(
                     SignatureRejection::Inapplicable,
-                )));
+                ));
             };
             substitution = opened;
         }
@@ -484,7 +491,6 @@ impl BodyState<'_, '_> {
         let mut is_return_mismatch = false;
         let mut receiver_steps = None;
         let mut coercions = SmallVec::new();
-        let mut blockers = SmallVec::new();
 
         // constrain every invocation relation before settling candidate inference
         'invocation: {
@@ -494,8 +500,8 @@ impl BodyState<'_, '_> {
                 let this_parameter =
                     self.substitute_type(this_parameter, &receiver_substitution)?;
                 match self.constrain_receiver_argument(origin, receiver, this_parameter)? {
-                    Answer::Ready(Some(steps)) => receiver_steps = Some(steps),
-                    Answer::Ready(None) => {
+                    Some(steps) => receiver_steps = Some(steps),
+                    None => {
                         rejection = Some(SignatureRejection::Receiver {
                             source: receiver.ty,
                             target: this_parameter,
@@ -503,19 +509,19 @@ impl BodyState<'_, '_> {
 
                         break 'invocation;
                     }
-                    Answer::Pending(pending) => blockers.extend(pending),
                 }
             }
 
             // apply the contextual result type before contextualizing arguments
             if let (Some(return_type), Some(expectation)) = (function_return, expectation) {
                 let return_type = self.substitute_type(return_type, &substitution)?;
-                let return_type = answer!(self.receiver_relative_type(
+                let return_type = self.receiver_relative_type(
                     origin,
                     receiver.map(|receiver| receiver.ty),
                     return_type,
-                )?);
-                let site = self.node_site(self.origin_source(origin)?)?;
+                )?;
+                let source = self.origin_source(origin)?;
+                let site = self.visit_site(source)?;
                 let converted = self.convert_value(
                     site,
                     expectation.cause,
@@ -528,12 +534,8 @@ impl BodyState<'_, '_> {
                     expectation.use_,
                     expectation.mode,
                 )?;
-                match converted {
-                    Answer::Ready(converted) if !converted.outcome.is_holds() => {
-                        is_return_mismatch = true;
-                    }
-                    Answer::Ready(_) => {}
-                    Answer::Pending(pending) => blockers.extend(pending),
+                if !converted.outcome.is_holds() {
+                    is_return_mismatch = true;
                 }
             }
 
@@ -545,21 +547,24 @@ impl BodyState<'_, '_> {
                     .get(index)
                     .or_else(|| signature_parameters.last());
                 let Some(parameter) = parameter else {
-                    return Ok(Answer::Ready(SignatureMatch::Inapplicable(
+                    return Ok(SignatureMatch::Inapplicable(
                         SignatureRejection::Inapplicable,
-                    )));
+                    ));
                 };
                 let parameter_type = self.substitute_type(parameter.ty, &substitution)?;
-                // receiver placement resolves relative member parameters
-                let parameter_type = answer!(self.receiver_relative_type(
+
+                // resolve relative member parameters at the receiver's place
+                let parameter_type = self.receiver_relative_type(
                     origin,
                     receiver.map(|receiver| receiver.ty),
                     parameter_type,
-                )?);
-                let parameter_type = self.settled_root(parameter_type)?;
-                // rest tails relate against the element of the rest type
+                )?;
+                let parameter_type = self.shallow_resolve(parameter_type)?;
+
+                // relate a rest tail against its element type
                 let parameter_type = match parameter.is_rest {
-                    true => answer!(self.rest_element_type(origin, parameter_type)?)
+                    true => self
+                        .rest_element_type(origin, parameter_type)?
                         .unwrap_or(parameter_type),
                     false => parameter_type,
                 };
@@ -595,8 +600,9 @@ impl BodyState<'_, '_> {
                     bound.target,
                 )?;
                 match outcome {
-                    Answer::Ready(CheckOutcome::Fails(failure)) => {
+                    CheckOutcome::Fails(failure) => {
                         rejection = Some(SignatureRejection::Mismatch {
+                            verdict: self.check.verdict(false),
                             cause: bound.cause,
                             relation: bound.relation,
                             use_: None,
@@ -607,37 +613,71 @@ impl BodyState<'_, '_> {
 
                         break 'invocation;
                     }
-                    Answer::Ready(CheckOutcome::Holds) => {}
-                    Answer::Pending(pending) => blockers.extend(pending),
+                    CheckOutcome::Holds => {}
                 }
             }
 
-            // match arguments against substituted parameter types
-            for (index, argument, parameter_type) in argument_parameters {
-                let conversion =
-                    self.match_signature_argument(origin, index, argument, parameter_type)?;
-                match conversion {
-                    Answer::Ready(Ok(conversion)) => {
-                        if let Some(coercion) = conversion {
-                            coercions.push((argument.source, coercion));
+            // collect staged comptime parameters opened for this candidate
+            let mut comptime_variables = SmallVec::<[dir::TypeVariableId; 2]>::new();
+            for parameter in &parameters {
+                if self
+                    .check
+                    .generic_parameter(*parameter)
+                    .is_some_and(|binding| matches!(binding.kind, dir::GenericParameterKind::Value))
+                    && let Some(instance) = substitution.argument(*parameter)
+                    && let Some(variable) = self.check.root_variable(instance)?
+                {
+                    comptime_variables.push(variable);
+                }
+            }
+
+            // match plain arguments first, then contextual closures against the fixed shapes
+            let mut plain = Vec::new();
+            let mut contextual = Vec::new();
+            for entry in argument_parameters {
+                let (_, argument, _) = &entry;
+                match self.check.lambdas.contains_key(&argument.source) {
+                    true => contextual.push(entry),
+                    false => plain.push(entry),
+                }
+            }
+            let fixed = plain
+                .iter()
+                .map(|(_, _, parameter_type)| *parameter_type)
+                .collect::<Vec<_>>();
+            for (round, entries) in [plain, contextual].into_iter().enumerate() {
+                if round == 1 && !entries.is_empty() {
+                    let roots = self.check.open_type_variables(fixed.iter().copied())?;
+                    if !roots.is_empty() {
+                        self.check.resolve_variables(&roots)?;
+                    }
+                }
+                for (index, argument, parameter_type) in entries {
+                    let conversion =
+                        self.match_signature_argument(origin, index, argument, parameter_type)?;
+                    match conversion {
+                        Ok(conversion) => {
+                            if let Some(coercion) = conversion {
+                                coercions.push((argument.source, coercion));
+                            }
+                        }
+                        Err(failure) => {
+                            rejection = Some(failure);
+
+                            break 'invocation;
                         }
                     }
-                    Answer::Ready(Err(failure)) => {
-                        rejection = Some(failure);
 
-                        break 'invocation;
+                    for variable in &comptime_variables {
+                        if self.check.infer.variable(*variable)?.state.is_open() {
+                            self.check.resolve_variables(&[*variable])?;
+                        }
                     }
-                    Answer::Pending(pending) => blockers.extend(pending),
                 }
             }
         }
 
-        // settle the complete candidate relation graph before selecting its result
-        if rejection.is_none() && !blockers.is_empty() {
-            return Ok(Answer::Pending(blockers));
-        }
-
-        let mut selection = answer!(self.signature_selection(
+        let mut selection = self.signature_selection(
             origin,
             module,
             signature_module,
@@ -646,7 +686,7 @@ impl BodyState<'_, '_> {
             &substitution,
             receiver.map(|receiver| receiver.ty),
             receiver_steps,
-        )?);
+        )?;
         selection.coercions = coercions;
 
         let matched = match rejection {
@@ -658,7 +698,7 @@ impl BodyState<'_, '_> {
             None => SignatureMatch::Selected(selection),
         };
 
-        Ok(Answer::Ready(matched))
+        Ok(matched)
     }
 
     /// Resolve one relative member type in the receiver's concrete place.
@@ -667,12 +707,12 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver: Option<dir::GlobalTypeId>,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let Some(receiver) = receiver else {
-            return Ok(Answer::Ready(ty));
+            return Ok(ty);
         };
-        let Some(place) = answer!(self.receiver_projected_place(origin, receiver)?) else {
-            return Ok(Answer::Ready(ty));
+        let Some(place) = self.receiver_projected_place(origin, receiver)? else {
+            return Ok(ty);
         };
 
         self.place_relative_type(origin, place, ty)
@@ -689,28 +729,25 @@ impl BodyState<'_, '_> {
         substitution: &TypeSubstitution,
         receiver: Option<dir::GlobalTypeId>,
         receiver_steps: Option<ReceiverSteps>,
-    ) -> CompilerResult<Answer<SignatureSelection>> {
+    ) -> CompilerResult<SignatureSelection> {
         // resolve the substituted return type
         let return_type = match function_return {
             Some(return_type) => self.substitute_type(return_type, substitution)?,
             None => self.intern_type(dir::Type::Void)?,
         };
-        let return_type = match self.receiver_relative_type(origin, receiver, return_type)? {
-            Answer::Ready(return_type) => return_type,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let return_type = self.receiver_relative_type(origin, receiver, return_type)?;
         let mut parameters = SmallVec::<[_; 4]>::new();
         for parameter in self
             .signature_parameters(signature_module, function.parameters)?
             .to_vec()
         {
-            let ty = answer!(self.instantiate_parameter_type(
+            let ty = self.instantiate_parameter_type(
                 origin,
                 origin.module(),
                 parameter.ty,
                 substitution,
                 receiver,
-            )?);
+            )?;
             parameters.push(dir::FunctionParameterType {
                 ty,
                 is_optional: parameter.is_optional,
@@ -718,7 +755,7 @@ impl BodyState<'_, '_> {
             });
         }
         let arguments = self.settled_argument_bindings(&substitution.bindings)?;
-        let function_type = answer!(self.instantiate_signature_type(
+        let function_type = self.instantiate_signature_type(
             origin,
             signature_module,
             module,
@@ -726,26 +763,26 @@ impl BodyState<'_, '_> {
             substitution,
             receiver,
             return_type,
-        )?);
+        )?;
 
-        Ok(Answer::Ready(SignatureSelection {
+        Ok(SignatureSelection {
             callable: function_type,
             parameters,
             return_type,
             generic_arguments: arguments.to_vec(),
             receiver_steps,
             coercions: SmallVec::new(),
-        }))
+        })
     }
 
     /// Match one supplied argument against one substituted parameter type.
-    fn match_signature_argument(
+    pub(in crate::check) fn match_signature_argument(
         &mut self,
         origin: Origin,
         index: usize,
         argument: CallableArgument,
         parameter_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Result<Option<dir::Coercion>, SignatureRejection>>> {
+    ) -> CompilerResult<Result<Option<dir::Coercion>, SignatureRejection>> {
         let source = argument.source;
         let call = self.origin_source(origin)?;
         let origin = self.origin_at(origin, source)?;
@@ -762,7 +799,7 @@ impl BodyState<'_, '_> {
         let ty = match argument.ty {
             Some(ty) => ty,
             None => {
-                let site = self.node_site(source)?;
+                let site = self.visit_site(source)?;
                 let expectation = Expectation {
                     target: parameter_type,
                     relation,
@@ -770,11 +807,12 @@ impl BodyState<'_, '_> {
                     use_: argument.use_,
                     mode,
                 };
-                let check = answer!(self.check_node_target(site, expectation)?);
+                let check = self.check_node_target(site, expectation)?;
                 let ty = check.source;
 
                 if let CheckOutcome::Fails(failure) = check.outcome {
                     let rejection = SignatureRejection::Mismatch {
+                        verdict: self.check.verdict(false),
                         cause,
                         relation,
                         use_: Some(argument.use_),
@@ -783,7 +821,7 @@ impl BodyState<'_, '_> {
                         failure,
                     };
 
-                    return Ok(Answer::Ready(Err(rejection)));
+                    return Ok(Err(rejection));
                 }
 
                 ty
@@ -791,9 +829,9 @@ impl BodyState<'_, '_> {
         };
 
         // select the complete runtime conversion for this candidate
-        let site = self.node_site(source)?;
-        let value = answer!(self.expression_value(site, ty)?);
-        let conversion = answer!(self.convert_value(
+        let site = self.visit_site(source)?;
+        let value = self.expression_value(site, ty)?;
+        let conversion = self.convert_value(
             site,
             cause,
             relation,
@@ -801,9 +839,10 @@ impl BodyState<'_, '_> {
             parameter_type,
             argument.use_,
             mode,
-        )?);
+        )?;
         if let CheckOutcome::Fails(failure) = conversion.outcome {
             let rejection = SignatureRejection::Mismatch {
+                verdict: self.check.verdict(false),
                 cause,
                 relation,
                 use_: Some(argument.use_),
@@ -812,11 +851,11 @@ impl BodyState<'_, '_> {
                 failure,
             };
 
-            return Ok(Answer::Ready(Err(rejection)));
+            return Ok(Err(rejection));
         }
 
         let coercion = conversion.coercion.map(|coercion| *coercion);
 
-        Ok(Answer::Ready(Ok(coercion)))
+        Ok(Ok(coercion))
     }
 }

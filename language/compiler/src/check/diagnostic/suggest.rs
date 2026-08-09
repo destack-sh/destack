@@ -64,12 +64,8 @@ impl CheckState<'_> {
             bindings
                 .get_scope(scope)
                 .named_symbols_up_to(scope.mark)
-                .any(|(key, symbol)| {
-                    bindings
-                        .get_symbol(symbol)
-                        .kind
-                        .is_visible_in(dir::SymbolSpace::Declaration)
-                        && matches!(key, dir::StaticKey::Name(key) if self.strings().get(key) == name)
+                .any(|(key, _)| {
+                    matches!(key, dir::StaticKey::Name(key) if self.strings().get(key) == name)
                 })
         };
         for imported in imported {
@@ -134,9 +130,9 @@ impl CheckState<'_> {
 
     /// Collect the member keys visible on one receiver.
     fn visible_member_keys(&mut self, receiver: dir::GlobalTypeId) -> CompilerResult<Vec<String>> {
-        let mut current = self.settled_root(receiver)?;
+        let mut current = self.shallow_resolve(receiver)?;
         while let dir::Type::Form(form) = self.ty(current)? {
-            current = self.settled_root(form.value)?;
+            current = self.shallow_resolve(form.value)?;
         }
 
         let mut keys = Vec::new();
@@ -183,12 +179,7 @@ impl CheckState<'_> {
             let current = bindings.get_scope(scope);
 
             // collect names declared before the visible scope mark
-            for (key, symbol) in current.named_symbols_up_to(scope.mark) {
-                let kind = bindings.get_symbol(symbol).kind;
-                if !kind.is_visible_in(dir::SymbolSpace::Declaration) {
-                    continue;
-                }
-
+            for (key, _) in current.named_symbols_up_to(scope.mark) {
                 if let Some(candidate) = self.reference_key_text(&key) {
                     candidates.push(candidate);
                 }

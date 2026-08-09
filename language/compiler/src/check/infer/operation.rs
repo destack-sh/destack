@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use super::InferMode;
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, Constraint, Expectation, FlowSite, PlaceUse, Relation,
-    TryPropagationTarget, ValueUse, VariableRole, Widening, answer,
+    BodyState, Cause, CauseKind, Constraint, Expectation, FlowSite, PlaceUse, Relation, ValueUse,
+    VariableRole, Widening,
 };
 
 impl BodyState<'_, '_> {
@@ -15,26 +15,26 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let value_site = self.node_site(value.into_global_any(module))?;
+        let value_site = self.visit_site(value.into_global_any(module))?;
 
         // check the value against the target without taking its type
         let target = self.require_node_type(target_type.into_global_any(module))?;
         let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
-        let check = answer!(self.check_node_expected(
+        let check = self.check_node_expected(
             value_site,
             target,
             Relation::Satisfies,
             cause,
             ValueUse::Satisfies,
             InferMode::Mutable,
-        )?);
+        )?;
         let value_type = check.source;
         self.commit_node_type(node.into_any(), value_type)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Infer one cast or const assertion expression.
@@ -43,21 +43,22 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let value_site = self.node_site(value.into_global_any(module))?;
+        let value_site = self.visit_site(value.into_global_any(module))?;
 
+        // `as const` keeps the operand's literal precision
         let is_const_assertion = matches!(
             self.module(module).view().get(target_type),
             dir::TypeExpression::Const
         );
         if is_const_assertion {
-            let ty = answer!(self.infer_node(value_site, PlaceUse::Read, InferMode::Const,)?);
-            let ty = answer!(self.flow_type_at(value_site, ty)?);
+            let ty = self.infer_node(value_site, PlaceUse::Read, InferMode::Const)?;
+            let ty = self.flow_type_at(value_site, ty)?;
             self.commit_node_type(node.into_any(), ty)?;
 
-            return Ok(Answer::Ready(()));
+            return Ok(());
         }
 
         let target = self.require_node_type(target_type.into_global_any(module))?;
@@ -71,12 +72,12 @@ impl BodyState<'_, '_> {
             use_: ValueUse::Store,
             mode: InferMode::Widen,
         };
-        let check = answer!(self.check_node(value_site, expectation)?);
+        let check = self.check_node(value_site, expectation)?;
         let value_type = check.source;
 
         // warn when the cast target equals the operand's settled type
-        let value_root = self.check.settled_root(value_type)?;
-        let target_root = self.check.settled_root(target)?;
+        let value_root = self.check.shallow_resolve(value_type)?;
+        let target_root = self.check.shallow_resolve(target)?;
         if value_root == target_root && self.check.type_variables(value_root)?.is_empty() {
             self.check.report_redundant_cast(
                 node.into_any(),
@@ -87,7 +88,7 @@ impl BodyState<'_, '_> {
 
         self.commit_node_type(node.into_any(), target)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Infer one range expression from its written bounds.
@@ -97,17 +98,19 @@ impl BodyState<'_, '_> {
         start: Option<dir::LocalNodeId<dir::Expression>>,
         end: Option<dir::LocalNodeId<dir::Expression>>,
         end_kind: dir::RangeEnd,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
+
+        // infer every written bound
         let mut bounds = SmallVec::<[dir::GlobalTypeId; 2]>::new();
         if let Some(start) = start {
-            let start_site = self.node_site(start.into_global_any(module))?;
-            bounds.push(answer!(self.infer_node_type(start_site, PlaceUse::Read)?));
+            let start_site = self.visit_site(start.into_global_any(module))?;
+            bounds.push(self.infer_node_type(start_site, PlaceUse::Read)?);
         }
         if let Some(end) = end {
-            let end_site = self.node_site(end.into_global_any(module))?;
-            bounds.push(answer!(self.infer_node_type(end_site, PlaceUse::Read)?));
+            let end_site = self.visit_site(end.into_global_any(module))?;
+            bounds.push(self.infer_node_type(end_site, PlaceUse::Read)?);
         }
 
         // constrain every written bound into one element hole
@@ -126,12 +129,13 @@ impl BodyState<'_, '_> {
                         *bound,
                         element,
                         cause,
-                    ));
+                    ))?;
                 }
 
                 Some(element)
             }
         };
+        // select the range family the written bounds describe
         let item = match (start, end, end_kind) {
             (Some(_), Some(_), dir::RangeEnd::Open) => dir::LanguageItem::Range,
             (Some(_), Some(_), dir::RangeEnd::Inclusive) => dir::LanguageItem::RangeInclusive,
@@ -144,71 +148,69 @@ impl BodyState<'_, '_> {
         let range = self.language_type(item, &arguments)?;
         self.commit_node_type(node.into_any(), range)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Infer one try projection expression from its operand value.
+    ///
+    /// Maybe projections propagate their residual to the enclosing
+    /// handler; must projections trap at runtime and propagate nothing.
     pub(in crate::check) fn infer_try_projection_expression(
         &mut self,
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+        propagates: bool,
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
-        let value_site = self.node_site(value.into_global_any(node.module_id))?;
-        let value = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+        let value_site = self.visit_site(value.into_global_any(node.module_id))?;
+        let value = self.infer_node_type(value_site, PlaceUse::Read)?;
         let output =
-            answer!(self
-                .reduce_operation_type(site.origin(), dir::TypeOperation::TryOutput { value },)?);
-        self.propagate_try_residual(node.into_any(), value, site)?;
+            self.reduce_operation_type(site.origin(), dir::TypeOperation::TryOutput { value })?;
+        if propagates {
+            self.propagate_try_residual(node.into_any(), value, site)?;
+        }
         self.commit_node_type(node.into_any(), output)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
-    /// Queue one try residual against its recorded propagation target.
+    /// Propagate one try residual to its enclosing handler or return.
     pub(in crate::check) fn propagate_try_residual(
         &mut self,
         node: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
         site: FlowSite,
     ) -> CompilerResult<()> {
-        let Some(target) = self.check.try_propagations.get(&node).copied() else {
-            return Ok(());
-        };
         let origin = site.origin();
         let residual = self.intern_operation(dir::TypeOperation::TryResidual { value })?;
-        match target {
-            TryPropagationTarget::Failure { ty } => {
-                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                self.push_constraint(Constraint::r#type(
-                    origin,
-                    Relation::Assignable,
-                    residual,
-                    ty,
-                    cause,
-                ));
-            }
-            TryPropagationTarget::Return { ty: Some(ret) } => {
-                let symbol = self
-                    .check
-                    .language_symbol(dir::LanguageItem::FromResidual)?;
-                let arguments = self.check.intern_type_ids(&[residual])?;
-                let target = self.intern_type(dir::Type::Application(dir::GenericApplication {
-                    symbol,
-                    arguments,
-                }))?;
-                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                self.push_constraint(Constraint::r#type(
-                    origin,
-                    Relation::Satisfies,
-                    ret,
-                    target,
-                    cause,
-                ));
-            }
-            TryPropagationTarget::Return { ty: None } => {
-                self.check.report_try_outside_function(node);
-            }
+
+        // a local try target collects the residual directly
+        if self.check.collect_try_residual(residual) {
+            return Ok(());
+        }
+
+        // propagation out of the function satisfies the return's FromResidual
+        if let Some(return_target) = self.check.current_return_target() {
+            let symbol = self
+                .check
+                .language_symbol(dir::LanguageItem::FromResidual)?;
+            let arguments = self.check.intern_type_ids(&[residual])?;
+            let target = self.intern_type(dir::Type::Application(dir::GenericApplication {
+                symbol,
+                arguments,
+            }))?;
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+            self.push_constraint(Constraint::r#type(
+                origin,
+                Relation::Satisfies,
+                return_target,
+                target,
+                cause,
+            ))?;
+        }
+        // try propagation needs an enclosing function
+        else {
+            self.check.report_try_outside_function(node);
         }
 
         Ok(())
@@ -219,18 +221,30 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         awaited: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let origin = site.origin();
-        let awaited_site = self.node_site(awaited.into_global_any(module))?;
-        let value = answer!(self.infer_node_type(awaited_site, PlaceUse::Read)?);
-        let result = answer!(self.reduce_operation_type(
+
+        // require the enclosing body's asynchrony
+        if self
+            .check
+            .flow
+            .current_function()
+            .is_none_or(|function| function.asynchrony != dir::Asynchrony::Async)
+        {
+            self.check
+                .report_await_outside_async_context(module, node.local_id.into_any());
+        }
+
+        let awaited_site = self.visit_site(awaited.into_global_any(module))?;
+        let value = self.infer_node_type(awaited_site, PlaceUse::Read)?;
+        let result = self.reduce_operation_type(
             origin,
             dir::TypeOperation::Awaited(dir::UnaryType { target: value }),
-        )?);
+        )?;
         self.commit_node_type(node.into_any(), result)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 }

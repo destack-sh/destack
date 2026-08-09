@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Dependency, GenericParameterId, Origin, Relation, answer};
+use crate::check::{CheckState, GenericParameterId, Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -11,54 +11,54 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: dir::GlobalTypeId,
         key: dir::StaticKey,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let receiver = answer!(self.reduce_type_head(origin, receiver)?);
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let receiver = self.reduce_type_head(origin, receiver)?;
 
         // filter union alternatives independently by their declared member sets
         if let dir::Type::Union(union) = self.ty(receiver)? {
             let elements = self.type_ids(receiver.module_id, union.elements)?.to_vec();
             let mut narrowed = Vec::with_capacity(elements.len());
             for element in elements {
-                let element = answer!(self.narrow_membership_receiver(origin, element, key)?);
+                let element = self.narrow_membership_receiver(origin, element, key)?;
                 if !matches!(self.ty(element)?, dir::Type::Never) {
                     narrowed.push(element);
                 }
             }
 
-            return Ok(Answer::Ready(self.normalized_union_type(narrowed)?));
+            return self.normalized_union_type(narrowed);
         }
 
         // declared members preserve the receiver exactly
-        let lookup = answer!(self.body().lookup_inherent_member(
+        let lookup = self.body().lookup_inherent_member(
             origin,
             origin.module(),
             receiver,
             dir::MemberSpace::Instance,
             key,
-        )?);
+        )?;
         if self.body().member_read_type(origin, &lookup)?.is_some() {
-            return Ok(Answer::Ready(receiver));
+            return Ok(receiver);
         }
 
         // closed member sets prove that the successful branch is unreachable
-        if !answer!(self.may_have_additional_member(origin, receiver, key)?) {
+        if !self.may_have_additional_member(origin, receiver, key)? {
             let never = self.intern_type(dir::Type::Never)?;
 
-            return Ok(Answer::Ready(never));
+            return Ok(never);
         }
 
         // open member sets retain the receiver and the property established at runtime
         let unknown = self.intern_type(dir::Type::Unknown)?;
-        let member = self.field_shape_type(origin.module(), key, unknown)?;
+        let member = self.field_shape_type(key, unknown)?;
         let member_is_narrower =
-            answer!(self.decide_relation(origin, Relation::Satisfies, member, receiver)?);
+            self.decide_relation(origin, Relation::Satisfies, member, receiver)?;
         let narrowed = if member_is_narrower {
             member
         } else {
             self.normalized_intersection_type([receiver, member])?
         };
 
-        Ok(Answer::Ready(narrowed))
+        Ok(narrowed)
     }
 
     /// Filter the declared alternatives of one type through a runtime predicate.
@@ -68,24 +68,23 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         is_positive: bool,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let source = answer!(self.reduce_type_head(origin, source)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let source = self.reduce_type_head(origin, source)?;
         let alternatives = match self.variant_types(origin.module(), source)? {
             Some(variants) => variants,
             None => match self.ty(source)? {
                 dir::Type::Union(union) => {
                     self.type_ids(source.module_id, union.elements)?.to_vec()
                 }
-                _ => return Ok(Answer::Ready(None)),
+                _ => return Ok(None),
             },
         };
 
         // keep original alternatives whose projected predicate remains inhabited
         let mut kept = Vec::with_capacity(alternatives.len());
         for alternative in alternatives {
-            let narrowed =
-                answer!(self.narrow_element(origin, alternative, target, is_positive,)?);
-            let narrowed = answer!(self.reduce_type_head(origin, narrowed)?);
+            let narrowed = self.narrow_element(origin, alternative, target, is_positive)?;
+            let narrowed = self.reduce_type_head(origin, narrowed)?;
             if !matches!(self.ty(narrowed)?, dir::Type::Never) {
                 kept.push(alternative);
             }
@@ -97,7 +96,7 @@ impl CheckState<'_> {
             _ => self.normalized_union_type(kept)?,
         };
 
-        Ok(Answer::Ready(Some(narrowed)))
+        Ok(Some(narrowed))
     }
 
     /// Return the finite runtime domain of one rigid parameter.
@@ -105,20 +104,20 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         parameter: GenericParameterId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // select one finite bound that enumerates the domain
         let bounds = self.parameter_bounds(origin, parameter)?;
         let mut enumerated = None;
         for bound in &bounds {
-            let bound = answer!(self.reduce_type(origin, *bound)?);
-            if answer!(self.union_arms(origin, bound)?).is_some() {
+            let bound = self.reduce_type(origin, *bound)?;
+            if self.union_arms(origin, bound)?.is_some() {
                 enumerated = Some(bound);
 
                 break;
             }
         }
         let Some(enumerated) = enumerated else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         // intersect the enumerated alternatives with every active bound
@@ -128,7 +127,7 @@ impl CheckState<'_> {
             target: domain,
             is_positive: true,
         };
-        let Some(domain) = answer!(self.reduce_narrowing(origin, narrowing)?) else {
+        let Some(domain) = self.reduce_narrowing(origin, narrowing)? else {
             let shown = self.intern_type(dir::Type::Parameter(parameter))?;
 
             return Err(CompilerError::Internal {
@@ -142,10 +141,10 @@ impl CheckState<'_> {
 
         // reject an empty narrowed domain
         if matches!(self.ty(domain)?, dir::Type::Never) {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
-        Ok(Answer::Ready(Some(domain)))
+        Ok(Some(domain))
     }
 
     /// Evaluate one runtime guard narrowing.
@@ -153,9 +152,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         narrow: dir::NarrowType,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let source = answer!(self.reduce_type_head(origin, narrow.source)?);
-        let target = answer!(self.reduce_type_head(origin, narrow.target)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let source = self.reduce_type_head(origin, narrow.source)?;
+        let target = self.reduce_type_head(origin, narrow.target)?;
 
         // preserve precise case identity for enum and Tagged owners
         let variants = self.variant_types(origin.module(), source)?;
@@ -164,7 +163,7 @@ impl CheckState<'_> {
         if variants.is_none()
             && let Some(instance) = self.decompose_newtype(origin, source)?
         {
-            let backing = answer!(self.reduce_type_head(origin, instance.backing)?);
+            let backing = self.reduce_type_head(origin, instance.backing)?;
 
             return self.reduce_narrowing(
                 origin,
@@ -178,23 +177,23 @@ impl CheckState<'_> {
 
         // narrow the payload beneath memory forms, then rebuild the forms
         if matches!(self.ty(source)?, dir::Type::Form(_)) {
-            let value = answer!(self.strip_form(origin, source)?);
-            let target_value = answer!(self.strip_form(origin, target)?);
+            let value = self.strip_form(origin, source)?;
+            let target_value = self.strip_form(origin, target)?;
             let operation = self.intern_operation(dir::TypeOperation::Narrow(dir::NarrowType {
                 source: value,
                 target: target_value,
                 is_positive: narrow.is_positive,
             }))?;
-            let narrowed = answer!(self.reduce_type_head(origin, operation)?);
+            let narrowed = self.reduce_type_head(origin, operation)?;
             if matches!(self.ty(narrowed)?, dir::Type::Operation(_)) {
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             }
             if matches!(self.ty(narrowed)?, dir::Type::Never) {
-                return Ok(Answer::Ready(Some(narrowed)));
+                return Ok(Some(narrowed));
             }
-            let rebuilt = answer!(self.replace_form_value(origin, source, narrowed)?);
+            let rebuilt = self.replace_form_value(origin, source, narrowed)?;
 
-            return Ok(Answer::Ready(Some(rebuilt)));
+            return Ok(Some(rebuilt));
         }
 
         // distribute over variant and union valued sources
@@ -205,12 +204,12 @@ impl CheckState<'_> {
                     SmallVec::<[_; 4]>::from_slice(self.type_ids(source.module_id, union.elements)?)
                 }
                 dir::Type::Variable(_) | dir::Type::Parameter(_) => SmallVec::from_slice(&[source]),
-                // stuck operations wait for their blocking variables
+                // open operations cannot be distributed over
                 dir::Type::Operation(operation) => {
                     let variables = self.type_variables(source)?;
                     if variables.is_empty() {
                         // closed operations expand before narrowing distributes
-                        let expanded = answer!(self.reduce_type(origin, source)?);
+                        let expanded = self.reduce_type(origin, source)?;
                         if expanded != source {
                             return self.reduce_narrowing(
                                 origin,
@@ -228,12 +227,14 @@ impl CheckState<'_> {
                         ) {
                             SmallVec::from_slice(&[source])
                         } else {
-                            return Ok(Answer::Ready(None));
+                            return Ok(None);
                         }
                     } else {
-                        return Ok(Answer::pending(
-                            variables.into_iter().map(Dependency::Variable),
-                        ));
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "open variables {variables:?} reached narrowing of {source:?}"
+                            ),
+                        });
                     }
                 }
                 _ => SmallVec::from_slice(&[source]),
@@ -244,9 +245,8 @@ impl CheckState<'_> {
 
         // filter each arm through the guard relation
         for element in elements {
-            let narrowed =
-                answer!(self.narrow_element(origin, element, target, narrow.is_positive)?);
-            let narrowed = answer!(self.reduce_type_head(origin, narrowed)?);
+            let narrowed = self.narrow_element(origin, element, target, narrow.is_positive)?;
+            let narrowed = self.reduce_type_head(origin, narrowed)?;
             if matches!(self.ty(narrowed)?, dir::Type::Never) {
                 continue;
             }
@@ -262,7 +262,7 @@ impl CheckState<'_> {
             _ => self.normalized_union_type(kept)?,
         };
 
-        Ok(Answer::Ready(Some(joined)))
+        Ok(Some(joined))
     }
 
     /// Narrow one source arm through one runtime target.
@@ -272,14 +272,14 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         is_positive: bool,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let module = origin.module();
 
         // narrow an erased value through its checked runtime domain
         if let dir::Type::Dynamic(dynamic) = self.ty(source)? {
             let constraint = dynamic.constraint;
             let narrowed_constraint =
-                answer!(self.narrow_element(origin, constraint, target, is_positive)?);
+                self.narrow_element(origin, constraint, target, is_positive)?;
             let narrowed = if matches!(self.ty(narrowed_constraint)?, dir::Type::Never) {
                 narrowed_constraint
             } else if narrowed_constraint == constraint || !is_positive {
@@ -288,37 +288,37 @@ impl CheckState<'_> {
                 narrowed_constraint
             };
 
-            return Ok(Answer::Ready(narrowed));
+            return Ok(narrowed);
         }
 
         // disjoint arms can be decided without assignability
-        if !answer!(self.types_may_overlap(origin, source, target)?) {
+        if !self.types_may_overlap(origin, source, target)? {
             let narrowed = if is_positive {
                 self.intern_type(dir::Type::Never)?
             } else {
                 source
             };
 
-            return Ok(Answer::Ready(narrowed));
+            return Ok(narrowed);
         }
 
         // exact matches keep or remove the source arm; narrowing asks a
         //  constraint question, so reads stay per use and never move values
-        if answer!(self.decide_relation(origin, Relation::Subtype, source, target)?) {
+        if self.decide_relation(origin, Relation::Subtype, source, target)? {
             let narrowed = if is_positive {
                 source
             } else {
                 self.intern_type(dir::Type::Never)?
             };
 
-            return Ok(Answer::Ready(narrowed));
+            return Ok(narrowed);
         }
 
         // unmatched Tagged variants expose their backing to structural predicates
         if let dir::Type::Variant(variant) = self.ty(source)?
             && let Some(backing) = self.tagged_variant_backing(module, &variant)?
         {
-            let narrowed = answer!(self.narrow_element(origin, backing, target, is_positive)?);
+            let narrowed = self.narrow_element(origin, backing, target, is_positive)?;
             let narrowed = if matches!(self.ty(narrowed)?, dir::Type::Never) {
                 narrowed
             } else if narrowed == backing {
@@ -327,12 +327,11 @@ impl CheckState<'_> {
                 self.normalized_intersection_type([source, narrowed])?
             };
 
-            return Ok(Answer::Ready(narrowed));
+            return Ok(narrowed);
         }
 
         // select the target when it is narrower, otherwise preserve both constraints
-        let is_top_like =
-            answer!(self.decide_relation(origin, Relation::Subtype, target, source)?);
+        let is_top_like = self.decide_relation(origin, Relation::Subtype, target, source)?;
         let narrowed = if is_positive && is_top_like {
             target
         } else if is_positive {
@@ -341,6 +340,6 @@ impl CheckState<'_> {
             source
         };
 
-        Ok(Answer::Ready(narrowed))
+        Ok(narrowed)
     }
 }

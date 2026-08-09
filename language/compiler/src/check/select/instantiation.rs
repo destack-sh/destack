@@ -1,6 +1,6 @@
 use crate::check::{
-    Answer, BodyState, CheckState, Decision, DecisionKind, GenericParameterId, GenericTemplateId,
-    Origin, TypeSubstitution, VariableRole, Widening, answer,
+    BodyState, CheckState, GenericParameterId, GenericTemplateId, Origin, TypeSubstitution,
+    VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 use destack_dir as dir;
@@ -74,7 +74,7 @@ impl CheckState<'_> {
         written: &[dir::GlobalTypeId],
         mut substitution: TypeSubstitution,
         inference: TypeArgumentInference<'_>,
-    ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
+    ) -> CompilerResult<Option<TypeSubstitution>> {
         let writable = parameters
             .iter()
             .filter(|parameter| {
@@ -85,7 +85,7 @@ impl CheckState<'_> {
             })
             .count();
         if written.len() > writable {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
         // bind written parameters and open omitted inference parameters
@@ -103,8 +103,8 @@ impl CheckState<'_> {
             }
 
             // reuse a parameter opened earlier at this typing position
-            let origin_id = self.solver.intern_origin(origin);
-            if let Some(existing) = self.solver.instantiation(origin_id, parameter) {
+            let origin_id = self.infer.intern_origin(origin);
+            if let Some(existing) = self.infer.instantiation(origin_id, parameter) {
                 let argument = self.variable_type(existing)?;
                 substitution.bind(parameter, argument)?;
 
@@ -112,11 +112,10 @@ impl CheckState<'_> {
             }
 
             // open one inference variable for the omitted parameter
-            let widening =
-                answer!(self.type_argument_widening(origin, parameter, binding, inference,)?);
+            let widening = self.type_argument_widening(origin, parameter, binding, inference)?;
             let variable =
                 self.allocate_variable(origin, widening, VariableRole::Instantiation { parameter });
-            self.solver
+            self.infer
                 .record_instantiation(origin_id, parameter, variable);
 
             // retain the declared default for dry inference
@@ -129,7 +128,7 @@ impl CheckState<'_> {
             substitution.bind(parameter, argument)?;
         }
 
-        Ok(Answer::Ready(Some(substitution)))
+        Ok(Some(substitution))
     }
 
     /// Return the literal widening policy for one inferred type argument.
@@ -139,24 +138,24 @@ impl CheckState<'_> {
         parameter: GenericParameterId,
         binding: dir::GenericParameterBinding,
         inference: TypeArgumentInference<'_>,
-    ) -> CompilerResult<Answer<Widening>> {
+    ) -> CompilerResult<Widening> {
         let TypeArgumentInference::Callable {
             parameters,
             return_type,
         } = inference
         else {
-            return Ok(Answer::Ready(Widening::Never));
+            return Ok(Widening::Never);
         };
         let mut preserves_literals = binding.is_const || binding.is_comptime();
         for bound in self.declared_parameter_bounds(parameter)? {
-            if answer!(self.scalar_families(origin, bound)?).is_some() {
+            if self.scalar_families(origin, bound)?.is_some() {
                 preserves_literals = true;
 
                 break;
             }
         }
         if preserves_literals {
-            return Ok(Answer::Ready(Widening::Never));
+            return Ok(Widening::Never);
         }
 
         // preserve one direct input candidate only when callers observe it directly
@@ -178,7 +177,7 @@ impl CheckState<'_> {
             (true, false) => Widening::Always,
         };
 
-        Ok(Answer::Ready(widening))
+        Ok(widening)
     }
 
     /// Return whether a type exposes another type through transparent alternatives.
@@ -235,20 +234,16 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
         let source = node.local_id.into_any();
         let node = node.into_any();
-        let origin = self.node_site(node)?.origin();
+        let origin = self.visit_site(node)?.origin();
 
-        // read the decided target name
+        // decide the target reference at its first visit
         let left_node = left.into_global_any(module);
-        let name = self
-            .resolutions(left_node.module_id)
-            .name_resolution(left_node)
-            .cloned();
-        let symbol = match (self.decision_kind(left_node), name) {
-            (Some(DecisionKind::Name), Some(resolution)) => match resolution.symbols() {
+        let symbol = match self.decide_reference(left_node)? {
+            Some(resolution) => match resolution.symbols() {
                 [symbol] => *symbol,
                 _ => {
                     let Some(path) = self.module(module).view().tree().reference_path(left) else {
@@ -259,30 +254,37 @@ impl BodyState<'_, '_> {
                         });
                     };
                     self.report_ambiguous_reference(module, left.into_any(), &path);
-                    self.commit_decision(node, Decision::Rejected)?;
+                    self.commit_decision(node, dir::Decision::Rejected)?;
                     self.commit_error_node(node)?;
 
-                    return Ok(Answer::Ready(()));
+                    return Ok(());
                 }
             },
-            (Some(DecisionKind::Rejected | DecisionKind::Poisoned), _) => {
-                self.commit_decision(node, Decision::Rejected)?;
-                self.commit_error_node(node)?;
+            None => match self.decision(left_node).cloned() {
+                // a rejected target rejects the instantiation with it
+                Some(dir::Decision::Rejected | dir::Decision::Poisoned) => {
+                    self.commit_decision(node, dir::Decision::Rejected)?;
+                    self.commit_error_node(node)?;
 
-                return Ok(Answer::Ready(()));
-            }
-            (Some(other), _) => {
-                return Err(CompilerError::Internal {
-                    message: format!("instantiation target {left_node:?} decided as {other:?}"),
-                });
-            }
-            // references decide during the walk
-            (None, _) => {
-                return Err(CompilerError::Internal {
-                    message: format!("instantiation target {left_node:?} has no walk decision"),
-                });
-            }
+                    return Ok(());
+                }
+                // no other decision names an instantiation target
+                Some(other) => {
+                    return Err(CompilerError::Internal {
+                        message: format!("instantiation target {left_node:?} decided as {other:?}"),
+                    });
+                }
+                // references decide during the walk
+                None => {
+                    return Err(CompilerError::Internal {
+                        message: format!("instantiation target {left_node:?} has no walk decision"),
+                    });
+                }
+            },
         };
+
+        // type the written arguments at their first visit
+        self.walk_body_generic_arguments(module, arguments)?;
 
         // collect the written argument types
         let mut applied = SmallVec::<[dir::GlobalTypeId; 2]>::new();
@@ -297,14 +299,14 @@ impl BodyState<'_, '_> {
         if template.is_none() && !applied.is_empty() {
             let name = self.format_symbol(symbol);
             self.report_wrong_generic_arity(module, source, name, 0, applied.len());
-            self.commit_decision(node, Decision::Rejected)?;
+            self.commit_decision(node, dir::Decision::Rejected)?;
             self.commit_error_node(node)?;
 
-            return Ok(Answer::Ready(()));
+            return Ok(());
         }
 
         // specialize the selected value type by the applied arguments
-        let declared = answer!(self.symbol_type(symbol)?);
+        let declared = self.symbol_type(symbol)?;
         let specialized = match template {
             Some(template) => {
                 let parameters = self.generic_template_parameters(template)?;
@@ -320,17 +322,17 @@ impl BodyState<'_, '_> {
                         written_count,
                         applied.len(),
                     );
-                    self.commit_decision(node, Decision::Rejected)?;
+                    self.commit_decision(node, dir::Decision::Rejected)?;
                     self.commit_error_node(node)?;
 
-                    return Ok(Answer::Ready(()));
+                    return Ok(());
                 };
 
                 // register constraints determined by this application
                 for constraint in
                     self.substitute_application_constraints(origin, template, &substitution)?
                 {
-                    self.check.push_constraint(constraint);
+                    self.check.push_constraint(constraint)?;
                 }
 
                 match self.ty(declared)? {
@@ -350,10 +352,10 @@ impl BodyState<'_, '_> {
         };
 
         let arguments = self.symbol_generic_argument_bindings(symbol, &applied)?;
-        let resolution = dir::InstantiationResolution::new(symbol, arguments);
-        self.commit_decision(node, Decision::Instantiation(resolution))?;
+        let resolution = dir::InstantiationDecision::new(symbol, arguments);
+        self.commit_decision(node, dir::Decision::Instantiation(resolution))?;
         self.commit_node_type(node, specialized)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 }

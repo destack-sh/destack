@@ -17,7 +17,7 @@ const value = add(1, 2);
         DirRows::checked()
             .with_node_types()
             .without_reference_types()
-            .with_check_stats(),
+            ,
         r#"
 === annotated ===
 function add(left: int32, right: int32): int32 {
@@ -52,8 +52,6 @@ const value = add(1, 2);
 /// @resolution.call source="add(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=int32 kind=symbol target=add
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
-
-/// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=0 decisions=6
 "#);
 }
 

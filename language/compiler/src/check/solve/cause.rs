@@ -140,7 +140,7 @@ impl CauseId {
     }
 }
 
-/// Interned causes, deduplicated per component.
+/// Interned causes, deduplicated per module.
 #[derive(Debug, Default)]
 pub(in crate::check) struct CauseArena {
     /// The interned causes in first-seen order.

@@ -39,7 +39,7 @@ impl WalkState<'_, '_> {
     ) -> Option<GenericTemplateId> {
         // prefer the declaration that owns the member
         if let Some(symbol) = declaration.and_then(|declaration| declaration.symbol)
-            && let Some(template) = self.check.generics.template_by_symbol(symbol)
+            && let Some(template) = self.check.template_by_symbol(symbol)
         {
             return Some(template);
         }
@@ -52,7 +52,7 @@ impl WalkState<'_, '_> {
         // use declaration receiver scopes
         receiver
             .and_then(|receiver| receiver.declaration)
-            .and_then(|symbol| self.check.generics.template_by_symbol(symbol))
+            .and_then(|symbol| self.check.template_by_symbol(symbol))
     }
 
     /// Open one generic template header with its parameter identities.
@@ -113,7 +113,7 @@ impl WalkState<'_, '_> {
         }
 
         // open the template only when walked declaration types left induced holes
-        let types = self.check.generics.induced_site_types(owner.declaration);
+        let types = self.check.induced_site_types(owner.declaration);
         let mut induced = false;
         for ty in types {
             if !self.check.induced_memory_variables(ty)?.is_empty() {
@@ -137,8 +137,8 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) {
         self.check
-            .generics
-            .push_induced_parameter_site(InducedParameterSite {
+            .induced_parameter_sites
+            .push(InducedParameterSite {
                 declaration: declaration.declaration,
                 ty,
             });
@@ -148,7 +148,7 @@ impl WalkState<'_, '_> {
 impl CheckState<'_> {
     /// Propagate induced memory variables into declaration templates.
     pub(in crate::check) fn induce_signature_lifetimes(&mut self) -> CompilerResult<()> {
-        let sites = self.generics.drain_induced_parameter_sites();
+        let sites = std::mem::take(&mut self.induced_parameter_sites);
 
         // collect induced parameters before mutating generic tables
         let mut parameters = FxIndexMap::default();
@@ -166,7 +166,7 @@ impl CheckState<'_> {
 
         for (variable, (declaration, role)) in parameters {
             // derive the site from the hole's origin: the elided position
-            let origin = self.solver.origin(self.solver.variable(variable)?.origin);
+            let origin = self.infer.origin(self.infer.variable(variable)?.origin);
             let site = self
                 .origin_source_node(origin)?
                 .into_global(origin.module());

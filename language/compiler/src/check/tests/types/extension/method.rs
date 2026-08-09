@@ -203,6 +203,8 @@ point.length();
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
+/// @resolution.rejected source=point.length
+/// @resolution.rejected source=point.length()
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'length' does not exist on type 'Point'"

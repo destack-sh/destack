@@ -1,9 +1,10 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use smallvec::SmallVec;
 
-use crate::check::{Answer, BodyState, CheckEvent, CheckState, Dependency, SolverSnapshot};
+use crate::check::{
+    BodyState, CheckEvent, CheckOutcome, CheckState, ConstraintId, PendingWork, Settle, TrailMark,
+};
 use crate::{CompilerError, CompilerResult};
 
 /// Result of one speculative candidate.
@@ -15,11 +16,11 @@ pub(in crate::check) enum CandidateOutcome<T, R> {
     Rejected(R),
 }
 
-/// Result of running one candidate attempt to quiescence.
+/// Result of running one candidate attempt.
 enum CandidateAttempt<T, R> {
     /// The attempt produced an outcome.
-    Outcome(Answer<CandidateOutcome<T, R>>),
-    /// One drained constraint failed, rejecting the candidate.
+    Outcome(CandidateOutcome<T, R>),
+    /// One constraint solved during the attempt failed, rejecting the candidate.
     Failed,
 }
 
@@ -37,37 +38,41 @@ pub(in crate::check) enum CandidateVerdict {
 /// Check state mark before one probe.
 #[derive(Debug)]
 pub(in crate::check) struct ProbeMark {
-    /// The solver state before the probe.
-    solver: SolverSnapshot,
+    /// The inference trail mark before the probe.
+    trail: TrailMark,
     /// The node type count before the probe.
     node_types: usize,
+    /// The selection memo count before the probe.
+    selections: usize,
+    /// The checked function body count before the probe.
+    functions: usize,
+    /// The checked function value count before the probe.
+    lambdas: usize,
+    /// The walked declaration count before the probe.
+    walked_declarations: usize,
     /// The declaration type count before the probe.
     declaration_types: usize,
     /// The binding type count before the probe.
     binding_types: usize,
     /// The symbol variable count before the probe.
     symbol_variables: usize,
-    /// The reduced type count before the probe.
-    reduced_heads: usize,
-    /// The reduced type graph count before the probe.
-    reduced_graphs: usize,
-    /// The decision count before the probe.
-    decisions: usize,
+    /// The contextual expected type count before the probe.
+    expected_types: usize,
+    /// The pending work count before the probe.
+    pending: usize,
     /// The event count before the probe.
     events: usize,
     /// The failed check count before the probe.
     failures: usize,
-    /// Module marks before the probe.
+    /// The per-module marks before the probe.
     modules: FxIndexMap<ModuleId, ModuleProbeMark>,
 }
 
 /// Per-module check state mark before one probe.
 #[derive(Debug)]
 struct ModuleProbeMark {
-    /// Type segment mark before the probe.
-    types: dir::TypeMark,
-    /// Resolution segment mark before the probe.
-    resolutions: dir::ResolutionMark,
+    /// Decision segment mark before the probe.
+    decisions: dir::DecisionMark,
     /// Member segment mark before the probe.
     members: dir::MemberMark,
     /// Coercion segment mark before the probe.
@@ -82,113 +87,100 @@ impl BodyState<'_, '_> {
     /// Probe one candidate under a rollback, returning its verdict.
     pub(in crate::check) fn probe_candidate<T, R>(
         &mut self,
-        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
-    ) -> CompilerResult<Answer<CandidateVerdict>> {
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
+    ) -> CompilerResult<CandidateVerdict> {
         let mark = self.check.open_probe();
-        let outcome = match self.attempt_candidate(&mark, &mut attempt) {
-            Ok(CandidateAttempt::Outcome(outcome)) => Ok(outcome),
-            Ok(CandidateAttempt::Failed) => {
-                return self.check.reject_probe(mark);
-            }
-            Err(error) => Err(error),
-        };
+        let outcome = self.attempt_candidate(&mark, false, &mut attempt);
 
-        self.check.settle_probe(mark, outcome)
+        self.check.finish_probe(mark, outcome)
     }
 
-    /// Run one candidate attempt, settling its bounds before deciding.
-    ///
-    /// A pending attempt may only await variables the candidate owns or
-    /// touched, so one drain to quiescence either completes it or proves
-    /// the candidate undecidable.
+    /// Run one candidate attempt, rejecting it on failed constraints.
     fn attempt_candidate<T, R>(
         &mut self,
         mark: &ProbeMark,
-        attempt: &mut impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
+        fulfill: bool,
+        attempt: &mut impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
     ) -> CompilerResult<CandidateAttempt<T, R>> {
-        let scope = mark.solver.inference_scope();
-        loop {
-            let outcome = attempt(self)?;
-            let Answer::Pending(blockers) = outcome else {
-                return Ok(CandidateAttempt::Outcome(outcome));
-            };
+        let outcome = attempt(self)?;
 
-            // drain every inference layer exposed by this attempt
-            let drained = self.check.drain_check_tasks(scope)?;
-            let has_failure = self
+        // solve the attempt's queued constraints before the verdict
+        let mut has_failed_constraint = false;
+        if fulfill {
+            // fulfill the candidate's own scope to a fixpoint
+            let scope = mark.trail.inference_scope();
+            self.check.fulfill_scope(scope, Settle::Complete)?;
+
+            // re-solve the stalled pending set, not only fresh allocations
+            let pending = self
                 .check
-                .solver
-                .constraints
-                .failures_from(mark.solver.constraint_count())
-                .next()
-                .is_some()
-                || self.check.solver.failures.len() > mark.failures;
-            if has_failure {
-                return Ok(CandidateAttempt::Failed);
+                .infer
+                .pending
+                .iter()
+                .filter_map(|work| match work {
+                    PendingWork::Constraint(id) => Some(*id),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            let fresh = mark.trail.constraint_count()..self.check.infer.constraint_count();
+            for id in pending.into_iter().chain(fresh.map(ConstraintId::at)) {
+                self.check.solve_constraint(id)?;
+                if let Some(result) = self.check.infer.constraints.result(id)? {
+                    has_failed_constraint |= matches!(result.outcome, CheckOutcome::Fails(_));
+                }
             }
-            if let Answer::Pending(blockers) = drained {
-                return Ok(CandidateAttempt::Outcome(Answer::Pending(blockers)));
-            }
+        }
 
-            // retry only after a reported dependency completed
-            let mut progressed = false;
-            for blocker in &blockers {
-                progressed |= !self.check.is_dependency_pending(*blocker)?;
-            }
-            if !progressed {
-                return Ok(CandidateAttempt::Outcome(Answer::Pending(blockers)));
-            }
+        // reject the attempt when a constraint it solved failed
+        let has_failure = self
+            .check
+            .infer
+            .constraints
+            .failures_from(mark.trail.constraint_count())
+            .next()
+            .is_some()
+            || self.check.infer.failures.len() > mark.failures;
+
+        if has_failure || has_failed_constraint {
+            Ok(CandidateAttempt::Failed)
+        } else {
+            Ok(CandidateAttempt::Outcome(outcome))
         }
     }
 
     /// Probe one candidate, describing a rejection before the rollback.
-    pub(in crate::check) fn probe_candidate_noted<T, R>(
+    pub(in crate::check) fn probe_candidate_describing<T, R>(
         &mut self,
-        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
         describe: impl FnOnce(&mut Self, &R) -> CompilerResult<String>,
-    ) -> CompilerResult<Answer<(CandidateVerdict, Option<String>)>> {
+    ) -> CompilerResult<(CandidateVerdict, Option<String>)> {
         let mark = self.check.open_probe();
-        let outcome = match self.attempt_candidate(&mark, &mut attempt) {
-            Ok(CandidateAttempt::Outcome(outcome)) => Ok(outcome),
-            Ok(CandidateAttempt::Failed) => {
-                let verdict = self.check.reject_probe(mark)?;
+        let outcome = self.attempt_candidate(&mark, true, &mut attempt);
 
-                return Ok(match verdict {
-                    Answer::Ready(verdict) => Answer::Ready((verdict, None)),
-                    Answer::Pending(blockers) => Answer::Pending(blockers),
-                });
-            }
-            Err(error) => Err(error),
-        };
-
-        // rejection payloads reference probe types, so describe them
-        //  before the rollback frees their interned slots
+        // describe the rejection before the rollback drops its state
         let note = match &outcome {
-            Ok(Answer::Ready(CandidateOutcome::Rejected(rejection))) => {
+            Ok(CandidateAttempt::Outcome(CandidateOutcome::Rejected(rejection))) => {
                 Some(describe(self, rejection)?)
             }
             _ => None,
         };
-        let verdict = self.check.settle_probe(mark, outcome)?;
+        let verdict = self.check.finish_probe(mark, outcome)?;
 
-        Ok(match verdict {
-            Answer::Ready(verdict) => Answer::Ready((verdict, note)),
-            Answer::Pending(blockers) => Answer::Pending(blockers),
-        })
+        Ok((verdict, note))
     }
 
     /// Confirm one candidate inside the current transaction.
     pub(in crate::check) fn confirm_candidate<T, R>(
         &mut self,
-        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
-    ) -> CompilerResult<Answer<Option<T>>> {
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
+    ) -> CompilerResult<Option<T>> {
         let mark = self.check.open_probe();
-        let outcome = match self.attempt_candidate(&mark, &mut attempt) {
+        let outcome = match self.attempt_candidate(&mark, false, &mut attempt) {
             Ok(CandidateAttempt::Outcome(outcome)) => outcome,
             Ok(CandidateAttempt::Failed) => {
                 self.check.reject_probe(mark)?;
 
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             }
             Err(error) => {
                 self.check.end_probe(mark)?;
@@ -202,39 +194,22 @@ impl BodyState<'_, '_> {
 }
 
 impl CheckState<'_> {
-    /// Return whether one dependency still awaits its value.
-    pub(in crate::check) fn is_dependency_pending(
-        &self,
-        dependency: Dependency,
-    ) -> CompilerResult<bool> {
-        let is_pending = match dependency {
-            Dependency::Variable(variable) => {
-                let root = self.solver.alias_root(variable)?;
-
-                self.solver.variable(root)?.state.is_open()
-            }
-            Dependency::NodeType(node) => !self.node_types.contains_key(&node),
-        };
-
-        Ok(is_pending)
-    }
-
-    /// Probe one candidate under a rollback, returning its verdict.
+    /// Probe one candidate under a rollback on the plain check state.
     pub(in crate::check) fn probe_candidate<T, R>(
         &mut self,
-        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
-    ) -> CompilerResult<Answer<CandidateVerdict>> {
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
+    ) -> CompilerResult<CandidateVerdict> {
         let mark = self.open_probe();
-        let outcome = attempt(self);
+        let outcome = attempt(self).map(CandidateAttempt::Outcome);
 
-        self.settle_probe(mark, outcome)
+        self.finish_probe(mark, outcome)
     }
 
-    /// Confirm one candidate inside the current transaction.
+    /// Confirm one candidate inside the current transaction on the plain check state.
     pub(in crate::check) fn confirm_candidate<T, R>(
         &mut self,
-        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
-    ) -> CompilerResult<Answer<Option<T>>> {
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
+    ) -> CompilerResult<Option<T>> {
         let mark = self.open_probe();
         let outcome = attempt(self);
         let outcome = match outcome {
@@ -253,14 +228,11 @@ impl CheckState<'_> {
     fn confirm_probe<T, R>(
         &mut self,
         mark: ProbeMark,
-        outcome: Answer<CandidateOutcome<T, R>>,
-    ) -> CompilerResult<Answer<Option<T>>> {
+        outcome: CandidateOutcome<T, R>,
+    ) -> CompilerResult<Option<T>> {
         let verdict = match &outcome {
-            Answer::Ready(CandidateOutcome::Accepted(_)) => self.settle_probe_tasks(&mark),
-            Answer::Ready(CandidateOutcome::Rejected(_)) => {
-                Ok(Answer::Ready(CandidateVerdict::Rejected))
-            }
-            Answer::Pending(blockers) => self.classify_probe_blockers(&mark, blockers.clone()),
+            CandidateOutcome::Accepted(_) => self.accepted_verdict(&mark),
+            CandidateOutcome::Rejected(_) => Ok(CandidateVerdict::Rejected),
         };
         let verdict = match verdict {
             Ok(verdict) => verdict,
@@ -273,8 +245,8 @@ impl CheckState<'_> {
 
         // commit complete candidates and provisional children
         match verdict {
-            Answer::Ready(CandidateVerdict::Viable) => {
-                let Answer::Ready(CandidateOutcome::Accepted(selected)) = outcome else {
+            CandidateVerdict::Viable => {
+                let CandidateOutcome::Accepted(selected) = outcome else {
                     self.end_probe(mark)?;
 
                     return Err(CompilerError::Internal {
@@ -286,15 +258,15 @@ impl CheckState<'_> {
                 });
                 self.commit_probe(mark)?;
 
-                Ok(Answer::Ready(Some(selected)))
+                Ok(Some(selected))
             }
-            Answer::Ready(CandidateVerdict::Rejected) => {
+            CandidateVerdict::Rejected => {
                 self.reject_probe(mark)?;
 
-                Ok(Answer::Ready(None))
+                Ok(None)
             }
-            Answer::Ready(CandidateVerdict::Indeterminate) => {
-                let Answer::Ready(CandidateOutcome::Accepted(selected)) = outcome else {
+            CandidateVerdict::Indeterminate => {
+                let CandidateOutcome::Accepted(selected) = outcome else {
                     self.end_probe(mark)?;
 
                     return Err(CompilerError::Internal {
@@ -306,48 +278,33 @@ impl CheckState<'_> {
                 });
                 self.commit_probe(mark)?;
 
-                Ok(Answer::Ready(Some(selected)))
-            }
-            Answer::Pending(blockers) => {
-                self.end_probe(mark)?;
-
-                Ok(Answer::Pending(blockers))
+                Ok(Some(selected))
             }
         }
     }
 
-    /// Close one probe whose drained constraints failed.
-    fn reject_probe(&mut self, mark: ProbeMark) -> CompilerResult<Answer<CandidateVerdict>> {
+    /// Close one probe whose solved constraints failed.
+    fn reject_probe(&mut self, mark: ProbeMark) -> CompilerResult<CandidateVerdict> {
         self.record_event(CheckEvent::ProbeFinished {
             verdict: Some(CandidateVerdict::Rejected),
         });
         self.end_probe(mark)?;
 
-        Ok(Answer::Ready(CandidateVerdict::Rejected))
-    }
-
-    /// Begin one probe, recording its start event.
-    fn open_probe(&mut self) -> ProbeMark {
-        let mark = self.begin_probe();
-        self.record_event(CheckEvent::ProbeStarted {
-            variables: self.solver.variable_count(),
-        });
-
-        mark
+        Ok(CandidateVerdict::Rejected)
     }
 
     /// Map one attempted outcome onto its verdict, rolling the probe back.
-    fn settle_probe<T, R>(
+    fn finish_probe<T, R>(
         &mut self,
         mark: ProbeMark,
-        outcome: CompilerResult<Answer<CandidateOutcome<T, R>>>,
-    ) -> CompilerResult<Answer<CandidateVerdict>> {
+        outcome: CompilerResult<CandidateAttempt<T, R>>,
+    ) -> CompilerResult<CandidateVerdict> {
         let verdict = match outcome {
-            Ok(Answer::Ready(CandidateOutcome::Accepted(_))) => self.settle_probe_tasks(&mark),
-            Ok(Answer::Ready(CandidateOutcome::Rejected(_))) => {
-                Ok(Answer::Ready(CandidateVerdict::Rejected))
+            Ok(CandidateAttempt::Outcome(CandidateOutcome::Accepted(_))) => {
+                self.accepted_verdict(&mark)
             }
-            Ok(Answer::Pending(blockers)) => self.classify_probe_blockers(&mark, blockers),
+            Ok(CandidateAttempt::Outcome(CandidateOutcome::Rejected(_)))
+            | Ok(CandidateAttempt::Failed) => Ok(CandidateVerdict::Rejected),
             Err(error) => {
                 self.end_probe(mark)?;
 
@@ -364,85 +321,48 @@ impl CheckState<'_> {
         };
 
         self.record_event(CheckEvent::ProbeFinished {
-            verdict: verdict.ready_ref().copied(),
+            verdict: Some(verdict),
         });
         self.end_probe(mark)?;
 
         Ok(verdict)
     }
 
-    /// Settle checks produced by one accepted candidate.
-    fn settle_probe_tasks(&mut self, mark: &ProbeMark) -> CompilerResult<Answer<CandidateVerdict>> {
-        // the candidate settles what it owns and what it adopted
-        let scope = mark.solver.inference_scope();
-        let drained = self.drain_check_tasks(scope)?;
+    /// Return the verdict of one accepted candidate's probe.
+    fn accepted_verdict(&mut self, mark: &ProbeMark) -> CompilerResult<CandidateVerdict> {
+        let scope = mark.trail.inference_scope();
         let has_failure = self
-            .solver
+            .infer
             .constraints
-            .failures_from(mark.solver.constraint_count())
+            .failures_from(mark.trail.constraint_count())
             .next()
             .is_some()
-            || self.solver.failures.len() > mark.failures;
+            || self.infer.failures.len() > mark.failures;
         if has_failure {
-            return Ok(Answer::Ready(CandidateVerdict::Rejected));
-        }
-        if let Answer::Pending(blockers) = drained {
-            return self.classify_probe_blockers(mark, blockers);
+            return Ok(CandidateVerdict::Rejected);
         }
 
-        // unresolved candidate variables keep the candidate indeterminate
-        if !self.open_variables(scope)?.is_empty() {
-            return Ok(Answer::Ready(CandidateVerdict::Indeterminate));
+        // keep the candidate indeterminate while its variables stay open
+        if !self.open_scope_variables(scope)?.is_empty() {
+            return Ok(CandidateVerdict::Indeterminate);
         }
 
-        let blockers = self.solver.waiting_dependencies();
-        if blockers.is_empty() {
-            return Ok(Answer::Ready(CandidateVerdict::Viable));
-        }
-
-        self.classify_probe_blockers(mark, blockers.into())
+        Ok(CandidateVerdict::Viable)
     }
 
-    /// Classify dependencies returned directly by one candidate attempt.
-    fn classify_probe_blockers(
-        &self,
-        mark: &ProbeMark,
-        blockers: SmallVec<[Dependency; 2]>,
-    ) -> CompilerResult<Answer<CandidateVerdict>> {
-        let mut external = SmallVec::new();
-        for dependency in blockers
-            .into_iter()
-            .chain(self.solver.waiting_dependencies())
-        {
-            match dependency {
-                // discard inference owned by the rolled back candidate
-                Dependency::Variable(variable) if !mark.solver.contains_variable(variable) => {}
+    /// Begin one probe, recording its start event.
+    fn open_probe(&mut self) -> ProbeMark {
+        self.record_event(CheckEvent::ProbeStarted {
+            variables: self.infer.variable_count(),
+        });
 
-                // retain dependencies owned by the enclosing check
-                Dependency::Variable(_) | Dependency::NodeType(_) => {
-                    if !external.contains(&dependency) {
-                        external.push(dependency);
-                    }
-                }
-            }
-        }
-        if !external.is_empty() {
-            return Ok(Answer::Pending(external));
-        }
-
-        Ok(Answer::Ready(CandidateVerdict::Indeterminate))
-    }
-
-    /// Begin one probe.
-    fn begin_probe(&mut self) -> ProbeMark {
         let modules = [&self.module]
             .into_iter()
             .map(|state| {
                 (
                     self.module_id,
                     ModuleProbeMark {
-                        types: state.types_tail.mark(),
-                        resolutions: state.resolutions.mark(),
+                        decisions: state.decisions.mark(),
                         members: state.members.mark(),
                         coercions: state.coercions.mark(),
                         diagnostics: state.diagnostics.len(),
@@ -451,121 +371,91 @@ impl CheckState<'_> {
                 )
             })
             .collect();
-        let solver = self.solver.snapshot();
+        let trail = self.infer.mark();
 
         ProbeMark {
-            solver,
-            node_types: self.node_types.len(),
+            trail,
+            node_types: self.node_types.open_probe(),
+            selections: self.selections.len(),
+            functions: self.functions.len(),
+            lambdas: self.lambdas.len(),
+            walked_declarations: self.walked_declarations.len(),
             declaration_types: self.declaration_types.len(),
             binding_types: self.binding_types.len(),
-            symbol_variables: self.symbol_variables.len(),
-            reduced_heads: self.reduced_heads.len(),
-            reduced_graphs: self.reduced_graphs.len(),
-            decisions: self.decisions.count(),
+            symbol_variables: self.infer.symbol_variables.len(),
+            expected_types: self.expected_types.open_probe(),
+            pending: self.infer.pending.len(),
             events: self.trace_events().len(),
-            failures: self.solver.failures.len(),
+            failures: self.infer.failures.len(),
             modules,
         }
     }
 
-    /// End one probe, rolling its state back.
+    /// End one probe, rolling its inference state back.
     fn end_probe(&mut self, mark: ProbeMark) -> CompilerResult<()> {
         let ProbeMark {
-            solver,
+            trail,
             node_types,
+            selections,
+            functions,
+            lambdas,
+            walked_declarations,
             declaration_types,
             binding_types,
             symbol_variables,
-            reduced_heads,
-            reduced_graphs,
-            decisions,
+            expected_types,
+            pending,
             events,
             failures,
             modules,
         } = mark;
 
-        self.solver.rollback(solver)?;
-        self.drop_probe_state(
-            node_types,
-            declaration_types,
-            binding_types,
-            symbol_variables,
-            reduced_heads,
-            reduced_graphs,
-            decisions,
-            events,
-            failures,
-            modules,
-        );
+        // roll inference back, poisoning undone allocations
+        let poison = self.intern_type(dir::Type::Error)?;
+        self.infer.rollback(trail, poison)?;
 
-        Ok(())
-    }
-
-    /// Commit one successful probe.
-    fn commit_probe(&mut self, mark: ProbeMark) -> CompilerResult<()> {
-        self.solver.commit(mark.solver);
-
-        // retry outer work whose dependency completed inside the probe
-        for dependency in self.solver.waiting_dependencies() {
-            if self.is_dependency_pending(dependency)? {
-                continue;
-            }
-            let waiters = self.solver.wake(dependency);
-            for waiter in waiters {
-                self.queue_task(waiter);
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Drop state allocated inside a rolled back probe.
-    fn drop_probe_state(
-        &mut self,
-        node_types: usize,
-        declaration_types: usize,
-        binding_types: usize,
-        symbol_variables: usize,
-        reduced_heads: usize,
-        reduced_graphs: usize,
-        decisions: usize,
-        events: usize,
-        failures: usize,
-        modules: FxIndexMap<ModuleId, ModuleProbeMark>,
-    ) {
-        while self.node_types.len() > node_types {
-            self.node_types.pop();
-        }
+        // close the probe's type and body tables
+        self.node_types.close_probe(node_types);
+        self.selections.truncate(selections);
+        self.functions.truncate(functions);
+        self.lambdas.truncate(lambdas);
+        self.walked_declarations.truncate(walked_declarations);
         while self.declaration_types.len() > declaration_types {
             self.declaration_types.pop();
         }
         while self.binding_types.len() > binding_types {
             self.binding_types.pop();
         }
-        while self.symbol_variables.len() > symbol_variables {
-            self.symbol_variables.pop();
+        while self.infer.symbol_variables.len() > symbol_variables {
+            self.infer.symbol_variables.pop();
         }
-        while self.reduced_heads.len() > reduced_heads {
-            self.reduced_heads.pop();
-        }
-        while self.reduced_graphs.len() > reduced_graphs {
-            self.reduced_graphs.pop();
-        }
-        self.decisions.truncate_to(decisions);
+        self.expected_types.close_probe(expected_types);
+
+        // drop the probe's pending work, trace events, and failures
+        self.infer.pending.truncate(pending);
         if let Some(trace) = &mut self.trace {
             trace.events.truncate(events);
         }
-        self.solver.failures.truncate(failures);
+        self.infer.failures.truncate(failures);
 
+        // drop the probe's per module segments
         for (module, mark) in modules {
             if let Some(state) = self.module_maybe_mut(module) {
-                state.types_tail.truncate_to(mark.types);
-                state.resolutions.truncate_to(mark.resolutions);
+                state.decisions.truncate_to(mark.decisions);
                 state.members.truncate_to(mark.members);
                 state.coercions.truncate_to(mark.coercions);
                 state.diagnostics.truncate(mark.diagnostics);
                 state.warnings.truncate(mark.warnings);
             }
         }
+
+        Ok(())
+    }
+
+    /// Commit one successful probe.
+    fn commit_probe(&mut self, mark: ProbeMark) -> CompilerResult<()> {
+        self.infer.commit(mark.trail);
+
+        Ok(())
     }
 }

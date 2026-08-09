@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Origin, answer};
+use crate::check::{CheckState, Origin};
 
 impl CheckState<'_> {
     /// Decide whether one type is a fixed point of `readonly`.
@@ -11,10 +11,10 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<Answer<bool>> {
-        let ty = self.settled_root(ty)?;
+    ) -> CompilerResult<bool> {
+        let ty = self.shallow_resolve(ty)?;
         if active.contains(&ty) {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
         active.push(ty);
 
@@ -30,11 +30,17 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<Answer<bool>> {
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<bool> {
+        let ty = self.reduce_type_head(origin, ty)?;
 
         match self.ty(ty)? {
-            dir::Type::Variable(variable) => Ok(Answer::pending([Dependency::Variable(variable)])),
+            // open variables are ambiguity: the ambiguity witness retries
+            //  the judgment once they solve
+            dir::Type::Variable(_) => {
+                self.infer.ambiguity = true;
+
+                Ok(false)
+            }
             // reject valueless and scalar types, they have no capability
             dir::Type::Error
             | dir::Type::Never
@@ -46,27 +52,25 @@ impl CheckState<'_> {
             | dir::Type::Static(_)
             | dir::Type::Range(_)
             | dir::Type::Literal(_)
-            | dir::Type::Primitive(_) => Ok(Answer::Ready(true)),
+            | dir::Type::Primitive(_) => Ok(true),
             dir::Type::Variant(member) => self.type_is_immutable(origin, member.owner, active),
             // readonly forms grant reads alone, transitively
             dir::Type::Form(form) => match form.form {
-                dir::Form::Readonly => Ok(Answer::Ready(true)),
+                dir::Form::Readonly => Ok(true),
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
                     self.body().access_is_readonly(origin, access)
                 }
                 dir::Form::Owned => self.type_is_immutable(origin, form.value, active),
-                dir::Form::Raw | dir::Form::Managed | dir::Form::Placed { .. } => {
-                    Ok(Answer::Ready(false))
-                }
+                dir::Form::Raw | dir::Form::Managed | dir::Form::Placed { .. } => Ok(false),
             },
             // parameters prove through declared or assumed bounds
             dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
-                let mut decision = Answer::Ready(false);
+                let mut decision = false;
                 for bound in self.parameter_bounds(origin, parameter)? {
-                    decision = decision.or(self.type_is_immutable(origin, bound, active)?);
-                    if decision.is_ready_true() {
+                    decision = self.type_is_immutable(origin, bound, active)?;
+                    if decision {
                         break;
                     }
                 }
@@ -74,10 +78,10 @@ impl CheckState<'_> {
                 Ok(decision)
             }
             // read nominal immutability from the compiler known language items
-            dir::Type::Application(instance) => Ok(Answer::Ready(matches!(
+            dir::Type::Application(instance) => Ok(matches!(
                 self.language_item(instance.symbol)?,
                 Some(dir::LanguageItem::String | dir::LanguageItem::BigInt)
-            ))),
+            )),
             dir::Type::FixedArray(array) => self.type_is_immutable(origin, array.element, active),
             dir::Type::Tuple(tuple) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
@@ -97,19 +101,19 @@ impl CheckState<'_> {
                         .type_ids(ty.module_id, shape.construct_signatures)?
                         .is_empty()
                 {
-                    return Ok(Answer::Ready(false));
+                    return Ok(false);
                 }
                 let fields = self
                     .shape_properties(ty.module_id, shape.properties)?
                     .to_vec();
                 if fields.iter().any(|field| field.access.is_writable()) {
-                    return Ok(Answer::Ready(false));
+                    return Ok(false);
                 }
                 let signatures = self
                     .shape_index_signatures(ty.module_id, shape.index_signatures)?
                     .to_vec();
                 if signatures.iter().any(|signature| !signature.is_readonly) {
-                    return Ok(Answer::Ready(false));
+                    return Ok(false);
                 }
 
                 let mut ids: SmallVec<[dir::GlobalTypeId; 8]> = fields
@@ -133,7 +137,7 @@ impl CheckState<'_> {
                 self.all_immutable(origin, ids, active)
             }
             // everything else may reach mutable state through its values
-            _ => Ok(Answer::Ready(false)),
+            _ => Ok(false),
         }
     }
 
@@ -143,15 +147,13 @@ impl CheckState<'_> {
         origin: Origin,
         ids: SmallVec<[dir::GlobalTypeId; 8]>,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<Answer<bool>> {
-        let mut decision = Answer::Ready(true);
+    ) -> CompilerResult<bool> {
         for id in ids {
-            decision = decision.and(self.type_is_immutable(origin, id, active)?);
-            if decision.is_ready_false() {
-                break;
+            if !self.type_is_immutable(origin, id, active)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 }

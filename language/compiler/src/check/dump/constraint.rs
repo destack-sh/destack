@@ -21,11 +21,11 @@ impl Constraint {
             .text("target", target)
             .text(
                 "origin",
-                context.origin_label(context.check.solver.cause(self.cause()).origin),
+                context.origin_label(context.check.infer.cause(self.cause()).origin),
             )
             .text(
                 "at",
-                context.origin_source_label(context.check.solver.cause(self.cause()).origin),
+                context.origin_source_label(context.check.infer.cause(self.cause()).origin),
             )
             .bool("finished", finished)
     }

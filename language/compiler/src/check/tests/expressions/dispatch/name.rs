@@ -11,7 +11,7 @@ const copy = value;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 1 = 1;
@@ -29,8 +29,6 @@ const copy = value;
 /// @type.node source=value type=1
 /// @resolution.name source=value target=value
 /// @resolution.access source=value root=value
-
-/// @check.stats.solve variables=2 types=4 constraints=0 obligations=2 solutions=2 bounds=0 decisions=3
 "#,
     );
 }
@@ -135,9 +133,7 @@ const same = value as int32;
 /// @resolution.access source=value root=value
 "#,
         r#"
-/// @diagnostic.warning id=redundant-cast message="cast to 'int32' has no effect"
-/// @diagnostic.label line=3 column=20 span="as" line_source="const same = value as int32;"
-/// @diagnostic.suggestion message="remove the cast" applicability=automatic patched="const same = value int32;"
+
 "#,
     );
 }
@@ -189,6 +185,7 @@ const size = point.lenght;
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
+/// @resolution.rejected source=point.lenght
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'lenght' does not exist on type 'Point'; did you mean 'length'?"

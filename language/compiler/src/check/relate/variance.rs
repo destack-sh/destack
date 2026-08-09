@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, Cause, CauseId, CauseKind, CheckState, Origin, Relation};
+use crate::check::{Cause, CauseId, CauseKind, CheckState, Origin, Relation};
 
 /// One derived generic parameter variance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -153,19 +153,17 @@ impl CheckState<'_> {
         form: VarianceForm,
     ) -> CompilerResult<Variance> {
         // replay derived variances, recursive uses start optimistic
-        match self.generics.variances.get(&(parameter, form)) {
+        match self.variances.get(&(parameter, form)) {
             Some(VarianceState::Derived(variance)) => return Ok(*variance),
             Some(VarianceState::Deriving) => return Ok(Variance::Bivariant),
             None => {}
         }
 
         // derive once with the entry marking the active derivation
-        self.generics
-            .variances
+        self.variances
             .insert((parameter, form), VarianceState::Deriving);
         let derived = self.declared_or_derived_variance(parameter, form)?;
-        self.generics
-            .variances
+        self.variances
             .insert((parameter, form), VarianceState::Derived(derived));
 
         Ok(derived)
@@ -215,32 +213,6 @@ impl CheckState<'_> {
         match template.symbol {
             Some(symbol) => self.default_variance_form(symbol),
             None => Ok(VarianceForm::Owned),
-        }
-    }
-
-    /// Return the default handle form of one already-classified parameter.
-    pub(in crate::check) fn loaded_parameter_variance_form(
-        &self,
-        parameter: dir::GlobalGenericParameterId,
-    ) -> VarianceForm {
-        // resolve the declaration symbol behind the parameter's template
-        let Some(binding) = self.generic_parameter(parameter) else {
-            return VarianceForm::Owned;
-        };
-        let template = binding.template.into_global(parameter.module_id);
-        let symbol = self
-            .generic_template(template)
-            .and_then(|template| template.symbol);
-        let Some(symbol) = symbol else {
-            return VarianceForm::Owned;
-        };
-
-        // managed declarations default their parameters to the managed form
-        match self.loaded_symbol_kind(symbol) {
-            dir::SymbolKind::Class
-            | dir::SymbolKind::Interface
-            | dir::SymbolKind::NewtypeInterface => VarianceForm::Managed,
-            _ => VarianceForm::Owned,
         }
     }
 
@@ -675,12 +647,11 @@ impl CheckState<'_> {
         edge: Relation,
         source: &[dir::GlobalTypeId],
         target: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         if source.len() != target.len() {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
         let relation = self.instance_argument_relation(symbol, edge)?;
-        let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
             // erased target arguments admit every instantiation of their parameter
             if matches!(self.ty(*target)?, dir::Type::Erased(_)) {
@@ -696,13 +667,12 @@ impl CheckState<'_> {
             };
             let (source, target) = order.orient(*source, *target);
 
-            decision = decision.and(self.decide_relation(origin, relation, source, target)?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !self.decide_relation(origin, relation, source, target)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Relate same-template type arguments by their parameter variances.
@@ -715,13 +685,12 @@ impl CheckState<'_> {
         relation: Relation,
         source: &[dir::GlobalTypeId],
         target: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         if source.len() != target.len() {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         let relation = self.instance_argument_relation(symbol, relation)?;
-        let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
             // erased target arguments admit every instantiation of their parameter
             if matches!(self.ty(*target)?, dir::Type::Erased(_)) {
@@ -743,7 +712,7 @@ impl CheckState<'_> {
                 variance,
             };
             let child = self.intern_cause(Cause::child(origin, slot, cause));
-            let answer = match variance.argument_relation(relation) {
+            let related = match variance.argument_relation(relation) {
                 // bivariant arguments still constrain open holes so inference closes
                 None => {
                     if self.type_flags(*source)?.has_variable()
@@ -751,7 +720,7 @@ impl CheckState<'_> {
                     {
                         self.constrain_type(origin, child, Relation::Equal, *source, *target)?
                     } else {
-                        Answer::Ready(true)
+                        true
                     }
                 }
                 Some((relation, order)) => {
@@ -760,13 +729,12 @@ impl CheckState<'_> {
                     self.constrain_type(origin, child, relation, source, target)?
                 }
             };
-            decision = decision.and(answer);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !related {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Return the relation used by one instance symbol's arguments.
@@ -843,5 +811,78 @@ impl CheckState<'_> {
         }
 
         Ok(measured)
+    }
+
+    /// dumps show.
+    pub(in crate::check) fn derive_module_variances(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<()> {
+        // derive each declared definition parameter at its own context
+        let symbols = self
+            .module(module)
+            .definitions
+            .iter_definitions()
+            .map(|(symbol, _)| symbol)
+            .collect::<Vec<_>>();
+        let mut parameters = Vec::new();
+        for symbol in symbols {
+            let Some(template) = self.symbol_template(symbol)? else {
+                continue;
+            };
+            parameters.extend(self.generic_template_parameters(template)?);
+        }
+
+        // keep only unannotated nominal type parameters
+        let mut filled = Vec::new();
+        for parameter in parameters {
+            let form = self.parameter_variance_form(parameter)?;
+            let derived = self.parameter_variance(parameter, form)?;
+            let Some(binding) = self.generic_parameter(parameter) else {
+                continue;
+            };
+            if binding.variance.is_some()
+                || binding.origin != dir::GenericParameterOrigin::Explicit
+                || binding.is_comptime()
+                || binding.is_const
+            {
+                continue;
+            }
+            if !self.parameter_owner_is_nominal(parameter)? {
+                continue;
+            }
+            let Some(modifier) = derived.modifier() else {
+                continue;
+            };
+            filled.push((parameter.local_id, modifier));
+        }
+
+        // record the derivations on the checked tail
+        for (parameter, modifier) in filled {
+            self.module_mut(module)
+                .generics
+                .set_derived_variance(parameter, modifier);
+        }
+
+        Ok(())
+    }
+
+    /// Return the derived variance recorded for one parameter, if any.
+    pub(in crate::check) fn recorded_derived_variance(
+        &self,
+        module: ModuleId,
+        parameter: dir::LocalGenericParameterId,
+    ) -> Option<dir::VarianceModifier> {
+        let state = self.module_maybe(module)?;
+        if let Some(modifier) = state.generics.derived_variance(parameter) {
+            return Some(modifier);
+        }
+        if let Some(elaborated) = &state.elaborated
+            && let Some(modifier) = elaborated.generics.derived_variance(parameter)
+        {
+            return Some(modifier);
+        }
+
+        None
     }
 }

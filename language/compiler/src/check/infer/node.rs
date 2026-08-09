@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, CauseId, CheckOutcome, DecisionKind, FlowSite, Relation, Task, ValueCheck,
-    ValueConversion, ValueUse, answer,
+    BodyState, CauseId, CheckOutcome, DeferredCheck, FlowSite, Relation, ValueCheck,
+    ValueConversion, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -66,38 +66,38 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         use_: PlaceUse,
         expectation: Option<Expectation>,
-    ) -> CompilerResult<Answer<Option<ValueCheck>>> {
+    ) -> CompilerResult<Option<ValueCheck>> {
         // check against the expectation when one shapes the node
         let check = match expectation {
             Some(expectation) => {
-                let check = answer!(self.check_node(site, expectation)?);
+                let check = self.check_node(site, expectation)?;
 
                 Some(check)
             }
             None => {
-                let _ = answer!(self.infer_node(site, use_, InferMode::Exact)?);
+                let _ = self.infer_node(site, use_, InferMode::Exact)?;
 
                 None
             }
         };
         let ty = self.require_node_type(site.node)?;
-        answer!(self.commit_expression_place(site, ty)?);
+        self.commit_expression_place(site, ty)?;
 
-        Ok(Answer::Ready(check))
+        Ok(check)
     }
 
-    /// Check one node in place and return its decided kind.
+    /// Check one node in place and return its decided resolution.
     pub(in crate::check) fn decide_node(
         &mut self,
         node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<DecisionKind>> {
-        if self.decision_kind(node).is_none() {
-            let site = self.node_site(node)?;
-            let _ = answer!(self.infer_node(site, PlaceUse::Read, InferMode::Exact)?);
+    ) -> CompilerResult<dir::Decision> {
+        if self.decision(node).is_none() {
+            let site = self.visit_site(node)?;
+            let _ = self.infer_node(site, PlaceUse::Read, InferMode::Exact)?;
         }
 
-        match self.decision_kind(node) {
-            Some(kind) => Ok(Answer::Ready(kind)),
+        match self.decision(node) {
+            Some(resolution) => Ok(resolution.clone()),
             None => Err(CompilerError::Internal {
                 message: format!("node {node:?} checked without a decision"),
             }),
@@ -113,7 +113,7 @@ impl BodyState<'_, '_> {
         cause: CauseId,
         use_: ValueUse,
         mode: InferMode,
-    ) -> CompilerResult<Answer<ValueCheck>> {
+    ) -> CompilerResult<ValueCheck> {
         let expectation = Expectation {
             target,
             relation,
@@ -130,8 +130,8 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         source: dir::GlobalTypeId,
         expectation: Expectation,
-    ) -> CompilerResult<Answer<ValueCheck>> {
-        let value = answer!(self.expression_value(site, source)?);
+    ) -> CompilerResult<ValueCheck> {
+        let value = self.expression_value(site, source)?;
         let conversion = self.convert_value(
             site,
             expectation.cause,
@@ -142,27 +142,9 @@ impl BodyState<'_, '_> {
             expectation.mode,
         )?;
 
-        // queue a pending conversion and report the source as checked
-        let conversion = match conversion {
-            Answer::Ready(conversion) => conversion,
-            Answer::Pending(_) => {
-                self.check.queue_task(Task::Convert {
-                    site,
-                    source: value,
-                    expectation,
-                });
-
-                return Ok(Answer::Ready(ValueCheck {
-                    source,
-                    outcome: CheckOutcome::Holds,
-                    target: expectation.target,
-                }));
-            }
-        };
-
         let check = self.commit_value_conversion(site, source, expectation, conversion)?;
 
-        Ok(Answer::Ready(check))
+        Ok(check)
     }
 
     /// Commit one completed value conversion.
@@ -187,7 +169,7 @@ impl BodyState<'_, '_> {
                 source,
                 conversion.target,
                 failure,
-            );
+            )?;
         }
 
         Ok(ValueCheck {
@@ -202,8 +184,8 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         mut expectation: Expectation,
-    ) -> CompilerResult<Answer<ValueCheck>> {
-        let check = answer!(self.check_node_target(site, expectation)?);
+    ) -> CompilerResult<ValueCheck> {
+        let check = self.check_node_target(site, expectation)?;
         expectation.target = check.target;
 
         // preserve target-directed failures without attempting conversion
@@ -216,9 +198,9 @@ impl BodyState<'_, '_> {
                 source,
                 check.target,
                 failure,
-            );
+            )?;
 
-            return Ok(Answer::Ready(check));
+            return Ok(check);
         }
 
         let source = check.source;
@@ -231,31 +213,39 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         mut expectation: Expectation,
-    ) -> CompilerResult<Answer<ValueCheck>> {
+    ) -> CompilerResult<ValueCheck> {
         // remove inference barriers once the complete contextual type closes
         if self.type_variables(expectation.target)?.is_empty() {
             expectation.target =
                 self.erase_inference_barriers(expectation.target.module_id, expectation.target)?;
         }
 
-        // wait for a barrier target to close before contextualizing
+        // barrier targets check once their variables close, after the body
         if let Some(no_infer) = self.no_infer_target(expectation.target)? {
-            let blockers = self.variable_dependencies([no_infer])?;
-            if !blockers.is_empty() {
-                return Ok(Answer::pending(blockers));
+            let open = self.open_type_variables([no_infer])?;
+            if !open.is_empty() && !self.check.infer.forcing {
+                self.check
+                    .register_check(DeferredCheck::Expect { site, expectation });
+
+                return Ok(ValueCheck {
+                    source: expectation.target,
+                    outcome: CheckOutcome::Holds,
+                    target: expectation.target,
+                });
             }
+            let no_infer = self.shallow_resolve(no_infer)?;
             expectation.target = no_infer;
         }
 
         let node = site.node;
         let target = expectation.target;
         let mut check = match node.local_id.ty {
-            dir::NodeType::Expression => answer!(self.check_expression(site, expectation)?),
+            dir::NodeType::Expression => self.check_expression(site, expectation)?,
             dir::NodeType::Block => {
-                answer!(self.check_block(site, node.into_typed().local_id, expectation)?)
+                self.check_block(site, node.into_typed().local_id, expectation)?
             }
             dir::NodeType::Pattern => {
-                answer!(self.check_pattern(node.into_typed(), site.flow, site.scope, target)?);
+                self.check_pattern(node.into_typed(), site.flow, site.scope, target)?;
 
                 ValueCheck {
                     source: target,
@@ -264,13 +254,13 @@ impl BodyState<'_, '_> {
                 }
             }
             dir::NodeType::AssignPattern => {
-                answer!(self.check_assign_pattern(
+                self.check_assign_pattern(
                     node.into_typed(),
                     site.flow,
                     site.scope,
                     target,
                     site.origin(),
-                )?);
+                )?;
 
                 ValueCheck {
                     source: target,
@@ -285,9 +275,9 @@ impl BodyState<'_, '_> {
             },
             other => return self.reject_untyped_node("check", node, other),
         };
-        check.source = answer!(self.flow_type_at(site, check.source)?);
+        check.source = self.flow_type_at(site, check.source)?;
 
-        Ok(Answer::Ready(check))
+        Ok(check)
     }
 
     /// Infer one source node by its kind.
@@ -296,32 +286,37 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         use_: PlaceUse,
         mode: InferMode,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let node = site.node;
-        if let Some(ty) = self.node_types.get(&node).copied() {
-            return Ok(Answer::Ready(ty));
+        if let Some(ty) = self.node_types.get(&node) {
+            // committed holes re-infer until their node decides
+            let is_hole = matches!(self.check.ty(ty)?, dir::Type::Variable(_))
+                && self.check.decision(node).is_none();
+            if !is_hole {
+                return Ok(ty);
+            }
         }
 
         // check function value bodies in place, without a context
         if self.check.lambdas.contains_key(&node) {
-            let check = answer!(self.check_function_value(site, None)?);
+            let check = self.check_function_value(site, None, mode)?;
 
-            return Ok(Answer::Ready(check.source));
+            return Ok(check.source);
         }
 
         // infer every other node by its syntax family
         match node.local_id.ty {
             dir::NodeType::Expression => {
-                answer!(self.infer_expression(site, use_, mode)?);
+                self.infer_expression(site, use_, mode)?;
             }
             dir::NodeType::Block => {
-                answer!(self.infer_block(site, node.into_typed().local_id)?);
+                self.infer_block(site, node.into_typed().local_id)?;
             }
             dir::NodeType::TypeExpression => {}
             other => return self.reject_untyped_node("infer", node, other),
         }
 
-        let Some(ty) = self.node_types.get(&node).copied() else {
+        let Some(ty) = self.node_types.get(&node) else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "node inference returned without publishing a type: {}",
@@ -330,7 +325,7 @@ impl BodyState<'_, '_> {
             });
         };
 
-        Ok(Answer::Ready(ty))
+        Ok(ty)
     }
 
     /// Infer one source node and return its type at the same flow site.
@@ -338,12 +333,12 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         use_: PlaceUse,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let ty = answer!(self.infer_node(site, use_, InferMode::Exact)?);
-        let ty = answer!(self.flow_type_at(site, ty)?);
-        answer!(self.commit_expression_place(site, ty)?);
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let ty = self.infer_node(site, use_, InferMode::Exact)?;
+        let ty = self.flow_type_at(site, ty)?;
+        self.commit_expression_place(site, ty)?;
 
-        Ok(Answer::Ready(ty))
+        Ok(ty)
     }
 
     /// Reject inference on a node kind that never has a checked type.

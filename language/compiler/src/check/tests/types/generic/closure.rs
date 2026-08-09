@@ -59,6 +59,154 @@ const value = use(() => {});
 }
 
 #[test]
+fn test_closure_call_return_injects_into_concrete_union() {
+    let session = TestSession::single(
+        r#"
+declare class Box<in out T> {}
+declare function load(): int32;
+declare function use(callback: () => int32 | Box<int32>): int32;
+
+const value = use(() => load());
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare class Box<in out T> {}
+declare function load(): int32;
+declare function use(callback: () => int32 | Box<int32>): int32;
+
+const value: int32 = use((): int32 | Box<int32> => load() as int32 | Box<int32>);
+
+=== checked ===
+declare class Box<in out T> {}
+/// @generic.template symbol=Box parameters=(in out T)
+/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
+/// @definition.class symbol=Box source="declare class Box<in out T> {}" template=(in out T)
+/// @type.symbol symbol=Box.T source="in out T" type=T
+
+declare function load(): int32;
+/// @type.symbol symbol=load source="declare function load(): int32" type=() => int32
+
+declare function use(callback: () => int32 | Box<int32>): int32;
+/// @type.symbol symbol=use source="declare function use(callback: () => int32 | Box<int32>): int32" type=(Function<(), int32 | Box<int32>>) => int32
+/// @type.symbol symbol=use.callback source="callback: () => int32 | Box<int32>" type=Function<(), int32 | Box<int32>>
+/// @resolution.name source=Box target=Box
+
+const value = use(() => load());
+/// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source="use(() => load())" type=int32
+/// @type.node source=use type=(Function<(), int32 | Box<int32>>) => int32
+/// @resolution.name source=use target=use
+/// @resolution.call source="use(() => load())" parameters=(Function<(), int32 | Box<int32>>) arguments=(provided(() => load()) as Function<(), int32 | Box<int32>>) return=int32 kind=symbol target=use
+/// @generic.instance source=use id=Box<int32>
+/// @type.symbol symbol=symbol6 source=() => load() type=Function<(), int32 | Box<int32>>
+/// @type.node source=() => load() type=Function<(), int32 | Box<int32>>
+/// @generic.instance source=() => load() id=Box<int32>
+/// @type.node source=load type=() => int32
+/// @type.node source=load() type=int32
+/// @resolution.name source=load target=load
+/// @resolution.call source=load() parameters=() return=int32 kind=symbol target=load
+
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
+"#,
+    );
+}
+
+#[test]
+fn test_closure_return_matching_both_union_arms_requires_annotation() {
+    let session = TestSession::single(
+        r#"
+declare class Box<in out T> {}
+declare function make(): Box<Box<int32>>;
+declare function use<T>(callback: () => Box<T> | Box<Box<T>>): T;
+
+const value = use(() => make());
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare class Box<in out T> {}
+declare function make(): Box<Box<int32>>;
+declare function use<T>(callback: () => Box<T> | Box<Box<T>>): T;
+
+const value = use((): Box<Box<int32>> => make());
+
+=== checked ===
+declare class Box<in out T> {}
+/// @generic.template symbol=Box parameters=(in out T#1)
+/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
+/// @definition.class symbol=Box source="declare class Box<in out T> {}" template=(in out T#1)
+/// @type.symbol symbol=Box.T source="in out T" type=T#1
+
+declare function make(): Box<Box<int32>>;
+/// @type.symbol symbol=make source="declare function make(): Box<Box<int32>>" type=() => Box<Box<int32>>
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Box target=Box
+
+declare function use<T>(callback: () => Box<T> | Box<Box<T>>): T;
+/// @generic.template symbol=use parameters=(T#2)
+/// @type.symbol symbol=use source="declare function use<T>(callback: () => Box<T> | Box<Box<T>>): T" type=<T#2>(Function<(), Box<T#2> | Box<Box<T#2>>>) => T#2
+/// @type.symbol symbol=use.T source=T type=T#2
+/// @type.symbol symbol=use.callback source="callback: () => Box<T> | Box<Box<T>>" type=Function<(), Box<T#2> | Box<Box<T#2>>>
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=use.T
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=use.T
+/// @resolution.name source=T target=use.T
+
+const value = use(() => make());
+/// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source="use(() => make())" type=<error>
+/// @type.node source=use type=(Function<(), Box<<error>> | Box<Box<<error>>>>) => <error>
+/// @resolution.name source=use target=use
+/// @resolution.call source="use(() => make())" parameters=(Function<(), Box<<error>> | Box<Box<<error>>>>) arguments=(provided(() => make()) as Function<(), Box<<error>> | Box<Box<<error>>>>) return=<error> kind=symbol target=use instance=use<<error>>
+/// @generic.instance source="use(() => make())" id=use<<error>>
+/// @generic.instance source=use id=Box<<error>>
+/// @generic.instance source=use id=Box<Box<<error>>>
+/// @type.symbol symbol=symbol7 source=() => make() type=Function<(), Box<Box<int32>>>
+/// @type.node source=() => make() type=Function<(), Box<Box<int32>>>
+/// @generic.instance source=() => make() id=Box<Box<int32>>
+/// @generic.instance source=() => make() id=Box<int32>
+/// @type.node source=make type=() => Box<Box<int32>>
+/// @type.node source=make() type=Box<Box<int32>>
+/// @resolution.name source=make target=make
+/// @resolution.call source=make() parameters=() return=Box<Box<int32>> kind=symbol target=make
+/// @generic.instance source=make id=Box<Box<int32>>
+/// @generic.instance source=make id=Box<int32>
+/// @generic.instance source=make() id=Box<Box<int32>>
+/// @generic.instance source=make() id=Box<int32>
+
+/// @generic.instance id=Box<<error>> template=Box arguments=(<error>)
+/// @generic.instance id=Box<Box<<error>>> template=Box arguments=(Box<<error>>)
+/// @generic.instance id=Box<Box<T#2>> template=Box arguments=(Box<T#2>)
+/// @generic.instance id=Box<Box<int32>> template=Box arguments=(Box<int32>)
+/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
+/// @generic.instance id=use<<error>> template=use arguments=(<error>)
+"#,
+        r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '() => Box<Box<…>>' is not assignable to parameter of type '() => Box<…> | Box<…>'"
+/// @diagnostic.label line=6 column=19 span="() => make()" line_source="const value = use(() => make());"
+/// @diagnostic.related line=6 column=15 span="use(() => make())" line_source="const value = use(() => make());" message="in this call"
+/// @diagnostic.error id=not-assignable message="type 'Box<Box<int32>>' is not assignable to type 'Box<_> | Box<Box<_>>'"
+/// @diagnostic.label line=6 column=19 span="() => make()" line_source="const value = use(() => make());"
+/// @diagnostic.note message="the mismatch is in the return type"
+"#,
+    );
+}
+
+#[test]
 fn test_infer_closure_return_from_parameter() {
     let session = TestSession::single(
         r#"

@@ -2,8 +2,8 @@ use std::slice::from_ref;
 use std::sync::Arc;
 
 use destack_artifact::{
-    DiagnosticBuilder, DiagnosticControlTable, DirBound, DirDeclared, DirExpanded, DirParsed,
-    DirResolved, ProfileKey,
+    DiagnosticBuilder, DiagnosticControlTable, DirBound, DirDeclared, DirElaborated, DirExpanded,
+    DirParsed, DirResolved, ProfileKey,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
@@ -12,13 +12,12 @@ use destack_source::{ModuleId, Span};
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, Constraint,
-    Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticPresence, VariableRole,
-    Widening,
+    ApparentInstance, Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, Constraint,
+    FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticPresence, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// State owned by one module inside a checked component.
+/// Working state owned by one checked module.
 pub(in crate::check) struct CheckModuleState {
     // inherited inputs from upstream phases, read-only
     /// The requested source module.
@@ -35,13 +34,17 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) resolved: Arc<DirResolved>,
     /// The expanded DIR input.
     pub(in crate::check) expanded: Arc<DirExpanded>,
+    /// The foreign modules the stored rows mention, accumulated at store time.
+    pub(in crate::check) references: FxIndexSet<ModuleId>,
     /// The declared DIR artifact seeding this check, absent while declaring.
     pub(in crate::check) declared: Option<Arc<DirDeclared>>,
+    /// The elaborated stage backing this check, when elaborating is done.
+    pub(in crate::check) elaborated: Option<Arc<DirElaborated>>,
     /// The cumulative binding table built once at load.
     pub(in crate::check) bindings: dir::BindingTable<'static>,
     /// Checked symbols synthesized from resolved language features.
     pub(in crate::check) bindings_tail: dir::BindingSegment,
-    /// Out-of-component modules visible from this module.
+    /// External modules visible from this module.
     pub(in crate::check) external_modules: FxIndexSet<ModuleId>,
 
     // open checked state owned by this module
@@ -50,7 +53,7 @@ pub(in crate::check) struct CheckModuleState {
     /// The committed base static table built once at load.
     pub(in crate::check) statics_base: dir::StaticTable<'static>,
     /// Open inference types layered over the committed base.
-    pub(in crate::check) types_tail: dir::TypeSegment,
+    pub(in crate::check) types_tail: dir::TypeTail,
     /// Checked declaration definitions.
     pub(in crate::check) definitions: dir::DefinitionSegment,
     /// Auto-derived implementations.
@@ -61,6 +64,8 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) statics: dir::StaticSegment,
     /// Checked node resolutions.
     pub(in crate::check) resolutions: dir::ResolutionSegment,
+    /// Decisions inference made this pass.
+    pub(in crate::check) decisions: dir::DecisionSegment,
     /// Checked member availability.
     pub(in crate::check) members: dir::MemberSegment,
     /// Checked implicit coercions.
@@ -109,24 +114,51 @@ impl CheckModuleState {
         resolved: Arc<DirResolved>,
         expanded: Arc<DirExpanded>,
         declared: Option<Arc<DirDeclared>>,
+        elaborated: Option<Arc<DirElaborated>>,
     ) -> Self {
         // stack this check's overlays over the declared segments, else the expanded base
         let (bindings, types, statics_base, types_tail, generics, statics, decorators) =
             match &declared {
                 Some(declared) => (
-                    declared.binding_table(&bound, &expanded),
-                    declared.type_table(&bound, &expanded),
-                    declared.static_table(&bound, &expanded),
-                    dir::TypeSegment::from_sealed_base(Arc::clone(&declared.types)),
-                    dir::GenericSegment::from_base(&declared.generics),
-                    dir::StaticSegment::from_base(&declared.statics),
-                    dir::DecoratorSegment::from_base(&declared.decorators),
+                    match &elaborated {
+                        Some(elaborated) => elaborated.binding_table(&bound, &expanded, declared),
+                        None => declared.binding_table(&bound, &expanded),
+                    },
+                    match &elaborated {
+                        Some(elaborated) => elaborated.type_table(&bound, &expanded, declared),
+                        None => declared.type_table(&bound, &expanded),
+                    },
+                    match &elaborated {
+                        Some(elaborated) => elaborated.static_table(&bound, &expanded, declared),
+                        None => declared.static_table(&bound, &expanded),
+                    },
+                    match &elaborated {
+                        Some(elaborated) => dir::TypeTail::over(vec![
+                            Arc::clone(&declared.types),
+                            Arc::clone(&elaborated.types),
+                        ]),
+                        None => dir::TypeTail::over_base(Arc::clone(&declared.types)),
+                    },
+                    match &elaborated {
+                        Some(elaborated) => dir::GenericSegment::from_base(&elaborated.generics),
+                        None => dir::GenericSegment::from_base(&declared.generics),
+                    },
+                    match &elaborated {
+                        Some(elaborated) => dir::StaticSegment::from_base(&elaborated.statics),
+                        None => dir::StaticSegment::from_base(&declared.statics),
+                    },
+                    match &elaborated {
+                        Some(elaborated) => {
+                            dir::DecoratorSegment::from_base(&elaborated.decorators)
+                        }
+                        None => dir::DecoratorSegment::from_base(&declared.decorators),
+                    },
                 ),
                 None => (
                     expanded.binding_table(&bound),
                     expanded.type_table(&bound),
                     expanded.static_table(&bound),
-                    dir::TypeSegment::from_base(&expanded.types),
+                    dir::TypeTail::from_base(&expanded.types),
                     dir::GenericSegment::new(module.id),
                     dir::StaticSegment::from_base(&expanded.statics),
                     dir::DecoratorSegment::new(module.id),
@@ -134,23 +166,32 @@ impl CheckModuleState {
             };
         let bindings_tail = dir::BindingSegment::from_table(&bindings);
 
-        // adopt the declared definitions whole, they key by symbol
-        let definitions = match &declared {
-            Some(declared) => (*declared.definitions).clone(),
-            None => dir::DefinitionSegment::new(module.id),
+        // adopt the elaborated definitions whole, they key by symbol
+        let definitions = match (&elaborated, &declared) {
+            (Some(elaborated), _) => (*elaborated.definitions).clone(),
+            (None, Some(declared)) => (*declared.definitions).clone(),
+            (None, None) => dir::DefinitionSegment::new(module.id),
         };
 
         // open the remaining segments and this module's diagnostic controls
         let auto = dir::AutoSegment::new(module.id);
         let resolutions = dir::ResolutionSegment::new(module.id);
-        let members = match &declared {
-            Some(declared) => (*declared.members).clone(),
-            None => dir::MemberSegment::new(module.id),
+        let decisions = dir::DecisionSegment::new(module.id);
+        let members = match (&elaborated, &declared) {
+            (Some(elaborated), _) => (*elaborated.members).clone(),
+            (None, Some(declared)) => (*declared.members).clone(),
+            (None, None) => dir::MemberSegment::new(module.id),
         };
         let coercions = dir::CoercionSegment::new(module.id);
         let capture_segment = dir::CaptureSegment::new(module.id);
-        let files = parsed.files.iter().map(|file| file.file_id).collect();
-        let controls = DiagnosticControlTable::new(module.id, files);
+        let controls = match &elaborated {
+            Some(elaborated) => (*elaborated.controls).clone(),
+            None => {
+                let files = parsed.files.iter().map(|file| file.file_id).collect();
+
+                DiagnosticControlTable::new(module.id, files)
+            }
+        };
 
         Self {
             module,
@@ -160,7 +201,9 @@ impl CheckModuleState {
             bound,
             resolved,
             expanded,
+            references: FxIndexSet::default(),
             declared,
+            elaborated,
             bindings,
             bindings_tail,
             types,
@@ -171,6 +214,7 @@ impl CheckModuleState {
             generics,
             statics,
             resolutions,
+            decisions,
             members,
             coercions,
             capture_segment,
@@ -280,83 +324,9 @@ impl CheckModuleState {
         Ok(declaration.local_id)
     }
 
-    /// Return one operation payload visible to check, reading the overlay over the base table.
-    pub(in crate::check) fn operation_maybe(
-        &self,
-        id: dir::TypeOperationId,
-    ) -> Option<dir::TypeOperation> {
-        self.types_tail
-            .operation(id)
-            .or_else(|| self.types.operation_maybe(id))
-            .copied()
-    }
-
-    /// Return one signature payload visible to check, reading the overlay over the base table.
-    pub(in crate::check) fn signature_maybe(
-        &self,
-        id: dir::FunctionSignatureId,
-    ) -> Option<dir::FunctionSignatureType> {
-        self.types_tail
-            .signature(id)
-            .or_else(|| self.types.signature_maybe(id))
-            .copied()
-    }
-
-    /// Return one member payload visible to check, reading the overlay over the base table.
-    pub(in crate::check) fn member_maybe(&self, id: dir::MemberTypeId) -> Option<dir::MemberType> {
-        self.types_tail
-            .member(id)
-            .or_else(|| self.types.member_maybe(id))
-            .copied()
-    }
-
-    /// Return one refined payload visible to check, reading the overlay over the base table.
-    pub(in crate::check) fn refined_maybe(
-        &self,
-        id: dir::RefinedTypeId,
-    ) -> Option<dir::RefinedType> {
-        self.types_tail
-            .refined(id)
-            .or_else(|| self.types.refined_maybe(id))
-            .copied()
-    }
-
-    /// Return one borrow payload visible to check, reading the overlay over the base table.
-    pub(in crate::check) fn borrow_maybe(&self, id: dir::BorrowFormId) -> Option<dir::BorrowForm> {
-        self.types_tail
-            .borrow_form(id)
-            .or_else(|| self.types.borrow_form_maybe(id))
-            .copied()
-    }
-
-    /// Return one type visible to check, reading the overlay over the base table.
-    pub(in crate::check) fn type_maybe(&self, type_id: dir::LocalTypeId) -> Option<dir::Type> {
-        self.types_tail
-            .get_type_maybe(type_id)
-            .or_else(|| self.types.get_type_maybe(type_id))
-    }
-
-    /// Return one type's structural flags, reading the overlay over the base table.
-    pub(in crate::check) fn type_flags_maybe(
-        &self,
-        type_id: dir::LocalTypeId,
-    ) -> Option<dir::TypeFlags> {
-        if let Some(flags) = self.types_tail.get_type_flags_maybe(type_id) {
-            return Some(flags);
-        }
-
-        self.types.get_type_maybe(type_id)?;
-
-        Some(self.types.get_type_flags(type_id))
-    }
-
-    /// Return the cumulative type table visible to check.
-    pub(in crate::check) fn type_table(&self) -> dir::TypeTable<'_> {
-        self.types.with_tail(&self.types_tail)
-    }
-
     /// Return one local input static visible to check.
     pub(in crate::check) fn r#static(&self, static_id: dir::LocalStaticId) -> &dir::StaticTerm {
+        // read this pass's own terms, then the expanded and bound bases
         if let Some(value) = self.statics.get_static_maybe(static_id) {
             return value;
         }
@@ -375,7 +345,7 @@ impl CheckModuleState {
 }
 
 impl CheckState<'_> {
-    /// Return whether one module belongs to the active checked component.
+    /// Return whether one module is the checked module.
     pub(in crate::check) fn is_own_module(&self, module: ModuleId) -> bool {
         module == self.module_id
     }
@@ -453,7 +423,7 @@ impl CheckState<'_> {
         false
     }
 
-    /// Return loaded state for one in-component module.
+    /// Return the checked module's working state.
     pub(in crate::check) fn module(&self, module: ModuleId) -> &CheckModuleState {
         match self.module_maybe(module) {
             Some(state) => state,
@@ -461,7 +431,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return loaded state for one in-component module mutably.
+    /// Return the checked module's working state mutably.
     pub(in crate::check) fn module_mut(&mut self, module: ModuleId) -> &mut CheckModuleState {
         match self.module_maybe_mut(module) {
             Some(state) => state,
@@ -475,7 +445,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalTypeId> {
         // read this pass's own commits first
-        if let Some(ty) = self.node_types.get(&node).copied() {
+        if let Some(ty) = self.node_types.get(&node) {
             return Some(ty);
         }
 
@@ -491,10 +461,12 @@ impl CheckState<'_> {
     pub(in crate::check) fn node_type(
         &self,
         node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         match self.committed_node_type(node) {
-            Some(ty) => Ok(Answer::Ready(ty)),
-            None => Ok(Answer::pending([Dependency::NodeType(node)])),
+            Some(ty) => Ok(ty),
+            None => Err(CompilerError::Internal {
+                message: format!("node type read before checking {node:?}"),
+            }),
         }
     }
 
@@ -521,7 +493,7 @@ impl CheckState<'_> {
                 message: format!(
                     "required node has no checked type: {}; decision={:?}",
                     self.node_label(node),
-                    self.decisions.kind(node),
+                    self.decision(node),
                 ),
             });
         };
@@ -536,9 +508,45 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         // compare only against this pass's own commits
-        if let Some(previous) = self.node_types.get(&node).copied() {
+        if let Some(previous) = self.node_types.get(&node) {
             if previous == ty {
                 return Ok(());
+            }
+
+            // solve a committed hole, or require re-derivations to agree
+            if let dir::Type::Variable(variable) = self.ty(previous)? {
+                if self.infer.variable(variable)?.state.is_open() {
+                    // an open derivation equates as a bound until it
+                    //  closes: hole solutions are closed types
+                    if self.type_variables(ty)?.is_empty() {
+                        self.commit_solution(variable, ty)?;
+                    } else if let Some(origin) = self.node_origin_maybe(node) {
+                        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                        self.constrain_type(origin, cause, Relation::Equal, previous, ty)?;
+                    } else {
+                        self.commit_solution(variable, ty)?;
+                    }
+
+                    return Ok(());
+                }
+                if self.shallow_resolve(previous)? == self.shallow_resolve(ty)? {
+                    return Ok(());
+                }
+
+                // a solved hole and its re-derivation agree through the
+                //  solver, once every operand variable settles
+                if let Some(origin) = self.node_origin_maybe(node) {
+                    let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                    self.register_constraint(Constraint::r#type(
+                        origin,
+                        Relation::Equal,
+                        ty,
+                        previous,
+                        cause,
+                    ));
+
+                    return Ok(());
+                }
             }
 
             let previous = self.format_type(previous);
@@ -551,9 +559,6 @@ impl CheckState<'_> {
         }
 
         self.node_types.insert(node, ty);
-        for waiter in self.solver.wake(Dependency::NodeType(node)) {
-            self.queue_task(waiter);
-        }
 
         Ok(())
     }
@@ -574,6 +579,35 @@ impl CheckState<'_> {
     }
 
     /// Return one source node's recorded flow site.
+    /// Enter one source node at the live cursor, recording its site.
+    ///
+    /// The single body traversal mints each node's site as it reaches
+    /// it; deferred work re-reads the recorded maps through node_site.
+    pub(in crate::check) fn visit_site(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<FlowSite> {
+        // reuse a site the walk already recorded for this node
+        if let Some(flow) = self.module(node.module_id).node_flows.get(&node).copied() {
+            let scope = self
+                .module(node.module_id)
+                .node_scopes
+                .get(&node)
+                .copied()
+                .flatten();
+
+            return Ok(FlowSite { node, flow, scope });
+        }
+
+        let flow = self.flow.point();
+        let scope = self.flow.template_scope();
+        let state = self.module_mut(node.module_id);
+        state.node_flows.insert(node, flow);
+        state.node_scopes.insert(node, scope);
+
+        Ok(FlowSite { node, flow, scope })
+    }
+
     pub(in crate::check) fn node_site(
         &self,
         node: dir::GlobalNodeIdAny,
@@ -620,7 +654,7 @@ impl CheckState<'_> {
         Ok(Origin::Node(node, scope))
     }
 
-    /// Return one component declaration type, if present.
+    /// Return one declaration type committed this pass, if present.
     pub(in crate::check) fn declaration_type_maybe(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -652,7 +686,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return one component binding type, if present.
+    /// Return one binding type committed this pass, if present.
     pub(in crate::check) fn binding_type_maybe(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -684,26 +718,22 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Solve one symbol's variable with its committed type, waking parked consumers.
+    /// Solve one symbol's variable with its committed type.
     fn solve_symbol_variable(
         &mut self,
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let Some(variable) = self.symbol_variables.get(&symbol).copied() else {
+        let Some(variable) = self.infer.symbol_variables.get(&symbol).copied() else {
             return Ok(());
         };
-        if !self.solver.variable(variable)?.state.is_open() {
+        if !self.infer.variable(variable)?.state.is_open() {
             return Ok(());
         }
 
-        // solve closed types; open types only wake
+        // solve closed types; open types settle through their own inference
         if self.type_variables(ty)?.is_empty() {
             self.commit_solution(variable, ty)?;
-        } else {
-            for waiter in self.solver.wake(Dependency::Variable(variable)) {
-                self.queue_task(waiter);
-            }
         }
 
         Ok(())
@@ -715,6 +745,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the type this symbol already committed, if any
         let is_binding = self.symbol_kind(symbol)?.is_binding();
         let existing = if is_binding {
             self.binding_type_maybe(symbol)
@@ -722,9 +753,10 @@ impl CheckState<'_> {
             self.declaration_type_maybe(symbol)
         };
 
+        // require a second derivation to agree with the committed type
         if let Some(existing) = existing {
             let origin = self.intern_origin(Origin::Symbol(symbol));
-            let origin = self.solver.origin(origin);
+            let origin = self.infer.origin(origin);
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
             self.push_constraint(Constraint::r#type(
                 origin,
@@ -732,11 +764,12 @@ impl CheckState<'_> {
                 existing,
                 ty,
                 cause,
-            ));
+            ))?;
 
             return Ok(existing);
         }
 
+        // commit into the table matching the symbol's kind
         if is_binding {
             self.commit_binding_type(symbol, ty)?;
         } else {
@@ -759,9 +792,11 @@ impl CheckState<'_> {
             return Some(ty);
         }
 
-        // read own declared-stage symbol types
+        // read own declared-stage symbol types, a persisted type
+        //  that still carries open holes reads as absent
         if let Some(module) = self.module_maybe(symbol.module_id)
             && let Some(ty) = module.types.get_symbol_type_id(symbol)
+            && !self.type_flags(ty).is_ok_and(|flags| flags.has_variable())
         {
             return Some(ty);
         }
@@ -778,16 +813,16 @@ impl CheckState<'_> {
     pub(in crate::check) fn symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         if !self.is_own_module(symbol.module_id) {
             self.import_external_module(symbol.module_id)?;
         }
 
         if let Some(ty) = self.canonical_symbol_type_maybe(symbol)? {
-            return Ok(Answer::Ready(ty));
+            return Ok(ty);
         }
 
-        // external tables are sealed, so absence can never wake a waiter
+        // external tables are settled, so an absent type is always a failure
         if !self.is_own_module(symbol.module_id) {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -797,10 +832,10 @@ impl CheckState<'_> {
             });
         }
 
-        // park on the symbol's variable until its type commits
+        // local symbols read through their inference hole until commitment
         let variable = self.symbol_variable(symbol);
 
-        Ok(Answer::pending([Dependency::Variable(variable)]))
+        self.variable_type(variable)
     }
 
     /// Return the variable standing for one local symbol's type, allocating it once.
@@ -808,7 +843,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> dir::TypeVariableId {
-        if let Some(variable) = self.symbol_variables.get(&symbol) {
+        if let Some(variable) = self.infer.symbol_variables.get(&symbol) {
             return *variable;
         }
 
@@ -817,7 +852,7 @@ impl CheckState<'_> {
             Widening::Never,
             VariableRole::Symbol { symbol },
         );
-        self.symbol_variables.insert(symbol, variable);
+        self.infer.symbol_variables.insert(symbol, variable);
 
         variable
     }
@@ -831,17 +866,17 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // canonicalize foreign written types once per component
+        // canonicalize foreign written types once per module
         if !self.is_own_module(symbol.module_id) {
             // read written types uncanonicalized in declare mode
             if self.is_declaration() {
                 return Ok(Some(ty));
             }
-            if let Some(canonical) = self.external_symbol_types.get(&symbol) {
+            if let Some(canonical) = self.imported_types.get(&symbol) {
                 return Ok(Some(*canonical));
             }
             let canonical = self.canonical_foreign_type(symbol, ty)?;
-            self.external_symbol_types.insert(symbol, canonical);
+            self.imported_types.insert(symbol, canonical);
 
             return Ok(Some(canonical));
         }
@@ -878,15 +913,14 @@ impl CheckState<'_> {
     pub(in crate::check) fn definition_member_type(
         &mut self,
         member: &dir::DefinitionMember,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         if let Some(symbol) = member.type_symbol() {
-            return match self.symbol_type(symbol)? {
-                Answer::Ready(ty) => Ok(Answer::Ready(Some(ty))),
-                Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-            };
+            let ty = self.symbol_type(symbol)?;
+
+            return Ok(Some(ty));
         }
 
-        Ok(Answer::Ready(member.value_type()))
+        Ok(member.value_type())
     }
 
     /// Return the checked value type required for one definition member.
@@ -899,6 +933,22 @@ impl CheckState<'_> {
         }
 
         Ok(member.value_type())
+    }
+
+    /// Return one symbol's settled static id, if declared.
+    pub(in crate::check) fn symbol_static_id(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::GlobalStaticId> {
+        if let Some(module) = self.module_maybe(symbol.module_id) {
+            let table = module.statics_base.with_tail(&module.statics);
+
+            table.get_symbol_static_id(symbol)
+        } else {
+            let external = self.external_modules.get(&symbol.module_id)?;
+
+            external.statics.get_symbol_static_id(symbol)
+        }
     }
 
     /// Return the inferred static value of one source symbol.
@@ -914,7 +964,7 @@ impl CheckState<'_> {
             return Some(value);
         }
 
-        // read own sealed terms through the static table stack
+        // read own settled terms through the static table stack
         if let Some(module) = self.module_maybe(symbol.module_id) {
             let table = module.statics_base.with_tail(&module.statics);
             let id = table.get_symbol_static_id(symbol)?;
@@ -923,7 +973,7 @@ impl CheckState<'_> {
             return self.static_term_type(&term);
         }
 
-        // read foreign sealed terms through the loaded external tables
+        // read foreign settled terms through the loaded external tables
         let external = self.external_modules.get(&symbol.module_id)?;
         let id = external.statics.get_symbol_static_id(symbol)?;
         let term = external.statics.get_static_maybe(id.local_id)?.clone();
@@ -931,7 +981,7 @@ impl CheckState<'_> {
         self.static_term_type(&term)
     }
 
-    /// Return the singleton type of one sealed static term.
+    /// Return the singleton type of one settled static term.
     fn static_term_type(&mut self, term: &dir::StaticTerm) -> Option<dir::GlobalTypeId> {
         match term {
             dir::StaticTerm::Type { ty } => Some(*ty),
@@ -1004,7 +1054,7 @@ impl CheckState<'_> {
         expanded.binding_table(bound.as_ref())
     }
 
-    /// Return one component or external static.
+    /// Return one own-module or external static.
     pub(in crate::check) fn r#static(&self, value: dir::GlobalStaticId) -> &dir::StaticTerm {
         if let Some(module) = self.module_maybe(value.module_id) {
             module.r#static(value.local_id)
@@ -1031,16 +1081,6 @@ impl CheckState<'_> {
         )
     }
 
-    /// Return one symbol's kind from its already-loaded declaring module.
-    pub(in crate::check) fn loaded_symbol_kind(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> dir::SymbolKind {
-        self.binding_table(symbol.module_id)
-            .get_symbol(symbol.local_id)
-            .kind
-    }
-
     /// Return one symbol's kind when its declaring module is readable.
     pub(in crate::check) fn symbol_kind_maybe(
         &mut self,
@@ -1063,5 +1103,67 @@ impl CheckState<'_> {
         let symbol = binding_table.get_symbol(symbol.local_id);
 
         Ok(symbol.kind)
+    }
+
+    /// Flatten every declared nominal owner's member bindings into the module tail.
+    pub(in crate::check) fn flatten_declared_owners(&mut self) -> CompilerResult<()> {
+        // collect the module's declared nominal owners
+        let module = self.module_id;
+        let mut owners = Vec::new();
+        for (symbol, definition) in self.module(module).definitions.iter_definitions() {
+            let is_nominal = matches!(
+                definition,
+                dir::Definition::Struct(_)
+                    | dir::Definition::Class(_)
+                    | dir::Definition::Enum(_)
+                    | dir::Definition::Newtype(_)
+                    | dir::Definition::Interface(_)
+            );
+            if is_nominal {
+                owners.push(symbol);
+            }
+        }
+
+        // flatten each owner's bindings in both member spaces
+        for symbol in owners {
+            let origin = Origin::Symbol(symbol);
+
+            // derive each declared parameter's variance at its own context
+            if let Some(template) = self.symbol_template(symbol)? {
+                for parameter in self.generic_template_parameters(template)? {
+                    let form = self.parameter_variance_form(parameter)?;
+                    let _ = self.parameter_variance(parameter, form)?;
+                }
+            }
+            let application = self.declaration_instance(symbol)?;
+            let arguments = self.type_ids(module, application.arguments)?.to_vec();
+            let instance = ApparentInstance {
+                symbol: application.symbol,
+                arguments: arguments.iter().copied().collect(),
+            };
+            let Some(canonical) = self
+                .module(module)
+                .types
+                .get_symbol_type_id(symbol)
+                .or_else(|| self.module(module).types_tail.get_symbol_type_id(symbol))
+            else {
+                continue;
+            };
+
+            for space in [dir::MemberSpace::Instance, dir::MemberSpace::Static] {
+                let bindings = self
+                    .body()
+                    .canonical_member_bindings(origin, &instance, space)?;
+                let Some(bindings) = bindings else {
+                    continue;
+                };
+                let subject = dir::MemberSubject::new(canonical, canonical, space);
+                self.module_mut(module)
+                    .members
+                    .set_bindings(subject, bindings);
+            }
+        }
+
+        Ok(())
     }
 }

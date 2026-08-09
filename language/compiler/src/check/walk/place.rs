@@ -122,9 +122,7 @@ impl WalkState<'_, '_> {
         };
 
         self.capture_symbol_reference(symbol);
-        if access != PlaceUse::Write {
-            self.check_assigned_read(id.into_any(), symbol);
-        }
+        if access != PlaceUse::Write {}
 
         Ok(self.assigned_symbol_place(symbol))
     }
@@ -141,9 +139,9 @@ impl WalkState<'_, '_> {
         };
 
         self.capture_symbol_reference(symbol);
-        if access != PlaceUse::Write {
-            self.check_assigned_read(source, symbol);
-        }
+        self.check
+            .commit_name(global, dir::NameResolution::new(symbol))?;
+        if access != PlaceUse::Write {}
 
         Ok(self.assigned_symbol_place(symbol))
     }

@@ -4,9 +4,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidateVerdict, CheckState, DeclaredMember, Dependency,
-    InterfaceMember, MemberCandidate, MemberLookup, Origin, Relation, SignatureMatch,
-    TypeArgumentInference, TypeSubstitution, Value, answer,
+    BodyState, CandidateOutcome, CheckState, DeclaredMember, InterfaceMember, MemberCandidate,
+    MemberLookup, Origin, Relation, SignatureMatch, TypeArgumentInference, TypeSubstitution, Value,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -91,7 +90,7 @@ impl Protocol {
         receiver: dir::GlobalTypeId,
         space: dir::MemberSpace,
         key: dir::StaticKey,
-    ) -> CompilerResult<Answer<SmallVec<[InterfaceMember; 2]>>> {
+    ) -> CompilerResult<SmallVec<[InterfaceMember; 2]>> {
         check.interface_members(implementation, receiver, space, key)
     }
 }
@@ -99,15 +98,16 @@ impl Protocol {
 /// Protocol member accepted for a generated operation.
 pub(in crate::check) struct ProtocolMember {
     /// The member resolution.
-    pub(in crate::check) resolution: dir::MemberResolution,
+    pub(in crate::check) resolution: dir::MemberDecision,
     /// The member type.
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
 /// Protocol call accepted for a generated operation.
+#[derive(Debug, Clone)]
 pub(in crate::check) struct ProtocolCall {
     /// The call resolution.
-    pub(in crate::check) resolution: dir::CallResolution,
+    pub(in crate::check) resolution: dir::CallDecision,
     /// The call return type.
     pub(in crate::check) return_type: dir::GlobalTypeId,
 }
@@ -163,16 +163,16 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         item: dir::LanguageItem,
         written: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<Protocol>> {
+    ) -> CompilerResult<Protocol> {
         let symbol = self.language_symbol(item)?;
         let Some(template) = self.symbol_template(symbol)? else {
             if written.is_empty() {
-                return Ok(Answer::Ready(Protocol::new(symbol, Vec::new())));
+                return Ok(Protocol::new(symbol, Vec::new()));
             }
 
             // carry the written arguments of unloaded foreign templates
             if !self.is_loaded_module(symbol.module_id) {
-                return Ok(Answer::Ready(Protocol::new(symbol, written.to_vec())));
+                return Ok(Protocol::new(symbol, written.to_vec()));
             }
 
             return Err(CompilerError::Internal {
@@ -183,13 +183,14 @@ impl BodyState<'_, '_> {
             });
         };
         let parameters = self.generic_template_parameters(template)?;
-        let Some(substitution) = answer!(self.instantiate_parameters(
+        let Some(substitution) = self.instantiate_parameters(
             origin,
             &parameters,
             written,
             TypeSubstitution::default().with_receiver(receiver),
             TypeArgumentInference::Exact,
-        )?) else {
+        )?
+        else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "language protocol {symbol:?} cannot infer from {} arguments",
@@ -202,11 +203,11 @@ impl BodyState<'_, '_> {
         for constraint in
             self.substitute_application_constraints(origin, template, &substitution)?
         {
-            self.check.push_constraint(constraint);
+            self.check.push_constraint(constraint)?;
         }
         let arguments = substitution.arguments().collect();
 
-        Ok(Answer::Ready(Protocol::new(symbol, arguments)))
+        Ok(Protocol::new(symbol, arguments))
     }
 
     /// Select one call while inferring its complete language protocol application.
@@ -221,11 +222,10 @@ impl BodyState<'_, '_> {
         written: &[dir::GlobalTypeId],
         classification: &[dir::GlobalTypeId],
         argument_sources: &[dir::ArgumentSource],
-    ) -> CompilerResult<Answer<Option<(Protocol, ProtocolCall)>>> {
-        let protocol =
-            answer!(self.infer_language_protocol(origin, lookup_receiver, item, written,)?);
+    ) -> CompilerResult<Option<(Protocol, ProtocolCall)>> {
+        let protocol = self.infer_language_protocol(origin, lookup_receiver, item, written)?;
         let protocol = protocol.with_classification(classification);
-        let selected = answer!(self.select_protocol_call(
+        let selected = self.select_protocol_call(
             origin,
             receiver,
             lookup_receiver,
@@ -233,9 +233,9 @@ impl BodyState<'_, '_> {
             key,
             &protocol,
             argument_sources,
-        )?);
+        )?;
 
-        Ok(Answer::Ready(selected.map(|call| (protocol, call))))
+        Ok(selected.map(|call| (protocol, call)))
     }
 
     /// Select one member while inferring its complete language protocol application.
@@ -249,20 +249,13 @@ impl BodyState<'_, '_> {
         item: dir::LanguageItem,
         written: &[dir::GlobalTypeId],
         classification: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<Option<(Protocol, ProtocolMember)>>> {
-        let protocol =
-            answer!(self.infer_language_protocol(origin, lookup_receiver, item, written,)?);
+    ) -> CompilerResult<Option<(Protocol, ProtocolMember)>> {
+        let protocol = self.infer_language_protocol(origin, lookup_receiver, item, written)?;
         let protocol = protocol.with_classification(classification);
-        let selected = answer!(self.select_protocol_member(
-            origin,
-            receiver,
-            lookup_receiver,
-            space,
-            key,
-            &protocol,
-        )?);
+        let selected =
+            self.select_protocol_member(origin, receiver, lookup_receiver, space, key, &protocol)?;
 
-        Ok(Answer::Ready(selected.map(|member| (protocol, member))))
+        Ok(selected.map(|member| (protocol, member)))
     }
 
     /// Select one protocol member by key.
@@ -274,10 +267,10 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
         protocol: &Protocol,
-    ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
+    ) -> CompilerResult<Option<ProtocolMember>> {
         // reduce the lookup receiver to its apparent type
         let module = origin.module();
-        let lookup_receiver = answer!(self.reduce_type_head(origin, lookup_receiver)?);
+        let lookup_receiver = self.reduce_type_head(origin, lookup_receiver)?;
         let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
 
         let extension = self.select_extension_protocol_member(
@@ -289,17 +282,15 @@ impl BodyState<'_, '_> {
             key,
             protocol,
         )?;
-        if !matches!(extension, Answer::Ready(None)) {
+        if !extension.is_none() {
             return Ok(extension);
         }
 
         // enumerate requirements for the fallback lookup only
         let interface = protocol.instance(self, module)?;
         let interface = self.intern_type(dir::Type::Application(interface))?;
-        let requirements =
-            answer!(protocol.members(self, interface, lookup_receiver, space, key)?);
-        let lookup =
-            answer!(self.lookup_inherent_member(origin, module, lookup_receiver, space, key,)?);
+        let requirements = protocol.members(self, interface, lookup_receiver, space, key)?;
+        let lookup = self.lookup_inherent_member(origin, module, lookup_receiver, space, key)?;
         self.select_protocol_member_lookup(
             origin,
             module,
@@ -323,9 +314,9 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         protocol: &Protocol,
         argument_sources: &[dir::ArgumentSource],
-    ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
+    ) -> CompilerResult<Option<ProtocolCall>> {
         let module = origin.module();
-        let lookup_receiver = answer!(self.reduce_type_head(origin, lookup_receiver)?);
+        let lookup_receiver = self.reduce_type_head(origin, lookup_receiver)?;
         let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
         let extension = self.select_extension_protocol_call(
             origin,
@@ -337,17 +328,15 @@ impl BodyState<'_, '_> {
             protocol,
             argument_sources,
         )?;
-        if !matches!(extension, Answer::Ready(None)) {
+        if !extension.is_none() {
             return Ok(extension);
         }
 
         // enumerate requirements for the fallback lookup only
         let interface = protocol.instance(self, module)?;
         let interface = self.intern_type(dir::Type::Application(interface))?;
-        let requirements =
-            answer!(protocol.members(self, interface, lookup_receiver, space, key)?);
-        let lookup =
-            answer!(self.lookup_inherent_member(origin, module, lookup_receiver, space, key,)?);
+        let requirements = protocol.members(self, interface, lookup_receiver, space, key)?;
+        let lookup = self.lookup_inherent_member(origin, module, lookup_receiver, space, key)?;
         self.select_protocol_call_lookup(
             origin,
             module,
@@ -373,7 +362,7 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         protocol: &Protocol,
         argument_sources: &[dir::ArgumentSource],
-    ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
+    ) -> CompilerResult<Option<ProtocolCall>> {
         self.select_extension_protocol_operation(
             origin,
             module,
@@ -383,28 +372,22 @@ impl BodyState<'_, '_> {
             key,
             protocol,
             |state, implementation, candidates| {
-                let requirements = answer!(protocol.members(
-                    state,
-                    implementation,
-                    lookup_receiver,
-                    space,
-                    key,
-                )?);
+                let requirements =
+                    protocol.members(state, implementation, lookup_receiver, space, key)?;
 
                 // skip extensions whose implementation declares no matching requirement
                 if requirements.is_empty() {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
 
-                match state.select_protocol_call_member(
+                let call = state.select_protocol_call_member(
                     origin,
                     receiver,
                     argument_sources,
                     candidates,
-                )? {
-                    Answer::Ready(call) => Ok(Answer::Ready(call)),
-                    Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-                }
+                )?;
+
+                Ok(call)
             },
         )
     }
@@ -419,7 +402,7 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
         protocol: &Protocol,
-    ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
+    ) -> CompilerResult<Option<ProtocolMember>> {
         self.select_extension_protocol_operation(
             origin,
             module,
@@ -429,23 +412,17 @@ impl BodyState<'_, '_> {
             key,
             protocol,
             |state, implementation, candidates| {
-                let requirements = answer!(protocol.members(
-                    state,
-                    implementation,
-                    lookup_receiver,
-                    space,
-                    key,
-                )?);
+                let requirements =
+                    protocol.members(state, implementation, lookup_receiver, space, key)?;
 
                 // skip extensions whose implementation declares no matching requirement
                 if requirements.is_empty() {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
 
-                match state.select_protocol_member_from_candidates(receiver, candidates)? {
-                    Answer::Ready(member) => Ok(Answer::Ready(member)),
-                    Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-                }
+                let member = state.select_protocol_member_from_candidates(receiver, candidates)?;
+
+                Ok(member)
             },
         )
     }
@@ -464,19 +441,16 @@ impl BodyState<'_, '_> {
             &mut BodyState<'_, '_>,
             dir::GlobalTypeId,
             Vec<MemberCandidate>,
-        ) -> CompilerResult<Answer<Option<T>>>,
-    ) -> CompilerResult<Answer<Option<T>>> {
-        let extensions = answer!(self.visible_implementation_extensions(
+        ) -> CompilerResult<Option<T>>,
+    ) -> CompilerResult<Option<T>> {
+        let extensions = self.visible_implementation_extensions(
             origin,
             module,
             lookup_receiver,
             protocol.symbol,
-        )?);
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
-        let mut viable = None;
-        let mut indeterminate = None;
-
-        // classify each extension without retaining speculative state
+        )?;
+        // confirm each candidate in one evaluation: the first accepted
+        //  match commits its own probe, so probe and selection never diverge
         for extension_symbol in extensions {
             if self.is_absent_symbol(extension_symbol) {
                 continue;
@@ -499,15 +473,14 @@ impl BodyState<'_, '_> {
             let target_type = extension.target.r#type();
             let implements = extension.implements.clone();
             let definition_members = extension.members.clone();
-            let members =
-                answer!(self.matching_extension_members(&definition_members, space, key)?);
+            let members = self.matching_extension_members(&definition_members, space, key)?;
             if members.is_empty() {
                 continue;
             }
 
             let classified = protocol.classified();
-            let verdict = self.probe_candidate(|state| {
-                state.match_extension_protocol_candidate(
+            let selected = self.confirm_candidate(|state| {
+                let matched = state.match_extension_protocol_members(
                     origin,
                     module,
                     receiver,
@@ -515,86 +488,21 @@ impl BodyState<'_, '_> {
                     extension_symbol,
                     target_type,
                     &implements,
+                    &members,
                     &classified,
-                )
-            })?;
-            let candidate = (extension_symbol, target_type, implements, members);
-            match verdict {
-                Answer::Ready(CandidateVerdict::Viable) => {
-                    viable = Some(candidate);
+                )?;
 
-                    break;
-                }
-                Answer::Ready(CandidateVerdict::Indeterminate) => {
-                    indeterminate.get_or_insert(candidate);
-                }
-                Answer::Ready(CandidateVerdict::Rejected) => {}
-                // keep a candidate whose outer variables are still open
-                Answer::Pending(pending) => {
-                    indeterminate.get_or_insert(candidate);
-                    blockers.extend(pending);
-                }
+                Ok(match matched {
+                    Some(matched) => CandidateOutcome::Accepted(matched),
+                    None => CandidateOutcome::Rejected(()),
+                })
+            })?;
+            if let Some((implementation, candidates)) = selected {
+                return select(self, implementation, candidates);
             }
         }
 
-        // apply one selected extension in the enclosing transaction
-        let Some((extension_symbol, target_type, implements, members)) = viable.or(indeterminate)
-        else {
-            return Ok(Answer::ready_unless_blocked(None, blockers));
-        };
-        let matched = self.match_extension_protocol_members(
-            origin,
-            module,
-            receiver,
-            lookup_receiver,
-            extension_symbol,
-            target_type,
-            &implements,
-            &members,
-            protocol,
-        )?;
-        let (implementation, candidates) = match matched {
-            Answer::Ready(Some(matched)) => matched,
-            Answer::Ready(None) => {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "selected extension protocol candidate {extension_symbol:?} was rejected"
-                    ),
-                });
-            }
-            Answer::Pending(pending) => return Ok(Answer::Pending(pending)),
-        };
-
-        select(self, implementation, candidates)
-    }
-
-    /// Classify one extension protocol candidate.
-    fn match_extension_protocol_candidate(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        receiver: dir::GlobalTypeId,
-        lookup_receiver: dir::GlobalTypeId,
-        extension_symbol: dir::GlobalSymbolId,
-        target_type: dir::GlobalTypeId,
-        implementations: &[dir::NominalHeritage],
-        protocol: &Protocol,
-    ) -> CompilerResult<Answer<CandidateOutcome<(), ()>>> {
-        let matched = self.match_extension_protocol_implementation(
-            origin,
-            module,
-            receiver,
-            lookup_receiver,
-            extension_symbol,
-            target_type,
-            implementations,
-            protocol,
-        )?;
-
-        Ok(matched.map(|matched| match matched {
-            Some(_) => CandidateOutcome::Accepted(()),
-            None => CandidateOutcome::Rejected(()),
-        }))
+        Ok(None)
     }
 
     /// Match one extension implementation against a protocol member request.
@@ -609,7 +517,7 @@ impl BodyState<'_, '_> {
         implementations: &[dir::NominalHeritage],
         members: &[DeclaredMember],
         protocol: &Protocol,
-    ) -> CompilerResult<Answer<Option<(dir::GlobalTypeId, Vec<MemberCandidate>)>>> {
+    ) -> CompilerResult<Option<(dir::GlobalTypeId, Vec<MemberCandidate>)>> {
         let matched = self.match_extension_protocol_implementation(
             origin,
             module,
@@ -620,8 +528,8 @@ impl BodyState<'_, '_> {
             implementations,
             protocol,
         )?;
-        let Some((substitution, implementation)) = answer!(matched) else {
-            return Ok(Answer::Ready(None));
+        let Some((substitution, implementation)) = matched else {
+            return Ok(None);
         };
         let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)? else {
             return Err(CompilerError::Internal {
@@ -631,23 +539,23 @@ impl BodyState<'_, '_> {
             });
         };
         let definition_members = extension.members.clone();
-        let Some(implementation) = answer!(self.instantiate_interface_implementation(
+        let Some(implementation) = self.instantiate_interface_implementation(
             origin,
             implementation,
             lookup_receiver,
             &definition_members,
             &substitution,
-        )?) else {
-            return Ok(Answer::Ready(None));
+        )?
+        else {
+            return Ok(None);
         };
         let candidates =
             self.extension_member_candidates(origin, extension_symbol, &substitution, members)?;
-        let candidates = answer!(candidates);
         if candidates.is_empty() {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
-        Ok(Answer::Ready(Some((implementation, candidates))))
+        Ok(Some((implementation, candidates)))
     }
 
     /// Match one extension target and implemented protocol.
@@ -661,7 +569,7 @@ impl BodyState<'_, '_> {
         target_type: dir::GlobalTypeId,
         implementations: &[dir::NominalHeritage],
         protocol: &Protocol,
-    ) -> CompilerResult<Answer<Option<(TypeSubstitution, dir::GlobalTypeId)>>> {
+    ) -> CompilerResult<Option<(TypeSubstitution, dir::GlobalTypeId)>> {
         let template = self.symbol_template(extension_symbol)?;
         let interface = protocol.instance(self, module)?;
 
@@ -690,7 +598,7 @@ impl BodyState<'_, '_> {
         protocol: &Protocol,
         requirements: &[InterfaceMember],
         lookup: MemberLookup,
-    ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
+    ) -> CompilerResult<Option<ProtocolMember>> {
         match lookup {
             MemberLookup::Found(candidates) => self.select_protocol_member_candidate(
                 origin,
@@ -705,7 +613,7 @@ impl BodyState<'_, '_> {
                 let mut arms = Vec::with_capacity(lookups.len());
                 let mut types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
                 for arm in lookups {
-                    let Some(member) = answer!(self.select_protocol_member_lookup(
+                    let Some(member) = self.select_protocol_member_lookup(
                         origin,
                         module,
                         arm.receiver,
@@ -715,8 +623,9 @@ impl BodyState<'_, '_> {
                         protocol,
                         requirements,
                         arm.lookup,
-                    )?) else {
-                        return Ok(Answer::Ready(None));
+                    )?
+                    else {
+                        return Ok(None);
                     };
                     let dir::OperationResolution::One(access) = member.resolution else {
                         return Err(CompilerError::Internal {
@@ -732,11 +641,11 @@ impl BodyState<'_, '_> {
                 };
                 let resolution = dir::OperationResolution::Union { arms, ty };
 
-                Ok(Answer::Ready(Some(ProtocolMember { resolution, ty })))
+                Ok(Some(ProtocolMember { resolution, ty }))
             }
             lookup @ MemberLookup::Intersection(_) => {
                 let Some(candidates) = lookup.into_candidates() else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
 
                 self.select_protocol_member_candidate(
@@ -749,7 +658,7 @@ impl BodyState<'_, '_> {
                     candidates,
                 )
             }
-            MemberLookup::Missing | MemberLookup::Field(_) => Ok(Answer::Ready(None)),
+            MemberLookup::Missing | MemberLookup::Field(_) => Ok(None),
         }
     }
 
@@ -766,7 +675,7 @@ impl BodyState<'_, '_> {
         requirements: &[InterfaceMember],
         argument_sources: &[dir::ArgumentSource],
         lookup: MemberLookup,
-    ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
+    ) -> CompilerResult<Option<ProtocolCall>> {
         match lookup {
             MemberLookup::Found(candidates) => self.select_protocol_call_candidate(
                 origin,
@@ -782,7 +691,7 @@ impl BodyState<'_, '_> {
                 let mut calls = Vec::with_capacity(lookups.len());
                 let mut returns = SmallVec::<[dir::GlobalTypeId; 4]>::new();
                 for arm in lookups {
-                    let Some(call) = answer!(self.select_protocol_call_lookup(
+                    let Some(call) = self.select_protocol_call_lookup(
                         origin,
                         module,
                         Value {
@@ -796,8 +705,9 @@ impl BodyState<'_, '_> {
                         requirements,
                         argument_sources,
                         arm.lookup,
-                    )?) else {
-                        return Ok(Answer::Ready(None));
+                    )?
+                    else {
+                        return Ok(None);
                     };
                     let dir::OperationResolution::One(call) = call.resolution else {
                         return Err(CompilerError::Internal {
@@ -816,14 +726,14 @@ impl BodyState<'_, '_> {
                     ty: return_type,
                 };
 
-                Ok(Answer::Ready(Some(ProtocolCall {
+                Ok(Some(ProtocolCall {
                     resolution,
                     return_type,
-                })))
+                }))
             }
             lookup @ MemberLookup::Intersection(_) => {
                 let Some(candidates) = lookup.into_candidates() else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
 
                 self.select_protocol_call_candidate(
@@ -837,7 +747,7 @@ impl BodyState<'_, '_> {
                     candidates,
                 )
             }
-            MemberLookup::Missing | MemberLookup::Field(_) => Ok(Answer::Ready(None)),
+            MemberLookup::Missing | MemberLookup::Field(_) => Ok(None),
         }
     }
 
@@ -851,21 +761,21 @@ impl BodyState<'_, '_> {
         protocol: &Protocol,
         requirements: &[InterfaceMember],
         candidates: Vec<MemberCandidate>,
-    ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
-        let candidates = answer!(self.select_nominal_protocol_candidates(
+    ) -> CompilerResult<Option<ProtocolMember>> {
+        let candidates = self.select_nominal_protocol_candidates(
             origin,
             module,
             lookup_receiver,
             protocol,
             requirements,
             candidates,
-        )?);
+        )?;
         let member = candidates
             .into_iter()
             .next()
             .map(|candidate| self.protocol_member_from_candidate(receiver, candidate));
 
-        Ok(Answer::Ready(member))
+        Ok(member)
     }
 
     /// Select the first protocol member from ordered candidates.
@@ -873,13 +783,13 @@ impl BodyState<'_, '_> {
         &self,
         receiver: dir::GlobalTypeId,
         candidates: Vec<MemberCandidate>,
-    ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
+    ) -> CompilerResult<Option<ProtocolMember>> {
         let member = candidates
             .into_iter()
             .next()
             .map(|candidate| self.protocol_member_from_candidate(receiver, candidate));
 
-        Ok(Answer::Ready(member))
+        Ok(member)
     }
 
     /// Return one durable protocol member resolution.
@@ -919,15 +829,15 @@ impl BodyState<'_, '_> {
         requirements: &[InterfaceMember],
         argument_sources: &[dir::ArgumentSource],
         candidates: Vec<MemberCandidate>,
-    ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
-        let candidates = answer!(self.select_nominal_protocol_candidates(
+    ) -> CompilerResult<Option<ProtocolCall>> {
+        let candidates = self.select_nominal_protocol_candidates(
             origin,
             module,
             lookup_receiver,
             protocol,
             requirements,
             candidates,
-        )?);
+        )?;
         for candidate in candidates {
             let call = self.select_protocol_call_from_candidate(
                 origin,
@@ -935,12 +845,12 @@ impl BodyState<'_, '_> {
                 argument_sources,
                 candidate,
             )?;
-            if !matches!(call, Answer::Ready(None)) {
+            if !call.is_none() {
                 return Ok(call);
             }
         }
 
-        Ok(Answer::Ready(None))
+        Ok(None)
     }
 
     /// Retain candidates declared by the interface or its proven implementers.
@@ -952,7 +862,7 @@ impl BodyState<'_, '_> {
         protocol: &Protocol,
         requirements: &[InterfaceMember],
         candidates: Vec<MemberCandidate>,
-    ) -> CompilerResult<Answer<Vec<MemberCandidate>>> {
+    ) -> CompilerResult<Vec<MemberCandidate>> {
         let declarations = requirements
             .iter()
             .map(|requirement| requirement.source)
@@ -960,7 +870,7 @@ impl BodyState<'_, '_> {
         let Some((_, receiver_instance)) = self.nominal_application_maybe(receiver)? else {
             let selected = self.select_protocol_declarations(&declarations, candidates)?;
 
-            return Ok(Answer::Ready(selected));
+            return Ok(selected);
         };
         let mut owners = FxIndexSet::default();
         owners.insert(receiver_instance.symbol);
@@ -987,7 +897,7 @@ impl BodyState<'_, '_> {
             let application_type = if owner == receiver_instance.symbol {
                 Some(receiver)
             } else {
-                answer!(self.heritage_instance(origin, receiver, owner)?)
+                self.heritage_instance(origin, receiver, owner)?
             };
             let Some(application_type) = application_type else {
                 continue;
@@ -996,7 +906,7 @@ impl BodyState<'_, '_> {
             // match the declared implementations at this application
             let (application_module, application) = self.nominal_application(application_type)?;
             let mut substitution = self.instance_substitution(application_module, &application)?;
-            let matched = answer!(self.match_implemented_interface(
+            let matched = self.match_implemented_interface(
                 origin,
                 Relation::Assignable,
                 module,
@@ -1004,7 +914,7 @@ impl BodyState<'_, '_> {
                 &mut substitution,
                 &implementations,
                 &interface,
-            )?);
+            )?;
             if matched.is_some() {
                 implementing_owners.insert(owner);
             }
@@ -1019,7 +929,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        Ok(Answer::Ready(selected))
+        Ok(selected)
     }
 
     /// Retain candidates whose declarations are selected by a protocol implementation.
@@ -1046,7 +956,7 @@ impl BodyState<'_, '_> {
         receiver: Value,
         argument_sources: &[dir::ArgumentSource],
         candidates: Vec<MemberCandidate>,
-    ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
+    ) -> CompilerResult<Option<ProtocolCall>> {
         for candidate in candidates {
             let call = self.select_protocol_call_from_candidate(
                 origin,
@@ -1054,12 +964,12 @@ impl BodyState<'_, '_> {
                 argument_sources,
                 candidate,
             )?;
-            if !matches!(call, Answer::Ready(None)) {
+            if !call.is_none() {
                 return Ok(call);
             }
         }
 
-        Ok(Answer::Ready(None))
+        Ok(None)
     }
 
     /// Select one already proved protocol call candidate.
@@ -1069,7 +979,7 @@ impl BodyState<'_, '_> {
         receiver: Value,
         argument_sources: &[dir::ArgumentSource],
         candidate: MemberCandidate,
-    ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
+    ) -> CompilerResult<Option<ProtocolCall>> {
         let symbol = candidate.symbol;
         let resolution = candidate.receiver.resolve(receiver.ty);
         let selection_type = match &resolution {
@@ -1093,20 +1003,20 @@ impl BodyState<'_, '_> {
             &arguments,
             None,
         )?;
-        let signature = match answer!(attempt) {
+        let signature = match attempt {
             SignatureMatch::Selected(signature) => signature,
             SignatureMatch::Invalid { .. }
             | SignatureMatch::ReturnMismatch(_)
-            | SignatureMatch::Inapplicable(_) => return Ok(Answer::Ready(None)),
+            | SignatureMatch::Inapplicable(_) => return Ok(None),
         };
 
         let arguments = Self::source_argument_bindings(argument_sources, &signature.parameters);
         let call = signature.member_call(resolution, candidate.owner, symbol, arguments);
         let resolution = dir::OperationResolution::One(call);
 
-        Ok(Answer::Ready(Some(ProtocolCall {
+        Ok(Some(ProtocolCall {
             resolution,
             return_type: signature.return_type,
-        })))
+        }))
     }
 }

@@ -11,7 +11,7 @@ value = 2;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: int32 = 1;
@@ -26,12 +26,11 @@ const value: int32 = 1;
 value = 2;
 /// @type.node source="value = 2" type=2
 /// @type.node source=value type=int32
+/// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=2 type=2
-
-/// @check.stats.solve variables=0 types=5 constraints=0 obligations=2 solutions=0 bounds=0 decisions=3
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
@@ -53,7 +52,7 @@ value += 2;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: int32 = 1;
@@ -68,14 +67,13 @@ const value: int32 = 1;
 value += 2;
 /// @type.node source="value += 2" type=int32
 /// @type.node source=value type=int32
+/// @resolution.name source=value target=value
 /// @resolution.operator source="value += 2" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
 /// @resolution.pattern.assign source=value kind=place
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
 /// @resolution.access source=value root=value
 /// @type.node source=2 type=2
-
-/// @check.stats.solve variables=0 types=8 constraints=0 obligations=2 solutions=0 bounds=0 decisions=4
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
@@ -97,7 +95,7 @@ state.count = 1;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const state: { count: int32 } = { count: 0 };
@@ -121,8 +119,6 @@ state.count = 1;
 /// @resolution.access source=state.count root=state keys=[count]
 /// @resolution.assignment source=state.count write="receiver={ count: int32 }, target=field(receiver={ count: int32 }, target=count, type=int32), type=int32" type=int32
 /// @type.node source=1 type=1
-
-/// @check.stats.solve variables=0 types=9 constraints=0 obligations=2 solutions=0 bounds=0 decisions=4
 "#,
     );
 }

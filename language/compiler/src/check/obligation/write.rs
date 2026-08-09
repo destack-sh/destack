@@ -1,8 +1,7 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Answer, CheckState, Dependency, ObligationCheck, ObligationFailure, Origin,
-    WritableTargetObligation, answer,
+    CheckState, ObligationCheck, ObligationFailure, Origin, WritableTargetObligation,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -28,8 +27,8 @@ pub(in crate::check) struct AssignmentSelection {
 
 impl AssignmentSelection {
     /// Return the durable assignment resolution selected by this target.
-    pub(in crate::check) fn resolution(self) -> dir::AssignmentResolution {
-        dir::AssignmentResolution {
+    pub(in crate::check) fn resolution(self) -> dir::AssignmentDecision {
+        dir::AssignmentDecision {
             target: self.source,
             read: self.read,
             write: self.write,
@@ -60,18 +59,16 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &WritableTargetObligation,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // require a writable target before weighing the indirection it crosses
         let target = &obligation.target;
         let check =
             self.check_writable_target(origin, target.source, &target.write, target.mode)?;
 
         match check {
-            Answer::Ready(ObligationCheck::Fails(_)) | Answer::Pending(_) => Ok(check),
-            Answer::Ready(ObligationCheck::Holds) => match target.mode {
-                WriteMode::Direct | WriteMode::Initialize { .. } => {
-                    Ok(Answer::Ready(ObligationCheck::holds()))
-                }
+            ObligationCheck::Fails(_) => Ok(check),
+            ObligationCheck::Holds => match target.mode {
+                WriteMode::Direct | WriteMode::Initialize { .. } => Ok(ObligationCheck::holds()),
                 WriteMode::Indirect { receiver } => {
                     self.check_indirect_write(origin, target.source, receiver, obligation.ty)
                 }
@@ -86,7 +83,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         target: &dir::WriteResolution,
         mode: WriteMode,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         match target {
             dir::WriteResolution::Binding { symbol, .. } => {
                 self.check_writable_binding(source, *symbol)
@@ -98,7 +95,7 @@ impl CheckState<'_> {
                 self.check_writable_subscript(origin, source, subscript, mode)
             }
             // a dereferenced place is writable through its own borrow
-            dir::WriteResolution::Dereference(_) => Ok(Answer::Ready(ObligationCheck::holds())),
+            dir::WriteResolution::Dereference(_) => Ok(ObligationCheck::holds()),
         }
     }
 
@@ -107,21 +104,21 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source: dir::GlobalNodeIdAny,
-        member: &dir::MemberResolution,
+        member: &dir::MemberDecision,
         mode: WriteMode,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // every access along the resolved chain must be writable
         for access in member.iter() {
             let check = self.check_writable_member_access(origin, source, access, mode)?;
             match check {
-                Answer::Ready(ObligationCheck::Holds) => {}
-                Answer::Ready(ObligationCheck::Fails(_)) | Answer::Pending(_) => {
+                ObligationCheck::Holds => {}
+                ObligationCheck::Fails(_) => {
                     return Ok(check);
                 }
             }
         }
 
-        Ok(Answer::Ready(ObligationCheck::holds()))
+        Ok(ObligationCheck::holds())
     }
 
     /// Check one singular writable member access.
@@ -131,7 +128,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         access: &dir::MemberAccess,
         mode: WriteMode,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         self.check_writable_member_target(origin, source, access.receiver, &access.target, mode)
     }
 
@@ -143,17 +140,17 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         target: &dir::MemberTarget,
         mode: WriteMode,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         match target {
             // a field write needs both a writable projection and a writable slot
             dir::MemberTarget::Field(field) => {
-                if answer!(self.body().receiver_projects_readonly(origin, receiver)?) {
+                if self.body().receiver_projects_readonly(origin, receiver)? {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
                         source,
                         member: target.clone(),
                     };
 
-                    return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+                    return Ok(ObligationCheck::fail(failure));
                 }
 
                 self.check_writable_field(source, field, mode)
@@ -164,26 +161,26 @@ impl CheckState<'_> {
                     let check =
                         self.check_writable_member_target(origin, source, receiver, target, mode)?;
                     match check {
-                        Answer::Ready(ObligationCheck::Holds) => {}
-                        Answer::Ready(ObligationCheck::Fails(_)) | Answer::Pending(_) => {
+                        ObligationCheck::Holds => {}
+                        ObligationCheck::Fails(_) => {
                             return Ok(check);
                         }
                     }
                 }
 
-                Ok(Answer::Ready(ObligationCheck::holds()))
+                Ok(ObligationCheck::holds())
             }
             // a setter call owns its own write rules
-            dir::MemberTarget::Call(_) => Ok(Answer::Ready(ObligationCheck::holds())),
+            dir::MemberTarget::Call(_) => Ok(ObligationCheck::holds()),
             // an index write needs both a writable projection and writable fields
             dir::MemberTarget::Index(index) => {
-                if answer!(self.body().receiver_projects_readonly(origin, receiver)?) {
+                if self.body().receiver_projects_readonly(origin, receiver)? {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
                         source,
                         member: target.clone(),
                     };
 
-                    return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+                    return Ok(ObligationCheck::fail(failure));
                 }
 
                 self.check_writable_index(origin, source, index)
@@ -201,27 +198,27 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source: dir::GlobalNodeIdAny,
-        subscript: &dir::SubscriptResolution,
+        subscript: &dir::SubscriptDecision,
         mode: WriteMode,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // every access along the resolved chain must be writable
         for subscript in subscript.iter() {
             let check = match &subscript.target {
                 dir::SubscriptTarget::Member(member) => {
                     self.check_writable_member_access(origin, source, member, mode)?
                 }
-                dir::SubscriptTarget::Call(_) => Answer::Ready(ObligationCheck::holds()),
-                dir::SubscriptTarget::Index(_) => Answer::Ready(ObligationCheck::holds()),
+                dir::SubscriptTarget::Call(_) => ObligationCheck::holds(),
+                dir::SubscriptTarget::Index(_) => ObligationCheck::holds(),
             };
             match check {
-                Answer::Ready(ObligationCheck::Holds) => {}
-                Answer::Ready(ObligationCheck::Fails(_)) | Answer::Pending(_) => {
+                ObligationCheck::Holds => {}
+                ObligationCheck::Fails(_) => {
                     return Ok(check);
                 }
             }
         }
 
-        Ok(Answer::Ready(ObligationCheck::holds()))
+        Ok(ObligationCheck::holds())
     }
 
     /// Check one write across potentially shared indirection.
@@ -231,25 +228,21 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // an exclusive receiver cannot be observed mid-overwrite
-        if answer!(self.is_exclusive_receiver(origin, receiver)?) {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+        if self.is_exclusive_receiver(origin, receiver)? {
+            return Ok(ObligationCheck::holds());
         }
 
         // a shared receiver demands a value that overwrites atomically
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
-        if answer!(self.satisfies_auto_interface(
-            origin,
-            ty,
-            dir::AutoInterface::OverwriteStable,
-        )?) {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+        let ty = self.reduce_type_head(origin, ty)?;
+        if self.satisfies_auto_interface(origin, ty, dir::AutoInterface::OverwriteStable)? {
+            return Ok(ObligationCheck::holds());
         }
 
         let failure = ObligationFailure::OverwriteStabilityNotSatisfied { source, ty };
 
-        Ok(Answer::Ready(ObligationCheck::fail(failure)))
+        Ok(ObligationCheck::fail(failure))
     }
 
     /// Return whether one receiver grants exclusive access.
@@ -257,12 +250,14 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // read the access a borrowed receiver carries
-        let receiver = answer!(self.reduce_type_head(origin, receiver)?);
+        let receiver = self.reduce_type_head(origin, receiver)?;
         let access = match self.ty(receiver)? {
             dir::Type::Variable(variable) => {
-                return Ok(Answer::pending([Dependency::Variable(variable)]));
+                return Err(CompilerError::Internal {
+                    message: format!("open variable {variable:?} reached a write obligation"),
+                });
             }
             dir::Type::Form(form) => match form.form {
                 dir::Form::Borrowed(borrow) => {
@@ -273,17 +268,17 @@ impl CheckState<'_> {
             _ => None,
         };
         let Some(access) = access else {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         };
 
         // exclusive access is the only access that excludes other readers
-        let access = answer!(self.reduce_type_head(origin, access)?);
+        let access = self.reduce_type_head(origin, access)?;
         let is_exclusive = matches!(
             self.ty(access)?,
             dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive))
         );
 
-        Ok(Answer::Ready(is_exclusive))
+        Ok(is_exclusive)
     }
 
     /// Check one binding write.
@@ -291,12 +286,12 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // reject writes to a binding another module declares
         if symbol.module_id != source.module_id {
             let failure = ObligationFailure::CannotAssignImportedBinding { source, symbol };
 
-            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+            return Ok(ObligationCheck::fail(failure));
         }
 
         let input = self.module(symbol.module_id);
@@ -312,7 +307,7 @@ impl CheckState<'_> {
         {
             let failure = ObligationFailure::CannotAssignImportedBinding { source, symbol };
 
-            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+            return Ok(ObligationCheck::fail(failure));
         }
 
         // reject writes to immutable bindings
@@ -325,10 +320,10 @@ impl CheckState<'_> {
         if !is_mutable {
             let failure = ObligationFailure::CannotAssignImmutableBinding { source, symbol };
 
-            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+            return Ok(ObligationCheck::fail(failure));
         }
 
-        Ok(Answer::Ready(ObligationCheck::holds()))
+        Ok(ObligationCheck::holds())
     }
 
     /// Check one field write.
@@ -337,7 +332,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         field: &dir::FieldResolution,
         mode: WriteMode,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         match field.target {
             dir::FieldTarget::Structural { owner, key } => {
                 self.check_writable_structural_field(source, field, owner, key)
@@ -355,7 +350,7 @@ impl CheckState<'_> {
         field: &dir::FieldResolution,
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // read the mutability the owning aggregate declares for the key
         let is_readonly = match self.ty(owner)? {
             dir::Type::Shape(shape) | dir::Type::Object(shape) => self
@@ -386,16 +381,16 @@ impl CheckState<'_> {
 
         // reject a write to a readonly slot
         if is_readonly {
-            Ok(Answer::Ready(ObligationCheck::fail(
+            Ok(ObligationCheck::fail(
                 ObligationFailure::CannotAssignReadonlyMember {
                     source,
                     member: dir::MemberTarget::Field(field.clone()),
                 },
-            )))
+            ))
         }
         // otherwise the aggregate owns a writable slot
         else {
-            Ok(Answer::Ready(ObligationCheck::holds()))
+            Ok(ObligationCheck::holds())
         }
     }
 
@@ -406,7 +401,7 @@ impl CheckState<'_> {
         field: &dir::FieldResolution,
         symbol: dir::GlobalSymbolId,
         mode: WriteMode,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // read the declaration that owns the written field
         let bindings = self.binding_table(symbol.module_id);
         let owner = bindings
@@ -434,16 +429,16 @@ impl CheckState<'_> {
         let is_initialization =
             matches!(mode, WriteMode::Initialize { owner: initialized } if initialized == owner);
         if declared.is_readonly && !is_initialization {
-            Ok(Answer::Ready(ObligationCheck::fail(
+            Ok(ObligationCheck::fail(
                 ObligationFailure::CannotAssignReadonlyMember {
                     source,
                     member: dir::MemberTarget::Field(field.clone()),
                 },
-            )))
+            ))
         }
         // otherwise the declaration owns a writable field
         else {
-            Ok(Answer::Ready(ObligationCheck::holds()))
+            Ok(ObligationCheck::holds())
         }
     }
 
@@ -453,9 +448,9 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalNodeIdAny,
         index: &dir::IndexResolution,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // a structural index writes into the fields of its own receiver
-        let receiver = answer!(self.reduce_type_head(origin, index.receiver.ty())?);
+        let receiver = self.reduce_type_head(origin, index.receiver.ty())?;
         let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = self.ty(receiver)? else {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -469,7 +464,7 @@ impl CheckState<'_> {
         let dir::IndexTarget::Fields(keys) = &index.target else {
             let failure = ObligationFailure::CannotAssignStructuralIndex { source, receiver };
 
-            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+            return Ok(ObligationCheck::fail(failure));
         };
         if keys.is_empty() {
             return Err(CompilerError::Internal {
@@ -498,9 +493,9 @@ impl CheckState<'_> {
                 member: dir::MemberTarget::Index(index.clone()),
             };
 
-            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+            return Ok(ObligationCheck::fail(failure));
         }
 
-        Ok(Answer::Ready(ObligationCheck::holds()))
+        Ok(ObligationCheck::holds())
     }
 }

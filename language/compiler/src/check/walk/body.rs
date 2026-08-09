@@ -1,62 +1,17 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::CompilerResult;
 use crate::check::{
-    Answer, CauseKind, ClassInitializationObligation, FlowBranch, Obligation, Origin, Receiver,
-    ValueUse, WalkState,
+    CauseKind, ClassInitializationObligation, Obligation, Origin, Receiver, ValueUse, WalkState,
 };
-use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
-    /// Visit one module root, walking only the bodies the checking pass owns.
-    pub(in crate::check) fn visit_body_expression(
-        &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<()> {
-        // bodies own module statements and bindings
-        let dir::Expression::Declaration(declaration) = self.tree.get(expression) else {
-            return self.walk_expression(expression, self.tree.get(expression));
-        };
-        let node = *declaration;
-        self.enter_node(expression)?;
-
-        // declaration statements evaluate to void, function values move
-        //  their bodies to the value expression like the full walk
-        let is_lambda = matches!(
-            self.tree.get(node),
-            dir::Declaration::Function(function)
-                if function.signature.form == dir::FunctionForm::Lambda
-                    || function.name.is_none()
-        );
-        if is_lambda {
-            // function values derive fresh with their expression
-            return self.walk_expression(expression, self.tree.get(expression));
-        }
-        let void = self.intern_type(dir::Type::Void)?;
-        self.commit_node_type(expression, void)?;
-
-        match self.tree.get(node).clone() {
-            // visit the members of global and module blocks
-            dir::Declaration::Global(block) => {
-                for expression in &block.expressions {
-                    self.visit_body_expression(*expression)?;
-                }
-
-                Ok(())
-            }
-            dir::Declaration::Module(block) => {
-                for expression in &block.expressions {
-                    self.visit_body_expression(*expression)?;
-                }
-
-                Ok(())
-            }
-            declaration => self.visit_body_declaration(node, &declaration),
-        }
-    }
-
-    /// Walk one declaration's bodies against its declared rows.
-    fn visit_body_declaration(
+    /// Walk one declaration statement's bodies for the check traversal.
+    ///
+    /// Module statements walk against their declared rows; body-local
+    /// declarations declare in place first.
+    pub(in crate::check) fn visit_body_declaration_statement(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
@@ -66,6 +21,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
+        // declare local declarations in place before their bodies walk
         let symbol = self
             .check
             .module(self.module)
@@ -73,12 +29,9 @@ impl WalkState<'_, '_> {
         let Some(symbol) = symbol else {
             return self.walk_declaration(id, &self.tree.get(id).clone());
         };
-
         let handled = self.visit_declared_bodies(id, declaration, symbol)?;
         if !handled {
-            return Err(CompilerError::Internal {
-                message: format!("declaration {symbol:?} has no declared rows to walk against"),
-            });
+            self.walk_declaration(id, &self.tree.get(id).clone())?;
         }
 
         Ok(())
@@ -117,7 +70,6 @@ impl WalkState<'_, '_> {
                     class.is_ambient,
                     true,
                 )?;
-                self.queue_declaration_layout_obligation(symbol, receiver)?;
 
                 Ok(true)
             }
@@ -148,9 +100,7 @@ impl WalkState<'_, '_> {
                 }
 
                 // queue interface obligations
-                let source = id.into_global_any(self.module);
-                self.queue_heritage_obligation(source, symbol)?;
-                self.queue_parameter_use_obligation(source, symbol)?;
+                let _source = id.into_global_any(self.module);
 
                 Ok(true)
             }
@@ -165,7 +115,6 @@ impl WalkState<'_, '_> {
                     false,
                     false,
                 )?;
-                self.queue_declaration_layout_obligation(symbol, receiver)?;
 
                 Ok(true)
             }
@@ -185,7 +134,6 @@ impl WalkState<'_, '_> {
                     false,
                     false,
                 )?;
-                self.queue_declaration_layout_obligation(symbol, receiver)?;
 
                 Ok(true)
             }
@@ -199,10 +147,7 @@ impl WalkState<'_, '_> {
                 let target_type = definition.target.r#type();
                 let template = self.check.symbol_template(symbol)?;
                 let origin = Origin::Node(id.into_global_any(self.module), template);
-                let ownership = match self.check.default_ownership(origin, target_type)? {
-                    Answer::Ready(ownership) => ownership,
-                    Answer::Pending(_) => return Ok(false),
-                };
+                let ownership = self.check.default_ownership(origin, target_type)?;
                 let receiver = Receiver {
                     declaration: Some(symbol),
                     ownership,
@@ -223,8 +168,7 @@ impl WalkState<'_, '_> {
             // aliases carry no bodies, nominal values check parameter use
             dir::Declaration::Type(declaration) => {
                 if declaration.is_nominal {
-                    let source = id.into_global_any(self.module);
-                    self.queue_parameter_use_obligation(source, symbol)?;
+                    let _source = id.into_global_any(self.module);
                 }
 
                 Ok(true)
@@ -252,7 +196,7 @@ impl WalkState<'_, '_> {
             // destructure the written pattern against the declared type
             if let Some(pattern) = node.pattern() {
                 self.walk_pattern(pattern, self.tree.get(pattern), None)?;
-                self.queue_assignable(
+                self.check_assignable(
                     pattern,
                     declared.ty,
                     CauseKind::Pattern {
@@ -266,7 +210,7 @@ impl WalkState<'_, '_> {
             if let Some(default) = node.default_value() {
                 let before_default = self.fork_flow();
                 self.walk_expression(default, self.tree.get(default))?;
-                self.queue_assignable(
+                self.check_assignable(
                     default,
                     declared.ty,
                     CauseKind::Initializer {
@@ -325,7 +269,7 @@ impl WalkState<'_, '_> {
                 {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
-                    self.queue_assignable(
+                    self.check_assignable(
                         default,
                         field_type,
                         CauseKind::Initializer {
@@ -353,42 +297,16 @@ impl WalkState<'_, '_> {
 
         // require concrete constructors to initialize concrete instance fields
         if is_class && !is_ambient {
-            if constructor_branches.is_empty() {
-                constructor_branches.push(FlowBranch::empty());
-            }
             let scope = self.check.symbol_template(symbol)?;
             self.check.push_obligation(
                 Obligation::ClassInitialization(ClassInitializationObligation {
                     source,
                     symbol,
                     receiver: receiver.ty,
-                    constructor_branches,
                 }),
                 scope,
             );
         }
-
-        // validate every authored interface implementation in one obligation
-        let Some(definition) = self.check.definition(symbol)? else {
-            return Err(CompilerError::Internal {
-                message: format!("declaration body {symbol:?} has no definition"),
-            });
-        };
-        let has_implementations = !definition.implementations().is_empty();
-        let is_extension = matches!(definition, dir::Definition::Extension(_));
-        if has_implementations {
-            self.queue_interface_conformance_obligation(source, symbol)?;
-        }
-
-        // extensions additionally require coherence across visible implementations
-        if is_extension {
-            self.queue_implementation_coherence_obligation(source, symbol)?;
-            self.queue_extension_coherence_obligation(source, symbol)?;
-        } else {
-            self.queue_parameter_use_obligation(source, symbol)?;
-        }
-
-        self.queue_heritage_obligation(source, symbol)?;
 
         Ok(())
     }

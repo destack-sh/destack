@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -294,19 +294,19 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<Vec<dir::ScalarLiteral>>>> {
-        let value = answer!(self.reduce_type_head(origin, value)?);
+    ) -> CompilerResult<Option<Vec<dir::ScalarLiteral>>> {
+        let value = self.reduce_type_head(origin, value)?;
 
         // case-specific types expose only their selected discriminant
         if let dir::Type::Variant(variant) = self.ty(value)? {
             let discriminant = self.variant_discriminant(&variant)?;
 
-            return Ok(Answer::Ready(Some(vec![discriminant])));
+            return Ok(Some(vec![discriminant]));
         }
 
         // enums discriminate over their declared members
         if let Some(domain) = self.enum_discriminant_domain(value)? {
-            return Ok(Answer::Ready(Some(domain)));
+            return Ok(Some(domain));
         }
 
         self.tagged_discriminant_domain(origin, value)

@@ -29,8 +29,11 @@ impl CheckState<'_> {
         // settle each checked condition before inspecting its canonical type
         for condition in conditions {
             let global = condition.into_global_any(module);
-            let ty = self.require_node_type(global)?;
-            let ty = self.settled_root(ty)?;
+            // statically absent conditions never check and carry no type
+            let Some(ty) = self.committed_node_type(global) else {
+                continue;
+            };
+            let ty = self.shallow_resolve(ty)?;
             let dir::Type::Literal(dir::ScalarLiteral::Boolean(value)) = self.ty(ty)? else {
                 continue;
             };

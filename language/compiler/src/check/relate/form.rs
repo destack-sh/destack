@@ -2,9 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{
-    Answer, Cause, CauseId, CauseKind, CheckState, Origin, Relation, VarianceForm, answer,
-};
+use crate::check::{Cause, CauseId, CauseKind, CheckState, Origin, Relation, VarianceForm};
 
 impl CheckState<'_> {
     /// Constrain the value beneath one memory form.
@@ -17,7 +15,7 @@ impl CheckState<'_> {
         form: dir::Form,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         match form {
             // raw pointers require identical values
             dir::Form::Raw => self.constrain_type(origin, cause, Relation::Equal, source, target),
@@ -35,19 +33,19 @@ impl CheckState<'_> {
             // readonly borrows remove the write path through their payload
             dir::Form::Borrowed(borrow) => {
                 let access = self.type_borrow(module, borrow)?.access;
-                match self.body().access_is_readonly(origin, access)? {
-                    Answer::Ready(true) => self.constrain_variance(
+                if self.body().access_is_readonly(origin, access)? {
+                    self.constrain_variance(
                         origin,
                         cause,
                         VarianceForm::Readonly,
                         relation,
                         source,
                         target,
-                    ),
-                    Answer::Ready(false) => {
-                        self.constrain_type(origin, cause, Relation::Equal, source, target)
-                    }
-                    Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                    )
+                }
+                // writable borrows keep both directions through their payload
+                else {
+                    self.constrain_type(origin, cause, Relation::Equal, source, target)
                 }
             }
 
@@ -87,7 +85,7 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         match (self.ty(source)?, self.ty(target)?) {
             // nominal arguments use the declaration's variance in this form
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
@@ -179,7 +177,7 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<Answer<bool>>> {
+    ) -> CompilerResult<Option<bool>> {
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
         self.constrain_form_assignable(origin, cause, relation, source, target)
@@ -193,25 +191,14 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<Answer<bool>>> {
-        let source = match self.reduce_type_head(origin, source)? {
-            Answer::Ready(source) => source,
-            Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
-        };
-        let target = match self.reduce_type_head(origin, target)? {
-            Answer::Ready(target) => target,
-            Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
-        };
+    ) -> CompilerResult<Option<bool>> {
+        // reduce both sides to their heads before dispatching on form
+        let source = self.reduce_type_head(origin, source)?;
+        let target = self.reduce_type_head(origin, target)?;
 
         // classify explicit placement before structural dispatch
-        let source_place = match self.form_space(origin, source)? {
-            Answer::Ready(space) => space,
-            Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
-        };
-        let target_place = match self.form_space(origin, target)? {
-            Answer::Ready(space) => space,
-            Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
-        };
+        let source_place = self.form_space(origin, source)?;
+        let target_place = self.form_space(origin, target)?;
 
         // bare values are local, so local placement on one side is transparent
         if relation != Relation::Widens
@@ -232,10 +219,7 @@ impl CheckState<'_> {
         if let dir::Type::Form(target_form) = self.ty(target)?
             && matches!(target_form.form, dir::Form::Placed { .. })
         {
-            let is_reference = match self.type_is_reference(origin, target)? {
-                Answer::Ready(is_reference) => is_reference,
-                Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
-            };
+            let is_reference = self.type_is_reference(origin, target)?;
             if !is_reference {
                 return Ok(Some(self.constrain_type(
                     origin,
@@ -317,16 +301,18 @@ impl CheckState<'_> {
                     source_borrow.lifetime,
                     target_borrow.lifetime,
                 )?;
-                if !lifetime.is_ready_true() {
-                    return Ok(Some(lifetime));
+                if !lifetime {
+                    return Ok(Some(false));
                 }
+
+                // bind the access slot before descending into the payload
                 let access = self.constrain_access_assignable(
                     origin,
                     source_borrow.access,
                     target_borrow.access,
                 )?;
-                if !access.is_ready_true() {
-                    return Ok(Some(access));
+                if !access {
+                    return Ok(Some(false));
                 }
 
                 Ok(Some(self.constrain_form_value(
@@ -350,10 +336,7 @@ impl CheckState<'_> {
                     target.module_id,
                     target_form.form,
                 )?;
-                if let Answer::Pending(blockers) = constructor {
-                    return Ok(Some(Answer::Pending(blockers)));
-                }
-                if constructor.is_ready_false() {
+                if !constructor {
                     // read copyable payloads out of unmatched borrows, never widening
                     if relation != Relation::Widens
                         && matches!(source_form.form, dir::Form::Borrowed(_))
@@ -366,7 +349,7 @@ impl CheckState<'_> {
                         )?));
                     }
 
-                    return Ok(Some(constructor));
+                    return Ok(Some(false));
                 }
 
                 Ok(Some(self.constrain_form_value(
@@ -390,14 +373,9 @@ impl CheckState<'_> {
             {
                 // never relabel a safe reference as uniquely owned storage
                 if target_form.form == dir::Form::Owned {
-                    let is_reference = match self.type_is_reference(origin, source)? {
-                        Answer::Ready(is_reference) => is_reference,
-                        Answer::Pending(blockers) => {
-                            return Ok(Some(Answer::Pending(blockers)));
-                        }
-                    };
+                    let is_reference = self.type_is_reference(origin, source)?;
                     if is_reference {
-                        return Ok(Some(Answer::Ready(false)));
+                        return Ok(Some(false));
                     }
                 }
 
@@ -413,12 +391,7 @@ impl CheckState<'_> {
                         )?));
                     }
 
-                    let is_reference = match self.type_is_reference(origin, source)? {
-                        Answer::Ready(is_reference) => is_reference,
-                        Answer::Pending(blockers) => {
-                            return Ok(Some(Answer::Pending(blockers)));
-                        }
-                    };
+                    let is_reference = self.type_is_reference(origin, source)?;
                     if is_reference {
                         // intrinsically placed nominals satisfy their own space
                         let nominal = match self.ty(source)? {
@@ -428,7 +401,7 @@ impl CheckState<'_> {
                             _ => None,
                         };
                         if nominal != Some(dir::Space::Shared) {
-                            return Ok(Some(Answer::Ready(false)));
+                            return Ok(Some(false));
                         }
 
                         return Ok(Some(self.constrain_type(
@@ -440,10 +413,12 @@ impl CheckState<'_> {
                         )?));
                     }
                 }
+
+                // everything else has to copy into the destination storage
                 let copyable =
                     self.satisfies_auto_interface(origin, source, dir::AutoInterface::Copy)?;
-                if !copyable.is_ready_true() {
-                    return Ok(Some(copyable));
+                if !copyable {
+                    return Ok(Some(false));
                 }
 
                 Ok(Some(self.constrain_type(
@@ -473,16 +448,19 @@ impl CheckState<'_> {
             (dir::Type::Form(source_form), _)
                 if relation != Relation::Widens && source_form.form == dir::Form::Owned =>
             {
-                match self.defaults_to_managed(origin, source_form.value)? {
-                    Answer::Ready(true) => Ok(Some(Answer::Ready(false))),
-                    Answer::Ready(false) => Ok(Some(self.constrain_type(
+                // managed defaults keep their handle, so an owned value cannot land there
+                if self.defaults_to_managed(origin, source_form.value)? {
+                    Ok(Some(false))
+                }
+                // every other default takes the payload directly
+                else {
+                    Ok(Some(self.constrain_type(
                         origin,
                         cause,
                         Relation::Assignable,
                         source_form.value,
                         target,
-                    )?)),
-                    Answer::Pending(blockers) => Ok(Some(Answer::Pending(blockers))),
+                    )?))
                 }
             }
 
@@ -500,14 +478,11 @@ impl CheckState<'_> {
                         target,
                     )?));
                 }
-                let is_reference = match self.type_is_reference(origin, source)? {
-                    Answer::Ready(is_reference) => is_reference,
-                    Answer::Pending(blockers) => {
-                        return Ok(Some(Answer::Pending(blockers)));
-                    }
-                };
+
+                // references keep their placement instead of copying out
+                let is_reference = self.type_is_reference(origin, source)?;
                 if is_reference {
-                    return Ok(Some(Answer::Ready(false)));
+                    return Ok(Some(false));
                 }
 
                 Ok(Some(self.constrain_copyable_read_out(
@@ -539,17 +514,17 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::Space>>> {
+    ) -> CompilerResult<Option<dir::Space>> {
         let dir::Type::Form(form) = self.ty(ty)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let dir::Form::Placed { place } = form.form else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
-        let place = answer!(self.reduce_type_head(origin, place)?);
+        let place = self.reduce_type_head(origin, place)?;
         let space = self.place_space(place)?;
 
-        Ok(Answer::Ready(space))
+        Ok(space)
     }
 
     /// Constrain one copyable payload read out of a view or borrow.
@@ -562,11 +537,11 @@ impl CheckState<'_> {
         relation: Relation,
         payload: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // preserve views over reference carriers instead of copying their handles
-        let is_reference = answer!(self.type_is_reference(origin, payload)?);
+        let is_reference = self.type_is_reference(origin, payload)?;
         if is_reference {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         // reject writable borrow targets before reading the copy out
@@ -574,15 +549,17 @@ impl CheckState<'_> {
             && let dir::Form::Borrowed(borrow) = target_form.form
         {
             let access = self.type_borrow(target.module_id, borrow)?.access;
-            if answer!(self.access_literal(origin, access)?) != Some(dir::Access::Readonly) {
-                return Ok(Answer::Ready(false));
+            if self.access_literal(origin, access)? != Some(dir::Access::Readonly) {
+                return Ok(false);
             }
         }
 
+        // only copyable payloads may be read out of the view
         let copyable = self.satisfies_auto_interface(origin, payload, dir::AutoInterface::Copy)?;
-        if !copyable.is_ready_true() {
-            return Ok(copyable);
+        if !copyable {
+            return Ok(false);
         }
+
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
         self.constrain_type(origin, cause, relation, payload, target)
@@ -596,7 +573,7 @@ impl CheckState<'_> {
         source: dir::Form,
         target_module: ModuleId,
         target: dir::Form,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         match (source, target) {
             (dir::Form::Borrowed(source_borrow), dir::Form::Borrowed(target_borrow)) => {
                 let source_borrow = self.type_borrow(source_module, source_borrow)?;
@@ -612,7 +589,7 @@ impl CheckState<'_> {
             (dir::Form::Placed { place: source }, dir::Form::Placed { place: target }) => {
                 self.decide_relation(origin, Relation::Equal, source, target)
             }
-            _ => Ok(Answer::Ready(source.same_constructor(&target))),
+            _ => Ok(source.same_constructor(&target)),
         }
     }
 
@@ -625,9 +602,9 @@ impl CheckState<'_> {
         source: dir::Form,
         target_module: ModuleId,
         target: dir::Form,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         match (source, target) {
-            (dir::Form::Borrowed(_), dir::Form::Readonly) => Ok(Answer::Ready(true)),
+            (dir::Form::Borrowed(_), dir::Form::Readonly) => Ok(true),
             (dir::Form::Borrowed(source), dir::Form::Borrowed(target)) => {
                 let source = self.type_borrow(source_module, source)?;
                 let target = self.type_borrow(target_module, target)?;
@@ -637,7 +614,7 @@ impl CheckState<'_> {
             (dir::Form::Placed { place: source }, dir::Form::Placed { place: target }) => {
                 self.constrain_type(origin, cause, Relation::Equal, source, target)
             }
-            _ => Ok(Answer::Ready(source.same_constructor(&target))),
+            _ => Ok(source.same_constructor(&target)),
         }
     }
 
@@ -647,31 +624,30 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let source = answer!(self.reduce_type_head(origin, source)?);
-        let target = answer!(self.reduce_type_head(origin, target)?);
+    ) -> CompilerResult<bool> {
+        let source = self.reduce_type_head(origin, source)?;
+        let target = self.reduce_type_head(origin, target)?;
         let source =
             self.normalize_memory_component(origin, source, dir::MemoryParameter::Access)?;
         let target =
             self.normalize_memory_component(origin, target, dir::MemoryParameter::Access)?;
         if source == target {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         match (self.ty(source)?, self.ty(target)?) {
             (
                 dir::Type::Memory(dir::MemoryLiteral::Access(source)),
                 dir::Type::Memory(dir::MemoryLiteral::Access(target)),
-            ) => Ok(Answer::Ready(source.grants(target))),
+            ) => Ok(source.grants(target)),
 
             // require every possible source access to grant the requirement
             (dir::Type::Union(union), _) => {
                 let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
-                let mut decision = Answer::Ready(true);
+                let mut decision = true;
                 for element in elements {
-                    decision =
-                        decision.and(self.decide_access_assignable(origin, element, target)?);
-                    if decision.is_ready_false() {
+                    decision = self.decide_access_assignable(origin, element, target)?;
+                    if !decision {
                         break;
                     }
                 }
@@ -682,10 +658,10 @@ impl CheckState<'_> {
             // one accepted target access is sufficient
             (_, dir::Type::Union(union)) => {
                 let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
-                let mut decision = Answer::Ready(false);
+                let mut decision = false;
                 for element in elements {
-                    decision = decision.or(self.decide_access_assignable(origin, source, element)?);
-                    if decision.is_ready_true() {
+                    decision = self.decide_access_assignable(origin, source, element)?;
+                    if decision {
                         break;
                     }
                 }
@@ -695,10 +671,10 @@ impl CheckState<'_> {
 
             // grant what any declared bound proves for a rigid parameter
             (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
-                let mut decision = Answer::Ready(false);
+                let mut decision = false;
                 for bound in self.parameter_bounds(origin, parameter)? {
-                    decision = decision.or(self.decide_access_assignable(origin, bound, target)?);
-                    if decision.is_ready_true() {
+                    decision = self.decide_access_assignable(origin, bound, target)?;
+                    if decision {
                         break;
                     }
                 }
@@ -706,7 +682,7 @@ impl CheckState<'_> {
                 Ok(decision)
             }
 
-            _ => Ok(Answer::Ready(false)),
+            _ => Ok(false),
         }
     }
 
@@ -716,9 +692,9 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let source = self.settled_root(source)?;
-        let target = self.settled_root(target)?;
+    ) -> CompilerResult<bool> {
+        let source = self.shallow_resolve(source)?;
+        let target = self.shallow_resolve(target)?;
         if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 

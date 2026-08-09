@@ -11,7 +11,7 @@ const greeting = `hello ${name}`;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const name: "Ada" = "Ada";
@@ -31,8 +31,6 @@ const greeting = `hello ${name}`;
 /// @resolution.name source=name target=name
 /// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=name root=name
-
-/// @check.stats.solve variables=2 types=8 constraints=0 obligations=2 solutions=2 bounds=0 decisions=3
 "#,
     );
 }
@@ -47,7 +45,7 @@ const greeting: string = `hello`;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const greeting: string = `hello`;
@@ -57,8 +55,6 @@ const greeting: string = `hello`;
 /// @type.symbol symbol=greeting source=greeting type=string
 /// @resolution.pattern source=greeting kind=binding target=greeting
 /// @type.node source=`hello` type=string
-
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -73,7 +69,7 @@ const value: number = `hello`;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: float64 = `hello`;
@@ -83,8 +79,6 @@ const value: number = `hello`;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=`hello` type=string
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'string' is not assignable to type 'float64'"

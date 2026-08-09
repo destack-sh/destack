@@ -3,9 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{
-    Answer, CandidateOutcome, CheckState, Dependency, Origin, Relation, Variance, answer,
-};
+use crate::check::{CandidateOutcome, CheckState, Origin, Relation, Variance};
 
 use super::substitute::InferSubstitution;
 
@@ -78,14 +76,14 @@ impl InferMatch {
         symbol: Option<dir::GlobalSymbolId>,
         captured: dir::GlobalTypeId,
         variance: Variance,
-    ) -> Answer<bool> {
+    ) -> bool {
         let Some(index) = self.binder_index(binder, symbol) else {
-            return Answer::Ready(false);
+            return false;
         };
 
         self.captures[index].push(variance, captured);
 
-        Answer::Ready(true)
+        true
     }
 
     /// Return the covariant candidates already captured for one binder.
@@ -169,15 +167,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         conditional: dir::ConditionalType,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let left = answer!(self.reduce_type_head(origin, conditional.left)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let left = self.reduce_type_head(origin, conditional.left)?;
 
         // distribute over union-valued checked types
         let elements = match self.ty(left)? {
             dir::Type::Union(union) if conditional.is_distributive => {
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(left.module_id, union.elements)?)
             }
-            dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
+            dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(None),
             _ => SmallVec::from_slice(&[left]),
         };
 
@@ -187,7 +185,6 @@ impl CheckState<'_> {
         // choose each element's branch with the element substituted in
         let module = origin.module();
         let mut branches = Vec::with_capacity(elements.len());
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for element in elements {
             let branch = if binders.is_empty() {
                 self.conditional_branch(
@@ -196,7 +193,6 @@ impl CheckState<'_> {
                     conditional.right,
                     conditional.then_type,
                     conditional.else_type,
-                    &mut blockers,
                 )?
             } else {
                 self.inferred_conditional_branch(
@@ -206,24 +202,17 @@ impl CheckState<'_> {
                     conditional.then_type,
                     conditional.else_type,
                     &binders,
-                    &mut blockers,
                 )?
             };
 
-            let Some(branch) = branch else {
-                continue;
-            };
             let branch = self.replace_type(module, branch, conditional.left, element)?;
             branches.push(branch);
-        }
-        if !blockers.is_empty() {
-            return Ok(Answer::pending(blockers));
         }
 
         // rebuild the distributed result, dropping never like any union
         let mut kept = Vec::with_capacity(branches.len());
         for branch in branches {
-            let branch = answer!(self.reduce_type_head(origin, branch)?);
+            let branch = self.reduce_type_head(origin, branch)?;
             if matches!(self.ty(branch)?, dir::Type::Never) {
                 continue;
             }
@@ -237,7 +226,7 @@ impl CheckState<'_> {
             _ => self.normalized_union_type(kept)?,
         };
 
-        Ok(Answer::Ready(Some(joined)))
+        Ok(Some(joined))
     }
 
     /// Return the chosen branch for a conditional arm without binders.
@@ -248,19 +237,10 @@ impl CheckState<'_> {
         right: dir::GlobalTypeId,
         then_type: dir::GlobalTypeId,
         else_type: dir::GlobalTypeId,
-        blockers: &mut SmallVec<[Dependency; 2]>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let decision = self.decide_relation(origin, Relation::Extends, left, right)?;
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let extends = self.decide_relation(origin, Relation::Extends, left, right)?;
 
-        match decision {
-            Answer::Ready(true) => Ok(Some(then_type)),
-            Answer::Ready(false) => Ok(Some(else_type)),
-            Answer::Pending(dependencies) => {
-                blockers.extend(dependencies);
-
-                Ok(None)
-            }
-        }
+        Ok(if extends { then_type } else { else_type })
     }
 
     /// Return the chosen branch for a conditional arm with infer binders.
@@ -272,26 +252,17 @@ impl CheckState<'_> {
         then_type: dir::GlobalTypeId,
         else_type: dir::GlobalTypeId,
         binders: &[InferBinder],
-        blockers: &mut SmallVec<[Dependency; 2]>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let matched = self.confirm_candidate(|state| {
             match state.match_infer_pattern(origin, right, then_type, binders, left)? {
-                Answer::Ready(Some(branch)) => {
-                    Ok(Answer::Ready(CandidateOutcome::Accepted(branch)))
-                }
-                Answer::Ready(None) => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),
-                Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                Some(branch) => Ok(CandidateOutcome::Accepted(branch)),
+                None => Ok(CandidateOutcome::Rejected(())),
             }
         })?;
 
         match matched {
-            Answer::Ready(Some(branch)) => Ok(Some(branch)),
-            Answer::Ready(None) => Ok(Some(else_type)),
-            Answer::Pending(dependencies) => {
-                blockers.extend(dependencies);
-
-                Ok(None)
-            }
+            Some(branch) => Ok(branch),
+            None => Ok(else_type),
         }
     }
 
@@ -349,27 +320,21 @@ impl CheckState<'_> {
         then_type: dir::GlobalTypeId,
         binders: &[InferBinder],
         element: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
         let mut captures = InferMatch::new(binders);
 
         // match the actual type against the pattern and capture binders
-        if !answer!(self.match_infer_type(
-            origin,
-            &mut captures,
-            Variance::Covariant,
-            pattern,
-            element,
-        )?) {
-            return Ok(Answer::Ready(None));
+        if !self.match_infer_type(origin, &mut captures, Variance::Covariant, pattern, element)? {
+            return Ok(None);
         }
 
         // substitute captured binders into the chosen branch
         let substitutions = captures.substitutions(self, module, source)?;
         let branch = self.substitute_infer_captures(origin.module(), then_type, &substitutions)?;
 
-        Ok(Answer::Ready(Some(branch)))
+        Ok(Some(branch))
     }
 
     /// Match one actual type against a conditional `infer` pattern.
@@ -380,9 +345,9 @@ impl CheckState<'_> {
         variance: Variance,
         pattern: dir::GlobalTypeId,
         actual: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let pattern = answer!(self.reduce_type_head(origin, pattern)?);
-        let actual = answer!(self.reduce_type_head(origin, actual)?);
+    ) -> CompilerResult<bool> {
+        let pattern = self.reduce_type_head(origin, pattern)?;
+        let actual = self.reduce_type_head(origin, actual)?;
 
         // capture direct infer binders
         if let Some(dir::TypeOperation::Infer(infer)) = self.operation_head(pattern)?
@@ -392,16 +357,16 @@ impl CheckState<'_> {
             let constraint = infer.constraint;
 
             if let Some(constraint) = constraint
-                && !answer!(self.decide_relation(origin, Relation::Extends, actual, constraint)?)
+                && !self.decide_relation(origin, Relation::Extends, actual, constraint)?
             {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
 
             return Ok(captures.bind(pattern, symbol, actual, variance));
         }
 
         if pattern == actual {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         let pattern_module = pattern.module_id;
@@ -424,13 +389,10 @@ impl CheckState<'_> {
                     }
                     _ => unreachable!(),
                 };
-                let Some(parts) = answer!(self.split_template_captures(
-                    origin,
-                    &text,
-                    pattern_module,
-                    &template
-                )?) else {
-                    return Ok(Answer::Ready(false));
+                let Some(parts) =
+                    self.split_template_captures(origin, &text, pattern_module, &template)?
+                else {
+                    return Ok(false);
                 };
                 for (span, captured) in parts {
                     // fixed spans already matched during the split
@@ -448,27 +410,27 @@ impl CheckState<'_> {
                             // repeated binders must capture identical text
                             let previous = captures.captured(span, infer.symbol);
                             if !previous.is_empty() && previous != [captured] {
-                                return Ok(Answer::Ready(false));
+                                return Ok(false);
                             }
-                            if !answer!(self.match_infer_type(
+                            if !self.match_infer_type(
                                 origin,
                                 captures,
                                 Variance::Covariant,
                                 span,
-                                captured
-                            )?) {
-                                return Ok(Answer::Ready(false));
+                                captured,
+                            )? {
+                                return Ok(false);
                             }
                         }
                         _ => {
-                            if !answer!(self.match_template_span(origin, &captured, span)?) {
-                                return Ok(Answer::Ready(false));
+                            if !self.match_template_span(origin, &captured, span)? {
+                                return Ok(false);
                             }
                         }
                     }
                 }
 
-                Ok(Answer::Ready(true))
+                Ok(true)
             }
             (dir::Type::Application(pattern), dir::Type::Application(actual))
                 if pattern.symbol == actual.symbol =>
@@ -521,11 +483,12 @@ impl CheckState<'_> {
                 let candidates = self
                     .reference_construct_signatures(origin, reference)?
                     .to_vec();
-                let mut matched = Answer::Ready(false);
+                let mut matched = false;
                 for candidate in candidates {
                     matched = matched
-                        .or(self.match_infer_type(origin, captures, variance, pattern, candidate)?);
-                    if matched.is_ready_true() {
+                        || (self
+                            .match_infer_type(origin, captures, variance, pattern, candidate)?);
+                    if matched {
                         break;
                     }
                 }
@@ -588,21 +551,18 @@ impl CheckState<'_> {
         variance: Variance,
         pattern: &[dir::GlobalTypeId],
         actual: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         if pattern.len() != actual.len() {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
-        let mut decision = Answer::Ready(true);
         for (pattern, actual) in pattern.iter().copied().zip(actual.iter().copied()) {
-            decision =
-                decision.and(self.match_infer_type(origin, captures, variance, pattern, actual)?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !self.match_infer_type(origin, captures, variance, pattern, actual)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Match structural shapes inside a conditional `infer` pattern.
@@ -615,7 +575,7 @@ impl CheckState<'_> {
         pattern: dir::ShapeType,
         actual_module: ModuleId,
         actual: dir::ShapeType,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let pattern_fields = self
             .shape_properties(pattern_module, pattern.properties)?
             .to_vec();
@@ -629,7 +589,7 @@ impl CheckState<'_> {
             &pattern_fields,
             &actual_fields,
         )?;
-        if !fields.is_ready_true() {
+        if !fields {
             return Ok(fields);
         }
 
@@ -641,7 +601,7 @@ impl CheckState<'_> {
             .to_vec();
         let calls =
             self.match_infer_arguments(origin, captures, variance, &pattern_calls, &actual_calls)?;
-        if !calls.is_ready_true() {
+        if !calls {
             return Ok(calls);
         }
 
@@ -658,7 +618,7 @@ impl CheckState<'_> {
             &pattern_constructs,
             &actual_constructs,
         )?;
-        if !constructs.is_ready_true() {
+        if !constructs {
             return Ok(constructs);
         }
 
@@ -685,8 +645,7 @@ impl CheckState<'_> {
         variance: Variance,
         pattern: &[dir::TypeProperty],
         actual: &[dir::TypeProperty],
-    ) -> CompilerResult<Answer<bool>> {
-        let mut decision = Answer::Ready(true);
+    ) -> CompilerResult<bool> {
         for pattern_field in pattern {
             let actual_field = actual.iter().find(|field| field.key == pattern_field.key);
             let Some(actual_field) = actual_field else {
@@ -694,25 +653,24 @@ impl CheckState<'_> {
                     continue;
                 }
 
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             };
             if actual_field.is_optional && !pattern_field.is_optional {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
 
-            decision = decision.and(self.match_infer_type(
+            if !self.match_infer_type(
                 origin,
                 captures,
                 variance,
                 pattern_field.access.store(),
                 actual_field.access.store(),
-            )?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            )? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Match index signatures inside a conditional `infer` pattern.
@@ -723,43 +681,40 @@ impl CheckState<'_> {
         variance: Variance,
         pattern: &[dir::TypeIndexSignature],
         actual: &[dir::TypeIndexSignature],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         if pattern.len() != actual.len() {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
-        let mut decision = Answer::Ready(true);
         for (pattern, actual) in pattern.iter().zip(actual) {
             if pattern.is_optional != actual.is_optional
                 || pattern.is_readonly != actual.is_readonly
             {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
 
-            decision = decision.and(self.match_infer_type(
+            if !self.match_infer_type(
                 origin,
                 captures,
                 variance,
                 pattern.key_type,
                 actual.key_type,
-            )?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            )? {
+                return Ok(false);
             }
 
-            decision = decision.and(self.match_infer_type(
+            if !self.match_infer_type(
                 origin,
                 captures,
                 variance,
                 pattern.value_type,
                 actual.value_type,
-            )?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            )? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Match generic arguments inside a same-symbol application pattern.
@@ -771,15 +726,14 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         pattern: &[dir::GlobalTypeId],
         actual: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         if pattern.len() != actual.len() {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
         let parameters = match self.symbol_template(symbol)? {
             Some(template) => Some(self.generic_template_parameters(template)?),
             None => None,
         };
-        let mut decision = Answer::Ready(true);
         for (index, (pattern, actual)) in pattern
             .iter()
             .copied()
@@ -797,19 +751,12 @@ impl CheckState<'_> {
                 None => Variance::Invariant,
             };
 
-            decision = decision.and(self.match_infer_type(
-                origin,
-                captures,
-                argument_variance,
-                pattern,
-                actual,
-            )?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !self.match_infer_type(origin, captures, argument_variance, pattern, actual)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Match tuple elements inside a conditional `infer` pattern.
@@ -820,23 +767,20 @@ impl CheckState<'_> {
         variance: Variance,
         pattern: &[dir::TypeElement],
         actual: &[dir::TypeElement],
-    ) -> CompilerResult<Answer<bool>> {
-        let mut decision = Answer::Ready(true);
+    ) -> CompilerResult<bool> {
         for (pattern, actual) in pattern.iter().zip(actual) {
             if pattern.is_optional != actual.is_optional
                 || pattern.is_readonly != actual.is_readonly
                 || pattern.is_rest != actual.is_rest
             {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
-            decision = decision
-                .and(self.match_infer_type(origin, captures, variance, pattern.ty, actual.ty)?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !self.match_infer_type(origin, captures, variance, pattern.ty, actual.ty)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Match function signatures inside a conditional `infer` pattern.
@@ -849,9 +793,9 @@ impl CheckState<'_> {
         pattern: &dir::FunctionSignatureType,
         actual_module: ModuleId,
         actual: &dir::FunctionSignatureType,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         if pattern.asynchrony != actual.asynchrony || pattern.is_generator != actual.is_generator {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         // match explicit receiver when the pattern names one
@@ -859,10 +803,10 @@ impl CheckState<'_> {
             (Some(pattern), Some(actual)) => {
                 self.match_infer_type(origin, captures, variance.flip(), pattern, actual)?
             }
-            (Some(_), None) => return Ok(Answer::Ready(false)),
-            (None, _) => Answer::Ready(true),
+            (Some(_), None) => return Ok(false),
+            (None, _) => true,
         };
-        if !receiver.is_ready_true() {
+        if !receiver {
             return Ok(receiver);
         }
 
@@ -880,7 +824,7 @@ impl CheckState<'_> {
             &pattern_parameters,
             &actual_parameters,
         )?;
-        if !parameters.is_ready_true() {
+        if !parameters {
             return Ok(parameters);
         }
 
@@ -888,8 +832,8 @@ impl CheckState<'_> {
             (Some(pattern), Some(actual)) => {
                 self.match_infer_type(origin, captures, variance, pattern, actual)
             }
-            (Some(_), None) => Ok(Answer::Ready(false)),
-            (None, _) => Ok(Answer::Ready(true)),
+            (Some(_), None) => Ok(false),
+            (None, _) => Ok(true),
         }
     }
 
@@ -901,7 +845,7 @@ impl CheckState<'_> {
         variance: Variance,
         pattern: &[dir::FunctionParameterType],
         actual: &[dir::FunctionParameterType],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // one rest parameter pattern spans the full actual parameter tuple
         if let [rest] = pattern
             && rest.is_rest
@@ -910,22 +854,19 @@ impl CheckState<'_> {
         }
 
         if pattern.len() != actual.len() {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
-        let mut decision = Answer::Ready(true);
         for (pattern, actual) in pattern.iter().zip(actual) {
             if pattern.is_optional != actual.is_optional || pattern.is_rest != actual.is_rest {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
-            decision = decision
-                .and(self.match_infer_type(origin, captures, variance, pattern.ty, actual.ty)?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !self.match_infer_type(origin, captures, variance, pattern.ty, actual.ty)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Match a rest parameter pattern against a full parameter list.
@@ -936,48 +877,39 @@ impl CheckState<'_> {
         variance: Variance,
         pattern: dir::FunctionParameterType,
         actual: &[dir::FunctionParameterType],
-    ) -> CompilerResult<Answer<bool>> {
-        let pattern_type = answer!(self.reduce_type_head(origin, pattern.ty)?);
+    ) -> CompilerResult<bool> {
+        let pattern_type = self.reduce_type_head(origin, pattern.ty)?;
 
         // infer rest parameters capture the actual parameter tuple
         if let Some(dir::TypeOperation::Infer(infer)) = self.operation_head(pattern_type)?
             && captures.binder_index(pattern_type, infer.symbol).is_some()
         {
             let symbol = infer.symbol;
-            let captured = answer!(self.function_parameter_tuple(origin, actual)?);
+            let captured = self.function_parameter_tuple(actual)?;
 
             return Ok(captures.bind(pattern_type, symbol, captured, variance));
         }
 
         // non-infer rest parameters check every actual parameter
-        let mut decision = Answer::Ready(true);
         for parameter in actual {
             let expected = if parameter.is_rest {
                 pattern_type
             } else {
                 self.spread_element_type(pattern_type)?
             };
-            decision = decision.and(self.match_infer_type(
-                origin,
-                captures,
-                variance,
-                expected,
-                parameter.ty,
-            )?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !self.match_infer_type(origin, captures, variance, expected, parameter.ty)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Return the tuple type represented by one function parameter list.
     fn function_parameter_tuple(
         &mut self,
-        origin: Origin,
         parameters: &[dir::FunctionParameterType],
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let mut elements = Vec::with_capacity(parameters.len());
         for parameter in parameters {
             elements.push(dir::TypeElement {
@@ -989,13 +921,12 @@ impl CheckState<'_> {
             });
         }
 
-        let module = origin.module();
-        let elements = self.intern_elements(module, &elements)?;
+        let elements = self.intern_elements(&elements)?;
         let tuple = self.intern_type(dir::Type::Tuple(dir::TupleType {
             form: dir::TupleForm::Tuple,
             elements,
         }))?;
 
-        Ok(Answer::Ready(tuple))
+        Ok(tuple)
     }
 }

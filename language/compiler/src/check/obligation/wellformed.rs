@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, InvalidOperation, ObligationCheck, ObligationFailure, OperationReduction,
-    Origin, Relation, WellFormedTypeObligation, answer,
+    CheckState, InvalidOperation, ObligationCheck, ObligationFailure, OperationReduction, Origin,
+    Relation, WellFormedTypeObligation,
 };
 
 impl CheckState<'_> {
@@ -12,12 +12,12 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &WellFormedTypeObligation,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // explicit placement must agree with an intrinsically placed nominal base
         if let Some(written) = self.type_place(obligation.ty)? {
-            let written = answer!(self.reduce_type_head(origin, written)?);
-            let value = answer!(self.strip_form(origin, obligation.ty)?);
-            let value = answer!(self.reduce_type_head(origin, value)?);
+            let written = self.reduce_type_head(origin, written)?;
+            let value = self.strip_form(origin, obligation.ty)?;
+            let value = self.reduce_type_head(origin, value)?;
             let symbol = match self.ty(value)? {
                 dir::Type::Application(instance) => Some(instance.symbol),
                 dir::Type::Reference(reference) => Some(reference.symbol),
@@ -35,26 +35,26 @@ impl CheckState<'_> {
                     declared,
                 };
 
-                return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+                return Ok(ObligationCheck::fail(failure));
             }
         }
 
         // placed types must have a finite representation valid for their storage space
-        let representation = answer!(self.check_representation(origin, obligation.ty)?);
+        let representation = self.check_representation(origin, obligation.ty)?;
         if let ObligationCheck::Fails(_) = representation {
-            return Ok(Answer::Ready(representation));
+            return Ok(representation);
         }
 
         // operation types validate through their reducer
         let Some(operation) = self.operation_head(obligation.ty)? else {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+            return Ok(ObligationCheck::holds());
         };
 
         let index = match operation {
             dir::TypeOperation::Index(index) => index,
-            _ => return Ok(Answer::Ready(ObligationCheck::holds())),
+            _ => return Ok(ObligationCheck::holds()),
         };
-        let reduction = answer!(self.reduce_index(origin, &index)?);
+        let reduction = self.reduce_index(origin, &index)?;
         let invalid = match reduction {
             // parameter receivers index as their bound would; other rigid
             //  keys must prove membership in the receiver's key set
@@ -70,23 +70,19 @@ impl CheckState<'_> {
                         left: bound,
                         index: index.index,
                     };
-                    match answer!(self.reduce_index(origin, &bounded)?) {
+                    match self.reduce_index(origin, &bounded)? {
                         OperationReduction::Invalid(_) => {}
-                        _ => return Ok(Answer::Ready(ObligationCheck::holds())),
+                        _ => return Ok(ObligationCheck::holds()),
                     }
                 } else {
                     let keys =
                         self.intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType {
                             target: index.left,
                         }))?;
-                    let proven = answer!(self.decide_relation(
-                        origin,
-                        Relation::Satisfies,
-                        index.index,
-                        keys
-                    )?);
+                    let proven =
+                        self.decide_relation(origin, Relation::Satisfies, index.index, keys)?;
                     if proven {
-                        return Ok(Answer::Ready(ObligationCheck::holds()));
+                        return Ok(ObligationCheck::holds());
                     }
                 }
 
@@ -97,7 +93,7 @@ impl CheckState<'_> {
             }
             OperationReduction::Invalid(invalid) => invalid,
             OperationReduction::Projected(_) => {
-                return Ok(Answer::Ready(ObligationCheck::holds()));
+                return Ok(ObligationCheck::holds());
             }
         };
 
@@ -115,6 +111,6 @@ impl CheckState<'_> {
             },
         };
 
-        Ok(Answer::Ready(ObligationCheck::fail(failure)))
+        Ok(ObligationCheck::fail(failure))
     }
 }

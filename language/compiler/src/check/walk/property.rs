@@ -306,7 +306,7 @@ impl WalkState<'_, '_> {
                             Relation::Assignable,
                             written,
                             ty,
-                        );
+                        )?;
                         self.commit_static_value(symbol, written)?;
                     }
                 }
@@ -392,7 +392,7 @@ impl WalkState<'_, '_> {
                     self.walk_expression(default, self.tree.get(default))?;
                     let annotation =
                         declared_type.map(|annotation| annotation.into_global_any(self.module));
-                    self.queue_assignable(
+                    self.check_assignable(
                         default,
                         field_type,
                         CauseKind::Initializer { annotation },
@@ -975,7 +975,7 @@ impl WalkState<'_, '_> {
                                 Relation::Assignable,
                                 written,
                                 declared,
-                            );
+                            )?;
                         }
                         self.commit_static_value(symbol, written)?;
                     }

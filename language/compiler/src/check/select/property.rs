@@ -4,8 +4,8 @@ use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, CheckFailure, CheckOutcome, Decision, Dependency,
-    FlowSite, InferMode, Origin, PlaceUse, Relation, ValueCheck, ValueUse, answer,
+    BodyState, Cause, CauseKind, CheckFailure, CheckOutcome, FlowSite, InferMode, Origin, PlaceUse,
+    Relation, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -34,7 +34,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         properties: &[dir::LocalNodeId<dir::Property>],
         target: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<ValueCheck>> {
+    ) -> CompilerResult<ValueCheck> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let origin = site.origin();
@@ -44,7 +44,7 @@ impl BodyState<'_, '_> {
         for property in properties {
             match self.module(module).view().get(*property).clone() {
                 dir::Property::Field { key, value, .. } => {
-                    let Some(key) = answer!(self.select_property_key(site, key)?) else {
+                    let Some(key) = self.select_property_key(site, key)? else {
                         continue;
                     };
 
@@ -54,9 +54,9 @@ impl BodyState<'_, '_> {
                     });
                 }
                 dir::Property::Method { key, .. } => {
-                    let Some(key) = answer!(match key {
+                    let Some(key) = (match key {
                         Some(key) => self.select_property_key(site, key)?,
-                        None => Answer::Ready(None),
+                        None => None,
                     }) else {
                         continue;
                     };
@@ -76,13 +76,13 @@ impl BodyState<'_, '_> {
 
         // collect declared fields through the selected construct target
         let target_fields = match target {
-            Some(target) => answer!(self.struct_constructor_fields(origin, target)?),
+            Some(target) => self.struct_constructor_fields(origin, target)?,
             None => SmallVec::new(),
         };
 
         // record the fields accepted by this literal
         if let Some(target) = target {
-            let key_type = self.intern_shape(module, &target_fields)?;
+            let key_type = self.intern_shape(&target_fields)?;
             let subject = dir::MemberSubject::new(target, target, dir::MemberSpace::Instance)
                 .with_scope(site.scope)
                 .with_key_type(key_type);
@@ -111,7 +111,7 @@ impl BodyState<'_, '_> {
                     let expected = target_fields.iter().find(|field| field.key == key);
                     let ty = match expected {
                         Some(field) if source.local_id.ty == dir::NodeType::Expression => {
-                            let source_site = self.node_site(source)?;
+                            let source_site = self.visit_site(source)?;
                             let field_origin = Origin::Node(source, site.scope);
                             let field_cause = self.check.intern_cause(match write_cause {
                                 Some(parent) => {
@@ -119,7 +119,7 @@ impl BodyState<'_, '_> {
                                 }
                                 None => Cause::root(field_origin, CauseKind::Field { key }),
                             });
-                            let field_check = answer!(self.check_node_expected(
+                            let field_check = self.check_node_expected(
                                 source_site,
                                 field.access.store(),
                                 Relation::Assignable,
@@ -129,12 +129,12 @@ impl BodyState<'_, '_> {
                                     true => InferMode::Widen,
                                     false => InferMode::Exact,
                                 },
-                            )?);
+                            )?;
                             check = check.and(field_check.outcome);
 
                             field_check.source
                         }
-                        _ => answer!(self.merge_entry_type(source)?),
+                        _ => self.merge_entry_type(source)?,
                     };
                     fields.insert(
                         key,
@@ -150,25 +150,24 @@ impl BodyState<'_, '_> {
                 }
                 // spread sources contribute every visible field
                 MergeEntry::Spread { property, source } => {
-                    let source_site = self.node_site(source)?;
-                    let spread = answer!(self.infer_node_type(source_site, PlaceUse::Read)?);
+                    let source_site = self.visit_site(source)?;
+                    let spread = self.infer_node_type(source_site, PlaceUse::Read)?;
 
-                    let Some(spread_fields) = answer!(self.spread_fields(origin, module, spread)?)
-                    else {
+                    let Some(spread_fields) = self.spread_fields(origin, module, spread)? else {
                         let anchored = self.origin_at(origin, source)?;
                         self.report_spread_not_object(anchored, spread)?;
-                        self.commit_decision(node.into_any(), Decision::Rejected)?;
+                        self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
                         let source = self.commit_error_node(node.into_any())?;
                         let target = target.unwrap_or(source);
-                        return Ok(Answer::Ready(ValueCheck {
+                        return Ok(ValueCheck {
                             source,
                             outcome: CheckOutcome::Fails(CheckFailure::Relation),
                             target,
-                        }));
+                        });
                     };
 
                     // record the fields contributed by this spread
-                    let key_type = self.intern_shape(module, &spread_fields)?;
+                    let key_type = self.intern_shape(&spread_fields)?;
                     let subject =
                         dir::MemberSubject::new(spread, spread, dir::MemberSpace::Instance)
                             .with_scope(site.scope)
@@ -187,7 +186,7 @@ impl BodyState<'_, '_> {
         // merge the shape at the literal node
         let fields: Vec<dir::TypeProperty> = fields.into_values().collect();
         let field_list = fields.clone();
-        let fields = self.intern_properties(module, &fields)?;
+        let fields = self.intern_properties(&fields)?;
         let shape = self.intern_type(dir::Type::from(dir::ShapeType {
             properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
@@ -200,7 +199,7 @@ impl BodyState<'_, '_> {
             Some(target) => {
                 // bind open construction arguments from their written fields
                 if self.type_flags(target)?.has_variable() {
-                    answer!(self.constrain_struct_construction(origin, &field_list, target)?);
+                    self.constrain_struct_construction(origin, &field_list, target)?;
                 }
 
                 // validate the final key set against the selected constructor fields
@@ -227,11 +226,11 @@ impl BodyState<'_, '_> {
 
                 // publish the selected struct instance at the literal
                 self.commit_node_type(node.into_any(), target)?;
-                Ok(Answer::Ready(ValueCheck {
+                Ok(ValueCheck {
                     source: target,
                     outcome: check,
                     target,
-                }))
+                })
             }
             // object literals bind their managed merged shape
             None => {
@@ -240,11 +239,11 @@ impl BodyState<'_, '_> {
                     value: shape,
                 }))?;
                 self.commit_node_type(node.into_any(), managed)?;
-                Ok(Answer::Ready(ValueCheck {
+                Ok(ValueCheck {
                     source: managed,
                     outcome: check,
                     target: managed,
-                }))
+                })
             }
         }
     }
@@ -253,7 +252,7 @@ impl BodyState<'_, '_> {
     fn merge_entry_type(
         &mut self,
         source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         // method properties type through their declaration symbol
         if source.local_id.ty == dir::NodeType::Property {
             let symbol = self
@@ -266,7 +265,7 @@ impl BodyState<'_, '_> {
             return self.symbol_type(symbol);
         }
 
-        let source_site = self.node_site(source)?;
+        let source_site = self.visit_site(source)?;
         self.infer_node_type(source_site, PlaceUse::Read)
     }
 
@@ -276,11 +275,13 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<Vec<dir::TypeProperty>>>> {
+    ) -> CompilerResult<Option<Vec<dir::TypeProperty>>> {
         // reduce the spread source before merging fields
-        let root = answer!(self.reduce_type_head(origin, ty)?);
+        let root = self.reduce_type_head(origin, ty)?;
         if let Some(variable) = self.root_variable(root)? {
-            return Ok(Answer::pending([Dependency::Variable(variable)]));
+            return Err(CompilerError::Internal {
+                message: format!("spread source {ty:?} has open variable {variable:?}"),
+            });
         }
 
         // peel managed forms down to the value they hold
@@ -289,15 +290,15 @@ impl BodyState<'_, '_> {
             if form.form != dir::Form::Managed {
                 break;
             }
-            current = self.settled_root(form.value)?;
+            current = self.shallow_resolve(form.value)?;
         }
 
         match self.ty(current)? {
             // structural shapes spread their fields directly
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => Ok(Answer::Ready(Some(
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => Ok(Some(
                 self.shape_properties(current.module_id, shape.properties)?
                     .to_vec(),
-            ))),
+            )),
             // instances spread their visible fields
             dir::Type::Application(instance) => {
                 let keys = self.nominal_member_keys(instance.symbol)?;
@@ -312,7 +313,7 @@ impl BodyState<'_, '_> {
                     // read each member through the receiver instance
                     let subject =
                         dir::MemberSubject::new(current, current, dir::MemberSpace::Instance);
-                    let lookup = answer!(self.lookup_member(origin, module, subject, key,)?);
+                    let lookup = self.lookup_member(origin, module, subject, key)?;
                     let ty = self.member_read_type(origin, &lookup)?;
                     if let Some(ty) = ty {
                         fields.push(dir::TypeProperty {
@@ -326,9 +327,9 @@ impl BodyState<'_, '_> {
                     }
                 }
 
-                Ok(Answer::Ready(Some(fields)))
+                Ok(Some(fields))
             }
-            _ => Ok(Answer::Ready(None)),
+            _ => Ok(None),
         }
     }
 }

@@ -22,9 +22,7 @@ const result = dep.value;
 
     session.assert_dir_checked_many(
         &["dep.ds", "main.ds"],
-        DirRows::checked()
-            .with_reference_types()
-            .with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === dep.ds ===
 
@@ -38,8 +36,6 @@ export const value = 1;
 /// @type.symbol symbol=value source=value type=1
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
-
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 
 === main.ds ===
 
@@ -57,8 +53,6 @@ const result = dep.value;
 /// @type.node source=dep.value type=1
 /// @resolution.name source=dep.value target=dep.value
 /// @resolution.access source=dep.value root=dep.value
-
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -85,9 +79,7 @@ dep.value;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 import * as dep from "./dep.ds";
@@ -100,8 +92,6 @@ import * as dep from "./dep.ds";
 dep.value;
 /// @type.node source=dep.value type=<error>
 /// @resolution.unresolved source=dep.value path=dep.value
-
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'dep.value'"

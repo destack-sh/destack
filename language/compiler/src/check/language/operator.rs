@@ -4,7 +4,7 @@ use destack_core::StringPool;
 use smallvec::{SmallVec, smallvec};
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Protocol, answer};
+use crate::check::{CheckState, Origin, Protocol};
 
 /// Result produced by one operator expression protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -142,9 +142,9 @@ impl CheckState<'_> {
         origin: Origin,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let left = answer!(self.reduce_type_head(origin, left)?);
-        let right = answer!(self.reduce_type_head(origin, right)?);
+    ) -> CompilerResult<bool> {
+        let left = self.reduce_type_head(origin, left)?;
+        let right = self.reduce_type_head(origin, right)?;
 
         // compare transparent newtypes through their backing representations
         if let Some(instance) = self.decompose_newtype(origin, left)? {
@@ -155,30 +155,30 @@ impl CheckState<'_> {
         }
 
         // accept disjoint types, the caller reports their empty overlap
-        if !answer!(self.types_may_overlap(origin, left, right)?) {
-            return Ok(Answer::Ready(true));
+        if !self.types_may_overlap(origin, left, right)? {
+            return Ok(true);
         }
 
         // require builtin equality for every overlapping union pairing
         if let dir::Type::Union(union) = self.ty(left)? {
             let elements = self.type_ids(left.module_id, union.elements)?.to_vec();
             for element in elements {
-                if !answer!(self.supports_builtin_strict_equality(origin, element, right)?) {
-                    return Ok(Answer::Ready(false));
+                if !self.supports_builtin_strict_equality(origin, element, right)? {
+                    return Ok(false);
                 }
             }
 
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
         if let dir::Type::Union(union) = self.ty(right)? {
             let elements = self.type_ids(right.module_id, union.elements)?.to_vec();
             for element in elements {
-                if !answer!(self.supports_builtin_strict_equality(origin, left, element)?) {
-                    return Ok(Answer::Ready(false));
+                if !self.supports_builtin_strict_equality(origin, left, element)? {
+                    return Ok(false);
                 }
             }
 
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         // accept a nullish operand without inspecting the other one
@@ -191,21 +191,21 @@ impl CheckState<'_> {
             dir::Type::Null | dir::Type::Undefined | dir::Type::Never
         );
         if left_is_nullish || right_is_nullish {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         // scalar values compare by value
-        let left_is_scalar = answer!(self.scalar_families(origin, left)?).is_some();
-        let right_is_scalar = answer!(self.scalar_families(origin, right)?).is_some();
+        let left_is_scalar = self.scalar_families(origin, left)?.is_some();
+        let right_is_scalar = self.scalar_families(origin, right)?.is_some();
         if left_is_scalar && right_is_scalar {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         // reference values compare by address
-        let left_is_reference = answer!(self.type_is_reference(origin, left)?);
-        let right_is_reference = answer!(self.type_is_reference(origin, right)?);
+        let left_is_reference = self.type_is_reference(origin, left)?;
+        let right_is_reference = self.type_is_reference(origin, right)?;
 
-        Ok(Answer::Ready(left_is_reference && right_is_reference))
+        Ok(left_is_reference && right_is_reference)
     }
 
     /// Return one operator protocol interface instance.

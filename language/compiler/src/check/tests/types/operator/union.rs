@@ -23,6 +23,7 @@ let value: string | int32 = "hello";
 /// @resolution.pattern source=value kind=binding target=value
 
 value = 42;
+/// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=string | int32
@@ -82,7 +83,9 @@ value satisfies { a: int32 } | { b: string } | { c: boolean };
 type A = { a: int32 } | { b: string };
 type B = A | { c: boolean };
 
-const value: B = { c: true } as A | { c: boolean };
+const value: { a: int32 } | { b: string } | { c: boolean } = { c: true } as | { a: int32 }
+| { b: string }
+| { c: boolean };
 value satisfies { a: int32 } | { b: string } | { c: boolean };
 
 === checked ===
@@ -96,7 +99,7 @@ type B = A | { c: boolean };
 /// @resolution.name source=A target=A
 
 const value: B = { c: true };
-/// @type.symbol symbol=value source=value type=B reduced=A | { c: boolean }
+/// @type.symbol symbol=value source=value type={ a: int32 } | { b: string } | { c: boolean }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=B target=B
 
@@ -293,7 +296,7 @@ struct Circle {
 
 type Shape = Rectangle | Circle;
 
-function draw(shape: Shape): void {
+function draw(shape: Rectangle | Circle): void {
     shape.draw();
 }
 
@@ -327,8 +330,9 @@ type Shape = Rectangle | Circle;
 /// @resolution.name source=Circle target=Circle
 
 function draw(shape: Shape): void {
+/// @type.symbol symbol=draw type=(Rectangle | Circle) => void
 /// @type.symbol symbol=draw type=(Shape) => void
-/// @type.symbol symbol=draw.shape source="shape: Shape" type=Shape reduced=Rectangle | Circle
+/// @type.symbol symbol=draw.shape source="shape: Shape" type=Rectangle | Circle
 /// @resolution.name source=Shape target=Shape
 
     shape.draw();

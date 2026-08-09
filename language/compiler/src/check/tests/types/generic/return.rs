@@ -48,7 +48,7 @@ function capture<T>(value: T): { reactions: T[] } {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 function capture<T>(value: T): { reactions: T[] } {
@@ -69,8 +69,6 @@ function capture<T>(value: T): { reactions: T[] } {
     /// @type.node source=[] type=Array<T>
 
 }
-
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -99,7 +97,7 @@ function pending<T>(): State<T> {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 interface Pending<in out T> {
@@ -182,8 +180,6 @@ function pending<T>(): State<T> {
 /// @generic.instance id=Done<T#3> template=Done arguments=(T#3)
 /// @generic.instance id=Pending<T#3> template=Pending arguments=(T#3)
 /// @generic.instance id=State<T#4> template=State arguments=(T#4)
-
-/// @check.stats.solve variables=0 types=27 constraints=0 obligations=4 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -228,7 +224,7 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
         "main.ds",
         DirRows::checked()
             .with_reference_types()
-            .with_check_stats(),
+            ,
         r#"
 === annotated ===
 declare class Promise<in out T> {
@@ -450,8 +446,6 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
 /// @generic.instance id="Result<T#8, E#5>.<extension#1>.ok#1" template=ok#1 arguments=(T#8, E#5)
 /// @generic.instance id=Promise<T#2> template=Promise arguments=(T#2)
 /// @generic.instance id=Promise<T#3> template=Promise arguments=(T#3)
-
-/// @check.stats.solve variables=3 types=72 constraints=1 obligations=11 solutions=3 bounds=3 decisions=17
 "#,
     );
 }
@@ -483,7 +477,7 @@ extension<T, E> of Result<T, E> {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 struct Ok<out T> {
@@ -601,8 +595,6 @@ extension<T, E> of Result<T, E> {
 
 /// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @generic.instance id="Result<T#3, E#3>" template=Result arguments=(T#3, E#3)
-
-/// @check.stats.solve variables=2 types=43 constraints=1 obligations=8 solutions=2 bounds=3 decisions=6
 "#,
     );
 }
@@ -727,10 +719,10 @@ function pong(n: float64) {
 "#,
         r#"
 /// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
-/// @diagnostic.label line=6 column=10 span="pong" line_source="function pong(n: float64) {"
+/// @diagnostic.label line=2 column=10 span="ping" line_source="function ping(n: float64) {"
 /// @diagnostic.help message="state the result type on the declaration"
 /// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
-/// @diagnostic.label line=2 column=10 span="ping" line_source="function ping(n: float64) {"
+/// @diagnostic.label line=6 column=10 span="pong" line_source="function pong(n: float64) {"
 /// @diagnostic.help message="state the result type on the declaration"
 "#,
     );

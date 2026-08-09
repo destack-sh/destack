@@ -107,14 +107,16 @@ const wide = Index { value: 1 as int64 };
 /// @resolution.name source=Index target=Index
 
 const narrow = Index { value: 1 as int32 };
-/// @type.symbol symbol=narrow source=narrow type=Index<int32>
+/// @type.symbol symbol=narrow source=narrow type=<error>
 /// @resolution.pattern source=narrow kind=binding target=narrow
 /// @resolution.name source=Index target=Index
 
-/// @generic.instance id=Index<int32> template=Index arguments=(int32)
 /// @generic.instance id=Index<int64> template=Index arguments=(int64)
 "#,
         r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'int64'"
+/// @diagnostic.label line=7 column=16 span="Index" line_source="const narrow = Index { value: 1 as int32 };"
+/// @diagnostic.related line=2 column=14 span="T" line_source="struct Index<T: int> {" message="required by this bound on 'T'"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'int64'"
 /// @diagnostic.label line=7 column=16 span="Index { value: 1 as int32 }" line_source="const narrow = Index { value: 1 as int32 };"
 /// @diagnostic.related line=2 column=14 span="T" line_source="struct Index<T: int> {" message="required by this bound on 'T'"

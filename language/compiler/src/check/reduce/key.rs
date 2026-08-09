@@ -4,9 +4,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{
-    Answer, CheckState, Dependency, MemberLookup, Origin, TypeSubstitution, answer,
-};
+use crate::check::{CheckState, MemberLookup, Origin, TypeSubstitution};
 
 /// One broad property-key domain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -137,20 +135,19 @@ impl CheckState<'_> {
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
         key_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<OperationReduction>> {
+    ) -> CompilerResult<OperationReduction> {
         let space = match self.ty(owner)? {
             dir::Type::Reference(_) => dir::MemberSpace::Static,
             _ => dir::MemberSpace::Instance,
         };
         let subject = dir::MemberSubject::new(owner, owner, space);
-        let lookup = answer!(
-            self.body()
-                .lookup_member(origin, origin.module(), subject, key)?
-        );
+        let lookup = self
+            .body()
+            .lookup_member(origin, origin.module(), subject, key)?;
 
         let reduction = self.reduce_member_lookup(origin, owner, key_type, lookup)?;
 
-        Ok(Answer::Ready(reduction))
+        Ok(reduction)
     }
 
     /// Reduce one completed member lookup to its projected value type.
@@ -242,15 +239,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         index: &dir::IndexType,
-    ) -> CompilerResult<Answer<OperationReduction>> {
-        let left = answer!(self.reduce_type_head(origin, index.left)?);
-        let key = answer!(self.reduce_type_head(origin, index.index)?);
+    ) -> CompilerResult<OperationReduction> {
+        let left = self.reduce_type_head(origin, index.left)?;
+        let key = self.reduce_type_head(origin, index.index)?;
 
         // poisoned operands project their poison
         if self.ty(left)?.is_error() || self.ty(key)?.is_error() {
             let error = self.intern_type(dir::Type::Error)?;
 
-            return Ok(Answer::Ready(OperationReduction::Projected(error)));
+            return Ok(OperationReduction::Projected(error));
         }
 
         // union keys distribute their projections
@@ -286,7 +283,7 @@ impl CheckState<'_> {
 
         // rigid operands keep the operation symbolic
         if self.is_rigid_index_operand(left)? || self.is_rigid_index_operand(key)? {
-            return Ok(Answer::Ready(OperationReduction::Rigid));
+            return Ok(OperationReduction::Rigid);
         }
 
         // project static keys from member-bearing receivers
@@ -320,14 +317,12 @@ impl CheckState<'_> {
                     }
                     Some(field) => Some(field.access.store()),
                     // keyed index signatures cover missing exact fields
-                    None => {
-                        answer!(self.shape_signature_projection(origin, left, &shape, key)?)
-                    }
+                    None => self.shape_signature_projection(origin, left, &shape, key)?,
                 }
             }
             // primitive keys project matching index signatures
             (dir::Type::Shape(shape) | dir::Type::Object(shape), None) => {
-                answer!(self.shape_signature_projection(origin, left, &shape, key)?)
+                self.shape_signature_projection(origin, left, &shape, key)?
             }
             (dir::Type::Tuple(tuple), Some(dir::StaticKey::Index(index))) => self
                 .tuple_elements(left.module_id, tuple.elements)?
@@ -358,24 +353,22 @@ impl CheckState<'_> {
                 | dir::Type::Refined(_)
                 | dir::Type::Intersection(_),
                 _,
-            ) => return Ok(Answer::Ready(OperationReduction::Rigid)),
+            ) => return Ok(OperationReduction::Rigid),
             // closed non-indexable receivers reject the operation
             (dir::Type::Tuple(_) | dir::Type::Array(_) | dir::Type::FixedArray(_), _) => None,
             _ => {
-                return Ok(Answer::Ready(OperationReduction::Invalid(
+                return Ok(OperationReduction::Invalid(
                     InvalidOperation::IndexReceiver { receiver: left },
-                )));
+                ));
             }
         };
 
         match projected {
-            Some(ty) => Ok(Answer::Ready(OperationReduction::Projected(ty))),
-            None => Ok(Answer::Ready(OperationReduction::Invalid(
-                InvalidOperation::IndexKey {
-                    receiver: left,
-                    key,
-                },
-            ))),
+            Some(ty) => Ok(OperationReduction::Projected(ty)),
+            None => Ok(OperationReduction::Invalid(InvalidOperation::IndexKey {
+                receiver: left,
+                key,
+            })),
         }
     }
 
@@ -385,19 +378,19 @@ impl CheckState<'_> {
         origin: Origin,
         elements: SmallVec<[dir::GlobalTypeId; 4]>,
         index: impl Fn(dir::GlobalTypeId) -> dir::IndexType,
-    ) -> CompilerResult<Answer<OperationReduction>> {
+    ) -> CompilerResult<OperationReduction> {
         let mut projected = Vec::with_capacity(elements.len());
 
         // project each arm independently
         for element in elements {
-            match answer!(self.reduce_index(origin, &index(element))?) {
+            match self.reduce_index(origin, &index(element))? {
                 OperationReduction::Projected(ty) => projected.push(ty),
-                other => return Ok(Answer::Ready(other)),
+                other => return Ok(other),
             }
         }
         let union = self.normalized_union_type(projected)?;
 
-        Ok(Answer::Ready(OperationReduction::Projected(union)))
+        Ok(OperationReduction::Projected(union))
     }
 
     /// Project one key through a shape's index signatures.
@@ -407,9 +400,9 @@ impl CheckState<'_> {
         shape_id: dir::GlobalTypeId,
         shape: &dir::ShapeType,
         key: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(domain) = self.index_key_domain(key)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let signatures = self
             .shape_index_signatures(shape_id.module_id, shape.index_signatures)?
@@ -417,7 +410,7 @@ impl CheckState<'_> {
 
         // match the first signature covering the key domain
         for signature in signatures {
-            let signature_key = answer!(self.reduce_type_head(origin, signature.key_type)?);
+            let signature_key = self.reduce_type_head(origin, signature.key_type)?;
             let Some(signature_domain) = self.index_key_domain(signature_key)? else {
                 continue;
             };
@@ -425,11 +418,11 @@ impl CheckState<'_> {
             let covers = signature_domain == domain
                 || (signature_domain == KeyDomain::String && domain == KeyDomain::Usize);
             if covers {
-                return Ok(Answer::Ready(Some(signature.value_type)));
+                return Ok(Some(signature.value_type));
             }
         }
 
-        Ok(Answer::Ready(None))
+        Ok(None)
     }
 
     /// Return the broad key domain of one closed key type.
@@ -468,12 +461,12 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let target = answer!(self.reduce_type_head(origin, target)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let target = self.reduce_type_head(origin, target)?;
 
         // collect exact keys and index domains
-        let Some(keys) = answer!(self.keyof_set(origin, target)?) else {
-            return Ok(Answer::Ready(None));
+        let Some(keys) = self.keyof_set(origin, target)? else {
+            return Ok(None);
         };
 
         // create the key type union
@@ -485,7 +478,7 @@ impl CheckState<'_> {
             _ => self.normalized_union_type(elements)?,
         };
 
-        Ok(Answer::Ready(Some(union)))
+        Ok(Some(union))
     }
 
     /// Collect the property-key set of one closed type.
@@ -493,7 +486,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<KeySet>>> {
+    ) -> CompilerResult<Option<KeySet>> {
         let set = match self.ty(target)? {
             // structural object keys come from fields and index signatures
             dir::Type::Shape(shape) | dir::Type::Object(shape) => {
@@ -508,29 +501,23 @@ impl CheckState<'_> {
                     .shape_index_signatures(target.module_id, shape.index_signatures)?
                     .to_vec();
                 for signature in index_signatures {
-                    answer!(self.insert_index_key_type(origin, &mut set, signature.key_type)?);
+                    self.insert_index_key_type(origin, &mut set, signature.key_type)?;
                 }
 
                 set
             }
 
             // nominal instance keys follow public instance members through heritage
-            dir::Type::Application(instance) => {
-                answer!(self.instance_keyof_set(origin, instance.symbol)?)
-            }
+            dir::Type::Application(instance) => self.instance_keyof_set(origin, instance.symbol)?,
 
             // declaration references expose static declaration members
             dir::Type::Reference(reference) => {
-                answer!(self.definition_key_set(
-                    origin,
-                    reference.symbol,
-                    dir::MemberSpace::Static,
-                )?)
+                self.definition_key_set(origin, reference.symbol, dir::MemberSpace::Static)?
             }
 
             // memory forms preserve the key set of their payload
             dir::Type::Form(form) => {
-                let value = answer!(self.reduce_type_head(origin, form.value)?);
+                let value = self.reduce_type_head(origin, form.value)?;
 
                 return self.keyof_set(origin, value);
             }
@@ -542,16 +529,16 @@ impl CheckState<'_> {
                     .to_vec()
                     .into_iter();
                 let Some(first) = elements.next() else {
-                    return Ok(Answer::Ready(Some(KeySet::default())));
+                    return Ok(Some(KeySet::default()));
                 };
-                let first = answer!(self.reduce_type_head(origin, first)?);
-                let Some(mut keys) = answer!(self.keyof_set(origin, first)?) else {
-                    return Ok(Answer::Ready(None));
+                let first = self.reduce_type_head(origin, first)?;
+                let Some(mut keys) = self.keyof_set(origin, first)? else {
+                    return Ok(None);
                 };
                 for element in elements {
-                    let element = answer!(self.reduce_type_head(origin, element)?);
-                    let Some(other) = answer!(self.keyof_set(origin, element)?) else {
-                        return Ok(Answer::Ready(None));
+                    let element = self.reduce_type_head(origin, element)?;
+                    let Some(other) = self.keyof_set(origin, element)? else {
+                        return Ok(None);
                     };
                     keys = keys.intersect(other);
                 }
@@ -566,9 +553,9 @@ impl CheckState<'_> {
                     .type_ids(target.module_id, intersection.elements)?
                     .to_vec();
                 for element in elements {
-                    let element = answer!(self.reduce_type_head(origin, element)?);
-                    let Some(other) = answer!(self.keyof_set(origin, element)?) else {
-                        return Ok(Answer::Ready(None));
+                    let element = self.reduce_type_head(origin, element)?;
+                    let Some(other) = self.keyof_set(origin, element)? else {
+                        return Ok(None);
                     };
                     keys.extend(other);
                 }
@@ -603,7 +590,7 @@ impl CheckState<'_> {
 
             // fixed arrays with a settled count key by their exact indices
             dir::Type::FixedArray(array) => {
-                let count = answer!(self.reduce_type_head(origin, array.count)?);
+                let count = self.reduce_type_head(origin, array.count)?;
                 let mut set = KeySet::default();
                 match self.ty(count)? {
                     dir::Type::Literal(dir::ScalarLiteral::Integer(count)) => {
@@ -618,11 +605,11 @@ impl CheckState<'_> {
             }
 
             // open and non-object types stay symbolic
-            dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
-            _ => return Ok(Answer::Ready(None)),
+            dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(None),
+            _ => return Ok(None),
         };
 
-        Ok(Answer::Ready(Some(set)))
+        Ok(Some(set))
     }
 
     /// Collect the instance key set of one nominal declaration.
@@ -630,7 +617,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<KeySet>> {
+    ) -> CompilerResult<KeySet> {
         let mut keys = KeySet::default();
         let mut pending = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
         let mut visited = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
@@ -642,11 +629,7 @@ impl CheckState<'_> {
                 continue;
             }
             visited.push(symbol);
-            keys.extend(answer!(self.definition_key_set(
-                origin,
-                symbol,
-                dir::MemberSpace::Instance,
-            )?));
+            keys.extend(self.definition_key_set(origin, symbol, dir::MemberSpace::Instance)?);
 
             if let Some(definition) = self.definition(symbol)? {
                 let bases = definition
@@ -661,7 +644,7 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(Answer::Ready(keys))
+        Ok(keys)
     }
 
     /// Collect the direct key set of one declaration member space.
@@ -670,10 +653,10 @@ impl CheckState<'_> {
         origin: Origin,
         symbol: dir::GlobalSymbolId,
         space: dir::MemberSpace,
-    ) -> CompilerResult<Answer<KeySet>> {
+    ) -> CompilerResult<KeySet> {
         let mut keys = KeySet::default();
         let Some(definition) = self.definition(symbol)? else {
-            return Ok(Answer::Ready(keys));
+            return Ok(keys);
         };
         let mut signatures = SmallVec::<[dir::GlobalTypeId; 2]>::new();
 
@@ -692,10 +675,10 @@ impl CheckState<'_> {
             }
         }
         for key_type in signatures {
-            answer!(self.insert_index_key_type(origin, &mut keys, key_type)?);
+            self.insert_index_key_type(origin, &mut keys, key_type)?;
         }
 
-        Ok(Answer::Ready(keys))
+        Ok(keys)
     }
 
     /// Insert the key domain represented by one closed key type.
@@ -704,15 +687,15 @@ impl CheckState<'_> {
         origin: Origin,
         keys: &mut KeySet,
         key_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
-        let key_type = answer!(self.reduce_type_head(origin, key_type)?);
+    ) -> CompilerResult<()> {
+        let key_type = self.reduce_type_head(origin, key_type)?;
 
         match self.ty(key_type)? {
             // union key domains contribute every alternative
             dir::Type::Union(union) => {
                 let elements = self.type_ids(key_type.module_id, union.elements)?.to_vec();
                 for element in elements {
-                    answer!(self.insert_index_key_type(origin, keys, element)?);
+                    self.insert_index_key_type(origin, keys, element)?;
                 }
             }
 
@@ -740,7 +723,7 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Write one key set as concrete type ids.
@@ -795,7 +778,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         mapped: &dir::MappedType,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let modifiers_type = mapped.parameter.modifiers_type.or(
             match self.operation_head(mapped.parameter.constraint)? {
                 Some(dir::TypeOperation::KeyOf(unary)) => Some(unary.target),
@@ -804,7 +787,7 @@ impl CheckState<'_> {
         );
 
         // close the key source first
-        let closed = answer!(self.reduce_type_head(origin, mapped.parameter.constraint)?);
+        let closed = self.reduce_type_head(origin, mapped.parameter.constraint)?;
         let closed_type = self.ty(closed)?;
         let keys = match closed_type {
             dir::Type::Union(union) => {
@@ -813,22 +796,20 @@ impl CheckState<'_> {
             dir::Type::Never => SmallVec::new(),
             dir::Type::Literal(_) | dir::Type::Primitive(_) => SmallVec::from_slice(&[closed]),
             _ if self.static_key_from_type(closed)?.is_some() => SmallVec::from_slice(&[closed]),
-            _ => return Ok(Answer::Ready(None)),
+            _ => return Ok(None),
         };
 
         // close the modifier source for the carry
         let source_fields = match modifiers_type {
             Some(target) => {
-                let target = answer!(self.reduce_type_head(origin, target)?);
+                let target = self.reduce_type_head(origin, target)?;
 
                 match self.ty(target)? {
                     dir::Type::Shape(shape) | dir::Type::Object(shape) => Some(
                         self.shape_properties(target.module_id, shape.properties)?
                             .to_vec(),
                     ),
-                    dir::Type::Application(_) => {
-                        answer!(self.interface_instance_fields(target, target)?)
-                    }
+                    dir::Type::Application(_) => self.interface_instance_fields(target, target)?,
                     _ => None,
                 }
             }
@@ -848,10 +829,8 @@ impl CheckState<'_> {
         };
 
         // project each key into one field
-        let module = origin.module();
         let mut fields = Vec::with_capacity(keys.len());
         let mut index_signatures = Vec::new();
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for key in keys {
             let mut substitution = TypeSubstitution::default();
             substitution.bind(mapped.parameter.parameter, key)?;
@@ -867,14 +846,8 @@ impl CheckState<'_> {
                 (true, Some(field)) => field.access.read().unwrap_or_else(|| field.access.store()),
                 _ => {
                     let value = self.substitute_type(mapped.value, &substitution)?;
-                    match self.reduce_type_head(origin, value)? {
-                        Answer::Ready(value) => value,
-                        Answer::Pending(dependencies) => {
-                            blockers.extend(dependencies);
 
-                            continue;
-                        }
-                    }
+                    self.reduce_type_head(origin, value)?
                 }
             };
 
@@ -882,14 +855,7 @@ impl CheckState<'_> {
                 Some(remap) => {
                     let remap = self.substitute_type(remap, &substitution)?;
 
-                    match self.reduce_type_head(origin, remap)? {
-                        Answer::Ready(remap) => remap,
-                        Answer::Pending(dependencies) => {
-                            blockers.extend(dependencies);
-
-                            continue;
-                        }
-                    }
+                    self.reduce_type_head(origin, remap)?
                 }
                 None => key,
             };
@@ -925,14 +891,15 @@ impl CheckState<'_> {
             } else if let Some(key) = self.static_key_from_type(remapped)? {
                 key
             } else {
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             };
-            let access = match is_readonly {
-                true => dir::PropertyAccess::Read(value),
-                false => dir::PropertyAccess::ReadWrite {
+            let access = if is_readonly {
+                dir::PropertyAccess::Read(value)
+            } else {
+                dir::PropertyAccess::ReadWrite {
                     read: value,
                     write: value,
-                },
+                }
             };
             fields.push(dir::TypeProperty {
                 key,
@@ -940,12 +907,9 @@ impl CheckState<'_> {
                 is_optional,
             });
         }
-        if !blockers.is_empty() {
-            return Ok(Answer::pending(blockers));
-        }
 
-        let fields = self.intern_properties(module, &fields)?;
-        let index_signatures = self.intern_index_signatures(module, &index_signatures)?;
+        let fields = self.intern_properties(&fields)?;
+        let index_signatures = self.intern_index_signatures(&index_signatures)?;
         let shape = dir::Type::from(dir::ShapeType {
             properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
@@ -954,6 +918,6 @@ impl CheckState<'_> {
         });
         let projected = self.intern_type(shape)?;
 
-        Ok(Answer::Ready(Some(projected)))
+        Ok(Some(projected))
     }
 }

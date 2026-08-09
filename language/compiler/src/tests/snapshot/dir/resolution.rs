@@ -14,142 +14,123 @@ impl SnapshotTable for dir::ResolutionSegment {
 
 impl SnapshotTable for dir::ResolutionTable<'_> {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
+        // render each resolved lexical name
         for (node_id, resolution) in self.name_entries() {
             add_name_resolution_row(builder, node_id, resolution);
         }
 
-        for (node_id, segment, resolution) in self.path_entries() {
+        // render the path, label, and unresolved rows
+        for ((node_id, segment), resolution) in self.path_entries() {
             add_path_resolution_row(builder, node_id, segment, resolution);
         }
-
-        for (node_id, resolution) in self.instantiation_entries() {
-            add_instantiation_resolution_row(builder, node_id, resolution);
-        }
-
         for (node_id, resolution) in self.label_entries() {
             add_label_resolution_row(builder, node_id, *resolution);
         }
+        for (node_id, path) in self.unresolved_entries() {
+            add_unresolved_reference_row(builder, node_id, path);
+        }
+    }
+}
 
-        for (node_id, resolution) in self.receiver_entries() {
-            add_receiver_resolution_row(builder, node_id, *resolution);
+impl SnapshotTable for dir::DecisionSegment {
+    fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
+        let stacked = dir::DecisionTable::from_segments(Vec::new());
+        stacked.with_tail(self).add_snapshot_rows(builder);
+    }
+}
+
+impl SnapshotTable for dir::DecisionTable<'_> {
+    fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
+        // render each decided node through its family renderer
+        for (node_id, resolution) in self.decision_entries() {
+            match resolution {
+                dir::Decision::Instantiation(resolution) => {
+                    add_instantiation_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Receiver(resolution) => {
+                    add_receiver_decision_row(builder, node_id, *resolution);
+                }
+                dir::Decision::Member(resolution) => {
+                    add_member_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Operator(resolution) => {
+                    add_operator_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Call(resolution) => {
+                    add_call_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Subscript(resolution) => {
+                    add_subscript_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Assignment(resolution) => {
+                    add_assignment_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Guard(resolution) => {
+                    add_guard_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Construct(resolution) => {
+                    add_construct_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Tree(resolution) => {
+                    add_tree_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Pattern(resolution) => {
+                    add_pattern_decision_row(builder, self, node_id, resolution);
+                }
+                dir::Decision::AssignPattern(resolution) => {
+                    add_assign_pattern_decision_row(builder, self, node_id, resolution);
+                }
+                dir::Decision::Rejected | dir::Decision::Poisoned => {
+                    add_outcome_resolution_row(builder, node_id, resolution);
+                }
+            }
         }
 
+        // render the access and place resolutions
         for (node_id, resolution) in self.access_entries() {
             add_access_resolution_row(builder, node_id, resolution);
         }
-
-        for (node_id, resolution) in self.member_entries() {
-            add_member_resolution_row(builder, node_id, resolution);
-        }
-
-        for (node_id, resolution) in self.operator_entries() {
-            add_operator_resolution_row(builder, node_id, resolution);
-        }
-
-        for (node_id, resolution) in self.call_entries() {
-            add_call_resolution_row(builder, node_id, resolution);
-        }
-
-        for (node_id, resolution) in self.subscript_entries() {
-            add_subscript_resolution_row(builder, node_id, resolution);
-        }
-
         for (node_id, resolution) in self.place_entries() {
             add_place_resolution_row(builder, node_id, resolution);
         }
 
-        for (node_id, resolution) in self.assignment_entries() {
-            add_assignment_resolution_row(builder, node_id, resolution);
-        }
-
-        for (node_id, resolution) in self.guard_entries() {
-            add_guard_resolution_row(builder, node_id, resolution);
-        }
-
-        for (node_id, resolution) in self.construct_entries() {
-            add_construct_resolution_row(builder, node_id, resolution);
-        }
-
-        for (node_id, resolution) in self.tree_entries() {
-            add_tree_resolution_row(builder, node_id, resolution);
-        }
-
-        for (node_id, resolution) in self.pattern_entries() {
-            add_pattern_resolution_row(builder, self, node_id, resolution);
-        }
-
-        for (node_id, resolution) in self.assign_pattern_entries() {
-            add_assign_pattern_resolution_row(builder, self, node_id, resolution);
-        }
-
-        for (node_id, path) in self.unresolved_entries() {
-            add_unresolved_reference_row(builder, node_id, path);
-        }
-
-        let name_count = self.name_entries().count();
-        let path_count = self.path_entries().count();
-        let instantiation_count = self.instantiation_entries().count();
-        let label_count = self.label_entries().count();
-        let receiver_count = self.receiver_entries().count();
+        // summarize the visible decisions
+        let decision_count = self.decision_entries().count();
         let access_count = self.access_entries().count();
-        let member_count = self.member_entries().count();
-        let operator_count = self.operator_entries().count();
-        let call_count = self.call_entries().count();
-        let subscript_count = self.subscript_entries().count();
         let place_count = self.place_entries().count();
-        let assignment_count = self.assignment_entries().count();
-        let guard_count = self.guard_entries().count();
-        let construct_count = self.construct_entries().count();
-        let tree_count = self.tree_entries().count();
-        let pattern_count = self.pattern_entries().count();
-        let assign_pattern_count = self.assign_pattern_entries().count();
-        if name_count == 0
-            && path_count == 0
-            && instantiation_count == 0
-            && label_count == 0
-            && receiver_count == 0
-            && access_count == 0
-            && member_count == 0
-            && operator_count == 0
-            && call_count == 0
-            && subscript_count == 0
-            && place_count == 0
-            && assignment_count == 0
-            && guard_count == 0
-            && construct_count == 0
-            && tree_count == 0
-            && pattern_count == 0
-            && assign_pattern_count == 0
-        {
+        if decision_count == 0 && access_count == 0 && place_count == 0 {
             return;
         }
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "resolution", "summary")
-            .count_field("names", name_count)
-            .count_field("paths", path_count)
-            .count_field("instantiations", instantiation_count)
-            .count_field("labels", label_count)
-            .count_field("receivers", receiver_count)
+            .count_field("resolutions", decision_count)
             .count_field("accesses", access_count)
-            .count_field("members", member_count)
-            .count_field("operators", operator_count)
-            .count_field("calls", call_count)
-            .count_field("subscripts", subscript_count)
-            .count_field("places", place_count)
-            .count_field("guards", guard_count)
-            .count_field("constructs", construct_count)
-            .count_field("trees", tree_count)
-            .count_field("patterns", pattern_count)
-            .count_field("assigns", assign_pattern_count);
+            .count_field("places", place_count);
         builder.push(row);
     }
 }
 
-/// Add one operator resolution row.
-fn add_operator_resolution_row(
+/// Render one rejected or poisoned node outcome.
+fn add_outcome_resolution_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::OperatorResolution,
+    resolution: &dir::Decision,
+) {
+    let outcome = match resolution {
+        dir::Decision::Rejected => "rejected",
+        dir::Decision::Poisoned => "poisoned",
+        _ => unreachable!("outcome rows render rejected and poisoned nodes only"),
+    };
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", outcome)
+        .optional_field("source", builder.node_source(node_id));
+    builder.push(row);
+}
+
+/// Add one operator resolution row.
+fn add_operator_decision_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::OperatorDecision,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "operator")
         .optional_field("source", builder.node_source(node_id))
@@ -187,7 +168,7 @@ fn add_operator_resolution_row(
     };
 
     builder.push(row);
-    add_operator_resolution_generic_instances(builder, node_id, resolution);
+    add_operator_decision_generic_instances(builder, node_id, resolution);
 }
 
 /// Return one singular operator application snapshot label.
@@ -290,7 +271,6 @@ fn builtin_operand_label(
     format!("{source} as {ty} families=({families})")
 }
 
-/// Add one name resolution row.
 fn add_name_resolution_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
@@ -361,10 +341,10 @@ fn add_unresolved_reference_row(
 }
 
 /// Add one explicit instantiation resolution row.
-fn add_instantiation_resolution_row(
+fn add_instantiation_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::InstantiationResolution,
+    resolution: &dir::InstantiationDecision,
 ) {
     let anchor = builder.anchor_node(node_id);
     let source = builder.node_source(node_id);
@@ -406,10 +386,10 @@ fn add_label_resolution_row(
 }
 
 /// Add one receiver resolution row.
-fn add_receiver_resolution_row(
+fn add_receiver_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: dir::ReceiverResolution,
+    resolution: dir::ReceiverDecision,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "receiver")
         .optional_field("source", builder.node_source(node_id))
@@ -453,10 +433,10 @@ fn add_access_resolution_row(
 }
 
 /// Add one member resolution row.
-fn add_member_resolution_row(
+fn add_member_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::MemberResolution,
+    resolution: &dir::MemberDecision,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "member")
         .optional_field("source", builder.node_source(node_id));
@@ -480,7 +460,7 @@ fn add_member_resolution_row(
     };
 
     builder.push(row);
-    add_member_resolution_generic_instances(builder, node_id, resolution);
+    add_member_decision_generic_instances(builder, node_id, resolution);
 }
 
 /// Add fields for one singular member access.
@@ -550,14 +530,14 @@ fn add_member_access_fields(
 }
 
 /// Add one call resolution row.
-fn add_call_resolution_row(
+fn add_call_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::CallResolution,
+    resolution: &dir::CallDecision,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "call")
         .optional_field("source", builder.node_source(node_id));
-    let row = add_call_resolution_fields(builder, row, resolution);
+    let row = add_call_decision_fields(builder, row, resolution);
     let row = match resolution {
         dir::OperationResolution::One(call) => add_call_target_fields(builder, row, &call.target),
         dir::OperationResolution::Union { arms, .. } => row
@@ -566,14 +546,14 @@ fn add_call_resolution_row(
     };
 
     builder.push(row);
-    add_call_resolution_generic_instances(builder, node_id, resolution);
+    add_call_decision_generic_instances(builder, node_id, resolution);
 }
 
 /// Add one subscript resolution row.
-fn add_subscript_resolution_row(
+fn add_subscript_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::SubscriptResolution,
+    resolution: &dir::SubscriptDecision,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "subscript")
         .optional_field("source", builder.node_source(node_id))
@@ -588,14 +568,14 @@ fn add_subscript_resolution_row(
     };
 
     builder.push(row);
-    add_subscript_resolution_generic_instances(builder, node_id, resolution);
+    add_subscript_decision_generic_instances(builder, node_id, resolution);
 }
 
 /// Add fields shared by call and operator resolutions.
-fn add_call_resolution_fields(
+fn add_call_decision_fields(
     builder: &DirSnapshotBuilder<'_>,
     row: SnapshotRow,
-    resolution: &dir::CallResolution,
+    resolution: &dir::CallDecision,
 ) -> SnapshotRow {
     match resolution {
         dir::OperationResolution::One(call) => add_call_fields(builder, row, call),
@@ -688,10 +668,10 @@ fn add_place_resolution_row(
 }
 
 /// Add one assignment resolution row.
-fn add_assignment_resolution_row(
+fn add_assignment_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::AssignmentResolution,
+    resolution: &dir::AssignmentDecision,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "assignment")
         .optional_field("source", builder.node_source(node_id))
@@ -709,22 +689,22 @@ fn add_assignment_resolution_row(
 }
 
 /// Add one guard resolution row.
-fn add_guard_resolution_row(
+fn add_guard_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::GuardResolution,
+    resolution: &dir::GuardDecision,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "guard")
         .optional_field("source", builder.node_source(node_id));
 
     let predicate = match resolution {
-        dir::GuardResolution::Is(predicate) => &predicate.predicate,
-        dir::GuardResolution::InstanceOf(predicate) => &predicate.predicate,
-        dir::GuardResolution::In(predicate) => &predicate.predicate,
+        dir::GuardDecision::Is(predicate) => &predicate.predicate,
+        dir::GuardDecision::InstanceOf(predicate) => &predicate.predicate,
+        dir::GuardDecision::In(predicate) => &predicate.predicate,
     };
 
     let row = match resolution {
-        dir::GuardResolution::Is(predicate) => {
+        dir::GuardDecision::Is(predicate) => {
             let row = row
                 .field("kind", "is")
                 .type_field("value", builder.global_type_label(predicate.value_type))
@@ -732,7 +712,7 @@ fn add_guard_resolution_row(
 
             add_predicate_fields(builder, row, &predicate.predicate)
         }
-        dir::GuardResolution::InstanceOf(predicate) => {
+        dir::GuardDecision::InstanceOf(predicate) => {
             let row = row
                 .field("kind", "instanceof")
                 .type_field("value", builder.global_type_label(predicate.value_type))
@@ -744,7 +724,7 @@ fn add_guard_resolution_row(
 
             add_predicate_fields(builder, row, &predicate.predicate)
         }
-        dir::GuardResolution::In(predicate) => {
+        dir::GuardDecision::In(predicate) => {
             let row = row
                 .field("kind", "in")
                 .type_field("key_type", builder.global_type_label(predicate.key_type))
@@ -918,9 +898,9 @@ fn projection_resolution_label(
 }
 
 /// Return one subscript resolution snapshot label.
-fn subscript_resolution_label(
+fn subscript_decision_label(
     builder: &DirSnapshotBuilder<'_>,
-    resolution: &dir::SubscriptResolution,
+    resolution: &dir::SubscriptDecision,
 ) -> String {
     match resolution {
         dir::OperationResolution::One(subscript) => subscript_label(builder, subscript),
@@ -974,8 +954,8 @@ fn read_resolution_label(
         dir::ReadResolution::Binding { symbol, .. } => {
             format!("binding({})", builder.symbol_path_label(*symbol))
         }
-        dir::ReadResolution::Member(member) => member_resolution_label(builder, member),
-        dir::ReadResolution::Subscript(subscript) => subscript_resolution_label(builder, subscript),
+        dir::ReadResolution::Member(member) => member_decision_label(builder, member),
+        dir::ReadResolution::Subscript(subscript) => subscript_decision_label(builder, subscript),
         dir::ReadResolution::Dereference(dereference) => {
             dereference_resolution_label(builder, dereference)
         }
@@ -991,10 +971,8 @@ fn write_resolution_label(
         dir::WriteResolution::Binding { symbol, .. } => {
             format!("binding({})", builder.symbol_path_label(*symbol))
         }
-        dir::WriteResolution::Member(member) => member_resolution_label(builder, member),
-        dir::WriteResolution::Subscript(subscript) => {
-            subscript_resolution_label(builder, subscript)
-        }
+        dir::WriteResolution::Member(member) => member_decision_label(builder, member),
+        dir::WriteResolution::Subscript(subscript) => subscript_decision_label(builder, subscript),
         dir::WriteResolution::Dereference(dereference) => {
             dereference_resolution_label(builder, dereference)
         }
@@ -1057,9 +1035,9 @@ fn member_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::MemberTar
 }
 
 /// Return one member resolution snapshot label.
-fn member_resolution_label(
+fn member_decision_label(
     builder: &DirSnapshotBuilder<'_>,
-    resolution: &dir::MemberResolution,
+    resolution: &dir::MemberDecision,
 ) -> String {
     match resolution {
         dir::OperationResolution::One(access) => member_access_label(builder, access),
@@ -1303,10 +1281,10 @@ fn float_label(float: dir::FloatType) -> String {
 }
 
 /// Add one construct resolution row.
-fn add_construct_resolution_row(
+fn add_construct_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::ConstructResolution,
+    resolution: &dir::ConstructDecision,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "construct")
         .optional_field("source", builder.node_source(node_id))
@@ -1364,10 +1342,10 @@ fn add_construct_resolution_row(
 }
 
 /// Add one tree resolution row.
-fn add_tree_resolution_row(
+fn add_tree_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::TreeResolution,
+    resolution: &dir::TreeDecision,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "tree")
         .optional_field("source", builder.node_source(node_id))
@@ -1417,7 +1395,7 @@ fn add_tree_resolution_row(
 }
 
 /// Return the label of one tree literal's selected call.
-fn tree_call_label(builder: &DirSnapshotBuilder<'_>, call: &dir::CallResolution) -> Option<String> {
+fn tree_call_label(builder: &DirSnapshotBuilder<'_>, call: &dir::CallDecision) -> Option<String> {
     let dir::OperationResolution::One(call) = call else {
         return None;
     };
@@ -1466,19 +1444,19 @@ fn tree_attributes_label(
 }
 
 /// Add one pattern resolution row.
-fn add_pattern_resolution_row(
+fn add_pattern_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::PatternResolution,
+    resolution: &dir::PatternDecision,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "pattern")
         .optional_field("source", builder.node_source(node_id))
-        .field("kind", pattern_resolution_label(resolution));
+        .field("kind", pattern_decision_label(resolution));
 
     let row = match resolution {
-        dir::PatternResolution::Ignore => row,
-        dir::PatternResolution::Bind(binding) => row
+        dir::PatternDecision::Ignore => row,
+        dir::PatternDecision::Bind(binding) => row
             .optional_field(
                 "target",
                 binding
@@ -1489,19 +1467,17 @@ fn add_pattern_resolution_row(
                 "pattern",
                 binding.pattern.map(|node| builder.node_label(node)),
             ),
-        dir::PatternResolution::Must(pattern) => {
+        dir::PatternDecision::Must(pattern) => {
             row.field("pattern", builder.node_label(pattern.pattern))
         }
-        dir::PatternResolution::Default(default) => row
+        dir::PatternDecision::Default(default) => row
             .field("pattern", builder.node_label(default.pattern))
             .field("value", builder.node_label(default.value)),
-        dir::PatternResolution::Test(test) => {
-            add_pattern_test_fields(builder, row, &test.predicate)
-        }
-        dir::PatternResolution::Variant(variant) => {
+        dir::PatternDecision::Test(test) => add_pattern_test_fields(builder, row, &test.predicate),
+        dir::PatternDecision::Variant(variant) => {
             add_pattern_variant_resolution_fields(builder, segment, row, variant)
         }
-        dir::PatternResolution::Project(project) => row
+        dir::PatternDecision::Project(project) => row
             .field(
                 "projection",
                 projection_resolution_label(builder, &project.projection),
@@ -1510,10 +1486,10 @@ fn add_pattern_resolution_row(
                 "pattern",
                 project.pattern.map(|node| builder.node_label(node)),
             ),
-        dir::PatternResolution::Destructure(destructure) => {
+        dir::PatternDecision::Destructure(destructure) => {
             add_pattern_destructure_fields(builder, segment, row, destructure)
         }
-        dir::PatternResolution::Or(pattern) => row.list_field(
+        dir::PatternDecision::Or(pattern) => row.list_field(
             "patterns",
             pattern
                 .patterns
@@ -1535,17 +1511,17 @@ fn receiver_kind_label(kind: dir::ReceiverKind) -> &'static str {
 }
 
 /// Return one pattern resolution label.
-fn pattern_resolution_label(resolution: &dir::PatternResolution) -> &'static str {
+fn pattern_decision_label(resolution: &dir::PatternDecision) -> &'static str {
     match resolution {
-        dir::PatternResolution::Ignore => "wildcard",
-        dir::PatternResolution::Bind(_) => "binding",
-        dir::PatternResolution::Must(_) => "must",
-        dir::PatternResolution::Default(_) => "default",
-        dir::PatternResolution::Test(test) => pattern_predicate_label(&test.predicate),
-        dir::PatternResolution::Variant(_) => "variant",
-        dir::PatternResolution::Project(project) => pattern_projection_label(&project.projection),
-        dir::PatternResolution::Destructure(destructure) => pattern_destructure_label(destructure),
-        dir::PatternResolution::Or(_) => "union",
+        dir::PatternDecision::Ignore => "wildcard",
+        dir::PatternDecision::Bind(_) => "binding",
+        dir::PatternDecision::Must(_) => "must",
+        dir::PatternDecision::Default(_) => "default",
+        dir::PatternDecision::Test(test) => pattern_predicate_label(&test.predicate),
+        dir::PatternDecision::Variant(_) => "variant",
+        dir::PatternDecision::Project(project) => pattern_projection_label(&project.projection),
+        dir::PatternDecision::Destructure(destructure) => pattern_destructure_label(destructure),
+        dir::PatternDecision::Or(_) => "union",
     }
 }
 
@@ -1618,7 +1594,7 @@ fn predicate_condition(predicate: &dir::Predicate) -> Option<&dir::PredicateCond
 /// Add fields for one pattern destructure.
 fn add_pattern_destructure_fields(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     row: SnapshotRow,
     destructure: &dir::PatternDestructureResolution,
 ) -> SnapshotRow {
@@ -1678,7 +1654,7 @@ fn add_pattern_destructure_fields(
 /// Add fields for one selected variant pattern.
 fn add_pattern_variant_resolution_fields(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     row: SnapshotRow,
     variant: &dir::PatternVariantResolution,
 ) -> SnapshotRow {
@@ -1704,25 +1680,25 @@ fn add_pattern_variant_resolution_fields(
 }
 
 /// Add one assignment pattern resolution row.
-fn add_assign_pattern_resolution_row(
+fn add_assign_pattern_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::AssignPatternResolution,
+    resolution: &dir::AssignPatternDecision,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "pattern.assign")
         .optional_field("source", builder.node_source(node_id))
-        .field("kind", assign_pattern_resolution_label(resolution));
+        .field("kind", assign_pattern_decision_label(resolution));
 
     let row = match resolution {
-        dir::AssignPatternResolution::Place => row,
-        dir::AssignPatternResolution::Default(default) => row
+        dir::AssignPatternDecision::Place => row,
+        dir::AssignPatternDecision::Default(default) => row
             .field(
                 "pattern",
                 assign_pattern_child_label(builder, segment, default.pattern),
             )
             .field("value", builder.node_label(default.value)),
-        dir::AssignPatternResolution::Sequence(sequence) => add_assign_pattern_sequence_fields(
+        dir::AssignPatternDecision::Sequence(sequence) => add_assign_pattern_sequence_fields(
             builder,
             segment,
             add_pattern_sequence_arity_field(
@@ -1738,11 +1714,11 @@ fn add_assign_pattern_resolution_row(
             &sequence.fields,
             sequence.rest.as_deref(),
         ),
-        dir::AssignPatternResolution::Tuple(tuple) => row.tuple_field(
+        dir::AssignPatternDecision::Tuple(tuple) => row.tuple_field(
             "fields",
             assign_pattern_positional_field_labels(builder, segment, &tuple.fields),
         ),
-        dir::AssignPatternResolution::Object(object) => row
+        dir::AssignPatternDecision::Object(object) => row
             .object_field(
                 "fields",
                 assign_pattern_keyed_fields_label(builder, segment, &object.fields),
@@ -1760,13 +1736,13 @@ fn add_assign_pattern_resolution_row(
 }
 
 /// Return one assignment pattern resolution label.
-fn assign_pattern_resolution_label(resolution: &dir::AssignPatternResolution) -> &'static str {
+fn assign_pattern_decision_label(resolution: &dir::AssignPatternDecision) -> &'static str {
     match resolution {
-        dir::AssignPatternResolution::Place => "place",
-        dir::AssignPatternResolution::Default(_) => "default",
-        dir::AssignPatternResolution::Sequence(_) => "sequence",
-        dir::AssignPatternResolution::Tuple(_) => "tuple",
-        dir::AssignPatternResolution::Object(_) => "object",
+        dir::AssignPatternDecision::Place => "place",
+        dir::AssignPatternDecision::Default(_) => "default",
+        dir::AssignPatternDecision::Sequence(_) => "sequence",
+        dir::AssignPatternDecision::Tuple(_) => "tuple",
+        dir::AssignPatternDecision::Object(_) => "object",
     }
 }
 
@@ -1963,10 +1939,10 @@ fn add_member_target_generic_instances(
 }
 
 /// Add generic instance rows from one member resolution.
-fn add_member_resolution_generic_instances(
+fn add_member_decision_generic_instances(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::MemberResolution,
+    resolution: &dir::MemberDecision,
 ) {
     match resolution {
         dir::OperationResolution::One(access) => {
@@ -1981,10 +1957,10 @@ fn add_member_resolution_generic_instances(
 }
 
 /// Add generic instance rows from one operator resolution.
-fn add_operator_resolution_generic_instances(
+fn add_operator_decision_generic_instances(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::OperatorResolution,
+    resolution: &dir::OperatorDecision,
 ) {
     match resolution {
         dir::OperationResolution::One(application) => {
@@ -2025,10 +2001,10 @@ fn add_operator_application_generic_instances(
 }
 
 /// Add generic instance rows from one call resolution.
-fn add_call_resolution_generic_instances(
+fn add_call_decision_generic_instances(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::CallResolution,
+    resolution: &dir::CallDecision,
 ) {
     match resolution {
         dir::OperationResolution::One(call) => add_call_generic_instances(builder, node_id, call),
@@ -2071,10 +2047,10 @@ fn add_call_generic_instances(
 }
 
 /// Add generic instance rows from one subscript resolution.
-fn add_subscript_resolution_generic_instances(
+fn add_subscript_decision_generic_instances(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::SubscriptResolution,
+    resolution: &dir::SubscriptDecision,
 ) {
     match resolution {
         dir::OperationResolution::One(subscript) => {
@@ -2150,13 +2126,13 @@ fn add_construct_target_generic_instances(
 fn add_pattern_generic_instances(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::PatternResolution,
+    resolution: &dir::PatternDecision,
 ) {
     let anchor = builder.anchor_node(node_id);
     let source = builder.node_source(node_id);
 
     match resolution {
-        dir::PatternResolution::Project(project) => {
+        dir::PatternDecision::Project(project) => {
             add_projection_resolution_generic_instances(
                 builder,
                 anchor,
@@ -2164,20 +2140,20 @@ fn add_pattern_generic_instances(
                 &project.projection,
             );
         }
-        dir::PatternResolution::Test(test) => {
+        dir::PatternDecision::Test(test) => {
             add_predicate_generic_instances(builder, node_id, &test.predicate);
         }
-        dir::PatternResolution::Variant(variant) => {
+        dir::PatternDecision::Variant(variant) => {
             add_predicate_generic_instances(builder, node_id, &variant.predicate);
         }
-        dir::PatternResolution::Destructure(destructure) => {
+        dir::PatternDecision::Destructure(destructure) => {
             add_destructure_generic_instance(builder, anchor, source, destructure);
         }
-        dir::PatternResolution::Ignore
-        | dir::PatternResolution::Bind(_)
-        | dir::PatternResolution::Must(_)
-        | dir::PatternResolution::Default(_)
-        | dir::PatternResolution::Or(_) => {}
+        dir::PatternDecision::Ignore
+        | dir::PatternDecision::Bind(_)
+        | dir::PatternDecision::Must(_)
+        | dir::PatternDecision::Default(_)
+        | dir::PatternDecision::Or(_) => {}
     }
 }
 
@@ -2505,7 +2481,7 @@ fn function_target_member_label(
 /// Add ordered pattern sequence fields.
 fn add_pattern_sequence_fields(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     row: SnapshotRow,
     fields: &[dir::PatternFieldResolution],
     rest: Option<&dir::PatternFieldResolution>,
@@ -2537,7 +2513,7 @@ fn add_pattern_sequence_arity_field(
 /// Add one variant payload field list.
 fn add_pattern_variant_fields(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     row: SnapshotRow,
     fields: &[dir::PatternFieldResolution],
 ) -> SnapshotRow {
@@ -2561,7 +2537,7 @@ fn add_pattern_variant_fields(
 /// Return keyed pattern field labels.
 fn pattern_keyed_field_labels<'a>(
     builder: &'a DirSnapshotBuilder<'_>,
-    segment: &'a dir::ResolutionTable<'_>,
+    segment: &'a dir::DecisionTable<'_>,
     fields: &'a [dir::PatternFieldResolution],
 ) -> impl Iterator<Item = String> + 'a {
     fields
@@ -2572,7 +2548,7 @@ fn pattern_keyed_field_labels<'a>(
 /// Return positional pattern field labels.
 fn pattern_positional_field_labels<'a>(
     builder: &'a DirSnapshotBuilder<'_>,
-    segment: &'a dir::ResolutionTable<'_>,
+    segment: &'a dir::DecisionTable<'_>,
     fields: &'a [dir::PatternFieldResolution],
 ) -> impl Iterator<Item = String> + 'a {
     fields
@@ -2583,7 +2559,7 @@ fn pattern_positional_field_labels<'a>(
 /// Return one keyed pattern field group label.
 fn pattern_keyed_fields_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     fields: &[dir::PatternFieldResolution],
 ) -> String {
     let fields = pattern_keyed_field_labels(builder, segment, fields)
@@ -2599,7 +2575,7 @@ fn pattern_keyed_fields_label(
 /// Return one keyed pattern field label.
 fn pattern_keyed_field_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     field: &dir::PatternFieldResolution,
 ) -> String {
     let target = pattern_field_target_label(builder, &field.projection);
@@ -2619,7 +2595,7 @@ fn pattern_keyed_field_label(
 /// Return one positional pattern field label.
 fn pattern_positional_field_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     field: &dir::PatternFieldResolution,
 ) -> String {
     let Some(pattern) = field.pattern else {
@@ -2676,22 +2652,22 @@ fn pattern_field_target_label(
 /// Return one child pattern snapshot label.
 fn pattern_child_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     pattern: dir::GlobalNodeIdAny,
 ) -> String {
-    match segment.pattern_resolution(pattern) {
-        Some(dir::PatternResolution::Ignore) => "_".to_string(),
-        Some(dir::PatternResolution::Bind(binding)) => binding
+    match segment.pattern_decision(pattern) {
+        Some(dir::PatternDecision::Ignore) => "_".to_string(),
+        Some(dir::PatternDecision::Bind(binding)) => binding
             .symbol
             .map(|symbol| builder.symbol_path_label(symbol))
             .unwrap_or_else(|| builder.node_label(pattern)),
-        Some(dir::PatternResolution::Must(must)) => {
+        Some(dir::PatternDecision::Must(must)) => {
             pattern_child_label(builder, segment, must.pattern)
         }
-        Some(dir::PatternResolution::Default(default)) => {
+        Some(dir::PatternDecision::Default(default)) => {
             pattern_child_label(builder, segment, default.pattern)
         }
-        Some(dir::PatternResolution::Test(test)) => match predicate_condition(&test.predicate) {
+        Some(dir::PatternDecision::Test(test)) => match predicate_condition(&test.predicate) {
             Some(dir::PredicateCondition::Literal(value)) => builder.scalar_literal_label(value),
             _ => builder.node_label(pattern),
         },
@@ -2702,7 +2678,7 @@ fn pattern_child_label(
 /// Return keyed assignment pattern field labels.
 fn assign_pattern_keyed_field_labels<'a>(
     builder: &'a DirSnapshotBuilder<'_>,
-    segment: &'a dir::ResolutionTable<'_>,
+    segment: &'a dir::DecisionTable<'_>,
     fields: &'a [dir::AssignPatternFieldResolution],
 ) -> impl Iterator<Item = String> + 'a {
     fields
@@ -2713,7 +2689,7 @@ fn assign_pattern_keyed_field_labels<'a>(
 /// Return positional assignment pattern field labels.
 fn assign_pattern_positional_field_labels<'a>(
     builder: &'a DirSnapshotBuilder<'_>,
-    segment: &'a dir::ResolutionTable<'_>,
+    segment: &'a dir::DecisionTable<'_>,
     fields: &'a [dir::AssignPatternFieldResolution],
 ) -> impl Iterator<Item = String> + 'a {
     fields
@@ -2724,7 +2700,7 @@ fn assign_pattern_positional_field_labels<'a>(
 /// Return one keyed assignment pattern field group label.
 fn assign_pattern_keyed_fields_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     fields: &[dir::AssignPatternFieldResolution],
 ) -> String {
     let fields = assign_pattern_keyed_field_labels(builder, segment, fields)
@@ -2740,7 +2716,7 @@ fn assign_pattern_keyed_fields_label(
 /// Return one keyed assignment pattern field label.
 fn assign_pattern_keyed_field_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     field: &dir::AssignPatternFieldResolution,
 ) -> String {
     let target = pattern_field_target_label(builder, &field.projection);
@@ -2760,7 +2736,7 @@ fn assign_pattern_keyed_field_label(
 /// Return one positional assignment pattern field label.
 fn assign_pattern_positional_field_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     field: &dir::AssignPatternFieldResolution,
 ) -> String {
     let Some(pattern) = field.pattern else {
@@ -2773,25 +2749,23 @@ fn assign_pattern_positional_field_label(
 /// Return one child assignment pattern snapshot label.
 fn assign_pattern_child_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     pattern: dir::GlobalNodeIdAny,
 ) -> String {
-    match segment.assign_pattern_resolution(pattern) {
-        Some(dir::AssignPatternResolution::Place) => {
+    match segment.assign_pattern_decision(pattern) {
+        Some(dir::AssignPatternDecision::Place) => {
             let pattern = pattern.local_id.into_typed::<dir::AssignPattern>();
             let dir::AssignPattern::Place { expression } = builder.tree.get(pattern) else {
                 panic!("place resolution belongs to a non-place assignment pattern");
             };
             let expression = expression.into_global_any(builder.tree.module_id);
-            let assignment = segment
-                .assignment_resolution(expression)
-                .unwrap_or_else(|| {
-                    panic!("assignment target is missing its assignment resolution")
-                });
+            let assignment = segment.assignment_decision(expression).unwrap_or_else(|| {
+                panic!("assignment target is missing its assignment resolution")
+            });
 
             assignment_source_label(builder, segment, assignment)
         }
-        Some(dir::AssignPatternResolution::Default(default)) => {
+        Some(dir::AssignPatternDecision::Default(default)) => {
             assign_pattern_child_label(builder, segment, default.pattern)
         }
         _ => builder.node_label(pattern),
@@ -2801,21 +2775,24 @@ fn assign_pattern_child_label(
 /// Return one assignment source snapshot label.
 fn assignment_source_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
-    assignment: &dir::AssignmentResolution,
+    _segment: &dir::DecisionTable<'_>,
+    assignment: &dir::AssignmentDecision,
 ) -> String {
     builder
         .node_source(assignment.target)
-        .unwrap_or_else(|| assign_pattern_place_label(builder, segment, assignment.target))
+        .unwrap_or_else(|| assign_pattern_place_label(builder, assignment.target))
 }
 
 /// Return one assignment place snapshot label.
 fn assign_pattern_place_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
     target: dir::GlobalNodeIdAny,
 ) -> String {
-    let Some(resolution) = segment.name_resolution(target) else {
+    let Some(resolution) = builder
+        .names
+        .as_ref()
+        .and_then(|names| names.name_resolution(target))
+    else {
         return builder.node_label(target);
     };
 
@@ -2830,7 +2807,7 @@ fn assign_pattern_place_label(
 /// Return one pattern rest label.
 fn pattern_rest_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     rest: &dir::PatternFieldResolution,
 ) -> String {
     let Some(pattern) = rest.pattern else {
@@ -2845,7 +2822,7 @@ fn pattern_rest_label(
 /// Add ordered assignment pattern sequence fields.
 fn add_assign_pattern_sequence_fields(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     row: SnapshotRow,
     fields: &[dir::AssignPatternFieldResolution],
     rest: Option<&dir::AssignPatternFieldResolution>,
@@ -2863,7 +2840,7 @@ fn add_assign_pattern_sequence_fields(
 /// Return one assignment pattern rest label.
 fn assign_pattern_rest_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     rest: &dir::AssignPatternFieldResolution,
 ) -> String {
     let Some(pattern) = rest.pattern else {
@@ -2878,7 +2855,7 @@ fn assign_pattern_rest_label(
 /// Return one object assignment pattern rest label.
 fn assign_pattern_object_rest_label(
     builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionTable<'_>,
+    segment: &dir::DecisionTable<'_>,
     rest: &dir::AssignPatternRestResolution,
 ) -> String {
     let Some(pattern) = rest.pattern else {

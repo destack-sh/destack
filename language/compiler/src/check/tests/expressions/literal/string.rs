@@ -10,9 +10,7 @@ const value = "hello";
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: "hello" = "hello";
@@ -22,8 +20,6 @@ const value = "hello";
 /// @type.symbol symbol=value source=value type="hello"
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
-
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -38,7 +34,7 @@ let value = "hello";
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let value: string = "hello";
@@ -48,8 +44,6 @@ let value = "hello";
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
-
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -64,7 +58,7 @@ const value: string = "hello";
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: string = "hello";
@@ -74,8 +68,6 @@ const value: string = "hello";
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -90,7 +82,7 @@ const value = "";
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: "" = "";
@@ -100,8 +92,6 @@ const value = "";
 /// @type.symbol symbol=value source=value type=""
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"\"" type=""
-
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -116,7 +106,7 @@ const value: number = "hello";
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: float64 = "hello";
@@ -126,8 +116,6 @@ const value: number = "hello";
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type 'float64'"

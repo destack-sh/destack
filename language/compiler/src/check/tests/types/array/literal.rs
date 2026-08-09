@@ -10,7 +10,7 @@ const pair: [int32; 2] = [1, 2];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const pair: [int32; 2] = [1, 2];
@@ -22,8 +22,6 @@ const pair: [int32; 2] = [1, 2];
 /// @type.node source=[1, 2] type=FixedArray<int32, 2>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
-
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -71,7 +69,7 @@ const bytes: [uint8; _] = [1, 2, 3, 4];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const bytes: [uint8; 4] = [1, 2, 3, 4];
@@ -85,8 +83,6 @@ const bytes: [uint8; _] = [1, 2, 3, 4];
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 /// @type.node source=4 type=4
-
-/// @check.stats.solve variables=2 types=10 constraints=0 obligations=1 solutions=2 bounds=0 decisions=1
 "#,
     );
 }
@@ -129,7 +125,7 @@ const values: [_; 3] = [1, 2, 3];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const values: [float64; 3] = [1, 2, 3];
@@ -142,8 +138,6 @@ const values: [_; 3] = [1, 2, 3];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
-
-/// @check.stats.solve variables=2 types=9 constraints=0 obligations=1 solutions=2 bounds=4 decisions=1
 "#,
     );
 }

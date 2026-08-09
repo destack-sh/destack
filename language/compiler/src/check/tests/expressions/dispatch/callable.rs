@@ -182,6 +182,7 @@ value();
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
+/// @resolution.rejected source=value()
 "#,
         r#"
 /// @diagnostic.error id=not-callable message="value of type '1' is not callable"

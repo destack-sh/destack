@@ -3,8 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, Decision, FlowPointId, FlowSite, MemberCandidate, MemberLookup, MemberRole,
-    Origin, Value, answer,
+    BodyState, FlowPointId, FlowSite, MemberCandidate, MemberLookup, MemberRole, Origin, Value,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -29,7 +28,7 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
         self.check_pattern_field_keys(module, fields)?;
         self.check_pattern_bindings(module, fields)?;
@@ -38,25 +37,23 @@ impl BodyState<'_, '_> {
             return self.commit_rejected_pattern(node);
         }
 
-        if !answer!(self.is_keyed_type(origin, scrutinee)?) {
+        if !self.is_keyed_type(origin, scrutinee)? {
             self.report_pattern_source_not_object_shaped(origin, scrutinee)?;
 
             return self.commit_rejected_pattern(node);
         }
 
         let (fields, rest) =
-            answer!(self.project_named_fields(node, origin, flow, scope, scrutinee, fields)?);
+            self.project_named_fields(node, origin, flow, scope, scrutinee, fields)?;
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Destructure(Box::new(
-                dir::PatternDestructureResolution::Object(
-                    dir::PatternObjectDestructureResolution {
-                        fields,
-                        rest: rest.map(Box::new),
-                    },
-                ),
-            )),
+            dir::PatternDecision::Destructure(Box::new(dir::PatternDestructureResolution::Object(
+                dir::PatternObjectDestructureResolution {
+                    fields,
+                    rest: rest.map(Box::new),
+                },
+            ))),
         )
     }
 
@@ -69,40 +66,40 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let module = node.module_id;
         self.check_assign_pattern_field_keys(module, fields)?;
 
         if !self.check_assign_pattern_rest_fields(module, fields) {
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
+            self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
-        if !answer!(self.is_keyed_type(origin, scrutinee)?) {
+        if !self.is_keyed_type(origin, scrutinee)? {
             self.report_pattern_source_not_object_shaped(origin, scrutinee)?;
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
+            self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
-        let Some((fields, rest)) = answer!(
+        let Some((fields, rest)) =
             self.project_assign_named_fields(node, origin, flow, scope, scrutinee, fields)?
-        ) else {
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
+        else {
+            self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         };
 
-        let () = answer!(self.commit_assign_pattern(
+        let () = self.commit_assign_pattern(
             node,
-            dir::AssignPatternResolution::Object(dir::AssignPatternObjectResolution {
+            dir::AssignPatternDecision::Object(dir::AssignPatternObjectResolution {
                 fields,
                 rest: rest.map(Box::new),
             }),
-        )?);
+        )?;
 
-        Ok(Answer::Ready(true))
+        Ok(true)
     }
 
     /// Project named pattern fields from one input type.
@@ -114,12 +111,10 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         owner: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<
-        Answer<(
-            Vec<dir::PatternFieldResolution>,
-            Option<dir::PatternFieldResolution>,
-        )>,
-    > {
+    ) -> CompilerResult<(
+        Vec<dir::PatternFieldResolution>,
+        Option<dir::PatternFieldResolution>,
+    )> {
         let module = node.module_id;
 
         let mut projected = Vec::with_capacity(fields.len());
@@ -138,22 +133,22 @@ impl BodyState<'_, '_> {
                         scope,
                     };
 
-                    let Some(key) = answer!(self.select_static_key(key_site)?) else {
-                        let Some(projection) = answer!(
+                    let Some(key) = self.select_static_key(key_site)? else {
+                        let Some(projection) =
                             self.subscript_read_projection(origin, module, owner, key_site)?
-                        ) else {
+                        else {
                             self.report_computed_pattern_key_not_valid(module, key.into_any());
                             self.poison_pattern_field(field.into_global(module))?;
 
                             continue;
                         };
 
-                        answer!(self.check_pattern_projection(
+                        self.check_pattern_projection(
                             flow,
                             scope,
                             projection.ty(),
                             pattern.into_global_any(module),
-                        )?);
+                        )?;
                         projected.push(dir::PatternFieldResolution {
                             source: field.into_global_any(module),
                             projection,
@@ -167,24 +162,21 @@ impl BodyState<'_, '_> {
                 }
                 dir::PatternField::Rest { pattern } => {
                     let rest_origin = Origin::Node(field.into_global_any(module), scope);
-                    let Some(projection) = answer!(self.object_rest_projection(
-                        rest_origin,
-                        module,
-                        owner,
-                        &projected_keys
-                    )?) else {
+                    let Some(projection) =
+                        self.object_rest_projection(rest_origin, module, owner, &projected_keys)?
+                    else {
                         self.report_spread_not_object(rest_origin, owner)?;
 
                         continue;
                     };
 
                     if let Some(pattern) = pattern {
-                        answer!(self.check_pattern_projection(
+                        self.check_pattern_projection(
                             flow,
                             scope,
                             projection.ty(),
                             pattern.into_global_any(module),
-                        )?);
+                        )?;
                     }
 
                     rest = Some(dir::PatternFieldResolution {
@@ -198,7 +190,7 @@ impl BodyState<'_, '_> {
                 _ => continue,
             };
 
-            let selected = answer!(self.object_field(field_origin, module, owner, key)?);
+            let selected = self.object_field(field_origin, module, owner, key)?;
             let projection = match selected {
                 ObjectField::Projection(projection) => *projection,
                 ObjectField::Missing => {
@@ -207,12 +199,12 @@ impl BodyState<'_, '_> {
                     {
                         let undefined = self.intern_type(dir::Type::Undefined)?;
 
-                        answer!(self.check_pattern_projection(
+                        self.check_pattern_projection(
                             flow,
                             scope,
                             undefined,
                             pattern.into_global_any(module),
-                        )?);
+                        )?;
                         projected.push(dir::PatternFieldResolution {
                             source: field.into_global_any(module),
                             projection: dir::Projection::Absent { ty: undefined }.into(),
@@ -238,12 +230,12 @@ impl BodyState<'_, '_> {
             // flow the projected value into the nested or shorthand hole
             match pattern {
                 Some(pattern) => {
-                    answer!(self.check_pattern_projection(
+                    self.check_pattern_projection(
                         flow,
                         scope,
                         projected_value,
                         pattern.into_global_any(module),
-                    )?);
+                    )?;
                 }
                 // shorthand fields bind through their own field node
                 None => {
@@ -264,7 +256,7 @@ impl BodyState<'_, '_> {
             projected_keys.push(key);
         }
 
-        Ok(Answer::Ready((projected, rest)))
+        Ok((projected, rest))
     }
 
     /// Project named assignment fields from one input type.
@@ -277,12 +269,10 @@ impl BodyState<'_, '_> {
         owner: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
     ) -> CompilerResult<
-        Answer<
-            Option<(
-                Vec<dir::AssignPatternFieldResolution>,
-                Option<dir::AssignPatternRestResolution>,
-            )>,
-        >,
+        Option<(
+            Vec<dir::AssignPatternFieldResolution>,
+            Option<dir::AssignPatternRestResolution>,
+        )>,
     > {
         let module = node.module_id;
 
@@ -305,53 +295,38 @@ impl BodyState<'_, '_> {
                         scope,
                     };
 
-                    let Some(key) = answer!(self.select_static_key(key_site)?) else {
-                        let Some(projection) = answer!(
-                            self.subscript_read_projection(origin, module, owner, key_site)?
-                        ) else {
-                            self.report_computed_pattern_key_not_valid(module, key.into_any());
-
-                            return Ok(Answer::Ready(None));
+                    let Some(static_key) = self.select_static_key(key_site)? else {
+                        let projected_field = self.project_computed_assign_field(
+                            origin, owner, source, key, key_site, pattern,
+                        )?;
+                        let Some(projected_field) = projected_field else {
+                            return Ok(None);
                         };
-
-                        answer!(self.check_pattern_projection(
-                            flow,
-                            scope,
-                            projection.ty(),
-                            pattern.into_global_any(module),
-                        )?);
-                        projected.push(dir::AssignPatternFieldResolution {
-                            source,
-                            projection,
-                            pattern: Some(pattern.into_global_any(module)),
-                        });
+                        projected.push(projected_field);
 
                         continue;
                     };
 
-                    (key, Some(pattern))
+                    (static_key, Some(pattern))
                 }
                 dir::AssignPatternField::Rest { pattern } => {
                     let rest_origin = Origin::Node(source, scope);
-                    let Some(projection) = answer!(self.object_rest_projection(
-                        rest_origin,
-                        module,
-                        owner,
-                        &projected_keys
-                    )?) else {
+                    let Some(projection) =
+                        self.object_rest_projection(rest_origin, module, owner, &projected_keys)?
+                    else {
                         self.report_spread_not_object(rest_origin, owner)?;
 
-                        return Ok(Answer::Ready(None));
+                        return Ok(None);
                     };
                     let rest_type = projection.ty();
 
                     if let Some(pattern) = pattern {
-                        answer!(self.check_pattern_projection(
+                        self.check_pattern_projection(
                             flow,
                             scope,
                             rest_type,
                             pattern.into_global_any(module),
-                        )?);
+                        )?;
                     }
 
                     rest = Some(dir::AssignPatternRestResolution {
@@ -365,56 +340,38 @@ impl BodyState<'_, '_> {
                 _ => continue,
             };
 
-            let selected = answer!(self.object_field(field_origin, module, owner, key)?);
-            let projection = match selected {
-                ObjectField::Projection(projection) => *projection,
-                ObjectField::Missing => {
-                    let Some(pattern) = pattern else {
-                        return Err(CompilerError::Internal {
-                            message: "named assignment field has no target pattern".to_string(),
-                        });
-                    };
-
-                    if self.is_defaulted_assign_pattern(module, pattern) {
-                        let undefined = self.intern_type(dir::Type::Undefined)?;
-
-                        answer!(self.check_pattern_projection(
-                            flow,
-                            scope,
-                            undefined,
-                            pattern.into_global_any(module),
-                        )?);
-                        projected.push(dir::AssignPatternFieldResolution {
-                            source: field.into_global_any(module),
-                            projection: dir::Projection::Absent { ty: undefined }.into(),
-                            pattern: Some(pattern.into_global_any(module)),
-                        });
-                        projected_keys.push(key);
-                    } else {
-                        let key = self.format_static_key(&key);
-                        self.report_pattern_field_missing(field_origin, owner, key)?;
-
-                        return Ok(Answer::Ready(None));
-                    }
-
-                    continue;
-                }
-                ObjectField::Rejected => return Ok(Answer::Ready(None)),
-            };
-            let projected_value = projection.ty();
-
-            // flow the projected value into the nested target
+            // named and computed fields both carry a target pattern
             let Some(pattern) = pattern else {
                 return Err(CompilerError::Internal {
                     message: "named assignment field has no target pattern".to_string(),
                 });
             };
-            answer!(self.check_pattern_projection(
+
+            let selected = self.object_field(field_origin, module, owner, key)?;
+            let projection = match selected {
+                ObjectField::Projection(projection) => *projection,
+                ObjectField::Missing => {
+                    let projected_field = self
+                        .project_missing_assign_field(flow, scope, owner, source, key, pattern)?;
+                    let Some(projected_field) = projected_field else {
+                        return Ok(None);
+                    };
+                    projected.push(projected_field);
+                    projected_keys.push(key);
+
+                    continue;
+                }
+                ObjectField::Rejected => return Ok(None),
+            };
+            let projected_value = projection.ty();
+
+            // flow the projected value into the nested target
+            self.check_pattern_projection(
                 flow,
                 scope,
                 projected_value,
                 pattern.into_global_any(module),
-            )?);
+            )?;
             projected.push(dir::AssignPatternFieldResolution {
                 source: field.into_global_any(module),
                 projection,
@@ -423,7 +380,79 @@ impl BodyState<'_, '_> {
             projected_keys.push(key);
         }
 
-        Ok(Answer::Ready(Some((projected, rest))))
+        Ok(Some((projected, rest)))
+    }
+
+    /// Project one computed assignment field whose key is not statically known.
+    fn project_computed_assign_field(
+        &mut self,
+        origin: Origin,
+        owner: dir::GlobalTypeId,
+        source: dir::GlobalNodeIdAny,
+        key: dir::LocalNodeId<dir::Expression>,
+        key_site: FlowSite,
+        pattern: dir::LocalNodeId<dir::AssignPattern>,
+    ) -> CompilerResult<Option<dir::AssignPatternFieldResolution>> {
+        let module = source.module_id;
+        let Some(projection) = self.subscript_read_projection(origin, module, owner, key_site)?
+        else {
+            self.report_computed_pattern_key_not_valid(module, key.into_any());
+
+            // decide the place target even after rejecting the key
+            if let dir::AssignPattern::Place { expression } =
+                self.module(module).view().get(pattern)
+            {
+                let place = expression.into_global_any(module);
+                self.decide_reference(place)?;
+            }
+
+            return Ok(None);
+        };
+
+        self.check_pattern_projection(
+            key_site.flow,
+            key_site.scope,
+            projection.ty(),
+            pattern.into_global_any(module),
+        )?;
+
+        Ok(Some(dir::AssignPatternFieldResolution {
+            source,
+            projection,
+            pattern: Some(pattern.into_global_any(module)),
+        }))
+    }
+
+    /// Project one named assignment field the input type does not declare.
+    fn project_missing_assign_field(
+        &mut self,
+        flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
+        owner: dir::GlobalTypeId,
+        source: dir::GlobalNodeIdAny,
+        key: dir::StaticKey,
+        pattern: dir::LocalNodeId<dir::AssignPattern>,
+    ) -> CompilerResult<Option<dir::AssignPatternFieldResolution>> {
+        let module = source.module_id;
+
+        // report a field the input type neither declares nor defaults
+        if !self.is_defaulted_assign_pattern(module, pattern) {
+            let origin = Origin::Node(source, scope);
+            let key = self.format_static_key(&key);
+            self.report_pattern_field_missing(origin, owner, key)?;
+
+            return Ok(None);
+        }
+
+        // bind a defaulted target against undefined
+        let undefined = self.intern_type(dir::Type::Undefined)?;
+        self.check_pattern_projection(flow, scope, undefined, pattern.into_global_any(module))?;
+
+        Ok(Some(dir::AssignPatternFieldResolution {
+            source,
+            projection: dir::Projection::Absent { ty: undefined }.into(),
+            pattern: Some(pattern.into_global_any(module)),
+        }))
     }
 
     /// Return the lowerable projection for one object destructuring key.
@@ -433,13 +462,13 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
-    ) -> CompilerResult<Answer<ObjectField>> {
+    ) -> CompilerResult<ObjectField> {
         let subject = dir::MemberSubject::new(owner, owner, dir::MemberSpace::Instance);
-        let lookup = answer!(self.lookup_member(origin, module, subject, key)?);
+        let lookup = self.lookup_member(origin, module, subject, key)?;
 
-        let field = answer!(self.object_lookup_field(origin, owner, key, lookup)?);
+        let field = self.object_lookup_field(origin, owner, key, lookup)?;
 
-        Ok(Answer::Ready(field))
+        Ok(field)
     }
 
     /// Return the lowerable projection selected by one completed member lookup.
@@ -449,27 +478,27 @@ impl BodyState<'_, '_> {
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
         lookup: MemberLookup,
-    ) -> CompilerResult<Answer<ObjectField>> {
+    ) -> CompilerResult<ObjectField> {
         let field = match lookup {
             MemberLookup::Field(field) => {
                 // write-only properties expose nothing to an object read
                 let Some(projection) = field.projection(key, self)? else {
-                    return Ok(Answer::Ready(ObjectField::Missing));
+                    return Ok(ObjectField::Missing);
                 };
 
                 ObjectField::Projection(Box::new(projection.into()))
             }
             MemberLookup::Found(candidates) => {
-                answer!(self.object_member_field(origin, owner, key, candidates)?)
+                self.object_member_field(origin, owner, key, candidates)?
             }
             MemberLookup::Union(lookups) => {
                 let mut projections = Vec::with_capacity(lookups.len());
                 let mut types = Vec::with_capacity(lookups.len());
                 for arm in lookups {
                     let ObjectField::Projection(projection) =
-                        answer!(self.object_lookup_field(origin, arm.receiver, key, arm.lookup)?)
+                        self.object_lookup_field(origin, arm.receiver, key, arm.lookup)?
                     else {
-                        return Ok(Answer::Ready(ObjectField::Rejected));
+                        return Ok(ObjectField::Rejected);
                     };
                     let dir::OperationResolution::One(projection) = *projection else {
                         return Err(CompilerError::Internal {
@@ -488,7 +517,7 @@ impl BodyState<'_, '_> {
                 }))
             }
             lookup @ MemberLookup::Intersection(_) => {
-                let Some(resolution) = answer!(self.select_member_read(
+                let Some(resolution) = self.select_member_read(
                     origin,
                     Value {
                         ty: owner,
@@ -496,8 +525,9 @@ impl BodyState<'_, '_> {
                     },
                     key,
                     &lookup,
-                )?) else {
-                    return Ok(Answer::Ready(ObjectField::Rejected));
+                )?
+                else {
+                    return Ok(ObjectField::Rejected);
                 };
 
                 ObjectField::Projection(Box::new(resolution.into()))
@@ -505,7 +535,7 @@ impl BodyState<'_, '_> {
             MemberLookup::Missing => ObjectField::Missing,
         };
 
-        Ok(Answer::Ready(field))
+        Ok(field)
     }
 
     /// Return the lowerable projection for declaration-backed object fields.
@@ -515,7 +545,7 @@ impl BodyState<'_, '_> {
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
         candidates: Vec<MemberCandidate>,
-    ) -> CompilerResult<Answer<ObjectField>> {
+    ) -> CompilerResult<ObjectField> {
         let field = match candidates.as_slice() {
             [candidate] if candidate.role == MemberRole::Field => {
                 let Some(field) = candidate.field(key) else {
@@ -541,14 +571,14 @@ impl BodyState<'_, '_> {
                 ))
             }
             [candidate] if candidate.role == MemberRole::Getter => {
-                let call = answer!(self.select_getter_call(
+                let call = self.select_getter_call(
                     origin,
                     Value {
                         ty: owner,
                         place: None,
                     },
                     candidate,
-                )?);
+                )?;
                 // the owner's own getter must accept its own receiver
                 let Some(call) = call else {
                     return Err(CompilerError::Internal {
@@ -575,7 +605,7 @@ impl BodyState<'_, '_> {
             }
         };
 
-        Ok(Answer::Ready(field))
+        Ok(field)
     }
 
     /// Return the object rest projection after omitting selected keys.
@@ -585,9 +615,9 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         owner: dir::GlobalTypeId,
         omitted: &[dir::StaticKey],
-    ) -> CompilerResult<Answer<Option<dir::ProjectionResolution>>> {
-        let Some(fields) = answer!(self.spread_fields(origin, module, owner)?) else {
-            return Ok(Answer::Ready(None));
+    ) -> CompilerResult<Option<dir::ProjectionResolution>> {
+        let Some(fields) = self.spread_fields(origin, module, owner)? else {
+            return Ok(None);
         };
 
         let fields = fields
@@ -608,7 +638,7 @@ impl BodyState<'_, '_> {
                 }),
             })
             .collect();
-        let fields = self.intern_properties(module, &fields)?;
+        let fields = self.intern_properties(&fields)?;
         let shape = dir::Type::from(dir::ShapeType {
             properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
@@ -619,6 +649,6 @@ impl BodyState<'_, '_> {
 
         let projection = dir::Projection::ObjectRest { fields: copied, ty };
 
-        Ok(Answer::Ready(Some(projection.into())))
+        Ok(Some(projection.into()))
     }
 }

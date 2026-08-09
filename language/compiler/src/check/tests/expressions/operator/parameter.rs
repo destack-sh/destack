@@ -156,6 +156,7 @@ function offset<T: int8 | int64>(value: T): T {
 
     return value + 128;
     /// @resolution.name source=value target=offset.value
+    /// @resolution.rejected source="value + 128"
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=offset.value
 
@@ -358,6 +359,7 @@ function offset<T: int8 | float64>(value: T): T where T: uint8 {
 
     return value + 200;
     /// @resolution.name source=value target=offset.value
+    /// @resolution.rejected source="value + 200"
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=offset.value
 
@@ -524,6 +526,7 @@ function mix<T: int32 | float64, U: int32 | float64>(left: T, right: U): T {
 
     return left * right;
     /// @resolution.name source=left target=mix.left
+    /// @resolution.rejected source="left * right"
     /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=left root=mix.left
     /// @resolution.name source=right target=mix.right
@@ -569,6 +572,7 @@ function double<T>(value: T): T {
 
     return value + value;
     /// @resolution.name source=value target=double.value
+    /// @resolution.rejected source="value + value"
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=double.value
     /// @resolution.name source=value target=double.value
@@ -621,6 +625,7 @@ function double<T: IntegerDomain>(value: T): T {
 
     return value + value;
     /// @resolution.name source=value target=double.value
+    /// @resolution.rejected source="value + value"
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=double.value
     /// @resolution.name source=value target=double.value
@@ -655,6 +660,7 @@ const value = missing * 2;
 const value = missing * 2;
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
+/// @resolution.poisoned source="missing * 2"
 /// @resolution.unresolved source=missing path=missing
 "#,
         r#"
@@ -732,7 +738,6 @@ function square<T: Multiply<T>>(value: T): T.Output {
 /// @type.symbol symbol=square.value source="value: T" type=T
 /// @resolution.name source=T target=square.T
 /// @resolution.name source=T.Output target=square.T
-/// @resolution.path source=T.Output index=1 target=ops.multiply.Multiply.Output
 
     return value * value;
     /// @resolution.name source=value target=square.value

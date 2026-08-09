@@ -1,5 +1,6 @@
 use destack_core::FxIndexSet;
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::check::{
     CauseKind, FlowBranch, FunctionBody, GeneratorTargets, GenericTemplateId,
@@ -192,7 +193,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
             // follow solved variables toward their lifetime terms
             if let dir::Type::Variable(variable) = node {
-                if let Some(solution) = self.check.solver.solution(variable)? {
+                if let Some(solution) = self.check.infer.solution(variable)? {
                     pending.push(solution);
                 }
 
@@ -522,7 +523,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                     Relation::Assignable,
                     promised,
                     result,
-                );
+                )?;
             }
         }
 
@@ -552,7 +553,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                     Relation::Assignable,
                     generated,
                     result,
-                );
+                )?;
             }
 
             return_target = completed;
@@ -560,43 +561,31 @@ impl<'check, 'state> WalkState<'check, 'state> {
             resume_target = Some(resumed);
         }
 
-        // enter function flow
-        self.enter_function_frame(
-            symbol,
-            return_target,
-            yield_target,
-            resume_target,
-            signature.asynchrony,
-            receiver,
-        );
-
-        // mark entry bindings as definitely assigned
+        // collect the entry bindings the body assigns on entry
+        let mut entries = SmallVec::<[dir::LocalNodeIdAny; 4]>::new();
         if let Some(parameter) = signature.this_parameter {
-            self.mark_bindings_assigned(parameter.into_any());
+            entries.push(parameter.into_any());
         }
         for parameter in &signature.parameters {
-            self.mark_bindings_assigned(parameter.into_any());
+            entries.push(parameter.into_any());
         }
 
-        // walk the body structurally; the check phase owns its constraints
+        // enter the body node only: the check traversal owns its interior
         let body_site = match self.tree.get(body) {
-            dir::Expression::Block(block) => {
-                self.walk_block(*block, self.tree.get(*block))?;
-
-                self.node_site(*block)?
-            }
-            _ => {
-                self.walk_expression(body, self.tree.get(body))?;
-
-                self.node_site(body)?
-            }
+            dir::Expression::Block(block) => self.enter_node(*block)?,
+            _ => self.enter_node(body)?,
         };
 
         // record the body under its declaration identity
         let return_type = (!signature.is_constructor()).then_some(return_target);
-        let generator = yield_target
-            .zip(resume_target)
-            .map(|(yielded, resumed)| GeneratorTargets { yielded, resumed });
+        let generator =
+            yield_target
+                .zip(resume_target)
+                .map(|(yielded, resumed)| GeneratorTargets {
+                    asynchrony: signature.asynchrony,
+                    yielded,
+                    resumed,
+                });
         // bind constructor initialization to its exact declaration
         let initializes = if signature.is_constructor() {
             let owner = receiver
@@ -616,6 +605,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_type,
             generator,
             initializes,
+            asynchrony: signature.asynchrony,
+            receiver,
+            entries,
         };
         if self.check.functions.insert(symbol, body).is_some() {
             return Err(CompilerError::Internal {
@@ -623,7 +615,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             });
         }
 
-        Ok(self.leave_function_frame())
+        Ok(FlowBranch::default())
     }
 
     /// Return the signature slot for one walked runtime parameter.

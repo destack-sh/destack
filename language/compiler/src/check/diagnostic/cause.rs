@@ -1,7 +1,7 @@
 use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 
-use crate::check::{Answer, Cause, CauseId, CauseKind, CheckState, Origin, Relation};
+use crate::check::{Cause, CauseId, CauseKind, CheckState, Origin, Relation};
 use crate::{CompilerResult, DiagnosticAnchor};
 
 /// The blamed origin of one failed closed relation.
@@ -179,21 +179,19 @@ impl CheckState<'_> {
         if depth >= 16 {
             return Ok(leaf);
         }
-        let Answer::Ready(source) = self.reduce_type(origin, source)? else {
-            return Ok(leaf);
-        };
-        let Answer::Ready(target) = self.reduce_type(origin, target)? else {
-            return Ok(leaf);
-        };
+
+        // reduce both sides before pairing their slots
+        let source = self.reduce_type(origin, source)?;
+        let target = self.reduce_type(origin, target)?;
 
         // descend into the first slot whose relation fails
         for (slot, child_relation, child_source, child_target) in
             self.blame_pairs(relation, source, target)?
         {
-            match self.decide_relation(origin, child_relation, child_source, child_target)? {
-                Answer::Ready(false) => {}
-                _ => continue,
+            if self.decide_relation(origin, child_relation, child_source, child_target)? {
+                continue;
             }
+
             let mut blame = self.blame_leaf(
                 origin,
                 child_relation,
@@ -432,7 +430,7 @@ impl CheckState<'_> {
         let mut chain = Vec::new();
         let mut current = Some(cause);
         while let Some(id) = current {
-            let cause = self.solver.cause(id);
+            let cause = self.infer.cause(id);
             chain.push(cause);
             current = cause.parent;
         }
@@ -442,9 +440,9 @@ impl CheckState<'_> {
 
     /// Return the root of one constraint's cause chain.
     pub(in crate::check) fn root_cause(&self, cause: CauseId) -> Cause {
-        let mut root = self.solver.cause(cause);
+        let mut root = self.infer.cause(cause);
         while let Some(parent) = root.parent {
-            root = self.solver.cause(parent);
+            root = self.infer.cause(parent);
         }
 
         root

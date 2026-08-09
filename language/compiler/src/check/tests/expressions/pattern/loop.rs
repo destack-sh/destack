@@ -86,6 +86,7 @@ declare const item: { name: string };
 /// @resolution.pattern source=item kind=binding target=item
 
 for (const { name } in item) {
+/// @resolution.rejected source={ name }
 /// @type.symbol symbol=name#2 source=name type=<error>
 /// @type.node source=item type={ name: string }
 /// @resolution.name source=item target=item

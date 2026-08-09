@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, OperationReduction, Origin, TryProjection, answer};
+use crate::check::{CheckState, OperationReduction, Origin, TryProjection};
 
 impl CheckState<'_> {
     /// Return one type operation's reduced value type.
@@ -9,11 +9,11 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         operation: dir::TypeOperation,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let ty = self.intern_operation(operation)?;
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+        let ty = self.reduce_type_head(origin, ty)?;
 
-        Ok(Answer::Ready(ty))
+        Ok(ty)
     }
 
     /// Reduce one type operation when its inputs allow.
@@ -22,7 +22,7 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
         operation: &dir::TypeOperation,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match operation {
             // conditionals select by the extends relation
             dir::TypeOperation::Conditional(conditional) => {
@@ -39,14 +39,14 @@ impl CheckState<'_> {
 
             // indexed access projects element or member types
             dir::TypeOperation::Index(index) => {
-                match answer!(self.reduce_index(origin, index)?) {
-                    OperationReduction::Projected(ty) => Ok(Answer::Ready(Some(ty))),
-                    OperationReduction::Rigid => Ok(Answer::Ready(None)),
+                match self.reduce_index(origin, index)? {
+                    OperationReduction::Projected(ty) => Ok(Some(ty)),
+                    OperationReduction::Rigid => Ok(None),
                     // ill-formed accesses poison consumers; well-formedness reports
                     OperationReduction::Invalid(_) => {
                         let error = self.intern_type(dir::Type::Error)?;
 
-                        Ok(Answer::Ready(Some(error)))
+                        Ok(Some(error))
                     }
                 }
             }
@@ -58,7 +58,7 @@ impl CheckState<'_> {
             dir::TypeOperation::KeyOf(unary) => self.reduce_keyof(origin, id, unary.target),
 
             // inference barriers erase only in the signature that owns inference
-            dir::TypeOperation::NoInfer(_) => Ok(Answer::Ready(None)),
+            dir::TypeOperation::NoInfer(_) => Ok(None),
 
             // awaited types unwrap promise carriers recursively
             dir::TypeOperation::Awaited(unary) => self.reduce_awaited(origin, unary.target),
@@ -88,7 +88,7 @@ impl CheckState<'_> {
             dir::TypeOperation::Mapped(mapped) => self.reduce_mapped(origin, mapped),
 
             // bare binders stay symbolic until applied
-            dir::TypeOperation::Infer(_) => Ok(Answer::Ready(None)),
+            dir::TypeOperation::Infer(_) => Ok(None),
         }
     }
 }

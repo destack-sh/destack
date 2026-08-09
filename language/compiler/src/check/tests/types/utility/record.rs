@@ -253,7 +253,7 @@ type Bad = Record<{ name: string }, boolean>;
 === checked ===
 type Bad = Record<{ name: string }, boolean>;
 /// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type=<error>
-/// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value=<error>
+/// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value=Record<{ name: string }, boolean> reduced={ [P in { name: string }]: boolean }
 /// @resolution.name source=Record target=types.object.Record
 "#,
         r#"

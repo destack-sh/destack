@@ -82,6 +82,7 @@ declare const point: { x: int32; y: int32 };
 /// @resolution.pattern source=point kind=binding target=point
 
 let (x, y) = point;
+/// @resolution.rejected source=(x, y)
 /// @type.symbol symbol=x#2 source=x type=<error>
 /// @type.symbol symbol=y#2 source=y type=<error>
 /// @type.node source=point type={ x: int32; y: int32 }

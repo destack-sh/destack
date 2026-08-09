@@ -10,7 +10,7 @@ const value = 'a';
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 'a' = 'a';
@@ -20,8 +20,6 @@ const value = 'a';
 /// @type.symbol symbol=value source=value type='a'
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
-
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -36,7 +34,7 @@ let value = 'a';
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let value: char = 'a';
@@ -46,8 +44,6 @@ let value = 'a';
 /// @type.symbol symbol=value source=value type=char
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
-
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -62,7 +58,7 @@ const value: char = 'a';
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: char = 'a';
@@ -72,8 +68,6 @@ const value: char = 'a';
 /// @type.symbol symbol=value source=value type=char
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -88,7 +82,7 @@ const value: string = 'a';
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: string = 'a';
@@ -98,8 +92,6 @@ const value: string = 'a';
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type ''a'' is not assignable to type 'string'"
@@ -119,7 +111,7 @@ const value: int32 = 'a';
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: int32 = 'a';
@@ -129,8 +121,6 @@ const value: int32 = 'a';
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type ''a'' is not assignable to type 'int32'"
@@ -150,7 +140,7 @@ const value: char | string = 'a';
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: char | string = 'a' as char | string;
@@ -160,8 +150,6 @@ const value: char | string = 'a';
 /// @type.symbol symbol=value source=value type=char | string
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
-
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }

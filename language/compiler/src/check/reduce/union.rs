@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{CheckState, Origin};
 
 /// Non-nullish part of one union type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,6 +55,44 @@ impl CheckState<'_> {
         }
     }
 
+    /// Canonicalize one union element through import binders and aliases.
+    ///
+    /// The same nominal reaches a union under different ids when one arm
+    /// names it through an import binder; deduplication needs one spelling.
+    fn canonical_union_element(
+        &mut self,
+        element: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::Application(instance) = self.ty(element)? else {
+            return Ok(element);
+        };
+
+        // resolve the applied symbol to its declaration
+        let mut symbol = instance.symbol;
+        loop {
+            let resolved = self.resolve_symbol_alias(symbol)?;
+            let resolved = match self.import_binder_target(resolved)? {
+                Some(target) => target,
+                None => resolved,
+            };
+            if resolved == symbol {
+                break;
+            }
+            symbol = resolved;
+        }
+        if symbol == instance.symbol {
+            return Ok(element);
+        }
+        if !self.is_own_module(symbol.module_id) {
+            self.import_external_module(symbol.module_id)?;
+        }
+
+        self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol,
+            arguments: instance.arguments,
+        }))
+    }
+
     /// Return flattened and deduplicated union elements.
     fn union_elements(
         &mut self,
@@ -65,7 +103,8 @@ impl CheckState<'_> {
         let mut keys = FxIndexSet::default();
         let mut key_domains = SmallVec::<[dir::PrimitiveType; 2]>::new();
         for element in elements {
-            let element = self.settled_root(element)?;
+            let element = self.shallow_resolve(element)?;
+            let element = self.canonical_union_element(element)?;
 
             // flatten nested unions into one element list
             let elements = match self.ty(element)? {
@@ -207,10 +246,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<NullishSplit>>> {
-        let reduced = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<Option<NullishSplit>> {
+        let reduced = self.reduce_type_head(origin, ty)?;
         let dir::Type::Union(union) = self.ty(reduced)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         // partition the union into accepted and rejected elements
@@ -227,7 +266,7 @@ impl CheckState<'_> {
             }
         }
         if !has_null && !has_undefined {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
         // collapse the accepted elements back into one type
@@ -243,7 +282,7 @@ impl CheckState<'_> {
             (false, false) => unreachable!("nullish split requires a nullish element"),
         };
 
-        Ok(Answer::Ready(Some(NullishSplit { value, rejected })))
+        Ok(Some(NullishSplit { value, rejected }))
     }
 
     /// Distribute one reduction across union arms.
@@ -252,22 +291,22 @@ impl CheckState<'_> {
         _origin: Origin,
         elements: SmallVec<[dir::GlobalTypeId; 4]>,
         mut reduce: F,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>>
+    ) -> CompilerResult<Option<dir::GlobalTypeId>>
     where
-        F: FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>>,
+        F: FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<Option<dir::GlobalTypeId>>,
     {
         let mut reduced = Vec::with_capacity(elements.len());
 
         // reduce each arm independently
         for element in elements {
-            let Some(element) = answer!(reduce(self, element)?) else {
-                return Ok(Answer::Ready(None));
+            let Some(element) = reduce(self, element)? else {
+                return Ok(None);
             };
             reduced.push(element);
         }
 
         let union = self.normalized_union_type(reduced)?;
 
-        Ok(Answer::Ready(Some(union)))
+        Ok(Some(union))
     }
 }

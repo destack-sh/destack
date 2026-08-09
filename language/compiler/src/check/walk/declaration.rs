@@ -4,15 +4,13 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CauseKind, CheckError, CheckState, DeclarationHeritageObligation,
-    ExtensionCoherenceObligation, FunctionHeader, GenericTemplateId,
-    ImplementationCoherenceObligation, InducedParameterOwner, InterfaceConformanceObligation,
-    Obligation, Origin, ParameterUseObligation, Receiver, ReceiverBinding, Relation,
-    RepresentationObligation, TypeSubstitution, VariableRole, WalkState, Widening,
+    CauseKind, CheckError, CheckState, FunctionHeader, GenericTemplateId, InducedParameterOwner,
+    Origin, Receiver, ReceiverBinding, Relation, TypeSubstitution, VariableRole, WalkState,
+    Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// One component template declaration pass.
+/// One module template declaration pass.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum TemplatePass {
     /// Declare template and parameter identities.
@@ -407,7 +405,7 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
-        let template = self.check.generics.template_by_source(source);
+        let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
 
         // handle intrinsic declarations separately from ordinary aliases
@@ -531,7 +529,7 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
-        let template = self.check.generics.template_by_source(source);
+        let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Owned))?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
@@ -593,7 +591,7 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
-        let template = self.check.generics.template_by_source(source);
+        let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Managed))?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
@@ -610,7 +608,7 @@ impl WalkState<'_, '_> {
                     .symbol_kind_maybe(instance.symbol)?
                     .is_none_or(|kind| kind == dir::SymbolKind::Class)
                 {
-                    self.relate_heritage_clause(extends_type, Relation::Extends, receiver.ty, ty);
+                    self.relate_heritage_clause(extends_type, Relation::Extends, receiver.ty, ty)?;
                     extends = Some(dir::NominalHeritage { source, ty });
                     super_ty = Some(ty);
                 } else {
@@ -806,7 +804,7 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
-        let template = self.check.generics.template_by_source(source);
+        let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Owned))?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
@@ -927,7 +925,7 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
-        let template = self.check.generics.template_by_source(source);
+        let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Managed))?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
@@ -1006,7 +1004,7 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
-        let template = self.check.generics.template_by_source(source);
+        let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
 
         // expose members under the extended receiver
@@ -1018,17 +1016,7 @@ impl WalkState<'_, '_> {
             dir::ExtensionTarget::Rooted { root, .. } => self.check.format_symbol(*root),
             _ => self.check.format_type(target_type),
         };
-        let ownership = match self.check.default_ownership(origin, target_type)? {
-            Answer::Ready(ownership) => ownership,
-            Answer::Pending(_) => {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "extension target {} has unsettled ownership",
-                        self.check.format_type(target_type),
-                    ),
-                });
-            }
-        };
+        let ownership = self.check.default_ownership(origin, target_type)?;
         let receiver = Receiver {
             declaration: Some(symbol),
             ownership,
@@ -1097,113 +1085,6 @@ impl WalkState<'_, '_> {
             members,
         });
         self.check.insert_definition(symbol, source, definition)?;
-
-        Ok(())
-    }
-
-    /// Queue one interface conformance obligation.
-    pub(in crate::check) fn queue_interface_conformance_obligation(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<()> {
-        let scope = self.check.symbol_template(symbol)?;
-        self.check.push_obligation(
-            Obligation::InterfaceConformance(InterfaceConformanceObligation { source, symbol }),
-            scope,
-        );
-
-        Ok(())
-    }
-
-    /// Queue one implementation coherence obligation.
-    pub(in crate::check) fn queue_implementation_coherence_obligation(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<()> {
-        let scope = self.check.symbol_template(symbol)?;
-        self.check.push_obligation(
-            Obligation::ImplementationCoherence(ImplementationCoherenceObligation {
-                source,
-                symbol,
-            }),
-            scope,
-        );
-
-        Ok(())
-    }
-
-    /// Queue one extension coherence obligation.
-    pub(in crate::check) fn queue_extension_coherence_obligation(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<()> {
-        let scope = self.check.symbol_template(symbol)?;
-        self.check.push_obligation(
-            Obligation::ExtensionCoherence(ExtensionCoherenceObligation { source, symbol }),
-            scope,
-        );
-
-        Ok(())
-    }
-
-    /// Queue one generic parameter use obligation.
-    pub(in crate::check) fn queue_parameter_use_obligation(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<()> {
-        let scope = self.check.symbol_template(symbol)?;
-        if scope.is_none() {
-            return Ok(());
-        }
-        self.check.push_obligation(
-            Obligation::ParameterUse(ParameterUseObligation { source, symbol }),
-            scope,
-        );
-
-        Ok(())
-    }
-
-    /// Queue one heritage obligation.
-    pub(in crate::check) fn queue_heritage_obligation(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<()> {
-        let scope = self.check.symbol_template(symbol)?;
-        self.check.push_obligation(
-            Obligation::DeclarationHeritage(DeclarationHeritageObligation { source, symbol }),
-            scope,
-        );
-
-        Ok(())
-    }
-
-    /// Queue one concrete declaration's layout check.
-    pub(in crate::check) fn queue_declaration_layout_obligation(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        receiver: Receiver,
-    ) -> CompilerResult<()> {
-        // generic declarations lay out per instantiation
-        if self.check.symbol_template(symbol)?.is_some() {
-            return Ok(());
-        }
-        let source = self
-            .check
-            .module(self.module)
-            .symbol_declaration_node(symbol.local_id)?;
-        let scope = self.check.symbol_template(symbol)?;
-        self.check.push_obligation(
-            Obligation::Representation(RepresentationObligation {
-                source: source.into_global(self.module),
-                ty: receiver.ty,
-            }),
-            scope,
-        );
 
         Ok(())
     }
@@ -1326,16 +1207,7 @@ impl WalkState<'_, '_> {
                     expression.into_global_any(self.module),
                     self.flow().template_scope(),
                 );
-                let reduced = self.check.reduce_type_head(origin, static_type)?;
-                let static_type = match reduced {
-                    Answer::Ready(static_type) => static_type,
-                    Answer::Pending(_) => {
-                        self.check
-                            .report_undecidable_static_value(self.module, expression.into_any());
-
-                        return Ok(None);
-                    }
-                };
+                let static_type = self.check.reduce_type_head(origin, static_type)?;
                 let value = match self.check.ty(static_type)? {
                     dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
                         dir::EnumVariantValue::Integer(value)
@@ -1435,7 +1307,7 @@ impl WalkState<'_, '_> {
                 Relation::Satisfies,
                 left,
                 right,
-            );
+            )?;
 
             return Ok(());
         };
@@ -1679,7 +1551,7 @@ impl WalkState<'_, '_> {
         ownership: Option<dir::Ownership>,
     ) -> CompilerResult<Receiver> {
         // apply the declaration's own parameters as arguments
-        let parameters = match self.check.generics.template_by_symbol(symbol) {
+        let parameters = match self.check.template_by_symbol(symbol) {
             Some(template) => self.check.generic_template_parameters(template)?,
             None => SmallVec::new(),
         };
@@ -1723,19 +1595,20 @@ impl WalkState<'_, '_> {
         relation: Relation,
         declared: dir::GlobalTypeId,
         heritage: dir::GlobalTypeId,
-    ) {
+    ) -> CompilerResult<()> {
         let origin = Origin::Node(
             source.into_global_any(self.module),
             self.flow().template_scope(),
         );
         let clause = source.into_global_any(self.module);
+
         self.relate_type(
             origin,
             CauseKind::Heritage { clause },
             relation,
             declared,
             heritage,
-        );
+        )
     }
 
     /// Return one extension target from a walked target annotation.

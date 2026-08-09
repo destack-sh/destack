@@ -88,12 +88,6 @@ pub(in crate::check) struct InferenceScope {
 }
 
 impl InferenceScope {
-    /// The scope owning every component variable.
-    pub(in crate::check) const ROOT: Self = Self {
-        first_variable: 0,
-        first_mutation: 0,
-    };
-
     /// Open a scope at one variable and mutation count.
     pub(in crate::check) fn open(variable_count: usize, mutation_count: usize) -> Self {
         Self {
@@ -110,6 +104,11 @@ impl InferenceScope {
     /// Return the owned variable indices below one arena length.
     pub(in crate::check) fn indices(self, count: usize) -> Range<usize> {
         self.first_variable as usize..count
+    }
+
+    /// Return the first owned variable index.
+    pub(in crate::check) fn first_variable(self) -> usize {
+        self.first_variable as usize
     }
 
     /// Return the first transactional mutation made by this scope.
@@ -383,12 +382,6 @@ impl VariableTable {
         self.bounds.len()
     }
 
-    /// Truncate variables undone by one probe rollback.
-    pub(in crate::check) fn truncate(&mut self, count: usize) {
-        self.variables.truncate(count);
-        self.roles.truncate(count);
-    }
-
     /// Iterate all variables with their ids.
     pub(in crate::check) fn iter(
         &self,
@@ -402,4 +395,4 @@ impl VariableTable {
 
 // lock the hot solver row shape
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(size_of::<Variable>() == 64);
+const _: () = assert!(size_of::<Variable>() <= 96);

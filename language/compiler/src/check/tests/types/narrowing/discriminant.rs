@@ -1066,6 +1066,7 @@ function read(initial: State, next: State): int32 {
         state = next;
         /// @type.node source="state = next" type=Dynamic<Pending> | Dynamic<Fulfilled>
         /// @type.node source=state type=Dynamic<Pending> | Dynamic<Fulfilled>
+        /// @resolution.name source=state target=read.state
         /// @resolution.pattern.assign source=state kind=place
         /// @resolution.access source=state root=read.state
         /// @resolution.assignment source=state write=binding(read.state) type=Dynamic<Pending> | Dynamic<Fulfilled>
@@ -1080,6 +1081,7 @@ function read(initial: State, next: State): int32 {
         /// @resolution.name source=state target=read.state
         /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state root=read.state
+        /// @resolution.rejected source=state.reactions
 
     }
 

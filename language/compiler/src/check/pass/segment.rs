@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactProjectionFingerprint, DirChecked, DirDeclared, DirElaborated};
-use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
@@ -9,15 +8,23 @@ use crate::check::{CheckModuleState, CheckState};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Blank tail types nothing in the solved segments can reach.
-    ///
-    /// Speculative interning leaves unreferenced type rows behind; the
-
     /// Convert solved state into one declared DIR module.
     pub(in crate::check) fn into_declared(
         mut self,
         module: ModuleId,
     ) -> CompilerResult<DirDeclared> {
+        // persist walked decorator uses for elaborate to select and evaluate
+        for application in std::mem::take(&mut self.decorators) {
+            self.module.decorators.insert_use(dir::DecoratorUse {
+                source: application.expression.decorator.into_global(module),
+                owner: application.owner,
+                target: application.expression.target.into_global(module),
+                symbol: application.symbol,
+                generic_arguments: application.expression.generic_arguments,
+                arguments: application.expression.arguments,
+            });
+        }
+
         let types = self.module.types_tail.finish();
         let CheckModuleState {
             bindings_tail: bindings,
@@ -26,6 +33,7 @@ impl CheckState<'_> {
             generics,
             definitions,
             resolutions,
+            decisions,
             members,
             ..
         } = self.module;
@@ -42,6 +50,7 @@ impl CheckState<'_> {
             &statics,
             &generics,
             &definitions,
+            &decisions,
             &resolutions,
             &members,
         ))
@@ -61,24 +70,45 @@ impl CheckState<'_> {
             generics: Arc::new(generics),
             definitions: Arc::new(definitions),
             resolutions: Arc::new(resolutions),
+            decisions: Arc::new(decisions),
             members: Arc::new(members),
         })
     }
 
     /// Convert flattened state into one elaborated DIR module.
-    pub(in crate::check) fn into_elaborated(self, module: ModuleId) -> CompilerResult<DirElaborated> {
+    pub(in crate::check) fn into_elaborated(
+        self,
+        module: ModuleId,
+    ) -> CompilerResult<DirElaborated> {
         let bindings = self.module.bindings_tail;
         let types = self.module.types_tail.finish();
         let members = self.module.members;
         let auto = self.module.auto;
         let generics = self.module.generics;
         let definitions = self.module.definitions;
+        let decorators = self.module.decorators;
+        let statics = self.module.statics;
+        let controls = self.module.controls;
+        let resolutions = self.module.resolutions;
+        let decisions = self.module.decisions;
 
         // the stored rows recorded their mentions as they interned
         let references = self.module.references.iter().copied().collect::<Vec<_>>();
 
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
-            module, &references, &bindings, &types, &members, &auto, &generics, &definitions,
+            module,
+            &references,
+            &bindings,
+            &types,
+            &members,
+            &auto,
+            &generics,
+            &definitions,
+            &decorators,
+            &statics,
+            &controls,
+            &resolutions,
+            &decisions,
         ))
         .map_err(|error| CompilerError::Internal {
             message: format!(
@@ -95,22 +125,25 @@ impl CheckState<'_> {
             auto: Arc::new(auto),
             generics: Arc::new(generics),
             definitions: Arc::new(definitions),
+            decorators: Arc::new(decorators),
+            statics: Arc::new(statics),
+            controls: Arc::new(controls),
+            resolutions: Arc::new(resolutions),
+            decisions: Arc::new(decisions),
         })
     }
 
     /// Convert solved state into one checked DIR module.
-    pub(in crate::check) fn into_checked(mut self, module: ModuleId) -> CompilerResult<DirChecked> {
+    pub(in crate::check) fn into_checked(self, module: ModuleId) -> CompilerResult<DirChecked> {
         let types = self.module.types_tail.finish();
         let CheckModuleState {
             bindings_tail: bindings,
             decorators,
             controls,
-            auto,
             statics,
             resolutions,
-            members,
+            decisions,
             generics,
-            definitions,
             coercions,
             capture_segment: captures,
             ..
@@ -121,13 +154,11 @@ impl CheckState<'_> {
             &bindings,
             &decorators,
             &controls,
-            &auto,
             &types,
             &statics,
             &resolutions,
-            &members,
+            &decisions,
             &generics,
-            &definitions,
             &coercions,
             &captures,
         ))
@@ -140,13 +171,11 @@ impl CheckState<'_> {
             bindings: Arc::new(bindings),
             decorators: Arc::new(decorators),
             controls: Arc::new(controls),
-            auto: Arc::new(auto),
             types: Arc::new(types),
             statics: Arc::new(statics),
             resolutions: Arc::new(resolutions),
-            members: Arc::new(members),
+            decisions: Arc::new(decisions),
             generics: Arc::new(generics),
-            definitions: Arc::new(definitions),
             coercions: Arc::new(coercions),
             captures: Arc::new(captures),
         })

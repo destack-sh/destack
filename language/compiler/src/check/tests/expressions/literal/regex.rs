@@ -10,7 +10,7 @@ const value: RegExp = /abc/;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: RegExp = /abc/;
@@ -21,8 +21,6 @@ const value: RegExp = /abc/;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
 /// @type.node source=/abc/ type=RegExp
-
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -37,7 +35,7 @@ const value: string = /abc/;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: string = /abc/;
@@ -47,8 +45,6 @@ const value: string = /abc/;
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=/abc/ type=RegExp
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'RegExp' is not assignable to type 'string'"
@@ -68,7 +64,7 @@ const value: RegExp | int32 = /abc/;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: RegExp | int32 = /abc/ as RegExp | int32;
@@ -79,8 +75,6 @@ const value: RegExp | int32 = /abc/;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
 /// @type.node source=/abc/ type=RegExp
-
-/// @check.stats.solve variables=0 types=5 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -95,7 +89,7 @@ const value: boolean = /abc/;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: boolean = /abc/;
@@ -105,8 +99,6 @@ const value: boolean = /abc/;
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=/abc/ type=RegExp
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'RegExp' is not assignable to type 'boolean'"

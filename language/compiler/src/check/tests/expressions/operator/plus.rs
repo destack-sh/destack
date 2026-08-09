@@ -421,6 +421,7 @@ declare const bonus: Score;
 /// @resolution.name source=Score target=Score
 
 total += bonus;
+/// @resolution.name source=total target=total
 /// @resolution.operator source="total += bonus" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score kind=symbol target=add receiver=Score adjustments=(borrow(&'static exclusive Score))
 /// @resolution.pattern.assign source=total kind=place
 /// @resolution.place source=total placement="local" lifetime="static" access="exclusive"
@@ -538,6 +539,7 @@ declare const bonus: Score;
 /// @resolution.name source=Score target=Score
 
 total += bonus;
+/// @resolution.name source=total target=total
 /// @resolution.operator source="total += bonus" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score kind=symbol target=add receiver=Score adjustments=(borrow(&'static exclusive Score))
 /// @resolution.pattern.assign source=total kind=place
 /// @resolution.place source=total placement="local" lifetime="static" access="exclusive"

@@ -21,7 +21,7 @@ counter = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 import { counter } from "./counter.ds";
@@ -34,12 +34,11 @@ import { counter } from "./counter.ds";
 counter = 1;
 /// @type.node source="counter = 1" type=1
 /// @type.node source=counter type=int32
+/// @resolution.name source=counter target=counter.counter
 /// @resolution.pattern.assign source=counter kind=place
 /// @resolution.access source=counter root=counter.counter
 /// @resolution.assignment source=counter write=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
-
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'counter'"
@@ -70,7 +69,7 @@ localCounter = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 import { counter as localCounter } from "./counter.ds";
@@ -83,12 +82,11 @@ import { counter as localCounter } from "./counter.ds";
 localCounter = 1;
 /// @type.node source="localCounter = 1" type=1
 /// @type.node source=localCounter type=int32
+/// @resolution.name source=localCounter target=counter.counter
 /// @resolution.pattern.assign source=localCounter kind=place
 /// @resolution.access source=localCounter root=counter.counter
 /// @resolution.assignment source=localCounter write=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
-
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'localCounter'"
@@ -119,7 +117,7 @@ counter = counter;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 import * as counter from "./counter.ds";
@@ -132,9 +130,7 @@ import * as counter from "./counter.ds";
 counter = counter;
 /// @type.node source="counter = counter" type=<error>
 /// @type.node source=counter type=<error>
-/// @type.node source=counter type=<error>
-
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @resolution.rejected source=counter
 "#,
         r#"
 /// @diagnostic.error id=non-writable-assignment-target message="assignment target is not a writable place"
@@ -164,7 +160,7 @@ namespaceCounter.counter = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 import * as namespaceCounter from "./counter.ds";
@@ -177,12 +173,11 @@ import * as namespaceCounter from "./counter.ds";
 namespaceCounter.counter = 1;
 /// @type.node source="namespaceCounter.counter = 1" type=1
 /// @type.node source=namespaceCounter.counter type=int32
+/// @resolution.name source=namespaceCounter.counter target=counter.counter
 /// @resolution.pattern.assign source=namespaceCounter.counter kind=place
 /// @resolution.access source=namespaceCounter.counter root=counter.counter
 /// @resolution.assignment source=namespaceCounter.counter write=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
-
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'namespaceCounter.counter'"

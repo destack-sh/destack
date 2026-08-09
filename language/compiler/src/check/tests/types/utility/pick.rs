@@ -139,6 +139,7 @@ const age = person.age;
 /// @resolution.name source=person target=person
 /// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
+/// @resolution.rejected source=person.age
 
 /// @generic.instance id="Pick<Person, \"name\" | \"active\">" template=types.object.Pick arguments=(Person, "name" | "active")
 "#,
@@ -560,6 +561,7 @@ person.name = "Grace";
 /// @resolution.name source=person target=person
 /// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
+/// @resolution.rejected source=person.name
 
 /// @generic.instance id="Pick<Person, \"name\">" template=types.object.Pick arguments=(Person, "name")
 "#,

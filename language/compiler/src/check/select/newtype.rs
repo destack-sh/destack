@@ -1,10 +1,12 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
+use destack_source::ModuleId;
+
 use crate::check::{
-    Answer, BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Expectation,
-    ObligationCheck, Origin, SignatureMatch, SignatureRejection, TypeSubstitution, ValueUse,
-    answer,
+    BodyState, CallableArgument, Callee, CandidateOutcome, CandidateVerdict, CheckState,
+    Expectation, ObligationCheck, Origin, Selection, SignatureMatch, SignatureRejection,
+    TypeSubstitution, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -35,6 +37,7 @@ pub(in crate::check) enum NewtypeMatch {
 }
 
 /// One selected newtype backing signature.
+#[derive(Debug, Clone)]
 pub(in crate::check) struct NewtypeSignature {
     /// The durable nominal selection.
     pub(in crate::check) selection: dir::NewtypeSelection,
@@ -56,8 +59,15 @@ pub(in crate::check) enum NewtypeRejection {
     Ambiguous,
 }
 
+/// One decided newtype backing, replayed across construction sites.
+#[derive(Debug, Clone)]
+pub(in crate::check) struct NewtypeInstance {
+    /// The decided backing without per-site coercions.
+    pub(in crate::check) selection: NewtypeSignature,
+}
+
 /// How newtype backing alternatives are selected.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum NewtypeOverload {
     /// Select the first viable alternative in authored order.
     Ordered,
@@ -76,9 +86,41 @@ impl BodyState<'_, '_> {
         expectation: Option<Expectation>,
         overload: NewtypeOverload,
         use_: ValueUse,
-    ) -> CompilerResult<Answer<NewtypeMatch>> {
+    ) -> CompilerResult<NewtypeMatch> {
         let module = origin.module();
+        self.register_argument_function_values(module, argument_nodes)?;
         let arguments = self.callable_arguments(module, argument_nodes, use_)?;
+
+        // select the backing once for closed operand lists; later matches
+        //  replay that selection, converting their own arguments in place
+        let selection_key = match arguments
+            .iter()
+            .map(|argument| argument.ty)
+            .collect::<Option<SmallVec<[_; 8]>>>()
+        {
+            Some(argument_types) => {
+                let mut operands = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+                operands.extend(type_arguments.iter().copied());
+                operands.extend(argument_types);
+
+                self.derive_selection_key(
+                    origin,
+                    Callee::Newtype(symbol, overload),
+                    expectation,
+                    &operands,
+                )?
+            }
+            None => None,
+        };
+
+        // replay the decided backing when this site repeats an earlier selection
+        if let Some(key) = &selection_key
+            && let Some(Selection::Newtype(instance)) = self.check.selections.get(key).cloned()
+            && let Some(signature) =
+                self.apply_newtype_instance(origin, instance.selection, &arguments)?
+        {
+            return Ok(NewtypeMatch::Selected(signature));
+        }
 
         // require the nominal definition established by the declaration walk
         let Some(dir::Definition::Newtype(definition)) = self.definition(symbol)? else {
@@ -95,11 +137,11 @@ impl BodyState<'_, '_> {
         };
         let template = self.symbol_template(symbol)?;
         let type_arguments = if type_arguments.is_empty() {
-            answer!(self.expected_newtype_arguments(
+            self.expected_newtype_arguments(
                 origin,
                 symbol,
                 expectation.map(|expectation| expectation.target),
-            )?)
+            )?
         } else {
             type_arguments.to_vec()
         };
@@ -116,7 +158,7 @@ impl BodyState<'_, '_> {
 
         // build one signature candidate per backing alternative
         let candidates =
-            answer!(self.newtype_candidates(origin, backing, return_type, template, overload,)?);
+            self.newtype_candidates(origin, backing, return_type, template, overload)?;
 
         // select according to the construction's ambiguity rule
         let is_single_candidate = candidates.len() == 1;
@@ -127,7 +169,7 @@ impl BodyState<'_, '_> {
                 selected_candidate = Some(candidate);
                 break;
             }
-            let (verdict, rejection) = answer!(self.probe_candidate_noted(
+            let (verdict, rejection) = self.probe_candidate_describing(
                 |state| {
                     let outcome = state.match_newtype_candidate(
                         origin,
@@ -136,24 +178,19 @@ impl BodyState<'_, '_> {
                         &arguments,
                         expectation,
                     )?;
-                    match outcome {
-                        Answer::Ready(matched) => Ok(Answer::Ready(matched.into_candidate())),
-                        Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-                    }
+                    Ok(outcome.into_candidate())
                 },
                 |state, rejection| {
                     state
                         .check
                         .describe_signature_rejection(module, candidate.signature, rejection)
                 },
-            )?);
+            )?;
             match verdict {
                 CandidateVerdict::Rejected => notes.extend(rejection),
                 CandidateVerdict::Viable => {
                     if overload == NewtypeOverload::Unambiguous && selected_candidate.is_some() {
-                        return Ok(Answer::Ready(NewtypeMatch::Rejected(
-                            NewtypeRejection::Ambiguous,
-                        )));
+                        return Ok(NewtypeMatch::Rejected(NewtypeRejection::Ambiguous));
                     }
                     if overload == NewtypeOverload::Unambiguous {
                         selected_candidate = Some(candidate);
@@ -165,9 +202,7 @@ impl BodyState<'_, '_> {
                 }
                 CandidateVerdict::Indeterminate => {
                     if overload == NewtypeOverload::Unambiguous {
-                        return Ok(Answer::Ready(NewtypeMatch::Rejected(
-                            NewtypeRejection::Ambiguous,
-                        )));
+                        return Ok(NewtypeMatch::Rejected(NewtypeRejection::Ambiguous));
                     }
                     selected_candidate = Some(candidate);
 
@@ -181,7 +216,7 @@ impl BodyState<'_, '_> {
         let mut is_return_mismatch = false;
         let mut signature_rejection = None;
         if let Some(candidate) = selected_candidate {
-            let matched = answer!(self.confirm_candidate(|state| {
+            let matched = self.confirm_candidate(|state| {
                 let matched = state.match_newtype_candidate(
                     origin,
                     candidate,
@@ -191,26 +226,21 @@ impl BodyState<'_, '_> {
                 )?;
 
                 Ok(match matched {
-                    Answer::Ready(matched) if is_single_candidate => {
-                        Answer::Ready(CandidateOutcome::Accepted(matched))
+                    matched if is_single_candidate => CandidateOutcome::Accepted(matched),
+                    SignatureMatch::Selected(selection) => {
+                        CandidateOutcome::Accepted(SignatureMatch::Selected(selection))
                     }
-                    Answer::Ready(SignatureMatch::Selected(selection)) => Answer::Ready(
-                        CandidateOutcome::Accepted(SignatureMatch::Selected(selection)),
-                    ),
-                    Answer::Ready(SignatureMatch::ReturnMismatch(selection)) => Answer::Ready(
-                        CandidateOutcome::Accepted(SignatureMatch::ReturnMismatch(selection)),
-                    ),
-                    Answer::Ready(SignatureMatch::Invalid { rejection, .. })
-                    | Answer::Ready(SignatureMatch::Inapplicable(rejection)) => {
-                        Answer::Ready(CandidateOutcome::Rejected(rejection))
+                    SignatureMatch::ReturnMismatch(selection) => {
+                        CandidateOutcome::Accepted(SignatureMatch::ReturnMismatch(selection))
                     }
-                    Answer::Pending(blockers) => Answer::Pending(blockers),
+                    SignatureMatch::Invalid { rejection, .. }
+                    | SignatureMatch::Inapplicable(rejection) => {
+                        CandidateOutcome::Rejected(rejection)
+                    }
                 })
-            })?);
+            })?;
             let Some(matched) = matched else {
-                return Ok(Answer::Ready(NewtypeMatch::Rejected(
-                    NewtypeRejection::NoMatch(notes),
-                )));
+                return Ok(NewtypeMatch::Rejected(NewtypeRejection::NoMatch(notes)));
             };
             match matched {
                 SignatureMatch::Selected(signature) => {
@@ -246,7 +276,7 @@ impl BodyState<'_, '_> {
                 }
             };
 
-            return Ok(Answer::Ready(NewtypeMatch::Rejected(rejection)));
+            return Ok(NewtypeMatch::Rejected(rejection));
         };
 
         // substitute the exact backing with the selected generic arguments
@@ -261,12 +291,15 @@ impl BodyState<'_, '_> {
             generic_arguments: signature.generic_arguments.clone(),
         };
 
+        // build the selected signature over the substituted backing
         let signature = NewtypeSignature {
             selection,
             parameters: signature.parameters,
             return_type: signature.return_type,
             coercions: signature.coercions,
         };
+
+        // carry any rejection or return mismatch alongside the selection
         let matched = match rejection {
             Some(rejection) => NewtypeMatch::Invalid {
                 signature,
@@ -276,7 +309,79 @@ impl BodyState<'_, '_> {
             None => NewtypeMatch::Selected(signature),
         };
 
-        Ok(Answer::Ready(matched))
+        // decide the closed selection for replay at later sites
+        if let NewtypeMatch::Selected(signature) = &matched
+            && let Some(key) = selection_key
+            && self.newtype_signature_is_closed(signature)?
+        {
+            let mut stored = signature.clone();
+            stored.coercions = SmallVec::new();
+            self.check.selections.insert(
+                key,
+                Selection::Newtype(NewtypeInstance { selection: stored }),
+            );
+        }
+
+        Ok(matched)
+    }
+
+    /// Replay one decided newtype selection, converting each argument.
+    fn apply_newtype_instance(
+        &mut self,
+        origin: Origin,
+        instance: NewtypeSignature,
+        arguments: &[CallableArgument],
+    ) -> CompilerResult<Option<NewtypeSignature>> {
+        // convert each argument against the decided parameter row
+        let mut signature = instance;
+        for (index, argument) in arguments.iter().copied().enumerate() {
+            let parameter = signature
+                .parameters
+                .get(index)
+                .or_else(|| signature.parameters.last());
+            let Some(parameter) = parameter else {
+                return Ok(None);
+            };
+            let parameter_type = match parameter.is_rest {
+                true => self
+                    .rest_element_type(origin, parameter.ty)?
+                    .unwrap_or(parameter.ty),
+                false => parameter.ty,
+            };
+            let conversion =
+                self.match_signature_argument(origin, index, argument, parameter_type)?;
+            match conversion {
+                Ok(Some(coercion)) => signature.coercions.push((argument.source, coercion)),
+                Ok(None) => {}
+                Err(_) => return Ok(None),
+            }
+        }
+
+        Ok(Some(signature))
+    }
+
+    /// Return whether one newtype selection embeds no open inference variables.
+    fn newtype_signature_is_closed(
+        &mut self,
+        signature: &NewtypeSignature,
+    ) -> CompilerResult<bool> {
+        // collect every type the selection embeds
+        let mut types = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        types.push(signature.return_type);
+        types.push(signature.selection.backing);
+        types.extend(signature.parameters.iter().map(|parameter| parameter.ty));
+        types.extend(dir::GenericArgumentBinding::values(
+            &signature.selection.generic_arguments,
+        ));
+
+        // one open variable keeps the whole selection open
+        for ty in types {
+            if self.type_flags(ty)?.has_variable() {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
     }
 
     /// Derive and record one newtype's constructable backing alternatives.
@@ -284,13 +389,15 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // read the raw declared row without forcing a tagged derivation
         let Some(dir::Definition::Newtype(definition)) = self.definition_maybe(symbol) else {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+            return Ok(ObligationCheck::holds());
         };
+
+        // leave already derived rows and tagged newtypes alone
         if !definition.constructors.is_empty() || definition.is_tagged {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+            return Ok(ObligationCheck::holds());
         }
         let backing = definition.backing;
 
@@ -312,13 +419,13 @@ impl BodyState<'_, '_> {
         }))?;
 
         // derive one constructor per backing alternative in selection order
-        let candidates = answer!(self.newtype_candidates(
+        let candidates = self.newtype_candidates(
             origin,
             backing,
             return_type,
             template,
             NewtypeOverload::Ordered,
-        )?);
+        )?;
         let constructors = candidates
             .iter()
             .map(|candidate| dir::NewtypeConstructor {
@@ -332,7 +439,7 @@ impl BodyState<'_, '_> {
             definition.constructors = constructors;
         }
 
-        Ok(Answer::Ready(ObligationCheck::holds()))
+        Ok(ObligationCheck::holds())
     }
 
     /// Build argument matching candidates from one newtype backing.
@@ -343,8 +450,8 @@ impl BodyState<'_, '_> {
         return_type: dir::GlobalTypeId,
         template: Option<dir::GlobalGenericTemplateId>,
         overload: NewtypeOverload,
-    ) -> CompilerResult<Answer<SmallVec<[NewtypeCandidate; 2]>>> {
-        let backing = answer!(self.reduce_type_head(origin, backing)?);
+    ) -> CompilerResult<SmallVec<[NewtypeCandidate; 2]>> {
+        let backing = self.reduce_type_head(origin, backing)?;
         let mut backings = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[backing]);
 
         // try each union arm before the complete union domain
@@ -355,7 +462,7 @@ impl BodyState<'_, '_> {
             backings.clear();
             backings.reserve(elements.len() + 1);
             for element in elements {
-                backings.push(answer!(self.reduce_type_head(origin, element)?));
+                backings.push(self.reduce_type_head(origin, element)?);
             }
             if overload == NewtypeOverload::Ordered {
                 backings.push(backing);
@@ -394,7 +501,7 @@ impl BodyState<'_, '_> {
             candidates.push(NewtypeCandidate { backing, signature });
         }
 
-        Ok(Answer::Ready(candidates))
+        Ok(candidates)
     }
 
     /// Match one newtype backing candidate against supplied arguments.
@@ -405,7 +512,7 @@ impl BodyState<'_, '_> {
         type_arguments: &[dir::GlobalTypeId],
         arguments: &[CallableArgument],
         expectation: Option<Expectation>,
-    ) -> CompilerResult<Answer<SignatureMatch>> {
+    ) -> CompilerResult<SignatureMatch> {
         let module = origin.module();
         let Some(function) = self.signature_head(candidate.signature)? else {
             return Err(CompilerError::Internal {
@@ -437,21 +544,49 @@ impl BodyState<'_, '_> {
         origin: Origin,
         symbol: dir::GlobalSymbolId,
         expected_return: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<Vec<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let Some(expected_return) = expected_return else {
-            return Ok(Answer::Ready(Vec::new()));
+            return Ok(Vec::new());
         };
-        let expected_return = answer!(self.reduce_type_head(origin, expected_return)?);
+        let expected_return = self.reduce_type_head(origin, expected_return)?;
         let dir::Type::Application(instance) = self.ty(expected_return)? else {
-            return Ok(Answer::Ready(Vec::new()));
+            return Ok(Vec::new());
         };
         if instance.symbol != symbol {
-            return Ok(Answer::Ready(Vec::new()));
+            return Ok(Vec::new());
         }
 
-        Ok(Answer::Ready(
-            self.type_ids(expected_return.module_id, instance.arguments)?
-                .to_vec(),
-        ))
+        Ok(self
+            .type_ids(expected_return.module_id, instance.arguments)?
+            .to_vec())
+    }
+}
+
+impl CheckState<'_> {
+    /// Record each declared newtype's constructor rows.
+    pub(in crate::check) fn derive_module_constructors(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<()> {
+        // declarations leave derived rows to their checking pass
+        if self.is_declaration() {
+            return Ok(());
+        }
+
+        // derive rows beside each declared newtype
+        let mut newtypes = Vec::new();
+        for (symbol, definition) in self.module(module).definitions.iter_definitions() {
+            if matches!(definition, dir::Definition::Newtype(_)) {
+                newtypes.push(symbol);
+            }
+        }
+
+        // NOTE #Suspicious: the derived check is discarded, so its failures never reach a report
+        for symbol in newtypes {
+            self.body()
+                .derive_newtype_constructors(Origin::Symbol(symbol), symbol)?;
+        }
+
+        Ok(())
     }
 }

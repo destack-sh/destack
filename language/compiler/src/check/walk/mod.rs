@@ -10,7 +10,6 @@ mod dependency;
 mod expression;
 mod function;
 mod generic;
-mod r#match;
 mod narrow;
 mod parameter;
 mod pattern;

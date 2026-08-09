@@ -20,8 +20,6 @@ pub(in crate::check) struct FunctionFrame {
     pub(in crate::check::flow) return_target: dir::GlobalTypeId,
     /// The value accepted by `yield` inside this generator body.
     pub(in crate::check::flow) yield_target: Option<dir::GlobalTypeId>,
-    /// The value produced when this generator resumes after `yield`.
-    pub(in crate::check::flow) resume_target: Option<dir::GlobalTypeId>,
     /// The function asynchrony.
     pub(in crate::check) asynchrony: dir::Asynchrony,
     /// Outer symbols read by this function.
@@ -48,11 +46,6 @@ pub(in crate::check) struct ControlTarget {
 /// A source control form that accepts `break`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum ControlTargetForm {
-    /// A labeled block accepts labeled breaks with values.
-    Block {
-        /// The output joined by break values and the block fallthrough.
-        result: dir::GlobalTypeId,
-    },
     /// A `loop` accepts breaks with values and `continue`.
     Loop {
         /// The output joined by break values.
@@ -79,8 +72,6 @@ impl ControlTargetForm {
 /// A `try` body that can receive propagated failures.
 #[derive(Debug)]
 pub(in crate::check) struct TryTarget {
-    /// The result type receiving propagated failures.
-    pub(in crate::check::flow) failure: dir::GlobalTypeId,
-    /// Whether the try body propagated at least one failure.
-    pub(in crate::check::flow) has_failure: bool,
+    /// The residual types the body propagated, one per try site.
+    pub(in crate::check::flow) residuals: Vec<dir::GlobalTypeId>,
 }

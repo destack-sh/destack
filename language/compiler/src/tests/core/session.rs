@@ -40,6 +40,8 @@ const TRACE_SLOW_ARTIFACTS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_ARTIFACTS";
 const TRACE_SLOW_MS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_MS";
 const DEFAULT_TRACE_SLOW_ARTIFACTS: usize = 8;
 const SLOW_RUN_TRACE_ATTEMPTS: usize = 24;
+/// Path of the module anchoring the anonymous workspace package.
+const WARM_ANCHOR_PATH: &str = "__warm.ds";
 
 /// A test session builder.
 #[derive(Debug, Default)]
@@ -772,10 +774,10 @@ impl TestSession {
 
         // resolve explicit test profile
         let target_id = TargetId::new(module.package_id, "default");
-        let profile = repository
+        let resolved = repository
             .profile_for_target(revision, target_id)
-            .expect("test module profile should resolve")
-            .id();
+            .expect("test module profile should resolve");
+        let profile = resolved.id();
 
         Some(TestModule {
             source,
@@ -995,8 +997,14 @@ impl TestSession {
         let bound = self.dir_bound(entry);
         let expanded = self.dir_expanded(entry);
         let declared = self.dir_declared_module(entry.module.id, entry.profile);
+        let elaborated_version =
+            self.require_artifact(ArtifactKey::dir_elaborated(entry.module.id, entry.profile));
+        let elaborated = self
+            .artifacts()
+            .dir_elaborated(&elaborated_version)
+            .expect("test elaborated artifact should exist");
         let checked = self.dir_checked(entry);
-        let bindings = checked.binding_table(&bound, &expanded, &declared);
+        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
         let foreign_artifacts = self.foreign_artifacts_for(entry, true);
         let foreign_bindings = foreign_artifacts
             .iter()
@@ -1033,7 +1041,20 @@ impl TestSession {
             builder.add_language_items(&resolved.imports);
         }
 
-        builder.add_checked(selection, &bound, &expanded, &declared, &checked);
+        let elaborated_version =
+            self.require_artifact(ArtifactKey::dir_elaborated(entry.module.id, entry.profile));
+        let elaborated = self
+            .artifacts()
+            .dir_elaborated(&elaborated_version)
+            .expect("test elaborated artifact should exist");
+        builder.add_checked(
+            selection,
+            &bound,
+            &expanded,
+            &declared,
+            &elaborated,
+            &checked,
+        );
 
         if selection.includes_metadata() {
             let metadata_rows = selection.metadata_rows();
@@ -1089,7 +1110,12 @@ impl TestSession {
 
     /// Return parsed DIR for one module entry.
     fn dir_parsed(&self, entry: &TestModule) -> Arc<DirParsed> {
-        let key = ArtifactKey::dir_parsed(entry.module.id);
+        self.dir_parsed_module(entry.module.id)
+    }
+
+    /// Return parsed DIR for one module id.
+    pub(crate) fn dir_parsed_module(&self, module_id: ModuleId) -> Arc<DirParsed> {
+        let key = ArtifactKey::dir_parsed(module_id);
         let version = self.require_artifact(key);
 
         self.artifacts()
@@ -1153,7 +1179,11 @@ impl TestSession {
     }
 
     /// Return checked DIR for one module id.
-    fn dir_checked_module(&self, module_id: ModuleId, profile: ProfileId) -> Arc<DirChecked> {
+    pub(crate) fn dir_checked_module(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Arc<DirChecked> {
         let key = ArtifactKey::dir_checked(module_id, profile);
         let version = self.require_artifact(key);
 
@@ -1220,6 +1250,23 @@ impl TestSession {
         let keys = keys.into_iter().collect::<Vec<_>>();
 
         self.session.provide(self.revision, &keys)
+    }
+
+    /// Require all artifacts while recording one detailed trace.
+    pub(crate) fn require_all_traced(
+        &self,
+        keys: impl IntoIterator<Item = ArtifactKey>,
+    ) -> Result<(), SessionError> {
+        // record one detailed trace around the whole run
+        let keys = keys.into_iter().collect::<Vec<_>>();
+        self.session.set_tracing(true);
+        let trace = self.session.start_trace();
+        let result = self
+            .session
+            .provide_traced(self.revision, &keys, Arc::clone(&trace));
+        self.session.finish_trace(trace);
+
+        result
     }
 
     /// Return the detailed artifact trace for this test session.
@@ -1321,7 +1368,7 @@ impl TestSession {
     }
 
     /// Return the repository artifact table.
-    fn artifacts(&self) -> Arc<ArtifactTable> {
+    pub(crate) fn artifacts(&self) -> Arc<ArtifactTable> {
         self.repository.artifact_table().clone()
     }
 
@@ -1405,11 +1452,17 @@ impl TestSession {
                     .dir_expanded(&expanded_version)
                     .expect("test external expanded artifact should exist");
                 let declared = self.dir_declared_module(module_id, entry.profile);
+                let elaborated_version =
+                    self.require_artifact(ArtifactKey::dir_elaborated(module_id, entry.profile));
+                let elaborated = self
+                    .artifacts()
+                    .dir_elaborated(&elaborated_version)
+                    .expect("test external elaborated artifact should exist");
                 let checked = self.dir_checked_module(module_id, entry.profile);
-                let generics = checked.generic_table(&declared);
-                let definitions = checked.definition_table(&declared);
-                let types = checked.type_table(&bound, &expanded, &declared);
-                let statics = checked.static_table(&bound, &expanded, &declared);
+                let generics = checked.generic_table(&declared, &elaborated);
+                let definitions = elaborated.definition_table();
+                let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
+                let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
 
                 (Some(generics), definitions, types, statics)
             })
@@ -1606,6 +1659,20 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
     BASE.get_or_init(|| {
         let (repository, revision) = cold_repository_revision();
 
+        // anchor the anonymous workspace package so its profile exists
+        //  while the warmup checks under it
+        let revision = repository
+            .fork_with_edits(
+                revision,
+                [Edit::SetFile {
+                    logical_path: WARM_ANCHOR_PATH.to_string(),
+                    content: Content::Text {
+                        content: String::new(),
+                    },
+                }],
+            )
+            .expect("warmup anchor should publish");
+
         // start one warmup session on the shared base
         let root = repository.path().to_path_buf();
         let session = Session::fork(
@@ -1619,24 +1686,56 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
         )
         .expect("library warmup session should start");
 
-        // resolve the builtin library's default target profile
+        // resolve the builtin library's own profile and the workspace
+        //  profile fixture modules check under
         let package = repository.embedded_builtin();
         let target = TargetId::new(package.package_id(), "default");
-        let profile = repository
+        let library_profile = repository
             .profile_for_target(revision, target)
             .expect("builtin library target profile should resolve")
             .id();
+        let anchor = repository
+            .module_id_for_path(revision, WARM_ANCHOR_PATH.as_ref())
+            .expect("warmup anchor module should resolve")
+            .expect("warmup anchor module should exist");
+        let workspace = repository
+            .module(revision, anchor)
+            .expect("warmup anchor module should load")
+            .expect("warmup anchor module should be tracked")
+            .package_id;
+        let workspace_profile = repository
+            .profile_for_target(revision, TargetId::new(workspace, "default"))
+            .expect("workspace target profile should resolve")
+            .id();
 
-        // check every builtin module once so forks inherit warm bindings
+        // check every builtin module under both profiles once so test
+        //  forks inherit warm bindings for whichever world they build
         let keys = package
             .module_ids()
-            .map(|module| ArtifactKey::dir_checked(module, profile))
+            .flat_map(|module| {
+                [
+                    ArtifactKey::dir_checked(module, library_profile),
+                    ArtifactKey::dir_checked(module, workspace_profile),
+                ]
+            })
             .collect::<Vec<_>>();
         session
             .provide(revision, &keys)
             .expect("library warmup should check");
 
-        (repository, revision)
+        // drop the anchor for the shared base: the removal invalidates
+        //  nothing the warm artifacts depend on, so tests inherit them
+        //  by ancestry without the anchor in their file tree
+        let base = repository
+            .fork_with_edits(
+                revision,
+                [Edit::RemoveFile {
+                    logical_path: WARM_ANCHOR_PATH.to_string(),
+                }],
+            )
+            .expect("warmup anchor should retire");
+
+        (repository, base)
     })
 }
 

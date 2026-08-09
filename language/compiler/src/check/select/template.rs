@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{Answer, BodyState, Decision, FlowSite, PlaceUse, answer};
+use crate::check::{BodyState, FlowSite, PlaceUse};
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
@@ -9,7 +9,7 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         tag: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
@@ -17,19 +17,19 @@ impl BodyState<'_, '_> {
 
         // reduce the tag's callable shape
         let tag_node = tag.into_global_any(module);
-        let tag_site = self.node_site(tag_node)?;
-        let tag_type = answer!(self.infer_node_type(tag_site, PlaceUse::Read)?);
-        let tag_type = answer!(self.reduce_type_head(origin, tag_type)?);
+        let tag_site = self.visit_site(tag_node)?;
+        let tag_type = self.infer_node_type(tag_site, PlaceUse::Read)?;
+        let tag_type = self.reduce_type_head(origin, tag_type)?;
         let signature = match self.ty(tag_type)? {
             dir::Type::FunctionSignature(_) => Some(tag_type),
             _ => self.callable_signature(tag_type)?,
         };
         let Some(signature) = signature else {
             self.report_not_callable(origin, tag_type)?;
-            self.commit_decision(node, Decision::Rejected)?;
+            self.commit_decision(node, dir::Decision::Rejected)?;
             self.commit_error_node(node)?;
 
-            return Ok(Answer::Ready(()));
+            return Ok(());
         };
         let return_type = match self.signature_head(signature)? {
             Some(function) => function.return_type,
@@ -55,9 +55,9 @@ impl BodyState<'_, '_> {
         };
         let resolution = dir::OperationResolution::One(call);
 
-        self.commit_decision(node, Decision::Call(resolution))?;
+        self.commit_decision(node, dir::Decision::Call(resolution))?;
         self.commit_node_type(node, result)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 }

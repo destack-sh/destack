@@ -11,7 +11,7 @@ state.count = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const state: { readonly count: int32 } = { count: 0 };
@@ -30,8 +30,7 @@ state.count = 1;
 /// @resolution.name source=state target=state
 /// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=state root=state
-
-/// @check.stats.solve variables=0 types=9 constraints=0 obligations=1 solutions=0 bounds=0 decisions=3
+/// @resolution.rejected source=state.count
 "#,
         r#"
 
@@ -322,6 +321,7 @@ counter.current = 1;
 /// @resolution.name source=counter target=counter
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
+/// @resolution.rejected source=counter.current
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'current'"
@@ -378,6 +378,7 @@ const value = sink.value;
 /// @resolution.name source=sink target=sink
 /// @resolution.place source=sink placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=sink root=sink
+/// @resolution.rejected source=sink.value
 "#,
         r#"
 /// @diagnostic.error id=cannot-read-write-only-member message="member 'value' is write-only"

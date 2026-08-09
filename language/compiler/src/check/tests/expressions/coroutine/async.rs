@@ -150,6 +150,8 @@ async function sum(): Promise<int32> {
     /// @resolution.call source=stream() parameters=() return=AsyncGenerator<int32, void, void> kind=symbol target=stream
 
         total += value;
+        /// @resolution.name source=total target=sum.total
+        /// @resolution.poisoned source="total += value"
         /// @resolution.pattern.assign source=total kind=place
         /// @resolution.assignment source=total read=binding(sum.total) write=binding(sum.total) type=int32
         /// @resolution.access source=total root=sum.total
@@ -171,8 +173,8 @@ async function sum(): Promise<int32> {
 "#, r#"
 /// @diagnostic.error id=for-of-source-not-iterable message="for-of source must be iterable"
 /// @diagnostic.label line=8 column=5 span="for await (const value of stream()) {\n        total += value;\n    }" line_source="for await (const value of stream()) {"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'AsyncGenerator<int32, void, void>' does not satisfy 'Iterator<_, void>'"
 /// @diagnostic.label line=8 column=5 span="for await (const value of stream()) {\n        total += value;\n    }" line_source="for await (const value of stream()) {"
-/// @diagnostic.help message="annotate the type explicitly"
+/// @diagnostic.related file="iterator.ds" message="required by this bound on 'I'"
 "#);
 }

@@ -68,7 +68,7 @@ key satisfies "id:users";
 === annotated ===
 declare function build<T: string>(value: T): `id:${T}`;
 
-const key = build<"users">("users");
+const key: "id:users" = build<"users">("users");
 
 key satisfies "id:users";
 

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{CheckState, Origin};
 use crate::{CheckError, CompilerResult};
 
 impl CheckState<'_> {
@@ -11,9 +11,9 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(item) = self.language_item(instance.symbol)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         match item {
@@ -22,13 +22,13 @@ impl CheckState<'_> {
                 let ty = dir::Type::Primitive(dir::PrimitiveType::String);
                 let ty = self.intern_type(ty)?;
 
-                Ok(Answer::Ready(Some(ty)))
+                Ok(Some(ty))
             }
             dir::LanguageItem::BigInt => {
                 let ty = dir::Type::Primitive(dir::PrimitiveType::Bigint);
                 let ty = self.intern_type(ty)?;
 
-                Ok(Answer::Ready(Some(ty)))
+                Ok(Some(ty))
             }
 
             // reduce collection aliases to structural types
@@ -52,7 +52,7 @@ impl CheckState<'_> {
 
                 let error = self.intern_type(dir::Type::Error)?;
 
-                Ok(Answer::Ready(Some(error)))
+                Ok(Some(error))
             }
             dir::LanguageItem::FunctionPointer => {
                 self.reduce_function_pointer_application(origin, module, instance)
@@ -115,7 +115,7 @@ impl CheckState<'_> {
                 self.reduce_memory_accessor(origin, module, item, instance)
             }
 
-            _ => Ok(Answer::Ready(None)),
+            _ => Ok(None),
         }
     }
 
@@ -143,12 +143,12 @@ impl CheckState<'_> {
         module: ModuleId,
         item: dir::LanguageItem,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(mapping) = item.string_mapping() else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let [target] = self.type_ids(module, instance.arguments)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let operation = dir::TypeOperation::StringMapping {
             mapping,
@@ -157,7 +157,7 @@ impl CheckState<'_> {
 
         let ty = self.intern_operation(operation)?;
 
-        Ok(Answer::Ready(Some(ty)))
+        Ok(Some(ty))
     }
 
     /// Reduce one inference barrier intrinsic application.
@@ -166,15 +166,15 @@ impl CheckState<'_> {
         _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let [target] = self.type_ids(module, instance.arguments)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let operation = dir::TypeOperation::NoInfer(dir::UnaryType { target: *target });
 
         let ty = self.intern_operation(operation)?;
 
-        Ok(Answer::Ready(Some(ty)))
+        Ok(Some(ty))
     }
 
     /// Reduce one awaited-value intrinsic application.
@@ -183,15 +183,15 @@ impl CheckState<'_> {
         _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let [target] = self.type_ids(module, instance.arguments)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let operation = dir::TypeOperation::Awaited(dir::UnaryType { target: *target });
 
         let ty = self.intern_operation(operation)?;
 
-        Ok(Answer::Ready(Some(ty)))
+        Ok(Some(ty))
     }
 
     /// Reduce one Array intrinsic application.
@@ -200,14 +200,14 @@ impl CheckState<'_> {
         _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let [element] = self.type_ids(module, instance.arguments)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let ty = dir::Type::Array(dir::ArrayType { element: *element });
         let ty = self.intern_type(ty)?;
 
-        Ok(Answer::Ready(Some(ty)))
+        Ok(Some(ty))
     }
 
     /// Reduce one Slice intrinsic application.
@@ -216,14 +216,14 @@ impl CheckState<'_> {
         _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let [element] = self.type_ids(module, instance.arguments)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let ty = dir::Type::Slice(dir::SliceType { element: *element });
         let ty = self.intern_type(ty)?;
 
-        Ok(Answer::Ready(Some(ty)))
+        Ok(Some(ty))
     }
 
     /// Reduce one FixedArray intrinsic application.
@@ -232,9 +232,9 @@ impl CheckState<'_> {
         _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let [element, count] = self.type_ids(module, instance.arguments)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let ty = dir::Type::FixedArray(dir::FixedArrayType {
             element: *element,
@@ -242,7 +242,7 @@ impl CheckState<'_> {
         });
         let ty = self.intern_type(ty)?;
 
-        Ok(Answer::Ready(Some(ty)))
+        Ok(Some(ty))
     }
 
     /// Reduce one Dynamic intrinsic application.
@@ -251,16 +251,16 @@ impl CheckState<'_> {
         _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let [constraint] = self.type_ids(module, instance.arguments)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let ty = dir::Type::Dynamic(dir::DynamicType {
             constraint: *constraint,
         });
         let ty = self.intern_type(ty)?;
 
-        Ok(Answer::Ready(Some(ty)))
+        Ok(Some(ty))
     }
 
     /// Reduce one Function intrinsic application.
@@ -269,11 +269,10 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let Some(signature) =
-            answer!(self.function_signature_from_application(origin, module, instance)?)
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(signature) = self.function_signature_from_application(origin, module, instance)?
         else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let function = dir::Type::Function(dir::FunctionType {
             signature,
@@ -281,7 +280,7 @@ impl CheckState<'_> {
         });
         let ty = self.intern_type(function)?;
 
-        Ok(Answer::Ready(Some(ty)))
+        Ok(Some(ty))
     }
 
     /// Reduce one FunctionPointer intrinsic application.
@@ -290,16 +289,15 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let Some(signature) =
-            answer!(self.function_signature_from_application(origin, module, instance)?)
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(signature) = self.function_signature_from_application(origin, module, instance)?
         else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let function = dir::Type::FunctionPointer(dir::FunctionPointerType { signature });
         let ty = self.intern_type(function)?;
 
-        Ok(Answer::Ready(Some(ty)))
+        Ok(Some(ty))
     }
 
     /// Return one signature from a callable intrinsic application.
@@ -308,12 +306,12 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let [parameters, return_type] = self.type_ids(module, instance.arguments)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let (parameters, return_type) = (*parameters, *return_type);
-        let parameters = answer!(self.reduce_type_head(origin, parameters)?);
+        let parameters = self.reduce_type_head(origin, parameters)?;
 
         // read the parameter tuple
         let parameters = match self.ty(parameters)? {
@@ -327,7 +325,7 @@ impl CheckState<'_> {
                     is_rest: element.is_rest,
                 })
                 .collect(),
-            _ => return Ok(Answer::Ready(None)),
+            _ => return Ok(None),
         };
         let parameters = self.intern_parameters(&parameters)?;
 
@@ -341,6 +339,6 @@ impl CheckState<'_> {
         };
         let signature = self.intern_signature(function)?;
 
-        Ok(Answer::Ready(Some(signature)))
+        Ok(Some(signature))
     }
 }

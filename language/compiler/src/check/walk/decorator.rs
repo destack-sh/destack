@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{Decision, DecoratorApplication, DecoratorExpression, WalkState};
+use crate::check::{DecoratorApplication, DecoratorExpression, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -59,7 +59,7 @@ impl WalkState<'_, '_> {
         // walk explicit decorator type arguments
         self.walk_generic_arguments(&decorator.generic_arguments)?;
 
-        // retain the resolved application in component walk order
+        // retain the resolved application in module walk order
         self.check.decorators.push(DecoratorApplication {
             expression: decorator,
             owner,
@@ -91,13 +91,13 @@ impl WalkState<'_, '_> {
                 return Ok(None);
             }
         };
-        let path =
-            self.tree
-                .tree()
-                .reference_path(target)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("decorator target {target:?} has no reference path"),
-                })?;
+        // reject member chains that form no lexical path
+        let Some(path) = self.tree.tree().reference_path(target) else {
+            self.check
+                .report_invalid_decorator_target(self.module, target.into_any());
+
+            return Ok(None);
+        };
         let reference = self
             .check
             .module(self.module)
@@ -167,9 +167,9 @@ impl WalkState<'_, '_> {
         };
 
         if let Some(symbol) = symbol {
-            self.check.commit_decision(
+            self.check.commit_name(
                 target.into_global_any(self.module),
-                Decision::Name(dir::NameResolution::new(symbol)),
+                dir::NameResolution::new(symbol),
             )?;
         }
 

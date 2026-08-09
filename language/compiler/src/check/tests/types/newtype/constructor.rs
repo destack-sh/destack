@@ -381,6 +381,7 @@ const value = _(1);
 const value = _(1);
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
+/// @resolution.rejected source=_(1)
 "#,
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
@@ -409,6 +410,7 @@ const value: string = _(1);
 const value: string = _(1);
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
+/// @resolution.rejected source=_(1)
 "#,
         r#"
 /// @diagnostic.error id=invalid-inferred-construct-target message="type 'string' cannot be constructed with '_(...)'"

@@ -40,7 +40,7 @@ impl WalkState<'_, '_> {
         }
         let symbol = self.generic_parameter_symbol(id)?;
 
-        if let Some(parameter) = self.check.generics.parameter_by_symbol(symbol) {
+        if let Some(parameter) = self.check.parameter_by_symbol(symbol) {
             return Ok(Some(parameter));
         }
 
@@ -246,7 +246,7 @@ impl WalkState<'_, '_> {
                     if let Some(parameter_type) = parameter_type {
                         let annotation =
                             declared_type.map(|annotation| annotation.into_global_any(self.module));
-                        self.queue_assignable(
+                        self.check_assignable(
                             default,
                             parameter_type,
                             CauseKind::Initializer { annotation },

@@ -15,7 +15,7 @@ pub(in crate::check) struct ApparentInstance {
 }
 
 impl ApparentInstance {
-    /// Intern this instance into one component module.
+    /// Intern this instance into the checked module.
     pub(in crate::check) fn intern(
         &self,
         _module: ModuleId,
@@ -53,7 +53,7 @@ impl ApparentInstance {
 }
 
 impl CheckState<'_> {
-    /// Intern the type used for apparent member lookup into one component module.
+    /// Intern the type used for apparent member lookup into the checked module.
     pub(in crate::check) fn intern_apparent_type(
         &mut self,
         module: ModuleId,

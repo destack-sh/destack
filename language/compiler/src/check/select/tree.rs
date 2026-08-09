@@ -3,8 +3,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, Cause, CauseKind, CheckOutcome, Decision, Expectation,
-    FlowSite, InferMode, Origin, PlaceUse, Relation, SignatureMatch, Value, ValueUse, answer,
+    BodyState, CallableArgument, Cause, CauseKind, CheckOutcome, Expectation, FlowSite, InferMode,
+    Origin, PlaceUse, Relation, SignatureMatch, Value, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -14,14 +14,14 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         expectation: Option<&Expectation>,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let node = site.node;
         let origin = site.origin();
         let module = node.module_id;
 
         // decided literals keep their committed answer
         if let Some(ty) = self.check.committed_node_type(node) {
-            return Ok(Answer::Ready(ty));
+            return Ok(ty);
         }
 
         let expression = node.into_typed::<dir::Expression>();
@@ -38,23 +38,23 @@ impl BodyState<'_, '_> {
         };
 
         // resolve the builder from the contextual expectation
-        let Some(builder) = answer!(self.contextual_tree_builder(origin, expectation)?) else {
+        let Some(builder) = self.contextual_tree_builder(origin, expectation)? else {
             self.check
                 .report_missing_tree_builder(module, node.local_id);
-            self.check.commit_decision(node, Decision::Rejected)?;
+            self.check.commit_decision(node, dir::Decision::Rejected)?;
             let error = self.check.intern_type(dir::Type::Error)?;
             self.commit_node_type(node, error)?;
 
-            return Ok(Answer::Ready(error));
+            return Ok(error);
         };
 
         // check the attribute values and children against the builder
         let attributes = attributes.unwrap_or_default();
         let children = children.unwrap_or_default();
-        let ty = answer!(self.check_tree_form(site, builder, left, &attributes, &children)?);
+        let ty = self.check_tree_form(site, builder, left, &attributes, &children)?;
         self.commit_node_type(node, ty)?;
 
-        Ok(Answer::Ready(ty))
+        Ok(ty)
     }
 
     /// Return the builder type behind one contextual tree expectation.
@@ -62,13 +62,13 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         expectation: Option<&Expectation>,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let target = match expectation {
-            Some(expectation) => answer!(self.reduce_type_head(origin, expectation.target)?),
+            Some(expectation) => self.reduce_type_head(origin, expectation.target)?,
             // literals without context read the profile's default builder
             None => {
                 let Some(symbol) = self.check.environment_bound.tree else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
                 if !self.check.is_own_module(symbol.module_id) {
                     self.check.import_external_module(symbol.module_id)?;
@@ -92,10 +92,9 @@ impl BodyState<'_, '_> {
         )?;
         let interface = protocol.instance(self.check, origin.module())?;
         let interface = self.check.intern_type(dir::Type::Application(interface))?;
-        let implements =
-            answer!(self.decide_relation(origin, Relation::Satisfies, target, interface)?);
+        let implements = self.decide_relation(origin, Relation::Satisfies, target, interface)?;
 
-        Ok(Answer::Ready(implements.then_some(target)))
+        Ok(implements.then_some(target))
     }
 }
 
@@ -108,7 +107,7 @@ impl BodyState<'_, '_> {
         left: Option<dir::LocalNodeId<dir::Expression>>,
         attributes: &[dir::LocalNodeId<dir::TreeAttribute>],
         children: &[dir::LocalNodeId<dir::TreeChild>],
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let node = site.node;
         let origin = site.origin();
         let module = node.module_id;
@@ -127,7 +126,7 @@ impl BodyState<'_, '_> {
                 }
                 // nested trees inherit the enclosing builder context
                 dir::TreeChild::Tree { value } => {
-                    let child_site = self.node_site(value.into_global_any(module))?;
+                    let child_site = self.visit_site(value.into_global_any(module))?;
                     let cause = self.check.intern_cause(Cause::root(
                         origin,
                         CauseKind::Write {
@@ -135,7 +134,7 @@ impl BodyState<'_, '_> {
                         },
                     ));
                     let expectation = Expectation::assignable(builder, cause, ValueUse::Store);
-                    let ty = answer!(self.check_tree_expression(child_site, Some(&expectation))?);
+                    let ty = self.check_tree_expression(child_site, Some(&expectation))?;
                     child_bindings.push(dir::TreeChildBinding::Expression {
                         node: value.into_global_any(module),
                         ty,
@@ -143,8 +142,8 @@ impl BodyState<'_, '_> {
                     child_types.push(ty);
                 }
                 dir::TreeChild::Expression { value } => {
-                    let child_site = self.node_site(value.into_global_any(module))?;
-                    let ty = answer!(self.infer_node_type(child_site, PlaceUse::Read)?);
+                    let child_site = self.visit_site(value.into_global_any(module))?;
+                    let ty = self.infer_node_type(child_site, PlaceUse::Read)?;
                     child_bindings.push(dir::TreeChildBinding::Expression {
                         node: value.into_global_any(module),
                         ty,
@@ -153,9 +152,9 @@ impl BodyState<'_, '_> {
                 }
                 // spread children splat statically sized tuple operands
                 dir::TreeChild::Spread { value } => {
-                    let child_site = self.node_site(value.into_global_any(module))?;
-                    let ty = answer!(self.infer_node_type(child_site, PlaceUse::Read)?);
-                    let ty = answer!(self.reduce_type_head(origin, ty)?);
+                    let child_site = self.visit_site(value.into_global_any(module))?;
+                    let ty = self.infer_node_type(child_site, PlaceUse::Read)?;
+                    let ty = self.reduce_type_head(origin, ty)?;
                     let elements = match self.check.ty(ty)? {
                         dir::Type::Tuple(tuple) => {
                             let elements = self
@@ -173,11 +172,11 @@ impl BodyState<'_, '_> {
                     let Some(elements) = elements else {
                         self.check
                             .report_tree_spread_not_tuple(module, node.local_id, ty);
-                        self.check.commit_decision(node, Decision::Rejected)?;
+                        self.check.commit_decision(node, dir::Decision::Rejected)?;
                         let error = self.check.intern_type(dir::Type::Error)?;
                         self.commit_node_type(node, error)?;
 
-                        return Ok(Answer::Ready(error));
+                        return Ok(error);
                     };
                     child_bindings.push(dir::TreeChildBinding::Spread {
                         node: value.into_global_any(module),
@@ -193,7 +192,7 @@ impl BodyState<'_, '_> {
                 }
             }
         }
-        let children_type = self.tree_children_tuple(module, &child_types)?;
+        let children_type = self.tree_children_tuple(&child_types)?;
 
         match left {
             // <>...</> builds through the fragment static
@@ -251,14 +250,14 @@ impl BodyState<'_, '_> {
         attributes: &[dir::LocalNodeId<dir::TreeAttribute>],
         children_type: dir::GlobalTypeId,
         children: Vec<dir::TreeChildBinding>,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let node = site.node;
         let origin = site.origin();
         let module = node.module_id;
 
         // read the builder's Tags rows through the protocol
         let tags_key = dir::StaticKey::Name(self.check.strings().intern("Tags"));
-        let selected = answer!(self.select_language_protocol_member(
+        let selected = self.select_language_protocol_member(
             origin,
             builder,
             builder,
@@ -267,13 +266,13 @@ impl BodyState<'_, '_> {
             dir::LanguageItem::TreeBuilder,
             &[],
             &[],
-        )?);
+        )?;
         let Some((_, tags)) = selected else {
             self.check
                 .report_unknown_tree_tag(module, node.local_id, tag, builder);
-            self.check.commit_decision(node, Decision::Rejected)?;
+            self.check.commit_decision(node, dir::Decision::Rejected)?;
 
-            return Ok(Answer::Ready(self.check.intern_type(dir::Type::Error)?));
+            return self.check.intern_type(dir::Type::Error);
         };
 
         // require the written tag among the declared rows
@@ -285,14 +284,13 @@ impl BodyState<'_, '_> {
             .intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType {
                 target: tags.ty,
             }))?;
-        let accepted =
-            answer!(self.decide_relation(origin, Relation::Satisfies, tag_type, rows)?);
+        let accepted = self.decide_relation(origin, Relation::Satisfies, tag_type, rows)?;
         if !accepted {
             self.check
                 .report_unknown_tree_tag(module, node.local_id, tag, builder);
-            self.check.commit_decision(node, Decision::Rejected)?;
+            self.check.commit_decision(node, dir::Decision::Rejected)?;
 
-            return Ok(Answer::Ready(self.check.intern_type(dir::Type::Error)?));
+            return self.check.intern_type(dir::Type::Error);
         }
 
         // project the tag's attribute row and check each written attribute
@@ -302,10 +300,9 @@ impl BodyState<'_, '_> {
                 left: tags.ty,
                 index: tag_type,
             }))?;
-        let row = answer!(self.reduce_type_head(origin, row)?);
-        let Some(bindings) = answer!(self.check_tree_attributes(site, row, attributes, None)?)
-        else {
-            return Ok(Answer::Ready(self.check.intern_type(dir::Type::Error)?));
+        let row = self.reduce_type_head(origin, row)?;
+        let Some(bindings) = self.check_tree_attributes(site, row, attributes, None)? else {
+            return self.check.intern_type(dir::Type::Error);
         };
 
         self.select_tree_call(
@@ -330,7 +327,7 @@ impl BodyState<'_, '_> {
         row: dir::GlobalTypeId,
         attributes: &[dir::LocalNodeId<dir::TreeAttribute>],
         children: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<Option<Vec<dir::TreeAttributeBinding>>>> {
+    ) -> CompilerResult<Option<Vec<dir::TreeAttributeBinding>>> {
         let node = site.node;
         let origin = site.origin();
         let module = node.module_id;
@@ -344,10 +341,10 @@ impl BodyState<'_, '_> {
         // component children provide the children prop
         if let Some(children) = children {
             let key = self.check.strings().intern("children");
-            let Some(property) = answer!(self.tree_row_property(site, row, keys, key)?) else {
-                return Ok(Answer::Ready(None));
+            let Some(property) = self.tree_row_property(site, row, keys, key)? else {
+                return Ok(None);
             };
-            answer!(self.check_tree_attribute_value(origin, node, children, property)?);
+            self.check_tree_attribute_value(origin, node, children, property)?;
             present.insert(dir::StaticKey::Name(key));
         }
 
@@ -356,29 +353,28 @@ impl BodyState<'_, '_> {
             match self.module(module).view().get(*attribute).clone() {
                 dir::TreeAttribute::Named { name, value } => {
                     let key = name.string();
-                    let Some(property) = answer!(self.tree_row_property(site, row, keys, key)?)
-                    else {
-                        return Ok(Answer::Ready(None));
+                    let Some(property) = self.tree_row_property(site, row, keys, key)? else {
+                        return Ok(None);
                     };
 
                     // check the written value against the row property
                     let (value_node, text, ty) = match value {
                         Some(dir::TreeAttributeValue::Expression(value)) => {
-                            let value_site = self.node_site(value.into_global_any(module))?;
+                            let value_site = self.visit_site(value.into_global_any(module))?;
                             let cause = self.check.intern_cause(Cause::root(
                                 origin,
                                 CauseKind::Write {
                                     place: value.into_global_any(module),
                                 },
                             ));
-                            let check = answer!(self.check_node_expected(
+                            let check = self.check_node_expected(
                                 value_site,
                                 property,
                                 Relation::Assignable,
                                 cause,
                                 ValueUse::Store,
                                 InferMode::Exact,
-                            )?);
+                            )?;
 
                             (Some(value.into_global_any(module)), None, check.source)
                         }
@@ -386,7 +382,7 @@ impl BodyState<'_, '_> {
                             let ty = self.check.intern_type(dir::Type::Literal(
                                 dir::ScalarLiteral::String(text),
                             ))?;
-                            answer!(self.check_tree_attribute_value(origin, source, ty, property)?);
+                            self.check_tree_attribute_value(origin, source, ty, property)?;
 
                             (None, Some(text), ty)
                         }
@@ -395,7 +391,7 @@ impl BodyState<'_, '_> {
                             let ty = self.check.intern_type(dir::Type::Literal(
                                 dir::ScalarLiteral::Boolean(true),
                             ))?;
-                            answer!(self.check_tree_attribute_value(origin, source, ty, property)?);
+                            self.check_tree_attribute_value(origin, source, ty, property)?;
 
                             (None, None, ty)
                         }
@@ -409,8 +405,8 @@ impl BodyState<'_, '_> {
                     present.insert(dir::StaticKey::Name(key));
                 }
                 dir::TreeAttribute::Spread { value } => {
-                    let value_site = self.node_site(value.into_global_any(module))?;
-                    let ty = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+                    let value_site = self.visit_site(value.into_global_any(module))?;
+                    let ty = self.infer_node_type(value_site, PlaceUse::Read)?;
                     bindings.push(dir::TreeAttributeBinding {
                         key: self.check.strings().intern("..."),
                         value: Some(value.into_global_any(module)),
@@ -419,8 +415,7 @@ impl BodyState<'_, '_> {
                     });
 
                     // spread rows contribute their enumerable members
-                    let Some((fields, _)) = answer!(self.expected_object_members(origin, ty)?)
-                    else {
+                    let Some((fields, _)) = self.expected_object_members(origin, ty)? else {
                         // unenumerable spreads leave the row requirements open
                         is_open = true;
 
@@ -430,19 +425,12 @@ impl BodyState<'_, '_> {
                         let key_type = self.check.static_key_type(field.key)?;
 
                         // spread members outside the row pass through unchecked
-                        if !answer!(self.decide_relation(
-                            origin,
-                            Relation::Satisfies,
-                            key_type,
-                            keys
-                        )?) {
+                        if !self.decide_relation(origin, Relation::Satisfies, key_type, keys)? {
                             continue;
                         }
-                        let property = answer!(self.tree_row_projection(origin, row, key_type)?);
+                        let property = self.tree_row_projection(origin, row, key_type)?;
                         if let Some(read) = field.access.read() {
-                            answer!(
-                                self.check_tree_attribute_value(origin, source, read, property)?
-                            );
+                            self.check_tree_attribute_value(origin, source, read, property)?;
                         }
 
                         // optional members leave their requirement unmet
@@ -460,7 +448,7 @@ impl BodyState<'_, '_> {
         }
 
         // require every non-optional row attribute
-        if !is_open && let Some((fields, _)) = answer!(self.expected_object_members(origin, row)?) {
+        if !is_open && let Some((fields, _)) = self.expected_object_members(origin, row)? {
             for field in fields {
                 if !field.is_optional && !present.contains(&field.key) {
                     self.check.report_missing_tree_attribute(
@@ -469,14 +457,14 @@ impl BodyState<'_, '_> {
                         &field.key,
                         row,
                     );
-                    self.check.commit_decision(node, Decision::Rejected)?;
+                    self.check.commit_decision(node, dir::Decision::Rejected)?;
 
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
             }
         }
 
-        Ok(Answer::Ready(Some(bindings)))
+        Ok(Some(bindings))
     }
 
     /// Select one required row property, rejecting keys outside the row.
@@ -486,7 +474,7 @@ impl BodyState<'_, '_> {
         row: dir::GlobalTypeId,
         keys: dir::GlobalTypeId,
         key: dir::StringId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let node = site.node;
         let origin = site.origin();
         let module = node.module_id;
@@ -495,16 +483,16 @@ impl BodyState<'_, '_> {
             .intern_type(dir::Type::Literal(dir::ScalarLiteral::String(key)))?;
 
         // reject attributes outside the declared row
-        if !answer!(self.decide_relation(origin, Relation::Satisfies, key_type, keys)?) {
+        if !self.decide_relation(origin, Relation::Satisfies, key_type, keys)? {
             self.check
                 .report_unknown_tree_attribute(module, node.local_id, key, row);
-            self.check.commit_decision(node, Decision::Rejected)?;
+            self.check.commit_decision(node, dir::Decision::Rejected)?;
 
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
-        let property = answer!(self.tree_row_projection(origin, row, key_type)?);
+        let property = self.tree_row_projection(origin, row, key_type)?;
 
-        Ok(Answer::Ready(Some(property)))
+        Ok(Some(property))
     }
 
     /// Project one row property behind a key type.
@@ -513,7 +501,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         row: dir::GlobalTypeId,
         index: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let property = self
             .check
             .intern_operation(dir::TypeOperation::Index(dir::IndexType {
@@ -531,17 +519,12 @@ impl BodyState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
         property: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let cause = self
             .check
             .intern_cause(Cause::root(origin, CauseKind::Write { place: source }));
-        let outcome = answer!(self.check_type_constraint(
-            origin,
-            cause,
-            Relation::Assignable,
-            value,
-            property,
-        )?);
+        let outcome =
+            self.check_type_constraint(origin, cause, Relation::Assignable, value, property)?;
         if let CheckOutcome::Fails(failure) = outcome {
             self.check.record_failure(
                 cause,
@@ -550,10 +533,10 @@ impl BodyState<'_, '_> {
                 value,
                 property,
                 failure,
-            );
+            )?;
         }
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Check one component tag invoked with its written props.
@@ -565,21 +548,22 @@ impl BodyState<'_, '_> {
         attributes: &[dir::LocalNodeId<dir::TreeAttribute>],
         children_type: dir::GlobalTypeId,
         children: Vec<dir::TreeChildBinding>,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let node = site.node;
         let origin = site.origin();
         let module = node.module_id;
         let callee_node = tag.into_global_any(module);
 
+        // decide the tag reference and take its single symbol
+        let named_symbol =
+            self.decide_reference(callee_node)?
+                .and_then(|resolution| match resolution.symbols() {
+                    [symbol] => Some(*symbol),
+                    _ => None,
+                });
+
         // nominal components construct through their declarations
-        let named = self
-            .resolutions(module)
-            .name_resolution(callee_node)
-            .and_then(|resolution| match resolution.symbols() {
-                [symbol] => Some(*symbol),
-                _ => None,
-            });
-        if let Some(symbol) = named {
+        if let Some(symbol) = named_symbol {
             let symbol = self.check.resolve_symbol_alias(symbol)?;
             match self.check.definition(symbol)? {
                 Some(dir::Definition::Class(_)) => {
@@ -609,14 +593,14 @@ impl BodyState<'_, '_> {
         }
 
         // callable components invoke their resolved value
-        let tag_site = self.node_site(callee_node)?;
-        let callee = answer!(self.infer_node_type(tag_site, PlaceUse::Read)?);
+        let tag_site = self.visit_site(callee_node)?;
+        let callee = self.infer_node_type(tag_site, PlaceUse::Read)?;
         let Some(signature) = self.check.signature_head(callee)? else {
             let tag_origin = Origin::Node(callee_node, site.scope);
             self.check.report_not_callable(tag_origin, callee)?;
-            self.check.commit_decision(node, Decision::Rejected)?;
+            self.check.commit_decision(node, dir::Decision::Rejected)?;
 
-            return Ok(Answer::Ready(self.check.intern_type(dir::Type::Error)?));
+            return self.check.intern_type(dir::Type::Error);
         };
 
         // check the written props against the component's parameter
@@ -630,14 +614,12 @@ impl BodyState<'_, '_> {
             None => self.check.intern_type(dir::Type::Unknown)?,
         };
         let synthesized = (!children.is_empty()).then_some(children_type);
-        let Some(bindings) =
-            answer!(self.check_tree_attributes(site, row, attributes, synthesized)?)
-        else {
-            return Ok(Answer::Ready(self.check.intern_type(dir::Type::Error)?));
+        let Some(bindings) = self.check_tree_attributes(site, row, attributes, synthesized)? else {
+            return self.check.intern_type(dir::Type::Error);
         };
 
         // select the call carrying the checked props row
-        let selection = answer!(self.attempt_callable(
+        let selection = self.attempt_callable(
             origin,
             callee,
             None,
@@ -651,13 +633,13 @@ impl BodyState<'_, '_> {
                 use_: ValueUse::Argument,
             }],
             None,
-        )?);
+        )?;
         let SignatureMatch::Selected(selection) = selection else {
             return Err(CompilerError::Internal {
                 message: "tree component rejected its checked props call".to_string(),
             });
         };
-        let target = match named {
+        let target = match named_symbol {
             Some(symbol) => dir::CallTarget::Symbol {
                 function: dir::FunctionTarget {
                     receiver: None,
@@ -684,7 +666,7 @@ impl BodyState<'_, '_> {
 
         // the component's result feeds the surrounding builder context
         let ty = selection.return_type;
-        let resolution = dir::TreeResolution {
+        let resolution = dir::TreeDecision {
             builder,
             target: dir::TreeTarget::Component {
                 callee: callee_node,
@@ -695,9 +677,9 @@ impl BodyState<'_, '_> {
             ty,
         };
         self.check
-            .commit_decision(node, Decision::Tree(resolution))?;
+            .commit_decision(node, dir::Decision::Tree(resolution))?;
 
-        Ok(Answer::Ready(ty))
+        Ok(ty)
     }
 
     /// Check one class component constructed through its selected constructor.
@@ -711,7 +693,7 @@ impl BodyState<'_, '_> {
         attributes: &[dir::LocalNodeId<dir::TreeAttribute>],
         children_type: dir::GlobalTypeId,
         children: Vec<dir::TreeChildBinding>,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let node = site.node;
         let origin = site.origin();
         let module = node.module_id;
@@ -729,14 +711,14 @@ impl BodyState<'_, '_> {
 
         // first-match constructor selection binds the props parameter
         let mut active = SmallVec::new();
-        let constructors = answer!(self.collect_class_construct_candidates(
+        let constructors = self.collect_class_construct_candidates(
             origin,
             target,
             &instance,
             constructors,
             extends,
             &mut active,
-        )?);
+        )?;
         let Some(constructor) = constructors.first().cloned() else {
             return Err(CompilerError::Internal {
                 message: format!("class {symbol:?} has no construct candidates"),
@@ -757,14 +739,12 @@ impl BodyState<'_, '_> {
             None => self.check.intern_type(dir::Type::Unknown)?,
         };
         let synthesized = (!children.is_empty()).then_some(children_type);
-        let Some(bindings) =
-            answer!(self.check_tree_attributes(site, row, attributes, synthesized)?)
-        else {
-            return Ok(Answer::Ready(self.check.intern_type(dir::Type::Error)?));
+        let Some(bindings) = self.check_tree_attributes(site, row, attributes, synthesized)? else {
+            return self.check.intern_type(dir::Type::Error);
         };
 
         // construct the instance carrying the checked props row
-        let selection = answer!(self.attempt_construct(
+        let selection = self.attempt_construct(
             origin,
             module,
             symbol.module_id,
@@ -779,14 +759,14 @@ impl BodyState<'_, '_> {
             }],
             None,
             None,
-        )?);
+        )?;
         let SignatureMatch::Selected(selection) = selection else {
             return Err(CompilerError::Internal {
                 message: "tree class component rejected its checked props construction".to_string(),
             });
         };
         let generic_arguments = selection.generic_arguments.clone();
-        let construct = dir::ConstructResolution::new(
+        let construct = dir::ConstructDecision::new(
             dir::ConstructTarget::Class(dir::ClassConstructCandidate {
                 symbol,
                 constructor: constructor.constructor,
@@ -801,7 +781,7 @@ impl BodyState<'_, '_> {
         );
 
         let ty = selection.return_type;
-        let resolution = dir::TreeResolution {
+        let resolution = dir::TreeDecision {
             builder,
             target: dir::TreeTarget::Component {
                 callee: callee_node,
@@ -812,9 +792,9 @@ impl BodyState<'_, '_> {
             ty,
         };
         self.check
-            .commit_decision(node, Decision::Tree(resolution))?;
+            .commit_decision(node, dir::Decision::Tree(resolution))?;
 
-        Ok(Answer::Ready(ty))
+        Ok(ty)
     }
 
     /// Check one struct component built through its literal field form.
@@ -828,7 +808,7 @@ impl BodyState<'_, '_> {
         attributes: &[dir::LocalNodeId<dir::TreeAttribute>],
         children_type: dir::GlobalTypeId,
         children: Vec<dir::TreeChildBinding>,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let node = site.node;
         let module = node.module_id;
         let callee_node = tag.into_global_any(module);
@@ -856,10 +836,8 @@ impl BodyState<'_, '_> {
         let instance = dir::GenericApplication { symbol, arguments };
         let row = self.check.intern_type(dir::Type::Application(instance))?;
         let synthesized = (!children.is_empty()).then_some(children_type);
-        let Some(bindings) =
-            answer!(self.check_tree_attributes(site, row, attributes, synthesized)?)
-        else {
-            return Ok(Answer::Ready(self.check.intern_type(dir::Type::Error)?));
+        let Some(bindings) = self.check_tree_attributes(site, row, attributes, synthesized)? else {
+            return self.check.intern_type(dir::Type::Error);
         };
 
         // require every field the literal form cannot default
@@ -870,13 +848,13 @@ impl BodyState<'_, '_> {
             if !is_present {
                 self.check
                     .report_missing_tree_attribute(module, node.local_id, &key, row);
-                self.check.commit_decision(node, Decision::Rejected)?;
+                self.check.commit_decision(node, dir::Decision::Rejected)?;
 
-                return Ok(Answer::Ready(self.check.intern_type(dir::Type::Error)?));
+                return self.check.intern_type(dir::Type::Error);
             }
         }
 
-        let resolution = dir::TreeResolution {
+        let resolution = dir::TreeDecision {
             builder,
             target: dir::TreeTarget::Component {
                 callee: callee_node,
@@ -887,15 +865,14 @@ impl BodyState<'_, '_> {
             ty: row,
         };
         self.check
-            .commit_decision(node, Decision::Tree(resolution))?;
+            .commit_decision(node, dir::Decision::Tree(resolution))?;
 
-        Ok(Answer::Ready(row))
+        Ok(row)
     }
 
     /// Build the tuple type carrying one literal's children.
     fn tree_children_tuple(
         &mut self,
-        module: destack_source::ModuleId,
         children: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
         let elements: Vec<_> = children
@@ -908,7 +885,7 @@ impl BodyState<'_, '_> {
                 is_rest: false,
             })
             .collect();
-        let elements = self.check.intern_elements(module, &elements)?;
+        let elements = self.check.intern_elements(&elements)?;
 
         self.check.intern_type(dir::Type::Tuple(dir::TupleType {
             form: dir::TupleForm::Tuple,
@@ -927,7 +904,7 @@ impl BodyState<'_, '_> {
         tag: Option<dir::StringId>,
         attributes: Vec<dir::TreeAttributeBinding>,
         children: Vec<dir::TreeChildBinding>,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let node = site.node;
         let origin = site.origin();
         let key = dir::StaticKey::Name(self.check.strings().intern(key));
@@ -935,7 +912,7 @@ impl BodyState<'_, '_> {
             ty: builder,
             place: None,
         };
-        let selected = answer!(self.select_language_protocol_call(
+        let selected = self.select_language_protocol_call(
             origin,
             receiver,
             builder,
@@ -945,7 +922,7 @@ impl BodyState<'_, '_> {
             &[],
             &[],
             argument_sources,
-        )?);
+        )?;
         // conformance proved the statics upstream, selection cannot reject
         let Some((_, call)) = selected else {
             return Err(CompilerError::Internal {
@@ -964,7 +941,7 @@ impl BodyState<'_, '_> {
                 call: call.resolution,
             },
         };
-        let resolution = dir::TreeResolution {
+        let resolution = dir::TreeDecision {
             builder,
             target,
             attributes,
@@ -972,8 +949,8 @@ impl BodyState<'_, '_> {
             ty: return_type,
         };
         self.check
-            .commit_decision(node, Decision::Tree(resolution))?;
+            .commit_decision(node, dir::Decision::Tree(resolution))?;
 
-        Ok(Answer::Ready(return_type))
+        Ok(return_type)
     }
 }

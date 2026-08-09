@@ -429,6 +429,7 @@ function pending(): int32 {
     /// @resolution.name source=value target=pending.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=pending.value
+    /// @resolution.rejected source=value.field
 
 }
 "#,

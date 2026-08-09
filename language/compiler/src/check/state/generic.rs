@@ -1,12 +1,8 @@
-use destack_core::{FxIndexMap, FxIndexSet};
-
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{
-    CheckState, Origin, TypeSubstitution, VariableRole, VarianceForm, VarianceState,
-};
+use crate::check::{CheckState, Origin, TypeSubstitution, VariableRole};
 use crate::{CompilerError, CompilerResult};
 
 /// Stable id for one declaration-side generic parameter.
@@ -14,6 +10,9 @@ pub(in crate::check) type GenericParameterId = dir::GlobalGenericParameterId;
 
 /// Stable id for one generic binding site.
 pub(in crate::check) type GenericTemplateId = dir::GlobalGenericTemplateId;
+
+/// The generic template whose parameters one question assumes rigid.
+pub(in crate::check) type Scope = Option<dir::GlobalGenericTemplateId>;
 
 /// One declaration type scanned for induced memory variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,106 +23,8 @@ pub(in crate::check) struct InducedParameterSite {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
-/// Generic declaration indexes for the active check.
-#[derive(Debug)]
-pub(in crate::check) struct GenericIndex {
-    /// Template ids keyed by declaring source node.
-    templates_by_source: FxIndexMap<dir::GlobalNodeIdAny, GenericTemplateId>,
-    /// Template ids keyed by declaring symbol.
-    templates_by_symbol: FxIndexMap<dir::GlobalSymbolId, GenericTemplateId>,
-    /// Parameter ids keyed by parameter symbol.
-    parameters_by_symbol: FxIndexMap<dir::GlobalSymbolId, GenericParameterId>,
-    /// Parameter variance derivations per handle context.
-    pub(in crate::check) variances:
-        FxIndexMap<(dir::GlobalGenericParameterId, VarianceForm), VarianceState>,
-    /// Induced parameters already rebound to their sites this run.
-    claimed_induced: FxIndexSet<GenericParameterId>,
-    /// Declaration types scanned for induced memory variables.
-    induced_parameter_sites: Vec<InducedParameterSite>,
-}
-
-impl GenericIndex {
-    /// Create an empty generic index.
-    pub(in crate::check) fn new() -> Self {
-        Self {
-            templates_by_source: FxIndexMap::default(),
-            templates_by_symbol: FxIndexMap::default(),
-            parameters_by_symbol: FxIndexMap::default(),
-            variances: FxIndexMap::default(),
-            claimed_induced: FxIndexSet::default(),
-            induced_parameter_sites: Vec::new(),
-        }
-    }
-
-    /// Return the template declared at one source node.
-    pub(in crate::check) fn template_by_source(
-        &self,
-        source: dir::GlobalNodeIdAny,
-    ) -> Option<GenericTemplateId> {
-        self.templates_by_source.get(&source).copied()
-    }
-
-    /// Return the template declared by one symbol.
-    pub(in crate::check) fn template_by_symbol(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<GenericTemplateId> {
-        self.templates_by_symbol.get(&symbol).copied()
-    }
-
-    /// Return the parameter declared by one symbol.
-    pub(in crate::check) fn parameter_by_symbol(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<GenericParameterId> {
-        self.parameters_by_symbol.get(&symbol).copied()
-    }
-
-    /// Index one declared template by its declaring symbol.
-    pub(in crate::check) fn index_template_symbol(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        id: GenericTemplateId,
-    ) {
-        self.templates_by_symbol.insert(symbol, id);
-    }
-
-    /// Index template symbols loaded for one module.
-    pub(in crate::check) fn index_template_symbols<'a>(
-        &mut self,
-        module: ModuleId,
-        templates: impl Iterator<Item = (dir::LocalGenericTemplateId, &'a dir::GenericTemplate)>,
-    ) {
-        for (local, template) in templates {
-            let Some(symbol) = template.symbol else {
-                continue;
-            };
-            let id = local.into_global(module);
-
-            self.index_template_symbol(symbol, id);
-        }
-    }
-
-    /// Index one declared parameter by its declaring symbol.
-    pub(in crate::check) fn index_parameter(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        id: GenericParameterId,
-    ) {
-        self.parameters_by_symbol.insert(symbol, id);
-    }
-
-    /// Push one induced parameter site.
-    pub(in crate::check) fn push_induced_parameter_site(&mut self, site: InducedParameterSite) {
-        self.induced_parameter_sites.push(site);
-    }
-
-    /// Drain the induced parameter sites collected since the last propagation.
-    pub(in crate::check) fn drain_induced_parameter_sites(&mut self) -> Vec<InducedParameterSite> {
-        std::mem::take(&mut self.induced_parameter_sites)
-    }
-
-    /// Collect the site types pushed by one declaration.
+impl CheckState<'_> {
+    /// Collect the induced site types pushed by one declaration.
     pub(in crate::check) fn induced_site_types(
         &self,
         declaration: dir::GlobalNodeIdAny,
@@ -134,9 +35,7 @@ impl GenericIndex {
             .map(|site| site.ty)
             .collect()
     }
-}
 
-impl CheckState<'_> {
     /// Return one symbol's generic template.
     pub(in crate::check) fn symbol_template(
         &mut self,
@@ -155,7 +54,114 @@ impl CheckState<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<GenericTemplateId> {
-        self.generics.template_by_symbol(symbol)
+        self.template_by_symbol(symbol)
+    }
+
+    /// Return the template declared by one symbol, scanning its module's rows.
+    pub(in crate::check) fn template_by_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<GenericTemplateId> {
+        let module = symbol.module_id;
+
+        // scan the working and declared rows of the checked module
+        if self.is_own_module(module) {
+            let working = self
+                .module
+                .generics
+                .iter_templates()
+                .find_map(|(local, template)| {
+                    (template.symbol == Some(symbol)).then(|| local.into_global(module))
+                });
+            if working.is_some() {
+                return working;
+            }
+
+            return self.module.declared.as_ref().and_then(|declared| {
+                declared
+                    .generics
+                    .iter_templates()
+                    .find_map(|(local, template)| {
+                        (template.symbol == Some(symbol)).then(|| local.into_global(module))
+                    })
+            });
+        }
+
+        // read external committed templates
+        let external = self.external_modules.get(&module)?;
+
+        external
+            .generics
+            .template_by_symbol(symbol)
+            .map(|local| local.into_global(module))
+    }
+
+    /// Return the template declared at one source node, scanning its module's rows.
+    pub(in crate::check) fn template_by_source(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> Option<GenericTemplateId> {
+        let module = source.module_id;
+        let working = self.module_maybe(module)?;
+
+        // scan the working rows, then the declared stage
+        let allocated = working
+            .generics
+            .iter_templates()
+            .find_map(|(local, template)| {
+                (template.source == source).then(|| local.into_global(module))
+            });
+        if allocated.is_some() {
+            return allocated;
+        }
+
+        working.declared.as_ref().and_then(|declared| {
+            declared
+                .generics
+                .iter_templates()
+                .find_map(|(local, template)| {
+                    (template.source == source).then(|| local.into_global(module))
+                })
+        })
+    }
+
+    /// Return the parameter declared by one symbol, scanning its module's rows.
+    pub(in crate::check) fn parameter_by_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<GenericParameterId> {
+        let module = symbol.module_id;
+
+        // scan the working and declared rows of the checked module
+        if self.is_own_module(module) {
+            let working = self
+                .module
+                .generics
+                .iter_parameters()
+                .find_map(|(local, binding)| {
+                    (binding.symbol == Some(symbol)).then(|| local.into_global(module))
+                });
+            if working.is_some() {
+                return working;
+            }
+
+            return self.module.declared.as_ref().and_then(|declared| {
+                declared
+                    .generics
+                    .iter_parameters()
+                    .find_map(|(local, binding)| {
+                        (binding.symbol == Some(symbol)).then(|| local.into_global(module))
+                    })
+            });
+        }
+
+        // read external committed parameters
+        let external = self.external_modules.get(&module)?;
+
+        external
+            .generics
+            .parameter_by_symbol(symbol)
+            .map(|local| local.into_global(module))
     }
 
     /// Return one generic template, reading working segments over external tables.
@@ -192,6 +198,12 @@ impl CheckState<'_> {
         // read working parameters before declared-stage parameters
         if let Some(module) = self.module_maybe(id.module_id) {
             if let Some(parameter) = module.generics.get_local_parameter(id.local_id) {
+                return Some(parameter);
+            }
+
+            if let Some(elaborated) = &module.elaborated
+                && let Some(parameter) = elaborated.generics.get_local_parameter(id.local_id)
+            {
                 return Some(parameter);
             }
 
@@ -355,17 +367,17 @@ impl CheckState<'_> {
         parameter: GenericParameterId,
         argument: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let argument = self.settled_root(argument)?;
+        let argument = self.shallow_resolve(argument)?;
         let Some(variable) = self.root_variable(argument)? else {
             return Ok(argument);
         };
 
         // preserve selected declaration parameters that collected no bounds
-        let state = self.solver.variable(variable)?;
+        let state = self.infer.variable(variable)?;
         if !state.lower.is_empty() {
             return Ok(argument);
         }
-        if self.solver.variable_role(variable)?.is_inference() {
+        if self.infer.variable_role(variable)?.is_inference() {
             let Some(binding) = self.generic_parameter(parameter) else {
                 return Ok(argument);
             };
@@ -382,7 +394,7 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<GenericTemplateId> {
-        if let Some(template) = self.generics.template_by_source(source) {
+        if let Some(template) = self.template_by_source(source) {
             return Ok(template);
         }
 
@@ -400,6 +412,14 @@ impl CheckState<'_> {
             .owner
             .map(|symbol| symbol.into_global(module_id));
 
+        // only a symbol's own declaration template governs it: induced
+        //  templates inside its scope stay anonymous
+        let symbol = symbol.filter(|symbol| {
+            self.module(module_id)
+                .symbol_declaration_node(symbol.local_id)
+                .is_ok_and(|declaration| declaration == source.local_id)
+        });
+
         // require one template per lexical scope
         let previous = self
             .module_maybe(module_id)
@@ -412,7 +432,7 @@ impl CheckState<'_> {
             });
         }
 
-        // allocate the template in its component module
+        // allocate the template in its owning module
         let module = self
             .module_maybe_mut(module_id)
             .ok_or_else(|| CompilerError::Internal {
@@ -422,11 +442,6 @@ impl CheckState<'_> {
             .generics
             .push_template(dir::GenericTemplate::new(source, scope, symbol));
         let id = local.into_global(module_id);
-
-        self.generics.templates_by_source.insert(source, id);
-        if let Some(symbol) = symbol {
-            self.generics.templates_by_symbol.insert(symbol, id);
-        }
 
         Ok(id)
     }
@@ -448,20 +463,22 @@ impl CheckState<'_> {
     ) -> CompilerResult<GenericParameterId> {
         // precompute the parameter id before allocating its canonical type
         let module = template.module_id;
-        let working = self
-            .module_maybe_mut(module)
-            .ok_or_else(|| CompilerError::Internal {
+        if !self.is_own_module(module) {
+            return Err(CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
-            })?;
-        let local = dir::LocalGenericParameterId::new(working.generics.parameter_count());
+            });
+        }
+        let local = dir::LocalGenericParameterId::new(self.module.generics.parameter_count());
         let id = local.into_global(module);
-        let ty = working
+        let ty = self
+            .module
             .types_tail
             .intern_type(dir::Type::Parameter(id), dir::TypeFlags::EMPTY)
             .into_global(module);
         let binding = dir::GenericParameterBinding {
             template: template.local_id,
             source,
+            symbol,
             ty,
             key,
             variance,
@@ -474,7 +491,7 @@ impl CheckState<'_> {
         };
 
         // allocate the parameter in its template's working segment
-        let local = working.generics.push_template_parameter(binding);
+        let local = self.module.generics.push_template_parameter(binding);
         if local != id.local_id {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -482,10 +499,6 @@ impl CheckState<'_> {
                     id.local_id, local
                 ),
             });
-        }
-
-        if let Some(symbol) = symbol {
-            self.generics.parameters_by_symbol.insert(symbol, id);
         }
 
         Ok(id)
@@ -582,7 +595,7 @@ impl CheckState<'_> {
             false,
             false,
         )?;
-        self.generics.claimed_induced.insert(parameter);
+        self.claimed_induced.insert(parameter);
 
         Ok(parameter)
     }
@@ -600,11 +613,11 @@ impl CheckState<'_> {
             if binding.origin != dir::GenericParameterOrigin::Induced
                 || binding.source != site
                 || binding.kind != dir::GenericParameterKind::Memory(kind)
-                || self.generics.claimed_induced.contains(&parameter)
+                || self.claimed_induced.contains(&parameter)
             {
                 continue;
             }
-            self.generics.claimed_induced.insert(parameter);
+            self.claimed_induced.insert(parameter);
 
             return Some(parameter);
         }
@@ -678,7 +691,7 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
-        // skip parameters the declared stage sealed, they keep their constraints
+        // skip parameters the declared stage settled, they keep their constraints
         let Some(binding) = working.generics.get_local_parameter_mut(parameter.local_id) else {
             return Ok(());
         };
@@ -703,7 +716,7 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
-        // skip templates the declared stage sealed, they keep their predicates
+        // skip templates the declared stage settled, they keep their predicates
         let Some(declared) = working.generics.get_local_template_mut(template.local_id) else {
             return Ok(());
         };
@@ -1048,6 +1061,26 @@ impl CheckState<'_> {
         Ok(bounds)
     }
 
+    /// Return the nearest scope carrying assumptions at one origin.
+    ///
+    /// Templates without parameters or predicates assume exactly their
+    /// parent's environment, so assumption-keyed facts share their entries.
+    pub(in crate::check) fn assuming_scope(
+        &mut self,
+        origin: Origin,
+    ) -> CompilerResult<Option<GenericTemplateId>> {
+        let mut template = self.origin_scope(origin)?;
+        while let Some(id) = template {
+            let declared = self.require_generic_template(id)?;
+            if !declared.parameters.is_empty() || !declared.predicates.is_empty() {
+                break;
+            }
+            template = self.parent_generic_template(id)?;
+        }
+
+        Ok(template)
+    }
+
     /// Return the nearest template enclosing one template's lexical scope.
     fn parent_generic_template(
         &self,
@@ -1129,7 +1162,7 @@ impl CheckState<'_> {
             // lifetimes are proof-only and erase from instance identity,
             //  though their arguments still settle like every other slot
             let parameter = applied.parameter;
-            let argument = self.settled_root(applied.argument)?;
+            let argument = self.shallow_resolve(applied.argument)?;
             let binding = self.require_generic_parameter(parameter)?;
             let is_lifetime = binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime);
             if is_lifetime {

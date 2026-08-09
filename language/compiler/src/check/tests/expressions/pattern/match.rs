@@ -157,6 +157,7 @@ switch (selected) {
     /// @resolution.operator source="case (observed = 1): break;" type=boolean operator="===" kind=builtin operands=[selected as int32 families=(integer), observed = 1 as int32 families=(integer)]
     /// @type.node source="observed = 1" type=1
     /// @type.node source=observed type=int32
+    /// @resolution.name source=observed target=observed
     /// @resolution.pattern.assign source=observed kind=place
     /// @resolution.access source=observed root=observed
     /// @resolution.assignment source=observed write=binding(observed) type=int32

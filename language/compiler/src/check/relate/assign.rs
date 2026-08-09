@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, answer};
+use crate::check::{CheckState, Origin, Relation};
 
 impl CheckState<'_> {
     /// Decide assignability from one reduced source to one reduced target.
@@ -15,7 +15,7 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let widens = relation == Relation::Widens;
 
         let source_signature = self.callable_signature(source)?;
@@ -23,18 +23,18 @@ impl CheckState<'_> {
 
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // top and error types absorb everything
-            (dir::Type::Error, _) | (_, dir::Type::Error) => Answer::Ready(true),
+            (dir::Type::Error, _) | (_, dir::Type::Error) => true,
             // collect lifetimes without deciding, leaving outlives to Verify on MIR
             (source_head, target_head)
                 if self.is_lifetime_slot(&source_head)?
                     && self.is_lifetime_slot(&target_head)? =>
             {
-                Answer::Ready(true)
+                true
             }
             // box values into an existential target, which never widens
-            (_, dir::Type::Any) | (_, dir::Type::Unknown) => Answer::Ready(!widens),
-            (dir::Type::Any, _) => Answer::Ready(!widens),
-            (dir::Type::Never, _) => Answer::Ready(true),
+            (_, dir::Type::Any) | (_, dir::Type::Unknown) => !widens,
+            (dir::Type::Any, _) => !widens,
+            (dir::Type::Never, _) => true,
 
             // string literals inhabit matching template literal patterns
             (
@@ -54,7 +54,7 @@ impl CheckState<'_> {
                     dir::TypeOperation::TemplateLiteral(_)
                 ) =>
             {
-                Answer::Ready(true)
+                true
             }
             // unconstraining patterns absorb the whole string domain
             (dir::Type::Primitive(dir::PrimitiveType::String), dir::Type::Operation(operation))
@@ -86,7 +86,7 @@ impl CheckState<'_> {
                         .static_key_from_type(source)?
                         .is_some_and(|key| key.widens_to_primitive(primitive)) =>
             {
-                Answer::Ready(true)
+                true
             }
 
             // memory forms own placement and readonly views
@@ -97,7 +97,7 @@ impl CheckState<'_> {
             }
 
             // reject widening into or out of a union
-            (dir::Type::Union(_), _) | (_, dir::Type::Union(_)) if widens => Answer::Ready(false),
+            (dir::Type::Union(_), _) | (_, dir::Type::Union(_)) if widens => false,
 
             // union sources need every element assignable
             (dir::Type::Union(union), _) => {
@@ -114,7 +114,7 @@ impl CheckState<'_> {
                 self.decide_union_membership(origin, relation, decision, source, target)?
             }
             // erased arguments are existential and do not accept concrete writes
-            (_, dir::Type::Erased(_)) => Answer::Ready(false),
+            (_, dir::Type::Erased(_)) => false,
             // this assigns through its enclosing interface hypotheses, or sits inside a union target
             (dir::Type::This, _) => {
                 let decision = self.decide_this_relation(origin, Relation::Assignable, target)?;
@@ -126,11 +126,10 @@ impl CheckState<'_> {
                 let member = self.type_member(source.module_id, member)?;
                 let constraint = self.body().projection_constraint(origin, &member)?;
                 let decision = match constraint {
-                    Answer::Ready(Some(constraint)) => {
+                    Some(constraint) => {
                         self.decide_relation(origin, relation, constraint, target)?
                     }
-                    Answer::Ready(None) => Answer::Ready(false),
-                    Answer::Pending(blockers) => Answer::Pending(blockers),
+                    None => false,
                 };
 
                 self.decide_union_membership(origin, relation, decision, source, target)?
@@ -158,9 +157,7 @@ impl CheckState<'_> {
                 self.decide_all_targets(origin, relation, source, &elements)?
             }
             // box values into an existential target, which never widens
-            (_, dir::Type::Dynamic(_)) | (dir::Type::Dynamic(_), _) if widens => {
-                Answer::Ready(false)
-            }
+            (_, dir::Type::Dynamic(_)) | (dir::Type::Dynamic(_), _) if widens => false,
             // erase compatible values into dynamic targets
             (_, dir::Type::Dynamic(dynamic)) => {
                 self.decide_dynamic_assignable(origin, source, dynamic.constraint)?
@@ -171,10 +168,8 @@ impl CheckState<'_> {
             }
 
             // reject widening for literals without a uniform carrier
-            (dir::Type::Literal(literal), _) if widens && !literal.has_uniform_carrier() => {
-                Answer::Ready(false)
-            }
-            (dir::Type::Range(_), _) if widens => Answer::Ready(false),
+            (dir::Type::Literal(literal), _) if widens && !literal.has_uniform_carrier() => false,
+            (dir::Type::Range(_), _) if widens => false,
 
             // relate literal and interval sources to interface targets
             (dir::Type::Literal(_) | dir::Type::Range(_), dir::Type::Application(instance))
@@ -186,8 +181,8 @@ impl CheckState<'_> {
             }
 
             // literals and intervals widen by value
-            (dir::Type::Literal(literal), target) => Answer::Ready(literal.widens_to(&target)),
-            (dir::Type::Range(range), target) => Answer::Ready(range.widens_to(&target)),
+            (dir::Type::Literal(literal), target) => literal.widens_to(&target),
+            (dir::Type::Range(range), target) => range.widens_to(&target),
             (dir::Type::Variant(member), _) => {
                 self.decide_relation(origin, relation, member.owner, target)?
             }
@@ -199,7 +194,7 @@ impl CheckState<'_> {
             (dir::Type::Array(source), dir::Type::Slice(target)) => {
                 self.decide_relation(origin, Relation::Equal, source.element, target.element)?
             }
-            (dir::Type::Array(_), dir::Type::FixedArray(_)) => Answer::Ready(false),
+            (dir::Type::Array(_), dir::Type::FixedArray(_)) => false,
             (dir::Type::Slice(source), dir::Type::Slice(target)) => {
                 self.decide_relation(origin, Relation::Equal, source.element, target.element)?
             }
@@ -210,14 +205,14 @@ impl CheckState<'_> {
                 let count =
                     self.decide_relation(origin, Relation::Equal, source.count, target.count)?;
 
-                element.and(count)
+                element && count
             }
             // view a fixed array through a slice of the same element
             (dir::Type::FixedArray(source), dir::Type::Slice(target)) if !widens => {
                 self.decide_relation(origin, Relation::Equal, source.element, target.element)?
             }
             // growing into a managed array allocates and copies: explicit only
-            (dir::Type::FixedArray(_), dir::Type::Array(_)) => Answer::Ready(false),
+            (dir::Type::FixedArray(_), dir::Type::Array(_)) => false,
             (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
                 self.decide_tuple_assignable(origin, relation, source, target)?
             }
@@ -307,7 +302,7 @@ impl CheckState<'_> {
                 self.decide_function_assignable(origin, relation, source, target)?
             }
 
-            _ => Answer::Ready(false),
+            _ => false,
         };
 
         Ok(decision)
@@ -319,18 +314,15 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         constraint: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let source = match self.ty(source)? {
             dir::Type::Dynamic(dynamic) => dynamic.constraint,
             _ => source,
         };
 
-        if !answer!(self.satisfies_auto_interface(
-            origin,
-            source,
-            dir::AutoInterface::DynamicSafe,
-        )?) {
-            return Ok(Answer::Ready(false));
+        // only erasable values may be boxed behind a dynamic constraint
+        if !self.satisfies_auto_interface(origin, source, dir::AutoInterface::DynamicSafe)? {
+            return Ok(false);
         }
 
         self.decide_relation(origin, Relation::Assignable, source, constraint)
@@ -343,17 +335,15 @@ impl CheckState<'_> {
         relation: Relation,
         parameter: dir::GlobalGenericParameterId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // prove through any declared or assumed bound
-        let mut decision = Answer::Ready(false);
         for bound in self.parameter_bounds(origin, parameter)? {
-            decision = decision.or(self.decide_relation(origin, relation, bound, target)?);
-            if decision.is_ready_true() {
-                break;
+            if self.decide_relation(origin, relation, bound, target)? {
+                return Ok(true);
             }
         }
 
-        Ok(decision)
+        Ok(false)
     }
 
     /// Decide whether one assumed `this` bound proves one relation.
@@ -362,16 +352,14 @@ impl CheckState<'_> {
         origin: Origin,
         relation: Relation,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // prove through any assumed this bound
-        let mut decision = Answer::Ready(false);
         for bound in self.this_bounds(origin)? {
-            decision = decision.or(self.decide_relation(origin, relation, bound, target)?);
-            if decision.is_ready_true() {
-                break;
+            if self.decide_relation(origin, relation, bound, target)? {
+                return Ok(true);
             }
         }
 
-        Ok(decision)
+        Ok(false)
     }
 }

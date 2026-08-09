@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckState, InterfaceConformanceObligation, InterfaceMember, MemberCandidate,
-    MemberLookup, ObligationCheck, ObligationFailure, Origin, Relation, TypeSubstitution, answer,
+    CheckState, InterfaceConformanceObligation, InterfaceMember, MemberCandidate, MemberLookup,
+    ObligationCheck, ObligationFailure, Origin, Relation, TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -13,7 +13,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &InterfaceConformanceObligation,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         let symbol = obligation.symbol;
         let (members, implementations, extension_target) = {
             let Some(definition) = self.definition(symbol)? else {
@@ -28,11 +28,7 @@ impl CheckState<'_> {
                 | dir::Definition::Enum(_) => None,
                 dir::Definition::TypeAlias(_)
                 | dir::Definition::Interface(_)
-                | dir::Definition::Newtype(_) => {
-                    return Err(CompilerError::Internal {
-                        message: format!("definition {symbol:?} cannot implement interfaces"),
-                    });
-                }
+                | dir::Definition::Newtype(_) => return Ok(ObligationCheck::Holds),
             };
 
             (
@@ -42,9 +38,7 @@ impl CheckState<'_> {
             )
         };
         if implementations.is_empty() {
-            return Err(CompilerError::Internal {
-                message: format!("interface conformance has no declared interfaces: {symbol:?}"),
-            });
+            return Ok(ObligationCheck::Holds);
         }
 
         // select the implementing declaration's target
@@ -71,13 +65,13 @@ impl CheckState<'_> {
 
         // prove each declared interface
         for heritage in implementations {
-            let conforms = answer!(self.decide_declared_conformance(
+            let conforms = self.decide_declared_conformance(
                 origin,
                 heritage.ty,
                 target,
                 &members,
                 is_unsafe_extension,
-            )?);
+            )?;
             if !conforms {
                 failures.push(ObligationFailure::InterfaceNotImplemented {
                     source: heritage.source,
@@ -87,7 +81,7 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(Answer::Ready(ObligationCheck::from_failures(failures)))
+        Ok(ObligationCheck::from_failures(failures))
     }
 
     /// Decide whether declared members conform to one applied interface.
@@ -98,7 +92,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
         is_unsafe_extension: bool,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // validate compiler-known markers through their compiler rule
         let (_, application) = self.nominal_application(interface)?;
         let auto_interface = self
@@ -107,7 +101,7 @@ impl CheckState<'_> {
             .filter(|interface| interface.is_marker());
         if let Some(interface) = auto_interface {
             if is_unsafe_extension && interface.permits_unsafe_implementation() {
-                return Ok(Answer::Ready(true));
+                return Ok(true);
             }
 
             return self.satisfies_auto_interface(origin, target, interface);
@@ -115,16 +109,17 @@ impl CheckState<'_> {
 
         // resolve associated projections through the declared implementation
         let substitution = TypeSubstitution::default().with_receiver(target);
-        let Some(interface) = answer!(self.instantiate_interface_implementation(
+        let Some(interface) = self.instantiate_interface_implementation(
             origin,
             interface,
             target,
             members,
             &substitution,
-        )?) else {
-            return Ok(Answer::Ready(false));
+        )?
+        else {
+            return Ok(false);
         };
-        let requirements = answer!(self.interface_requirements(interface, target)?);
+        let requirements = self.interface_requirements(interface, target)?;
 
         // match each named requirement against declared or inherent members
         for requirement in &requirements.members {
@@ -134,22 +129,20 @@ impl CheckState<'_> {
                     continue;
                 }
                 let member = match self.body().declared_member(member)? {
-                    Answer::Ready(Some(member)) => member,
-                    Answer::Ready(None) => continue,
-                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                    Some(member) => member,
+                    None => continue,
                 };
                 candidates.push(member);
             }
             if candidates.is_empty() {
                 // use target members that do not come from this declaration
-                let inherent =
-                    answer!(self.inherent_member_candidates(origin, target, requirement)?);
+                let inherent = self.inherent_member_candidates(origin, target, requirement)?;
                 if inherent.is_empty() {
                     if requirement.has_default || requirement.is_optional {
                         continue;
                     }
 
-                    return Ok(Answer::Ready(false));
+                    return Ok(false);
                 }
                 let Some(required) = requirement.ty else {
                     continue;
@@ -166,13 +159,13 @@ impl CheckState<'_> {
                         required,
                         substitution.receiver,
                     )?;
-                    if answer!(decision) {
+                    if decision {
                         is_satisfied = true;
                         break;
                     }
                 }
                 if !is_satisfied {
-                    return Ok(Answer::Ready(false));
+                    return Ok(false);
                 }
 
                 continue;
@@ -197,42 +190,38 @@ impl CheckState<'_> {
                     required,
                     substitution.receiver,
                 )?;
-                if answer!(decision) {
+                if decision {
                     is_satisfied = true;
                     break;
                 }
             }
             if !is_satisfied {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
         }
 
         // validate call, construct, and index requirements from the target
-        let signatures = answer!(self.decide_interface_signatures(
-            origin,
-            Relation::Satisfies,
-            target,
-            &requirements,
-        )?);
+        let signatures =
+            self.decide_interface_signatures(origin, Relation::Satisfies, target, &requirements)?;
         if !signatures {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         // validate inherited interfaces through the same declaration
         for inherited in &requirements.inherited {
-            let conforms = answer!(self.decide_declared_conformance(
+            let conforms = self.decide_declared_conformance(
                 origin,
                 inherited.ty,
                 target,
                 members,
                 is_unsafe_extension,
-            )?);
+            )?;
             if !conforms {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
         }
 
-        Ok(Answer::Ready(true))
+        Ok(true)
     }
 
     /// Return target members matching one interface requirement.
@@ -241,14 +230,14 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
         requirement: &InterfaceMember,
-    ) -> CompilerResult<Answer<Vec<MemberCandidate>>> {
-        let lookup = answer!(self.body().lookup_inherent_member(
+    ) -> CompilerResult<Vec<MemberCandidate>> {
+        let lookup = self.body().lookup_inherent_member(
             origin,
             origin.module(),
             target,
             requirement.space,
             requirement.key,
-        )?);
+        )?;
         let candidates = match lookup {
             MemberLookup::Missing => Vec::new(),
             MemberLookup::Found(candidates) => candidates,
@@ -266,7 +255,7 @@ impl CheckState<'_> {
             }
         };
 
-        Ok(Answer::Ready(candidates))
+        Ok(candidates)
     }
 
     /// Check whether one type satisfies one compiler-known auto interface.
@@ -275,15 +264,15 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<ObligationCheck> {
+        let ty = self.reduce_type_head(origin, ty)?;
 
         // hold without checking once an operand already reported an error
         if self.any_error_operand(&[ty])? {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+            return Ok(ObligationCheck::holds());
         }
-        if answer!(self.satisfies_auto_interface(origin, ty, interface)?) {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+        if self.satisfies_auto_interface(origin, ty, interface)? {
+            return Ok(ObligationCheck::holds());
         }
 
         let source = self.origin_source(origin)?;
@@ -293,6 +282,6 @@ impl CheckState<'_> {
             interface,
         };
 
-        Ok(Answer::Ready(ObligationCheck::fail(failure)))
+        Ok(ObligationCheck::fail(failure))
     }
 }

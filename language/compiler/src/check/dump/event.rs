@@ -16,7 +16,7 @@ impl CheckEvent {
             Self::ProbeFinished { verdict } => {
                 let verdict = match verdict {
                     Some(verdict) => format!("{verdict:?}"),
-                    None => "Parked".to_string(),
+                    None => "none".to_string(),
                 };
 
                 ArtifactEvent::new("probe.finished")
@@ -38,7 +38,7 @@ impl CheckEvent {
                 .text("relation", context.relation_label(bound.relation))
                 .text(
                     "cause",
-                    context.origin_label(context.check.solver.cause(bound.cause).origin),
+                    context.origin_label(context.check.infer.cause(bound.cause).origin),
                 ),
             Self::UpperBoundPushed { variable, bound } => ArtifactEvent::new("variable.upper")
                 .debug()
@@ -47,35 +47,12 @@ impl CheckEvent {
                 .text("relation", context.relation_label(bound.relation))
                 .text(
                     "cause",
-                    context.origin_label(context.check.solver.cause(bound.cause).origin),
+                    context.origin_label(context.check.infer.cause(bound.cause).origin),
                 ),
-            Self::SolveStarted { tasks, variables } => ArtifactEvent::new("solve.started")
-                .info()
-                .usize("tasks", *tasks)
-                .usize("variables", *variables),
-            Self::TaskRan { step, task } => {
-                let event = ArtifactEvent::new("task.ran").info().usize("step", *step);
-
-                task.render_event(event, context)
-            }
-            Self::TaskParked { task, blockers } => {
-                let event = ArtifactEvent::new("task.parked")
-                    .debug()
-                    .text("blockers", context.dependency_list_label(blockers));
-
-                task.render_event(event, context)
-            }
-            Self::SolveFinished {
-                iterations,
-                variables,
-            } => ArtifactEvent::new("solve.finished")
-                .info()
-                .usize("iterations", *iterations)
-                .usize("variables", *variables),
             Self::RelationChecked {
                 constraint,
                 is_finished,
-            } => match context.check.solver.constraints.get(*constraint) {
+            } => match context.check.infer.constraints.get(*constraint) {
                 Ok(relation) => relation.render_event(*constraint, *is_finished, context),
                 Err(_) => ArtifactEvent::new("relation.checked")
                     .debug()
@@ -85,7 +62,7 @@ impl CheckEvent {
             Self::ObligationChecked {
                 obligation,
                 is_finished,
-            } => match context.check.solver.obligations.get(*obligation) {
+            } => match context.check.infer.obligations.get(*obligation) {
                 Ok(entry) => entry
                     .obligation
                     .render_event(*obligation, *is_finished, context),
@@ -102,14 +79,12 @@ impl CheckEvent {
                 variable,
                 bounds,
                 solution,
-                waiters,
             } => ArtifactEvent::new("variable.solved")
                 .debug()
                 .text("variable", context.variable_label(*variable))
                 .text("lower", context.type_bound_list_label(&bounds.lower))
                 .text("upper", context.type_bound_list_label(&bounds.upper))
-                .text("solution", context.type_label(*solution))
-                .usize("waiters", *waiters),
+                .text("solution", context.type_label(*solution)),
         };
 
         log.push(event);

@@ -108,6 +108,7 @@ const bad = scale & 2;
 /// @type.symbol symbol=bad source=bad type=<error>
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=scale target=scale
+/// @resolution.rejected source="scale & 2"
 /// @resolution.place source=scale placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=scale root=scale
 "#,

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, answer};
+use crate::check::{CheckState, Origin, Relation};
 
 impl CheckState<'_> {
     /// Return the members of one union target with its enclosing forms.
@@ -10,11 +10,11 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<SmallVec<[dir::GlobalTypeId; 4]>>>> {
+    ) -> CompilerResult<Option<SmallVec<[dir::GlobalTypeId; 4]>>> {
         let chain = self.form_chain(origin, target)?;
         let base = chain.base();
         let dir::Type::Union(union) = self.ty(base)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         // retain enclosing forms while exposing each stored union member
@@ -22,11 +22,11 @@ impl CheckState<'_> {
             SmallVec::<[_; 4]>::from_slice(self.type_ids(base.module_id, union.elements)?);
         let mut arms = SmallVec::with_capacity(members.len());
         for member in members {
-            let target = answer!(self.replace_form_value(origin, target, member)?);
+            let target = self.replace_form_value(origin, target, member)?;
             arms.push(target);
         }
 
-        Ok(Answer::Ready(Some(arms)))
+        Ok(Some(arms))
     }
 
     /// Decide a union target by membership when direct proof fell short.
@@ -34,32 +34,32 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         relation: Relation,
-        decision: Answer<bool>,
+        decision: bool,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        if decision.is_ready_true() {
-            return Ok(decision);
+    ) -> CompilerResult<bool> {
+        // a direct proof needs no membership fallback
+        if decision {
+            return Ok(true);
         }
+
         // membership tags the value into the union carrier and never widens
         if relation == Relation::Widens {
-            return Ok(decision);
+            return Ok(false);
         }
         let dir::Type::Union(union) = self.ty(target)? else {
-            return Ok(decision);
+            return Ok(false);
         };
 
         // relate the source against any one element
         let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
-        let mut membership = decision;
         for element in elements {
-            membership = membership.or(self.decide_relation(origin, relation, source, element)?);
-            if membership.is_ready_true() {
-                break;
+            if self.decide_relation(origin, relation, source, element)? {
+                return Ok(true);
             }
         }
 
-        Ok(membership)
+        Ok(false)
     }
 
     /// Decide whether every source relates to one target.
@@ -69,16 +69,14 @@ impl CheckState<'_> {
         relation: Relation,
         sources: &[dir::GlobalTypeId],
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let mut decision = Answer::Ready(true);
+    ) -> CompilerResult<bool> {
         for source in sources {
-            decision = decision.and(self.decide_relation(origin, relation, *source, target)?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !self.decide_relation(origin, relation, *source, target)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Decide whether any source relates to one target.
@@ -88,16 +86,14 @@ impl CheckState<'_> {
         relation: Relation,
         sources: &[dir::GlobalTypeId],
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let mut decision = Answer::Ready(false);
+    ) -> CompilerResult<bool> {
         for source in sources {
-            decision = decision.or(self.decide_relation(origin, relation, *source, target)?);
-            if decision.is_ready_true() {
-                return Ok(decision);
+            if self.decide_relation(origin, relation, *source, target)? {
+                return Ok(true);
             }
         }
 
-        Ok(decision)
+        Ok(false)
     }
 
     /// Decide whether one source relates to every target.
@@ -107,16 +103,14 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         targets: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<bool>> {
-        let mut decision = Answer::Ready(true);
+    ) -> CompilerResult<bool> {
         for target in targets {
-            decision = decision.and(self.decide_relation(origin, relation, source, *target)?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !self.decide_relation(origin, relation, source, *target)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Decide whether one source relates to any target.
@@ -126,24 +120,23 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         targets: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // exact singleton keys prove membership without candidate relations
         if let Some(source_key) = self.static_key_from_type(source)? {
             for target in targets {
                 if self.static_key_from_type(*target)? == Some(source_key) {
-                    return Ok(Answer::Ready(true));
+                    return Ok(true);
                 }
             }
         }
 
-        let mut decision = Answer::Ready(false);
+        // relate the source against any one target
         for target in targets {
-            decision = decision.or(self.decide_relation(origin, relation, source, *target)?);
-            if decision.is_ready_true() {
-                return Ok(decision);
+            if self.decide_relation(origin, relation, source, *target)? {
+                return Ok(true);
             }
         }
 
-        Ok(decision)
+        Ok(false)
     }
 }

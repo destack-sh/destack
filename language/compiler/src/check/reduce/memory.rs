@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Origin, answer};
+use crate::check::{CheckState, Origin};
 
 /// Memory forms stacked over one base type.
 #[derive(Debug, Clone)]
@@ -65,7 +65,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let chain = self.form_chain(origin, ty)?;
 
         self.form_is_reference(origin, &chain)
@@ -76,21 +76,21 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         chain: &FormChain,
-    ) -> CompilerResult<Answer<bool>> {
-        let ownership = answer!(self.form_ownership(origin, chain)?);
+    ) -> CompilerResult<bool> {
+        let ownership = self.form_ownership(origin, chain)?;
         let is_reference = match ownership {
             Some(dir::Ownership::Managed | dir::Ownership::Borrowed) => true,
             Some(dir::Ownership::Owned) => {
                 let is_explicit = chain.ownership_form().is_some();
                 let base = self.form_chain(origin, chain.base())?;
-                let default = answer!(self.form_ownership(origin, &base)?);
+                let default = self.form_ownership(origin, &base)?;
 
                 is_explicit && default == Some(dir::Ownership::Managed)
             }
             Some(dir::Ownership::Raw) | None => false,
         };
 
-        Ok(Answer::Ready(is_reference))
+        Ok(is_reference)
     }
 
     /// Classify one normalized conversion to borrowed form.
@@ -99,18 +99,18 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<BorrowConversion>>> {
+    ) -> CompilerResult<Option<BorrowConversion>> {
         let source = self.form_chain(origin, source)?;
         let target = self.form_chain(origin, target)?;
         let Some(borrow) = target.ownership_form() else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         if !matches!(borrow.form, dir::Form::Borrowed(_)) {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
         // require a placeable value, a borrow only targets owned storage
         if !self.ty(source.base())?.is_placeable() {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
         // explicit borrowed and raw values reborrow through the receiver ladder
         if source.ownership_form().is_some_and(|form| {
@@ -119,15 +119,15 @@ impl CheckState<'_> {
                 Some(dir::Ownership::Borrowed | dir::Ownership::Raw)
             )
         }) {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
-        Ok(Answer::Ready(Some(BorrowConversion {
+        Ok(Some(BorrowConversion {
             module: origin.module(),
             source,
             target,
             borrow,
-        })))
+        }))
     }
 
     /// Return the closed access literal behind one access term, or none while open.
@@ -135,14 +135,14 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         access: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::Access>>> {
-        let access = answer!(self.reduce_type_head(origin, access)?);
+    ) -> CompilerResult<Option<dir::Access>> {
+        let access = self.reduce_type_head(origin, access)?;
         let literal = match self.ty(access)? {
             dir::Type::Memory(dir::MemoryLiteral::Access(access)) => Some(access),
             _ => None,
         };
 
-        Ok(Answer::Ready(literal))
+        Ok(literal)
     }
 
     /// Return the concrete space required by a nominal declaration and its heritage.
@@ -205,8 +205,8 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<bool> {
+        let ty = self.reduce_type_head(origin, ty)?;
         let is_immediate = match self.ty(ty)? {
             dir::Type::Null
             | dir::Type::Undefined
@@ -225,7 +225,7 @@ impl CheckState<'_> {
             _ => false,
         };
 
-        Ok(Answer::Ready(is_immediate))
+        Ok(is_immediate)
     }
 
     /// Place one binding value in its explicitly declared storage space.
@@ -277,33 +277,33 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         place: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let chain = self.form_chain(origin, ty)?;
 
         // return an open form chain unchanged
         if chain.is_open {
-            return Ok(Answer::Ready(ty));
+            return Ok(ty);
         }
 
         // types without runtime values have no placement
         if chain.forms.is_empty() && !self.ty(chain.base)?.is_placeable() {
-            return Ok(Answer::Ready(ty));
+            return Ok(ty);
         }
 
         // immediate values pass in registers and take no placement
-        if answer!(self.is_immediate_value(origin, ty)?) {
-            return Ok(Answer::Ready(ty));
+        if self.is_immediate_value(origin, ty)? {
+            return Ok(ty);
         }
 
         // preserve concrete placement and qualify one relative chain
         if let Some(current) = chain.place()
             && !self.is_memory_component(current, "relative")?
         {
-            return Ok(Answer::Ready(ty));
+            return Ok(ty);
         }
 
         // apply placement around the written type so aliases stay visible
-        self.placed_type(origin, ty, place).map(Answer::Ready)
+        self.placed_type(origin, ty, place)
     }
 
     /// Strip every explicit memory form from one type.
@@ -311,13 +311,13 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let mut value = answer!(self.reduce_type_head(origin, id)?);
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let mut value = self.reduce_type_head(origin, id)?;
         while let dir::Type::Form(form) = self.ty(value)? {
-            value = answer!(self.reduce_type_head(origin, form.value)?);
+            value = self.reduce_type_head(origin, form.value)?;
         }
 
-        Ok(Answer::Ready(value))
+        Ok(value)
     }
 
     /// Return the unqualified value accepted by one construction target.
@@ -325,18 +325,18 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let mut value = answer!(self.reduce_type_head(origin, target)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let mut value = self.reduce_type_head(origin, target)?;
 
         // construction owns storage forms but never manufactures references
         while let dir::Type::Form(form) = self.ty(value)? {
             if matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw) {
-                return Ok(Answer::Ready(None));
+                return Ok(None);
             }
-            value = answer!(self.reduce_type_head(origin, form.value)?);
+            value = self.reduce_type_head(origin, form.value)?;
         }
 
-        Ok(Answer::Ready(Some(value)))
+        Ok(Some(value))
     }
 
     /// Replace the value beneath every explicit memory form.
@@ -345,20 +345,20 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let head = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let head = self.reduce_type_head(origin, ty)?;
         let dir::Type::Form(form) = self.ty(head)? else {
-            return Ok(Answer::Ready(value));
+            return Ok(value);
         };
 
-        let payload = answer!(self.replace_form_value(origin, form.value, value)?);
+        let payload = self.replace_form_value(origin, form.value, value)?;
         let form = self.adopt_form(head.module_id, form.form)?;
         let rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
             form,
             value: payload,
         }))?;
 
-        Ok(Answer::Ready(rebuilt))
+        Ok(rebuilt)
     }
 
     /// Normalize one component to its canonical memory literal.
@@ -384,16 +384,16 @@ impl CheckState<'_> {
         origin: Origin,
         form: dir::Form,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         if !matches!(form, dir::Form::Managed | dir::Form::Owned) {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
-        let Some(default) = answer!(self.default_ownership(origin, value)?) else {
-            return Ok(Answer::Ready(false));
+        let Some(default) = self.default_ownership(origin, value)? else {
+            return Ok(false);
         };
 
-        Ok(Answer::Ready(form.ownership() == Some(default)))
+        Ok(form.ownership() == Some(default))
     }
 
     /// Drop one type's redundant explicit forms, keeping its authored payload.
@@ -401,17 +401,17 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let mut id = id;
         loop {
             let dir::Type::Form(form) = self.ty(id)? else {
-                return Ok(Answer::Ready(id));
+                return Ok(id);
             };
             // decide on the reduced payload, return the authored spelling
-            let value = answer!(self.reduce_type_head(origin, form.value)?);
-            let drops = answer!(self.is_redundant_form(origin, form.form, value)?);
+            let value = self.reduce_type_head(origin, form.value)?;
+            let drops = self.is_redundant_form(origin, form.form, value)?;
             if !drops {
-                return Ok(Answer::Ready(id));
+                return Ok(id);
             }
             id = form.value;
         }
@@ -423,25 +423,25 @@ impl CheckState<'_> {
         origin: Origin,
         form: dir::Form,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        if answer!(self.is_default_ownership_form(origin, form, value)?) {
-            return Ok(Answer::Ready(true));
+    ) -> CompilerResult<bool> {
+        if self.is_default_ownership_form(origin, form, value)? {
+            return Ok(true);
         }
 
         // placement does not qualify types without runtime values
         if matches!(form, dir::Form::Placed { .. }) && !self.ty(value)?.is_placeable() {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         // readonly views over immutable payloads grant nothing less
         if form == dir::Form::Readonly {
             let mut active = SmallVec::new();
-            if answer!(self.type_is_immutable(origin, value, &mut active)?) {
-                return Ok(Answer::Ready(true));
+            if self.type_is_immutable(origin, value, &mut active)? {
+                return Ok(true);
             }
         }
 
-        Ok(Answer::Ready(false))
+        Ok(false)
     }
 
     /// Reduce one unary form constructor application.
@@ -451,14 +451,14 @@ impl CheckState<'_> {
         module: ModuleId,
         instance: &dir::GenericApplication,
         form: dir::Form,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(value) = self.type_ids(module, instance.arguments)?.first().copied() else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let formed = dir::Type::Form(dir::FormType { form, value });
         let id = self.intern_memory_type(origin, formed)?;
 
-        Ok(Answer::Ready(Some(id)))
+        Ok(Some(id))
     }
 
     /// Reduce one borrowed form constructor application.
@@ -467,13 +467,13 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let arguments = self.type_ids(module, instance.arguments)?.to_vec();
         let Some(value) = arguments.first().copied() else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let Some(lifetime) = arguments.get(1).copied() else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         // missing access arguments default to mutable
@@ -490,7 +490,7 @@ impl CheckState<'_> {
         let formed = dir::Type::Form(dir::FormType { form, value });
         let id = self.intern_memory_type(origin, formed)?;
 
-        Ok(Answer::Ready(Some(id)))
+        Ok(Some(id))
     }
 
     /// Reduce one placed form constructor application.
@@ -499,13 +499,13 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let arguments = self.type_ids(module, instance.arguments)?.to_vec();
         let Some(value) = arguments.first().copied() else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let Some(place) = arguments.get(1).copied() else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         let place = self.normalize_memory_component(origin, place, dir::MemoryParameter::Place)?;
@@ -515,7 +515,7 @@ impl CheckState<'_> {
         });
         let id = self.intern_memory_type(origin, formed)?;
 
-        Ok(Answer::Ready(Some(id)))
+        Ok(Some(id))
     }
 
     /// Evaluate one memory accessor, distributing over union targets.
@@ -525,13 +525,13 @@ impl CheckState<'_> {
         module: ModuleId,
         item: dir::LanguageItem,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(target) = self.type_ids(module, instance.arguments)?.first().copied() else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         // close the inspected target first
-        let target = answer!(self.reduce_type_head(origin, target)?);
+        let target = self.reduce_type_head(origin, target)?;
 
         // distribute the accessor over union targets
         let elements = match self.ty(target)? {
@@ -540,41 +540,25 @@ impl CheckState<'_> {
             }
             _ => SmallVec::from_slice(&[target]),
         };
-        let mut answers = Vec::with_capacity(elements.len());
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+        let mut reduced = Vec::with_capacity(elements.len());
         for element in elements {
-            let element = match self.reduce_type_head(origin, element)? {
-                Answer::Ready(element) => element,
-                Answer::Pending(dependencies) => {
-                    blockers.extend(dependencies);
-
-                    continue;
-                }
-            };
+            let element = self.reduce_type_head(origin, element)?;
 
             match self.reduce_element_accessor(origin, module, item, instance, element)? {
                 // one symbolic element keeps the whole accessor symbolic
-                Answer::Ready(None) => return Ok(Answer::Ready(None)),
-                Answer::Ready(Some(answer)) => answers.push(answer),
-                Answer::Pending(dependencies) => {
-                    blockers.extend(dependencies);
-
-                    continue;
-                }
+                None => return Ok(None),
+                Some(accessor) => reduced.push(accessor),
             }
         }
-        if !blockers.is_empty() {
-            return Ok(Answer::pending(blockers));
-        }
 
-        // join element answers, dropping never like any union would
-        let mut kept = Vec::with_capacity(answers.len());
-        for answer in answers {
-            if matches!(self.ty(answer)?, dir::Type::Never) {
+        // join the element results, dropping never like any union would
+        let mut kept = Vec::with_capacity(reduced.len());
+        for accessor in reduced {
+            if matches!(self.ty(accessor)?, dir::Type::Never) {
                 continue;
             }
-            if !kept.contains(&answer) {
-                kept.push(answer);
+            if !kept.contains(&accessor) {
+                kept.push(accessor);
             }
         }
         let joined = match kept.as_slice() {
@@ -583,7 +567,7 @@ impl CheckState<'_> {
             _ => self.normalized_union_type(kept)?,
         };
 
-        Ok(Answer::Ready(Some(joined)))
+        Ok(Some(joined))
     }
 
     /// Evaluate one memory accessor over one closed element.
@@ -594,7 +578,7 @@ impl CheckState<'_> {
         item: dir::LanguageItem,
         instance: &dir::GenericApplication,
         element: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // close the element's form chain first
         let chain = self.form_chain(origin, element)?;
         self.reduce_stack_accessor(origin, module, item, instance, element, &chain)
@@ -609,30 +593,29 @@ impl CheckState<'_> {
         instance: &dir::GenericApplication,
         element: dir::GlobalTypeId,
         chain: &FormChain,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match item {
             // PayloadOf<T> removes one outer form
             dir::LanguageItem::PayloadOf => match chain.forms.first() {
-                Some(outer) => Ok(Answer::Ready(Some(outer.value))),
-                None if chain.is_open => Ok(Answer::Ready(None)),
-                None => Ok(Answer::Ready(Some(chain.base))),
+                Some(outer) => Ok(Some(outer.value)),
+                None if chain.is_open => Ok(None),
+                None => Ok(Some(chain.base)),
             },
             // BaseOf<T> removes every form
             dir::LanguageItem::BaseOf => {
                 if chain.is_open {
-                    Ok(Answer::Ready(None))
+                    Ok(None)
                 } else {
-                    Ok(Answer::Ready(Some(chain.base)))
+                    Ok(Some(chain.base))
                 }
             }
 
             // ownership component
             dir::LanguageItem::OwnershipOf => self.ownership(origin, chain),
             dir::LanguageItem::OwnershipOr => {
-                let ownership = answer!(self.ownership(origin, chain)?);
+                let ownership = self.ownership(origin, chain)?;
 
                 self.component_or_default(origin, module, instance, ownership)
-                    .map(Answer::Ready)
             }
             dir::LanguageItem::IsManaged => {
                 self.ownership_predicate(origin, chain, dir::Ownership::Managed)
@@ -648,70 +631,65 @@ impl CheckState<'_> {
             }
 
             // access component
-            dir::LanguageItem::AccessOf => self.access(origin, chain).map(Answer::Ready),
+            dir::LanguageItem::AccessOf => self.access(origin, chain),
             dir::LanguageItem::AccessOr => {
                 let access = self.access(origin, chain)?;
 
                 self.component_or_default(origin, module, instance, access)
-                    .map(Answer::Ready)
             }
 
             // placement component
-            dir::LanguageItem::PlaceOf => self.place(origin, chain).map(Answer::Ready),
+            dir::LanguageItem::PlaceOf => self.place(origin, chain),
             dir::LanguageItem::PlaceOr => {
                 let place = self.place(origin, chain)?;
 
                 self.component_or_default(origin, module, instance, place)
-                    .map(Answer::Ready)
             }
             dir::LanguageItem::PlaceIn => {
                 let place = self.place(origin, chain)?;
                 let Some(place) = place else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
 
                 // relative placement resolves to the given concrete space
                 if self.is_memory_component(place, "relative")? {
                     let Some(space) = self.type_ids(module, instance.arguments)?.get(1).copied()
                     else {
-                        return Ok(Answer::Ready(None));
+                        return Ok(None);
                     };
 
-                    Ok(Answer::Ready(Some(
-                        self.normalize_component_text(origin, space)?,
-                    )))
+                    Ok(Some(self.normalize_component_text(origin, space)?))
                 } else {
-                    Ok(Answer::Ready(Some(place)))
+                    Ok(Some(place))
                 }
             }
-            dir::LanguageItem::SpaceOf => self.space(origin, chain).map(Answer::Ready),
+            dir::LanguageItem::SpaceOf => self.space(origin, chain),
             dir::LanguageItem::SpaceOr => {
                 let space = self.space(origin, chain)?;
 
                 self.component_or_default(origin, module, instance, space)
-                    .map(Answer::Ready)
             }
             dir::LanguageItem::IsShared => {
                 let space = self.space(origin, chain)?;
                 let Some(space) = space else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
                 let is_shared = self.is_memory_component(space, "shared")?;
                 let is_shared = self.boolean_literal_type(origin, is_shared)?;
 
-                Ok(Answer::Ready(is_shared))
+                Ok(is_shared)
             }
             dir::LanguageItem::IsSharedIn => {
                 let place = self.place(origin, chain)?;
                 let Some(place) = place else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
 
                 // relative placement resolves to the given concrete space first
                 let resolved = if self.is_memory_component(place, "relative")? {
                     let Some(space) = self.type_ids(module, instance.arguments)?.get(1).copied()
                     else {
-                        return Ok(Answer::Ready(None));
+                        return Ok(None);
                     };
 
                     self.normalize_component_text(origin, space)?
@@ -721,50 +699,42 @@ impl CheckState<'_> {
                 let is_shared = self.is_memory_component(resolved, "shared")?;
                 let is_shared = self.boolean_literal_type(origin, is_shared)?;
 
-                Ok(Answer::Ready(is_shared))
+                Ok(is_shared)
             }
 
             // lifetime component
-            dir::LanguageItem::LifetimeOf => self.lifetime(origin, chain).map(Answer::Ready),
+            dir::LanguageItem::LifetimeOf => self.lifetime(origin, chain),
             dir::LanguageItem::LifetimeOr => {
                 let lifetime = self.lifetime(origin, chain)?;
 
                 self.component_or_default(origin, module, instance, lifetime)
-                    .map(Answer::Ready)
             }
 
             // form rewriting
             dir::LanguageItem::WithBase => {
                 if chain.is_open {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 }
                 let Some(base) = self.type_ids(module, instance.arguments)?.get(1).copied() else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
 
-                Ok(Answer::Ready(Some(self.wrap_forms(
-                    origin,
-                    &chain.forms,
-                    base,
-                )?)))
+                Ok(Some(self.wrap_forms(origin, &chain.forms, base)?))
             }
-            dir::LanguageItem::WithOwnership => self
-                .with_ownership(origin, module, instance, element)
-                .map(Answer::Ready),
-            dir::LanguageItem::WithPlace => self
-                .with_place(origin, module, instance, chain, element)
-                .map(Answer::Ready),
-            dir::LanguageItem::WithSpace => self
-                .with_space(origin, module, instance, chain, element)
-                .map(Answer::Ready),
-            dir::LanguageItem::WithLifetime => self
-                .with_lifetime(origin, module, instance, chain)
-                .map(Answer::Ready),
-            dir::LanguageItem::WithAccess => self
-                .with_access(origin, module, instance, chain, element)
-                .map(Answer::Ready),
-
-            _ => Ok(Answer::Ready(None)),
+            dir::LanguageItem::WithOwnership => {
+                self.with_ownership(origin, module, instance, element)
+            }
+            dir::LanguageItem::WithPlace => {
+                self.with_place(origin, module, instance, chain, element)
+            }
+            dir::LanguageItem::WithSpace => {
+                self.with_space(origin, module, instance, chain, element)
+            }
+            dir::LanguageItem::WithLifetime => self.with_lifetime(origin, module, instance, chain),
+            dir::LanguageItem::WithAccess => {
+                self.with_access(origin, module, instance, chain, element)
+            }
+            _ => Ok(None),
         }
     }
 
@@ -779,12 +749,8 @@ impl CheckState<'_> {
 
         // collect memory forms outermost first
         loop {
-            let root = self.settled_root(current)?;
-            // memory queries never suspend: unreduced heads stay open
-            current = match self.reduce_type_head(origin, root)? {
-                Answer::Ready(current) => current,
-                Answer::Pending(_) => root,
-            };
+            let root = self.shallow_resolve(current)?;
+            current = self.reduce_type_head(origin, root)?;
             let dir::Type::Form(form) = self.ty(current)? else {
                 break;
             };
@@ -806,8 +772,7 @@ impl CheckState<'_> {
         }
 
         // open and unreduced bases can gain forms when inference settles
-        let is_open = self.ty(current)?.is_open()
-            || matches!(self.reduce_type_head(origin, current)?, Answer::Pending(_));
+        let is_open = self.ty(current)?.is_open();
 
         // nominal declarations contribute their intrinsic or inherited space
         if !forms
@@ -847,14 +812,14 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         chain: &FormChain,
-    ) -> CompilerResult<Answer<Option<dir::Ownership>>> {
+    ) -> CompilerResult<Option<dir::Ownership>> {
         let ownership = match chain.ownership_form() {
             Some(form) => form.form.ownership(),
             None if chain.is_open => None,
-            None => answer!(self.default_ownership(origin, chain.base)?),
+            None => self.default_ownership(origin, chain.base)?,
         };
 
-        Ok(Answer::Ready(ownership))
+        Ok(ownership)
     }
 
     /// Return one chain's ownership kind as a type literal.
@@ -862,14 +827,14 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         chain: &FormChain,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let ownership = match answer!(self.form_ownership(origin, chain)?) {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let ownership = match self.form_ownership(origin, chain)? {
             Some(ownership) => Some(self.text_literal_type(origin, ownership.text())?),
             None if chain.is_open => None,
             None => Some(self.intern_memory_type(origin, dir::Type::Never)?),
         };
 
-        Ok(Answer::Ready(ownership))
+        Ok(ownership)
     }
 
     /// Return whether one chain's ownership matches a constructor.
@@ -878,14 +843,14 @@ impl CheckState<'_> {
         origin: Origin,
         chain: &FormChain,
         ownership: dir::Ownership,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let matches_ownership = match answer!(self.form_ownership(origin, chain)?) {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let matches_ownership = match self.form_ownership(origin, chain)? {
             Some(found) => self.boolean_literal_type(origin, found == ownership)?,
             None if chain.is_open => None,
             None => self.boolean_literal_type(origin, false)?,
         };
 
-        Ok(Answer::Ready(matches_ownership))
+        Ok(matches_ownership)
     }
 
     /// Return whether one type's family defaults to managed storage.
@@ -893,10 +858,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let ownership = answer!(self.default_ownership(origin, ty)?);
+    ) -> CompilerResult<bool> {
+        let ownership = self.default_ownership(origin, ty)?;
 
-        Ok(Answer::Ready(ownership == Some(dir::Ownership::Managed)))
+        Ok(ownership == Some(dir::Ownership::Managed))
     }
 
     /// Return one reduced type's default ownership.
@@ -904,8 +869,8 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::Ownership>>> {
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<Option<dir::Ownership>> {
+        let ty = self.reduce_type_head(origin, ty)?;
         let default = match self.ty(ty)? {
             dir::Type::Any
             | dir::Type::Unknown
@@ -944,7 +909,7 @@ impl CheckState<'_> {
                         Some(dir::Ownership::Owned)
                     }
                     Some(dir::Definition::Newtype(definition)) => {
-                        let backing = answer!(self.reduce_type_head(origin, definition.backing)?);
+                        let backing = self.reduce_type_head(origin, definition.backing)?;
 
                         return self.default_ownership(origin, backing);
                     }
@@ -988,7 +953,7 @@ impl CheckState<'_> {
             }
         };
 
-        Ok(Answer::Ready(default))
+        Ok(default)
     }
 
     /// Return one chain's access mode as a type literal.
@@ -1386,9 +1351,7 @@ impl CheckState<'_> {
         origin: Origin,
         component: dir::GlobalTypeId,
     ) -> CompilerResult<Option<String>> {
-        let Some(component) = self.reduce_type_head(origin, component)?.ready() else {
-            return Ok(None);
-        };
+        let component = self.reduce_type_head(origin, component)?;
 
         let text = match self.ty(component)? {
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
@@ -1469,13 +1432,13 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut current = self.settled_root(ty)?;
+        let mut current = self.shallow_resolve(ty)?;
         while let dir::Type::Form(form) = self.ty(current)? {
             // only alias-transparent forms disappear for reads
             if !matches!(form.form, dir::Form::Managed | dir::Form::Readonly) {
                 break;
             }
-            current = self.settled_root(form.value)?;
+            current = self.shallow_resolve(form.value)?;
         }
 
         Ok(current)

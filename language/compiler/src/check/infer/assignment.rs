@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, CheckOutcome, Decision, FlowSite, InferMode, Origin,
-    PlaceUse, Relation, ValueUse, answer,
+    AssignedPlace, BodyState, Cause, CauseKind, CheckOutcome, FlowSite, InferMode, Origin,
+    PlaceUse, Relation, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -14,7 +14,7 @@ impl BodyState<'_, '_> {
         left: dir::LocalNodeId<dir::AssignPattern>,
         operator: dir::AssignOperator,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         if operator == dir::AssignOperator::Assign {
             self.infer_plain_assignment_expression(site, left, right)
         } else {
@@ -28,7 +28,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         left: dir::LocalNodeId<dir::AssignPattern>,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let left_node = left.into_global(module);
@@ -37,47 +37,62 @@ impl BodyState<'_, '_> {
         // check place assignments against the selected write target
         let pattern = self.module(module).view().get(left).clone();
         let value = if let dir::AssignPattern::Place { expression } = &pattern {
-            let expression_site = self.node_site(expression.into_global_any(module))?;
+            let expression_site = self.visit_site(expression.into_global_any(module))?;
             let Some(place) =
-                answer!(self.select_assignment(expression_site, *expression, PlaceUse::Write)?)
+                self.select_assignment(expression_site, *expression, PlaceUse::Write)?
             else {
                 return self.reject_assignment_expression(node, left_node);
             };
             let target = place.write.ty();
-            let right_site = self.node_site(right_node)?;
+            let right_site = self.visit_site(right_node)?;
             let cause = self.intern_cause(Cause::root(
                 Origin::Node(right_node, site.scope),
                 CauseKind::Write {
                     place: expression.into_global_any(module),
                 },
             ));
-            let check = answer!(self.check_node_expected(
+            let check = self.check_node_expected(
                 right_site,
                 target,
                 Relation::Assignable,
                 cause,
                 ValueUse::Store,
                 InferMode::Exact,
-            )?);
+            )?;
             let value = check.source;
-            answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);
+            self.commit_assign_pattern_place(site.origin(), left_node, place)?;
             self.commit_node_type(left_node.into_any(), value)?;
+
+            // read the symbol standing behind the written place
+            let target = match self.check.assigned_place(*expression) {
+                Some(AssignedPlace::Symbol(symbol)) => Some(symbol),
+                _ => None,
+            };
+
+            // mark the written place assigned and drop stale narrowings
+            if let Some(assigned) = self.check.assigned_place(*expression) {
+                self.check.mark_place_assigned(assigned);
+            }
+            self.check.clear_mutated_expression_narrowings(*expression);
+
+            // assigning a binding elsewhere may consume an identifier source
+            self.check.mark_moved_source(right, None, target);
 
             value
         } else {
-            let right_site = self.node_site(right_node)?;
-            answer!(self.infer_node_type(right_site, PlaceUse::Read)?)
+            let right_site = self.visit_site(right_node)?;
+            self.infer_node_type(right_site, PlaceUse::Read)?
         };
 
         // select destructuring patterns against the inferred right value
         if !matches!(pattern, dir::AssignPattern::Place { .. }) {
-            let selected = answer!(self.select_assign_pattern(
+            let selected = self.select_assign_pattern(
                 left_node,
                 site.flow,
                 site.scope,
                 value,
                 Origin::Node(right_node, site.scope),
-            )?);
+            )?;
             if !selected {
                 return self.reject_assignment_expression(node, left_node);
             }
@@ -85,7 +100,7 @@ impl BodyState<'_, '_> {
         }
         self.commit_node_type(node.into_any(), value)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Infer one update assignment expression.
@@ -95,7 +110,7 @@ impl BodyState<'_, '_> {
         left: dir::LocalNodeId<dir::AssignPattern>,
         operator: dir::AssignOperator,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let left_node = left.into_global(module);
@@ -108,9 +123,8 @@ impl BodyState<'_, '_> {
             return self.reject_assignment_expression(node, left_node);
         };
         let target = *target;
-        let target_site = self.node_site(target.into_global_any(module))?;
-        let Some(place) = answer!(self.select_assignment(target_site, target, PlaceUse::Update)?)
-        else {
+        let target_site = self.visit_site(target.into_global_any(module))?;
+        let Some(place) = self.select_assignment(target_site, target, PlaceUse::Update)? else {
             return self.reject_assignment_expression(node, left_node);
         };
 
@@ -125,48 +139,48 @@ impl BodyState<'_, '_> {
 
         // select compound operators through the binary operator protocol
         if let Ok(operator) = dir::BinaryOperator::try_from(operator) {
-            let right_site = self.node_site(right_node)?;
-            let right_type = answer!(self.infer_node_type(right_site, PlaceUse::Read)?);
-            let left_type = answer!(self.reduce_type_head(site.origin(), read_type)?);
+            let right_site = self.visit_site(right_node)?;
+            let right_type = self.infer_node_type(right_site, PlaceUse::Read)?;
+            let left_type = self.reduce_type_head(site.origin(), read_type)?;
             let right_type =
-                answer!(self.reduce_type_head(Origin::Node(right_node, site.scope), right_type)?);
-            let () = answer!(self.select_binary_operation(
+                self.reduce_type_head(Origin::Node(right_node, site.scope), right_type)?;
+            let () = self.select_binary_operation(
                 site,
                 operator,
                 left_type,
                 right_type,
                 target.into_global_any(module),
                 right_node,
-                Some(write_type)
-            )?);
-            answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);
+                Some(write_type),
+            )?;
+            self.commit_assign_pattern_place(site.origin(), left_node, place)?;
 
-            return Ok(Answer::Ready(()));
+            return Ok(());
         }
 
         // store non-compound update assignments directly into the target
-        let right_site = self.node_site(right_node)?;
+        let right_site = self.visit_site(right_node)?;
         let cause = self.intern_cause(Cause::root(
             Origin::Node(right_node, site.scope),
             CauseKind::Write {
                 place: target.into_global_any(module),
             },
         ));
-        let check = answer!(self.check_node_expected(
+        let check = self.check_node_expected(
             right_site,
             write_type,
             Relation::Assignable,
             cause,
             ValueUse::Store,
             InferMode::Exact,
-        )?);
+        )?;
         if matches!(check.outcome, CheckOutcome::Fails(_)) {
             return self.reject_assignment_expression(node, left_node);
         }
-        answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);
+        self.commit_assign_pattern_place(site.origin(), left_node, place)?;
         self.commit_node_type(node.into_any(), write_type)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Reject one assignment expression and publish error types for its nodes.
@@ -174,11 +188,11 @@ impl BodyState<'_, '_> {
         &mut self,
         node: dir::GlobalNodeId<dir::Expression>,
         left: dir::GlobalNodeId<dir::AssignPattern>,
-    ) -> CompilerResult<Answer<()>> {
-        self.commit_decision(left.into_any(), Decision::Rejected)?;
+    ) -> CompilerResult<()> {
+        self.commit_decision(left.into_any(), dir::Decision::Rejected)?;
         let error = self.commit_error_node(node.into_any())?;
         self.commit_node_type(left.into_any(), error)?;
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 }

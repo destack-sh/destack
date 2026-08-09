@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, OperationReduction, Origin, answer};
+use crate::check::{CheckState, OperationReduction, Origin};
 
 impl CheckState<'_> {
     /// Reduce one `typeof` type query from its stable value-reference path.
@@ -9,7 +9,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         value: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let node = value.into_typed::<dir::Expression>();
         let expression = self
             .module(node.module_id)
@@ -27,34 +27,32 @@ impl CheckState<'_> {
                 name: Some(name),
                 ..
             } => {
-                if let Some(ty) = answer!(self.reduce_typeof_reference(value)?) {
-                    return Ok(Answer::Ready(Some(ty)));
+                if let Some(ty) = self.reduce_typeof_reference(value)? {
+                    return Ok(Some(ty));
                 }
 
                 let owner = left.into_global_any(node.module_id);
-                let Some(owner) = answer!(self.reduce_typeof(origin, owner)?) else {
-                    return Ok(Answer::Ready(None));
+                let Some(owner) = self.reduce_typeof(origin, owner)? else {
+                    return Ok(None);
                 };
 
                 let key = self.intern_type(dir::Type::Literal(dir::ScalarLiteral::String(name)))?;
-                let projection = answer!(self.reduce_static_member_projection(
+                let projection = self.reduce_static_member_projection(
                     origin,
                     owner,
                     dir::StaticKey::Name(name),
                     key,
-                )?);
+                )?;
 
                 // query paths stay symbolic without a unique projection
                 match projection {
-                    OperationReduction::Projected(ty) => Ok(Answer::Ready(Some(ty))),
-                    OperationReduction::Rigid | OperationReduction::Invalid(_) => {
-                        Ok(Answer::Ready(None))
-                    }
+                    OperationReduction::Projected(ty) => Ok(Some(ty)),
+                    OperationReduction::Rigid | OperationReduction::Invalid(_) => Ok(None),
                 }
             }
 
             // rejected query operands stay symbolic after diagnostics
-            _ => Ok(Answer::Ready(None)),
+            _ => Ok(None),
         }
     }
 
@@ -62,7 +60,7 @@ impl CheckState<'_> {
     fn reduce_typeof_reference(
         &mut self,
         value: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let reference = self
             .module(value.module_id)
             .resolved
@@ -75,27 +73,26 @@ impl CheckState<'_> {
             Some(dir::Reference::Bound(symbols)) => {
                 let symbols = self.present_symbols(&symbols);
                 let [symbol] = symbols.as_slice() else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
                 if let Some(value) = self.static_value(*symbol) {
-                    return Ok(Answer::Ready(Some(value)));
+                    return Ok(Some(value));
                 }
 
-                match self.symbol_type(*symbol)? {
-                    Answer::Ready(ty) => Ok(Answer::Ready(Some(ty))),
-                    Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-                }
+                let ty = self.symbol_type(*symbol)?;
+
+                Ok(Some(ty))
             }
 
             // projected paths reduce through their expression shape
-            Some(dir::Reference::Projected { .. }) | None => Ok(Answer::Ready(None)),
+            Some(dir::Reference::Projected { .. }) | None => Ok(None),
 
             // invalid paths were already reported by walk
             Some(
                 dir::Reference::Ambiguous(_)
                 | dir::Reference::Missing
                 | dir::Reference::Namespace(_),
-            ) => Ok(Answer::Ready(None)),
+            ) => Ok(None),
         }
     }
 }

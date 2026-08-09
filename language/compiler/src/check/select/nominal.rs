@@ -1,9 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{
-    Answer, BodyState, Cause, CauseKind, FlowPointId, Origin, Relation, VariantOwner, answer,
-};
+use crate::check::{BodyState, Cause, CauseKind, FlowPointId, Origin, Relation, VariantOwner};
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
@@ -16,7 +14,7 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         ty: dir::LocalNodeId<dir::TypeExpression>,
         fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
         self.check_pattern_bindings(module, fields)?;
 
@@ -26,15 +24,13 @@ impl BodyState<'_, '_> {
         }
 
         // select owner.case patterns before ordinary newtype unwraps
-        if answer!(
-            self.select_variant_type_pattern(node, origin, flow, scope, module, ty, fields,)?
-        ) {
-            return Ok(Answer::Ready(()));
+        if self.select_variant_type_pattern(node, origin, flow, scope, module, ty, fields)? {
+            return Ok(());
         }
 
         // resolve the written nominal tag like a construction head
-        let tag = answer!(self.written_construct_tag(origin, module, ty)?);
-        let tag = answer!(self.reduce_type_head(origin, tag)?);
+        let tag = self.written_construct_tag(origin, module, ty)?;
+        let tag = self.reduce_type_head(origin, tag)?;
         let Some(instance) = self.newtype_payload(origin, tag)? else {
             return self.reject_pattern(node, origin, tag);
         };
@@ -49,17 +45,12 @@ impl BodyState<'_, '_> {
                 _ => None,
             });
         if let Some(value) = value {
-            answer!(self.check_pattern_projection(
-                flow,
-                scope,
-                backing,
-                value.into_global_any(module)
-            )?);
+            self.check_pattern_projection(flow, scope, backing, value.into_global_any(module))?;
         }
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Project(Box::new(dir::PatternProjectionResolution {
+            dir::PatternDecision::Project(Box::new(dir::PatternProjectionResolution {
                 projection: projection.into(),
                 pattern: value.map(|value| value.into_global_any(module)),
             })),
@@ -74,7 +65,7 @@ impl BodyState<'_, '_> {
         case: dir::VariantCase,
         owners: &[VariantOwner],
         fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         // reject fields, enum members have no payload to destructure
         if !fields.is_empty() {
             return self.reject_pattern(node, origin, owners[0].owner);
@@ -121,7 +112,7 @@ impl BodyState<'_, '_> {
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Variant(Box::new(dir::PatternVariantResolution {
+            dir::PatternDecision::Variant(Box::new(dir::PatternVariantResolution {
                 case,
                 predicate,
                 payload: None,
@@ -139,7 +130,7 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         ty: dir::LocalNodeId<dir::TypeExpression>,
         fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
         self.check_pattern_bindings(module, fields)?;
 
@@ -148,15 +139,13 @@ impl BodyState<'_, '_> {
         }
 
         // select owner.case patterns before nominal fields
-        if answer!(
-            self.select_variant_type_pattern(node, origin, flow, scope, module, ty, fields,)?
-        ) {
-            return Ok(Answer::Ready(()));
+        if self.select_variant_type_pattern(node, origin, flow, scope, module, ty, fields)? {
+            return Ok(());
         }
 
         // resolve the written nominal tag like a construction head
-        let tag = answer!(self.written_construct_tag(origin, module, ty)?);
-        let tag = answer!(self.reduce_type_head(origin, tag)?);
+        let tag = self.written_construct_tag(origin, module, ty)?;
+        let tag = self.reduce_type_head(origin, tag)?;
         let instance = match self.ty(tag)? {
             dir::Type::Application(instance) => instance,
             _ => return self.reject_pattern(node, origin, tag),
@@ -164,11 +153,11 @@ impl BodyState<'_, '_> {
 
         // bind the pattern instantiation from the matched input
         let input = self.require_node_type(node.into_any())?;
-        let input = answer!(self.strip_form(origin, input)?);
+        let input = self.strip_form(origin, input)?;
         let mut matched = input;
         if let Some(instance) = self.decompose_newtype(origin, input)? {
             let backing = instance.backing;
-            matched = answer!(self.reduce_type_head(origin, backing)?);
+            matched = self.reduce_type_head(origin, backing)?;
         }
         let arms: SmallVec<[dir::GlobalTypeId; 4]> = match self.ty(matched)? {
             dir::Type::Union(union) => {
@@ -177,25 +166,24 @@ impl BodyState<'_, '_> {
             _ => SmallVec::from_slice(&[matched]),
         };
         for arm in arms {
-            let arm = answer!(self.reduce_type_head(origin, arm)?);
+            let arm = self.reduce_type_head(origin, arm)?;
             if let dir::Type::Application(arm_instance) = self.ty(arm)?
                 && arm_instance.symbol == instance.symbol
             {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                answer!(self.constrain_type(origin, cause, Relation::Equal, arm, tag)?);
+                self.constrain_type(origin, cause, Relation::Equal, arm, tag)?;
                 break;
             }
         }
 
         // project declared fields off the matched declaration
-        let (fields, rest) =
-            answer!(self.project_named_fields(node, origin, flow, scope, tag, fields)?);
+        let (fields, rest) = self.project_named_fields(node, origin, flow, scope, tag, fields)?;
         let arguments = self.type_ids(tag.module_id, instance.arguments)?.to_vec();
         let generic_arguments =
             self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;
         self.commit_pattern(
             node,
-            dir::PatternResolution::Destructure(Box::new(
+            dir::PatternDecision::Destructure(Box::new(
                 dir::PatternDestructureResolution::Nominal(
                     dir::PatternNominalDestructureResolution {
                         symbol: instance.symbol,

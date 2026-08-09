@@ -2,9 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{
-    Answer, BodyState, CallableArgument, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
-};
+use crate::check::{BodyState, CallableArgument, FlowSite, Origin, PlaceUse, Relation, ValueUse};
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
@@ -32,14 +30,8 @@ impl BodyState<'_, '_> {
                 argument_index = arguments.len();
 
                 // selected signatures are settled, the element must project
-                match self.rest_element_type(origin, parameter_type.ty)? {
-                    Answer::Ready(element) => ty = element.unwrap_or(ty),
-                    Answer::Pending(blockers) => {
-                        return Err(CompilerError::Internal {
-                            message: format!("rest element is unsettled at commit: {blockers:?}"),
-                        });
-                    }
-                }
+                let element = self.rest_element_type(origin, parameter_type.ty)?;
+                ty = element.unwrap_or(ty);
 
                 dir::ArgumentSource::Rest(rest)
             } else if let Some(argument) = arguments.get(argument_index).copied() {
@@ -88,19 +80,19 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         argument: dir::LocalNodeId<dir::Argument>,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let module = site.node.module_id;
         // fall back to the error type when the argument has no parsed expression
         let Some(value) = self.argument_expression(module, argument) else {
             let error = self.intern_type(dir::Type::Error)?;
 
-            return Ok(Answer::Ready(error));
+            return Ok(error);
         };
 
-        let site = self.node_site(value)?;
-        let ty = answer!(self.infer_node_type(site, PlaceUse::Read)?);
+        let site = self.visit_site(value)?;
+        let ty = self.infer_node_type(site, PlaceUse::Read)?;
 
-        Ok(Answer::Ready(ty))
+        Ok(ty)
     }
 
     /// Infer the types supplied by runtime arguments.
@@ -108,14 +100,14 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         arguments: &[dir::LocalNodeId<dir::Argument>],
-    ) -> CompilerResult<Answer<SmallVec<[dir::GlobalTypeId; 4]>>> {
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 4]>> {
         let mut types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for argument in arguments {
-            let ty = answer!(self.infer_argument_type(site, *argument)?);
+            let ty = self.infer_argument_type(site, *argument)?;
             types.push(ty);
         }
 
-        Ok(Answer::Ready(types))
+        Ok(types)
     }
 
     /// Return callable arguments read from source argument nodes.

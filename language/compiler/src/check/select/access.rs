@@ -14,7 +14,7 @@ impl CheckState<'_> {
         let module = self.module(node.module_id);
 
         // accept identical selections and reject conflicting access identities
-        if let Some(previous) = module.resolutions.access_resolution(node) {
+        if let Some(previous) = module.decisions.access_resolution(node) {
             if previous == &resolution {
                 return Ok(());
             }
@@ -28,7 +28,7 @@ impl CheckState<'_> {
         }
 
         self.module_mut(node.module_id)
-            .resolutions
+            .decisions
             .set_access_resolution(node, resolution);
 
         Ok(())
@@ -43,7 +43,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let Some(receiver) = self
             .module(receiver.module_id)
-            .resolutions
+            .decisions
             .access_resolution(receiver)
         else {
             return Ok(());
@@ -68,7 +68,7 @@ impl CheckState<'_> {
             });
         };
         let resolution = module
-            .resolutions
+            .decisions
             .access_resolution(expression.into_global_any(node.module_id))
             .cloned();
 

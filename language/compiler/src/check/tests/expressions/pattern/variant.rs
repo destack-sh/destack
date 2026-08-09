@@ -317,6 +317,7 @@ match (status) {
 
     Other.Ok(value) => value
     /// @resolution.name source=Other.Ok target=Other
+    /// @resolution.rejected source=Other.Ok(value)
     /// @type.symbol symbol=value source=value type=<error>
     /// @type.node source=value type=<error>
     /// @resolution.name source=value target=value
@@ -392,6 +393,7 @@ match (status) {
 
     Status.Done(value) => value
     /// @resolution.name source=Status.Done target=Status
+    /// @resolution.rejected source=Status.Done(value)
     /// @type.symbol symbol=value source=value type=<error>
     /// @type.node source=value type=<error>
     /// @resolution.name source=value target=value

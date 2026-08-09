@@ -70,7 +70,7 @@ export extension<T: Compare<T>> of Pack<T> {
     static from(values: Iterable<T>): ^Pack<T> {
     /// @type.symbol symbol=from#1 type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> reduced=(Dynamic<Iterable<T#2, void>>) => Pack<T#2>
     /// @type.symbol symbol=from#1 type=(Iterable<T#2>) => Owned<Pack<T#2>>
-    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2>> reduced=Dynamic<Iterable<T#2, void>>
+    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#1
     /// @resolution.name source=Pack target=Pack
@@ -196,7 +196,6 @@ export type ReadPort = Port<Mode.Write>;
 /// @definition.type symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" value=Port<Mode.Write>
 /// @resolution.name source=Port target=Port
 /// @resolution.name source=Mode.Write target=Mode
-/// @resolution.path source=Mode.Write index=1 target=Mode.Write
 
 /// @generic.instance id=Port<Mode.Write> template=Port arguments=(Mode.Write)
 "#,

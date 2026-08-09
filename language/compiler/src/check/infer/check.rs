@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidateVerdict, CheckAttempt, CheckOutcome, Expectation,
-    FlowSite, PlaceUse, Relation, ValueCheck, answer,
+    BodyState, CandidateOutcome, CandidateVerdict, CheckAttempt, CheckOutcome, Expectation,
+    FlowSite, InferMode, PlaceUse, Relation, ValueCheck,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -13,56 +13,39 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         expectation: Expectation,
-    ) -> CompilerResult<Answer<ValueCheck>> {
+    ) -> CompilerResult<ValueCheck> {
         let origin = site.origin();
-        // an open sink infers the expression that feeds it,
-        //  any other blocked head closes before directing it
-        let is_resolved = match self.reduce_type_head(origin, expectation.target)? {
-            Answer::Ready(_) => true,
-            Answer::Pending(blockers) => {
-                let head = self.check.apparent_head(origin, expectation.target)?;
-                let is_sink = matches!(self.check.ty(head)?, dir::Type::Variable(_))
-                    || self
-                        .reverse_mapped_variable(origin, expectation.target)?
-                        .is_some();
-                if !is_sink {
-                    return Ok(Answer::Pending(blockers));
-                }
 
-                false
-            }
-        };
+        // close the contextual head before directing the expression at it
+        // NOTE #Suspicious: the reduced head is discarded, only its reporting matters here
+        self.reduce_type_head(origin, expectation.target)?;
 
         // record the written expectation for tools and lowering
-        if is_resolved {
-            self.check
-                .expected_types
-                .insert(site.node, expectation.target);
+        self.check
+            .expected_types
+            .insert(site.node, expectation.target);
+
+        // use the contextual type before inference
+        let checked = self.try_check_expression(site, expectation)?;
+        if let CheckAttempt::Checked(check) = checked {
+            return Ok(check);
         }
 
-        // use a resolved contextual type before inference
-        if is_resolved {
-            let checked = answer!(self.try_check_expression(site, expectation)?);
-            if let CheckAttempt::Checked(check) = checked {
-                return Ok(Answer::Ready(check));
-            }
-
-            // select one contextual union member when exactly one applies
-            if expectation.relation.distributes_over_union_target()
-                && let Some(check) = answer!(self.check_union_target(site, expectation)?)
-            {
-                return Ok(Answer::Ready(check));
-            }
+        // select one contextual union member when exactly one applies
+        if expectation.relation.distributes_over_union_target()
+            && let Some(check) = self.check_union_target(site, expectation)?
+        {
+            return Ok(check);
         }
 
         // infer expressions without a target-directed rule
-        let source = answer!(self.infer_node(site, PlaceUse::Read, expectation.mode)?);
+        let source = self.infer_node(site, PlaceUse::Read, expectation.mode)?;
 
-        Ok(Answer::Ready(ValueCheck {
+        Ok(ValueCheck {
             source,
             outcome: CheckOutcome::Holds,
             target: expectation.target,
-        }))
+        })
     }
 
     /// Check one expression against one uniquely applicable union member.
@@ -70,25 +53,20 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         expectation: Expectation,
-    ) -> CompilerResult<Answer<Option<ValueCheck>>> {
+    ) -> CompilerResult<Option<ValueCheck>> {
         let origin = site.origin();
-        let Some(members) = answer!(self.check.union_arms(origin, expectation.target)?) else {
-            return Ok(Answer::Ready(None));
+        let Some(mut members) = self.check.union_arms(origin, expectation.target)? else {
+            return Ok(None);
         };
 
-        // expand aliased nested unions into their leaf members, keeping
-        //  members with open heads as their own candidates
-        let mut members = members;
+        // expand aliased nested unions into their leaf members
         let mut targets = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         let mut index = 0;
         while index < members.len() {
             let member = members[index];
             index += 1;
-            let Answer::Ready(head) = self.reduce_type_head(origin, member)? else {
-                targets.push(member);
-                continue;
-            };
-            match answer!(self.check.union_arms(origin, head)?) {
+            let head = self.reduce_type_head(origin, member)?;
+            match self.check.union_arms(origin, head)? {
                 Some(nested) => members.extend(nested),
                 None => targets.push(member),
             }
@@ -107,13 +85,13 @@ impl BodyState<'_, '_> {
                 mode,
                 ..expectation
             };
-            let verdict = answer!(self.probe_candidate(|state| {
-                let checked = answer!(state.try_check_expression(site, candidate)?);
+            let verdict = self.probe_candidate(|state| {
+                let checked = state.try_check_expression(site, candidate)?;
                 let outcome = match checked {
                     CheckAttempt::Checked(check) if check.outcome == CheckOutcome::Holds => {
-                        let source = answer!(state.flow_type_at(site, check.source)?);
-                        let value = answer!(state.expression_value(site, source)?);
-                        let conversion = answer!(state.convert_value(
+                        let source = state.flow_type_at(site, check.source)?;
+                        let value = state.expression_value(site, source)?;
+                        let conversion = state.convert_value(
                             site,
                             candidate.cause,
                             candidate.relation,
@@ -121,7 +99,7 @@ impl BodyState<'_, '_> {
                             candidate.target,
                             candidate.use_,
                             candidate.mode,
-                        )?);
+                        )?;
 
                         match conversion.outcome {
                             CheckOutcome::Holds => CandidateOutcome::Accepted(()),
@@ -133,8 +111,8 @@ impl BodyState<'_, '_> {
                     }
                 };
 
-                Ok(Answer::Ready(outcome))
-            })?);
+                Ok(outcome)
+            })?;
 
             // prefer a unique viable member over speculative members
             match verdict {
@@ -161,7 +139,7 @@ impl BodyState<'_, '_> {
             _ => None,
         };
         let Some(target) = selected else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         // confirm the selected member in the owning state
@@ -171,7 +149,7 @@ impl BodyState<'_, '_> {
             mode,
             ..expectation
         };
-        let checked = answer!(self.try_check_expression(site, candidate)?);
+        let checked = self.try_check_expression(site, candidate)?;
         let CheckAttempt::Checked(check) = checked else {
             return Err(CompilerError::Internal {
                 message: "confirmed contextual union member became inapplicable".to_string(),
@@ -183,7 +161,7 @@ impl BodyState<'_, '_> {
             target: expectation.target,
         };
 
-        Ok(Answer::Ready(Some(check)))
+        Ok(Some(check))
     }
 
     /// Try checking one expression using its target.
@@ -191,7 +169,7 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         expectation: Expectation,
-    ) -> CompilerResult<Answer<CheckAttempt>> {
+    ) -> CompilerResult<CheckAttempt> {
         let target = expectation.target;
         let origin = site.origin();
         let node = site.node.into_typed::<dir::Expression>();
@@ -202,22 +180,29 @@ impl BodyState<'_, '_> {
             .clone();
 
         // deduce function value parameters from a callable target
-        if self.check.lambdas.contains_key(&site.node) {
-            let check = answer!(self.check_function_value(site, Some(expectation))?);
+        if let dir::Expression::Declaration(declaration) = &expression
+            && self.register_function_value(site.node, *declaration)?
+        {
+            let check = self.check_function_value(site, Some(expectation), InferMode::Exact)?;
 
-            return Ok(Answer::Ready(CheckAttempt::Checked(check)));
+            return Ok(CheckAttempt::Checked(check));
+        }
+        if self.check.lambdas.contains_key(&site.node) {
+            let check = self.check_function_value(site, Some(expectation), InferMode::Exact)?;
+
+            return Ok(CheckAttempt::Checked(check));
         }
 
         match expression {
             dir::Expression::TreeExpression { .. } => {
-                let source = answer!(self.check_tree_expression(site, Some(&expectation))?);
+                let source = self.check_tree_expression(site, Some(&expectation))?;
                 let check = ValueCheck {
                     source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
 
-                Ok(Answer::Ready(CheckAttempt::Checked(check)))
+                Ok(CheckAttempt::Checked(check))
             }
             dir::Expression::ScalarLiteral(value) => {
                 let source = self.scalar_literal_type(node, value)?;
@@ -228,10 +213,10 @@ impl BodyState<'_, '_> {
                     target,
                 };
 
-                Ok(Answer::Ready(CheckAttempt::Checked(check)))
+                Ok(CheckAttempt::Checked(check))
             }
             dir::Expression::TemplateExpression { value } => {
-                let source = answer!(self.template_expression_type(site, value)?);
+                let source = self.template_expression_type(site, value)?;
                 self.commit_node_type(site.node, source)?;
                 let check = ValueCheck {
                     source,
@@ -239,12 +224,12 @@ impl BodyState<'_, '_> {
                     target,
                 };
 
-                Ok(Answer::Ready(CheckAttempt::Checked(check)))
+                Ok(CheckAttempt::Checked(check))
             }
             dir::Expression::Block(block) => {
-                let check = answer!(self.check_block(site, block, expectation)?);
+                let check = self.check_block(site, block, expectation)?;
 
-                Ok(Answer::Ready(CheckAttempt::Checked(check)))
+                Ok(CheckAttempt::Checked(check))
             }
             dir::Expression::Comptime { body } => {
                 self.check_transparent_expression(site, body, expectation)
@@ -258,9 +243,15 @@ impl BodyState<'_, '_> {
                 else_expression,
                 ..
             } => {
-                answer!(self.check_condition_operands(site.node.module_id, &condition)?);
+                self.check_condition_operands(site.node.module_id, &condition)?;
 
-                self.check_if_expression(site, then_expression, else_expression, expectation)
+                self.check_if_expression(
+                    site,
+                    &condition,
+                    then_expression,
+                    else_expression,
+                    expectation,
+                )
             }
             dir::Expression::Match { value, arms } => self.check_match_expression(
                 site,
@@ -273,23 +264,9 @@ impl BodyState<'_, '_> {
             | dir::Expression::TupleExpression { .. }
             | dir::Expression::ObjectExpression { .. }) => {
                 // resolve the target head before matching structural literals
-                let target = match self.reduce_type_head(origin, target)? {
-                    Answer::Ready(target) => target,
-                    // an open sink infers the literal that feeds it,
-                    //  any other blocked head closes before directing it
-                    Answer::Pending(blockers) => {
-                        let head = self.check.apparent_head(origin, target)?;
-                        let is_sink = matches!(self.check.ty(head)?, dir::Type::Variable(_))
-                            || self.reverse_mapped_variable(origin, target)?.is_some();
-                        if is_sink {
-                            return Ok(Answer::Ready(CheckAttempt::NotApplicable));
-                        }
-
-                        return Ok(Answer::Pending(blockers));
-                    }
-                };
-                let Some(target_value) = answer!(self.construction_value(origin, target)?) else {
-                    return Ok(Answer::Ready(CheckAttempt::NotApplicable));
+                let target = self.reduce_type_head(origin, target)?;
+                let Some(target_value) = self.construction_value(origin, target)? else {
+                    return Ok(CheckAttempt::NotApplicable);
                 };
 
                 match expression {
@@ -323,30 +300,28 @@ impl BodyState<'_, '_> {
                             target_value,
                             expectation,
                         ),
-                    _ => Ok(Answer::Ready(CheckAttempt::NotApplicable)),
+                    _ => Ok(CheckAttempt::NotApplicable),
                 }
             }
             dir::Expression::StructExpression { ty, properties } => {
-                let target = answer!(self.reduce_type_head(origin, target)?);
-                let contextual = answer!(self.construction_value(origin, target)?);
-                let construct_target = answer!(self.select_construct_target(site, ty, contextual)?);
+                let target = self.reduce_type_head(origin, target)?;
+                let contextual = self.construction_value(origin, target)?;
+                let construct_target = self.select_construct_target(site, ty, contextual)?;
                 let carrier = match (expectation.relation, contextual) {
                     (Relation::Satisfies, _) | (_, None) => construct_target,
-                    (_, Some(_)) => {
-                        answer!(self.replace_form_value(origin, target, construct_target)?)
-                    }
+                    (_, Some(_)) => self.replace_form_value(origin, target, construct_target)?,
                 };
-                let check = answer!(self.select_property_merge(
+                let check = self.select_property_merge(
                     site,
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
                     Some(carrier),
-                )?);
+                )?;
 
-                Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+                Ok(CheckAttempt::Checked(ValueCheck {
                     source: check.source,
                     outcome: check.outcome,
                     target,
-                })))
+                }))
             }
             dir::Expression::Call {
                 left,
@@ -354,36 +329,36 @@ impl BodyState<'_, '_> {
                 arguments,
                 ..
             } => {
-                let check = answer!(self.select_call(
+                let check = self.select_call(
                     site,
                     left,
                     &generic_arguments.into_iter().collect::<SmallVec<[_; 2]>>(),
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
                     Some(expectation),
-                )?);
-                Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+                )?;
+                Ok(CheckAttempt::Checked(ValueCheck {
                     source: check.source,
                     outcome: check.outcome,
                     target,
-                })))
+                }))
             }
             dir::Expression::New { ty, arguments } => {
-                let source = answer!(self.select_construct(
+                let source = self.select_construct(
                     site,
                     ty,
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
                     Some(expectation),
-                )?);
+                )?;
                 let check = ValueCheck {
                     source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
 
-                Ok(Answer::Ready(CheckAttempt::Checked(check)))
+                Ok(CheckAttempt::Checked(check))
             }
 
-            _ => Ok(Answer::Ready(CheckAttempt::NotApplicable)),
+            _ => Ok(CheckAttempt::NotApplicable),
         }
     }
 
@@ -393,10 +368,10 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         child: dir::LocalNodeId<dir::Expression>,
         expectation: Expectation,
-    ) -> CompilerResult<Answer<CheckAttempt>> {
+    ) -> CompilerResult<CheckAttempt> {
         let module = site.node.module_id;
-        let child_site = self.node_site(child.into_global_any(module))?;
-        let check = answer!(self.check_node(child_site, expectation)?);
+        let child_site = self.visit_site(child.into_global_any(module))?;
+        let check = self.check_node(child_site, expectation)?;
         self.commit_node_type(site.node, check.source)?;
         let check = ValueCheck {
             source: check.source,
@@ -404,6 +379,6 @@ impl BodyState<'_, '_> {
             target: check.target,
         };
 
-        Ok(Answer::Ready(CheckAttempt::Checked(check)))
+        Ok(CheckAttempt::Checked(check))
     }
 }

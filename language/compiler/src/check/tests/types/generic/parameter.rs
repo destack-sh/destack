@@ -590,6 +590,7 @@ function read<T: T | { name: string }>(value: T): string {
     /// @resolution.name source=value target=read.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=read.value
+    /// @resolution.rejected source=value.name
 
 }
 "#,
@@ -2199,7 +2200,7 @@ extension<T, R, I: Iterator<T, R>> of I {
 === annotated ===
 interface Iterator<out T, out R = void> {}
 
-interface FromIterator<in out T> {
+interface FromIterator<in T> {
     static fromIterator<R>(values: Dynamic<Iterator<T, R>>): this;
 }
 
@@ -2219,9 +2220,9 @@ interface Iterator<out T, out R = void> {}
 /// @type.symbol symbol=Iterator.R source="out R = void" type=R#1
 
 interface FromIterator<T> {
-/// @generic.template symbol=FromIterator parameters=(in out T#2)
+/// @generic.template symbol=FromIterator parameters=(in T#2)
 /// @type.symbol symbol=FromIterator type=FromIterator
-/// @definition.interface symbol=FromIterator template=(in out T#2)
+/// @definition.interface symbol=FromIterator template=(in T#2)
 /// @definition.where symbol=FromIterator relation=satisfies left=this right=FromIterator<T#2>
 /// @definition.method symbol=FromIterator.fromIterator source="static fromIterator<R>(values: Iterator<T, R>): this" slot=fromIterator static=true type=<R#2>(Dynamic<Iterator<T#2, R#2>>) => this
 /// @type.symbol symbol=FromIterator.T source=T type=T#2
@@ -2411,6 +2412,98 @@ function forward<U: int32>(value: U): void {
         r#"
 /// @diagnostic.error id=equality-requirement-not-satisfied message="equality requirement 'U == int32' is not satisfied"
 /// @diagnostic.label line=5 column=5 span="requireExact<U>(value)" line_source="requireExact<U>(value);"
+"#,
+    );
+}
+
+#[test]
+fn test_scratch_extension_output() {
+    let session = TestSession::builder()
+        .module(
+            "a.ds",
+            r#"
+import { Subtract } from "destack:ops";
+
+export interface Numericish {}
+
+export class Vec<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+
+    length(): T {
+        this.value
+    }
+}
+
+export extension<T: Numericish> of Vec<T> implements Subtract<Vec<T>> {
+    type Output = Vec<T>;
+
+    subtract(other: Vec<T>): this.Output {
+        this
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Vec, Numericish } from "./a.ds";
+
+function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
+    (a - b).length()
+}
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Numericish, Vec } from "./a.ds";
+
+function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
+    (a - b).length<T>()
+}
+
+=== checked ===
+import { Vec, Numericish } from "./a.ds";
+
+function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
+/// @generic.template symbol=f parameters=(T: a.Numericish)
+/// @type.symbol symbol=f type=<T: a.Numericish>(a.Vec<T>, a.Vec<T>) => T
+/// @type.symbol symbol=f.T source="T: Numericish" type=T
+/// @resolution.name source=Numericish target=a.Numericish
+/// @type.symbol symbol=f.a source="a: Vec<T>" type=a.Vec<T>
+/// @resolution.name source=Vec target=a.Vec
+/// @resolution.name source=T target=f.T
+/// @type.symbol symbol=f.b source="b: Vec<T>" type=a.Vec<T>
+/// @resolution.name source=Vec target=a.Vec
+/// @resolution.name source=T target=f.T
+/// @resolution.name source=T target=f.T
+
+    (a - b).length()
+    /// @resolution.member source="(a - b).length" receiver=a.Vec<T> type=(this: a.Vec<T>) => T kind=symbol target_receiver=a.Vec<T> target=a.Vec.length
+    /// @resolution.call source=(a - b).length() parameters=() return=T kind=symbol target=a.Vec.length receiver=a.Vec<T> instance=a.Vec<T>.length
+    /// @generic.instance source=(a - b).length() id=a.Vec<T>.length
+    /// @resolution.name source=a target=f.a
+    /// @resolution.operator source="a - b" type=a.Vec<T>.Output operator="-" kind=call parameters=(a.Vec<T>) arguments=(provided(b) as a.Vec<T>) return=a.Vec<T>.Output kind=symbol target=a.subtract receiver=a.Vec<T> instance=a.Vec<T>.<extension#1>.subtract
+    /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=a root=f.a
+    /// @generic.instance source="a - b" id=a.Vec<T>.<extension#1>.subtract
+    /// @resolution.name source=b target=f.b
+    /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=b root=f.b
+
+}
+
+/// @generic.instance id=a.Vec<T> template=a.Vec arguments=(T)
+/// @generic.instance id=a.Vec<T>.<extension#1>.subtract template=a.subtract arguments=(T)
+/// @generic.instance id=a.Vec<T>.length template=a.Vec.length arguments=(T)
 "#,
     );
 }

@@ -11,7 +11,7 @@ const first = values[0];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let values: float64[] = [1, 2];
@@ -39,8 +39,6 @@ const first = values[0];
 /// @type.node source=0 type=0
 
 /// @generic.instance id="Array<float64>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
-
-/// @check.stats.solve variables=6 types=51 constraints=1 obligations=2 solutions=6 bounds=3 decisions=4
 "#,
     );
 }
@@ -56,7 +54,7 @@ const first = values[0];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const values: (1 | 2)[] = [1 as 1 | 2, 2 as 1 | 2];
@@ -84,8 +82,6 @@ const first = values[0];
 /// @type.node source=0 type=0
 
 /// @generic.instance id="Array<1 | 2>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
-
-/// @check.stats.solve variables=5 types=48 constraints=1 obligations=2 solutions=5 bounds=3 decisions=4
 "#,
     );
 }
@@ -103,7 +99,7 @@ const value: number | boolean = 1;
         DirRows::checked()
             .with_reference_types()
             .with_coercion()
-            .with_check_stats(),
+            ,
         r#"
 === annotated ===
 const value: float64 | boolean = 1 as float64 | boolean;
@@ -114,8 +110,6 @@ const value: number | boolean = 1;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: float64 | boolean, cases: ({ source: 1, target: float64, adjustments: [{ kind: widen, target: float64 }] }) }] origin=implicit
-
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -137,7 +131,7 @@ function widen(value: 1 | Flag): int32 | Flag {
         DirRows::checked()
             .with_reference_types()
             .with_coercion()
-            .with_check_stats(),
+            ,
         r#"
 === annotated ===
 newtype Flag = boolean;
@@ -165,8 +159,6 @@ function widen(value: 1 | Flag): int32 | Flag {
     /// @coercion.node source=value from=1 | Flag adjustments=[{ kind: union, target: int32 | Flag, cases: ({ source: 1, target: int32, adjustments: [{ kind: widen, target: int32 }] }, { source: Flag, target: Flag }) }] origin=implicit
 
 }
-
-/// @check.stats.solve variables=0 types=15 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -186,7 +178,7 @@ function widen(value: 1 | 2): int32 {
         DirRows::checked()
             .with_reference_types()
             .with_coercion()
-            .with_check_stats(),
+            ,
         r#"
 === annotated ===
 function widen(value: 1 | 2): int32 {
@@ -206,8 +198,6 @@ function widen(value: 1 | 2): int32 {
     /// @coercion.node source=value from=1 | 2 adjustments=[{ kind: union, target: int32, cases: ({ source: 1, target: int32, adjustments: [{ kind: widen, target: int32 }] }, { source: 2, target: int32, adjustments: [{ kind: widen, target: int32 }] }) }] origin=implicit
 
 }
-
-/// @check.stats.solve variables=0 types=10 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -222,7 +212,7 @@ const value = true ? 1 : 2;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 1 | 2 = true ? 1 : 2;
@@ -235,8 +225,6 @@ const value = true ? 1 : 2;
 /// @type.node source=true type=true
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
-
-/// @check.stats.solve variables=1 types=7 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.warning id=constant-condition message="condition is always true"
@@ -255,7 +243,7 @@ let value = true ? 1 : 2;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let value: float64 = true ? 1 : 2;
@@ -268,8 +256,6 @@ let value = true ? 1 : 2;
 /// @type.node source=true type=true
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
-
-/// @check.stats.solve variables=1 types=8 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.warning id=constant-condition message="condition is always true"

@@ -225,9 +225,9 @@ type Options = { skip?: boolean };
 
 type Argument = Options | (() => void);
 
-declare function register(argument?: Argument): void;
+declare function register(argument?: Options | (() => void)): void;
 
-register({ skip: true } as Argument | undefined);
+register({ skip: true } as Options | (() => void) | undefined);
 
 === checked ===
 type Options = { skip?: boolean };
@@ -240,13 +240,13 @@ type Argument = Options | (() => void);
 /// @resolution.name source=Options target=Options
 
 declare function register(argument?: Argument): void;
-/// @type.symbol symbol=register source="declare function register(argument?: Argument): void" type=(Argument | undefined?) => void
-/// @type.symbol symbol=register.argument source="argument?: Argument" type=Argument | undefined
+/// @type.symbol symbol=register source="declare function register(argument?: Argument): void" type=(Options | Function<(), void> | undefined?) => void
+/// @type.symbol symbol=register.argument source="argument?: Argument" type=Options | Function<(), void> | undefined
 /// @resolution.name source=Argument target=Argument
 
 register({ skip: true });
 /// @resolution.name source=register target=register
-/// @resolution.call source="register({ skip: true })" parameters=(Argument | undefined) arguments=(provided({ skip: true }) as Argument | undefined) return=void kind=symbol target=register
+/// @resolution.call source="register({ skip: true })" parameters=(Options | Function<(), void> | undefined) arguments=(provided({ skip: true }) as Options | Function<(), void> | undefined) return=void kind=symbol target=register
 "#,
     );
 }

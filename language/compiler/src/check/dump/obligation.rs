@@ -32,38 +32,16 @@ impl Obligation {
             Self::WritableTarget(obligation) => event
                 .text("target", place_label(&obligation.target.write, context))
                 .text("source", context.node_label(obligation.target.source)),
-            Self::Representation(obligation) => {
-                event.text("type", context.type_label(obligation.ty))
-            }
             Self::RuntimePredicate(obligation) => event.text(
                 "predicate",
                 runtime_predicate_label(&obligation.predicate, context),
             ),
             Self::ForInSource(obligation) => event.text("type", context.type_label(obligation.ty)),
-            Self::InterfaceConformance(obligation) => {
-                event.text("symbol", context.symbol_label(obligation.symbol))
-            }
-            Self::ImplementationCoherence(obligation) => {
-                event.text("symbol", context.symbol_label(obligation.symbol))
-            }
-            Self::ExtensionCoherence(obligation) => {
-                event.text("symbol", context.symbol_label(obligation.symbol))
-            }
-            Self::DeclarationHeritage(obligation) => {
-                event.text("symbol", context.symbol_label(obligation.symbol))
-            }
             Self::ClassInitialization(obligation) => event
                 .text("symbol", context.symbol_label(obligation.symbol))
-                .text("receiver", context.type_label(obligation.receiver))
-                .usize(
-                    "constructor_branches",
-                    obligation.constructor_branches.len(),
-                ),
+                .text("receiver", context.type_label(obligation.receiver)),
             Self::WellFormedType(obligation) => {
                 event.text("type", context.type_label(obligation.ty))
-            }
-            Self::ParameterUse(obligation) => {
-                event.text("symbol", context.symbol_label(obligation.symbol))
             }
         }
     }
@@ -74,39 +52,33 @@ impl Obligation {
             Self::PatternCoverage(_) => "pattern.coverage",
             Self::UseAfterMove(_) => "use.after.move",
             Self::WritableTarget(_) => "writable.target",
-            Self::Representation(_) => "representation",
             Self::RuntimePredicate(_) => "runtime.predicate",
             Self::ForInSource(_) => "for.in.source",
-            Self::InterfaceConformance(_) => "interface.conformance",
-            Self::ImplementationCoherence(_) => "implementation.coherence",
-            Self::ExtensionCoherence(_) => "extension.coherence",
-            Self::DeclarationHeritage(_) => "declaration.heritage",
             Self::ClassInitialization(_) => "class.initialization",
             Self::WellFormedType(_) => "wellformed.type",
-            Self::ParameterUse(_) => "parameter.use",
         }
     }
 }
 
 /// Render one runtime predicate payload.
 fn runtime_predicate_label(
-    predicate: &dir::GuardResolution,
+    predicate: &dir::GuardDecision,
     context: &DumpContext<'_, '_>,
 ) -> String {
     match predicate {
-        dir::GuardResolution::Is(predicate) => {
+        dir::GuardDecision::Is(predicate) => {
             let value = context.type_label(predicate.value_type);
             let target = context.type_label(predicate.target_type);
 
             format!("{value} is {target}")
         }
-        dir::GuardResolution::InstanceOf(predicate) => {
+        dir::GuardDecision::InstanceOf(predicate) => {
             let value = context.type_label(predicate.value_type);
             let target = context.type_label(predicate.target_type);
 
             format!("{value} instanceof {target}")
         }
-        dir::GuardResolution::In(predicate) => {
+        dir::GuardDecision::In(predicate) => {
             let key = context.type_label(predicate.key_type);
             let receiver = context.type_label(predicate.receiver_type);
 
@@ -157,7 +129,7 @@ fn place_label(place: &dir::WriteResolution, context: &DumpContext<'_, '_>) -> S
 }
 
 /// Render one writable member compactly.
-fn member_place_label(member: &dir::MemberResolution, context: &DumpContext<'_, '_>) -> String {
+fn member_place_label(member: &dir::MemberDecision, context: &DumpContext<'_, '_>) -> String {
     match member {
         dir::OperationResolution::One(access) => member_access_place_label(access, context),
         dir::OperationResolution::Union { arms, .. } => {

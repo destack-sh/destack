@@ -112,7 +112,7 @@ impl CheckState<'_> {
         };
 
         // evaluate the selected backing alternative
-        let backing = self.settled_root(backing)?;
+        let backing = self.shallow_resolve(backing)?;
         let value = if matches!(self.ty(backing)?, dir::Type::Tuple(_)) {
             dir::StaticTerm::Tuple { elements }
         } else {
@@ -225,7 +225,7 @@ impl CheckState<'_> {
 
     /// Evaluate one static type selected as an inserted argument.
     fn evaluate_static_type(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<dir::StaticTerm> {
-        let ty = self.settled_root(ty)?;
+        let ty = self.shallow_resolve(ty)?;
         let value = match self.ty(ty)? {
             dir::Type::Literal(value) => value.into(),
             dir::Type::Static(value) => self.r#static(value).clone(),
@@ -260,13 +260,10 @@ impl CheckState<'_> {
             }
             dir::Expression::Call { .. } => {
                 let source = expression.into_global_any(module);
-                let resolution = self
-                    .resolutions(module)
-                    .construct_resolution(source)
-                    .cloned();
+                let resolution = self.decisions(module).construct_decision(source).cloned();
 
                 // evaluate selected newtype constructors nominally
-                if let Some(dir::ConstructResolution {
+                if let Some(dir::ConstructDecision {
                     target: dir::ConstructTarget::Newtype(candidate),
                     arguments,
                     return_type,
@@ -397,7 +394,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Result<dir::StaticTerm, StaticError>> {
         let source = value.into_global_any(module);
         let ty = self.require_node_type(source)?;
-        let ty = self.settled_root(ty)?;
+        let ty = self.shallow_resolve(ty)?;
 
         Ok(Ok(dir::StaticTerm::Type { ty }))
     }
@@ -413,7 +410,7 @@ impl CheckState<'_> {
             return Ok(Err(StaticError::NotStatic(expression)));
         };
         let term = if let Some(value) = self.static_value(symbol) {
-            let value = self.settled_root(value)?;
+            let value = self.shallow_resolve(value)?;
 
             match self.ty(value)? {
                 dir::Type::Literal(value) => dir::StaticTerm::ScalarLiteral { value },
@@ -428,7 +425,7 @@ impl CheckState<'_> {
             .is_some_and(|kind| kind.can_be_used_as_type())
         {
             let ty = self.require_node_type(source)?;
-            let ty = self.settled_root(ty)?;
+            let ty = self.shallow_resolve(ty)?;
 
             dir::StaticTerm::Type { ty }
         }

@@ -40,10 +40,10 @@ while (true) {
 }
 "#,
         r#"
-/// @diagnostic.error id=break-outside-control-target message="break statement has no target"
-/// @diagnostic.label line=4 column=9 span="break" line_source="break;"
 /// @diagnostic.warning id=constant-condition message="condition is always true"
 /// @diagnostic.label line=2 column=8 span="true" line_source="while (true) {"
+/// @diagnostic.error id=break-outside-control-target message="break statement has no target"
+/// @diagnostic.label line=4 column=9 span="break" line_source="break;"
 "#,
     );
 }
@@ -105,6 +105,7 @@ const value = loop {
 };
 "#,
         r#"
+
 "#,
     );
 }
@@ -172,45 +173,10 @@ while (true) {
 }
 "#,
         r#"
-/// @diagnostic.error id=break-value-outside-loop message="break with a value can only target a `loop` or labeled block"
-/// @diagnostic.label line=3 column=5 span="break 1" line_source="break 1;"
 /// @diagnostic.warning id=constant-condition message="condition is always true"
 /// @diagnostic.label line=2 column=8 span="true" line_source="while (true) {"
-"#,
-    );
-}
-
-#[test]
-fn test_unlabeled_break_skips_labeled_blocks() {
-    let session = TestSession::single(
-        r#"
-outer: {
-    break;
-}
-"#,
-    );
-
-    session.assert_dir_checked_and_diagnostics(
-        "main.ds",
-        DirRows::checked().with_reference_types(),
-        r#"
-=== annotated ===
-outer: {
-    break;
-}
-
-=== checked ===
-outer: {
-/// @type.node type=void
-
-    break;
-    /// @type.node source=break type=never
-
-}
-"#,
-        r#"
-/// @diagnostic.error id=break-outside-control-target message="break statement has no target"
-/// @diagnostic.label line=3 column=5 span="break" line_source="break;"
+/// @diagnostic.error id=break-value-outside-loop message="break with a value can only target a `loop` or labeled block"
+/// @diagnostic.label line=3 column=5 span="break 1" line_source="break 1;"
 "#,
     );
 }

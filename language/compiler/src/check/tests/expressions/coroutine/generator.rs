@@ -36,6 +36,7 @@ function* count(limit: int32): Generator<int32, void, void> {
     /// @resolution.name source=limit target=count.limit
     /// @resolution.place source=limit placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=limit root=count.limit
+    /// @resolution.name source=value target=count.value
     /// @resolution.operator source="value += 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
     /// @resolution.pattern.assign source=value kind=place
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

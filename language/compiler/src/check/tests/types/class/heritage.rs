@@ -849,6 +849,7 @@ abstract class Writer {}
 /// @definition.class symbol=Writer source="abstract class Writer {}" abstract=true
 
 new Writer();
+/// @resolution.rejected source="new Writer()"
 /// @resolution.name source=Writer target=Writer
 "#,
         r#"

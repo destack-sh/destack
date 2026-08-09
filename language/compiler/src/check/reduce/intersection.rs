@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Dependency, Origin};
+use crate::check::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
 /// Working accumulator for merging shape elements of an intersection.
@@ -26,7 +26,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut kept = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for element in elements {
-            let element = self.settled_root(element)?;
+            let element = self.shallow_resolve(element)?;
 
             // flatten nested intersections into one element list
             let elements = match self.ty(element)? {
@@ -62,17 +62,12 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
         elements: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // reduce every element head before merging shapes
         let mut closed = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for element in elements {
-            match self.reduce_type_head(origin, *element)? {
-                Answer::Ready(element) => closed.push(element),
-                Answer::Pending(dependencies) => blockers.extend(dependencies),
-            }
-        }
-        if !blockers.is_empty() {
-            return Ok(Answer::pending(blockers));
+            let element = self.reduce_type_head(origin, *element)?;
+            closed.push(element);
         }
 
         // exact key members absorb the string primitive
@@ -93,7 +88,7 @@ impl CheckState<'_> {
 
         // reduce one element intersection to that element
         if let [single] = closed.as_slice() {
-            return Ok(Answer::Ready(*single));
+            return Ok(*single);
         }
 
         // merge structural shapes and keep every other element symbolic
@@ -112,13 +107,12 @@ impl CheckState<'_> {
 
         // keep intersections symbolic unless two or more shapes contributed
         let (Some(merged), 2..) = (merged, shape_count) else {
-            return Ok(Answer::Ready(id));
+            return Ok(id);
         };
-        let module = origin.module();
-        let fields = self.intern_properties(module, &merged.fields)?;
+        let fields = self.intern_properties(&merged.fields)?;
         let call_signatures = self.intern_type_ids(&merged.call_signatures)?;
         let construct_signatures = self.intern_type_ids(&merged.construct_signatures)?;
-        let index_signatures = self.intern_index_signatures(module, &merged.index_signatures)?;
+        let index_signatures = self.intern_index_signatures(&merged.index_signatures)?;
         let shape = self.intern_type(dir::Type::from(dir::ShapeType {
             properties: fields,
             call_signatures,
@@ -126,7 +120,7 @@ impl CheckState<'_> {
             index_signatures,
         }))?;
         if others.is_empty() {
-            return Ok(Answer::Ready(shape));
+            return Ok(shape);
         }
 
         let mut elements = vec![shape];
@@ -135,7 +129,7 @@ impl CheckState<'_> {
         let rebuilt =
             self.intern_type(dir::Type::Intersection(dir::IntersectionType { elements }))?;
 
-        Ok(Answer::Ready(rebuilt))
+        Ok(rebuilt)
     }
 
     /// Merge one shape into an intersection shape accumulator.

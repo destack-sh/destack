@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, answer};
+use crate::check::{CheckState, Origin, Relation};
 
 /// One numeric template capture attempt under a constraint head.
 enum NumericCapture {
@@ -20,10 +20,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         span: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let span = self.settled_root(span)?;
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let span = self.shallow_resolve(span)?;
         if self.root_variable(span)?.is_some() {
-            return Ok(Answer::Ready(span));
+            return Ok(span);
         }
 
         self.reduce_type_head(origin, span)
@@ -49,14 +49,14 @@ impl CheckState<'_> {
         text: &str,
         template_module: ModuleId,
         template: &dir::TemplateLiteralType,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let segments = self.template_segments(template_module, template.strings)?;
         let spans = self.type_ids(template_module, template.spans)?.to_vec();
 
         // reduce span heads once so alternatives compare structurally
         let mut heads = Vec::with_capacity(spans.len());
         for span in spans {
-            heads.push(answer!(self.template_span_head(origin, span)?));
+            heads.push(self.template_span_head(origin, span)?);
         }
 
         self.match_template_segments(origin, text, &segments, &heads)
@@ -68,28 +68,28 @@ impl CheckState<'_> {
         origin: Origin,
         template_module: ModuleId,
         template: &dir::TemplateLiteralType,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // only fully unconstraining patterns absorb every string
         for segment in self.template_strings(template_module, template.strings)? {
             if !self.strings().get(*segment).is_empty() {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
         }
         let spans = self.type_ids(template_module, template.spans)?.to_vec();
         if spans.is_empty() {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
         for span in spans {
-            let span = answer!(self.reduce_type_head(origin, span)?);
+            let span = self.reduce_type_head(origin, span)?;
             if !matches!(
                 self.ty(span)?,
                 dir::Type::Primitive(dir::PrimitiveType::String)
             ) {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
         }
 
-        Ok(Answer::Ready(true))
+        Ok(true)
     }
 
     /// Match one text against interleaved literal segments and span patterns.
@@ -99,16 +99,16 @@ impl CheckState<'_> {
         text: &str,
         segments: &[String],
         spans: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // anchor the match on the leading segment
         let Some(first) = segments.first() else {
-            return Ok(Answer::Ready(text.is_empty()));
+            return Ok(text.is_empty());
         };
         let Some(rest) = text.strip_prefix(first.as_str()) else {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         };
         if spans.is_empty() {
-            return Ok(Answer::Ready(segments.len() == 1 && rest.is_empty()));
+            return Ok(segments.len() == 1 && rest.is_empty());
         }
 
         // try every split point for the first span, shortest capture first
@@ -120,21 +120,16 @@ impl CheckState<'_> {
                 continue;
             }
             let (candidate, remaining) = rest.split_at(split);
-            let matched = answer!(self.match_template_span(origin, candidate, span)?);
+            let matched = self.match_template_span(origin, candidate, span)?;
             if !matched {
                 continue;
             }
-            if answer!(self.match_template_segments(
-                origin,
-                remaining,
-                tail_segments,
-                tail_spans
-            )?) {
-                return Ok(Answer::Ready(true));
+            if self.match_template_segments(origin, remaining, tail_segments, tail_spans)? {
+                return Ok(true);
             }
         }
 
-        Ok(Answer::Ready(false))
+        Ok(false)
     }
 
     /// Return the bound type captured for one open template span, or none
@@ -145,18 +140,29 @@ impl CheckState<'_> {
         span: dir::GlobalTypeId,
         text: &str,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // numeric parameter constraints capture numeric literals only
-        let hint = match self.root_variable(self.settled_root(span)?)? {
-            Some(variable) => self
+        // numeric parameter constraints capture numeric literals only;
+        //  aliasing can root the span under a plain hole, so the span's
+        //  own variable answers before its component root
+        let immediate = match self.ty(span)? {
+            dir::Type::Variable(variable) => Some(variable),
+            _ => None,
+        };
+        let root = self.root_variable(self.shallow_resolve(span)?)?;
+        let mut hint = None;
+        for variable in [immediate, root].into_iter().flatten() {
+            hint = self
+                .infer
                 .variable_role(variable)?
                 .parameter()
                 .and_then(|parameter| self.generic_parameter(parameter))
-                .and_then(|binding| binding.constraint),
-            None => None,
-        };
+                .and_then(|binding| binding.constraint);
+            if hint.is_some() {
+                break;
+            }
+        }
         let module = origin.module();
         if let Some(hint) = hint
-            && let Ok(Answer::Ready(head)) = self.reduce_type_head(origin, hint)
+            && let Ok(head) = self.reduce_type_head(origin, hint)
             && let Ok(kind) = self.ty(head)
         {
             match self.numeric_template_capture(module, &kind, text)? {
@@ -186,7 +192,7 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some(constraint) = constraint
-            && let Ok(Answer::Ready(head)) = self.reduce_type_head(origin, constraint)
+            && let Ok(head) = self.reduce_type_head(origin, constraint)
             && let Ok(kind) = self.ty(head)
             && let NumericCapture::Captured(literal) =
                 self.numeric_template_capture(module, &kind, text)?
@@ -256,8 +262,8 @@ impl CheckState<'_> {
         origin: Origin,
         text: &str,
         span: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let span = answer!(self.template_span_head(origin, span)?);
+    ) -> CompilerResult<bool> {
+        let span = self.template_span_head(origin, span)?;
         let template = TemplateText(text);
 
         let matched = match self.ty(span)? {
@@ -288,7 +294,7 @@ impl CheckState<'_> {
                 let elements = self.type_ids(span.module_id, union.elements)?.to_vec();
                 let mut matched = false;
                 for element in elements {
-                    if answer!(self.match_template_span(origin, text, element)?) {
+                    if self.match_template_span(origin, text, element)? {
                         matched = true;
 
                         break;
@@ -301,12 +307,12 @@ impl CheckState<'_> {
                 if let dir::TypeOperation::TemplateLiteral(nested) =
                     self.type_operation(span.module_id, operation)? =>
             {
-                answer!(self.decide_template_string(origin, text, span.module_id, &nested)?)
+                self.decide_template_string(origin, text, span.module_id, &nested)?
             }
             _ => false,
         };
 
-        Ok(Answer::Ready(matched))
+        Ok(matched)
     }
 }
 
@@ -328,7 +334,7 @@ impl CheckState<'_> {
         source: &dir::TemplateLiteralType,
         target_module: ModuleId,
         target: &dir::TemplateLiteralType,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // flatten the source into literal text and span pieces
         let segments = self.template_segments(source_module, source.strings)?;
         let spans = self.type_ids(source_module, source.spans)?.to_vec();
@@ -338,7 +344,7 @@ impl CheckState<'_> {
                 pieces.push(TemplatePiece::Text(segment.clone()));
             }
             if let Some(span) = spans.get(index) {
-                let span = answer!(self.template_span_head(origin, *span)?);
+                let span = self.template_span_head(origin, *span)?;
                 match self.template_piece_text(span)? {
                     Some(text) => pieces.push(TemplatePiece::Text(text)),
                     None => pieces.push(TemplatePiece::Span(span)),
@@ -350,7 +356,7 @@ impl CheckState<'_> {
         let target_segments = self.template_segments(target_module, target.strings)?;
         let mut target_spans = Vec::new();
         for span in self.type_ids(target_module, target.spans)?.to_vec() {
-            target_spans.push(answer!(self.template_span_head(origin, span)?));
+            target_spans.push(self.template_span_head(origin, span)?);
         }
 
         self.match_template_pieces(origin, &pieces, 0, "", &target_segments, &target_spans)
@@ -363,19 +369,19 @@ impl CheckState<'_> {
         text: &str,
         template_module: ModuleId,
         template: &dir::TemplateLiteralType,
-    ) -> CompilerResult<Answer<Option<Vec<(dir::GlobalTypeId, String)>>>> {
+    ) -> CompilerResult<Option<Vec<(dir::GlobalTypeId, String)>>> {
         let segments = self.template_segments(template_module, template.strings)?;
         let mut spans = Vec::new();
         for span in self.type_ids(template_module, template.spans)?.to_vec() {
-            spans.push(answer!(self.template_span_head(origin, span)?));
+            spans.push(self.template_span_head(origin, span)?);
         }
 
         // anchor the split on the leading segment
         let Some(first) = segments.first() else {
-            return Ok(Answer::Ready(text.is_empty().then(Vec::new)));
+            return Ok(text.is_empty().then(Vec::new));
         };
         let Some(mut rest) = text.strip_prefix(first.as_str()) else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         let mut parts = Vec::with_capacity(spans.len());
@@ -386,7 +392,7 @@ impl CheckState<'_> {
             // fixed-text spans consume exactly their own text
             if let Some(fixed) = self.template_piece_text(span)? {
                 let Some(stripped) = rest.strip_prefix(fixed.as_str()) else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
                 rest = stripped;
                 parts.push((span, fixed));
@@ -397,7 +403,7 @@ impl CheckState<'_> {
             let captured = if is_last {
                 // run the last span up to the trailing segment
                 let Some(stripped) = rest.strip_suffix(next_segment.as_str()) else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
                 let captured = stripped.to_string();
                 rest = "";
@@ -406,7 +412,7 @@ impl CheckState<'_> {
             } else if !next_segment.is_empty() {
                 // stop an interior span at the earliest delimiter occurrence
                 let Some(found) = rest.find(next_segment.as_str()) else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
                 let captured = rest[..found].to_string();
                 rest = &rest[found + next_segment.len()..];
@@ -427,10 +433,10 @@ impl CheckState<'_> {
             parts.push((span, captured));
         }
         if !rest.is_empty() {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
-        Ok(Answer::Ready(Some(parts)))
+        Ok(Some(parts))
     }
 
     /// Return the fixed text of one closed printable span piece.
@@ -467,10 +473,10 @@ impl CheckState<'_> {
         pending: &str,
         segments: &[String],
         spans: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // consume the leading target segment from known text only
         let Some(first) = segments.first() else {
-            return Ok(Answer::Ready(piece >= pieces.len() && pending.is_empty()));
+            return Ok(piece >= pieces.len() && pending.is_empty());
         };
         let mut piece = piece;
         let mut pending = pending.to_string();
@@ -483,15 +489,15 @@ impl CheckState<'_> {
                         piece += 1;
                     }
                     // spans cannot guarantee literal text
-                    _ => return Ok(Answer::Ready(false)),
+                    _ => return Ok(false),
                 }
             }
             let take = needed.len().min(pending.len());
             if !needed.is_char_boundary(take) || !pending.is_char_boundary(take) {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
             if needed[..take] != pending[..take] {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
             needed = &needed[take..];
             pending = pending[take..].to_string();
@@ -499,7 +505,7 @@ impl CheckState<'_> {
         let Some(span) = spans.first() else {
             let exhausted = piece >= pieces.len() && pending.is_empty() && segments.len() == 1;
 
-            return Ok(Answer::Ready(exhausted));
+            return Ok(exhausted);
         };
         let tail_segments = &segments[1..];
         let tail_spans = &spans[1..];
@@ -514,15 +520,15 @@ impl CheckState<'_> {
                 if !pending.is_char_boundary(split) {
                     continue;
                 }
-                if answer!(self.match_template_pieces(
+                if self.match_template_pieces(
                     origin,
                     pieces,
                     piece,
                     &pending[split..],
                     tail_segments,
                     tail_spans,
-                )?) {
-                    return Ok(Answer::Ready(true));
+                )? {
+                    return Ok(true);
                 }
             }
 
@@ -530,16 +536,16 @@ impl CheckState<'_> {
             if pending.is_empty() {
                 for stop in piece..=pieces.len() {
                     if stop > piece
-                        && answer!(self.match_template_pieces(
+                        && self.match_template_pieces(
                             origin,
                             pieces,
                             stop,
                             "",
                             tail_segments,
                             tail_spans,
-                        )?)
+                        )?
                     {
-                        return Ok(Answer::Ready(true));
+                        return Ok(true);
                     }
                     // splitting inside a text piece hands its suffix onward
                     if let Some(TemplatePiece::Text(text)) = pieces.get(stop) {
@@ -547,22 +553,22 @@ impl CheckState<'_> {
                             if !text.is_char_boundary(split) {
                                 continue;
                             }
-                            if answer!(self.match_template_pieces(
+                            if self.match_template_pieces(
                                 origin,
                                 pieces,
                                 stop + 1,
                                 &text[split..],
                                 tail_segments,
                                 tail_spans,
-                            )?) {
-                                return Ok(Answer::Ready(true));
+                            )? {
+                                return Ok(true);
                             }
                         }
                     }
                 }
             }
 
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         // constrained spans absorb exactly one matching piece
@@ -570,32 +576,32 @@ impl CheckState<'_> {
             match pieces.get(piece) {
                 Some(TemplatePiece::Text(text)) => {
                     let text = text.clone();
-                    if answer!(self.match_template_span(origin, &text, *span)?)
-                        && answer!(self.match_template_pieces(
+                    if self.match_template_span(origin, &text, *span)?
+                        && self.match_template_pieces(
                             origin,
                             pieces,
                             piece + 1,
                             "",
                             tail_segments,
                             tail_spans,
-                        )?)
+                        )?
                     {
-                        return Ok(Answer::Ready(true));
+                        return Ok(true);
                     }
                 }
                 Some(TemplatePiece::Span(source_span)) => {
                     let source_span = *source_span;
-                    if answer!(self.decide_template_span_domain(origin, source_span, *span)?)
-                        && answer!(self.match_template_pieces(
+                    if self.decide_template_span_domain(origin, source_span, *span)?
+                        && self.match_template_pieces(
                             origin,
                             pieces,
                             piece + 1,
                             "",
                             tail_segments,
                             tail_spans,
-                        )?)
+                        )?
                     {
-                        return Ok(Answer::Ready(true));
+                        return Ok(true);
                     }
                 }
                 None => {}
@@ -603,21 +609,21 @@ impl CheckState<'_> {
         } else {
             // pending text feeds the constrained span whole
             let text = pending.clone();
-            if answer!(self.match_template_span(origin, &text, *span)?)
-                && answer!(self.match_template_pieces(
+            if self.match_template_span(origin, &text, *span)?
+                && self.match_template_pieces(
                     origin,
                     pieces,
                     piece,
                     "",
                     tail_segments,
                     tail_spans,
-                )?)
+                )?
             {
-                return Ok(Answer::Ready(true));
+                return Ok(true);
             }
         }
 
-        Ok(Answer::Ready(false))
+        Ok(false)
     }
 
     /// Decide whether one span's whole domain fits another span pattern.
@@ -626,17 +632,17 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         match (self.ty(source)?, self.ty(target)?) {
-            (_, dir::Type::Primitive(dir::PrimitiveType::String)) => Ok(Answer::Ready(true)),
+            (_, dir::Type::Primitive(dir::PrimitiveType::String)) => Ok(true),
             (
                 dir::Type::Primitive(dir::PrimitiveType::Float(_) | dir::PrimitiveType::Integer(_)),
                 dir::Type::Primitive(dir::PrimitiveType::Float(_) | dir::PrimitiveType::Integer(_)),
-            ) => Ok(Answer::Ready(true)),
+            ) => Ok(true),
             (
                 dir::Type::Primitive(dir::PrimitiveType::Bigint),
                 dir::Type::Primitive(dir::PrimitiveType::Bigint),
-            ) => Ok(Answer::Ready(true)),
+            ) => Ok(true),
             _ => self.decide_relation(origin, Relation::Assignable, source, target),
         }
     }

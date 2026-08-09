@@ -10,7 +10,7 @@ const value: "ready" = "ready";
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: "ready" = "ready";
@@ -20,8 +20,6 @@ const value: "ready" = "ready";
 /// @type.symbol symbol=value source=value type="ready"
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"ready\"" type="ready"
-
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -36,7 +34,7 @@ const value: true = true;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: true = true;
@@ -46,8 +44,6 @@ const value: true = true;
 /// @type.symbol symbol=value source=value type=true
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=true type=true
-
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -62,7 +58,7 @@ const value = null;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: null = null;
@@ -72,8 +68,6 @@ const value = null;
 /// @type.symbol symbol=value source=value type=null
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=null type=null
-
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -88,7 +82,7 @@ const value = undefined;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: undefined = undefined;
@@ -98,8 +92,6 @@ const value = undefined;
 /// @type.symbol symbol=value source=value type=undefined
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=undefined type=undefined
-
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -114,7 +106,7 @@ const value = 42 satisfies int32;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 42 = 42 satisfies int32;
@@ -125,8 +117,6 @@ const value = 42 satisfies int32;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="42 satisfies int32" type=42
 /// @type.node source=42 type=42
-
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -142,7 +132,7 @@ const version = config.version;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const config: { version: float64 } = { version: 1 };
@@ -165,8 +155,6 @@ const version = config.version;
 /// @resolution.place source=config placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=config root=config
 /// @resolution.access source=config.version root=config keys=[version]
-
-/// @check.stats.solve variables=2 types=10 constraints=0 obligations=2 solutions=2 bounds=0 decisions=4
 "#,
     );
 }
@@ -182,7 +170,7 @@ const mode = config.nested.mode;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const config: { readonly nested: { readonly mode: "dev" } } = { nested: { mode: "dev" } } as const;
@@ -211,8 +199,6 @@ const mode = config.nested.mode;
 /// @resolution.place source=config.nested placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=config.nested root=config keys=[nested]
 /// @resolution.access source=config.nested.mode root=config keys=[nested, mode]
-
-/// @check.stats.solve variables=2 types=9 constraints=0 obligations=2 solutions=2 bounds=0 decisions=5
 "#,
     );
 }
@@ -228,7 +214,7 @@ const mode = value.env.mode;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: { readonly env: { readonly mode: "dev" } } = {
@@ -260,8 +246,6 @@ const mode = value.env.mode;
 /// @resolution.place source=value.env placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value.env root=value keys=[env]
 /// @resolution.access source=value.env.mode root=value keys=[env, mode]
-
-/// @check.stats.solve variables=2 types=12 constraints=0 obligations=2 solutions=2 bounds=0 decisions=5
 "#,
     );
 }
@@ -287,7 +271,7 @@ const copy = version;
 
     session.assert_dir_checked_many(
         &["values.ds", "main.ds"],
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === values.ds ===
 
@@ -299,8 +283,6 @@ export const version = 1;
 /// @type.symbol symbol=version source=version type=1
 /// @resolution.pattern source=version kind=binding target=version
 /// @type.node source=1 type=1
-
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 
 === main.ds ===
 
@@ -318,8 +300,6 @@ const copy = version;
 /// @type.node source=version type=1
 /// @resolution.name source=version target=values.version
 /// @resolution.access source=version root=values.version
-
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -345,7 +325,7 @@ const copy = counter;
 
     session.assert_dir_checked_many(
         &["values.ds", "main.ds"],
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === values.ds ===
 
@@ -357,8 +337,6 @@ export let counter = 1;
 /// @type.symbol symbol=counter source=counter type=float64
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @type.node source=1 type=1
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 
 === main.ds ===
 
@@ -376,8 +354,6 @@ const copy = counter;
 /// @type.node source=counter type=float64
 /// @resolution.name source=counter target=values.counter
 /// @resolution.access source=counter root=values.counter
-
-/// @check.stats.solve variables=1 types=2 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
     );
 }

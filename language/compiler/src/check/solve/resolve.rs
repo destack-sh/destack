@@ -3,32 +3,54 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BoundSide, CauseId, CheckEvent, CheckState, Constraint, Dependency, InferenceScope,
-    Origin, Relation, TypeBound, VariableBounds, VariableRole, VariableState, Widening,
+    BoundSide, CauseId, CheckEvent, CheckState, Constraint, DeferredCheck, InferenceScope, Origin,
+    PendingWork, Relation, TypeBound, VariableBounds, VariableRole, VariableState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// How one bound depends on open variables during component solving.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// How one bound depends on open variables during component resolution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BoundDependency {
-    /// The bound contains no open variables.
+    /// No open variables.
     Closed,
-    /// The bound aliases another variable in the same component.
+    /// An alias of another component member.
     Alias,
-    /// The bound constructs a type containing variables from the same component.
+    /// A construction over component members.
     Recursive,
-    /// The bound contains variables outside the component.
-    External(SmallVec<[dir::TypeVariableId; 2]>),
+    /// A reference outside the component.
+    External,
 }
 
-/// One variable settlement stage.
+/// The bounds collected across one variable component.
+struct ComponentBounds {
+    /// The closed lower bounds.
+    closed_lower: SmallVec<[TypeBound; 4]>,
+    /// The closed upper bounds.
+    closed_upper: SmallVec<[TypeBound; 4]>,
+    /// The lower bound types, admitted literal widening applied.
+    lower_types: SmallVec<[dir::GlobalTypeId; 4]>,
+    /// The closed contextual expectations.
+    contextual_types: SmallVec<[dir::GlobalTypeId; 4]>,
+    /// Whether a bound reaches variables outside the component.
+    has_external_bound: bool,
+    /// Whether a bound constructs a type over component members.
+    has_recursive_bound: bool,
+    /// The closed upper equation pinning the solution.
+    equation: Option<dir::GlobalTypeId>,
+    /// Whether an open upper equation is outstanding.
+    has_open_equation: bool,
+    /// Whether an open contextual expectation is outstanding.
+    has_open_context: bool,
+}
+
+/// One fallback stage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SettleStage {
-    /// Settle components carrying declared defaults.
+pub(in crate::check) enum FallbackStage {
+    /// Complete components carrying declared defaults.
     Declared,
-    /// Settle components solvable without literal widening.
+    /// Complete components resolvable without literal widening.
     Bounded,
-    /// Settle the remaining components, widening literals.
+    /// Complete the remaining components, widening literals.
     Widened,
 }
 
@@ -40,7 +62,7 @@ impl CheckState<'_> {
         widening: Widening,
         role: VariableRole,
     ) -> dir::TypeVariableId {
-        let variable = self.solver.allocate_variable(origin, widening, role);
+        let variable = self.infer.allocate_variable(origin, widening, role);
         self.record_event(CheckEvent::VariableAllocated { variable, widening });
 
         variable
@@ -52,7 +74,7 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         default: dir::GlobalTypeId,
     ) {
-        self.solver.set_variable_default(variable, default);
+        self.infer.set_variable_default(variable, default);
     }
 
     /// Return one canonical open variable, or none when the variable is solved.
@@ -60,8 +82,8 @@ impl CheckState<'_> {
         &self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<Option<dir::TypeVariableId>> {
-        let variable = self.solver.alias_root(variable)?;
-        let state = self.solver.variable(variable)?;
+        let variable = self.infer.alias_root(variable)?;
+        let state = self.infer.variable(variable)?;
 
         Ok(state.state.is_open().then_some(variable))
     }
@@ -75,109 +97,125 @@ impl CheckState<'_> {
             return Ok(VariableRole::Regular);
         };
 
-        self.solver.variable_role(variable)
+        self.infer.variable_role(variable)
     }
 
-    /// Settle every variable in one scope from its accumulated bounds.
-    pub(in crate::check) fn settle_scope(
+    /// Return the memory parameter kind one variable ranges over, however it arose.
+    pub(in crate::check) fn variable_memory_parameter(
+        &self,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<Option<dir::MemoryParameter>> {
+        let kind = match self.infer.variable_role(variable)? {
+            VariableRole::Memory { kind, .. } => Some(kind),
+            VariableRole::Instantiation { parameter } => self
+                .generic_parameter(parameter)
+                .and_then(|binding| binding.memory_parameter()),
+            _ => None,
+        };
+
+        Ok(kind)
+    }
+
+    /// Resolve the given variables in place through every fallback stage.
+    pub(in crate::check) fn resolve_variables(
         &mut self,
-        scope: InferenceScope,
-    ) -> CompilerResult<Answer<bool>> {
-        let adopted = self.solver.adopted_variables(scope)?;
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
-
-        // solve each owned open root
-        let roots = self.open_variables(scope)?;
-        let mut solved = false;
-        for root in &roots {
-            match self.solve_component(&[*root], &[], SettleStage::Bounded)? {
-                Answer::Ready(progress) => solved |= progress,
-                Answer::Pending(pending) => blockers.extend(pending),
+        variables: &[dir::TypeVariableId],
+    ) -> CompilerResult<()> {
+        // read the current roots once; applying defaults never re-aliases them
+        let mut roots = SmallVec::<[dir::TypeVariableId; 4]>::new();
+        for variable in variables {
+            let root = self.infer.alias_root(*variable)?;
+            if !roots.contains(&root) {
+                roots.push(root);
             }
         }
 
-        // settle preexisting variables bounded by this scope
-        for variable in &adopted {
-            if self.solver.variable(*variable)?.state.is_open() {
-                match self.solve_component(&[*variable], &[], SettleStage::Bounded)? {
-                    Answer::Ready(progress) => solved |= progress,
-                    Answer::Pending(pending) => blockers.extend(pending),
-                }
+        // alternate bound resolution and defaults until nothing applies
+        loop {
+            self.resolve_bounded_components(&roots)?;
+            if !self.default_components(&roots)? {
+                break;
             }
         }
 
-        // dependencies within this scope settle in a later component pass
-        blockers.retain(|dependency| {
-            !matches!(dependency, Dependency::Variable(variable) if scope.owns(*variable))
-        });
-
-        if solved || blockers.is_empty() {
-            Ok(Answer::Ready(solved))
-        } else {
-            Ok(Answer::pending(blockers))
-        }
+        Ok(())
     }
 
-    /// Complete every unconstrained variable in one scope from its declared default.
+    /// Apply one default to one of a scope's open variables.
     pub(in crate::check) fn default_scope(
         &mut self,
         scope: InferenceScope,
-    ) -> CompilerResult<Answer<bool>> {
-        // yield newly available bounds to the task queue before defaulting
-        match self.settle_scope(scope)? {
-            Answer::Ready(true) => return Ok(Answer::Ready(true)),
-            Answer::Ready(false) => {}
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        }
+    ) -> CompilerResult<bool> {
+        let roots = self.open_scope_variables(scope)?;
 
-        // settle declared defaults, then plain roots, then literal widening
-        let roots = self.open_variables(scope)?;
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+        self.default_components(&roots)
+    }
+
+    /// Apply one default across the given roots, staged.
+    pub(in crate::check) fn default_components(
+        &mut self,
+        roots: &[dir::TypeVariableId],
+    ) -> CompilerResult<bool> {
         for stage in [
-            SettleStage::Declared,
-            SettleStage::Bounded,
-            SettleStage::Widened,
+            FallbackStage::Declared,
+            FallbackStage::Bounded,
+            FallbackStage::Widened,
         ] {
-            for root in &roots {
+            for root in roots {
+                // complete roots carrying declared defaults in their own stage
                 let variables = [*root];
                 let has_defaults = !self.component_defaults(&variables)?.is_empty();
-                if stage == SettleStage::Declared && !has_defaults {
+                if stage == FallbackStage::Declared && !has_defaults {
                     continue;
                 }
-                if stage == SettleStage::Bounded && has_defaults {
+                if stage == FallbackStage::Bounded && has_defaults {
                     continue;
                 }
-                if self.solver.variable(*root)?.state.is_open() {
-                    match self.default_component(&variables, stage)? {
-                        Answer::Ready(true) => return Ok(Answer::Ready(true)),
-                        Answer::Ready(false) => {}
-                        Answer::Pending(pending) => blockers.extend(pending),
-                    }
+
+                // return on the first applied default, so bounds re-resolve between defaults
+                if self.infer.variable(*root)?.state.is_open()
+                    && self.default_component(&variables, stage)?
+                {
+                    return Ok(true);
                 }
             }
         }
 
-        // dependencies within this scope default in a later component pass
-        blockers.retain(|dependency| {
-            !matches!(dependency, Dependency::Variable(variable) if scope.owns(*variable))
-        });
+        Ok(false)
+    }
 
-        if blockers.is_empty() {
-            Ok(Answer::Ready(false))
-        } else {
-            Ok(Answer::pending(blockers))
+    /// Resolve every open component one scope owns or bounds.
+    pub(in crate::check) fn resolve_scope(
+        &mut self,
+        scope: InferenceScope,
+    ) -> CompilerResult<bool> {
+        // resolve each owned open root
+        let roots = self.open_scope_variables(scope)?;
+        let mut resolved = false;
+        for root in &roots {
+            resolved |= self.resolve_component(&[*root], &[], FallbackStage::Bounded)?;
         }
+
+        // resolve preexisting variables bounded by this scope
+        let adopted = self.infer.adopted_variables(scope)?;
+        for variable in &adopted {
+            if self.infer.variable(*variable)?.state.is_open() {
+                resolved |= self.resolve_component(&[*variable], &[], FallbackStage::Bounded)?;
+            }
+        }
+
+        Ok(resolved)
     }
 
     /// Return the open variables owned by one inference scope.
-    pub(in crate::check) fn open_variables(
+    pub(in crate::check) fn open_scope_variables(
         &self,
         scope: InferenceScope,
     ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
         let mut open = SmallVec::new();
-        for index in scope.indices(self.solver.variable_count()) {
+        for index in scope.indices(self.infer.variable_count()) {
             let variable = dir::TypeVariableId(index as u32);
-            if self.solver.variable(variable)?.state.is_open() {
+            if self.infer.variable(variable)?.state.is_open() {
                 open.push(variable);
             }
         }
@@ -185,27 +223,50 @@ impl CheckState<'_> {
         Ok(open)
     }
 
-    /// Complete one variable component from its declared defaults.
-    fn default_component(
+    /// Resolve bounded components to a fixpoint, without defaults.
+    pub(in crate::check) fn resolve_bounded_components(
         &mut self,
         variables: &[dir::TypeVariableId],
-        stage: SettleStage,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
+        // iterate to a fixpoint: each solution can unblock another component
+        let mut resolved = false;
+        loop {
+            let mut progress = false;
+            for variable in variables {
+                let root = self.infer.alias_root(*variable)?;
+                if self.infer.variable(root)?.state.is_open() {
+                    progress |= self.resolve_component(&[root], &[], FallbackStage::Bounded)?;
+                }
+            }
+            resolved |= progress;
+            if !progress {
+                break;
+            }
+        }
+
+        Ok(resolved)
+    }
+
+    /// Complete one variable component from its declared defaults.
+    pub(in crate::check) fn default_component(
+        &mut self,
+        variables: &[dir::TypeVariableId],
+        stage: FallbackStage,
+    ) -> CompilerResult<bool> {
         let defaults = self.component_defaults(variables)?;
 
-        self.solve_component(variables, &defaults, stage)
+        self.resolve_component(variables, &defaults, stage)
     }
 
     /// Collect the declared and memory defaults of one variable component.
-    fn component_defaults(
+    pub(in crate::check) fn component_defaults(
         &mut self,
         variables: &[dir::TypeVariableId],
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
+        // read each variable's declared default, or its canonical memory default
         let mut defaults = SmallVec::<[dir::GlobalTypeId; 2]>::new();
         for variable in variables {
-            let state = *self.solver.variable(*variable)?;
-            let _origin = self.solver.origin(state.origin);
-            let default = match self.solver.variables.variable_default(*variable) {
+            let default = match self.infer.variables.variable_default(*variable) {
                 Some(default) => Some(default),
                 None => match self.variable_memory_parameter(*variable)? {
                     Some(dir::MemoryParameter::Lifetime) => {
@@ -230,7 +291,7 @@ impl CheckState<'_> {
                 // require a default without an open or component-own variable
                 let mut open = false;
                 for variable in self.type_variables(default)? {
-                    if variables.contains(&variable) || self.solver.solution(variable)?.is_none() {
+                    if variables.contains(&variable) || self.infer.solution(variable)?.is_none() {
                         open = true;
                         break;
                     }
@@ -244,36 +305,84 @@ impl CheckState<'_> {
         Ok(defaults)
     }
 
-    /// Solve one variable component from its bounds and declared defaults.
-    fn solve_component(
+    /// Return whether one pending selection still derives a component member.
+    fn has_pending_producer(&self, variables: &[dir::TypeVariableId]) -> CompilerResult<bool> {
+        for work in &self.infer.pending {
+            let PendingWork::Check(DeferredCheck::Infer { site, .. }) = work else {
+                continue;
+            };
+            for variable in variables {
+                let origin = self.infer.origin(self.infer.variable(*variable)?.origin);
+                if let Origin::Node(node, _) = origin
+                    && node == site.node
+                {
+                    return Ok(true);
+                }
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Resolve one variable component from its bounds and declared defaults.
+    pub(in crate::check) fn resolve_component(
         &mut self,
         variables: &[dir::TypeVariableId],
         defaults: &[dir::GlobalTypeId],
-        stage: SettleStage,
-    ) -> CompilerResult<Answer<bool>> {
+        stage: FallbackStage,
+    ) -> CompilerResult<bool> {
+        if !self.infer.forcing && self.has_pending_producer(variables)? {
+            return Ok(false);
+        }
+
+        // classify the component's bounds, deferring while widening waits
+        let Some(bounds) = self.classify_component_bounds(variables, stage)? else {
+            return Ok(false);
+        };
+
+        // choose the solution the bounds and declared defaults admit
+        let Some(solution) = self.choose_component_solution(variables, defaults, &bounds)? else {
+            return Ok(false);
+        };
+
+        // commit the same type to every variable in the cycle
+        for variable in variables {
+            self.commit_solution(*variable, solution)?;
+        }
+
+        Ok(true)
+    }
+
+    /// Classify every bound of one variable component against the component.
+    fn classify_component_bounds(
+        &mut self,
+        variables: &[dir::TypeVariableId],
+        stage: FallbackStage,
+    ) -> CompilerResult<Option<ComponentBounds>> {
+        // collect proper bounds while retaining structural cycles as errors
         let mut closed_lower = SmallVec::<[TypeBound; 4]>::new();
         let mut closed_upper = SmallVec::<[TypeBound; 4]>::new();
         let mut lower_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         let mut contextual_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+        let mut has_external_bound = false;
         let mut has_recursive_bound = false;
         let mut equation = None;
         let mut has_open_equation = false;
-
-        // collect proper bounds while retaining structural cycles as errors
+        let mut has_open_context = false;
         for variable in variables {
             let lower = self
-                .solver
+                .infer
                 .variables
                 .side_bounds(*variable, BoundSide::Lower)?
                 .collect::<SmallVec<[TypeBound; 2]>>();
             let upper = self
-                .solver
+                .infer
                 .variables
                 .side_bounds(*variable, BoundSide::Upper)?
                 .collect::<SmallVec<[TypeBound; 2]>>();
             let mut variable_lower = SmallVec::<[TypeBound; 2]>::new();
 
+            // classify each lower bound against this component
             for bound in &lower {
                 match self.bound_dependency(bound.ty, variables)? {
                     BoundDependency::Closed => {
@@ -284,8 +393,8 @@ impl CheckState<'_> {
                     BoundDependency::Recursive => {
                         has_recursive_bound = true;
                     }
-                    BoundDependency::External(variables) => {
-                        blockers.extend(variables.into_iter().map(Dependency::Variable));
+                    BoundDependency::External => {
+                        has_external_bound = true;
                     }
                 }
             }
@@ -298,8 +407,8 @@ impl CheckState<'_> {
                 .iter()
                 .map(|bound| bound.ty)
                 .collect::<SmallVec<[_; 2]>>();
-            let state = *self.solver.variable(*variable)?;
-            let origin = self.solver.origin(state.origin);
+            let state = *self.infer.variable(*variable)?;
+            let origin = self.infer.origin(state.origin);
             let widens = !has_equation
                 && match state.widening {
                     Widening::Never => false,
@@ -308,17 +417,18 @@ impl CheckState<'_> {
                     Widening::Always => true,
                 };
 
-            // defer literal widening to the final settlement stage
-            if widens && stage != SettleStage::Widened {
+            // defer literal widening to the final fallback stage
+            if widens && stage != FallbackStage::Widened {
                 for bound in &variable_lower {
                     if matches!(bound.relation, Relation::Assignable | Relation::Castable)
                         && self.widen_type(bound.ty)? != bound.ty
                     {
-                        return Ok(Answer::Ready(false));
+                        return Ok(None);
                     }
                 }
             }
 
+            // widen the literal lower bounds this variable's policy admits
             for bound in variable_lower {
                 if has_equation && bound.relation != Relation::Equal {
                     continue;
@@ -333,6 +443,7 @@ impl CheckState<'_> {
                 lower_types.push(ty);
             }
 
+            // classify each upper bound, keeping its contextual expectation
             for bound in &upper {
                 match self.bound_dependency(bound.ty, variables)? {
                     BoundDependency::Closed => {
@@ -349,49 +460,79 @@ impl CheckState<'_> {
                         has_recursive_bound = true;
                         has_open_equation |= bound.relation == Relation::Equal;
                     }
-                    BoundDependency::External(variables) => {
-                        blockers.extend(variables.into_iter().map(Dependency::Variable));
+                    BoundDependency::External => {
+                        has_external_bound = true;
                         has_open_equation |= bound.relation == Relation::Equal;
+                        // adopt an open contextual expectation once it closes
+                        has_open_context |=
+                            matches!(bound.relation, Relation::Widens | Relation::Assignable);
                     }
                 }
             }
         }
 
-        // choose the component solution from lower bounds, then upper context, then defaults
+        Ok(Some(ComponentBounds {
+            closed_lower,
+            closed_upper,
+            lower_types,
+            contextual_types,
+            has_external_bound,
+            has_recursive_bound,
+            equation,
+            has_open_equation,
+            has_open_context,
+        }))
+    }
+
+    /// Choose one variable component's solution, or none while it stays blocked.
+    fn choose_component_solution(
+        &mut self,
+        variables: &[dir::TypeVariableId],
+        defaults: &[dir::GlobalTypeId],
+        bounds: &ComponentBounds,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // read the component's root state
         let root = variables[0];
-        let state = *self.solver.variable(root)?;
-        let origin = self.solver.origin(state.origin);
-        let is_unconstrained_recursion = has_recursive_bound
-            && lower_types.is_empty()
-            && contextual_types.is_empty()
-            && blockers.is_empty();
+        let state = *self.infer.variable(root)?;
+        let origin = self.infer.origin(state.origin);
+        let is_unconstrained_recursion = bounds.has_recursive_bound
+            && bounds.lower_types.is_empty()
+            && bounds.contextual_types.is_empty()
+            && !bounds.has_external_bound;
 
         // form the preferred lower and contextual solutions once
-        let lower = match lower_types.is_empty() {
+        let lower = match bounds.lower_types.is_empty() {
             true => None,
-            false => Some(self.best_common(root, &lower_types)?),
+            false => Some(self.best_common(root, &bounds.lower_types)?),
         };
-        let contextual = match contextual_types.as_slice() {
+        let contextual = match bounds.contextual_types.as_slice() {
             [] => None,
             [single] => Some(*single),
-            _ => Some(self.intersect_bounds(root, &contextual_types)?),
+            _ => Some(self.intersect_bounds(root, &bounds.contextual_types)?),
         };
 
-        // a closed equation pins the solution; open equations defer
-        //  until their composite closes
-        let solution = if let Some(equation) = equation {
+        // choose the component solution from lower bounds, then upper context, then defaults
+        let solution = if let Some(equation) = bounds.equation {
             Some(equation)
-        } else if has_open_equation || is_unconstrained_recursion {
+        } else if bounds.has_open_equation || is_unconstrained_recursion {
+            None
+        } else if bounds.has_open_context && !self.infer.forcing {
+            // wait for the contextual expectation to close before choosing
             None
         } else if let Some(lower) = lower {
-            if self.solution_satisfies_bounds(origin, lower, &closed_lower, &closed_upper)? {
+            if self.solution_satisfies_bounds(
+                origin,
+                lower,
+                &bounds.closed_lower,
+                &bounds.closed_upper,
+            )? {
                 Some(lower)
             } else if let Some(contextual) = contextual
                 && self.solution_satisfies_bounds(
                     origin,
                     contextual,
-                    &closed_lower,
-                    &closed_upper,
+                    &bounds.closed_lower,
+                    &bounds.closed_upper,
                 )?
             {
                 Some(contextual)
@@ -400,7 +541,7 @@ impl CheckState<'_> {
             }
         } else if let Some(contextual) = contextual {
             Some(contextual)
-        } else if !blockers.is_empty() {
+        } else if bounds.has_external_bound {
             None
         } else if let [default] = defaults {
             Some(*default)
@@ -410,7 +551,7 @@ impl CheckState<'_> {
             None
         };
 
-        // a structural cycle without any proper candidate is an infinite inferred type
+        // report a candidate-free structural cycle as an infinite type
         let solution = match solution {
             Some(solution) => solution,
             None if is_unconstrained_recursion && variables.len() == 1 => {
@@ -419,17 +560,10 @@ impl CheckState<'_> {
 
                 self.intern_type(dir::Type::Error)?
             }
-            None if !blockers.is_empty() => return Ok(Answer::pending(blockers)),
-            None => return Ok(Answer::Ready(false)),
+            // retry an externally blocked component once its variables solve
+            None => return Ok(None),
         };
         let solution = self.reduce_named_head(origin, solution)?;
-        let Answer::Ready(solution) = solution else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "closed variable component {variables:?} has a pending solution head"
-                ),
-            });
-        };
 
         // commit canonical memory literals for memory variables
         let solution = match self.variable_memory_parameter(root)? {
@@ -437,12 +571,7 @@ impl CheckState<'_> {
             None => solution,
         };
 
-        // every variable in one dependency cycle receives the same fixed type
-        for variable in variables {
-            self.commit_solution(*variable, solution)?;
-        }
-
-        Ok(Answer::Ready(true))
+        Ok(Some(solution))
     }
 
     /// Classify one bound's dependency on a variable component.
@@ -456,15 +585,12 @@ impl CheckState<'_> {
             return Ok(BoundDependency::Closed);
         }
 
-        // retain variables outside this component as explicit blockers
-        let mut external = SmallVec::new();
-        for dependency in &dependencies {
-            if !variables.contains(dependency) && !external.contains(dependency) {
-                external.push(*dependency);
-            }
-        }
-        if !external.is_empty() {
-            return Ok(BoundDependency::External(external));
+        // report bounds that reach variables outside this component
+        if dependencies
+            .iter()
+            .any(|dependency| !variables.contains(dependency))
+        {
+            return Ok(BoundDependency::External);
         }
 
         // distinguish aliases from recursive type construction
@@ -487,30 +613,16 @@ impl CheckState<'_> {
         // require every produced value to flow into the solution
         for bound in lower {
             match self.decide_relation(origin, bound.relation, bound.ty, solution)? {
-                Answer::Ready(true) => {}
-                Answer::Ready(false) => return Ok(false),
-                Answer::Pending(blockers) => {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "closed lower bound depends on unfinished state {blockers:?}"
-                        ),
-                    });
-                }
+                true => {}
+                false => return Ok(false),
             }
         }
 
         // require the solution to flow into every expectation
         for bound in upper {
             match self.decide_relation(origin, bound.relation, solution, bound.ty)? {
-                Answer::Ready(true) => {}
-                Answer::Ready(false) => return Ok(false),
-                Answer::Pending(blockers) => {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "closed upper bound depends on unfinished state {blockers:?}"
-                        ),
-                    });
-                }
+                true => {}
+                false => return Ok(false),
             }
         }
 
@@ -526,21 +638,14 @@ impl CheckState<'_> {
         let Some(first) = types.first() else {
             return Ok(false);
         };
-        let first = self.settled_root(*first)?;
+        let first = self.shallow_resolve(*first)?;
 
         // compare each remaining candidate with the first
         for ty in &types[1..] {
-            let ty = self.settled_root(*ty)?;
+            let ty = self.shallow_resolve(*ty)?;
             match self.decide_equal(origin, first, ty)? {
-                Answer::Ready(true) => {}
-                Answer::Ready(false) => return Ok(true),
-                Answer::Pending(blockers) => {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "closed inference candidates depend on unfinished state {blockers:?}"
-                        ),
-                    });
-                }
+                true => {}
+                false => return Ok(true),
             }
         }
 
@@ -552,13 +657,11 @@ impl CheckState<'_> {
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
+        // scan the type graph without following symbol references
         let mut variables = SmallVec::new();
         let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         let mut visited = FxIndexSet::default();
         pending.push(id);
-
-        // scan the type graph without following symbol references;
-        //  solutions may be cyclic, so every id visits exactly once
         while let Some(id) = pending.pop() {
             if !visited.insert(id) {
                 continue;
@@ -567,7 +670,7 @@ impl CheckState<'_> {
 
             // follow solved variables and collect open variables once
             if let dir::Type::Variable(variable) = ty {
-                if let Some(solution) = self.solver.solution(variable)? {
+                if let Some(solution) = self.infer.solution(variable)? {
                     pending.push(solution);
                 } else if let Some(variable) = self.open_variable(variable)?
                     && !variables.contains(&variable)
@@ -599,14 +702,14 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Record one variable solution and wake its waiters.
+    /// Record one variable solution.
     pub(in crate::check) fn commit_solution(
         &mut self,
         variable: dir::TypeVariableId,
         solution: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let variable = self.solver.alias_root(variable)?;
-        let solution = self.settled_root(solution)?;
+        let variable = self.infer.alias_root(variable)?;
+        let solution = self.shallow_resolve(solution)?;
 
         if self.root_variable(solution)?.is_some() {
             return Err(CompilerError::Internal {
@@ -619,22 +722,24 @@ impl CheckState<'_> {
 
         // complete circular solutions with the error type
         if self.type_contains_variable(solution, variable)? {
-            let origin_id = self.solver.variable(variable)?.origin;
-            let origin = self.solver.origin(origin_id);
+            let origin_id = self.infer.variable(variable)?.origin;
+            let origin = self.infer.origin(origin_id);
             let error = self.circular_type_error(origin)?;
             self.report(origin.module(), error);
             let error = self.intern_type(dir::Type::Error)?;
 
             return self.commit_error_solution(variable, error);
         }
+
+        // carry the collected bounds into the completed state
         let bounds = VariableBounds {
             lower: self
-                .solver
+                .infer
                 .variables
                 .side_bounds(variable, BoundSide::Lower)?
                 .collect(),
             upper: self
-                .solver
+                .infer
                 .variables
                 .side_bounds(variable, BoundSide::Upper)?
                 .collect(),
@@ -649,8 +754,8 @@ impl CheckState<'_> {
         second: dir::TypeVariableId,
     ) -> CompilerResult<()> {
         // forward the younger root, keeping the older as the component root
-        let first = self.solver.alias_root(first)?;
-        let second = self.solver.alias_root(second)?;
+        let first = self.infer.alias_root(first)?;
+        let second = self.infer.alias_root(second)?;
         if first == second {
             return Ok(());
         }
@@ -662,25 +767,19 @@ impl CheckState<'_> {
 
         // collect the forwarded bounds and default before rewriting the state
         let lower = self
-            .solver
+            .infer
             .variables
             .side_bounds(aliased, BoundSide::Lower)?
             .collect::<SmallVec<[TypeBound; 2]>>();
         let upper = self
-            .solver
+            .infer
             .variables
             .side_bounds(aliased, BoundSide::Upper)?
             .collect::<SmallVec<[TypeBound; 2]>>();
-        let default = self.solver.variables.variable_default(aliased);
+        let default = self.infer.variables.variable_default(aliased);
 
         // forward the aliased variable onto the root
-        self.solver.variable_mut(aliased)?.state = VariableState::Alias(root);
-
-        // wake tasks parked on the forwarded variable
-        let waiters = self.solver.wake(Dependency::Variable(aliased));
-        for waiter in waiters.iter().cloned() {
-            self.queue_task(waiter);
-        }
+        self.infer.variable_mut(aliased)?.state = VariableState::Alias(root);
 
         // migrate collected bounds and the declared default onto the root
         for bound in lower {
@@ -704,28 +803,29 @@ impl CheckState<'_> {
             )?;
         }
         if let Some(default) = default
-            && self.solver.variables.variable_default(root).is_none()
+            && self.infer.variables.variable_default(root).is_none()
         {
-            self.solver.set_variable_default(root, default);
+            self.infer.set_variable_default(root, default);
         }
 
         Ok(())
     }
 
-    /// Record one failed variable solution and wake its waiters.
+    /// Record one failed variable solution.
     pub(in crate::check) fn commit_error_solution(
         &mut self,
         variable: dir::TypeVariableId,
         error: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
+        // carry the collected bounds into the failed state
         let bounds = VariableBounds {
             lower: self
-                .solver
+                .infer
                 .variables
                 .side_bounds(variable, BoundSide::Lower)?
                 .collect(),
             upper: self
-                .solver
+                .infer
                 .variables
                 .side_bounds(variable, BoundSide::Upper)?
                 .collect(),
@@ -734,7 +834,7 @@ impl CheckState<'_> {
         self.commit_variable_solution(variable, VariableState::Error(error), bounds)
     }
 
-    /// Record one completed variable state and wake its waiters.
+    /// Record one completed variable state.
     fn commit_variable_solution(
         &mut self,
         variable: dir::TypeVariableId,
@@ -746,7 +846,7 @@ impl CheckState<'_> {
         })?;
 
         // require exactly one state transition per variable
-        let previous = self.solver.variable(variable)?.state;
+        let previous = self.infer.variable(variable)?.state;
         if previous == state {
             return Ok(());
         }
@@ -755,19 +855,12 @@ impl CheckState<'_> {
                 message: format!("check variable {variable:?} completed twice"),
             });
         }
-        self.solver.variable_mut(variable)?.state = state;
-
-        // wake tasks parked on the solved variable
-        let waiters = self.solver.wake(Dependency::Variable(variable));
-        for waiter in waiters.iter().cloned() {
-            self.queue_task(waiter);
-        }
+        self.infer.variable_mut(variable)?.state = state;
 
         self.record_event(CheckEvent::VariableSolved {
             variable,
-            bounds: bounds.clone(),
+            bounds: Box::new(bounds.clone()),
             solution: ty,
-            waiters: waiters.len(),
         });
 
         // discharge accumulated bounds against the completed type
@@ -793,18 +886,17 @@ impl CheckState<'_> {
             BoundSide::Upper => (solution, bound.ty),
         };
 
-        // relations that cannot settle in place park as constraints
-        match self.constrain_type(bound.origin, bound.cause, bound.relation, source, target)? {
-            Answer::Ready(true) => {}
-            Answer::Ready(false) | Answer::Pending(_) => {
-                self.push_constraint(Constraint::r#type(
-                    bound.origin,
-                    bound.relation,
-                    source,
-                    target,
-                    bound.cause,
-                ));
-            }
+        // relations that cannot resolve in place become constraints
+        let resolved =
+            self.constrain_type(bound.origin, bound.cause, bound.relation, source, target)?;
+        if !resolved {
+            self.push_constraint(Constraint::r#type(
+                bound.origin,
+                bound.relation,
+                source,
+                target,
+                bound.cause,
+            ))?;
         }
 
         Ok(())
@@ -844,8 +936,8 @@ impl CheckState<'_> {
         bound: dir::GlobalTypeId,
         relation: Relation,
     ) -> CompilerResult<()> {
-        // late bounds against a solved variable discharge as relation checks
-        if let Some(solution) = self.solver.variable(variable)?.state.ty() {
+        // discharge a late bound as a relation check
+        if let Some(solution) = self.infer.variable(variable)?.state.ty() {
             let late = TypeBound::new(origin, bound, relation, cause);
             self.discharge_bound(side, &late, solution)?;
 
@@ -854,7 +946,7 @@ impl CheckState<'_> {
 
         // collect each distinct bound once
         let bound = TypeBound::new(origin, bound, relation, cause);
-        if !self.solver.push_bound(variable, side, bound)? {
+        if !self.infer.push_bound(variable, side, bound)? {
             return Ok(());
         }
         self.record_event(match side {
@@ -868,7 +960,7 @@ impl CheckState<'_> {
             BoundSide::Upper => BoundSide::Lower,
         };
         let opposite = self
-            .solver
+            .infer
             .variables
             .side_bounds(variable, opposite)?
             .collect::<SmallVec<[_; 2]>>();
@@ -886,7 +978,7 @@ impl CheckState<'_> {
                 lower.ty,
                 upper.ty,
                 upper.cause,
-            ));
+            ))?;
         }
 
         Ok(())

@@ -7,6 +7,7 @@ mod flow;
 mod infer;
 mod language;
 mod obligation;
+mod pass;
 mod provide;
 mod reduce;
 mod reify;
@@ -16,7 +17,6 @@ mod solve;
 mod state;
 mod walk;
 mod warning;
-mod write;
 
 pub use error::*;
 pub use warning::*;

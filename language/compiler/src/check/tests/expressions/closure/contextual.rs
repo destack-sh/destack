@@ -102,6 +102,7 @@ function capture<T>(): void {
         seen = inner;
         /// @type.node source="seen = inner" type=Consume<T#3> reduced=Function<(T#3,), void>
         /// @type.node source=seen type=Consume<T#3> | undefined
+        /// @resolution.name source=seen target=capture.seen
         /// @resolution.pattern.assign source=seen kind=place
         /// @resolution.access source=seen root=capture.seen
         /// @resolution.assignment source=seen write=binding(capture.seen) type=Consume<T#3> | undefined
@@ -221,6 +222,7 @@ function capture(): void {
         seen = inner;
         /// @type.node source="seen = inner" type=int32
         /// @type.node source=seen type=int32 | undefined
+        /// @resolution.name source=seen target=capture.seen
         /// @resolution.pattern.assign source=seen kind=place
         /// @resolution.access source=seen root=capture.seen
         /// @resolution.assignment source=seen write=binding(capture.seen) type=int32 | undefined

@@ -1,9 +1,8 @@
 use destack_dir as dir;
-use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, AssignedPlace, CheckState, ClassInitializationObligation, Dependency, ObligationCheck,
-    ObligationFailure, Origin, Relation,
+    AssignedPlace, CheckState, ClassInitializationObligation, ObligationCheck, ObligationFailure,
+    Origin, Relation,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -13,22 +12,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &ClassInitializationObligation,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         let fields = self.class_initialization_fields(obligation.symbol)?;
         let mut failures = Vec::new();
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
 
         // check each required field against every constructor completion branch
         for field in fields {
-            match self.field_requires_initialization(origin, &field)? {
-                Answer::Ready(true) => {}
-                Answer::Ready(false) => continue,
-                Answer::Pending(pending) => {
-                    blockers.extend(pending);
-                    continue;
-                }
+            if !self.field_requires_initialization(origin, &field)? {
+                continue;
             }
-
             if self.constructors_assign_field(obligation, &field) {
                 continue;
             }
@@ -39,14 +31,9 @@ impl CheckState<'_> {
             });
         }
 
-        // wait until every field type decision has closed
-        if !blockers.is_empty() {
-            return Ok(Answer::Pending(blockers));
-        }
-
         let check = ObligationCheck::from_failures(failures);
 
-        Ok(Answer::Ready(check))
+        Ok(check)
     }
 
     /// Return fields that need class initialization checking.
@@ -85,17 +72,12 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         field: &dir::FieldDefinition,
-    ) -> CompilerResult<Answer<bool>> {
-        let ty = match self.symbol_type(field.symbol)? {
-            Answer::Ready(ty) => ty,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+    ) -> CompilerResult<bool> {
+        let ty = self.symbol_type(field.symbol)?;
         let undefined = self.intern_type(dir::Type::Undefined)?;
+        let is_assignable = self.decide_relation(origin, Relation::Assignable, undefined, ty)?;
 
-        match self.decide_relation(origin, Relation::Assignable, undefined, ty)? {
-            Answer::Ready(is_assignable) => Ok(Answer::Ready(!is_assignable)),
-            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-        }
+        Ok(!is_assignable)
     }
 
     /// Return whether every constructor branch assigns one field.
@@ -109,9 +91,11 @@ impl CheckState<'_> {
             key: field.key,
         };
 
-        obligation
-            .constructor_branches
-            .iter()
-            .all(|branch| branch.assigns(place))
+        // read the exit branches constructors recorded at check; a class
+        //  without any checked constructor initializes nothing
+        match self.constructor_branches.get(&obligation.symbol) {
+            Some(branches) => branches.iter().all(|branch| branch.assigns(place)),
+            None => false,
+        }
     }
 }

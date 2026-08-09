@@ -2,7 +2,18 @@ use destack_core::ensure_sufficient_stack;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, answer};
+use crate::check::{CheckState, Origin, Relation};
+
+/// The outcome of deciding one relation, keeping ambiguity apart from failure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum Verdict {
+    /// The relation holds.
+    Holds,
+    /// The relation fails on closed operands.
+    Fails,
+    /// An open variable decided the outcome: retry once it solves.
+    Ambiguous,
+}
 
 impl CheckState<'_> {
     /// Decide one relation between closed type roots, growing the stack.
@@ -12,8 +23,44 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        ensure_sufficient_stack(|| self.decide_relation_recursive(origin, relation, source, target))
+    ) -> CompilerResult<bool> {
+        let holds = ensure_sufficient_stack(|| {
+            self.decide_relation_recursive(origin, relation, source, target)
+        })?;
+        if !holds {
+            self.witness_ambiguity(source, target)?;
+        }
+
+        Ok(holds)
+    }
+
+    /// Pack one judged outcome with the ambiguity witness.
+    pub(in crate::check) fn verdict(&mut self, holds: bool) -> Verdict {
+        match (holds, self.take_ambiguity()) {
+            (true, _) => Verdict::Holds,
+            (false, true) => Verdict::Ambiguous,
+            (false, false) => Verdict::Fails,
+        }
+    }
+
+    /// Record ambiguity when one failed pair rides on an open variable.
+    pub(in crate::check) fn witness_ambiguity(
+        &mut self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let source = self.shallow_resolve(source)?;
+        let target = self.shallow_resolve(target)?;
+        if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
+            self.infer.ambiguity = true;
+        }
+
+        Ok(())
+    }
+
+    /// Take and reset the ambiguity witness.
+    pub(in crate::check) fn take_ambiguity(&mut self) -> bool {
+        std::mem::take(&mut self.infer.ambiguity)
     }
 
     /// Decide one relation recursively on the grown stack.
@@ -23,28 +70,26 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let source = answer!(self.reduce_type_head(origin, source)?);
-        let target = match self.reduce_type_head(origin, target)? {
-            Answer::Ready(target) => target,
-            // identity mapped targets over an open variable bind it whole
-            Answer::Pending(blockers) => {
-                if let Some(variable) = self.reverse_mapped_variable(origin, target)? {
-                    return self.decide_relation(origin, relation, source, variable);
-                }
+    ) -> CompilerResult<bool> {
+        // reduce both roots before comparing them
+        let source = self.reduce_type_head(origin, source)?;
+        let target = self.reduce_type_head(origin, target)?;
 
-                return Ok(Answer::Pending(blockers));
-            }
-        };
+        // identity mapped targets over an open variable bind it whole
+        if let Some(variable) = self.reverse_mapped_variable(target)? {
+            return self.decide_relation(origin, relation, source, variable);
+        }
+
+        // identical roots relate under every relation
         if source == target {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         // refined targets require the base and the refined member equality
         if let Some(refined) = self.refined_head(target)? {
-            let base = answer!(self.decide_relation(origin, relation, source, refined.base)?);
+            let base = self.decide_relation(origin, relation, source, refined.base)?;
             if !base {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
             let arguments = self.intern_type_ids(&[])?;
             let projected = self.intern_member(dir::MemberType {
@@ -68,9 +113,9 @@ impl CheckState<'_> {
                 self.operation_head(source)?
         {
             let then_branch =
-                answer!(self.decide_relation(origin, relation, conditional.then_type, target)?);
+                self.decide_relation(origin, relation, conditional.then_type, target)?;
             if !then_branch {
-                return Ok(Answer::Ready(false));
+                return Ok(false);
             }
 
             return self.decide_relation(origin, relation, conditional.else_type, target);
@@ -81,33 +126,37 @@ impl CheckState<'_> {
             self.static_key_from_type(source)?,
             self.static_key_from_type(target)?,
         ) {
-            return Ok(Answer::Ready(source_key == target_key));
+            return Ok(source_key == target_key);
         }
 
-        // key parameter and this queries by their assuming scope
+        // key parameter and this queries by their assuming scope;
+        //  variable-free decisions hold for the whole module
         let flags = self.type_flags(source)? | self.type_flags(target)?;
-        let scope = match flags.has_parameter() || flags.has_this() {
-            true => self.origin_scope(origin)?,
-            false => None,
+        let durable = !flags.has_variable();
+        let scope = if flags.has_parameter() || flags.has_this() {
+            self.assuming_scope(origin)?
+        } else {
+            None
         };
 
-        // reuse memoized answers, treating active pairs as recursive cycles
-        if let Some(holds) = self
-            .solver
-            .relations
-            .lookup(relation, source, target, scope)
-        {
-            return Ok(Answer::Ready(holds));
+        // reuse decided relations and in-flight decisions, treating active
+        //  pairs as recursive cycles
+        let key = (relation, source, target, scope);
+        if let Some(holds) = self.relates.get(&key) {
+            return Ok(*holds);
         }
-        let attempt = self.solver.relations.enter(relation, source, target, scope);
+        if let Some(holds) = self.infer.relations.lookup(&key) {
+            return Ok(holds);
+        }
+        let attempt = self.infer.relations.enter(key);
 
         // prove type equality before the broader relation
         let equal = match relation {
-            Relation::Equal => Answer::Ready(false),
+            Relation::Equal => false,
             _ => self.decide_equal(origin, source, target)?,
         };
-        let decision = if equal.is_ready_true() {
-            Ok(equal)
+        let decision = if equal {
+            Ok(true)
         } else {
             let decision = match relation {
                 Relation::Equal => self.decide_equal(origin, source, target)?,
@@ -121,18 +170,74 @@ impl CheckState<'_> {
                 }
             };
 
-            Ok(equal.or(decision))
+            Ok(decision)
         };
 
-        // memoize settled decisions, forget pending or failed attempts
+        // memoize settled decisions, forget failed attempts
         match &decision {
-            Ok(Answer::Ready(holds)) => {
-                self.solver.relations.finish(attempt, *holds);
+            Ok(holds) => {
+                // decided closed pairs are durable for the whole module
+                if let Some((key, holds)) = self.infer.relations.finish(attempt, *holds, durable) {
+                    self.relates.insert(key, holds);
+                }
             }
-            _ => self.solver.relations.cancel(attempt),
+            _ => self.infer.relations.cancel(attempt),
         }
 
         decision
+    }
+
+    /// Return the open variable behind one identity mapped target.
+    pub(in crate::check) fn reverse_mapped_variable(
+        &mut self,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let dir::Type::Operation(operation) = self.ty(target)? else {
+            return Ok(None);
+        };
+        let dir::TypeOperation::Mapped(mapped) =
+            self.type_operation(target.module_id, operation)?
+        else {
+            return Ok(None);
+        };
+
+        // reject remaps and modifiers that reshape the source
+        let is_plain = mapped.parameter.key_remap.is_none()
+            && mapped.modifiers.readonly == dir::MappedTypeModifier::None
+            && mapped.modifiers.optional == dir::MappedTypeModifier::None;
+        if !is_plain {
+            return Ok(None);
+        }
+
+        // the constraint iterates an open variable's keys
+        let constraint = self.shallow_resolve(mapped.parameter.constraint)?;
+        let dir::Type::Operation(constraint) = self.ty(constraint)? else {
+            return Ok(None);
+        };
+        let dir::TypeOperation::KeyOf(keys) = self.type_operation(target.module_id, constraint)?
+        else {
+            return Ok(None);
+        };
+        let variable = self.shallow_resolve(keys.target)?;
+        if !matches!(self.ty(variable)?, dir::Type::Variable(_)) {
+            return Ok(None);
+        }
+
+        // the value projects the iterated key back out of the variable
+        let value = self.shallow_resolve(mapped.value)?;
+        let dir::Type::Operation(value) = self.ty(value)? else {
+            return Ok(None);
+        };
+        let dir::TypeOperation::Index(index) = self.type_operation(target.module_id, value)? else {
+            return Ok(None);
+        };
+        let is_identity = self.shallow_resolve(index.left)? == variable
+            && matches!(
+                self.ty(self.shallow_resolve(index.index)?)?,
+                dir::Type::Parameter(parameter) if parameter == mapped.parameter.parameter
+            );
+
+        Ok(is_identity.then_some(variable))
     }
 
     /// Decide every relation in one pair list.
@@ -141,16 +246,14 @@ impl CheckState<'_> {
         origin: Origin,
         relation: Relation,
         pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
-    ) -> CompilerResult<Answer<bool>> {
-        let mut decision = Answer::Ready(true);
+    ) -> CompilerResult<bool> {
         for (source, target) in pairs.iter().copied() {
-            decision = decision.and(self.decide_relation(origin, relation, source, target)?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !self.decide_relation(origin, relation, source, target)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Decide whether every source inhabitant also inhabits the target type.
@@ -159,15 +262,15 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let source_signature = self.callable_signature(source)?;
         let target_signature = self.callable_signature(target)?;
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // empty and indeterminate domains
-            (dir::Type::Error, _) | (_, dir::Type::Error) => Answer::Ready(true),
-            (dir::Type::Never, _) => Answer::Ready(true),
-            (_, dir::Type::Any | dir::Type::Unknown) => Answer::Ready(true),
-            (dir::Type::Any | dir::Type::Unknown, _) => Answer::Ready(false),
+            (dir::Type::Error, _) | (_, dir::Type::Error) => true,
+            (dir::Type::Never, _) => true,
+            (_, dir::Type::Any | dir::Type::Unknown) => true,
+            (dir::Type::Any | dir::Type::Unknown, _) => false,
 
             // union and intersection inclusion
             (dir::Type::Union(union), _) => {
@@ -203,11 +306,10 @@ impl CheckState<'_> {
             (dir::Type::Member(member), _) => {
                 let member = self.type_member(source.module_id, member)?;
                 match self.body().projection_constraint(origin, &member)? {
-                    Answer::Ready(Some(constraint)) => {
+                    Some(constraint) => {
                         self.decide_relation(origin, Relation::Subtype, constraint, target)?
                     }
-                    Answer::Ready(None) => Answer::Ready(false),
-                    Answer::Pending(dependencies) => Answer::Pending(dependencies),
+                    None => false,
                 }
             }
 
@@ -228,7 +330,7 @@ impl CheckState<'_> {
                     dir::TypeOperation::TemplateLiteral(_)
                 ) =>
             {
-                Answer::Ready(true)
+                true
             }
             (dir::Type::Primitive(dir::PrimitiveType::String), dir::Type::Operation(operation))
                 if let dir::TypeOperation::TemplateLiteral(template) =
@@ -255,16 +357,16 @@ impl CheckState<'_> {
                     .static_key_from_type(source)?
                     .is_some_and(|key| key.widens_to_primitive(primitive)) =>
             {
-                Answer::Ready(true)
+                true
             }
-            // scalar sources judge interface targets before literal widening
+            // scalar sources decide interface targets before literal widening
             (dir::Type::Literal(_) | dir::Type::Range(_), dir::Type::Application(instance))
                 if self.symbol_kind(instance.symbol)?.is_interface() =>
             {
                 self.decide_interface_relation(origin, Relation::Subtype, source, target)?
             }
-            (dir::Type::Literal(literal), target) => Answer::Ready(literal.widens_to(&target)),
-            (dir::Type::Range(range), target) => Answer::Ready(range.widens_to(&target)),
+            (dir::Type::Literal(literal), target) => literal.widens_to(&target),
+            (dir::Type::Range(range), target) => range.widens_to(&target),
 
             // precise variants inhabit their declared owner
             (dir::Type::Variant(variant), _) => {
@@ -278,7 +380,7 @@ impl CheckState<'_> {
                 source.constraint,
                 target.constraint,
             )?,
-            (dir::Type::Dynamic(_), _) | (_, dir::Type::Dynamic(_)) => Answer::Ready(false),
+            (dir::Type::Dynamic(_), _) | (_, dir::Type::Dynamic(_)) => false,
 
             // subtype inclusion observes collection elements covariantly
             (dir::Type::Array(source), dir::Type::Array(target)) => {
@@ -297,7 +399,7 @@ impl CheckState<'_> {
                 let count =
                     self.decide_relation(origin, Relation::Equal, source.count, target.count)?;
 
-                element.and(count)
+                element && count
             }
             (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
                 self.decide_tuple_assignable(origin, Relation::Subtype, source, target)?
@@ -355,66 +457,9 @@ impl CheckState<'_> {
             }
 
             // forms and all unmatched constructors require equality
-            _ => Answer::Ready(false),
+            _ => false,
         };
 
         Ok(decision)
-    }
-    /// Return the open variable behind one identity mapped target.
-    ///
-    /// The identity mapping `{ [K in keyof T]: T[K] }` reproduces its source,
-    /// so a shape checked against it binds the open variable directly, as
-    /// reverse mapped inference does in TypeScript.
-    pub(in crate::check) fn reverse_mapped_variable(
-        &mut self,
-        origin: Origin,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let head = self.apparent_head(origin, target)?;
-        let dir::Type::Operation(operation) = self.ty(head)? else {
-            return Ok(None);
-        };
-        let dir::TypeOperation::Mapped(mapped) = self.type_operation(head.module_id, operation)?
-        else {
-            return Ok(None);
-        };
-
-        // reject remaps and modifiers that reshape the source
-        let is_plain = mapped.parameter.key_remap.is_none()
-            && mapped.modifiers.readonly == dir::MappedTypeModifier::None
-            && mapped.modifiers.optional == dir::MappedTypeModifier::None;
-        if !is_plain {
-            return Ok(None);
-        }
-
-        // the constraint iterates an open variable's keys
-        let constraint = self.settled_root(mapped.parameter.constraint)?;
-        let dir::Type::Operation(constraint) = self.ty(constraint)? else {
-            return Ok(None);
-        };
-        let dir::TypeOperation::KeyOf(keys) = self.type_operation(head.module_id, constraint)?
-        else {
-            return Ok(None);
-        };
-        let variable = self.settled_root(keys.target)?;
-        if !matches!(self.ty(variable)?, dir::Type::Variable(_)) {
-            return Ok(None);
-        }
-
-        // the value projects the iterated key back out of the variable
-        let value = self.settled_root(mapped.value)?;
-        let dir::Type::Operation(value) = self.ty(value)? else {
-            return Ok(None);
-        };
-        let dir::TypeOperation::Index(index) = self.type_operation(head.module_id, value)? else {
-            return Ok(None);
-        };
-        let is_identity = self.settled_root(index.left)? == variable
-            && matches!(
-                self.ty(self.settled_root(index.index)?)?,
-                dir::Type::Parameter(parameter) if parameter == mapped.parameter.parameter
-            );
-
-        Ok(is_identity.then_some(variable))
     }
 }

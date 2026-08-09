@@ -405,6 +405,7 @@ const missing = names.orderPaid;
 /// @resolution.name source=names target=names
 /// @resolution.place source=names placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=names root=names
+/// @resolution.rejected source=names.orderPaid
 
 /// @generic.instance id=Names<Events> template=Names arguments=(Events)
 "#,

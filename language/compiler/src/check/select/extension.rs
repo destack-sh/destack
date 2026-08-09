@@ -1,12 +1,14 @@
-use destack_core::FxIndexSet;
+use std::sync::Arc;
+
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, Cause, CauseKind, DeclaredMember, Dependency,
-    GenericParameterId, GenericTemplateId, LookupReceiver, MemberCandidate, MemberLookup, Origin,
-    ReceiverSteps, Relation, TypeSubstitution, answer,
+    BodyState, CandidateOutcome, Cause, CauseKind, DeclaredMember, GenericParameterId,
+    GenericTemplateId, LookupReceiver, MemberCandidate, MemberLookup, MemberSubject, MemberTable,
+    Origin, ReceiverSteps, Relation, TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -21,12 +23,49 @@ impl BodyState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         space: dir::MemberSpace,
         key: dir::StaticKey,
-    ) -> CompilerResult<Answer<MemberLookup>> {
+    ) -> CompilerResult<MemberLookup> {
+        // read the grouped table, built once per closed subject
+        let members =
+            self.subject_extension_members(origin, module, receiver, subject, symbol, space)?;
+        let candidates = members.get(&key).cloned().unwrap_or_default();
+
+        Ok(MemberLookup::from_candidates(candidates))
+    }
+
+    /// Return every extension member of one subject, grouped by key.
+    ///
+    /// Extension applicability is key independent, so the table matches each
+    /// visible extension once per subject.
+    pub(in crate::check) fn subject_extension_members(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        subject: dir::GlobalTypeId,
+        symbol: dir::GlobalSymbolId,
+        space: dir::MemberSpace,
+    ) -> CompilerResult<MemberTable> {
+        // decide the table once per closed subject: candidates are pure
+        //  functions of the interned subject and the module's scope
+        let flags = self.check.type_flags(receiver)? | self.check.type_flags(subject)?;
+        let is_closed = !flags.has_variable();
+        let key = MemberSubject {
+            module,
+            receiver,
+            subject,
+            symbol,
+            space,
+        };
+        if is_closed && let Some(members) = self.check.members.get(&key) {
+            return Ok(members.clone());
+        }
+
+        // collect the extension declarations this module can see
         let mut extensions = self.visible_extensions(module, symbol)?;
 
         // primitive receivers also reach extensions declared over their format
         for ty in [receiver, subject] {
-            let value = answer!(self.strip_form(origin, ty)?);
+            let value = self.strip_form(origin, ty)?;
             let dir::Type::Primitive(primitive) = self.ty(value)? else {
                 continue;
             };
@@ -37,41 +76,33 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // visit extension declarations in resolution order
-        let mut candidates = Vec::new();
+        // match each extension once, collecting first declarations per symbol
+        let mut members = FxIndexMap::<dir::StaticKey, Vec<MemberCandidate>>::default();
         let mut seen = FxIndexSet::default();
         for extension_symbol in extensions {
-            let lookup = answer!(self.lookup_extension_symbol_member(
+            let candidates = self.extension_subject_candidates(
                 origin,
                 module,
                 receiver,
                 subject,
                 extension_symbol,
                 space,
-                key,
-            )?);
-
-            let found = match lookup {
-                MemberLookup::Found(found) => found,
-                MemberLookup::Missing | MemberLookup::Field(_) => continue,
-                MemberLookup::Union(_) | MemberLookup::Intersection(_) => {
-                    return Err(CompilerError::Internal {
-                        message: "one extension declaration produced a union member lookup"
-                            .to_string(),
-                    });
-                }
-            };
-
-            // collect first declarations of each member symbol
-            for candidate in found {
+            )?;
+            for (key, candidate) in candidates {
                 if !seen.insert(candidate.symbol) {
                     continue;
                 }
-                candidates.push(candidate);
+                members.entry(key).or_default().push(candidate);
             }
         }
+        let members = Arc::new(members);
 
-        Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
+        // decide the closed table
+        if is_closed {
+            self.check.members.insert(key, members.clone());
+        }
+
+        Ok(members)
     }
 
     /// Return the implicit extensions declared for one primitive type.
@@ -101,20 +132,15 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
-    ) -> CompilerResult<Answer<MemberLookup>> {
+    ) -> CompilerResult<MemberLookup> {
         let extensions = self.visible_extensions(module, symbol)?;
         let mut candidates = Vec::new();
         let mut seen = FxIndexSet::default();
 
         // visit extension declarations in resolution order
         for extension_symbol in extensions {
-            let lookup = answer!(self.lookup_one_static_extension(
-                origin,
-                module,
-                symbol,
-                extension_symbol,
-                key
-            )?);
+            let lookup =
+                self.lookup_one_static_extension(origin, module, symbol, extension_symbol, key)?;
 
             let found = match lookup {
                 MemberLookup::Found(found) => found,
@@ -133,7 +159,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
+        Ok(MemberLookup::from_candidates(candidates))
     }
 
     /// Collect extension symbols visible from one module for one target.
@@ -209,20 +235,20 @@ impl BodyState<'_, '_> {
         members: &[dir::DefinitionMember],
         space: dir::MemberSpace,
         key: dir::StaticKey,
-    ) -> CompilerResult<Answer<SmallVec<[DeclaredMember; 2]>>> {
+    ) -> CompilerResult<SmallVec<[DeclaredMember; 2]>> {
         let mut matched = SmallVec::new();
         for member in members {
             // match the declared key before resolving the member type
             if member.space() != space || member.key() != Some(key) {
                 continue;
             }
-            let Some(member) = answer!(self.declared_member(member)?) else {
+            let Some(member) = self.declared_member(member)? else {
                 continue;
             };
             matched.push(member);
         }
 
-        Ok(Answer::Ready(matched))
+        Ok(matched)
     }
 
     /// Decide whether a visible extension implements one interface for a receiver.
@@ -235,8 +261,8 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         interface: &dir::GenericApplication,
         excluded: Option<dir::GlobalSymbolId>,
-    ) -> CompilerResult<Answer<bool>> {
-        // break inductive applicability cycles: goals reached from themselves fail
+    ) -> CompilerResult<bool> {
+        // intern the requested interface application in this module
         let arguments = self
             .type_ids(interface_module, interface.arguments)?
             .to_vec();
@@ -246,9 +272,11 @@ impl BodyState<'_, '_> {
             symbol: interface.symbol,
             arguments,
         }))?;
+
+        // break inductive applicability cycles: goals reached from themselves fail
         let goal = (relation, receiver, interface_type);
         if !self.check.deciding_extensions.insert(goal) {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         let decision = self.decide_visible_extensions(
@@ -265,7 +293,7 @@ impl BodyState<'_, '_> {
         decision
     }
 
-    /// Judge every visible extension against one applicability goal.
+    /// Decide whether any visible extension satisfies one applicability goal.
     fn decide_visible_extensions(
         &mut self,
         origin: Origin,
@@ -275,14 +303,9 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         interface: &dir::GenericApplication,
         excluded: Option<dir::GlobalSymbolId>,
-    ) -> CompilerResult<Answer<bool>> {
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
-        let extensions = answer!(self.visible_implementation_extensions(
-            origin,
-            module,
-            receiver,
-            interface.symbol,
-        )?);
+    ) -> CompilerResult<bool> {
+        let extensions =
+            self.visible_implementation_extensions(origin, module, receiver, interface.symbol)?;
 
         // try each visible implementation declaration
         for extension_symbol in extensions {
@@ -322,19 +345,16 @@ impl BodyState<'_, '_> {
                     &implements,
                 )?;
                 Ok(match matched {
-                    Answer::Ready(Some(_)) => Answer::Ready(CandidateOutcome::Accepted(())),
-                    Answer::Ready(None) => Answer::Ready(CandidateOutcome::Rejected(())),
-                    Answer::Pending(pending) => Answer::Pending(pending),
+                    Some(_) => CandidateOutcome::Accepted(()),
+                    None => CandidateOutcome::Rejected(()),
                 })
             })?;
-            match matched {
-                Answer::Ready(Some(())) => return Ok(Answer::Ready(true)),
-                Answer::Ready(None) => {}
-                Answer::Pending(pending) => blockers.extend(pending),
+            if matched.is_some() {
+                return Ok(true);
             }
         }
 
-        Ok(Answer::ready_unless_blocked(false, blockers))
+        Ok(false)
     }
 
     /// Match one extension target and implemented interface.
@@ -349,39 +369,33 @@ impl BodyState<'_, '_> {
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
         implements: &[dir::NominalHeritage],
-    ) -> CompilerResult<Answer<Option<(TypeSubstitution, dir::GlobalTypeId)>>> {
+    ) -> CompilerResult<Option<(TypeSubstitution, dir::GlobalTypeId)>> {
         // bind extension parameters through its declared target
         let parameters = match template {
             Some(template) => self.generic_template_parameters(template)?,
             None => SmallVec::new(),
         };
         let mut substitution = TypeSubstitution::default().with_receiver(receiver);
-        let matched = answer!(self.bind_extension_target(
+        let matched = self.bind_extension_target(
             origin,
             &parameters,
             &mut substitution,
             target_type,
             lookup_receiver,
-        )?);
+        )?;
         if !matched {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
         // require the lookup receiver to satisfy the applied target
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         let target = self.substitute_type(target_type, &substitution)?;
-        if !answer!(self.constrain_type(
-            origin,
-            cause,
-            Relation::Assignable,
-            lookup_receiver,
-            target,
-        )?) {
-            return Ok(Answer::Ready(None));
+        if !self.constrain_type(origin, cause, Relation::Assignable, lookup_receiver, target)? {
+            return Ok(None);
         }
 
         // match one declared interface with the requested interface
-        let implementation = answer!(self.match_implemented_interface(
+        let implementation = self.match_implemented_interface(
             origin,
             relation,
             interface_module,
@@ -389,9 +403,9 @@ impl BodyState<'_, '_> {
             &mut substitution,
             implements,
             interface,
-        )?);
+        )?;
         let Some(implementation) = implementation else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         // register the declared bounds and predicates with the candidate
@@ -401,11 +415,11 @@ impl BodyState<'_, '_> {
             let constraints =
                 self.substitute_application_constraints(origin, template, &substitution)?;
             for constraint in constraints {
-                self.check.push_constraint(constraint);
+                self.check.register_constraint(constraint);
             }
         }
 
-        Ok(Answer::Ready(Some((substitution, implementation))))
+        Ok(Some((substitution, implementation)))
     }
 
     /// Bind extension parameters by matching the target against the receiver.
@@ -416,42 +430,42 @@ impl BodyState<'_, '_> {
         substitution: &mut TypeSubstitution,
         target: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // a direct structural match binds most extension targets
         let mut scratch = substitution.clone();
-        if answer!(self.extend_generic_substitution(
+        if self.extend_generic_substitution(
             origin,
             parameters,
             &mut scratch,
             &[(target, receiver)],
-        )?) {
+        )? {
             *substitution = scratch;
 
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         // nominal receivers bind through their substituted heritage
-        let receiver_value = answer!(self.strip_form(origin, receiver)?);
+        let receiver_value = self.strip_form(origin, receiver)?;
         let is_nominal = self.nominal_application_maybe(receiver_value)?.is_some();
         if !is_nominal {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
-        let closure = answer!(self.heritage_closure(origin, receiver_value)?);
+        let closure = self.heritage_closure(origin, receiver_value)?;
         for ancestor in &closure.applications {
             let mut scratch = substitution.clone();
-            if answer!(self.extend_generic_substitution(
+            if self.extend_generic_substitution(
                 origin,
                 parameters,
                 &mut scratch,
                 &[(target, ancestor.ty)],
-            )?) {
+            )? {
                 *substitution = scratch;
 
-                return Ok(Answer::Ready(true));
+                return Ok(true);
             }
         }
 
-        Ok(Answer::Ready(false))
+        Ok(false)
     }
 
     /// Collect visible extensions that may implement an interface for one receiver.
@@ -461,16 +475,16 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         receiver: dir::GlobalTypeId,
         interface: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<SmallVec<[dir::GlobalSymbolId; 4]>>> {
+    ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
         let mut parameters = SmallVec::new();
         let mut symbols = SmallVec::new();
-        answer!(self.collect_implementation_extensions(
+        self.collect_implementation_extensions(
             origin,
             module,
             receiver,
             &mut parameters,
             &mut symbols,
-        )?);
+        )?;
 
         // admit the implicit implementors of the interface
         let interface = self.resolve_symbol_alias(interface)?;
@@ -484,7 +498,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        Ok(Answer::Ready(symbols))
+        Ok(symbols)
     }
 
     /// Collect the implementation extension candidates for one receiver head.
@@ -495,13 +509,13 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
         symbols: &mut SmallVec<[dir::GlobalSymbolId; 4]>,
-    ) -> CompilerResult<Answer<()>> {
-        let receiver = answer!(self.strip_form(origin, receiver)?);
+    ) -> CompilerResult<()> {
+        let receiver = self.strip_form(origin, receiver)?;
         match self.ty(receiver)? {
             // rigid parameters implement through blankets and their bound scopes
             dir::Type::Parameter(parameter) => {
                 if parameters.contains(&parameter) {
-                    return Ok(Answer::Ready(()));
+                    return Ok(());
                 }
                 for symbol in self.visible_blanket_extensions(module)? {
                     if !symbols.contains(&symbol) {
@@ -515,7 +529,7 @@ impl BodyState<'_, '_> {
                         origin, module, bound, parameters, symbols,
                     );
                     match collected {
-                        Ok(Answer::Ready(())) => {}
+                        Ok(()) => {}
                         other => {
                             parameters.pop();
 
@@ -525,7 +539,7 @@ impl BodyState<'_, '_> {
                 }
                 parameters.pop();
 
-                Ok(Answer::Ready(()))
+                Ok(())
             }
 
             // composite receivers implement through their element scopes
@@ -533,14 +547,15 @@ impl BodyState<'_, '_> {
             | dir::Type::Intersection(dir::IntersectionType { elements, .. }) => {
                 let elements = self.type_ids(receiver.module_id, elements)?.to_vec();
                 for element in elements {
-                    answer!(self.collect_implementation_extensions(
+                    self.collect_implementation_extensions(
                         origin, module, element, parameters, symbols,
-                    )?);
+                    )?;
                 }
 
-                Ok(Answer::Ready(()))
+                Ok(())
             }
 
+            // every other receiver implements through its declaration scope
             _ => {
                 let scope = match self.nominal_application_maybe(receiver)? {
                     Some((_, instance)) => Some(instance.symbol),
@@ -557,7 +572,7 @@ impl BodyState<'_, '_> {
                         }
                     }
 
-                    return Ok(Answer::Ready(()));
+                    return Ok(());
                 };
 
                 if !self.is_own_module(scope.module_id) {
@@ -571,7 +586,7 @@ impl BodyState<'_, '_> {
                     }
                 }
 
-                Ok(Answer::Ready(()))
+                Ok(())
             }
         }
     }
@@ -618,8 +633,10 @@ impl BodyState<'_, '_> {
         Ok(symbols)
     }
 
-    /// Look up matching members from one extension declaration.
-    pub(in crate::check) fn lookup_extension_symbol_member(
+    /// Collect one extension's member candidates for a subject, paired with their keys.
+    ///
+    /// The extension target matches once for every member it declares.
+    fn extension_subject_candidates(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -627,11 +644,10 @@ impl BodyState<'_, '_> {
         subject: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         space: dir::MemberSpace,
-        key: dir::StaticKey,
-    ) -> CompilerResult<Answer<MemberLookup>> {
+    ) -> CompilerResult<Vec<(dir::StaticKey, MemberCandidate)>> {
         // skip extensions removed by statically false gates
         if self.is_absent_symbol(extension_symbol) {
-            return Ok(Answer::Ready(MemberLookup::Missing));
+            return Ok(Vec::new());
         }
 
         // read the extension members
@@ -644,25 +660,35 @@ impl BodyState<'_, '_> {
                     ),
                 });
             }
-            None => return Ok(Answer::Ready(MemberLookup::Missing)),
+            None => return Ok(Vec::new()),
         };
         if !extension.is_visible_from(module) {
-            return Ok(Answer::Ready(MemberLookup::Missing));
+            return Ok(Vec::new());
         }
         let target_type = extension.target.r#type();
 
-        // clone only the members matching the requested key
-        let keyed = keyed_members(&extension.members, space, key);
-        if keyed.is_empty() {
-            return Ok(Answer::Ready(MemberLookup::Missing));
+        // resolve the members declared in the requested space, keeping keys
+        let declared = extension.members.clone();
+        let mut keys = Vec::new();
+        let mut members = Vec::new();
+        for member in &declared {
+            let (member_space, Some(key)) = (member.space(), member.key()) else {
+                continue;
+            };
+            if member_space != space {
+                continue;
+            }
+            let Some(member) = self.declared_member(member)? else {
+                continue;
+            };
+            keys.push(key);
+            members.push(member);
         }
-        let matched = answer!(self.matching_extension_members(&keyed, space, key)?);
-        if matched.is_empty() {
-            return Ok(Answer::Ready(MemberLookup::Missing));
+        if members.is_empty() {
+            return Ok(Vec::new());
         }
-        let members = matched;
 
-        // open extension generics and match the receiver
+        // open extension generics and match the receiver once
         let template = self.symbol_template(extension_symbol)?;
         let result = self.confirm_candidate(|state| {
             match state.match_extension(
@@ -674,20 +700,25 @@ impl BodyState<'_, '_> {
                 target_type,
                 &members,
             )? {
-                Answer::Ready(Some(candidates)) => {
-                    Ok(Answer::Ready(CandidateOutcome::Accepted(candidates)))
-                }
-                Answer::Ready(None) => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),
-                Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                Some(candidates) => Ok(CandidateOutcome::Accepted(candidates)),
+                None => Ok(CandidateOutcome::Rejected(())),
             }
         })?;
 
         match result {
-            Answer::Ready(Some(candidates)) => {
-                Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
+            Some(candidates) => {
+                // candidates keep declaration order, pairing keys positionally
+                if candidates.len() != keys.len() {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "extension {extension_symbol:?} candidates disagree with its members"
+                        ),
+                    });
+                }
+
+                Ok(keys.into_iter().zip(candidates).collect())
             }
-            Answer::Ready(None) => Ok(Answer::Ready(MemberLookup::Missing)),
-            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+            None => Ok(Vec::new()),
         }
     }
 
@@ -699,10 +730,10 @@ impl BodyState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         extension_symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
-    ) -> CompilerResult<Answer<MemberLookup>> {
+    ) -> CompilerResult<MemberLookup> {
         // skip extensions removed by statically false gates
         if self.is_absent_symbol(extension_symbol) {
-            return Ok(Answer::Ready(MemberLookup::Missing));
+            return Ok(MemberLookup::Missing);
         }
 
         // read matching static members from extensions of this declaration
@@ -715,23 +746,23 @@ impl BodyState<'_, '_> {
                     ),
                 });
             }
-            None => return Ok(Answer::Ready(MemberLookup::Missing)),
+            None => return Ok(MemberLookup::Missing),
         };
         if !extension.is_visible_from(module) {
-            return Ok(Answer::Ready(MemberLookup::Missing));
+            return Ok(MemberLookup::Missing);
         }
         if extension.target.root() != Some(symbol) {
-            return Ok(Answer::Ready(MemberLookup::Missing));
+            return Ok(MemberLookup::Missing);
         }
+
         // clone only the members matching the requested key
         let keyed = keyed_members(&extension.members, dir::MemberSpace::Static, key);
         if keyed.is_empty() {
-            return Ok(Answer::Ready(MemberLookup::Missing));
+            return Ok(MemberLookup::Missing);
         }
-        let members =
-            answer!(self.matching_extension_members(&keyed, dir::MemberSpace::Static, key)?);
+        let members = self.matching_extension_members(&keyed, dir::MemberSpace::Static, key)?;
         if members.is_empty() {
-            return Ok(Answer::Ready(MemberLookup::Missing));
+            return Ok(MemberLookup::Missing);
         }
 
         self.lookup_parameterized_static_extension(origin, extension_symbol, &members)
@@ -743,7 +774,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         extension_symbol: dir::GlobalSymbolId,
         members: &[DeclaredMember],
-    ) -> CompilerResult<Answer<MemberLookup>> {
+    ) -> CompilerResult<MemberLookup> {
         // expose matching static members for later call inference
         let mut candidates = Vec::new();
         for member in members {
@@ -753,8 +784,7 @@ impl BodyState<'_, '_> {
             let callable = member.callable_type(origin.module(), extension_symbol, ty, self)?;
             let access_type = member.access_type(self, ty)?;
             let written = self.static_value(member.symbol);
-            let access_type =
-                answer!(self.projected_member_type(origin, None, member.role, access_type)?);
+            let access_type = self.projected_member_type(origin, None, member.role, access_type)?;
 
             candidates.push(MemberCandidate {
                 symbol: member.symbol,
@@ -774,7 +804,7 @@ impl BodyState<'_, '_> {
             });
         }
 
-        Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
+        Ok(MemberLookup::from_candidates(candidates))
     }
 
     /// Return substituted member candidates for one matched extension.
@@ -784,7 +814,7 @@ impl BodyState<'_, '_> {
         extension_symbol: dir::GlobalSymbolId,
         substitution: &TypeSubstitution,
         members: &[DeclaredMember],
-    ) -> CompilerResult<Answer<Vec<MemberCandidate>>> {
+    ) -> CompilerResult<Vec<MemberCandidate>> {
         // blanket declarations sit farther than rooted extensions
         let member_origin = match self.definition(extension_symbol)? {
             Some(dir::Definition::Extension(extension)) if extension.target.is_blanket() => {
@@ -804,15 +834,12 @@ impl BodyState<'_, '_> {
             let ty = self.substitute_type(ty, substitution)?;
             let callable = member.callable_type(origin.module(), extension_symbol, ty, self)?;
             let access_type = member.access_type(self, ty)?;
-            let access_type = match self.projected_member_type(
+            let access_type = self.projected_member_type(
                 origin,
                 substitution.receiver,
                 member.role,
                 access_type,
-            )? {
-                Answer::Ready(ty) => ty,
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            };
+            )?;
 
             // substitute static projections through the same extension instance
             let written = match self.static_value(member.symbol) {
@@ -844,7 +871,7 @@ impl BodyState<'_, '_> {
             });
         }
 
-        Ok(Answer::Ready(candidates))
+        Ok(candidates)
     }
 
     /// Match one extension member declaration against a receiver.
@@ -857,39 +884,25 @@ impl BodyState<'_, '_> {
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
         members: &[DeclaredMember],
-    ) -> CompilerResult<Answer<Option<Vec<MemberCandidate>>>> {
-        // judge the exact receiver first, then its widened lookup subject
-        let mut substitution = answer!(self.match_extension_subject(
-            origin,
-            receiver,
-            receiver,
-            template,
-            target_type
-        )?);
+    ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
+        // match the exact receiver first, then its widened lookup subject
+        let mut substitution =
+            self.match_extension_subject(origin, receiver, receiver, template, target_type)?;
         if substitution.is_none() && subject != receiver {
-            substitution = answer!(self.match_extension_subject(
-                origin,
-                receiver,
-                subject,
-                template,
-                target_type
-            )?);
+            substitution =
+                self.match_extension_subject(origin, receiver, subject, template, target_type)?;
         }
         let Some(substitution) = substitution else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
-        let candidates = answer!(self.extension_member_candidates(
-            origin,
-            extension_symbol,
-            &substitution,
-            members,
-        )?);
+        let candidates =
+            self.extension_member_candidates(origin, extension_symbol, &substitution, members)?;
         if candidates.is_empty() {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
-        Ok(Answer::Ready(Some(candidates)))
+        Ok(Some(candidates))
     }
 
     /// Match one lookup subject against an extension target and its constraints.
@@ -900,35 +913,8 @@ impl BodyState<'_, '_> {
         subject: dir::GlobalTypeId,
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
-        // memoize matches over closed operands, keyed by the assuming scope
-        let closed =
-            !self.type_flags(receiver)?.has_variable() && !self.type_flags(subject)?.has_variable();
-        let memo = match closed {
-            true => {
-                let scope = self.origin_scope(origin)?;
-
-                Some((scope, receiver, subject, template, target_type))
-            }
-            false => None,
-        };
-        if let Some(memo) = &memo
-            && let Some(matched) = self.check.extension_matches.get(memo)
-        {
-            return Ok(Answer::Ready(matched.clone()));
-        }
-        let matched = answer!(self.match_extension_subject_uncached(
-            origin,
-            receiver,
-            subject,
-            template,
-            target_type
-        )?);
-        if let Some(memo) = memo {
-            self.check.extension_matches.insert(memo, matched.clone());
-        }
-
-        Ok(Answer::Ready(matched))
+    ) -> CompilerResult<Option<TypeSubstitution>> {
+        self.match_extension_subject_uncached(origin, receiver, subject, template, target_type)
     }
 
     /// Match one lookup subject against an extension target without the memo.
@@ -939,37 +925,47 @@ impl BodyState<'_, '_> {
         subject: dir::GlobalTypeId,
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
+    ) -> CompilerResult<Option<TypeSubstitution>> {
+        // written class names match as their canonical declaration instance
+        let subject = match self.ty(subject)? {
+            dir::Type::Reference(reference) => {
+                let instance = self.declaration_instance(reference.symbol)?;
+
+                self.intern_type(dir::Type::Application(instance))?
+            }
+            _ => subject,
+        };
+
         // matching binds the extension parameters through the target header
         let mut substitution = TypeSubstitution::default();
         if let Some(template) = template {
             let parameters = self.generic_template_parameters(template)?;
             let subject_pair = [(target_type, subject)];
-            if !answer!(self.extend_generic_substitution(
+            if !self.extend_generic_substitution(
                 origin,
                 &parameters,
                 &mut substitution,
                 &subject_pair,
-            )?) {
-                return Ok(Answer::Ready(None));
+            )? {
+                return Ok(None);
             }
         }
         let substitution = substitution.with_receiver(receiver);
 
         // require the subject to satisfy the bound target
         let target = self.substitute_type(target_type, &substitution)?;
-        if !answer!(self.decide_relation(origin, Relation::Assignable, subject, target)?) {
-            return Ok(Answer::Ready(None));
+        if !self.decide_relation(origin, Relation::Assignable, subject, target)? {
+            return Ok(None);
         }
 
         // require the extension declaration's substituted constraints
         if let Some(template) = template
-            && !answer!(self.decide_substitution_constraints(origin, template, &substitution)?)
+            && !self.decide_substitution_constraints(origin, template, &substitution)?
         {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
-        Ok(Answer::Ready(Some(substitution)))
+        Ok(Some(substitution))
     }
 }
 

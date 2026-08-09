@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, Cause, CauseKind, CheckState, Dependency, Origin, Relation, answer};
+use crate::check::{Cause, CauseKind, CheckState, Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
 /// One applied heritage edge in a nominal declaration closure.
@@ -67,7 +67,7 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // memory forms decide like closed form assignability
         if (matches!(self.ty(source)?, dir::Type::Form(_))
             || matches!(self.ty(target)?, dir::Type::Form(_)))
@@ -90,7 +90,7 @@ impl CheckState<'_> {
         if let Some(memory_kind) = memory_kind
             && target_item == Some(memory_kind)
         {
-            return Ok(Answer::Ready(true));
+            return Ok(true);
         }
 
         // enum members satisfy constraints through their owner
@@ -130,23 +130,21 @@ impl CheckState<'_> {
                     continue;
                 };
                 if dir::ScalarLiteral::from(variant.value) == literal {
-                    return Ok(Answer::Ready(true));
+                    return Ok(true);
                 }
             }
 
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         // static scalar operations relate through their result type
         if matches!(
             self.operation_head(source)?,
             Some(dir::TypeOperation::StaticBinary(_) | dir::TypeOperation::StaticUnary(_))
-        ) && let Some(result) = answer!(self.static_operation_type(origin, source)?)
+        ) && let Some(result) = self.static_operation_type(origin, source)?
+            && self.decide_relation(origin, relation, result, target)?
         {
-            let decision = self.decide_relation(origin, relation, result, target)?;
-            if !matches!(decision, Answer::Ready(false)) {
-                return Ok(decision);
-            }
+            return Ok(true);
         }
 
         // intersection targets require every element under the same relation
@@ -225,13 +223,13 @@ impl CheckState<'_> {
         source_instance: &dir::GenericApplication,
         target: dir::GlobalTypeId,
         target_instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // keep nominal applications symbolic while declaring
         let has_target_definition = self.definition(target_instance.symbol)?.is_some();
         let has_source_definition = self.definition(source_instance.symbol)?.is_some();
         if !has_target_definition || !has_source_definition {
-            if !self.is_checking {
-                return Ok(Answer::Ready(true));
+            if self.is_declaration() {
+                return Ok(true);
             }
 
             return Err(CompilerError::Internal {
@@ -252,8 +250,7 @@ impl CheckState<'_> {
         let application = if source_instance.symbol == target_instance.symbol {
             Some((source.module_id, *source_instance))
         } else {
-            let heritage =
-                answer!(self.heritage_instance(origin, source, target_instance.symbol)?);
+            let heritage = self.heritage_instance(origin, source, target_instance.symbol)?;
 
             match heritage {
                 Some(heritage) => Some(self.nominal_application(heritage)?),
@@ -293,7 +290,7 @@ impl CheckState<'_> {
             return Ok(arguments);
         }
 
-        Ok(Answer::Ready(false))
+        Ok(false)
     }
 
     /// Decide assignability between different nominal applications.
@@ -302,10 +299,10 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let (source_instance, target_instance) = match (self.ty(source)?, self.ty(target)?) {
             (dir::Type::Application(source), dir::Type::Application(target)) => (source, target),
-            _ => return Ok(Answer::Ready(false)),
+            _ => return Ok(false),
         };
 
         self.decide_application_relation(
@@ -393,12 +390,12 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<SmallVec<[dir::TypeProperty; 8]>>> {
-        let receiver = answer!(self.reduce_type_head(origin, target)?);
+    ) -> CompilerResult<SmallVec<[dir::TypeProperty; 8]>> {
+        let receiver = self.reduce_type_head(origin, target)?;
         let chain = self.form_chain(origin, receiver)?;
         let target = chain.base();
         let dir::Type::Application(instance) = self.ty(target)? else {
-            return Ok(Answer::Ready(SmallVec::new()));
+            return Ok(SmallVec::new());
         };
 
         self.instantiate_struct_fields(origin, receiver, target.module_id, &instance)
@@ -409,16 +406,16 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<SmallVec<[dir::TypeProperty; 8]>>> {
-        let mut fields = answer!(self.struct_fields(origin, target)?);
-        let receiver = answer!(self.reduce_type_head(origin, target)?);
+    ) -> CompilerResult<SmallVec<[dir::TypeProperty; 8]>> {
+        let mut fields = self.struct_fields(origin, target)?;
+        let receiver = self.reduce_type_head(origin, target)?;
         let chain = self.form_chain(origin, receiver)?;
         let target = chain.base();
         let dir::Type::Application(instance) = self.ty(target)? else {
-            return Ok(Answer::Ready(fields));
+            return Ok(fields);
         };
         let Some(dir::Definition::Struct(definition)) = self.definition(instance.symbol)? else {
-            return Ok(Answer::Ready(fields));
+            return Ok(fields);
         };
 
         // initialized fields may be omitted from construction
@@ -434,7 +431,7 @@ impl CheckState<'_> {
             field.is_optional |= is_initialized;
         }
 
-        Ok(Answer::Ready(fields))
+        Ok(fields)
     }
 
     /// Return substituted direct fields for one struct instance.
@@ -444,10 +441,10 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         instance_module: ModuleId,
         instance: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<SmallVec<[dir::TypeProperty; 8]>>> {
+    ) -> CompilerResult<SmallVec<[dir::TypeProperty; 8]>> {
         let Some(dir::Definition::Struct(definition)) = self.definition(instance.symbol)?.cloned()
         else {
-            return Ok(Answer::Ready(SmallVec::new()));
+            return Ok(SmallVec::new());
         };
         let substitution = self
             .instance_substitution(instance_module, instance)?
@@ -462,7 +459,7 @@ impl CheckState<'_> {
             if field.space != dir::MemberSpace::Instance {
                 continue;
             }
-            let ty = answer!(self.symbol_type(field.symbol)?);
+            let ty = self.symbol_type(field.symbol)?;
             let ty = self.substitute_type(ty, &substitution)?;
             fields.push(dir::TypeProperty {
                 key: field.key,
@@ -474,7 +471,7 @@ impl CheckState<'_> {
             });
         }
 
-        Ok(Answer::Ready(fields))
+        Ok(fields)
     }
 
     /// Bound open construction arguments from written literal fields.
@@ -483,8 +480,8 @@ impl CheckState<'_> {
         origin: Origin,
         source_fields: &[dir::TypeProperty],
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
-        let declared_fields = answer!(self.struct_fields(origin, target)?);
+    ) -> CompilerResult<()> {
+        let declared_fields = self.struct_fields(origin, target)?;
         for declared in declared_fields {
             let Some(field) = source_fields.iter().find(|field| field.key == declared.key) else {
                 continue;
@@ -492,16 +489,16 @@ impl CheckState<'_> {
 
             let field_cause =
                 self.intern_cause(Cause::root(origin, CauseKind::Field { key: field.key }));
-            answer!(self.constrain_type(
+            self.constrain_type(
                 origin,
                 field_cause,
                 Relation::Assignable,
                 field.access.store(),
-                declared.access.store()
-            )?);
+                declared.access.store(),
+            )?;
         }
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
     /// Collect one definition's instance field keys through heritage.
@@ -605,7 +602,7 @@ impl CheckState<'_> {
         source_module: ModuleId,
         source_instance: &dir::GenericApplication,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // require each target field from the source fields
         let (fields, index_signatures) = match self.ty(target)? {
             dir::Type::Shape(shape) | dir::Type::Object(shape) => (
@@ -616,42 +613,38 @@ impl CheckState<'_> {
                 self.shape_index_signatures(target.module_id, shape.index_signatures)?
                     .to_vec(),
             ),
-            _ => return Ok(Answer::Ready(false)),
+            _ => return Ok(false),
         };
         let module = origin.module();
         let source = self.reference_type(origin, source_module, source_instance)?;
-        let mut decision = Answer::Ready(true);
         for (key, field_type, is_optional) in fields {
             let subject = dir::MemberSubject::new(source, source, dir::MemberSpace::Instance);
-            let lookup = answer!(self.body().lookup_member(origin, module, subject, key)?);
-
+            let lookup = self.body().lookup_member(origin, module, subject, key)?;
             let member = self.body().member_read_type(origin, &lookup)?;
 
             match member {
                 // missing members satisfy optional targets only
                 None => {
                     if !is_optional {
-                        return Ok(Answer::Ready(false));
+                        return Ok(false);
                     }
                 }
                 Some(member) => {
-                    decision =
-                        decision.and(self.decide_relation(origin, relation, member, field_type)?);
-                    if decision.is_ready_false() {
-                        return Ok(decision);
+                    if !self.decide_relation(origin, relation, member, field_type)? {
+                        return Ok(false);
                     }
                 }
             }
         }
+
+        // require each target index signature from the source
         for signature in index_signatures {
-            decision = decision
-                .and(self.decide_index_signature_satisfied(origin, relation, source, &signature)?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+            if !self.decide_index_signature_satisfied(origin, relation, source, &signature)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Return the full heritage closure for one nominal application.
@@ -659,11 +652,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<HeritageClosure>> {
+    ) -> CompilerResult<HeritageClosure> {
         let (instance_module, instance) = self.nominal_application(ty)?;
         let mut closure = HeritageClosure::default();
         let mut active = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
 
         // extensions implement each application independently, so
         //  same-symbol instantiations dispatch by form instead of conflicting
@@ -682,10 +674,9 @@ impl CheckState<'_> {
             independent,
             &mut active,
             &mut closure,
-            &mut blockers,
         )?;
 
-        Ok(Answer::ready_unless_blocked(closure, blockers))
+        Ok(closure)
     }
 
     /// Collect inherited applications from one nominal application.
@@ -699,7 +690,6 @@ impl CheckState<'_> {
         independent: bool,
         active: &mut SmallVec<[dir::GlobalSymbolId; 8]>,
         closure: &mut HeritageClosure,
-        blockers: &mut SmallVec<[Dependency; 2]>,
     ) -> CompilerResult<()> {
         let definition =
             self.definition(instance.symbol)?
@@ -748,12 +738,11 @@ impl CheckState<'_> {
                     application_module,
                     &instance,
                 )? {
-                    Answer::Ready(true) => {}
-                    Answer::Ready(false) => closure.conflicts.push(HeritageConflict {
+                    true => {}
+                    false => closure.conflicts.push(HeritageConflict {
                         source: application.source,
                         current: application.ty,
                     }),
-                    Answer::Pending(pending) => blockers.extend(pending),
                 }
                 continue;
             }
@@ -770,7 +759,6 @@ impl CheckState<'_> {
                 independent,
                 active,
                 closure,
-                blockers,
             )?;
             active.pop();
         }
@@ -784,13 +772,13 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         target: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let closure = answer!(self.heritage_closure(origin, ty)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let closure = self.heritage_closure(origin, ty)?;
         if let Some(application) = closure.application(target, self)? {
-            return Ok(Answer::Ready(Some(application.ty)));
+            return Ok(Some(application.ty));
         }
 
-        Ok(Answer::Ready(None))
+        Ok(None)
     }
 
     /// Relate arguments of two same-template applications.
@@ -801,7 +789,7 @@ impl CheckState<'_> {
         source: &dir::GenericApplication,
         target_module: ModuleId,
         target: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // written applications complete their elided arguments
         let mut source = *source;
         let mut target = *target;
@@ -824,7 +812,7 @@ impl CheckState<'_> {
             }
         }
         if source.arguments.len() != target.arguments.len() {
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         let pairs = self
@@ -855,24 +843,18 @@ impl CheckState<'_> {
         };
 
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        let mut decision = Answer::Ready(true);
         for (index, (source_argument, target_argument)) in pairs.into_iter().enumerate() {
             if lifetimes.get(index).copied().unwrap_or(false) {
                 continue;
             }
-            decision = decision.and(self.constrain_type(
-                origin,
-                cause,
-                Relation::Equal,
-                source_argument,
-                target_argument,
-            )?);
-            if decision.is_ready_false() {
-                return Ok(decision);
+
+            let relation = Relation::Equal;
+            if !self.constrain_type(origin, cause, relation, source_argument, target_argument)? {
+                return Ok(false);
             }
         }
 
-        Ok(decision)
+        Ok(true)
     }
 
     /// Allocate one reference type for a nominal application.

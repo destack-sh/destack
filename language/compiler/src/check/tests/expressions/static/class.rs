@@ -178,6 +178,7 @@ segment.wide;
 /// @resolution.name source=segment target=segment
 /// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=segment root=segment
+/// @resolution.rejected source=segment.wide
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'wide' does not exist on type 'Segment'"

@@ -15,5 +15,6 @@ mod union;
 mod variance;
 mod widen;
 
+pub(in crate::check) use decide::*;
 pub(in crate::check) use interface::*;
 pub(in crate::check) use variance::*;

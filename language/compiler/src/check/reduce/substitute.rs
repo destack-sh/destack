@@ -174,6 +174,25 @@ impl CheckState<'_> {
         self.substitute_guarded(target, id, rule, &marks, &mut substituting)
     }
 
+    /// Return whether one substitution maps every parameter to itself.
+    fn is_identity_substitution(
+        &mut self,
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<bool> {
+        for binding in &substitution.bindings {
+            let argument = self.shallow_resolve(binding.argument)?;
+            let is_self = matches!(
+                self.ty(argument)?,
+                dir::Type::Parameter(parameter) if parameter == binding.parameter
+            );
+            if !is_self {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
     /// Substitute generic parameters and `this` in one type.
     pub(in crate::check) fn substitute_type(
         &mut self,
@@ -181,6 +200,15 @@ impl CheckState<'_> {
         substitution: &TypeSubstitution,
     ) -> CompilerResult<dir::GlobalTypeId> {
         if substitution.is_empty() {
+            return Ok(id);
+        }
+
+        // the identity substitution rewrites nothing: bodies inside a
+        //  generic declaration apply their own parameters to themselves,
+        //  and a receiver only matters to types that mention `this`
+        if (substitution.receiver.is_none() || !self.type_flags(id)?.has_this())
+            && self.is_identity_substitution(substitution)?
+        {
             return Ok(id);
         }
 
@@ -233,7 +261,7 @@ impl CheckState<'_> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let id = self.settled_root(id)?;
+        let id = self.shallow_resolve(id)?;
         if let Some(dir::TypeOperation::NoInfer(operation)) = self.operation_head(id)? {
             return Ok(Some(operation.target));
         }
@@ -322,7 +350,7 @@ impl CheckState<'_> {
                 rule.substituted(parameter).is_some()
             }
             (dir::Type::This, SubstitutionRule::Substitute { .. }) => rule.receiver().is_some(),
-            (dir::Type::Variable(variable), _) => match self.solver.solution(variable)? {
+            (dir::Type::Variable(variable), _) => match self.infer.solution(variable)? {
                 Some(solution) => self.mark_substitutions(solution, rule, marks)?,
                 None => false,
             },
@@ -432,7 +460,7 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some(variable) = variable {
-            return match self.solver.solution(variable)? {
+            return match self.infer.solution(variable)? {
                 Some(solution) => {
                     // solutions mark separately from their variable entries
                     let mut marks = FxIndexMap::default();

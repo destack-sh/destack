@@ -77,7 +77,7 @@ function inspectFrame(): void {
 
     moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
     /// @resolution.name source=moduleBorrow target=moduleBorrow
-    /// @resolution.place source=moduleBorrow placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=moduleBorrow placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=moduleBorrow root=moduleBorrow
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Point target=Point
@@ -658,11 +658,11 @@ struct Pong {
 }
 "#,
         r#"
-/// @diagnostic.error id=elided-declaration-lifetime message="type declaration 'Pong' writes its lifetimes"
-/// @diagnostic.label line=7 column=11 span="&" line_source="ping: &readonly Ping;"
-/// @diagnostic.help message="declare the lifetime parameter and name it, like &'a"
 /// @diagnostic.error id=elided-declaration-lifetime message="type declaration 'Ping' writes its lifetimes"
 /// @diagnostic.label line=3 column=11 span="&" line_source="pong: &readonly Pong;"
+/// @diagnostic.help message="declare the lifetime parameter and name it, like &'a"
+/// @diagnostic.error id=elided-declaration-lifetime message="type declaration 'Pong' writes its lifetimes"
+/// @diagnostic.label line=7 column=11 span="&" line_source="ping: &readonly Ping;"
 /// @diagnostic.help message="declare the lifetime parameter and name it, like &'a"
 "#,
     );

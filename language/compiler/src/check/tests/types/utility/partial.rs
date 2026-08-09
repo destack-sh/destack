@@ -302,6 +302,7 @@ person.name = "Grace";
 /// @resolution.name source=person target=person
 /// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
+/// @resolution.rejected source=person.name
 
 /// @generic.instance id=Partial<Person> template=types.object.Partial arguments=(Person)
 "#,

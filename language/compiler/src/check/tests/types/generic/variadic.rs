@@ -30,9 +30,9 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
 === annotated ===
 newtype Axis = intrinsic;
 
-newtype Sharding<...Axes: Axis[]> = intrinsic;
+newtype Sharding<in out ...Axes: Axis[]> = intrinsic;
 
-newtype Grid<T, P> = intrinsic;
+newtype Grid<in out T, in out P> = intrinsic;
 
 declare function mesh<T, ...Axes: Axis[], 'a>(grid: &'a readonly Grid<T, Sharding<Axes>>): int32;
 
@@ -49,16 +49,16 @@ newtype Axis = intrinsic;
 /// @definition.newtype symbol=Axis source="newtype Axis = intrinsic" backing=intrinsic constructors=[(intrinsic) => Axis]
 
 newtype Sharding<...Axes: Axis[]> = intrinsic;
-/// @generic.template symbol=Sharding parameters=(...Axes#1: Array<Axis>)
+/// @generic.template symbol=Sharding parameters=(in out ...Axes#1: Array<Axis>)
 /// @type.symbol symbol=Sharding source="newtype Sharding<...Axes: Axis[]> = intrinsic" type=Sharding
-/// @definition.newtype symbol=Sharding source="newtype Sharding<...Axes: Axis[]> = intrinsic" template=(...Axes#1: Array<Axis>) backing=intrinsic constructors=[<...Axes#1: Array<Axis>>(intrinsic) => Sharding<Axes#1>]
+/// @definition.newtype symbol=Sharding source="newtype Sharding<...Axes: Axis[]> = intrinsic" template=(in out ...Axes#1: Array<Axis>) backing=intrinsic constructors=[<...Axes#1: Array<Axis>>(intrinsic) => Sharding<Axes#1>]
 /// @type.symbol symbol=Sharding.Axes source="...Axes: Axis[]" type=Axes#1
 /// @resolution.name source=Axis target=Axis
 
 newtype Grid<T, P> = intrinsic;
-/// @generic.template symbol=Grid parameters=(T#1, P)
+/// @generic.template symbol=Grid parameters=(in out T#1, in out P)
 /// @type.symbol symbol=Grid source="newtype Grid<T, P> = intrinsic" type=Grid
-/// @definition.newtype symbol=Grid source="newtype Grid<T, P> = intrinsic" template=(T#1, P) backing=intrinsic constructors=[<T#1, P>(intrinsic) => Grid<T#1, P>]
+/// @definition.newtype symbol=Grid source="newtype Grid<T, P> = intrinsic" template=(in out T#1, in out P) backing=intrinsic constructors=[<T#1, P>(intrinsic) => Grid<T#1, P>]
 /// @type.symbol symbol=Grid.T source=T type=T#1
 /// @type.symbol symbol=Grid.P source=P type=P
 
@@ -174,14 +174,14 @@ import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
 
 declare function mesh<T, ...Xs: Axis[]>(
 /// @generic.template symbol=mesh#1 parameters=(T#1, ...Xs#1: Array<sharding.Axis>, 'a)
-/// @type.symbol symbol=mesh#1 type=<T#1, ...Xs#1: Array<sharding.Axis>, mesh#1.'a>(&mesh#1.'a readonly <error>) => int32
+/// @type.symbol symbol=mesh#1 type=<T#1, ...Xs#1: Array<sharding.Axis>, mesh#1.'a>(&mesh#1.'a readonly sharding.Grid<T#1, <error>>) => int32
 /// @type.symbol symbol=mesh#1 type=<T#1, ...Xs#1: Array<sharding.Axis>, mesh#1.'a>(&mesh#1.'a readonly sharding.Grid<T#1, sharding.Wrap<Xs#1>>) => int32
 /// @type.symbol symbol=mesh.T source=T type=T#1
 /// @type.symbol symbol=mesh.Xs source="...Xs: Axis[]" type=Xs#1
 /// @resolution.name source=Axis target=sharding.Axis
 
     grid: &readonly Grid<T, Wrap<...Xs>>,
-    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Wrap<...Xs>>" type=&mesh#1.'a readonly <error>
+    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Wrap<...Xs>>" type=&mesh#1.'a readonly sharding.Grid<T#1, <error>>
     /// @resolution.name source=Grid target=sharding.Grid
     /// @resolution.name source=T target=mesh.T
     /// @resolution.name source=Wrap target=sharding.Wrap
@@ -219,19 +219,20 @@ extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 }
 
 /// @generic.instance id="mesh#1<T#2, Xs#2>" template=mesh#1 arguments=(T#2, Xs#2)
+/// @generic.instance id="sharding.Grid<T#1, <error>>" template=sharding.Grid arguments=(T#1, <error>)
 /// @generic.instance id="sharding.Grid<T#1, sharding.Wrap<Xs#1>>" template=sharding.Grid arguments=(T#1, sharding.Wrap<Xs#1>)
 /// @generic.instance id=sharding.Wrap<Xs#1> template=sharding.Wrap arguments=(Xs#1)
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'Array<sharding.Axis>'"
-/// @diagnostic.label line=11 column=16 span="mesh<T, ...Xs>(this)" line_source="return mesh<T, ...Xs>(this);"
-/// @diagnostic.related line=4 column=29 span="Xs" line_source="declare function mesh<T, ...Xs: Axis[]>(" message="required by this bound on 'Xs'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'sharding.Marker'"
+/// @diagnostic.label line=5 column=29 span="Wrap<...Xs>" line_source="grid: &readonly Grid<T, Wrap<...Xs>>,"
+/// @diagnostic.related file="sharding.ds" line=8 column=30 span="Xs" line_source="export extension<comptime ...Xs: Marker> of Wrap<...Xs> implements Placed {}" message="required by this bound on 'Xs'"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'sharding.Marker'"
 /// @diagnostic.label line=5 column=34 span="...Xs" line_source="grid: &readonly Grid<T, Wrap<...Xs>>,"
 /// @diagnostic.related file="sharding.ds" line=6 column=33 span="Xs" line_source="export newtype Wrap<comptime ...Xs: Marker> = intrinsic;" message="required by this bound on 'Xs'"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'sharding.Wrap<Xs>' does not satisfy 'sharding.Placed'"
-/// @diagnostic.label line=5 column=29 span="Wrap<...Xs>" line_source="grid: &readonly Grid<T, Wrap<...Xs>>,"
-/// @diagnostic.related file="sharding.ds" line=10 column=24 span="P" line_source="export newtype Grid<T, P: Placed> = intrinsic;" message="required by this bound on 'P'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'Array<sharding.Axis>'"
+/// @diagnostic.label line=11 column=16 span="mesh<T, ...Xs>(this)" line_source="return mesh<T, ...Xs>(this);"
+/// @diagnostic.related line=4 column=29 span="Xs" line_source="declare function mesh<T, ...Xs: Axis[]>(" message="required by this bound on 'Xs'"
 "#,
     );
 }

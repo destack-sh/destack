@@ -2,8 +2,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, ObligationCheck, ObligationFailure, Origin, RuntimePredicateObligation,
-    answer,
+    CheckState, ObligationCheck, ObligationFailure, Origin, RuntimePredicateObligation,
 };
 
 impl CheckState<'_> {
@@ -12,15 +11,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &RuntimePredicateObligation,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         match &obligation.predicate {
-            dir::GuardResolution::Is(predicate) => {
+            dir::GuardDecision::Is(predicate) => {
                 self.check_is_predicate(origin, obligation, predicate)
             }
-            dir::GuardResolution::InstanceOf(predicate) => {
+            dir::GuardDecision::InstanceOf(predicate) => {
                 self.check_instanceof_predicate(origin, obligation, predicate)
             }
-            dir::GuardResolution::In(predicate) => {
+            dir::GuardDecision::In(predicate) => {
                 self.check_in_predicate(origin, obligation.source, predicate)
             }
         }
@@ -31,22 +30,22 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &RuntimePredicateObligation,
-        predicate: &dir::IsGuardResolution,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+        predicate: &dir::IsGuardDecision,
+    ) -> CompilerResult<ObligationCheck> {
         let anchored = self.origin_at(origin, obligation.right)?;
-        match answer!(self.check_auto_interface(
+        match self.check_auto_interface(
             anchored,
             predicate.target_type,
             dir::AutoInterface::DynamicSafe,
-        )?) {
+        )? {
             ObligationCheck::Holds => {}
             ObligationCheck::Fails(failures) => {
-                return Ok(Answer::Ready(ObligationCheck::Fails(failures)));
+                return Ok(ObligationCheck::Fails(failures));
             }
         }
 
-        if answer!(self.types_may_overlap(origin, predicate.value_type, predicate.target_type)?) {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+        if self.types_may_overlap(origin, predicate.value_type, predicate.target_type)? {
+            return Ok(ObligationCheck::holds());
         }
 
         let failure = ObligationFailure::ImpossibleIs {
@@ -55,7 +54,7 @@ impl CheckState<'_> {
             target: predicate.target_type,
         };
 
-        Ok(Answer::Ready(ObligationCheck::fail(failure)))
+        Ok(ObligationCheck::fail(failure))
     }
 
     /// Check whether one `instanceof` predicate can execute.
@@ -63,11 +62,11 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &RuntimePredicateObligation,
-        predicate: &dir::InstanceOfGuardResolution,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+        predicate: &dir::InstanceOfGuardDecision,
+    ) -> CompilerResult<ObligationCheck> {
         // reject predicates whose source type cannot overlap the class
-        if answer!(self.types_may_overlap(origin, predicate.value_type, predicate.target_type)?) {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+        if self.types_may_overlap(origin, predicate.value_type, predicate.target_type)? {
+            return Ok(ObligationCheck::holds());
         }
 
         let failure = ObligationFailure::ImpossibleInstanceOf {
@@ -76,7 +75,7 @@ impl CheckState<'_> {
             target: predicate.target,
         };
 
-        Ok(Answer::Ready(ObligationCheck::fail(failure)))
+        Ok(ObligationCheck::fail(failure))
     }
 
     /// Check whether one `in` predicate can execute.
@@ -84,13 +83,13 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source: dir::GlobalNodeIdAny,
-        predicate: &dir::InGuardResolution,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
-        let is_key = answer!(self.is_property_key_type(origin, predicate.key_type)?);
-        let is_receiver = answer!(self.is_keyed_type(origin, predicate.receiver_type)?);
+        predicate: &dir::InGuardDecision,
+    ) -> CompilerResult<ObligationCheck> {
+        let is_key = self.is_property_key_type(origin, predicate.key_type)?;
+        let is_receiver = self.is_keyed_type(origin, predicate.receiver_type)?;
 
         if is_key && is_receiver {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+            return Ok(ObligationCheck::holds());
         }
 
         let failure = ObligationFailure::InvalidInPredicate {
@@ -99,6 +98,6 @@ impl CheckState<'_> {
             receiver: predicate.receiver_type,
         };
 
-        Ok(Answer::Ready(ObligationCheck::fail(failure)))
+        Ok(ObligationCheck::fail(failure))
     }
 }

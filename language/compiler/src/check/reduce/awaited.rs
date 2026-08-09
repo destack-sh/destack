@@ -3,7 +3,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{CheckState, Origin};
 
 impl CheckState<'_> {
     /// Return the completed value carried by one async function result type.
@@ -22,7 +22,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let target = self.settled_root(target)?;
+        let target = self.shallow_resolve(target)?;
         if !active.insert(target) {
             return Ok(None);
         }
@@ -72,7 +72,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let mut active = FxIndexSet::default();
 
         self.reduce_awaited_guarded(origin, target, &mut active)
@@ -84,10 +84,10 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let target = answer!(self.reduce_type_head(origin, target)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let target = self.reduce_type_head(origin, target)?;
         if !active.insert(target) {
-            return Ok(Answer::Ready(Some(target)));
+            return Ok(Some(target));
         }
 
         let reduced = self.reduce_awaited_active(origin, target, active);
@@ -102,7 +102,7 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // distribute awaitedness over unions
         if let dir::Type::Union(union) = self.ty(target)? {
             let union_elements: SmallVec<[dir::GlobalTypeId; 8]> =
@@ -110,9 +110,8 @@ impl CheckState<'_> {
             let mut elements = Vec::with_capacity(union_elements.len());
 
             for element in union_elements {
-                let Some(element) = answer!(self.reduce_awaited_guarded(origin, element, active)?)
-                else {
-                    return Ok(Answer::Ready(None));
+                let Some(element) = self.reduce_awaited_guarded(origin, element, active)? else {
+                    return Ok(None);
                 };
                 elements.push(element);
             }
@@ -123,7 +122,7 @@ impl CheckState<'_> {
                 _ => self.normalized_union_type(elements)?,
             };
 
-            return Ok(Answer::Ready(Some(joined)));
+            return Ok(Some(joined));
         }
 
         // preserve nullish values
@@ -133,7 +132,7 @@ impl CheckState<'_> {
                 | dir::Type::Undefined
                 | dir::Type::Literal(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined)
         ) {
-            return Ok(Answer::Ready(Some(target)));
+            return Ok(Some(target));
         }
 
         // unwrap compiler-recognized async result carriers
@@ -159,15 +158,15 @@ impl CheckState<'_> {
         // newtypes await through their backing
         if let Some(instance) = self.decompose_newtype(origin, target)? {
             let backing = instance.backing;
-            let backing = answer!(self.reduce_type_head(origin, backing)?);
-            let awaited = answer!(self.reduce_awaited_guarded(origin, backing, active)?);
+            let backing = self.reduce_type_head(origin, backing)?;
+            let awaited = self.reduce_awaited_guarded(origin, backing, active)?;
 
             return match awaited {
-                Some(awaited) if awaited != backing => Ok(Answer::Ready(Some(awaited))),
-                _ => Ok(Answer::Ready(Some(target))),
+                Some(awaited) if awaited != backing => Ok(Some(awaited)),
+                _ => Ok(Some(target)),
             };
         }
 
-        Ok(Answer::Ready(Some(target)))
+        Ok(Some(target))
     }
 }

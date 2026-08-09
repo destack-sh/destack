@@ -1,11 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{
-    AssignedPlace, CauseKind, ConditionBranch, ControlTargetForm, ExpectedType, FlowBranch,
-    FlowCheckpoint, Obligation, Origin, PatternCoverage, PatternCoverageObligation, PlaceUse,
-    Relation, ValueUse, VariableRole, WalkState, Widening,
-};
+use crate::check::{AssignedPlace, ConditionBranch, FlowBranch, PlaceUse, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -93,10 +89,6 @@ impl WalkState<'_, '_> {
                 let block = *block;
                 self.walk_block(block, self.tree.get(block))?;
             }
-            // label: body
-            dir::Expression::Label { label, body } => {
-                self.walk_label_expression(id, *label, *body)?;
-            }
             // import { item } from "module"
             dir::Expression::Import { items, .. } => {
                 if let Some(items) = items.as_deref() {
@@ -129,24 +121,17 @@ impl WalkState<'_, '_> {
                         Some(*kind),
                         *is_ambient,
                     )?;
-                    self.mark_declarator_assigned(self.tree.get(*declarator), *is_ambient);
+                    let node = self.tree.get(*declarator).clone();
+                    self.mark_declarator_assigned(&node, *is_ambient);
                 }
             }
             // using x = value
             dir::Expression::Using { declarators, .. } => {
                 for declarator in declarators {
                     self.walk_declarator(*declarator, self.tree.get(*declarator), None, false)?;
-                    self.mark_declarator_assigned(self.tree.get(*declarator), false);
+                    let node = self.tree.get(*declarator).clone();
+                    self.mark_declarator_assigned(&node, false);
                 }
-            }
-            // let pattern = value else { return }
-            dir::Expression::LetElse {
-                kind,
-                declarator,
-                else_branch,
-                ..
-            } => {
-                self.walk_let_else_expression(*kind, *declarator, *else_branch)?;
             }
             // if condition { then } else { otherwise }
             dir::Expression::If {
@@ -157,65 +142,20 @@ impl WalkState<'_, '_> {
             } => {
                 self.walk_if_expression(condition, *then_expression, *else_expression)?;
             }
-            // while condition { body }
-            dir::Expression::While {
-                condition, body, ..
-            } => {
-                self.walk_while_expression(None, *condition, *body)?;
-            }
-            // for item of iterator { body }
-            dir::Expression::ForEach {
-                binding,
-                iterator,
-                body,
-                ..
-            } => {
-                self.walk_for_each_expression(None, binding, *iterator, *body)?;
-            }
-            // for (initialization; condition; increment) { body }
-            dir::Expression::For {
-                initialization,
-                condition,
-                increment,
-                body,
-            } => {
-                let (initialization, condition, increment, body) =
-                    (*initialization, *condition, *increment, *body);
-                self.walk_for_expression(None, initialization, condition, increment, body)?;
-            }
-            // loop { body }
-            dir::Expression::Loop { body } => {
-                self.walk_loop_expression(id, None, *body)?;
-            }
-            // try body catch error finally cleanup
-            dir::Expression::Try {
-                body,
-                catch,
-                finally,
-            } => {
-                self.walk_try_expression(id, *body, *catch, *finally)?;
-            }
-            // match value { case pattern => body }
-            dir::Expression::Match { value, arms } => {
-                let arms = arms.iter().copied().collect::<SmallVec<[_; 4]>>();
-                self.walk_match_expression(id, *value, &arms)?;
-            }
-            // switch (value) { case value: body }
-            dir::Expression::Switch { value, cases } => {
-                let cases = cases.iter().copied().collect::<SmallVec<[_; 4]>>();
-                self.walk_switch_statement(id, *value, &cases)?;
-            }
-            // break value
-            dir::Expression::Break { label, value } => {
-                let (label, value) = (*label, *value);
-                if let Some(value) = value {
-                    self.walk_expression(value, self.tree.get(value))?;
-                }
-                self.break_to_control_target(id.into_any(), label, value)?;
-            }
-            // continue
-            dir::Expression::Continue { label } => {
-                self.continue_to_control_target(id.into_any(), *label);
+            // control statements type through the fused traversal only
+            dir::Expression::While { .. }
+            | dir::Expression::ForEach { .. }
+            | dir::Expression::For { .. }
+            | dir::Expression::Loop { .. }
+            | dir::Expression::Try { .. }
+            | dir::Expression::Match { .. }
+            | dir::Expression::Switch { .. }
+            | dir::Expression::Break { .. }
+            | dir::Expression::Continue { .. }
+            | dir::Expression::LetElse { .. } => {
+                return Err(CompilerError::Internal {
+                    message: format!("control statement {id:?} reached the value walk"),
+                });
             }
             // await value
             dir::Expression::Await {
@@ -223,21 +163,9 @@ impl WalkState<'_, '_> {
             } => {
                 let awaited = *awaited;
                 self.walk_expression(awaited, self.tree.get(awaited))?;
-                if self
-                    .flow()
-                    .current_function()
-                    .is_none_or(|function| function.asynchrony != dir::Asynchrony::Async)
-                {
-                    self.check
-                        .report_await_outside_async_context(self.module, id.into_any());
-                }
             }
             // return value
             dir::Expression::Return { value } => {
-                if self.flow().current_function().is_none() {
-                    self.check
-                        .report_return_outside_function(self.module, id.into_any());
-                }
                 if let Some(value) = *value {
                     self.walk_expression(value, self.tree.get(value))?;
                 }
@@ -245,12 +173,6 @@ impl WalkState<'_, '_> {
             // yield value
             dir::Expression::Yield { cardinality, value } => {
                 let (cardinality, value) = (*cardinality, *value);
-
-                // require a surrounding generator body
-                if !self.is_in_generator() {
-                    self.check
-                        .report_yield_outside_generator(self.module, id.into_any());
-                }
 
                 match (cardinality, value) {
                     // yield value: the checker relates the value to the yield target
@@ -261,14 +183,10 @@ impl WalkState<'_, '_> {
                     (dir::YieldCardinality::Scalar, None) => {}
                     // yield* value: the delegate implements the generator protocol
                     (dir::YieldCardinality::Generator, Some(value)) => {
-                        self.record_yield_delegate(id, value)?;
                         self.walk_expression(value, self.tree.get(value))?;
                     }
                     // yield* without a delegate value
-                    (dir::YieldCardinality::Generator, None) => {
-                        self.check
-                            .report_yield_delegate_missing_value(self.module, id.into_any());
-                    }
+                    (dir::YieldCardinality::Generator, None) => {}
                 }
             }
             // value
@@ -277,8 +195,10 @@ impl WalkState<'_, '_> {
             }
             // this
             dir::Expression::This => {
-                let receiver =
-                    self.commit_active_receiver_decision(id.into_global_any(self.module))?;
+                let receiver = {
+                    let node = id.into_global_any(self.module);
+                    self.commit_active_receiver_decision(node)?
+                };
                 match receiver {
                     Some(receiver) => {
                         self.commit_node_type(id, receiver.ty)?;
@@ -295,8 +215,10 @@ impl WalkState<'_, '_> {
             dir::Expression::ScalarLiteral(_) => {}
             // super
             dir::Expression::Super => {
-                let receiver =
-                    self.commit_active_receiver_decision(id.into_global_any(self.module))?;
+                let receiver = {
+                    let node = id.into_global_any(self.module);
+                    self.commit_active_receiver_decision(node)?
+                };
                 match receiver.and_then(|receiver| receiver.super_ty) {
                     Some(super_ty) => {
                         self.commit_node_type(id, super_ty)?;
@@ -540,15 +462,6 @@ impl WalkState<'_, '_> {
             } => {
                 let awaited = *awaited;
                 self.walk_expression(awaited, self.tree.get(awaited))?;
-                if self
-                    .flow()
-                    .current_function()
-                    .is_none_or(|function| function.asynchrony != dir::Asynchrony::Async)
-                {
-                    self.check
-                        .report_await_outside_async_context(self.module, id.into_any());
-                }
-                self.propagate_try(id.into_any())?;
             }
             // await! value
             dir::Expression::AwaitMust {
@@ -556,20 +469,11 @@ impl WalkState<'_, '_> {
             } => {
                 let awaited = *awaited;
                 self.walk_expression(awaited, self.tree.get(awaited))?;
-                if self
-                    .flow()
-                    .current_function()
-                    .is_none_or(|function| function.asynchrony != dir::Asynchrony::Async)
-                {
-                    self.check
-                        .report_await_outside_async_context(self.module, id.into_any());
-                }
             }
             // value?
             dir::Expression::Maybe { left, .. } => {
                 let left = *left;
                 self.walk_expression(left, self.tree.get(left))?;
-                self.propagate_try(id.into_any())?;
             }
             // value?.member
             dir::Expression::Chain { expression } => {
@@ -598,136 +502,6 @@ impl WalkState<'_, '_> {
                 self.walk_assign_expression(*left, *operator, *right)?;
             }
         }
-
-        Ok(())
-    }
-
-    /// Walk one labeled expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// outer: loop { break outer; }
-    /// ```
-    fn walk_label_expression(
-        &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
-        label: dir::StringId,
-        body: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<()> {
-        let is_loop = matches!(
-            self.tree.get(body),
-            dir::Expression::While { .. }
-                | dir::Expression::ForEach { .. }
-                | dir::Expression::For { .. }
-                | dir::Expression::Loop { .. }
-        );
-        if !is_loop {
-            let before = self.fork_flow();
-            let result =
-                self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Regular)?;
-            self.enter_control_target(Some(label), ControlTargetForm::Block { result });
-            self.walk_expression(body, self.tree.get(body))?;
-
-            // collect the normal exit through the block fallthrough
-            let normal_flow = self
-                .expression_can_complete_normally(body)
-                .then(|| self.collect_flow_branch(before));
-            self.restore_flow(before);
-
-            // the checker relates the body value to the block output
-            let mut branches = self.leave_control_target();
-            self.check
-                .control_results
-                .insert(id.into_global_any(self.module), result);
-
-            // merge break branches with normal exit
-            branches.extend(normal_flow);
-            self.merge_flow_branches_from(before, &branches);
-
-            return Ok(());
-        }
-        if !self.walk_decorators(body.into_any())? {
-            return Ok(());
-        }
-
-        // labeled loops keep their own continue targets
-        self.enter_node(body)?;
-        match self.tree.get(body) {
-            dir::Expression::While {
-                condition,
-                body: loop_body,
-                ..
-            } => {
-                let (condition, loop_body) = (*condition, *loop_body);
-                self.walk_while_expression(Some(label), condition, loop_body)?;
-            }
-            dir::Expression::ForEach {
-                binding,
-                iterator,
-                body: loop_body,
-                ..
-            } => {
-                let (iterator, loop_body) = (*iterator, *loop_body);
-                self.walk_for_each_expression(Some(label), binding, iterator, loop_body)?;
-            }
-            dir::Expression::For {
-                initialization,
-                condition,
-                increment,
-                body: loop_body,
-            } => {
-                let (initialization, condition, increment, loop_body) =
-                    (*initialization, *condition, *increment, *loop_body);
-                self.walk_for_expression(
-                    Some(label),
-                    initialization,
-                    condition,
-                    increment,
-                    loop_body,
-                )?;
-            }
-            dir::Expression::Loop { body: loop_body } => {
-                let loop_body = *loop_body;
-                self.walk_loop_expression(body, Some(label), loop_body)?;
-            }
-            _ => {
-                return Err(CompilerError::Internal {
-                    message: format!("labeled loop body {body:?} is not a loop"),
-                });
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Walk one let-else expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// let Some(value) = option else { return };
-    /// ```
-    fn walk_let_else_expression(
-        &mut self,
-        kind: dir::LetKind,
-        declarator: dir::LocalNodeId<dir::Declarator>,
-        else_branch: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<()> {
-        self.walk_declarator(declarator, self.tree.get(declarator), Some(kind), false)?;
-
-        // walk the diverging else block in isolated flow
-        let before_else = self.fork_flow();
-        self.walk_expression(else_branch, self.tree.get(else_branch))?;
-        self.restore_flow(before_else);
-
-        // require the else block to leave the binding scope
-        if self.expression_can_complete_normally(else_branch) {
-            self.check
-                .report_let_else_branch_can_complete(self.module, else_branch.into_any());
-        }
-
-        // continue with the matched bindings assigned
-        self.mark_declarator_assigned(self.tree.get(declarator), false);
-        self.narrow_declarator_match(declarator)?;
 
         Ok(())
     }
@@ -828,387 +602,6 @@ impl WalkState<'_, '_> {
                 self.narrow_let_condition(declarator)?;
             }
         }
-
-        Ok(())
-    }
-
-    /// Walk one while expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// while condition { body }
-    /// ```
-    fn walk_while_expression(
-        &mut self,
-        label: Option<dir::StringId>,
-        condition: dir::LocalNodeId<dir::Expression>,
-        body: dir::LocalNodeId<dir::Block>,
-    ) -> CompilerResult<()> {
-        // walk condition in incoming flow
-        self.walk_expression(condition, self.tree.get(condition))?;
-
-        // enter loop control target
-        self.enter_control_target(label, ControlTargetForm::Iteration);
-
-        // walk body under true condition flow
-        let before_body = self.fork_flow();
-        self.narrow_expression(condition, ConditionBranch::True)?;
-        self.walk_block(body, self.tree.get(body))?;
-        self.restore_flow(before_body);
-
-        // collect normal exit through false condition
-        self.narrow_expression(condition, ConditionBranch::False)?;
-        let normal_flow = self.collect_flow_branch(before_body);
-        let mut branches = self.leave_control_target();
-
-        // merge break branches with normal exit
-        branches.push(normal_flow);
-        self.merge_flow_branches_from(before_body, &branches);
-
-        Ok(())
-    }
-
-    /// Walk one for each expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// for (item of items) { item }
-    /// ```
-    fn walk_for_each_expression(
-        &mut self,
-        label: Option<dir::StringId>,
-        binding: &dir::ForEachBinding,
-        iterator: dir::LocalNodeId<dir::Expression>,
-        body: dir::LocalNodeId<dir::Block>,
-    ) -> CompilerResult<()> {
-        // walk binding and iterator in incoming flow
-        let pattern = match binding {
-            dir::ForEachBinding::Pattern { pattern, .. }
-            | dir::ForEachBinding::Using { pattern, .. } => *pattern,
-        };
-        self.walk_pattern(pattern, self.tree.get(pattern), None)?;
-        self.walk_expression(iterator, self.tree.get(iterator))?;
-
-        // enter loop control target
-        self.enter_control_target(label, ControlTargetForm::Iteration);
-
-        // walk body with iteration binding assigned
-        let before_body = self.fork_flow();
-        self.mark_bindings_assigned(pattern.into_any());
-        self.walk_block(body, self.tree.get(body))?;
-        self.restore_flow(before_body);
-
-        // collect normal loop exit
-        let normal_flow = self.collect_flow_branch(before_body);
-        let mut branches = self.leave_control_target();
-
-        // merge break branches with normal exit
-        branches.push(normal_flow);
-        self.merge_flow_branches_from(before_body, &branches);
-
-        Ok(())
-    }
-
-    /// Walk one traditional for expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// for (let i = 0; i < n; i++) { i }
-    /// ```
-    fn walk_for_expression(
-        &mut self,
-        label: Option<dir::StringId>,
-        initialization: Option<dir::LocalNodeId<dir::Expression>>,
-        condition: Option<dir::LocalNodeId<dir::Expression>>,
-        increment: Option<dir::LocalNodeId<dir::Expression>>,
-        body: dir::LocalNodeId<dir::Block>,
-    ) -> CompilerResult<()> {
-        // walk initialization before loop flow splits
-        if let Some(initialization) = initialization {
-            self.walk_expression(initialization, self.tree.get(initialization))?;
-        }
-
-        // walk condition in incoming flow
-        if let Some(condition) = condition {
-            self.walk_expression(condition, self.tree.get(condition))?;
-        }
-
-        // enter loop control target
-        self.enter_control_target(label, ControlTargetForm::Iteration);
-
-        // walk body under true condition flow
-        let before_body = self.fork_flow();
-        if let Some(condition) = condition {
-            self.narrow_expression(condition, ConditionBranch::True)?;
-        }
-        self.walk_block(body, self.tree.get(body))?;
-        let body_flow = self
-            .block_can_complete_normally(self.tree.get(body))
-            .then(|| self.collect_flow_branch(before_body));
-        let continue_flows = self.take_current_continue_branches();
-        if let Some(increment) = increment {
-            self.walk_for_increment_expression(increment, before_body, body_flow, &continue_flows)?;
-        }
-        self.restore_flow(before_body);
-
-        // collect normal exit through false condition
-        let normal_flow = if let Some(condition) = condition {
-            self.narrow_expression(condition, ConditionBranch::False)?;
-
-            Some(self.collect_flow_branch(before_body))
-        } else {
-            None
-        };
-        let mut branches = self.leave_control_target();
-
-        // merge break branches with normal exit
-        branches.extend(normal_flow);
-        self.merge_flow_branches_from(before_body, &branches);
-
-        Ok(())
-    }
-
-    /// Walk one traditional for increment from body and continue flows.
-    fn walk_for_increment_expression(
-        &mut self,
-        increment: dir::LocalNodeId<dir::Expression>,
-        before_body: FlowCheckpoint,
-        body_flow: Option<FlowBranch>,
-        continue_flows: &[FlowBranch],
-    ) -> CompilerResult<()> {
-        let mut flows = Vec::with_capacity(continue_flows.len() + usize::from(body_flow.is_some()));
-        flows.extend_from_slice(continue_flows);
-        if let Some(body_flow) = body_flow {
-            flows.push(body_flow);
-        }
-
-        // check unreachable increments once
-        if flows.is_empty() {
-            self.walk_expression(increment, self.tree.get(increment))?;
-            self.restore_flow(before_body);
-
-            return Ok(());
-        }
-
-        // check the increment from each flow that reaches the next iteration
-        for flow in flows {
-            self.restore_flow_branch(before_body, &flow);
-            self.walk_expression(increment, self.tree.get(increment))?;
-            self.restore_flow(before_body);
-        }
-
-        Ok(())
-    }
-
-    /// Walk one loop expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// loop { break value; }
-    /// ```
-    fn walk_loop_expression(
-        &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
-        label: Option<dir::StringId>,
-        body: dir::LocalNodeId<dir::Block>,
-    ) -> CompilerResult<()> {
-        // open the loop output joined by break values
-        let result = self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Regular)?;
-        self.enter_control_target(label, ControlTargetForm::Loop { result });
-
-        // walk body with isolated flow
-        let before_body = self.fork_flow();
-        self.walk_block(body, self.tree.get(body))?;
-        self.restore_flow(before_body);
-
-        // restore only branches that leave the loop
-        let branches = self.leave_control_target();
-        self.check
-            .control_results
-            .insert(id.into_global_any(self.module), result);
-
-        // close break-free loops to never
-        if branches.is_empty() {
-            let origin = Origin::Node(
-                id.into_global_any(self.module),
-                self.flow().template_scope(),
-            );
-            let never = self.intern_type(dir::Type::Never)?;
-
-            self.relate_type(
-                origin,
-                CauseKind::Expression,
-                Relation::Equal,
-                result,
-                never,
-            );
-        }
-        self.merge_flow_branches_from(before_body, &branches);
-
-        Ok(())
-    }
-
-    /// Walk one try expression with branch flow for catch.
-    ///
-    /// Example:
-    /// ```ds
-    /// try body catch error finally cleanup
-    /// ```
-    fn walk_try_expression(
-        &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
-        body: dir::LocalNodeId<dir::Expression>,
-        catch: Option<dir::LocalNodeId<dir::Catch>>,
-        finally: Option<dir::LocalNodeId<dir::Expression>>,
-    ) -> CompilerResult<()> {
-        // walk try branches
-        let before = self.fork_flow();
-
-        // walk the body branch from the incoming flow
-        self.restore_flow(before);
-        if catch.is_some() {
-            self.enter_try_target(id.into_any())?;
-        }
-        self.walk_expression(body, self.tree.get(body))?;
-        let catch_failure = match catch {
-            Some(_) => Some(self.leave_try_target(id.into_any())?),
-            None => None,
-        };
-        let body_flow = self.collect_flow_branch(before);
-        let body_can_complete = self.expression_can_complete_normally(body);
-
-        // walk catch branch
-        let catch_branch = if let Some(catch) = catch {
-            self.restore_flow(before);
-            self.walk_catch(catch, catch_failure)?;
-            let catch_can_complete =
-                self.expression_can_complete_normally(self.tree.get(catch).body);
-            let catch_flow = self.collect_flow_branch(before);
-
-            Some((catch, catch_can_complete, catch_flow))
-        } else {
-            None
-        };
-
-        // merge only branches that can continue normally
-        let has_normal_flow = if let Some((_, catch_can_complete, catch_flow)) = catch_branch {
-            match (body_can_complete, catch_can_complete) {
-                (true, true) => {
-                    self.merge_flow_branches(before, &body_flow, &catch_flow);
-
-                    true
-                }
-                (true, false) => {
-                    self.restore_flow_branch(before, &body_flow);
-
-                    true
-                }
-                (false, true) => {
-                    self.restore_flow_branch(before, &catch_flow);
-
-                    true
-                }
-                (false, false) => {
-                    self.restore_flow(before);
-
-                    false
-                }
-            }
-        } else if body_can_complete {
-            self.restore_flow_branch(before, &body_flow);
-
-            true
-        } else {
-            self.restore_flow(before);
-
-            false
-        };
-
-        // walk finally even when no normal path remains
-        if let Some(finally) = finally {
-            self.walk_expression(finally, self.tree.get(finally))?;
-
-            if !has_normal_flow || !self.expression_can_complete_normally(finally) {
-                self.restore_flow(before);
-            }
-        } else if !has_normal_flow {
-            self.restore_flow(before);
-        }
-
-        Ok(())
-    }
-
-    /// Walk one catch clause.
-    ///
-    /// Example:
-    /// ```ds
-    /// catch (error: Error) { error }
-    /// ```
-    fn walk_catch(
-        &mut self,
-        id: dir::LocalNodeId<dir::Catch>,
-        failure: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<()> {
-        if !self.walk_decorators(id.into_any())? {
-            return Ok(());
-        }
-        let catch = self.tree.get(id);
-        let (pattern, ty, body) = (catch.pattern, catch.ty, catch.body);
-
-        // catch (error: T)
-        let expected = ty.map(|ty| self.walk_type_expression(ty)).transpose()?;
-        if let (Some(failure), Some(expected)) = (failure, expected) {
-            let origin = Origin::Node(
-                id.into_global_any(self.module),
-                self.flow().template_scope(),
-            );
-            self.relate_type(
-                origin,
-                CauseKind::Expression,
-                Relation::Assignable,
-                failure,
-                expected,
-            );
-        }
-
-        // catch (error)
-        if let Some(pattern) = pattern {
-            self.walk_pattern(pattern, self.tree.get(pattern), None)?;
-
-            // flow the caught value into the pattern type
-            if let Some(value) = expected.or(failure) {
-                self.queue_assignable(
-                    pattern,
-                    value,
-                    CauseKind::Pattern {
-                        pattern: pattern.into_global_any(self.module),
-                    },
-                    ValueUse::Store,
-                )?;
-
-                self.check.push_obligation(
-                    Obligation::PatternCoverage(PatternCoverageObligation {
-                        source: pattern.into_global_any(self.module),
-                        value: ExpectedType::Type(value),
-                        coverage: PatternCoverage::Catch {
-                            pattern: pattern.into_global(self.module),
-                        },
-                    }),
-                    self.flow().template_scope(),
-                );
-            }
-
-            self.mark_bindings_assigned(pattern.into_any());
-        }
-
-        // defer the handler body until the caught bindings are typed
-        let result = self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Regular)?;
-        self.check
-            .catch_results
-            .insert(id.into_global_any(self.module), result);
-        // catch (...) { ... }
-        self.walk_expression(body, self.tree.get(body))?;
-        self.queue_assignable(body, result, CauseKind::Expression, ValueUse::Output)?;
 
         Ok(())
     }

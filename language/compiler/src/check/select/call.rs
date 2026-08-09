@@ -5,9 +5,10 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, CandidateVerdict, CheckFailure, CheckOutcome, Decision,
-    DecisionKind, Dependency, Expectation, FlowSite, InferMode, Origin, PlaceUse, SignatureFamily,
-    SignatureMatch, SignatureSelection, TypeSubstitution, Value, ValueCheck, ValueUse, answer,
+    BodyState, CallableArgument, Callee, CandidateVerdict, CheckFailure, CheckOutcome,
+    DeferredCheck, Expectation, FlowSite, InferMode, Origin, PlaceUse, Selection, SignatureFamily,
+    SignatureInstance, SignatureMatch, SignatureSelection, TypeSubstitution, Value, ValueCheck,
+    ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -111,7 +112,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         callee_site: FlowSite,
-    ) -> CompilerResult<Answer<Option<CallCandidates>>> {
+    ) -> CompilerResult<Option<CallCandidates>> {
         let callee_node = callee_site.node;
         let callee = callee_node.into_typed::<dir::Expression>().local_id;
 
@@ -127,105 +128,86 @@ impl BodyState<'_, '_> {
             return self.value_callable_candidates(origin, callee_site);
         }
 
-        match self.decision_kind(callee_node) {
-            Some(DecisionKind::Name) => {
-                let Some(resolution) = self
-                    .resolutions(callee_node.module_id)
-                    .name_resolution(callee_node)
-                    .cloned()
-                else {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "call callee {callee_node:?} has a name decision without a resolution"
-                        ),
-                    });
-                };
-                let symbols = resolution
-                    .symbols()
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 2]>>();
+        // resolve declaration callees through their recorded name decision
+        if let Some(resolution) = self.name_decision(callee_node).cloned() {
+            let symbols = resolution
+                .symbols()
+                .iter()
+                .copied()
+                .collect::<SmallVec<[_; 2]>>();
 
-                // call a value binding through its inferred node type,
-                //  and a declaration through its symbol's overload set
-                let mut value_binding = true;
-                for symbol in &symbols {
-                    value_binding &= self
-                        .symbol_kind_maybe(*symbol)?
-                        .is_some_and(dir::SymbolKind::is_binding);
-                }
-                if value_binding {
-                    return self.value_callable_candidates(origin, callee_site);
-                }
-
-                let mut blockers = SmallVec::<[Dependency; 2]>::new();
-                let mut candidates = SmallVec::new();
-                for symbol in symbols {
-                    // skip declarations removed by statically false gates
-                    if self.is_absent_symbol(symbol) {
-                        continue;
-                    }
-
-                    let ty = match self.symbol_type(symbol)? {
-                        Answer::Ready(ty) => ty,
-                        Answer::Pending(pending) => {
-                            blockers.extend(pending);
-
-                            continue;
-                        }
-                    };
-                    let target = if matches!(
-                        self.symbol_kind_maybe(symbol)?,
-                        Some(dir::SymbolKind::Newtype)
-                    ) {
-                        CallableTarget::Newtype(symbol)
-                    } else {
-                        CallableTarget::Symbol(symbol)
-                    };
-                    let ty = match &target {
-                        CallableTarget::Newtype(_) => ty,
-                        _ => {
-                            let Some(ty) = answer!(self.callable_type(origin, ty)?) else {
-                                continue;
-                            };
-
-                            ty
-                        }
-                    };
-
-                    candidates.push(CallableCandidate {
-                        target,
-                        generic_scope: None,
-                        receiver: None,
-                        member_space: None,
-                        ty,
-                        generic_arguments: Vec::new(),
-                    });
-                }
-                if !blockers.is_empty() {
-                    return Ok(Answer::Pending(blockers));
-                }
-
-                let mut arms = SmallVec::new();
-                arms.push(CallableArm {
-                    overloads: candidates,
-                });
-
-                Ok(Answer::Ready(Some(CallCandidates { arms })))
+            // call a value binding through its type, a declaration through its overloads
+            let mut is_value_binding = true;
+            for symbol in &symbols {
+                is_value_binding &= self
+                    .symbol_kind_maybe(*symbol)?
+                    .is_some_and(dir::SymbolKind::is_binding);
             }
-            Some(DecisionKind::Member) => {
-                let dir::Expression::Member { left, .. } = self.module(module).view().get(callee)
-                else {
+            if is_value_binding {
+                return self.value_callable_candidates(origin, callee_site);
+            }
+
+            // build one overload candidate per declared symbol
+            let mut candidates = SmallVec::new();
+            for symbol in symbols {
+                // skip declarations removed by statically false gates
+                if self.is_absent_symbol(symbol) {
+                    continue;
+                }
+
+                let ty = self.symbol_type(symbol)?;
+                let target = if matches!(
+                    self.symbol_kind_maybe(symbol)?,
+                    Some(dir::SymbolKind::Newtype)
+                ) {
+                    CallableTarget::Newtype(symbol)
+                } else {
+                    CallableTarget::Symbol(symbol)
+                };
+                let ty = match &target {
+                    CallableTarget::Newtype(_) => ty,
+                    _ => {
+                        let Some(ty) = self.callable_type(origin, ty)? else {
+                            continue;
+                        };
+
+                        ty
+                    }
+                };
+
+                candidates.push(CallableCandidate {
+                    target,
+                    generic_scope: None,
+                    receiver: None,
+                    member_space: None,
+                    ty,
+                    generic_arguments: Vec::new(),
+                });
+            }
+            // declaration callees name exactly one runtime callee
+            let mut arms = SmallVec::new();
+            arms.push(CallableArm {
+                overloads: candidates,
+            });
+
+            return Ok(Some(CallCandidates { arms }));
+        }
+
+        // fall back to the callee's own decision
+        match self.decision(callee_node).cloned() {
+            Some(dir::Decision::Member(_)) => {
+                let callee_expression = self.module(module).view().get(callee).clone();
+                let dir::Expression::Member { left, .. } = callee_expression else {
                     return Err(CompilerError::Internal {
                         message: format!("member call callee {callee_node:?} is not a member"),
                     });
                 };
-                let receiver_site = self.node_site(left.into_global_any(module))?;
-                let receiver_type = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
-                let receiver = answer!(self.expression_value(receiver_site, receiver_type)?);
+                let receiver_site = self.visit_site(left.into_global_any(module))?;
+                let receiver_type = self.infer_node_type(receiver_site, PlaceUse::Read)?;
+                let receiver = self.expression_value(receiver_site, receiver_type)?;
                 let Some(resolution) = self
-                    .resolutions(callee_node.module_id)
-                    .member_resolution(callee_node)
+                    .decisions(callee_node.module_id)
+                    .member_decision(callee_node)
                     .cloned()
                 else {
                     return Err(CompilerError::Internal {
@@ -236,14 +218,13 @@ impl BodyState<'_, '_> {
                 };
                 let candidates = match &resolution {
                     dir::OperationResolution::One(access) => {
-                        answer!(self.member_access_call_candidates(origin, receiver, access)?)
+                        self.member_access_call_candidates(origin, receiver, access)?
                     }
                     dir::OperationResolution::Union { arms, .. } => {
                         let mut runtime_arms = SmallVec::with_capacity(arms.len());
                         for access in arms {
-                            let candidates = answer!(
-                                self.member_access_call_candidates(origin, receiver, access)?
-                            );
+                            let candidates =
+                                self.member_access_call_candidates(origin, receiver, access)?;
                             runtime_arms.extend(candidates.arms);
                         }
 
@@ -251,18 +232,27 @@ impl BodyState<'_, '_> {
                     }
                 };
 
-                Ok(Answer::Ready(Some(candidates)))
+                Ok(Some(candidates))
             }
-            // skip rejected callees, they already reported a diagnostic
-            Some(DecisionKind::Rejected | DecisionKind::Poisoned) => Ok(Answer::Ready(None)),
+            // skip a callee that already reported
+            Some(dir::Decision::Rejected | dir::Decision::Poisoned) => Ok(None),
             Some(other) => Err(CompilerError::Internal {
                 message: format!("call callee {callee_node:?} decided as {other:?}"),
             }),
-            // member callees decide by checking the callee in place;
-            //  a checked callee without a decision calls through its value
+            // an undecided callee resolves or checks in place, then re-dispatches
             None => {
-                let _ = answer!(self.infer_node(callee_site, PlaceUse::Read, InferMode::Exact)?);
-                match self.decision_kind(callee_node) {
+                // route an identifier callee through its symbol set, not its value
+                if let dir::Expression::Identifier { .. } = self.module(module).view().get(callee) {
+                    return match self.decide_reference(callee_node)? {
+                        Some(_) => self.callable_candidates(origin, module, callee_site),
+                        // unresolved names already reported their diagnostic
+                        None => Ok(None),
+                    };
+                }
+
+                // decide a member callee by checking it in place, else call its value
+                let _ = self.infer_node(callee_site, PlaceUse::Read, InferMode::Exact)?;
+                match self.decision(callee_node) {
                     Some(_) => self.callable_candidates(origin, module, callee_site),
                     None => self.value_callable_candidates(origin, callee_site),
                 }
@@ -276,18 +266,18 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver: Value,
         access: &dir::MemberAccess,
-    ) -> CompilerResult<Answer<CallCandidates>> {
-        if let Some(arm) = answer!(self.member_target_callable_arm(receiver, &access.target)?) {
+    ) -> CompilerResult<CallCandidates> {
+        if let Some(arm) = self.member_target_callable_arm(receiver, &access.target)? {
             let mut arms = SmallVec::new();
             arms.push(arm);
 
-            return Ok(Answer::Ready(CallCandidates { arms }));
+            return Ok(CallCandidates { arms });
         }
 
         // stored and computed members call through their selected value
-        let arms = answer!(self.callable_value_arms(origin, access.ty)?);
+        let arms = self.callable_value_arms(origin, access.ty)?;
 
-        Ok(Answer::Ready(CallCandidates { arms }))
+        Ok(CallCandidates { arms })
     }
 
     /// Build callable candidates from one singular member target.
@@ -295,17 +285,17 @@ impl BodyState<'_, '_> {
         &mut self,
         receiver: Value,
         target: &dir::MemberTarget,
-    ) -> CompilerResult<Answer<Option<CallableArm>>> {
+    ) -> CompilerResult<Option<CallableArm>> {
         match target {
             dir::MemberTarget::Symbol(candidate) => {
                 let mut candidates = SmallVec::new();
-                if let Some(candidate) = answer!(self.member_call_candidate(receiver, candidate)?) {
+                if let Some(candidate) = self.member_call_candidate(receiver, candidate)? {
                     candidates.push(candidate);
                 }
 
-                Ok(Answer::Ready(Some(CallableArm {
+                Ok(Some(CallableArm {
                     overloads: candidates,
-                })))
+                }))
             }
             dir::MemberTarget::Existential(targets) => {
                 let mut candidates = SmallVec::new();
@@ -317,36 +307,32 @@ impl BodyState<'_, '_> {
                             ),
                         });
                     };
-                    if let Some(candidate) =
-                        answer!(self.member_call_candidate(receiver, candidate)?)
-                    {
+                    if let Some(candidate) = self.member_call_candidate(receiver, candidate)? {
                         candidates.push(candidate);
                     }
                 }
 
-                Ok(Answer::Ready(Some(CallableArm {
+                Ok(Some(CallableArm {
                     overloads: candidates,
-                })))
+                }))
             }
             dir::MemberTarget::Intersection(targets) => {
                 let mut candidates = SmallVec::new();
                 for target in targets {
-                    let Some(selected) =
-                        answer!(self.member_target_callable_arm(receiver, target)?)
-                    else {
+                    let Some(selected) = self.member_target_callable_arm(receiver, target)? else {
                         continue;
                     };
                     candidates.extend(selected.overloads);
                 }
 
-                Ok(Answer::Ready(Some(CallableArm {
+                Ok(Some(CallableArm {
                     overloads: candidates,
-                })))
+                }))
             }
             dir::MemberTarget::Projection { .. }
             | dir::MemberTarget::Field(_)
             | dir::MemberTarget::Call(_)
-            | dir::MemberTarget::Index(_) => Ok(Answer::Ready(None)),
+            | dir::MemberTarget::Index(_) => Ok(None),
         }
     }
 
@@ -355,9 +341,9 @@ impl BodyState<'_, '_> {
         &mut self,
         receiver: Value,
         candidate: &dir::MemberCandidate,
-    ) -> CompilerResult<Answer<Option<CallableCandidate>>> {
+    ) -> CompilerResult<Option<CallableCandidate>> {
         let Some(ty) = candidate.callable_type else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let target = self.member_callable_target(candidate)?;
         let receiver = match &target {
@@ -379,7 +365,7 @@ impl BodyState<'_, '_> {
             generic_arguments: candidate.generic_arguments.clone(),
         };
 
-        Ok(Answer::Ready(Some(candidate)))
+        Ok(Some(candidate))
     }
 
     /// Return the operation selected by one declaration-backed member.
@@ -447,8 +433,8 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let ty = self.reduce_type_head(origin, ty)?;
         let callable = matches!(
             self.ty(ty)?,
             dir::Type::FunctionSignature(_)
@@ -457,7 +443,7 @@ impl BodyState<'_, '_> {
         )
         .then_some(ty);
 
-        Ok(Answer::Ready(callable))
+        Ok(callable)
     }
 
     /// Collect the callable candidate behind one function-typed callee value.
@@ -465,12 +451,12 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         callee: FlowSite,
-    ) -> CompilerResult<Answer<Option<CallCandidates>>> {
-        let ty = answer!(self.infer_node_type(callee, PlaceUse::Read)?);
-        let ty = answer!(self.strip_form(origin, ty)?);
-        let arms = answer!(self.callable_value_arms(origin, ty)?);
+    ) -> CompilerResult<Option<CallCandidates>> {
+        let ty = self.infer_node_type(callee, PlaceUse::Read)?;
+        let ty = self.strip_form(origin, ty)?;
+        let arms = self.callable_value_arms(origin, ty)?;
 
-        Ok(Answer::Ready(Some(CallCandidates { arms })))
+        Ok(Some(CallCandidates { arms }))
     }
 
     /// Collect runtime callable arms from one value type.
@@ -478,27 +464,27 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<SmallVec<[CallableArm; 2]>>> {
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<SmallVec<[CallableArm; 2]>> {
+        let ty = self.reduce_type_head(origin, ty)?;
 
         // distribute runtime union alternatives into independent arms
         if let dir::Type::Union(union) = self.ty(ty)? {
             let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
             let mut arms = SmallVec::with_capacity(elements.len());
             for element in elements {
-                let nested = answer!(self.callable_value_arms(origin, element)?);
+                let nested = self.callable_value_arms(origin, element)?;
                 arms.extend(nested);
             }
 
-            return Ok(Answer::Ready(arms));
+            return Ok(arms);
         }
 
         // intersections contribute overload alternatives to one runtime value
-        let overloads = answer!(self.callable_value_overloads(origin, ty)?);
+        let overloads = self.callable_value_overloads(origin, ty)?;
         let mut arms = SmallVec::new();
         arms.push(CallableArm { overloads });
 
-        Ok(Answer::Ready(arms))
+        Ok(arms)
     }
 
     /// Collect overload alternatives from one runtime callable value.
@@ -506,28 +492,25 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<SmallVec<[CallableCandidate; 2]>>> {
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+    ) -> CompilerResult<SmallVec<[CallableCandidate; 2]>> {
+        let ty = self.reduce_type_head(origin, ty)?;
 
         // flatten intersection signatures into one declaration alternative set
         if let dir::Type::Intersection(intersection) = self.ty(ty)? {
             let elements = self.type_ids(ty.module_id, intersection.elements)?.to_vec();
             let mut overloads = SmallVec::with_capacity(elements.len());
             for element in elements {
-                let nested = answer!(self.callable_value_overloads(origin, element)?);
+                let nested = self.callable_value_overloads(origin, element)?;
                 overloads.extend(nested);
             }
 
-            return Ok(Answer::Ready(overloads));
+            return Ok(overloads);
         }
 
         // call erased interface values through their apparent signatures
         if let dir::Type::Dynamic(dynamic) = self.ty(ty)? {
-            let signatures = answer!(self.apparent_signatures(
-                origin,
-                dynamic.constraint,
-                SignatureFamily::Call,
-            )?);
+            let signatures =
+                self.apparent_signatures(origin, dynamic.constraint, SignatureFamily::Call)?;
             let mut overloads = SmallVec::with_capacity(signatures.len());
             for signature in signatures {
                 overloads.push(CallableCandidate {
@@ -544,12 +527,12 @@ impl BodyState<'_, '_> {
                 });
             }
 
-            return Ok(Answer::Ready(overloads));
+            return Ok(overloads);
         }
 
         // retain one candidate for an invocable value representation
         let mut overloads = SmallVec::new();
-        if let Some(ty) = answer!(self.callable_type(origin, ty)?) {
+        if let Some(ty) = self.callable_type(origin, ty)? {
             overloads.push(CallableCandidate {
                 target: CallableTarget::Expression,
                 generic_scope: None,
@@ -560,7 +543,7 @@ impl BodyState<'_, '_> {
             });
         }
 
-        Ok(Answer::Ready(overloads))
+        Ok(overloads)
     }
 }
 
@@ -591,8 +574,8 @@ impl BodyState<'_, '_> {
         arguments: &[CallableArgument],
         argument_types: &[dir::GlobalTypeId],
         expectation: Option<Expectation>,
-    ) -> CompilerResult<Answer<SignatureMatch>> {
-        let matched = answer!(self.attempt_callable(
+    ) -> CompilerResult<SignatureMatch> {
+        let matched = self.attempt_callable(
             origin,
             candidate.ty,
             candidate.generic_scope,
@@ -601,9 +584,9 @@ impl BodyState<'_, '_> {
             argument_types,
             arguments,
             expectation,
-        )?);
+        )?;
 
-        Ok(Answer::Ready(matched))
+        Ok(matched)
     }
 
     /// Select the first applicable overload from every runtime arm.
@@ -614,39 +597,37 @@ impl BodyState<'_, '_> {
         arguments: &[CallableArgument],
         argument_types: &[dir::GlobalTypeId],
         expectation: Option<Expectation>,
-    ) -> CompilerResult<Answer<OverloadSelection<'candidate>>> {
+    ) -> CompilerResult<OverloadSelection<'candidate>> {
+        // leave the call unselectable when an arm declares nothing
         if arms.iter().any(|arm| arm.overloads.is_empty()) {
-            return Ok(Answer::Ready(OverloadSelection {
+            return Ok(OverloadSelection {
                 candidates: SmallVec::new(),
                 rejections: Vec::new(),
-            }));
+            });
         }
 
-        // one declaration per runtime arm needs no selection probe
+        // skip the probe when every arm has one declaration
         if arms.iter().all(|arm| arm.overloads.len() == 1) {
             let candidates = arms
                 .iter()
                 .map(|arm| &arm.overloads[0])
                 .collect::<SmallVec<[_; 2]>>();
 
-            return Ok(Answer::Ready(OverloadSelection {
+            return Ok(OverloadSelection {
                 candidates,
                 rejections: Vec::new(),
-            }));
+            });
         }
 
+        // select the first viable overload per arm, else the first undecided one
         let mut candidates = SmallVec::with_capacity(arms.len());
         let mut rejections = Vec::new();
-
-        // select the first viable declaration from each runtime arm, falling
-        //  back to the first undecided one when nothing decides; the
-        //  expected return never reorders overloads
         for arm in arms {
             let mut selected = None;
             let mut undecided = None;
             rejections.clear();
             for candidate in &arm.overloads {
-                let (verdict, rejection) = answer!(self.probe_candidate_noted(
+                let (verdict, rejection) = self.probe_candidate_describing(
                     |state| {
                         let matched = state.attempt_call(
                             origin,
@@ -655,10 +636,8 @@ impl BodyState<'_, '_> {
                             argument_types,
                             expectation,
                         )?;
-                        match matched {
-                            Answer::Ready(matched) => Ok(Answer::Ready(matched.into_candidate())),
-                            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-                        }
+
+                        Ok(matched.into_candidate())
                     },
                     |state, rejection| {
                         state.check.describe_signature_rejection(
@@ -667,9 +646,10 @@ impl BodyState<'_, '_> {
                             rejection,
                         )
                     },
-                )?);
+                )?;
                 match verdict {
                     CandidateVerdict::Rejected => rejections.extend(rejection),
+                    // strict declaration order: the first viable overload wins
                     CandidateVerdict::Viable => {
                         selected = Some(candidate);
 
@@ -688,10 +668,66 @@ impl BodyState<'_, '_> {
             candidates.push(selected);
         }
 
-        Ok(Answer::Ready(OverloadSelection {
+        Ok(OverloadSelection {
             candidates,
             rejections,
-        }))
+        })
+    }
+
+    /// Apply one decided selection at a call site, converting each argument.
+    fn apply_signature_instance(
+        &mut self,
+        origin: Origin,
+        selection: SignatureSelection,
+        arguments: &[CallableArgument],
+    ) -> CompilerResult<Option<SignatureSelection>> {
+        // convert each argument against the decided parameter row
+        let mut signature = selection;
+        for (index, argument) in arguments.iter().copied().enumerate() {
+            let parameter = signature
+                .parameters
+                .get(index)
+                .or_else(|| signature.parameters.last());
+            let Some(parameter) = parameter else {
+                return Ok(None);
+            };
+            let parameter_type = match parameter.is_rest {
+                true => self
+                    .rest_element_type(origin, parameter.ty)?
+                    .unwrap_or(parameter.ty),
+                false => parameter.ty,
+            };
+            let conversion =
+                self.match_signature_argument(origin, index, argument, parameter_type)?;
+            match conversion {
+                Ok(Some(coercion)) => signature.coercions.push((argument.source, coercion)),
+                Ok(None) => {}
+                Err(_) => return Ok(None),
+            }
+        }
+
+        Ok(Some(signature))
+    }
+
+    /// Return whether one selection embeds no open inference variables.
+    fn signature_is_closed(&mut self, signature: &SignatureSelection) -> CompilerResult<bool> {
+        // collect every type the selection embeds
+        let mut types = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        types.push(signature.callable);
+        types.push(signature.return_type);
+        types.extend(signature.parameters.iter().map(|parameter| parameter.ty));
+        types.extend(dir::GenericArgumentBinding::values(
+            &signature.generic_arguments,
+        ));
+
+        // stop at the first open variable
+        for ty in types {
+            if self.type_flags(ty)?.has_variable() {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
     }
 
     /// Attempt every selected runtime arm as one inference transaction.
@@ -702,20 +738,14 @@ impl BodyState<'_, '_> {
         arguments: &[CallableArgument],
         argument_types: &[dir::GlobalTypeId],
         expectation: Option<Expectation>,
-    ) -> CompilerResult<Answer<CallMatch>> {
+    ) -> CompilerResult<CallMatch> {
+        // require every runtime arm to accept the call
         let mut signatures = SmallVec::with_capacity(candidates.len());
         let mut coercions = SmallVec::<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>::new();
         let mut has_return_mismatch = false;
-
-        // require every runtime arm under the same inference state
         for candidate in candidates {
-            let matched = answer!(self.attempt_call(
-                origin,
-                candidate,
-                arguments,
-                argument_types,
-                expectation,
-            )?);
+            let matched =
+                self.attempt_call(origin, candidate, arguments, argument_types, expectation)?;
             let signature = match matched {
                 SignatureMatch::Selected(signature) => signature,
                 SignatureMatch::ReturnMismatch(signature) => {
@@ -731,17 +761,18 @@ impl BodyState<'_, '_> {
                         &rejection,
                     )?;
 
-                    return Ok(Answer::Ready(CallMatch::Inapplicable(rejection)));
+                    return Ok(CallMatch::Inapplicable(rejection));
                 }
             };
+
             // require one uniform argument conversion across every runtime arm
             for (node, coercion) in &signature.coercions {
                 match coercions.iter().find(|(source, _)| source == node) {
                     Some((_, selected)) if selected != coercion => {
-                        return Ok(Answer::Ready(CallMatch::Inapplicable(
+                        return Ok(CallMatch::Inapplicable(
                             "runtime call arms require incompatible argument conversions"
                                 .to_string(),
-                        )));
+                        ));
                     }
                     Some(_) => {}
                     None => coercions.push((*node, coercion.clone())),
@@ -750,10 +781,11 @@ impl BodyState<'_, '_> {
             signatures.push(signature);
         }
 
+        // hold the combination back on a mismatched return, else accept every arm
         if has_return_mismatch {
-            Ok(Answer::Ready(CallMatch::ReturnMismatch(signatures)))
+            Ok(CallMatch::ReturnMismatch(signatures))
         } else {
-            Ok(Answer::Ready(CallMatch::Selected(signatures)))
+            Ok(CallMatch::Selected(signatures))
         }
     }
 }
@@ -765,7 +797,7 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeIdAny,
         expectation: Option<Expectation>,
     ) -> CompilerResult<ValueCheck> {
-        self.commit_decision(node, Decision::Rejected)?;
+        self.commit_decision(node, dir::Decision::Rejected)?;
         let source = self.commit_error_node(node)?;
         let target = expectation.map_or(source, |expectation| expectation.target);
 
@@ -792,6 +824,35 @@ impl BodyState<'_, '_> {
         })
     }
 
+    /// Defer one call whose callee value has not settled yet.
+    fn defer_call_selection(
+        &mut self,
+        site: FlowSite,
+        expectation: Option<Expectation>,
+        stalled_on: dir::TypeVariableId,
+    ) -> CompilerResult<ValueCheck> {
+        let node = site.node;
+        if self.committed_node_type(node).is_none() {
+            let variable =
+                self.allocate_variable(site.origin(), Widening::Never, VariableRole::Regular);
+            let hole = self.variable_type(variable)?;
+            self.commit_node_type(node, hole)?;
+        }
+        self.check.register_check(DeferredCheck::Infer {
+            site,
+            use_: PlaceUse::Read,
+            stalled_on: Some(stalled_on),
+        });
+        let source = self.require_node_type(node)?;
+        let target = expectation.map_or(source, |expectation| expectation.target);
+
+        Ok(ValueCheck {
+            source,
+            outcome: CheckOutcome::Holds,
+            target,
+        })
+    }
+
     /// Select the callable meaning of one call node.
     pub(in crate::check) fn select_call(
         &mut self,
@@ -800,12 +861,43 @@ impl BodyState<'_, '_> {
         generic_argument_nodes: &[dir::LocalNodeId<dir::GenericArgument>],
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         expectation: Option<Expectation>,
-    ) -> CompilerResult<Answer<ValueCheck>> {
+    ) -> CompilerResult<ValueCheck> {
         let node = site.node;
         let module = node.module_id;
         let origin = site.origin();
 
-        // collect explicit type arguments from the call node
+        // walk the written generic arguments of the call node
+        self.walk_body_generic_arguments(module, generic_argument_nodes)?;
+
+        // register function-valued arguments before any candidate probe
+        self.register_argument_function_values(module, argument_nodes)?;
+
+        // consuming receivers mark their identifier source moved
+        let call = node.into_typed::<dir::Expression>().local_id;
+        if let dir::Expression::Member { left: receiver, .. } =
+            self.module(module).view().get(callee)
+        {
+            let receiver = *receiver;
+            self.check.mark_moved_source(receiver, Some(call), None);
+        }
+
+        // mark each argument's identifier source moved and decide it
+        for argument in argument_nodes {
+            if let Some(value) = self.module(module).view().get(*argument).value() {
+                self.check.mark_moved_argument(value, *argument, call);
+
+                // decide identifier and receiver arguments ahead of candidate probes
+                let value_node = value.into_global_any(module);
+                self.decide_reference(value_node)?;
+                if matches!(self.module(module).view().get(value), dir::Expression::This)
+                    && self.check.decision(value_node).is_none()
+                {
+                    self.check.commit_active_receiver_decision(value_node)?;
+                }
+            }
+        }
+
+        // collect the written generic argument types
         let mut argument_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for argument in generic_argument_nodes {
             let argument = argument.into_global_any(module);
@@ -834,13 +926,14 @@ impl BodyState<'_, '_> {
             );
         }
 
-        let callee_site = self.node_site(callee.into_global_any(module))?;
+        let callee_site = self.visit_site(callee.into_global_any(module))?;
 
         // collect callable candidates from the callee
-        let Some(callees) = answer!(self.callable_candidates(origin, module, callee_site)?) else {
+        let Some(callees) = self.callable_candidates(origin, module, callee_site)? else {
             // rejected callees already reported their own diagnostic
-            return Ok(Answer::Ready(self.reject_call(node, expectation)?));
+            return self.reject_call(node, expectation);
         };
+
         // runtime union callees must accept the call through every arm
         if callees.arms.len() > 1 {
             return self.select_call_arms(
@@ -858,19 +951,28 @@ impl BodyState<'_, '_> {
                 message: "call candidate set contains no runtime arm".to_string(),
             });
         };
+        // poison, defer, or reject a callee that exposes no callable
         let candidates = &arm.overloads;
         if candidates.is_empty() {
             let callee_type = self.require_node_type(callee_site.node)?;
-            let callee_type = answer!(self.flow_type_at(callee_site, callee_type)?);
+            let callee_type = self.flow_type_at(callee_site, callee_type)?;
             // poison instead of reporting again when the callee already reported an error
             if self.any_error_operand(&[callee_type])? {
-                return Ok(Answer::Ready(self.poison_call(node, expectation)?));
+                return self.poison_call(node, expectation);
+            }
+
+            // defer an unknown callee head until its value solves
+            if !self.check.infer.forcing
+                && let Some(stalled_on) = self.check.root_variable(callee_type)?
+            {
+                return self.defer_call_selection(site, expectation, stalled_on);
             }
             self.report_not_callable(origin, callee_type)?;
-            return Ok(Answer::Ready(self.reject_call(node, expectation)?));
+
+            return self.reject_call(node, expectation);
         }
 
-        // newtype targets select their nominal constructor
+        // select the nominal constructor for a newtype target
         if let [
             CallableCandidate {
                 target: CallableTarget::Newtype(symbol),
@@ -878,7 +980,7 @@ impl BodyState<'_, '_> {
             },
         ] = candidates.as_slice()
         {
-            // newtype heads read as their declaration reference
+            // read a newtype head as its declaration reference
             let symbol = *symbol;
             let callee_node = callee.into_global_any(module);
             let reference =
@@ -896,80 +998,147 @@ impl BodyState<'_, '_> {
             );
         }
 
-        // select the first applicable overload in declaration order
+        // select once per closed operand list, then replay
+        let selection_key = match candidates.first().map(|first| &first.target) {
+            Some(CallableTarget::Symbol(symbol)) => {
+                let symbol = *symbol;
+                let first = &candidates[0];
+                let mut operands = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+                operands.push(first.ty);
+                operands.extend(dir::GenericArgumentBinding::values(
+                    &first.generic_arguments,
+                ));
+                operands.extend(argument_types.iter().copied());
+
+                self.derive_selection_key(origin, Callee::Symbol(symbol), expectation, &operands)?
+            }
+            _ => None,
+        };
         let arguments = self.callable_arguments(module, argument_nodes, ValueUse::Argument)?;
+
+        // replay the decided overload when this site repeats an earlier selection
+        if let Some(key) = &selection_key
+            && let Some(Selection::Callable(instance)) = self.check.selections.get(key).cloned()
+            && let Some(candidate) = candidates.get(instance.overload)
+            && let Some(signature) =
+                self.apply_signature_instance(origin, instance.selection, &arguments)?
+        {
+            let source =
+                self.commit_callable_signature(node, callee, candidate, argument_nodes, signature)?;
+            let target = expectation.map_or(source, |expectation| expectation.target);
+
+            return Ok(ValueCheck {
+                source,
+                outcome: CheckOutcome::Holds,
+                target,
+            });
+        }
+
+        // select the first applicable overload in declaration order
         let is_single_candidate = candidates.len() == 1;
-        let overload = answer!(self.select_overloads(
+        let overload = self.select_overloads(
             origin,
             slice::from_ref(arm),
             &arguments,
             &argument_types,
             expectation,
-        )?);
+        )?;
 
         // confirm the selected declaration outside any probe
         if let Some(candidate) = overload.candidates.first().copied() {
+            let mark = self.check.infer.mark();
+            let pending = self.check.infer.pending.len();
             let attempt =
                 self.attempt_call(origin, candidate, &arguments, &argument_types, expectation)?;
+            match &attempt {
+                SignatureMatch::Selected(_) => self.check.infer.commit(mark),
+                SignatureMatch::Invalid { .. } | SignatureMatch::Inapplicable(_)
+                    if is_single_candidate =>
+                {
+                    self.check.infer.commit(mark)
+                }
+                _ => {
+                    let poison = self.check.intern_type(dir::Type::Error)?;
+                    self.check.infer.rollback(mark, poison)?;
+                    self.check.infer.pending.truncate(pending);
+                }
+            }
 
-            match answer!(attempt) {
+            match attempt {
                 SignatureMatch::Selected(signature) => {
-                    let source = answer!(self.commit_callable_signature(
+                    if let Some(key) = selection_key
+                        && self.signature_is_closed(&signature)?
+                        && let Some(overload) = candidates
+                            .iter()
+                            .position(|entry| std::ptr::eq(entry, candidate))
+                    {
+                        let mut stored = signature.clone();
+                        stored.coercions = SmallVec::new();
+                        self.check.selections.insert(
+                            key,
+                            Selection::Callable(SignatureInstance {
+                                overload,
+                                selection: stored,
+                            }),
+                        );
+                    }
+                    let source = self.commit_callable_signature(
                         node,
                         callee,
                         candidate,
                         argument_nodes,
                         signature,
-                    )?);
+                    )?;
                     let target = expectation.map_or(source, |expectation| expectation.target);
 
-                    return Ok(Answer::Ready(ValueCheck {
+                    return Ok(ValueCheck {
                         source,
                         outcome: CheckOutcome::Holds,
                         target,
-                    }));
+                    });
                 }
                 SignatureMatch::ReturnMismatch(signature) => {
-                    let source = answer!(self.commit_callable_signature(
+                    let source = self.commit_callable_signature(
                         node,
                         callee,
                         candidate,
                         argument_nodes,
                         signature,
-                    )?);
+                    )?;
                     let target = expectation.map_or(source, |expectation| expectation.target);
 
-                    return Ok(Answer::Ready(ValueCheck {
+                    return Ok(ValueCheck {
                         source,
                         outcome: CheckOutcome::Fails(CheckFailure::Relation),
                         target,
-                    }));
+                    });
                 }
                 SignatureMatch::Invalid {
                     selection,
                     rejection,
                 } if is_single_candidate => {
                     self.report_signature_rejection(origin, rejection)?;
-                    let source = answer!(self.commit_callable_signature(
+                    let source = self.commit_callable_signature(
                         node,
                         callee,
                         candidate,
                         argument_nodes,
                         selection,
-                    )?);
+                    )?;
                     let target = expectation.map_or(source, |expectation| expectation.target);
 
-                    return Ok(Answer::Ready(ValueCheck {
+                    return Ok(ValueCheck {
                         source,
                         outcome: CheckOutcome::Holds,
                         target,
-                    }));
+                    });
                 }
                 SignatureMatch::Inapplicable(rejection)
                     if is_single_candidate && rejection.is_precise() =>
                 {
                     self.report_signature_rejection(origin, rejection)?;
-                    return Ok(Answer::Ready(self.reject_call(node, expectation)?));
+
+                    return self.reject_call(node, expectation);
                 }
                 SignatureMatch::Invalid { .. } => {}
                 SignatureMatch::Inapplicable(_) => {}
@@ -979,9 +1148,9 @@ impl BodyState<'_, '_> {
         // report that no candidate matched the arguments
         let mut rejections = overload.rejections;
         rejections.truncate(4);
-        let arguments = answer!(self.infer_argument_types(site, argument_nodes)?);
+        let arguments = self.infer_argument_types(site, argument_nodes)?;
         self.report_no_matching_call(origin, &arguments, &rejections)?;
-        Ok(Answer::Ready(self.reject_call(node, expectation)?))
+        self.reject_call(node, expectation)
     }
 
     /// Return whether one call head is an inference hole.
@@ -1009,15 +1178,15 @@ impl BodyState<'_, '_> {
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         argument_types: &[dir::GlobalTypeId],
         expectation: Option<Expectation>,
-    ) -> CompilerResult<Answer<ValueCheck>> {
+    ) -> CompilerResult<ValueCheck> {
         let callee = callee.into_global_any(origin.module());
         let Some(expectation) = expectation else {
             self.report_cannot_infer_node(node)?;
             self.commit_error_node(callee)?;
 
-            return Ok(Answer::Ready(self.reject_call(node, None)?));
+            return self.reject_call(node, None);
         };
-        let target = answer!(self.reduce_type_head(origin, expectation.target)?);
+        let target = self.reduce_type_head(origin, expectation.target)?;
         let symbol = match self.ty(target)? {
             dir::Type::Application(instance)
                 if matches!(
@@ -1031,7 +1200,7 @@ impl BodyState<'_, '_> {
                 self.report_invalid_inferred_construct_target(origin, target)?;
                 self.commit_error_node(callee)?;
 
-                return Ok(Answer::Ready(self.reject_call(node, Some(expectation))?));
+                return self.reject_call(node, Some(expectation));
             }
         };
 
@@ -1060,42 +1229,44 @@ impl BodyState<'_, '_> {
         candidates: &CallCandidates,
         argument_types: &[dir::GlobalTypeId],
         expectation: Option<Expectation>,
-    ) -> CompilerResult<Answer<ValueCheck>> {
+    ) -> CompilerResult<ValueCheck> {
         let arguments =
             self.callable_arguments(origin.module(), argument_nodes, ValueUse::Argument)?;
 
         // select the first applicable overload from every runtime arm
-        let overload = answer!(self.select_overloads(
+        let overload = self.select_overloads(
             origin,
             &candidates.arms,
             &arguments,
             argument_types,
             expectation,
-        )?);
+        )?;
         if overload.candidates.is_empty() {
-            let argument_types = answer!(self.infer_argument_types(site, argument_nodes)?);
+            let argument_types = self.infer_argument_types(site, argument_nodes)?;
             let mut rejections = overload.rejections;
             rejections.truncate(4);
             self.report_no_matching_call(origin, &argument_types, &rejections)?;
-            return Ok(Answer::Ready(self.reject_call(node, expectation)?));
+
+            return self.reject_call(node, expectation);
         }
 
         // confirm the selected combination outside the selection probes
-        let (signatures, outcome) = match answer!(self.attempt_calls(
+        let (signatures, outcome) = match self.attempt_calls(
             origin,
             &overload.candidates,
             &arguments,
             argument_types,
             expectation,
-        )?) {
+        )? {
             CallMatch::Selected(selection) => (selection, CheckOutcome::Holds),
             CallMatch::ReturnMismatch(selection) => {
                 (selection, CheckOutcome::Fails(CheckFailure::Relation))
             }
             CallMatch::Inapplicable(rejection) => {
-                let argument_types = answer!(self.infer_argument_types(site, argument_nodes)?);
+                let argument_types = self.infer_argument_types(site, argument_nodes)?;
                 self.report_no_matching_call(origin, &argument_types, &[rejection])?;
-                return Ok(Answer::Ready(self.reject_call(node, expectation)?));
+
+                return self.reject_call(node, expectation);
             }
         };
 
@@ -1105,10 +1276,11 @@ impl BodyState<'_, '_> {
                 self.commit_coercion(*source, coercion.clone())?;
             }
         }
+        // build one call decision per runtime arm
         let mut calls = Vec::with_capacity(overload.candidates.len());
         let mut returns = SmallVec::<[_; 4]>::new();
         for (candidate, signature) in overload.candidates.iter().zip(signatures) {
-            let call = self.call_resolution(
+            let call = self.call_decision(
                 origin,
                 origin.module(),
                 candidate,
@@ -1118,25 +1290,26 @@ impl BodyState<'_, '_> {
             returns.push(call.return_type);
             calls.push(call);
         }
+        // join the arm results into the call's value type
         let return_type = match returns.as_slice() {
             [single] => *single,
             _ => self.normalized_union_type(returns)?,
         };
-        let resolution = dir::CallResolution::Union {
+        let resolution = dir::CallDecision::Union {
             arms: calls,
             ty: return_type,
         };
-        self.commit_decision(node, Decision::Call(resolution))?;
+        self.commit_decision(node, dir::Decision::Call(resolution))?;
 
         self.commit_node_type(node, return_type)?;
 
         let target = expectation.map_or(return_type, |expectation| expectation.target);
 
-        Ok(Answer::Ready(ValueCheck {
+        Ok(ValueCheck {
             source: return_type,
             outcome,
             target,
-        }))
+        })
     }
 }
 
@@ -1149,7 +1322,7 @@ impl BodyState<'_, '_> {
         candidate: &CallableCandidate,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         signature: SignatureSelection,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         // commit conversions only after the candidate has been selected
         for (source, coercion) in &signature.coercions {
             self.commit_coercion(*source, coercion.clone())?;
@@ -1178,7 +1351,7 @@ impl BodyState<'_, '_> {
         candidate: &CallableCandidate,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         signature: SignatureSelection,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         // bare declaration heads type as the selected overload
         if matches!(&candidate.target, CallableTarget::Symbol(_))
             && candidate.member_space.is_none()
@@ -1188,7 +1361,7 @@ impl BodyState<'_, '_> {
         }
 
         let origin = Origin::Node(node, None);
-        let call = self.call_resolution(
+        let call = self.call_decision(
             origin,
             node.module_id,
             candidate,
@@ -1201,7 +1374,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Build one expression or symbol call resolution.
-    fn call_resolution(
+    fn call_decision(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -1303,7 +1476,7 @@ impl BodyState<'_, '_> {
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         signature: SignatureSelection,
         case: &dir::VariantCase,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let generic_arguments = signature.generic_arguments.clone();
         let return_variant = match self.ty(signature.return_type)? {
             dir::Type::Variant(variant) if variant.variant == case.variant => variant,
@@ -1363,24 +1536,24 @@ impl BodyState<'_, '_> {
             argument_nodes,
             &signature.parameters,
         )?;
-        let resolution = dir::ConstructResolution::new(target, arguments, signature.return_type);
+        let resolution = dir::ConstructDecision::new(target, arguments, signature.return_type);
 
-        self.commit_decision(node, Decision::Construct(resolution))?;
+        self.commit_decision(node, dir::Decision::Construct(resolution))?;
         self.commit_node_type(node, signature.return_type)?;
 
-        Ok(Answer::Ready(signature.return_type))
+        Ok(signature.return_type)
     }
 
     /// Commit one accepted call selection.
     fn commit_call_selection(
         &mut self,
         node: dir::GlobalNodeIdAny,
-        resolution: dir::CallResolution,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        resolution: dir::CallDecision,
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let return_type = resolution.return_type();
-        self.commit_decision(node, Decision::Call(resolution))?;
+        self.commit_decision(node, dir::Decision::Call(resolution))?;
         self.commit_node_type(node, return_type)?;
 
-        Ok(Answer::Ready(return_type))
+        Ok(return_type)
     }
 }

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BodyState, Decision, FlowPointId, Origin, Protocol, Value, answer};
+use crate::check::{BodyState, FlowPointId, Origin, Protocol, Value};
 
 impl BodyState<'_, '_> {
     /// Select one sequence pattern.
@@ -14,7 +14,7 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = node.module_id;
         self.check_pattern_bindings(module, fields)?;
 
@@ -23,8 +23,7 @@ impl BodyState<'_, '_> {
         }
 
         // reject non-sequence sources before projecting fields
-        let Some((sequence, _length)) = answer!(self.select_sequence_length(origin, scrutinee)?)
-        else {
+        let Some((sequence, _length)) = self.select_sequence_length(origin, scrutinee)? else {
             self.report_pattern_source_not_sequence_shaped(origin, scrutinee)?;
 
             return self.commit_rejected_pattern(node);
@@ -59,22 +58,23 @@ impl BodyState<'_, '_> {
             match self.module(module).view().get(*field) {
                 dir::PatternField::Positional { pattern } => {
                     let pattern = *pattern;
-                    let Some(projection) = answer!(self.select_sequence_element(
+                    let Some(projection) = self.select_sequence_element(
                         field.into_global_any(module),
                         origin,
                         scrutinee,
                         position,
-                    )?) else {
+                    )?
+                    else {
                         continue;
                     };
                     let element = projection.ty();
 
-                    answer!(self.check_pattern_projection(
+                    self.check_pattern_projection(
                         flow,
                         scope,
                         element,
                         pattern.into_global_any(module),
-                    )?);
+                    )?;
                     projected.push(dir::PatternFieldResolution {
                         source: field.into_global_any(module),
                         projection,
@@ -84,24 +84,25 @@ impl BodyState<'_, '_> {
                 }
                 dir::PatternField::Rest { pattern } => {
                     let pattern = *pattern;
-                    let Some(call) = answer!(self.select_sequence_rest(
+                    let Some(call) = self.select_sequence_rest(
                         field.into_global_any(module),
                         origin,
                         scrutinee,
                         &sequence,
                         position,
-                    )?) else {
+                    )?
+                    else {
                         continue;
                     };
                     let rest_type = call.return_type();
 
                     if let Some(pattern) = pattern {
-                        answer!(self.check_pattern_projection(
+                        self.check_pattern_projection(
                             flow,
                             scope,
                             rest_type,
                             pattern.into_global_any(module),
-                        )?);
+                        )?;
                     }
                     rest = Some(Box::new(dir::PatternFieldResolution {
                         source: field.into_global_any(module),
@@ -119,7 +120,7 @@ impl BodyState<'_, '_> {
         // record the sequence form behind the scrutinee
         self.commit_pattern(
             node,
-            dir::PatternResolution::Destructure(Box::new(
+            dir::PatternDecision::Destructure(Box::new(
                 dir::PatternDestructureResolution::Sequence(
                     dir::PatternSequenceDestructureResolution {
                         arity,
@@ -140,23 +141,22 @@ impl BodyState<'_, '_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         let module = node.module_id;
         if !self.check_assign_pattern_rest_fields(module, fields) {
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
+            self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         }
 
         let rest_start = self.assign_sequence_rest_start(module, fields);
 
         // reject non-sequence sources before projecting fields
-        let Some((sequence, _length)) = answer!(self.select_sequence_length(origin, scrutinee)?)
-        else {
+        let Some((sequence, _length)) = self.select_sequence_length(origin, scrutinee)? else {
             self.report_pattern_source_not_sequence_shaped(origin, scrutinee)?;
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
+            self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
-            return Ok(Answer::Ready(false));
+            return Ok(false);
         };
 
         // compute the arity requirement introduced by the target
@@ -182,22 +182,23 @@ impl BodyState<'_, '_> {
             match self.module(module).view().get(*field) {
                 dir::AssignPatternField::Positional { pattern } => {
                     let pattern = *pattern;
-                    let Some(projection) = answer!(self.select_sequence_element(
+                    let Some(projection) = self.select_sequence_element(
                         field.into_global_any(module),
                         origin,
                         scrutinee,
                         position,
-                    )?) else {
+                    )?
+                    else {
                         continue;
                     };
                     let element = projection.ty();
 
-                    answer!(self.check_pattern_projection(
+                    self.check_pattern_projection(
                         flow,
                         scope,
                         element,
                         pattern.into_global_any(module),
-                    )?);
+                    )?;
                     projected.push(dir::AssignPatternFieldResolution {
                         source: field.into_global_any(module),
                         projection,
@@ -207,24 +208,25 @@ impl BodyState<'_, '_> {
                 }
                 dir::AssignPatternField::Rest { pattern } => {
                     let pattern = *pattern;
-                    let Some(call) = answer!(self.select_sequence_rest(
+                    let Some(call) = self.select_sequence_rest(
                         field.into_global_any(module),
                         origin,
                         scrutinee,
                         &sequence,
                         position,
-                    )?) else {
+                    )?
+                    else {
                         continue;
                     };
                     let rest_type = call.return_type();
 
                     if let Some(pattern) = pattern {
-                        answer!(self.check_pattern_projection(
+                        self.check_pattern_projection(
                             flow,
                             scope,
                             rest_type,
                             pattern.into_global_any(module),
-                        )?);
+                        )?;
                     }
                     rest = Some(Box::new(dir::AssignPatternFieldResolution {
                         source: field.into_global_any(module),
@@ -239,16 +241,16 @@ impl BodyState<'_, '_> {
             }
         }
 
-        let () = answer!(self.commit_assign_pattern(
+        let () = self.commit_assign_pattern(
             node,
-            dir::AssignPatternResolution::Sequence(dir::AssignPatternSequenceResolution {
+            dir::AssignPatternDecision::Sequence(dir::AssignPatternSequenceResolution {
                 arity,
                 fields: projected,
                 rest,
             }),
-        )?);
+        )?;
 
-        Ok(Answer::Ready(true))
+        Ok(true)
     }
 
     /// Return the `length` member for a sequence receiver.
@@ -256,9 +258,9 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<(Protocol, dir::MemberResolution)>>> {
+    ) -> CompilerResult<Option<(Protocol, dir::MemberDecision)>> {
         let key = self.static_name("length");
-        let Some((sequence, member)) = answer!(self.select_language_protocol_member(
+        let Some((sequence, member)) = self.select_language_protocol_member(
             origin,
             receiver,
             receiver,
@@ -267,11 +269,12 @@ impl BodyState<'_, '_> {
             dir::LanguageItem::Sequence,
             &[],
             &[],
-        )?) else {
-            return Ok(Answer::Ready(None));
+        )?
+        else {
+            return Ok(None);
         };
 
-        Ok(Answer::Ready(Some((sequence, member.resolution))))
+        Ok(Some((sequence, member.resolution)))
     }
 
     /// Return the `Index.index` call for a sequence receiver.
@@ -281,9 +284,9 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver: dir::GlobalTypeId,
         index: usize,
-    ) -> CompilerResult<Answer<Option<dir::ProjectionResolution>>> {
+    ) -> CompilerResult<Option<dir::ProjectionResolution>> {
         let index = self.static_usize_type(node, index)?;
-        let Some(selection) = answer!(self.select_subscript_read_source(
+        let Some(selection) = self.select_subscript_read_source(
             origin,
             Value {
                 ty: receiver,
@@ -292,14 +295,15 @@ impl BodyState<'_, '_> {
             receiver,
             dir::ArgumentSource::Static(index),
             index,
-        )?) else {
-            return Ok(Answer::Ready(None));
+        )?
+        else {
+            return Ok(None);
         };
         let Some(projection) = selection.into_read_projection() else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
-        Ok(Answer::Ready(Some(projection)))
+        Ok(Some(projection))
     }
 
     /// Return the `Sequence.rest` call for a sequence receiver.
@@ -310,11 +314,11 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         sequence: &Protocol,
         start: usize,
-    ) -> CompilerResult<Answer<Option<dir::CallResolution>>> {
+    ) -> CompilerResult<Option<dir::CallDecision>> {
         let start_type = self.static_usize_type(node, start)?;
         let key = self.static_name("rest");
         let sources = [dir::ArgumentSource::Static(start_type)];
-        let Some(call) = answer!(self.select_protocol_call(
+        let Some(call) = self.select_protocol_call(
             origin,
             Value {
                 ty: receiver,
@@ -325,11 +329,12 @@ impl BodyState<'_, '_> {
             key,
             sequence,
             &sources,
-        )?) else {
-            return Ok(Answer::Ready(None));
+        )?
+        else {
+            return Ok(None);
         };
 
-        Ok(Answer::Ready(Some(call.resolution)))
+        Ok(Some(call.resolution))
     }
 
     /// Return the rest start position of one sequence assignment pattern.

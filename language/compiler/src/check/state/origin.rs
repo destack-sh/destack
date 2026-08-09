@@ -37,7 +37,7 @@ impl OriginId {
     }
 }
 
-/// Interned check origins, deduplicated per component.
+/// Interned check origins, deduplicated per module.
 #[derive(Debug, Default)]
 pub(in crate::check) struct OriginArena {
     /// The interned origins in first-seen order.

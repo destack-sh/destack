@@ -10,7 +10,7 @@ const value = 42;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 42 = 42;
@@ -20,8 +20,6 @@ const value = 42;
 /// @type.symbol symbol=value source=value type=42
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42 type=42
-
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -36,10 +34,7 @@ let value = 42;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_coercion()
-            .with_check_stats(),
+        DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 let value: float64 = 42;
@@ -49,8 +44,6 @@ let value = 42;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42 type=42
-
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -65,7 +58,7 @@ const value: int32 = 42;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: int32 = 42;
@@ -75,8 +68,6 @@ const value: int32 = 42;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42 type=42
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -91,7 +82,7 @@ const value = 3.14;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 3.14 = 3.14;
@@ -101,8 +92,6 @@ const value = 3.14;
 /// @type.symbol symbol=value source=value type=3.14
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=3.14 type=3.14
-
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -117,7 +106,7 @@ let value = 3.14;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let value: float64 = 3.14;
@@ -127,8 +116,6 @@ let value = 3.14;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=3.14 type=3.14
-
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -143,7 +130,7 @@ const value: string = 123;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: string = 123;
@@ -153,8 +140,6 @@ const value: string = 123;
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=123 type=123
-
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '123' is not assignable to type 'string'"

@@ -1,9 +1,6 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 
-use crate::check::{
-    Answer, CheckState, DecisionKind, FlowPointChange, FlowPredicate, FlowSite, Origin, answer,
-};
+use crate::check::{CheckState, FlowPointChange, FlowPredicate, FlowSite, Origin};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -12,26 +9,25 @@ impl CheckState<'_> {
         &mut self,
         site: FlowSite,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         // narrow expression occurrences only
         let dir::NodeType::Expression = site.node.local_id.ty else {
-            return Ok(Answer::Ready(ty));
+            return Ok(ty);
         };
 
         // require a selected stored access path
         let Some(path) = self
             .module(site.node.module_id)
-            .resolutions
+            .decisions
             .access_resolution(site.node)
             .cloned()
         else {
-            return Ok(Answer::Ready(ty));
+            return Ok(ty);
         };
 
         match self.flow_narrowed_type(site, path.path(), ty)? {
-            Answer::Ready(Some(narrowed)) => Ok(Answer::Ready(narrowed)),
-            Answer::Ready(None) => Ok(Answer::Ready(ty)),
-            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+            Some(narrowed) => Ok(narrowed),
+            None => Ok(ty),
         }
     }
 
@@ -41,16 +37,22 @@ impl CheckState<'_> {
         site: FlowSite,
         path: &dir::AccessPath,
         source: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // the live cursor owns the checked module's flow graph before flushes
+        let module_id = self.module_id;
         let module = self.module(site.node.module_id);
         let flows = &module.flows;
+        let cursor = (site.node.module_id == module_id).then(|| self.flow.points());
 
         // collect every direct narrowing and descendant equality back to their clears
         let mut predicates = Vec::new();
         let mut cleared = Vec::new();
         let mut current = Some(site.flow);
         while let Some(point) = current {
-            let Some(flow) = flows.get(point.index()) else {
+            // read each point from the flushed table, then from the cursor
+            let flow = flows.get(point.index());
+            let flow = flow.or_else(|| cursor.and_then(|points| points.get(point.index())));
+            let Some(flow) = flow else {
                 return Err(CompilerError::Internal {
                     message: format!("flow point {point:?} is not in module flow table"),
                 });
@@ -90,20 +92,20 @@ impl CheckState<'_> {
 
         // stop when no narrowing affects this path
         if predicates.is_empty() {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
 
         // apply oldest first, so each later test refines the earlier result
         let mut narrowed = source;
         for (tested, predicate) in predicates.into_iter().rev() {
-            match self.resolve_flow_predicate(site, path, &tested, narrowed, predicate)? {
-                Answer::Ready(Some(next)) => narrowed = next,
-                Answer::Ready(None) => {}
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            if let Some(next) =
+                self.resolve_flow_predicate(site, path, &tested, narrowed, predicate)?
+            {
+                narrowed = next;
             }
         }
 
-        Ok(Answer::Ready(Some(narrowed)))
+        Ok(Some(narrowed))
     }
 
     /// Apply one flow predicate to a source type.
@@ -114,7 +116,7 @@ impl CheckState<'_> {
         tested: &dir::AccessPath,
         source: dir::GlobalTypeId,
         predicate: FlowPredicate,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match predicate {
             FlowPredicate::Pattern {
                 pattern,
@@ -123,11 +125,8 @@ impl CheckState<'_> {
                 // resolve pattern decisions into the type accepted by the pattern
                 let origin = site.origin();
                 match self.pattern_predicate_target(origin, pattern)? {
-                    Answer::Ready(Some(target)) => {
-                        self.resolve_type_predicate(site, source, target, is_positive)
-                    }
-                    Answer::Ready(None) => Ok(Answer::Ready(None)),
-                    Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                    Some(target) => self.resolve_type_predicate(site, source, target, is_positive),
+                    None => Ok(None),
                 }
             }
             FlowPredicate::Equality {
@@ -136,12 +135,12 @@ impl CheckState<'_> {
             } => self.resolve_equality_predicate(site, path, tested, source, operation, is_equal),
             FlowPredicate::Guard { guard, is_positive } => {
                 let Some(narrowed) = self.guard_narrowing(guard)? else {
-                    return Ok(Answer::Ready(None));
+                    return Ok(None);
                 };
 
                 // return the exact narrowing check selected on positive branches
                 if is_positive {
-                    return Ok(Answer::Ready(Some(narrowed)));
+                    return Ok(Some(narrowed));
                 }
 
                 // remove the selected positive subset on negative branches
@@ -159,23 +158,22 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         operation: dir::GlobalNodeIdAny,
         is_equal: bool,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(operands) = self.equality_operands(operation)? else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
         let pairs = [(&operands[0], &operands[1]), (&operands[1], &operands[0])];
 
         // apply the fact directed from the tested stable operand
         for (operand, compared) in pairs {
             let access = self
-                .resolutions(operand.source.module_id)
+                .decisions(operand.source.module_id)
                 .access_resolution(operand.source)
                 .cloned();
             let Some(access) = access.filter(|access| access.path() == tested) else {
                 continue;
             };
-            let Some(target) =
-                answer!(self.equality_predicate_target(site.origin(), compared.source)?)
+            let Some(target) = self.equality_predicate_target(site.origin(), compared.source)?
             else {
                 continue;
             };
@@ -191,7 +189,7 @@ impl CheckState<'_> {
             );
         }
 
-        Ok(Answer::Ready(None))
+        Ok(None)
     }
 
     /// Return the checked builtin operands of one equality operation.
@@ -199,28 +197,26 @@ impl CheckState<'_> {
         &self,
         operation: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Option<[dir::BuiltinOperand; 2]>> {
-        let kind = self.decision_kind(operation);
-        let resolution = self
-            .resolutions(operation.module_id)
-            .operator_resolution(operation);
-
         // skip rejected operations, which establish no runtime equality
-        let Some(resolution) = resolution else {
-            return match kind {
-                Some(DecisionKind::Rejected | DecisionKind::Poisoned) => Ok(None),
-                Some(kind) => Err(CompilerError::Internal {
+        let resolution = match self.decision(operation) {
+            Some(dir::Decision::Operator(resolution)) => resolution,
+            Some(dir::Decision::Rejected | dir::Decision::Poisoned) => return Ok(None),
+            Some(decision) => {
+                return Err(CompilerError::Internal {
                     message: format!(
-                        "equality operation {} decided as {kind:?} without an operator resolution",
+                        "equality operation {} decided as {decision:?}",
                         self.node_label(operation),
                     ),
-                }),
-                None => Err(CompilerError::Internal {
+                });
+            }
+            None => {
+                return Err(CompilerError::Internal {
                     message: format!(
                         "flow equality operation is undecided: {}",
                         self.node_label(operation),
                     ),
-                }),
-            };
+                });
+            }
         };
 
         match resolution {
@@ -261,7 +257,7 @@ impl CheckState<'_> {
         access: &dir::AccessResolution,
         mut target: dir::GlobalTypeId,
         is_equal: bool,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let operand_path = access.path();
 
         // narrow the value stored at this exact path
@@ -269,7 +265,7 @@ impl CheckState<'_> {
             return self.resolve_type_predicate(site, source, target, is_equal);
         }
         if !operand_path.starts_with(path) {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         }
         let origin = site.origin();
 
@@ -286,9 +282,8 @@ impl CheckState<'_> {
         let mut relative = relative;
 
         // map a discriminant back to its variant through a tag projection
-        if let Some(dir::OperationResolution::One(access)) = self
-            .resolutions(operand.module_id)
-            .member_resolution(operand)
+        if let Some(dir::OperationResolution::One(access)) =
+            self.decisions(operand.module_id).member_decision(operand)
             && let dir::MemberTarget::Projection {
                 projection: dir::Projection::VariantTag { carrier, .. },
                 ..
@@ -303,7 +298,7 @@ impl CheckState<'_> {
 
         // wrap the selected value in each containing field predicate
         for key in relative.iter().rev() {
-            target = self.field_shape_type(origin.module(), *key, target)?;
+            target = self.field_shape_type(*key, target)?;
         }
 
         self.narrow_type_alternatives(origin, source, target, is_equal)
@@ -314,7 +309,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         value: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         if value.local_id.ty != dir::NodeType::Expression {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -324,18 +319,18 @@ impl CheckState<'_> {
             });
         }
         let ty = self.require_node_type(value)?;
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+        let ty = self.reduce_type_head(origin, ty)?;
         if self.is_singleton_type(ty)? {
-            return Ok(Answer::Ready(Some(ty)));
+            return Ok(Some(ty));
         }
         if let Some(instance) = self.decompose_newtype(origin, ty)? {
-            let backing = answer!(self.reduce_type_head(origin, instance.backing)?);
+            let backing = self.reduce_type_head(origin, instance.backing)?;
             if self.is_singleton_type(backing)? {
-                return Ok(Answer::Ready(Some(ty)));
+                return Ok(Some(ty));
             }
         }
 
-        Ok(Answer::Ready(None))
+        Ok(None)
     }
 
     /// Resolve one runtime type predicate.
@@ -345,7 +340,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         is_positive: bool,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let operation = dir::TypeOperation::Narrow(dir::NarrowType {
             source,
             target,
@@ -354,12 +349,9 @@ impl CheckState<'_> {
 
         // reduce the narrowing through the normal type operation path
         let narrowed = self.intern_operation(operation)?;
-        let narrowed = match self.reduce_type_head(site.origin(), narrowed)? {
-            Answer::Ready(ty) => ty,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let narrowed = self.reduce_type_head(site.origin(), narrowed)?;
 
-        Ok(Answer::Ready(Some(narrowed)))
+        Ok(Some(narrowed))
     }
 
     /// Return the positive narrowing selected for one guard expression.
@@ -367,22 +359,14 @@ impl CheckState<'_> {
         &self,
         guard: dir::GlobalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let kind = self.decision_kind(guard.into_any());
-        let resolution = self
-            .resolutions(guard.module_id)
-            .guard_resolution(guard.into_any())
-            .cloned();
-
         // skip rejected guards, which establish no runtime predicate
-        match (kind, resolution) {
-            (Some(DecisionKind::Guard), Some(resolution)) => Ok(resolution.predicate().narrowed),
-            (Some(DecisionKind::Rejected | DecisionKind::Poisoned), None) => Ok(None),
-            (Some(kind), resolution) => Err(CompilerError::Internal {
-                message: format!(
-                    "guard {guard:?} decided as {kind:?} with resolution {resolution:?}"
-                ),
+        match self.decision(guard.into_any()) {
+            Some(dir::Decision::Guard(resolution)) => Ok(resolution.predicate().narrowed),
+            Some(dir::Decision::Rejected | dir::Decision::Poisoned) => Ok(None),
+            Some(decision) => Err(CompilerError::Internal {
+                message: format!("guard {guard:?} decided as {decision:?}"),
             }),
-            (None, _) => Err(CompilerError::Internal {
+            None => Err(CompilerError::Internal {
                 message: format!("guard {guard:?} is undecided"),
             }),
         }
@@ -393,45 +377,33 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let kind = self.decision_kind(pattern.into_any());
-        let resolution = self
-            .resolutions(pattern.module_id)
-            .pattern_resolution(pattern.into_any())
-            .cloned();
-
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // skip rejected patterns, which narrow nothing
-        match (kind, resolution) {
-            (Some(DecisionKind::Pattern), Some(resolution)) => {
-                self.pattern_resolution_predicate_target(origin, pattern, &resolution)
+        match self.decision(pattern.into_any()).cloned() {
+            Some(dir::Decision::Pattern(resolution)) => {
+                self.pattern_decision_predicate_target(origin, pattern, &resolution)
             }
-            (Some(DecisionKind::Rejected | DecisionKind::Poisoned), None) => {
-                Ok(Answer::Ready(None))
-            }
-            (Some(kind), resolution) => Err(CompilerError::Internal {
-                message: format!(
-                    "pattern {pattern:?} decided as {kind:?} with resolution {resolution:?}"
-                ),
+            Some(dir::Decision::Rejected | dir::Decision::Poisoned) => Ok(None),
+            Some(decision) => Err(CompilerError::Internal {
+                message: format!("pattern {pattern:?} decided as {decision:?}"),
             }),
-            (None, _) => Err(CompilerError::Internal {
+            None => Err(CompilerError::Internal {
                 message: format!("pattern {pattern:?} is undecided"),
             }),
         }
     }
 
     /// Return the type subset accepted by one pattern resolution.
-    fn pattern_resolution_predicate_target(
+    fn pattern_decision_predicate_target(
         &mut self,
         origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
-        resolution: &dir::PatternResolution,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        resolution: &dir::PatternDecision,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match resolution {
-            dir::PatternResolution::Test(test) => Ok(Answer::Ready(test.predicate.narrowed)),
-            dir::PatternResolution::Variant(variant) => {
-                Ok(Answer::Ready(variant.predicate.narrowed))
-            }
-            dir::PatternResolution::Destructure(destructure) => match destructure.as_ref() {
+            dir::PatternDecision::Test(test) => Ok(test.predicate.narrowed),
+            dir::PatternDecision::Variant(variant) => Ok(variant.predicate.narrowed),
+            dir::PatternDecision::Destructure(destructure) => match destructure.as_ref() {
                 dir::PatternDestructureResolution::Nominal(nominal) => {
                     let arguments: Vec<dir::GlobalTypeId> =
                         dir::GenericArgumentBinding::values(&nominal.generic_arguments).collect();
@@ -441,23 +413,22 @@ impl CheckState<'_> {
                         arguments,
                     }))?;
 
-                    Ok(Answer::Ready(Some(ty)))
+                    Ok(Some(ty))
                 }
-                _ => Ok(Answer::Ready(None)),
+                _ => Ok(None),
             },
-            dir::PatternResolution::Bind(dir::PatternBindingResolution {
+            dir::PatternDecision::Bind(dir::PatternBindingResolution {
                 pattern: Some(inner),
                 ..
             })
-            | dir::PatternResolution::Must(dir::PatternMustResolution { pattern: inner })
-            | dir::PatternResolution::Default(dir::PatternDefaultResolution {
-                pattern: inner,
-                ..
+            | dir::PatternDecision::Must(dir::PatternMustResolution { pattern: inner })
+            | dir::PatternDecision::Default(dir::PatternDefaultResolution {
+                pattern: inner, ..
             }) => self.pattern_node_predicate_target(origin, *inner),
-            dir::PatternResolution::Or(or) => {
+            dir::PatternDecision::Or(or) => {
                 self.or_pattern_predicate_target(origin, pattern, &or.patterns)
             }
-            _ => Ok(Answer::Ready(None)),
+            _ => Ok(None),
         }
     }
 
@@ -466,9 +437,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         pattern: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let dir::NodeType::Pattern = pattern.local_id.ty else {
-            return Ok(Answer::Ready(None));
+            return Ok(None);
         };
 
         self.pattern_predicate_target(origin, pattern.into_typed())
@@ -480,11 +451,11 @@ impl CheckState<'_> {
         origin: Origin,
         _pattern: dir::GlobalNodeId<dir::Pattern>,
         branches: &[dir::GlobalNodeIdAny],
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let mut targets = Vec::new();
         for branch in branches {
-            let Some(target) = answer!(self.pattern_node_predicate_target(origin, *branch)?) else {
-                return Ok(Answer::Ready(None));
+            let Some(target) = self.pattern_node_predicate_target(origin, *branch)? else {
+                return Ok(None);
             };
             if !targets.contains(&target) {
                 targets.push(target);
@@ -497,13 +468,12 @@ impl CheckState<'_> {
             _ => Some(self.normalized_union_type(targets)?),
         };
 
-        Ok(Answer::Ready(target))
+        Ok(target)
     }
 
     /// Return one single-field structural shape type.
     pub(in crate::check) fn field_shape_type(
         &mut self,
-        module: ModuleId,
         key: dir::StaticKey,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -513,7 +483,7 @@ impl CheckState<'_> {
             access: dir::PropertyAccess::Read(ty),
             is_optional: false,
         };
-        let properties = self.intern_properties(module, &[property])?;
+        let properties = self.intern_properties(&[property])?;
         let shape = dir::ShapeType {
             properties,
             call_signatures: dir::TypeListId::EMPTY,

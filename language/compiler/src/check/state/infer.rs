@@ -1,86 +1,62 @@
-use std::mem::replace;
-
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
     BoundSide, Cause, CauseArena, CauseId, Constraint, ConstraintId, ConstraintResult,
-    ConstraintTable, Dependency, FailedCheck, GenericParameterId, InferenceScope, ObligationEntry,
-    ObligationId, ObligationTable, Origin, OriginArena, OriginId, RelationCache,
-    RelationCacheSnapshot, Task, TypeBound, Variable, VariableRole, VariableState, VariableTable,
-    Widening, WorkQueue,
+    ConstraintTable, FailedCheck, GenericParameterId, InferenceScope, ObligationEntry,
+    ObligationId, ObligationTable, Origin, OriginArena, OriginId, PendingWork, RelationStack,
+    TypeBound, Variable, VariableRole, VariableState, VariableTable, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// Solver state for one checked component.
-#[derive(Debug)]
-pub(in crate::check) struct Solver {
-    /// Variables allocated for this component.
+/// One module's transient inference: variables, their trail, and pending work.
+pub(in crate::check) struct InferContext {
+    // open inference
+    /// Inference variables and their bounds.
     pub(in crate::check) variables: VariableTable,
-    /// Constraints collected for this component.
+    /// Collected constraints and their completed results.
     pub(in crate::check) constraints: ConstraintTable,
-    /// Tasks queued for this component.
-    pub(in crate::check) queue: WorkQueue,
-    /// Relation decisions memoized for this component.
-    pub(in crate::check) relations: RelationCache,
-    /// Obligations collected for this component.
+    /// Collected obligations awaiting the settle points.
     pub(in crate::check) obligations: ObligationTable,
+    /// In-flight relation decisions with their cycle stack.
+    pub(in crate::check) relations: RelationStack,
+    /// Variables opened for generic parameters, keyed by application.
+    pub(in crate::check) instantiations:
+        FxIndexMap<(OriginId, GenericParameterId), dir::TypeVariableId>,
+
+    // pending work
+    /// Work registered with fulfillment, awaiting inference progress.
+    pub(in crate::check) pending: Vec<PendingWork>,
+
+    // solving rounds
+    /// Whether the outermost close is judging every remainder.
+    pub(in crate::check) forcing: bool,
+    /// Whether the current round left ambiguous work behind.
+    pub(in crate::check) ambiguity: bool,
+    /// The open inference scope depth.
+    pub(in crate::check) scope_depth: usize,
+    /// Open variables standing for uninferred symbol types.
+    pub(in crate::check) symbol_variables: FxIndexMap<dir::GlobalSymbolId, dir::TypeVariableId>,
+
+    // provenance
     /// Interned check origins.
     pub(in crate::check) origins: OriginArena,
-    /// Failed checks retained until their cause trees are complete.
-    pub(in crate::check) failures: Vec<FailedCheck>,
     /// Interned constraint causes.
     pub(in crate::check) causes: CauseArena,
-    /// Variables opened for generic parameters, keyed by application.
-    instantiations: FxIndexMap<(OriginId, GenericParameterId), dir::TypeVariableId>,
-    /// Tasks parked on unresolved dependencies.
-    waiters: FxIndexMap<Dependency, SmallVec<[Task; 2]>>,
-    /// Undo entries recorded by active snapshots.
-    undo: Vec<Undo>,
-    /// The number of nested snapshots.
-    snapshot_depth: usize,
+    /// Failed checks retained until their cause trees are complete.
+    pub(in crate::check) failures: Vec<FailedCheck>,
+
+    // speculation
+    /// Inference mutations recorded while speculation is active.
+    pub(in crate::check) trail: Vec<InferUndo>,
+    /// The number of nested trail marks.
+    pub(in crate::check) marks: usize,
 }
 
-/// Snapshot of solver state before one probe.
-#[derive(Debug)]
-pub(in crate::check) struct SolverSnapshot {
-    /// The variable count before the probe.
-    variables: usize,
-    /// The constraint count before the probe.
-    constraints: usize,
-    /// The obligation count before the probe.
-    obligations: usize,
-    /// The queued work before the probe.
-    queue: WorkQueue,
-    /// The parked work before the probe.
-    waiters: FxIndexMap<Dependency, SmallVec<[Task; 2]>>,
-    /// The undo log length before the probe.
-    undo: usize,
-    /// Relation cache snapshot before the probe.
-    relations: RelationCacheSnapshot,
-}
-
-impl SolverSnapshot {
-    /// Return whether one variable existed before this snapshot.
-    pub(in crate::check) fn contains_variable(&self, variable: dir::TypeVariableId) -> bool {
-        variable.0 < self.variables as u32
-    }
-
-    /// Return the inference scope opened by this snapshot.
-    pub(in crate::check) fn inference_scope(&self) -> InferenceScope {
-        InferenceScope::open(self.variables, self.undo)
-    }
-
-    /// Return the constraint count before this snapshot.
-    pub(in crate::check) fn constraint_count(&self) -> usize {
-        self.constraints
-    }
-}
-
-/// One solver storage undo entry.
+/// One inference trail entry.
 #[derive(Debug, Clone)]
-enum Undo {
+pub(in crate::check) enum InferUndo {
     /// Undo one variable mutation.
     Variable {
         /// The changed variable.
@@ -116,89 +92,98 @@ enum Undo {
     },
 }
 
-impl Solver {
-    /// Create an empty solver.
+impl InferContext {
+    /// Create an empty inference context.
     pub(in crate::check) fn new() -> Self {
         Self {
             variables: VariableTable::new(),
             constraints: ConstraintTable::new(),
-            queue: WorkQueue::new(),
-            relations: RelationCache::new(),
             obligations: ObligationTable::new(),
             origins: OriginArena::default(),
-            failures: Vec::new(),
             causes: CauseArena::default(),
+            failures: Vec::new(),
+            relations: RelationStack::new(),
             instantiations: FxIndexMap::default(),
-            waiters: FxIndexMap::default(),
-            undo: Vec::new(),
-            snapshot_depth: 0,
+            pending: Vec::new(),
+            forcing: false,
+            ambiguity: false,
+            scope_depth: 0,
+            symbol_variables: FxIndexMap::default(),
+            trail: Vec::new(),
+            marks: 0,
         }
     }
+}
 
-    /// Snapshot the solver before one probe.
-    pub(in crate::check) fn snapshot(&mut self) -> SolverSnapshot {
-        self.snapshot_depth += 1;
+/// Mark of the inference trail before one speculative attempt.
+#[derive(Debug, Clone, Copy)]
+pub(in crate::check) struct TrailMark {
+    /// The variable count at the mark.
+    variables: usize,
+    /// The constraint count at the mark.
+    constraints: usize,
+    /// The obligation count at the mark.
+    obligations: usize,
+    /// The trail length at the mark.
+    trail: usize,
+}
 
-        SolverSnapshot {
+impl TrailMark {
+    /// Return the inference scope opened by this mark.
+    pub(in crate::check) fn inference_scope(&self) -> InferenceScope {
+        InferenceScope::open(self.variables, self.trail)
+    }
+
+    /// Return the constraint count at this mark.
+    pub(in crate::check) fn constraint_count(&self) -> usize {
+        self.constraints
+    }
+}
+
+impl InferContext {
+    /// Mark the trail before one speculative attempt.
+    pub(in crate::check) fn mark(&mut self) -> TrailMark {
+        self.marks += 1;
+
+        TrailMark {
             variables: self.variables.count(),
             constraints: self.constraints.count(),
             obligations: self.obligations.count(),
-            queue: replace(&mut self.queue, WorkQueue::new()),
-            waiters: std::mem::take(&mut self.waiters),
-            undo: self.undo.len(),
-            relations: self.relations.snapshot(),
+            trail: self.trail.len(),
         }
     }
 
-    /// Roll back to one solver snapshot.
-    pub(in crate::check) fn rollback(&mut self, snapshot: SolverSnapshot) -> CompilerResult<()> {
-        while self.undo.len() > snapshot.undo {
-            let undo = self.undo.pop().ok_or_else(|| CompilerError::Internal {
-                message: "solver undo log ended before its snapshot mark".into(),
+    /// Roll inference state back to one trail mark.
+    ///
+    /// Allocation is permanent, binding is speculative: interned rows
+    /// may still reference a rolled-back variable, so its slot stays
+    /// allocated and poisons to the error type instead of unwinding.
+    pub(in crate::check) fn rollback(
+        &mut self,
+        mark: TrailMark,
+        poison: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        while self.trail.len() > mark.trail {
+            let undo = self.trail.pop().ok_or_else(|| CompilerError::Internal {
+                message: "solver trail ended before its mark".into(),
             })?;
 
-            self.rollback_undo(undo)?;
+            self.rollback_undo(undo, poison)?;
         }
 
-        self.relations.rollback(snapshot.relations);
-        self.queue = snapshot.queue;
-        self.waiters = snapshot.waiters;
-        self.constraints.truncate(snapshot.constraints);
-        self.obligations.truncate(snapshot.obligations);
-        debug_assert_eq!(self.variables.count(), snapshot.variables);
-        self.snapshot_depth -= 1;
+        // drop the speculative constraints and obligations, then close the mark
+        self.constraints.truncate(mark.constraints);
+        self.obligations.truncate(mark.obligations);
+        self.marks -= 1;
 
         Ok(())
     }
 
-    /// Commit solver state created after one snapshot.
-    pub(in crate::check) fn commit(&mut self, snapshot: SolverSnapshot) {
-        let SolverSnapshot {
-            queue,
-            waiters,
-            relations,
-            ..
-        } = snapshot;
-
-        // restore suspended work before probe-local ready tasks
-        let probe_queue = replace(&mut self.queue, queue);
-        self.queue.append(probe_queue);
-
-        // retain parked probe work alongside suspended outer waiters
-        let probe_waiters = std::mem::replace(&mut self.waiters, waiters);
-        for (dependency, tasks) in probe_waiters {
-            let waiting = self.waiters.entry(dependency).or_default();
-            for task in tasks {
-                if !waiting.contains(&task) {
-                    waiting.push(task);
-                }
-            }
-        }
-
-        self.relations.commit(relations);
-        self.snapshot_depth -= 1;
-        if self.snapshot_depth == 0 {
-            self.undo.clear();
+    /// Close one trail mark, keeping the mutations it recorded.
+    pub(in crate::check) fn commit(&mut self, _mark: TrailMark) {
+        self.marks -= 1;
+        if self.marks == 0 {
+            self.trail.clear();
         }
     }
 
@@ -210,7 +195,7 @@ impl Solver {
         role: VariableRole,
     ) -> dir::TypeVariableId {
         let variable = dir::TypeVariableId(self.variables.count() as u32);
-        self.record_undo(Undo::Variable {
+        self.record_undo(InferUndo::Variable {
             id: variable,
             previous: None,
         });
@@ -239,18 +224,18 @@ impl Solver {
         scope: InferenceScope,
     ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 4]>> {
         let mutations =
-            self.undo
+            self.trail
                 .get(scope.first_mutation()..)
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!(
                         "inference scope mutation mark {} exceeds length {}",
                         scope.first_mutation(),
-                        self.undo.len(),
+                        self.trail.len(),
                     ),
                 })?;
         let mut adopted = SmallVec::new();
         for mutation in mutations {
-            let Undo::Bound { id, .. } = mutation else {
+            let InferUndo::Bound { id, .. } = mutation else {
                 continue;
             };
             if !scope.owns(*id) && !adopted.contains(id) {
@@ -286,7 +271,7 @@ impl Solver {
         let id = self.alias_root(id)?;
         let pushed = self.variables.push_bound(id, side, bound)?;
         if pushed {
-            self.record_undo(Undo::Bound { id, side });
+            self.record_undo(InferUndo::Bound { id, side });
         }
 
         Ok(pushed)
@@ -298,7 +283,7 @@ impl Solver {
         id: dir::TypeVariableId,
         default: dir::GlobalTypeId,
     ) {
-        self.record_undo(Undo::Default {
+        self.record_undo(InferUndo::Default {
             id,
             previous: self.variables.variable_default(id),
         });
@@ -325,7 +310,7 @@ impl Solver {
 
     /// Allocate one constraint.
     pub(in crate::check) fn allocate_constraint(&mut self, constraint: Constraint) -> ConstraintId {
-        // one task collects one constraint, however often walks repeat it
+        // one check collects one constraint, however often walks repeat it
         if let Some(id) = self.constraints.lookup(&constraint) {
             return id;
         }
@@ -362,14 +347,17 @@ impl Solver {
         variable: dir::TypeVariableId,
     ) -> CompilerResult<dir::TypeVariableId> {
         let mut current = variable;
-        while let VariableState::Alias(next) = self.variable(current)?.state {
+        loop {
+            let VariableState::Alias(next) = self.variable(current)?.state else {
+                break;
+            };
             current = next;
         }
 
         Ok(current)
     }
 
-    /// Return one variable solution.
+    /// Return one variable's solution, or none while it stays open.
     pub(in crate::check) fn solution(
         &self,
         variable: dir::TypeVariableId,
@@ -401,79 +389,10 @@ impl Solver {
         self.obligations.count()
     }
 
-    /// Queue one solver task.
-    pub(in crate::check) fn push_task(&mut self, task: Task) {
-        self.queue.push(task);
-    }
-
-    /// Complete one active solver task.
-    ///
-    /// Parked copies on other dependencies stay collected: the queue's
-    /// finished set drops their wakes, and the parked sweep skips them.
-    pub(in crate::check) fn complete_task(&mut self, task: &Task) {
-        self.queue.complete(task);
-    }
-
-    /// Return whether one task already finished.
-    pub(in crate::check) fn is_finished_task(&self, task: &Task) -> bool {
-        self.queue.is_finished(task)
-    }
-
-    /// Park one task until a dependency changes.
-    pub(in crate::check) fn wait_for(&mut self, dependency: Dependency, task: Task) {
-        self.queue.park(&task);
-        let waiters = self.waiters.entry(dependency).or_default();
-        if !waiters.contains(&task) {
-            waiters.push(task);
-        }
-    }
-
-    /// Queue one task again after its observed dependencies completed.
-    pub(in crate::check) fn retry_task(&mut self, task: Task) {
-        self.queue.park(&task);
-        self.queue.push(task);
-    }
-
-    /// Wake tasks parked on one dependency.
-    pub(in crate::check) fn wake(&mut self, dependency: Dependency) -> SmallVec<[Task; 2]> {
-        self.waiters.swap_remove(&dependency).unwrap_or_default()
-    }
-
-    /// Drain every parked dependency, leaving the waiter table empty.
-    pub(in crate::check) fn drain_waiters(&mut self) -> Vec<(Dependency, SmallVec<[Task; 2]>)> {
-        self.waiters
-            .drain(..)
-            .filter_map(|(dependency, mut tasks)| {
-                tasks.retain(|task| !self.queue.is_finished(task));
-
-                (!tasks.is_empty()).then_some((dependency, tasks))
-            })
-            .collect()
-    }
-
-    /// Return the dependencies parked tasks currently wait on.
-    pub(in crate::check) fn waiting_dependencies(&self) -> Vec<Dependency> {
-        self.waiters
-            .iter()
-            .filter(|(_, tasks)| tasks.iter().any(|task| !self.queue.is_finished(task)))
-            .map(|(dependency, _)| *dependency)
-            .collect()
-    }
-
-    /// Pop the next queued check task.
-    pub(in crate::check) fn pop_check(&mut self) -> Option<Task> {
-        self.queue.pop_check()
-    }
-
-    /// Pop the next queued obligation.
-    pub(in crate::check) fn pop_obligation(&mut self) -> Option<Task> {
-        self.queue.pop_obligation()
-    }
-
-    /// Record one undo entry if a snapshot is active.
-    fn record_undo(&mut self, undo: Undo) {
-        if self.snapshot_depth > 0 {
-            self.undo.push(undo);
+    /// Record one trail entry if speculation is active.
+    fn record_undo(&mut self, undo: InferUndo) {
+        if self.marks > 0 {
+            self.trail.push(undo);
         }
     }
 
@@ -493,18 +412,18 @@ impl Solver {
         parameter: GenericParameterId,
         variable: dir::TypeVariableId,
     ) {
-        self.record_undo(Undo::Instantiation {
+        self.record_undo(InferUndo::Instantiation {
             key: (origin, parameter),
         });
         self.instantiations.insert((origin, parameter), variable);
     }
 
-    /// Record one variable if a snapshot is active.
+    /// Record one variable's prior state if speculation is active.
     fn record_variable(&mut self, id: dir::TypeVariableId) -> CompilerResult<()> {
-        if self.snapshot_depth > 0 {
+        if self.marks > 0 {
             let previous = *self.variables.get(id)?;
             let role = self.variables.role(id)?;
-            self.undo.push(Undo::Variable {
+            self.trail.push(InferUndo::Variable {
                 id,
                 previous: Some((previous, role)),
             });
@@ -513,10 +432,10 @@ impl Solver {
         Ok(())
     }
 
-    /// Record one constraint entry if a snapshot is active.
+    /// Record one constraint entry if speculation is active.
     fn record_constraint(&mut self, id: ConstraintId) -> CompilerResult<()> {
-        if self.snapshot_depth > 0 {
-            self.undo.push(Undo::Constraint {
+        if self.marks > 0 {
+            self.trail.push(InferUndo::Constraint {
                 id,
                 previous: self.constraints.result(id)?.cloned(),
             });
@@ -525,26 +444,26 @@ impl Solver {
         Ok(())
     }
 
-    /// Apply one undo entry.
-    fn rollback_undo(&mut self, undo: Undo) -> CompilerResult<()> {
+    /// Undo one recorded trail entry.
+    fn rollback_undo(&mut self, undo: InferUndo, poison: dir::GlobalTypeId) -> CompilerResult<()> {
         match undo {
-            Undo::Variable { id, previous } => match previous {
+            InferUndo::Variable { id, previous } => match previous {
                 Some((previous, role)) => {
                     *self.variables.get_mut(id)? = previous;
                     self.variables.set_role(id, role)?;
                 }
-                // undone allocations unwind newest first, so variables truncate
-                None => self.variables.truncate(id.0 as usize),
+                // poison undone allocations, keeping their slot
+                None => self.variables.get_mut(id)?.state = VariableState::Error(poison),
             },
-            Undo::Bound { id, side } => {
+            InferUndo::Bound { id, side } => {
                 self.variables.pop_bound(id, side)?;
             }
-            Undo::Default { id, previous } => match previous {
+            InferUndo::Default { id, previous } => match previous {
                 Some(previous) => self.variables.set_default(id, previous),
                 None => self.variables.remove_default(id),
             },
-            Undo::Constraint { id, previous } => self.constraints.set_result(id, previous)?,
-            Undo::Instantiation { key } => {
+            InferUndo::Constraint { id, previous } => self.constraints.set_result(id, previous)?,
+            InferUndo::Instantiation { key } => {
                 self.instantiations.swap_remove(&key);
             }
         }

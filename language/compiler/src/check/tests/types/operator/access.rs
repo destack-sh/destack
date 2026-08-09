@@ -614,8 +614,8 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 }
 
 declare const user: User;
-const name: User["name"] = get<"name">(user, "name");
-const age: User["age"] = get<"age">(user, "age");
+const name: string = get<"name">(user, "name");
+const age: int32 = get<"age">(user, "age");
 
 name satisfies string;
 age satisfies int32;

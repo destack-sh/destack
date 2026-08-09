@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use crate::{CompilerError, CompilerResult};
 
 use crate::check::{
-    Answer, AssignmentSelection, CheckEvent, CheckState, ExpectedType, FlowBranch,
-    GenericTemplateId, MoveSite, Origin, Task, Variance, answer,
+    AssignmentSelection, CheckEvent, CheckState, ExpectedType, GenericTemplateId, MoveSite, Origin,
+    PendingWork, Variance,
 };
 
 /// Component-global id of one collected obligation.
@@ -55,45 +55,49 @@ pub(in crate::check) enum Obligation {
     UseAfterMove(UseAfterMoveObligation),
     /// An assignment must select a writable target.
     WritableTarget(Box<WritableTargetObligation>),
-    /// A type at a representation slot must have a computed representation.
-    Representation(RepresentationObligation),
     /// A runtime predicate must have valid operands.
     RuntimePredicate(Box<RuntimePredicateObligation>),
     /// A for-in source must be enumerable.
     ForInSource(ForInSourceObligation),
-    /// A declaration must satisfy every declared interface.
-    InterfaceConformance(InterfaceConformanceObligation),
-    /// An implementation must not overlap a conflicting implementation.
-    ImplementationCoherence(ImplementationCoherenceObligation),
-    /// An extension must not redeclare another visible extension's property.
-    ExtensionCoherence(ExtensionCoherenceObligation),
-    /// A declaration must satisfy its heritage graph rules.
-    DeclarationHeritage(DeclarationHeritageObligation),
     /// A class must initialize required fields on every constructor path.
     ClassInitialization(ClassInitializationObligation),
     /// A written type operation must be well-formed once its operands close.
     WellFormedType(WellFormedTypeObligation),
-    /// A declaration's generic parameters must occur in its definition.
-    ParameterUse(ParameterUseObligation),
+}
+
+/// When one obligation may judge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum ObligationPhase {
+    /// Solves control-flow holes as soon as its node checks.
+    Produce,
+    /// Judges finished bodies at the final round, like borrowck.
+    Judge,
 }
 
 impl Obligation {
+    /// Return when this obligation may judge.
+    pub(in crate::check) fn phase(&self) -> ObligationPhase {
+        match self {
+            Self::PatternCoverage(_) | Self::RuntimePredicate(_) | Self::ForInSource(_) => {
+                ObligationPhase::Produce
+            }
+            Self::UseAfterMove(_)
+            | Self::WritableTarget(_)
+            | Self::ClassInitialization(_)
+            | Self::WellFormedType(_) => ObligationPhase::Judge,
+        }
+    }
+
     /// Return the source node anchoring diagnostics.
     pub(in crate::check) fn source(&self) -> dir::GlobalNodeIdAny {
         match self {
             Self::PatternCoverage(obligation) => obligation.source,
             Self::UseAfterMove(obligation) => obligation.source,
             Self::WritableTarget(obligation) => obligation.target.source,
-            Self::Representation(obligation) => obligation.source,
             Self::RuntimePredicate(obligation) => obligation.source,
             Self::ForInSource(obligation) => obligation.source,
-            Self::InterfaceConformance(obligation) => obligation.source,
-            Self::ImplementationCoherence(obligation) => obligation.source,
-            Self::ExtensionCoherence(obligation) => obligation.source,
-            Self::DeclarationHeritage(obligation) => obligation.source,
             Self::ClassInitialization(obligation) => obligation.source,
             Self::WellFormedType(obligation) => obligation.source,
-            Self::ParameterUse(obligation) => obligation.source,
         }
     }
 
@@ -105,17 +109,10 @@ impl Obligation {
                 ExpectedType::Node(_) => SmallVec::new(),
             },
             Self::WritableTarget(obligation) => SmallVec::from_slice(&[obligation.ty]),
-            Self::Representation(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::ForInSource(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::WellFormedType(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::ClassInitialization(obligation) => SmallVec::from_slice(&[obligation.receiver]),
-            Self::UseAfterMove(_)
-            | Self::RuntimePredicate(_)
-            | Self::InterfaceConformance(_)
-            | Self::ImplementationCoherence(_)
-            | Self::ExtensionCoherence(_)
-            | Self::DeclarationHeritage(_)
-            | Self::ParameterUse(_) => SmallVec::new(),
+            Self::UseAfterMove(_) | Self::RuntimePredicate(_) => SmallVec::new(),
         }
     }
 }
@@ -525,19 +522,6 @@ pub(in crate::check) struct WritableTargetObligation {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
-/// Obliges a declaration's heritage graph to be valid.
-///
-/// ```ds
-/// class Admin extends User {}
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct DeclarationHeritageObligation {
-    /// The declaration node.
-    pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The checked declaration symbol.
-    pub(in crate::check) symbol: dir::GlobalSymbolId,
-}
-
 /// Obliges a class to initialize required fields before construction completes.
 ///
 /// ```ds
@@ -554,21 +538,6 @@ pub(in crate::check) struct ClassInitializationObligation {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The constructed receiver type.
     pub(in crate::check) receiver: dir::GlobalTypeId,
-    /// The constructor completion branches.
-    pub(in crate::check) constructor_branches: Vec<FlowBranch>,
-}
-
-/// Obliges a type to have one fixed representation.
-///
-/// ```ds
-/// sizeOf<T>()
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct RepresentationObligation {
-    /// The source expression requiring one fixed representation.
-    pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The type that must have one fixed representation.
-    pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
 /// Obliges one read of a moved place to a value the move left intact.
@@ -610,7 +579,7 @@ pub(in crate::check) struct RuntimePredicateObligation {
     /// The right operand expression or type.
     pub(in crate::check) right: dir::GlobalNodeIdAny,
     /// The selected predicate.
-    pub(in crate::check) predicate: dir::GuardResolution,
+    pub(in crate::check) predicate: dir::GuardDecision,
 }
 
 /// Obliges a for-in source to have enumerable string keys.
@@ -662,19 +631,6 @@ pub(in crate::check) struct ExtensionCoherenceObligation {
     /// The extension declaration node.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The checked extension symbol.
-    pub(in crate::check) symbol: dir::GlobalSymbolId,
-}
-
-/// Obliges a declaration's generic parameters to occur in its definition.
-///
-/// ```ds
-/// class Box<T> { value: T }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct ParameterUseObligation {
-    /// The declaration node.
-    pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The checked declaration symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
 }
 
@@ -736,44 +692,35 @@ impl CheckState<'_> {
         scope: Option<GenericTemplateId>,
     ) -> ObligationId {
         let entry = ObligationEntry { obligation, scope };
-        let id = self.solver.allocate_obligation(entry);
-        self.queue_task(Task::Oblige(id));
+        let id = self.infer.allocate_obligation(entry);
+        self.infer.pending.push(PendingWork::Obligation(id));
 
         id
     }
 
     /// Check one obligation once, returning its failures.
-    pub(in crate::check) fn run_obligation(
-        &mut self,
-        id: ObligationId,
-    ) -> CompilerResult<Answer<()>> {
+    pub(in crate::check) fn run_obligation(&mut self, id: ObligationId) -> CompilerResult<()> {
+        // body obligations judge checked nodes: only check runs them
+        if !self.is_checking() {
+            return Ok(());
+        }
+
         // copy the obligation for the borrow-free check
-        let entry = self.solver.obligations.get(id)?.clone();
+        let entry = self.infer.obligations.get(id)?.clone();
         let origin = Origin::Node(entry.obligation.source(), entry.scope);
         let obligation = entry.obligation;
         let check = self.check_obligation(origin, &obligation)?;
 
-        match check {
-            Answer::Ready(check) => {
-                for failure in check.into_failures() {
-                    self.report_obligation_failure(failure)?;
-                }
-                self.record_event(CheckEvent::ObligationChecked {
-                    obligation: id,
-                    is_finished: true,
-                });
-
-                Ok(Answer::Ready(()))
-            }
-            Answer::Pending(blockers) => {
-                self.record_event(CheckEvent::ObligationChecked {
-                    obligation: id,
-                    is_finished: false,
-                });
-
-                Ok(Answer::Pending(blockers))
-            }
+        // report every failure the check produced, then record the result
+        for failure in check.into_failures() {
+            self.report_obligation_failure(failure)?;
         }
+        self.record_event(CheckEvent::ObligationChecked {
+            obligation: id,
+            is_finished: true,
+        });
+
+        Ok(())
     }
 
     /// Check one obligation against solved inputs.
@@ -781,10 +728,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &Obligation,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // hold without checking once an operand already reported an error
         if self.any_error_operand(&obligation.operand_types())? {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+            return Ok(ObligationCheck::holds());
         }
 
         match obligation {
@@ -795,32 +742,16 @@ impl CheckState<'_> {
             Obligation::WritableTarget(obligation) => {
                 self.check_writable_assignment(origin, obligation)
             }
-            Obligation::Representation(obligation) => {
-                self.check_representation(origin, obligation.ty)
-            }
             Obligation::RuntimePredicate(obligation) => {
                 self.check_runtime_predicate(origin, obligation)
             }
             Obligation::ForInSource(obligation) => self.check_for_in_source(origin, obligation),
-            Obligation::InterfaceConformance(obligation) => {
-                self.check_interface_conformance(origin, obligation)
-            }
-            Obligation::ExtensionCoherence(obligation) => {
-                self.body().check_extension_coherence(obligation)
-            }
-            Obligation::ImplementationCoherence(obligation) => {
-                self.check_implementation_coherence(origin, obligation)
-            }
-            Obligation::DeclarationHeritage(obligation) => {
-                self.check_declaration_heritage(origin, obligation.symbol)
-            }
             Obligation::ClassInitialization(obligation) => {
                 self.check_class_initialization(origin, obligation)
             }
             Obligation::WellFormedType(obligation) => {
                 self.check_well_formed_type(origin, obligation)
             }
-            Obligation::ParameterUse(obligation) => self.check_parameter_use(obligation.symbol),
         }
     }
 
@@ -829,45 +760,50 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: UseAfterMoveObligation,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // skip positions that preserve their source
-        if answer!(self.move_site_borrows(origin, &obligation.site)?) {
-            return Ok(Answer::Ready(ObligationCheck::Holds));
+        if self.move_site_borrows(origin, &obligation.site)? {
+            return Ok(ObligationCheck::Holds);
         }
 
         // require an owned value, managed handles copy freely
-        let ty = answer!(self.symbol_type(obligation.symbol)?);
-        let ownership = answer!(self.default_ownership(origin, ty)?);
+        let ty = self.symbol_type(obligation.symbol)?;
+        let ownership = self.default_ownership(origin, ty)?;
         if ownership != Some(dir::Ownership::Owned) {
-            return Ok(Answer::Ready(ObligationCheck::Holds));
+            return Ok(ObligationCheck::Holds);
         }
 
-        let copyable =
-            answer!(self.satisfies_auto_interface(origin, ty, dir::AutoInterface::Copy)?);
-        let check = match copyable {
-            true => ObligationCheck::Holds,
-            false => ObligationCheck::from_failures(vec![ObligationFailure::UseAfterMove {
+        // only copyable values survive a use after their move
+        let copyable = self.satisfies_auto_interface(origin, ty, dir::AutoInterface::Copy)?;
+        if copyable {
+            return Ok(ObligationCheck::Holds);
+        }
+
+        Ok(ObligationCheck::from_failures(vec![
+            ObligationFailure::UseAfterMove {
                 source: obligation.source,
                 symbol: obligation.symbol,
-            }]),
-        };
-
-        Ok(Answer::Ready(check))
+            },
+        ]))
     }
 
     /// Return whether one marked move position borrows its source.
-    fn move_site_borrows(
-        &mut self,
-        origin: Origin,
-        site: &MoveSite,
-    ) -> CompilerResult<Answer<bool>> {
+    fn move_site_borrows(&mut self, origin: Origin, site: &MoveSite) -> CompilerResult<bool> {
         // argument and receiver positions read the selected call
         if let Some(call) = site.call {
-            let resolutions = self.resolutions(call.module_id);
-            if let Some(resolution) = resolutions.call_resolution(call).cloned() {
+            // rejected calls reported their own diagnostics and move nothing
+            if matches!(
+                self.decision(call),
+                Some(dir::Decision::Rejected | dir::Decision::Poisoned)
+            ) {
+                return Ok(true);
+            }
+
+            let decisions = self.decisions(call.module_id);
+            if let Some(resolution) = decisions.call_decision(call).cloned() {
                 return self.call_position_borrows(origin, &resolution, site.node);
             }
-            if let Some(resolution) = resolutions.construct_resolution(call) {
+            if let Some(resolution) = decisions.construct_decision(call) {
                 // lend constructor arguments through borrowing parameters
                 let binding = resolution.arguments.iter().find(|binding| {
                     matches!(
@@ -888,39 +824,44 @@ impl CheckState<'_> {
             }
 
             return Err(CompilerError::Internal {
-                message: format!("move site {:?} has no resolution for {call:?}", site.node),
+                message: format!(
+                    "move site {} has no resolution for {}, decided as {:?}",
+                    self.node_label(site.node),
+                    self.node_label(call),
+                    self.decision(call),
+                ),
             });
         }
 
         // lend initializer and assignment positions into borrow bindings
         if let Some(target) = site.target {
-            let ty = answer!(self.symbol_type(target)?);
+            let ty = self.symbol_type(target)?;
 
             return self.type_head_borrows(origin, ty);
         }
 
-        Ok(Answer::Ready(false))
+        Ok(false)
     }
 
     /// Return whether one call position borrows its source in every runtime alternative.
     fn call_position_borrows(
         &mut self,
         origin: Origin,
-        resolution: &dir::CallResolution,
+        resolution: &dir::CallDecision,
         source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         match resolution {
             dir::OperationResolution::One(call) => {
                 self.call_arm_position_borrows(origin, call, source)
             }
             dir::OperationResolution::Union { arms, .. } => {
                 for call in arms {
-                    if !answer!(self.call_arm_position_borrows(origin, call, source)?) {
-                        return Ok(Answer::Ready(false));
+                    if !self.call_arm_position_borrows(origin, call, source)? {
+                        return Ok(false);
                     }
                 }
 
-                Ok(Answer::Ready(true))
+                Ok(true)
             }
         }
     }
@@ -931,7 +872,7 @@ impl CheckState<'_> {
         origin: Origin,
         call: &dir::Call,
         source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<bool> {
         // borrow an argument according to its selected parameter
         if let Some(binding) = call.arguments.iter().find(|binding| {
             matches!(
@@ -944,7 +885,7 @@ impl CheckState<'_> {
 
         // treat the remaining marked position as the selected receiver
         let receiver = match &call.target {
-            dir::CallTarget::Expression { .. } => return Ok(Answer::Ready(true)),
+            dir::CallTarget::Expression { .. } => return Ok(true),
             dir::CallTarget::Symbol { function, .. } => function.receiver.as_ref(),
             dir::CallTarget::Dynamic { dispatch, .. } => Some(&dispatch.receiver),
         };
@@ -958,18 +899,14 @@ impl CheckState<'_> {
             .iter()
             .any(|adjustment| matches!(adjustment, dir::ReceiverAdjustment::Borrow { .. }));
 
-        Ok(Answer::Ready(borrows))
+        Ok(borrows)
     }
 
     /// Return whether one type lends by default beneath its placement.
-    fn type_head_borrows(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let ownership = answer!(self.default_ownership(origin, ty)?);
+    fn type_head_borrows(&mut self, origin: Origin, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let ownership = self.default_ownership(origin, ty)?;
 
-        Ok(Answer::Ready(ownership == Some(dir::Ownership::Borrowed)))
+        Ok(ownership == Some(dir::Ownership::Borrowed))
     }
 
     /// Check one pattern coverage obligation.
@@ -977,15 +914,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &PatternCoverageObligation,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         // wait for authored values still undergoing contextual checking
         let value = match obligation.value {
             ExpectedType::Type(ty) => ty,
             ExpectedType::Node(node) => {
-                let ty = answer!(self.node_type(node)?);
+                let ty = self.node_type(node)?;
                 let site = self.node_site(node)?;
 
-                answer!(self.flow_type_at(site, ty)?)
+                self.flow_type_at(site, ty)?
             }
         };
 
@@ -1015,15 +952,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &ForInSourceObligation,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
-        if answer!(self.is_keyed_type(origin, obligation.ty)?) {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+    ) -> CompilerResult<ObligationCheck> {
+        if self.is_keyed_type(origin, obligation.ty)? {
+            return Ok(ObligationCheck::holds());
         }
 
         let failure = ObligationFailure::ForInSourceNotObjectShaped {
             source: obligation.source,
         };
 
-        Ok(Answer::Ready(ObligationCheck::fail(failure)))
+        Ok(ObligationCheck::fail(failure))
     }
 }

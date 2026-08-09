@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::smallvec;
 
-use crate::check::{Decision, WalkState};
+use crate::check::WalkState;
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -32,11 +32,8 @@ impl WalkState<'_, '_> {
                     [symbol] => {
                         let symbol = *symbol;
                         self.capture_symbol_reference(symbol);
-                        self.check.commit_decision(
-                            source,
-                            Decision::Name(dir::NameResolution::new(symbol)),
-                        )?;
-                        self.check_assigned_read(id.into_any(), symbol);
+                        self.check
+                            .commit_name(source, dir::NameResolution::new(symbol))?;
                     }
 
                     // overload sets resolve at their call sites
@@ -44,9 +41,9 @@ impl WalkState<'_, '_> {
                         for symbol in symbols.iter().copied() {
                             self.capture_symbol_reference(symbol);
                         }
-                        self.check.commit_decision(
+                        self.check.commit_name(
                             source,
-                            Decision::Name(dir::NameResolution::from_symbols(symbols.to_vec())),
+                            dir::NameResolution::from_symbols(symbols.to_vec()),
                         )?;
                     }
                 }
@@ -116,17 +113,14 @@ impl WalkState<'_, '_> {
                 match symbols.as_slice() {
                     [symbol] => {
                         let symbol = *symbol;
-                        self.check.commit_decision(
-                            source,
-                            Decision::Name(dir::NameResolution::new(symbol)),
-                        )?;
-                        self.check_assigned_read(id.into_any(), symbol);
+                        self.check
+                            .commit_name(source, dir::NameResolution::new(symbol))?;
                     }
                     // overload sets resolve at their call sites
                     _ => {
-                        self.check.commit_decision(
+                        self.check.commit_name(
                             source,
-                            Decision::Name(dir::NameResolution::from_symbols(symbols.to_vec())),
+                            dir::NameResolution::from_symbols(symbols.to_vec()),
                         )?;
                     }
                 }

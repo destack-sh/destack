@@ -255,6 +255,10 @@ const value = first((1, "text"));
 /// @generic.instance id=NoInfer<U> template=types.object.NoInfer arguments=(U)
 "#,
         r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'NoInfer<string>' is not assignable to parameter of type 'string'"
+/// @diagnostic.label line=4 column=25 span="\"text\"" line_source="const value = first((1, \"text\"));"
+/// @diagnostic.related line=4 column=15 span="first((1, \"text\"))" line_source="const value = first((1, \"text\"));" message="in this call"
+/// @diagnostic.note message="the mismatch is in element 1"
 "#,
     );
 }
@@ -330,6 +334,9 @@ const reds: "red"[] = seeds;
 /// @generic.instance id="on<\"red\">" template=on arguments=("red")
 "#,
         r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'NoInfer<(\"red\") => void>' is not assignable to parameter of type '(\"red\") => void'"
+/// @diagnostic.label line=6 column=11 span="(value) => {}" line_source="on(seeds, (value) => {});"
+/// @diagnostic.related line=6 column=1 span="on(seeds, (value) => {})" line_source="on(seeds, (value) => {});" message="in this call"
 "#,
     );
 }

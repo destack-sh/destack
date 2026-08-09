@@ -2,14 +2,17 @@ use std::ops::{Deref, DerefMut};
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, Cause, CauseId, CauseKind, CheckState, Expectation, FlowSite, InferMode, PlaceUse,
-    Relation, ValueCheck, ValueUse,
+    Cause, CauseId, CauseKind, CheckState, Expectation, FlowSite, InferMode, PlaceUse,
+    ReceiverBinding, Relation, ValueCheck, ValueUse,
 };
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 /// Yield targets for one generator body.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct GeneratorTargets {
+    /// The generator protocol family the body implements.
+    pub(in crate::check) asynchrony: dir::Asynchrony,
     /// The type of values the body yields.
     pub(in crate::check) yielded: dir::GlobalTypeId,
     /// The type yield expressions resume with.
@@ -17,7 +20,7 @@ pub(in crate::check) struct GeneratorTargets {
 }
 
 /// One function body with its return and yield types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub(in crate::check) struct FunctionBody {
     /// The function declaration symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
@@ -29,11 +32,17 @@ pub(in crate::check) struct FunctionBody {
     pub(in crate::check) generator: Option<GeneratorTargets>,
     /// The declaration whose fields this constructor initializes.
     pub(in crate::check) initializes: Option<dir::GlobalSymbolId>,
+    /// The body's asynchrony, entering its flow frame at check.
+    pub(in crate::check) asynchrony: dir::Asynchrony,
+    /// The contextual receiver bound over the body.
+    pub(in crate::check) receiver: Option<ReceiverBinding>,
+    /// The parameter sources assigned on entry.
+    pub(in crate::check) entries: SmallVec<[dir::LocalNodeIdAny; 4]>,
 }
 
 /// Checking state for one function body.
 pub(in crate::check) struct BodyState<'check, 'state> {
-    /// The component check state.
+    /// The module check state.
     pub(in crate::check) check: &'check mut CheckState<'state>,
     /// The return target, when the body returns a value.
     pub(in crate::check) return_type: Option<dir::GlobalTypeId>,
@@ -79,7 +88,7 @@ impl FunctionBody {
         check: &mut CheckState<'_>,
         output_mode: InferMode,
         parent: Option<CauseId>,
-    ) -> CompilerResult<Answer<Option<ValueCheck>>> {
+    ) -> CompilerResult<Option<ValueCheck>> {
         let mut state = BodyState {
             check,
             return_type: self.return_type,
@@ -87,6 +96,8 @@ impl FunctionBody {
             initializes: self.initializes,
             output_mode,
         };
+
+        // expect the body's completion value at the declared return type
         let expectation = self.return_type.map(|return_type| {
             let origin = self.site.origin();
             let kind = CauseKind::Return { annotation: None };
@@ -104,7 +115,52 @@ impl FunctionBody {
                 mode: output_mode,
             }
         });
-        let checked = state.attempt_node(self.site, PlaceUse::Read, expectation)?;
+
+        // resolve the targets the body returns and yields to
+        let (return_target, yield_target) = match self.generator {
+            Some(targets) => (
+                self.return_type.unwrap_or(targets.yielded),
+                Some(targets.yielded),
+            ),
+            None => (
+                self.return_type
+                    .unwrap_or(state.check.intern_type(dir::Type::Void)?),
+                None,
+            ),
+        };
+
+        // enter the body's flow frame and mark its entry bindings
+        state.check.enter_function_frame(
+            self.symbol,
+            return_target,
+            yield_target,
+            self.asynchrony,
+            self.receiver.clone(),
+        );
+        for entry in &self.entries {
+            state.check.mark_bindings_assigned(*entry);
+        }
+
+        // check the body under its generic template scope
+        if let Some(template) = self.site.scope {
+            state.check.flow.push_template_scope(template);
+        }
+        let checked = state.attempt_node(self.site, PlaceUse::Read, expectation);
+        if self.site.scope.is_some() {
+            state.check.flow.pop_template_scope();
+        }
+        let checked = checked?;
+        let branch = state.check.leave_function_frame();
+
+        // record the constructor's exit branch for class initialization
+        if let Some(class) = self.initializes {
+            state
+                .check
+                .constructor_branches
+                .entry(class)
+                .or_default()
+                .push(branch);
+        }
 
         Ok(checked)
     }

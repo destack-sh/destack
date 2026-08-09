@@ -246,7 +246,7 @@ function render(title: string): Panel {
             hello<span />
             {title}
         </div>
-    );
+    ) as (string, Panel, string);
     return page;
 }
 

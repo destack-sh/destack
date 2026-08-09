@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CheckState, ExtensionCoherenceObligation, ImplementationCoherenceObligation,
-    ObligationCheck, ObligationFailure, Origin, answer,
+    BodyState, CheckState, ExtensionCoherenceObligation, ImplementationCoherenceObligation,
+    ObligationCheck, ObligationFailure, Origin,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -14,7 +14,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &ImplementationCoherenceObligation,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         let source = obligation.source;
         let symbol = obligation.symbol;
         let Some(dir::Definition::Extension(extension)) = self.definition(symbol)? else {
@@ -42,7 +42,7 @@ impl CheckState<'_> {
         if implements.is_empty() {
             let check = ObligationCheck::from_failures(failures);
 
-            return Ok(Answer::Ready(check));
+            return Ok(check);
         }
         let package = module.package_id;
 
@@ -62,7 +62,7 @@ impl CheckState<'_> {
                     }
                 }
 
-                let conflicts = answer!(self.check_conflicting_implementations(
+                let conflicts = self.check_conflicting_implementations(
                     origin,
                     module,
                     source,
@@ -70,7 +70,7 @@ impl CheckState<'_> {
                     root,
                     ty,
                     &implements,
-                )?);
+                )?;
                 failures.extend(conflicts);
             }
             _ => {
@@ -90,7 +90,7 @@ impl CheckState<'_> {
 
         let check = ObligationCheck::from_failures(failures);
 
-        Ok(Answer::Ready(check))
+        Ok(check)
     }
 
     /// Return whether an exported extension needs a source-level name.
@@ -153,7 +153,7 @@ impl CheckState<'_> {
         root: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
         implementations: &[dir::NominalHeritage],
-    ) -> CompilerResult<Answer<Vec<ObligationFailure>>> {
+    ) -> CompilerResult<Vec<ObligationFailure>> {
         let mut failures = Vec::new();
 
         // collect comparable implementations before overlap checks
@@ -208,7 +208,7 @@ impl CheckState<'_> {
 
         // reject overlapping receivers under one unifiable interface instantiation
         for (other, other_ty, heritage, other_heritage) in candidates {
-            if !answer!(self.types_may_overlap(origin, ty, other_ty)?) {
+            if !self.types_may_overlap(origin, ty, other_ty)? {
                 continue;
             }
             let (heritage_module, heritage_interface) = self.nominal_application(heritage.ty)?;
@@ -224,7 +224,7 @@ impl CheckState<'_> {
                     .copied()
                     .zip(other_arguments.iter().copied())
                 {
-                    if !answer!(self.types_may_overlap(origin, left, right)?) {
+                    if !self.types_may_overlap(origin, left, right)? {
                         distinct = true;
                         break;
                     }
@@ -242,7 +242,7 @@ impl CheckState<'_> {
             });
         }
 
-        Ok(Answer::Ready(failures))
+        Ok(failures)
     }
 
     /// Return whether `source` is later than one other local definition.
@@ -270,7 +270,7 @@ impl BodyState<'_, '_> {
     pub(in crate::check) fn check_extension_coherence(
         &mut self,
         obligation: &ExtensionCoherenceObligation,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
+    ) -> CompilerResult<ObligationCheck> {
         let extension_symbol = obligation.symbol;
         let module = extension_symbol.module_id;
         let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)? else {
@@ -286,9 +286,9 @@ impl BodyState<'_, '_> {
         {
             let origin = Origin::Symbol(extension_symbol);
 
-            let declared = answer!(self.property_members(origin, &extension.members)?);
+            let declared = self.property_members(origin, &extension.members)?;
             if declared.is_empty() {
-                return Ok(Answer::Ready(ObligationCheck::holds()));
+                return Ok(ObligationCheck::holds());
             }
             let target = self.format_type(extension.target.r#type());
 
@@ -303,7 +303,7 @@ impl BodyState<'_, '_> {
                 None => match self.ty(extension.target.r#type())? {
                     dir::Type::Primitive(primitive) => Some(primitive),
                     // leave parameterized blanket overlap to use sites
-                    _ => return Ok(Answer::Ready(ObligationCheck::holds())),
+                    _ => return Ok(ObligationCheck::holds()),
                 },
             };
 
@@ -335,7 +335,7 @@ impl BodyState<'_, '_> {
                     continue;
                 }
 
-                let other = answer!(self.property_members(origin, &members)?);
+                let other = self.property_members(origin, &members)?;
                 for member in &declared {
                     let duplicated = other.iter().any(|candidate| {
                         candidate.key == member.key
@@ -355,7 +355,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        Ok(Answer::Ready(ObligationCheck::from_failures(failures)))
+        Ok(ObligationCheck::from_failures(failures))
     }
 
     /// Collect the property members one extension declares.
@@ -363,7 +363,7 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         members: &[dir::DefinitionMember],
-    ) -> CompilerResult<Answer<Vec<PropertyMember>>> {
+    ) -> CompilerResult<Vec<PropertyMember>> {
         let mut properties = Vec::new();
         for member in members {
             let (reads, writes) = match member {
@@ -379,13 +379,13 @@ impl BodyState<'_, '_> {
             let Some(key) = member.key() else {
                 continue;
             };
-            let Some(ty) = answer!(self.definition_member_type(member)?) else {
+            let Some(ty) = self.definition_member_type(member)? else {
                 continue;
             };
             let this = self
                 .signature_head(ty)?
                 .and_then(|signature| signature.this_parameter);
-            let Some(form) = answer!(self.property_receiver(origin, this)?) else {
+            let Some(form) = self.property_receiver(origin, this)? else {
                 continue;
             };
 
@@ -399,7 +399,7 @@ impl BodyState<'_, '_> {
             });
         }
 
-        Ok(Answer::Ready(properties))
+        Ok(properties)
     }
 
     /// Return the comparable declared receiver of one property member.
@@ -407,17 +407,17 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         this: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<Option<PropertyReceiver>>> {
+    ) -> CompilerResult<Option<PropertyReceiver>> {
         let Some(this) = this else {
-            return Ok(Answer::Ready(Some(PropertyReceiver::Default)));
+            return Ok(Some(PropertyReceiver::Default));
         };
-        let head = answer!(self.reduce_type_head(origin, this)?);
+        let head = self.reduce_type_head(origin, this)?;
         let form = match self.ty(head)? {
             dir::Type::Form(form) => match form.form {
                 // borrows compare by their access value
                 dir::Form::Borrowed(borrow) => {
                     let borrow = self.check.type_borrow(head.module_id, borrow)?;
-                    let access = answer!(self.reduce_type_head(origin, borrow.access)?);
+                    let access = self.reduce_type_head(origin, borrow.access)?;
                     let access = match self.ty(access)? {
                         dir::Type::Literal(dir::ScalarLiteral::String(name)) => Some(name),
                         _ => None,
@@ -434,7 +434,7 @@ impl BodyState<'_, '_> {
             _ => Some(PropertyReceiver::Default),
         };
 
-        Ok(Answer::Ready(form))
+        Ok(form)
     }
 }
 

@@ -185,11 +185,13 @@ match (point) {
 
     Point { x, y } => x + y
     /// @resolution.name source=Point target=Point
+    /// @resolution.rejected source="Point { x, y }"
     /// @type.symbol symbol=x source=x type=<error>
     /// @type.symbol symbol=y source=y type=<error>
     /// @type.node source="x + y" type=<error>
     /// @type.node source=x type=<error>
     /// @resolution.name source=x target=x
+    /// @resolution.poisoned source="x + y"
     /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=x
     /// @type.node source=y type=<error>
