@@ -1,9 +1,7 @@
-mod memory;
-#[cfg(not(target_arch = "wasm32"))]
+mod error;
+mod event;
 mod physical;
-mod watcher;
 
-pub use memory::*;
-#[cfg(not(target_arch = "wasm32"))]
+pub use error::*;
+pub use event::*;
 pub use physical::*;
-pub use watcher::*;
