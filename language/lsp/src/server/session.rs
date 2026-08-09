@@ -9,10 +9,11 @@ use destack_lsp_server::{Client, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::{
-    DestackLayoutOverride, Environment, Settings, SourceRoot, open_repository_from_fs,
+    DestackLayoutOverride, Environment, Execution, Settings, SourceRoot, open_repository_from_fs,
 };
+use destack_session::Executor;
 use destack_source::{FileSystem, OverlayFileSystem, PhysicalFileSystem};
-use destack_workspace::LocalWorkspace;
+use destack_workspace::Workspace;
 use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::from_value;
@@ -23,6 +24,8 @@ use crate::query::DiagnosticDelivery;
 /// State installed after one language server initialization.
 #[derive(Debug)]
 pub(super) struct ServerSession {
+    /// Artifact executor shared by every project session.
+    executor: Arc<Executor>,
     /// Shared editor overlay used by every project.
     file_system: Arc<OverlayFileSystem>,
     /// Projects discovered for the current editor workspace.
@@ -47,10 +50,8 @@ struct ProjectSet {
 /// One independently configured semantic project.
 #[derive(Debug)]
 struct Project {
-    /// The declared or implicit source root.
-    root: PathBuf,
-    /// The local semantic workspace.
-    workspace: Arc<LocalWorkspace>,
+    /// The project workspace.
+    workspace: Arc<Workspace>,
     /// Editor documents retaining this project.
     documents: Vec<PathBuf>,
 }
@@ -76,14 +77,14 @@ impl ProjectSet {
             .iter()
             .enumerate()
             .filter(|(_, project)| project.contains(path))
-            .max_by_key(|(_, project)| project.root.components().count())
+            .max_by_key(|(_, project)| project.workspace.root().components().count())
             .map(|(index, _)| index)
     }
 
     /// Return the project at one exact source root.
     fn get(&self, root: &Path) -> Option<&Project> {
         self.projects
-            .binary_search_by(|project| project.root.as_path().cmp(root))
+            .binary_search_by(|project| project.workspace.root().cmp(root))
             .ok()
             .map(|index| &self.projects[index])
     }
@@ -92,7 +93,7 @@ impl ProjectSet {
     fn insert(&mut self, project: Project) -> &Project {
         match self
             .projects
-            .binary_search_by(|existing| existing.root.cmp(&project.root))
+            .binary_search_by(|existing| existing.workspace.root().cmp(project.workspace.root()))
         {
             // merge ownership into the project already opened for this root
             Ok(index) => {
@@ -113,7 +114,7 @@ impl ProjectSet {
     }
 
     /// Retain the project containing one opened editor document.
-    fn open_document(&mut self, path: PathBuf) -> Option<Arc<LocalWorkspace>> {
+    fn open_document(&mut self, path: PathBuf) -> Option<Arc<Workspace>> {
         let project = self.select_mut(&path)?;
         project.open_document(path);
 
@@ -151,7 +152,7 @@ impl ProjectSet {
     }
 
     /// Return every opened project workspace in source-root order.
-    fn workspaces(&self) -> Vec<Arc<LocalWorkspace>> {
+    fn workspaces(&self) -> Vec<Arc<Workspace>> {
         self.projects
             .iter()
             .map(|project| project.workspace.clone())
@@ -167,7 +168,7 @@ impl ProjectSet {
         self.projects.retain(|project| {
             let is_owned = project.is_owned(editor_folders);
             if !is_owned {
-                removed.push(project.root.clone());
+                removed.push(project.workspace.root().to_path_buf());
             }
 
             is_owned
@@ -179,7 +180,11 @@ impl ProjectSet {
 
 impl Project {
     /// Open one project from its exact source root.
-    fn open(root: PathBuf, file_system: Arc<OverlayFileSystem>) -> jsonrpc::Result<Self> {
+    fn open(
+        root: PathBuf,
+        file_system: Arc<OverlayFileSystem>,
+        executor: Arc<Executor>,
+    ) -> jsonrpc::Result<Self> {
         let repository = open_repository_from_fs(
             root.clone(),
             file_system.clone(),
@@ -190,18 +195,10 @@ impl Project {
         .map_err(internal_error)?;
         #[cfg(test)]
         let repository = repository.with_blob_store(Arc::new(MemoryBlobStore::new()));
-        let workspace = LocalWorkspace::new(
-            Arc::new(repository),
-            Some(file_system),
-            None,
-            vec![root.clone()],
-            LocalWorkspace::default_worker_count(),
-            None,
-        )
-        .map_err(internal_error)?;
+        let workspace = Workspace::new(Arc::new(repository), Some(file_system), executor)
+            .map_err(internal_error)?;
 
         Ok(Self {
-            root,
             workspace: Arc::new(workspace),
             documents: Vec::new(),
         })
@@ -209,12 +206,14 @@ impl Project {
 
     /// Return whether this project contains one normalized path.
     fn contains(&self, path: &Path) -> bool {
-        path.starts_with(&self.root)
+        self.workspace.contains(path)
     }
 
     /// Return whether this project and one editor folder contain one another.
     fn overlaps(&self, folder: &Path) -> bool {
-        self.root.starts_with(folder) || folder.starts_with(&self.root)
+        let root = self.workspace.root();
+
+        root.starts_with(folder) || folder.starts_with(root)
     }
 
     /// Return whether an editor folder or document retains this project.
@@ -236,8 +235,8 @@ impl Project {
         }
     }
 
-    /// Return the local semantic workspace.
-    fn workspace(&self) -> Arc<LocalWorkspace> {
+    /// Return the project workspace.
+    fn workspace(&self) -> Arc<Workspace> {
         self.workspace.clone()
     }
 }
@@ -252,6 +251,8 @@ impl ServerSession {
 
         let physical_file_system = Arc::new(PhysicalFileSystem::new());
         let file_system = Arc::new(OverlayFileSystem::with_inner(physical_file_system));
+        let executor = Executor::new(Execution::Threaded, Executor::default_worker_count())
+            .map_err(internal_error)?;
         let client_capabilities = ClientCapabilities::try_from(params)?;
         let diagnostics = if client_capabilities.supports_pull_diagnostics {
             DiagnosticDelivery::pull(client_capabilities.supports_diagnostic_refresh)
@@ -260,6 +261,7 @@ impl ServerSession {
         };
 
         let session = Self {
+            executor,
             file_system,
             projects: RwLock::new(ProjectSet::default()),
             client_capabilities,
@@ -276,7 +278,7 @@ impl ServerSession {
     }
 
     /// Resolve the project workspace that owns one source path.
-    pub(super) fn workspace(&self, path: &Path) -> jsonrpc::Result<Arc<LocalWorkspace>> {
+    pub(super) fn workspace(&self, path: &Path) -> jsonrpc::Result<Arc<Workspace>> {
         let path = Self::normalize(path)?;
         let workspace = self.projects.read().select(&path).map(Project::workspace);
 
@@ -286,7 +288,7 @@ impl ServerSession {
     }
 
     /// Open one editor document through its nearest project.
-    pub(super) fn open_document(&self, path: &Path) -> jsonrpc::Result<Arc<LocalWorkspace>> {
+    pub(super) fn open_document(&self, path: &Path) -> jsonrpc::Result<Arc<Workspace>> {
         let path = Self::normalize(path)?;
         let workspace = self.projects.write().open_document(path.clone());
         if let Some(workspace) = workspace {
@@ -300,7 +302,7 @@ impl ServerSession {
             .map(PathBuf::from)
             .map_err(internal_error)?;
         let root = Self::canonicalize(&root)?;
-        let mut project = Project::open(root, self.file_system.clone())?;
+        let mut project = Project::open(root, self.file_system.clone(), self.executor.clone())?;
         project.open_document(path);
         let workspace = self.projects.write().insert(project).workspace();
 
@@ -319,7 +321,7 @@ impl ServerSession {
     pub(super) fn open_editor_folder(
         &self,
         path: &Path,
-    ) -> jsonrpc::Result<Option<Arc<LocalWorkspace>>> {
+    ) -> jsonrpc::Result<Option<Arc<Workspace>>> {
         let path = Self::canonicalize(path)?;
         let workspace = self.projects.read().select(&path).map(Project::workspace);
         let workspace = if let Some(workspace) = workspace {
@@ -343,13 +345,13 @@ impl ServerSession {
     }
 
     /// Open one project from its exact source root.
-    fn open_root(&self, root: PathBuf) -> jsonrpc::Result<Arc<LocalWorkspace>> {
+    fn open_root(&self, root: PathBuf) -> jsonrpc::Result<Arc<Workspace>> {
         if let Some(project) = self.projects.read().get(&root) {
             return Ok(project.workspace());
         }
 
         // build the project outside the shared project lock
-        let project = Project::open(root, self.file_system.clone())?;
+        let project = Project::open(root, self.file_system.clone(), self.executor.clone())?;
 
         // retain the first project opened concurrently for this root
         let workspace = self.projects.write().insert(project).workspace();
@@ -358,7 +360,7 @@ impl ServerSession {
     }
 
     /// Return every opened project workspace.
-    pub(super) fn workspaces(&self) -> Vec<Arc<LocalWorkspace>> {
+    pub(super) fn workspaces(&self) -> Vec<Arc<Workspace>> {
         self.projects.read().workspaces()
     }
 

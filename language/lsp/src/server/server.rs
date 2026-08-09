@@ -9,9 +9,8 @@ use destack_query as query;
 use destack_repository::{Revision, Trace, TraceReport, TraceView};
 use destack_source::{FileId, PatchSet, TextRange, Uri, WATCHABLE_FILE_TYPES};
 use destack_workspace::{
-    DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, FileOperation, LocalWorkspace,
-    QueryFile, QueryRun, ReloadReason, ReloadRequest, RevisionPolicy, RunQueryInput,
-    RunQueryResponse, Workspace,
+    DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, FileOperation, QueryFile,
+    QueryRun, RevisionPolicy, RunQueryInput, RunQueryResponse, Workspace,
 };
 use serde_json::to_value;
 
@@ -65,7 +64,7 @@ impl DestackLanguageServer {
     }
 
     /// Return the semantic workspace that owns one source path.
-    fn workspace(&self, path: &Path) -> jsonrpc::Result<Arc<LocalWorkspace>> {
+    fn workspace(&self, path: &Path) -> jsonrpc::Result<Arc<Workspace>> {
         self.session()?.workspace(path)
     }
 
@@ -93,11 +92,10 @@ impl DestackLanguageServer {
     ) -> jsonrpc::Result<RunQueryResponse> {
         let method = request.method();
         let workspace = self.workspace(path)?;
-        let root = workspace.root(path).map_err(workspace_error)?;
         let request = RunQueryInput { revision, request };
-        let run = self.start_query(workspace.as_ref(), &root, request)?;
+        let run = self.start_query(workspace.as_ref(), request)?;
 
-        self.wait_query(workspace, root, method, run).await
+        self.wait_query(workspace, method, run).await
     }
 
     /// Resolve one LSP document to a pinned query file.
@@ -106,11 +104,8 @@ impl DestackLanguageServer {
             return Ok(None);
         };
         let workspace = self.workspace(&path)?;
-        let root = workspace.root(&path).map_err(workspace_error)?;
 
-        workspace
-            .resolve_query_file(&root, path)
-            .map_err(workspace_error)
+        workspace.resolve_query_file(path).map_err(workspace_error)
     }
 
     /// Format one LSP document or selected text range.
@@ -123,11 +118,8 @@ impl DestackLanguageServer {
             return Ok(None);
         };
         let workspace = self.workspace(&path)?;
-        let root = workspace.root(&path).map_err(workspace_error)?;
 
-        workspace
-            .format_file(&root, path, range)
-            .map_err(workspace_error)
+        workspace.format_file(path, range).map_err(workspace_error)
     }
 
     /// Execute one module query against its file revision.
@@ -138,51 +130,44 @@ impl DestackLanguageServer {
     ) -> jsonrpc::Result<RunQueryResponse> {
         let method = request.method();
         let workspace = self.workspace(&file.path)?;
-        let root = workspace.root(&file.path).map_err(workspace_error)?;
         let request = RunQueryInput {
             revision: RevisionPolicy::Current(file.revision),
             request,
         };
-        let run = self.start_query(workspace.as_ref(), &root, request)?;
+        let run = self.start_query(workspace.as_ref(), request)?;
 
-        self.wait_query(workspace, root, method, run).await
+        self.wait_query(workspace, method, run).await
     }
 
     /// Schedule one query with the current LSP trace level.
     fn start_query(
         &self,
-        workspace: &LocalWorkspace,
-        root: &Path,
+        workspace: &Workspace,
         request: RunQueryInput,
     ) -> jsonrpc::Result<QueryRun> {
         let is_tracing = self.client.trace_level() == lsp::TraceValue::Verbose;
-        let session = workspace.session(root).map_err(workspace_error)?;
-        session.set_tracing(is_tracing);
 
         workspace
-            .start_query(root, request)
+            .start_query(request, is_tracing)
             .map_err(workspace_error)
     }
 
     /// Wait for one scheduled query without blocking the async server.
     async fn wait_query(
         &self,
-        workspace: Arc<LocalWorkspace>,
-        root: PathBuf,
+        workspace: Arc<Workspace>,
         method: query::QueryMethod,
         run: QueryRun,
     ) -> jsonrpc::Result<RunQueryResponse> {
         let revision = run.revision();
         let trace = run.trace();
-        let guard = run.guard();
         let response = run.wait().await;
-        guard.finish();
         self.report_query_trace(workspace.as_ref(), revision, method, trace)
             .await?;
         let response = response.map_err(workspace_error)?;
 
         // reject results invalidated while the query was running
-        let current = workspace.revision(&root).map_err(workspace_error)?;
+        let current = workspace.revision().map_err(workspace_error)?;
         if current != response.revision {
             return Err(jsonrpc::Error::content_modified());
         }
@@ -193,7 +178,7 @@ impl DestackLanguageServer {
     /// Report one completed query through standard LSP tracing.
     async fn report_query_trace(
         &self,
-        workspace: &LocalWorkspace,
+        workspace: &Workspace,
         revision: Revision,
         method: query::QueryMethod,
         trace: Arc<Trace>,
@@ -235,13 +220,13 @@ impl DestackLanguageServer {
         file_ids: impl IntoIterator<Item = FileId>,
     ) -> jsonrpc::Result<DocumentSet> {
         let workspace = self.workspace(path)?;
-        DocumentSet::load(workspace.as_ref(), path, revision, file_ids)
+        DocumentSet::load(workspace.as_ref(), revision, file_ids)
     }
 
     /// Read diagnostics without blocking the async server.
     async fn read_diagnostics(
         &self,
-        workspace: Arc<LocalWorkspace>,
+        workspace: Arc<Workspace>,
         request: DiagnosticsRequest,
     ) -> jsonrpc::Result<Vec<FileDiagnostics>> {
         let run = workspace
@@ -254,20 +239,16 @@ impl DestackLanguageServer {
     /// Wait for scheduled diagnostics and reject superseded revisions.
     async fn wait_diagnostics(
         &self,
-        workspace: Arc<LocalWorkspace>,
+        workspace: Arc<Workspace>,
         run: DiagnosticRun,
     ) -> jsonrpc::Result<Vec<FileDiagnostics>> {
-        let revisions = run.revisions();
-        let guard = run.guard();
+        let revision = run.revision();
         let outcome = run.wait().await;
-        guard.finish();
 
-        // reject any root invalidated while diagnostics were running
-        for (root, revision) in revisions {
-            let current = workspace.revision(&root).map_err(workspace_error)?;
-            if current != revision {
-                return Err(jsonrpc::Error::content_modified());
-            }
+        // reject the workspace when it changed while diagnostics were running
+        let current = workspace.revision().map_err(workspace_error)?;
+        if current != revision {
+            return Err(jsonrpc::Error::content_modified());
         }
 
         // report run failures without discarding completed diagnostics
@@ -346,23 +327,15 @@ impl DestackLanguageServer {
     /// Reload workspace source.
     fn reload_workspace(&self) -> jsonrpc::Result<()> {
         for workspace in self.session()?.workspaces() {
-            workspace
-                .reload(ReloadRequest {
-                    roots: Vec::new(),
-                    reason: ReloadReason::Manual,
-                })
-                .map_err(workspace_error)?;
+            workspace.reload().map_err(workspace_error)?;
         }
 
         Ok(())
     }
 
     /// Schedule diagnostics for one semantic workspace.
-    fn schedule_diagnostics(&self, workspace: Arc<LocalWorkspace>) -> jsonrpc::Result<()> {
-        for root in workspace.roots() {
-            self.diagnostics()?
-                .schedule(root, workspace.clone(), self.client.clone());
-        }
+    fn schedule_diagnostics(&self, workspace: Arc<Workspace>) -> jsonrpc::Result<()> {
+        self.diagnostics()?.schedule(workspace, self.client.clone());
 
         Ok(())
     }
@@ -395,7 +368,7 @@ impl DestackLanguageServer {
         let uri = Uri::from_string(params.text_document.uri.to_string());
         let content = params.text_document.text;
         let workspace = self.session()?.open_document(&path)?;
-        let result = workspace.file(FileOperation::OpenText {
+        let result = workspace.apply_file_operation(FileOperation::OpenText {
             path: path.clone(),
             uri,
             version: params.text_document.version,
@@ -433,7 +406,7 @@ impl DestackLanguageServer {
             .collect();
         let workspace = self.workspace(&path)?;
         workspace
-            .file(FileOperation::PatchText {
+            .apply_file_operation(FileOperation::PatchText {
                 path,
                 uri,
                 version: params.text_document.version,
@@ -455,7 +428,7 @@ impl DestackLanguageServer {
         let content = params.text;
         let workspace = self.workspace(&path)?;
         workspace
-            .file(FileOperation::SaveText { path, content })
+            .apply_file_operation(FileOperation::SaveText { path, content })
             .map_err(workspace_error)?;
 
         self.schedule_diagnostics(workspace)
@@ -471,7 +444,7 @@ impl DestackLanguageServer {
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
         let workspace = self.workspace(&path)?;
         workspace
-            .file(FileOperation::Close { path: path.clone() })
+            .apply_file_operation(FileOperation::Close { path: path.clone() })
             .map_err(workspace_error)?;
         let removed = self.session()?.close_document(&path)?;
 
@@ -878,12 +851,11 @@ impl LanguageServer for DestackLanguageServer {
                 .map(|path| path.into_owned())
                 .ok_or_else(|| jsonrpc::Error::invalid_params("new URI is not a file URI"))?;
 
-            // enforce a single root for rename write consistency
+            // enforce one workspace for rename write consistency
             let workspace = self.workspace(&old_path)?;
             let new_workspace = self.workspace(&new_path)?;
-            let root = workspace.root(&old_path).map_err(workspace_error)?;
-            let new_root = new_workspace.root(&new_path).map_err(workspace_error)?;
-            if !Arc::ptr_eq(&workspace, &new_workspace) || root != new_root {
+            let root = workspace.root().to_path_buf();
+            if !Arc::ptr_eq(&workspace, &new_workspace) {
                 return Err(jsonrpc::Error::invalid_params(
                     "file rename crosses workspace roots",
                 ));
@@ -896,7 +868,7 @@ impl LanguageServer for DestackLanguageServer {
                     ));
                 }
             } else {
-                let revision = workspace.revision(&root).map_err(workspace_error)?;
+                let revision = workspace.revision().map_err(workspace_error)?;
                 query_state = Some((root, revision));
             }
 
@@ -1324,29 +1296,28 @@ impl LanguageServer for DestackLanguageServer {
         }
         let mut symbols = Vec::new();
         for workspace in workspaces {
-            for root in workspace.roots() {
-                let request = query::QueryRequest::SearchSymbols(query::SearchSymbolsRequest {
-                    query: params.query.clone(),
-                    max_results: 100,
-                });
-                let response = self
-                    .query_program(&root, request, RevisionPolicy::Latest)
-                    .await?;
-                let revision = response.revision;
-                let query::QueryResponse::SearchSymbols(response) = response.response else {
-                    return Err(internal_error("query did not return symbol search"));
-                };
+            let root = workspace.root().to_path_buf();
+            let request = query::QueryRequest::SearchSymbols(query::SearchSymbolsRequest {
+                query: params.query.clone(),
+                max_results: 100,
+            });
+            let response = self
+                .query_program(&root, request, RevisionPolicy::Latest)
+                .await?;
+            let revision = response.revision;
+            let query::QueryResponse::SearchSymbols(response) = response.response else {
+                return Err(internal_error("query did not return symbol search"));
+            };
 
-                // retain the root and revision required to project each result
-                for symbol in response.symbols {
-                    let Some(order) = symbol.order(&params.query) else {
-                        return Err(internal_error(format!(
-                            "symbol search returned nonmatching symbol {}",
-                            symbol.name
-                        )));
-                    };
-                    symbols.push((order, root.clone(), revision, symbol));
-                }
+            // retain the root and revision required to project each result
+            for symbol in response.symbols {
+                let Some(order) = symbol.order(&params.query) else {
+                    return Err(internal_error(format!(
+                        "symbol search returned nonmatching symbol {}",
+                        symbol.name
+                    )));
+                };
+                symbols.push((order, root.clone(), revision, symbol));
             }
         }
 

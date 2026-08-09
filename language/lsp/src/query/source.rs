@@ -273,8 +273,7 @@ impl DocumentSet {
 
     /// Load the requested documents from one revision.
     pub(crate) fn load(
-        workspace: &dyn Workspace,
-        path: &Path,
+        workspace: &Workspace,
         revision: Revision,
         file_ids: impl IntoIterator<Item = FileId>,
     ) -> jsonrpc::Result<Self> {
@@ -286,9 +285,8 @@ impl DocumentSet {
         }
 
         // load every document in one workspace request
-        let root = workspace.root(path).map_err(workspace_error)?;
         let loaded = workspace
-            .read_files(&root, revision, requested.clone())
+            .read_files(revision, requested.clone())
             .map_err(workspace_error)?;
         for file in &loaded {
             if requested.binary_search(&file.id).is_err() {

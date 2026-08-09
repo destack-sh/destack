@@ -13,7 +13,7 @@ use destack_source::{
     Diagnostic, DiagnosticLabel, DiagnosticReference, DiagnosticSeverity, DiagnosticTag,
     DiagnosticTarget,
 };
-use destack_workspace::{DiagnosticsRequest, FileDiagnostics, LocalWorkspace, Workspace};
+use destack_workspace::{DiagnosticsRequest, FileDiagnostics, Workspace};
 use parking_lot::Mutex;
 
 use super::{Document, DocumentSet, ToLspUri};
@@ -54,12 +54,10 @@ impl DiagnosticDelivery {
     }
 
     /// Schedule diagnostics after source state changes.
-    pub(crate) fn schedule(&self, root: PathBuf, workspace: Arc<LocalWorkspace>, client: Client) {
+    pub(crate) fn schedule(&self, workspace: Arc<Workspace>, client: Client) {
         match &self.mode {
             DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client),
-            DiagnosticDeliveryMode::Push(diagnostics) => {
-                diagnostics.schedule(root, workspace, client)
-            }
+            DiagnosticDeliveryMode::Push(diagnostics) => diagnostics.schedule(workspace, client),
         }
     }
 
@@ -87,12 +85,12 @@ pub(crate) struct DiagnosticPublisher {
     /// Client receiving diagnostics.
     client: Client,
     /// Workspace providing related files.
-    workspace: Arc<LocalWorkspace>,
+    workspace: Arc<Workspace>,
 }
 
 impl DiagnosticPublisher {
     /// Create one diagnostic publisher.
-    pub(crate) fn new(client: Client, workspace: Arc<LocalWorkspace>) -> Self {
+    pub(crate) fn new(client: Client, workspace: Arc<Workspace>) -> Self {
         Self { client, workspace }
     }
 
@@ -124,20 +122,9 @@ impl DiagnosticPublisher {
             return Ok(documents);
         }
 
-        let path = diagnostics.file.path.as_deref().ok_or_else(|| {
-            internal_error(format!(
-                "diagnostic source file {:?} has no workspace path",
-                diagnostics.file.id
-            ))
-        })?;
-        let root = self.workspace.root(path).map_err(workspace_error)?;
         let related = self
             .workspace
-            .read_files(
-                &root,
-                diagnostics.revision,
-                file_ids.iter().copied().collect(),
-            )
+            .read_files(diagnostics.revision, file_ids.iter().copied().collect())
             .map_err(workspace_error)?;
 
         // require exactly the requested related files
@@ -363,7 +350,8 @@ struct PushDiagnostics {
 
 impl PushDiagnostics {
     /// Schedule diagnostics for one changed workspace root.
-    fn schedule(&self, root: PathBuf, workspace: Arc<LocalWorkspace>, client: Client) {
+    fn schedule(&self, workspace: Arc<Workspace>, client: Client) {
+        let root = workspace.root().to_path_buf();
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let tasks = self.tasks.clone();
         let published = self.published.clone();
@@ -372,8 +360,7 @@ impl PushDiagnostics {
             tokio::time::sleep(DIAGNOSTIC_DELAY).await;
 
             // schedule diagnostic artifacts after the debounce interval
-            let run = match workspace.start_diagnostics(DiagnosticsRequest::Root(task_root.clone()))
-            {
+            let run = match workspace.start_diagnostics(DiagnosticsRequest::All) {
                 Ok(run) => run,
                 Err(error) => {
                     client
@@ -383,12 +370,10 @@ impl PushDiagnostics {
                     return;
                 }
             };
-            let revisions = run.revisions();
-            let guard = run.guard();
+            let revision = run.revision();
 
             // wait cooperatively for the scheduled diagnostics
             let outcome = run.wait().await;
-            guard.finish();
 
             // reject a publication replaced by a newer task
             let is_current = tasks
@@ -399,21 +384,19 @@ impl PushDiagnostics {
                 return;
             }
 
-            // reject revisions invalidated while diagnostics were running
-            for (root, revision) in &revisions {
-                let current = match workspace.revision(root) {
-                    Ok(current) => current,
-                    Err(error) => {
-                        client
-                            .report_error("diagnostics.revision.read", workspace_error(error))
-                            .await;
+            // reject a workspace invalidated while diagnostics were running
+            let current = match workspace.revision() {
+                Ok(current) => current,
+                Err(error) => {
+                    client
+                        .report_error("diagnostics.revision.read", workspace_error(error))
+                        .await;
 
-                        return;
-                    }
-                };
-                if current != *revision {
                     return;
                 }
+            };
+            if current != revision {
+                return;
             }
 
             // publish only the current diagnostic result
