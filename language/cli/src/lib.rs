@@ -5,8 +5,8 @@ pub mod console;
 pub mod diagnostic;
 
 pub use command::{
-    bench, build, cache, check, clean, completions, doc, doctor, eval, explain, fmt, info, init,
-    lint, lsp, query, rewrite, run, settings, targets, task, test, update, version,
+    bench, build, cache, check, clean, completions, doc, doctor, explain, fmt, info, init, lint,
+    lsp, query, rewrite, settings, targets, task, test, update, version,
 };
 
 #[cfg(test)]

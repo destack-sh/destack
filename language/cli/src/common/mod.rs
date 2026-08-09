@@ -6,7 +6,6 @@ pub mod output;
 pub mod program;
 pub mod progress;
 pub mod report;
-pub mod runtime;
 pub mod target;
 pub mod watch;
 
@@ -15,8 +14,8 @@ mod command;
 pub(crate) use command::{
     CommandOptionsBuilder, CommandResult, CommandSummary, WatchCompileContext, WatchCycle,
     WorkspaceWatch, command_error, emit_watch_compile_report, emit_workspace_text_output,
-    finish_diagnostic_command, finish_run_command, finish_workspace_message_command,
-    overrides_from_program, run_workspace_command, run_workspace_command_or_report,
+    finish_diagnostic_command, finish_workspace_message_command, overrides_from_program,
+    run_workspace_command, run_workspace_command_or_report,
     run_workspace_payload_command_or_report, watch_error, workspace_error,
 };
 pub use format::{
@@ -39,6 +38,5 @@ pub use report::{
     parse_command_payload, parse_required_command_payload, print_json_payload_report, print_report,
     report_error, report_error_with, report_from_message_payload, report_from_payload,
 };
-pub use runtime::RuntimeArgs;
 pub(crate) use target::target_overrides_from_args;
 pub use watch::{WatchCompileJson, WatchCompileReason, WatchReporter};

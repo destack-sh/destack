@@ -6,7 +6,7 @@
     "os": ["linux"],
     "cpu": ["arm64"],
     "libc": ["glibc"],
-    "files": ["bin/destack", "bin/ds", "bin/dsc", "bin/dsx"],
+    "files": ["bin/destack", "bin/ds", "bin/dsc"],
     "scripts": {
         "prepublishOnly": "bun ../npm/validate-platform-package.ts",
         "publish:dry": "npm publish --dry-run --access public",

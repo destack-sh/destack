@@ -25,7 +25,7 @@ const PLATFORM_PACKAGES: Record<string, string> = {
 };
 
 /** The supported CLI binary names exposed by npm wrappers. */
-const SUPPORTED_BINARIES = new Set(["destack", "ds", "dsc", "dsx"]);
+const SUPPORTED_BINARIES = new Set(["destack", "ds", "dsc"]);
 
 /** Resolve the Linux libc family for package selection. */
 function resolveLinuxLibc(): "gnu" | "musl" {

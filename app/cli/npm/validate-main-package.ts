@@ -22,7 +22,6 @@ const BUILT_BIN_WRAPPERS = [
     "./npm/dist/bin/destack.js",
     "./npm/dist/bin/ds.js",
     "./npm/dist/bin/dsc.js",
-    "./npm/dist/bin/dsx.js",
 ];
 
 /** Validate the main npm package before publish. */

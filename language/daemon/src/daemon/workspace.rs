@@ -328,17 +328,6 @@ impl WorkspaceService for WorkspaceRegistry {
         WorkspaceService::build(&workspace, request, responses).await
     }
 
-    /// Run one workspace target.
-    async fn run(
-        &self,
-        request: Request<workspace::RunRequest>,
-        responses: ResponseSender<ProgressEvent>,
-    ) -> Result<Response<workspace::RunOutput>, Status> {
-        let workspace = self.workspace(&request.value.root)?;
-
-        WorkspaceService::run(&workspace, request, responses).await
-    }
-
     /// Run workspace tests.
     async fn test(
         &self,

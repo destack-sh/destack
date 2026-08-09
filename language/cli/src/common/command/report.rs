@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use destack_workspace::{
     CommandMessagePayload, CommandOutputChunk, CommandProgress, Message, MessageKind, OutputStream,
-    RunPayload, Workspace,
+    Workspace,
 };
 use futures::{FutureExt, pin_mut, select_biased};
 use serde::de::DeserializeOwned;
@@ -13,10 +13,10 @@ use serde_json::Value;
 
 use super::result::CommandResult;
 use crate::common::{
-    CommandError, CommandReport, DiagnosticFormat, FormatOptions, LineWriter, ProgramArgs,
-    ProgressReporter, ReportArgs, collect_diagnostics_json, format_diagnostics_with_writer,
-    parse_command_payload, parse_required_command_payload, print_report, report_error,
-    report_from_message_payload, report_from_payload,
+    CommandReport, DiagnosticFormat, FormatOptions, LineWriter, ProgramArgs, ProgressReporter,
+    ReportArgs, collect_diagnostics_json, format_diagnostics_with_writer, parse_command_payload,
+    parse_required_command_payload, print_report, report_error, report_from_message_payload,
+    report_from_payload,
 };
 use crate::console;
 use crate::diagnostic::{ConsoleError, ConsoleResult};
@@ -275,89 +275,6 @@ pub(crate) fn finish_diagnostic_command(
     } else {
         diagnostic_exit_code
     }
-}
-
-/// Finish a run command with diagnostic and payload rendering.
-pub(crate) fn finish_run_command(
-    command: &str,
-    report_args: &ReportArgs,
-    result: &CommandResult,
-) -> i32 {
-    // render diagnostics before payload output
-    if report_args.is_json() {
-        let json_options = FormatOptions {
-            format: DiagnosticFormat::Json,
-            ..FormatOptions::default()
-        };
-        let (output, format_result) = collect_diagnostics_json(
-            &|file_id| result.files.get(&file_id).cloned(),
-            &result.diagnostics,
-            &json_options,
-        );
-
-        if format_result.exit_code() != 0 {
-            let mut report = CommandReport::failure(command, format_result.exit_code());
-            report.trace = result.response.trace.clone();
-            report.diagnostics = Some(output);
-            print_report(&report, report_args.format());
-            return format_result.exit_code();
-        }
-    } else {
-        let text_options = FormatOptions::default();
-        let format_result = format_diagnostics_with_writer(
-            &|file_id| result.files.get(&file_id).cloned(),
-            &result.diagnostics,
-            &text_options,
-            result.response.module_count,
-            None,
-        );
-        if format_result.exit_code() != 0 {
-            result.emit_timings(None);
-            return format_result.exit_code();
-        }
-    }
-
-    // emit workspace text output before the final run status
-    emit_workspace_text_output(
-        report_args,
-        &result.response.messages,
-        &result.response.output,
-    );
-
-    let exit_code = result.response.exit_code;
-
-    // print the structured payload for json output
-    if report_args.is_json() {
-        let payload = match parse_command_payload::<RunPayload>(
-            command,
-            report_args,
-            Some(&result.response.data),
-            "run",
-            false,
-        ) {
-            Ok(payload) => payload,
-            Err(code) => return code,
-        };
-
-        let (summary, error, data) = match payload {
-            Some((RunPayload::RuntimeError { message }, value)) => {
-                let error = Some(CommandError::new("runtime_error", "run", message.clone()));
-                (Some(message), error, Some(value))
-            }
-            Some((RunPayload::Value { .. }, value)) => (None, None, Some(value)),
-            None => (None, None, None),
-        };
-        let mut report = report_from_payload(command, exit_code, data, summary, error);
-        report.trace = result.response.trace.clone();
-        print_report(&report, report_args.format());
-    } else if exit_code != 0 {
-        console::warn(&format!("process exited with code {exit_code}"));
-    }
-    if !report_args.is_json() {
-        result.emit_timings(None);
-    }
-
-    exit_code
 }
 
 /// Emit output for a workspace command that returns a message payload.

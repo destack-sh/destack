@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     BenchInput, BuildInput, CacheInput, CheckInput, CleanInput, DocInput, DoctorInput, FormatInput,
-    InfoInput, QueryInput, RewriteInput, RunInput, SettingsInput, TargetsInput, TaskInput,
-    TestInput,
+    InfoInput, QueryInput, RewriteInput, SettingsInput, TargetsInput, TaskInput, TestInput,
 };
 
 /// Request to check one workspace root.
@@ -52,15 +51,6 @@ pub struct BuildRequest {
     pub root: PathBuf,
     /// Build input.
     pub input: BuildInput,
-}
-
-/// Request to run one workspace target.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct RunRequest {
-    /// Workspace root containing the target.
-    pub root: PathBuf,
-    /// Run input.
-    pub input: RunInput,
 }
 
 /// Request to run workspace tests.

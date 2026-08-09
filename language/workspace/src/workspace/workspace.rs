@@ -19,10 +19,9 @@ use crate::{
     CommandError, CommandOptions, CommandOutcome, CommandProgress, CommandResult, CommandRevision,
     DocInput, DocOptions, DocOutput, DoctorInput, DoctorOptions, DoctorOutput, Error, ExportInput,
     ExportResult, ExportedFile, FormatInput, FormatOutput, InfoInput, InfoOptions, InfoOutput,
-    Output, OutputBuffer, QueryInput, QueryOutput, RewriteInput, RewriteOutput, RunInput,
-    RunOutput, SettingsInput, SettingsOptions, SettingsOutput, SourceUpdate, TargetsInput,
-    TargetsOptions, TargetsOutput, TaskInput, TaskOptions, TaskOutput, TestInput, TestOptions,
-    TestOutput, WatchState,
+    Output, OutputBuffer, QueryInput, QueryOutput, RewriteInput, RewriteOutput, SettingsInput,
+    SettingsOptions, SettingsOutput, SourceUpdate, TargetsInput, TargetsOptions, TargetsOutput,
+    TaskInput, TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput, WatchState,
 };
 
 /// One live Destack workspace rooted at one repository path.
@@ -309,22 +308,6 @@ impl Workspace {
 
             self.run_command(&common, request.revision, progress, move |context| {
                 Box::pin(async move { context.run_build_command(&request).await })
-            })
-            .await
-        })
-    }
-
-    /// Run one workspace target.
-    pub fn run<'a>(
-        &'a self,
-        request: RunInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<RunOutput, CommandError>> {
-        Box::pin(async move {
-            let common = request.command_options();
-
-            self.run_command(&common, request.revision, progress, move |context| {
-                Box::pin(async move { context.execute_run_command(&request).await })
             })
             .await
         })

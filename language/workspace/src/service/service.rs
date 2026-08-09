@@ -6,7 +6,7 @@ use super::*;
 use crate::{
     BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, DocOutput, DoctorOutput,
     ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent, QueryOutput, RewriteOutput,
-    RunOutput, RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput, TestOutput, WatchEvent,
+    RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput, TestOutput, WatchEvent,
 };
 
 /// RPC operations over one Destack workspace.
@@ -67,10 +67,6 @@ pub trait WorkspaceService {
     /// Build target artifacts.
     #[rpc(name = "Build", response_stream = ProgressEvent)]
     fn build(request: BuildRequest) -> BuildOutput;
-
-    /// Run one workspace target.
-    #[rpc(name = "Run", response_stream = ProgressEvent)]
-    fn run(request: RunRequest) -> RunOutput;
 
     /// Run workspace tests.
     #[rpc(name = "Test", response_stream = ProgressEvent)]

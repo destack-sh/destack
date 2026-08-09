@@ -15,7 +15,6 @@ mod outcome;
 mod output;
 mod query;
 mod rewrite;
-mod run;
 mod selection;
 mod settings;
 mod targets;
@@ -41,12 +40,11 @@ pub(crate) use outcome::CommandOutcome;
 pub(crate) use output::OutputBuffer;
 pub use output::{
     BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandOutput, DocOutput,
-    DoctorOutput, FormatOutput, InfoOutput, Output, QueryOutput, RewriteOutput, RunOutput,
-    SettingsOutput, TargetsOutput, TaskOutput, TestOutput,
+    DoctorOutput, FormatOutput, InfoOutput, Output, QueryOutput, RewriteOutput, SettingsOutput,
+    TargetsOutput, TaskOutput, TestOutput,
 };
 pub use query::*;
 pub use rewrite::*;
-pub use run::{RunInput, RunMode, RunOptions, RunPayload};
 pub use settings::{
     SettingsInput, SettingsNetwork, SettingsOptions, SettingsPayload, SettingsRegistry,
     SettingsRegistryAuthentication,

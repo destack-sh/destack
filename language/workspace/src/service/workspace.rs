@@ -10,8 +10,8 @@ use super::*;
 use crate::{
     BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandProgress, DocOutput,
     DoctorOutput, ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent, QueryOutput,
-    RewriteOutput, RunOutput, RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput,
-    TestOutput, WatchEvent, Workspace,
+    RewriteOutput, RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput, TestOutput,
+    WatchEvent, Workspace,
 };
 
 impl WorkspaceService for Arc<Workspace> {
@@ -168,20 +168,6 @@ impl WorkspaceService for Arc<Workspace> {
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
         let command = Workspace::build(self.as_ref(), request.input, Some(progress));
-
-        events.forward(responses, command).await
-    }
-
-    /// Run one workspace target.
-    async fn run(
-        &self,
-        request: Request<RunRequest>,
-        responses: ResponseSender<ProgressEvent>,
-    ) -> Result<Response<RunOutput>, Status> {
-        let request = request.value;
-        self.resolve_root(&request.root)?;
-        let (progress, events) = CommandProgress::channel();
-        let command = Workspace::run(self.as_ref(), request.input, Some(progress));
 
         events.forward(responses, command).await
     }

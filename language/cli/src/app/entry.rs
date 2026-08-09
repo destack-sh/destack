@@ -13,8 +13,6 @@ pub enum DefaultCommand {
     None,
     /// Default to the build command.
     Build,
-    /// Default to the run command.
-    Run,
 }
 
 impl DefaultCommand {
@@ -23,7 +21,6 @@ impl DefaultCommand {
         match self {
             Self::None => None,
             Self::Build => Some("build"),
-            Self::Run => Some("run"),
         }
     }
 }

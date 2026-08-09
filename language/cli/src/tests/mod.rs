@@ -1,7 +1,6 @@
 mod build;
 mod check;
 mod clean;
-mod eval;
 mod fmt;
 mod info;
 mod init;
@@ -10,7 +9,6 @@ mod lint;
 mod query;
 mod report;
 mod rewrite;
-mod run;
 mod targets;
 mod task;
 mod tests;

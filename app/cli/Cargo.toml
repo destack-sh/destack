@@ -30,10 +30,6 @@ name = "dsc"
 path = "src/bin/dsc.rs"
 
 [[bin]]
-name = "dsx"
-path = "src/bin/dsx.rs"
-
-[[bin]]
 name = "generate-cli-schema"
 path = "src/bin/generate-cli-schema.rs"
 required-features = ["schema"]

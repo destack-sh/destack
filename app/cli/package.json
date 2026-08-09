@@ -7,8 +7,7 @@
     "bin": {
         "destack": "npm/dist/bin/destack.js",
         "ds": "npm/dist/bin/ds.js",
-        "dsc": "npm/dist/bin/dsc.js",
-        "dsx": "npm/dist/bin/dsx.js"
+        "dsc": "npm/dist/bin/dsc.js"
     },
     "files": [
         "npm/dist"

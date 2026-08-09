@@ -12,7 +12,7 @@ DESTACK_OUTPUT_DIRECTORY="${2:-}"
 DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
 DESTACK_RELEASE_TAG_INPUT="${DESTACK_RELEASE_TAG:-}"
 DESTACK_RELEASE_CHANNEL_INPUT="${DESTACK_RELEASE_CHANNEL:-stable}"
-DESTACK_BINARY_NAMES="destack ds dsc dsx"
+DESTACK_BINARY_NAMES="destack ds dsc"
 DESTACK_MANIFEST_NAME="manifest.json"
 
 # print an error message and exit
@@ -250,7 +250,7 @@ write_manifest() {
             printf '      "archiveName": "%s",\n' "${archive_name}"
             printf '      "archiveFormat": "%s",\n' "${archive_format}"
             printf '      "archiveSha256": "%s",\n' "${archive_sha256}"
-            printf '      "binaries": ["destack", "ds", "dsc", "dsx"]\n'
+            printf '      "binaries": ["destack", "ds", "dsc"]\n'
 
             if [ "${target_index}" -lt "${targets_count}" ]; then
                 printf '    },\n'

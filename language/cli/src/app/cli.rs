@@ -3,8 +3,8 @@ use clap::builder::styling::{AnsiColor, Style, Styles};
 use clap::{Args, CommandFactory, Parser, ValueEnum};
 
 use crate::{
-    bench, build, cache, check, clean, completions, console, doc, doctor, eval, explain, fmt, info,
-    init, lint, lsp, query, rewrite, run, settings, targets, task, test, update, version,
+    bench, build, cache, check, clean, completions, console, doc, doctor, explain, fmt, info, init,
+    lint, lsp, query, rewrite, settings, targets, task, test, update, version,
 };
 
 #[cfg(feature = "dev")]
@@ -13,8 +13,8 @@ use crate::command::DevCommand;
 use crate::command::dev::{VersionCommands, release, stats};
 use crate::command::{
     BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, DaemonArgs, DocArgs,
-    DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, QueryArgs,
-    RewriteArgs, RunArgs, SettingsArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
+    DoctorArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, QueryArgs,
+    RewriteArgs, SettingsArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
 };
 
 /// Base help template for CLI output.
@@ -100,13 +100,6 @@ pub enum Command {
     #[command(alias = "compile")]
     Build(BuildArgs),
 
-    /// Compile and run a source file or script.
-    #[command(alias = "exec")]
-    Run(RunArgs),
-
-    /// Evaluate inline code.
-    Eval(EvalArgs),
-
     /// Lint source files (alias for check).
     Lint(LintArgs),
 
@@ -184,8 +177,6 @@ impl Command {
         match self {
             Self::Check(args) => check::run(&args).await,
             Self::Build(args) => build::run(&args).await,
-            Self::Run(args) => run::run(&args).await,
-            Self::Eval(args) => eval::run(&args).await,
             Self::Lint(args) => lint::run(&args).await,
             Self::Format(args) => fmt::run(&args).await,
             Self::Query(args) => query::run(&args).await,
@@ -549,11 +540,11 @@ fn build_usage_aliases(color_enabled: bool) -> String {
         let shortcut_style = AnsiColor::Cyan.on_default().bold();
         let hint_style = Style::new().dimmed();
         return format!(
-            "  {hint_style}or{hint_style:#} {shortcut_style}ds{shortcut_style:#} | {shortcut_style}dsc{shortcut_style:#} | {shortcut_style}dsx{shortcut_style:#}"
+            "  {hint_style}or{hint_style:#} {shortcut_style}ds{shortcut_style:#} | {shortcut_style}dsc{shortcut_style:#}"
         );
     }
 
-    "  or ds | dsc | dsx".to_string()
+    "  or ds | dsc".to_string()
 }
 
 /// Build the options heading for help output.

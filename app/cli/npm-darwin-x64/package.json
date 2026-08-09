@@ -5,7 +5,7 @@
     "description": "Destack CLI binaries for darwin x64",
     "os": ["darwin"],
     "cpu": ["x64"],
-    "files": ["bin/destack", "bin/ds", "bin/dsc", "bin/dsx"],
+    "files": ["bin/destack", "bin/ds", "bin/dsc"],
     "scripts": {
         "prepublishOnly": "bun ../npm/validate-platform-package.ts",
         "publish:dry": "npm publish --dry-run --access public",

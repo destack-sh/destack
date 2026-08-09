@@ -19,17 +19,14 @@ destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
-destack_heap = { workspace = true }
 destack_json = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_pattern = { workspace = true }
-destack_program = { workspace = true }
 destack_query = { workspace = true }
 destack_session = { workspace = true, default-features = false }
 destack_serde = { workspace = true }
 destack_source = { workspace = true }
-destack_vm = { workspace = true }
 destack_repository = { path = "../repository", default-features = false }
 destack_rpc = { workspace = true }
 
@@ -44,7 +41,6 @@ smallvec = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fs2 = { workspace = true }
-destack_runtime = { workspace = true }
 
 [features]
 default = ["native"]
