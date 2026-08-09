@@ -39,7 +39,7 @@ impl ModuleKey {
     }
 }
 
-/// Unique identifier for Modules.
+/// One module's unique identifier.
 ///
 /// ModuleId is hierarchical: it includes the PackageId and a local identifier.
 /// This makes ModuleIds stable across compiler runs (for better cross-package caching).
@@ -86,7 +86,6 @@ impl ModuleId {
     }
 
     /// Create a ModuleId from a package and a path, computing the relative path.
-    /// If the path is not within the package root, uses the full path as fallback.
     pub fn from_path(package: PackageId, path: &Path, package_root: Option<&Path>) -> Self {
         Self::from_path_with_loader(package, path, package_root, None)
     }
