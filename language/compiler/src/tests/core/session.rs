@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::{env, thread};
 
 use destack_artifact::{
@@ -13,9 +12,9 @@ use destack_dir as dir;
 use destack_mir::{FormatOptions, Formatter};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
-    Revision, Settings, Trace, TraceAggregate, TraceReport, TraceSnapshot, TraceView,
+    Revision, RevisionPin, Settings, Trace, TraceAggregate, TraceReport, TraceSnapshot, TraceView,
 };
-use destack_session::{Session, SessionError};
+use destack_session::{ArtifactPriority, Executor, Session, SessionError};
 use destack_source::{Content, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 use futures::executor::block_on;
 
@@ -97,9 +96,13 @@ pub(crate) struct TestSession {
     /// The repository under test.
     repository: Arc<Repository>,
     /// The immutable test revision.
-    revision: Revision,
+    revision: RevisionPin,
     /// Production artifact session.
     session: Session,
+    /// Whether artifact runs record detailed traces.
+    is_tracing: bool,
+    /// The latest detailed artifact trace.
+    last_trace: Mutex<Option<Arc<Trace>>>,
     /// Modules keyed by logical path.
     modules_by_path: BTreeMap<String, TestModule>,
     /// Module paths keyed by module id.
@@ -120,7 +123,7 @@ impl TestSession {
 
     /// Return the immutable test revision.
     pub(crate) fn revision(&self) -> Revision {
-        self.revision
+        self.revision.revision()
     }
 
     /// Build a single-module test session.
@@ -147,34 +150,30 @@ impl TestSession {
             })
             .collect::<Vec<_>>();
         let revision = repository
-            .fork_with_edits(revision, edits)
-            .expect("test repository revision should publish");
+            .edit(revision, edits)
+            .expect("test repository revision should publish")
+            .after;
+        let revision = repository
+            .pin(revision)
+            .expect("test repository revision should remain live");
+        let revision_id = revision.revision();
 
-        let modules_by_path = Self::build_modules(repository.as_ref(), revision, &files);
-        let module_path_by_id = Self::module_path_by_id(repository.as_ref(), revision, &files);
-        Self::seed_parsed_artifacts(repository.as_ref(), revision, &modules_by_path);
-        let workers = test_worker_count();
-        let root = repository.path().to_path_buf();
-        let session = Session::fork(
-            root.clone(),
-            root,
-            repository.clone(),
-            next_reference(),
-            revision,
-            workers,
-            None,
-        )
-        .expect("compiler test session should start");
+        let modules_by_path = Self::build_modules(repository.as_ref(), revision_id, &files);
+        let module_path_by_id = Self::module_path_by_id(repository.as_ref(), revision_id, &files);
+        Self::seed_parsed_artifacts(repository.as_ref(), revision_id, &modules_by_path);
+        let session = Session::new(repository.clone(), test_executor())
+            .expect("compiler test session should start");
         let is_tracing = env::var_os(TRACE_ENV).is_some()
             || env::var_os(TIMINGS_ENV).is_some()
             || env::var_os(TRACE_SLOW_MS_ENV).is_some()
             || env::var_os(PROFILE_ENV).is_some();
-        session.set_tracing(is_tracing);
 
         Self {
             repository,
             revision,
             session,
+            is_tracing,
+            last_trace: Mutex::new(None),
             modules_by_path,
             module_path_by_id,
         }
@@ -256,48 +255,63 @@ impl TestSession {
     pub(crate) fn diagnostic_snapshot(&self, key: ArtifactKey) -> String {
         let diagnostics = self
             .repository
-            .diagnostics(self.revision, Some(key))
+            .diagnostics(self.revision(), Some(key))
             .expect("test diagnostics should be readable");
-        render_diagnostics(self.repository.as_ref(), self.revision, &diagnostics)
+        render_diagnostics(self.repository.as_ref(), self.revision(), &diagnostics)
     }
 
     /// Render diagnostics produced by a set of artifact keys.
     pub(crate) fn diagnostic_snapshot_for(&self, keys: &[ArtifactKey]) -> String {
         let diagnostics = self
             .repository
-            .diagnostics_for_keys(self.revision, keys)
+            .diagnostics_for_keys(self.revision(), keys)
             .expect("test diagnostics should be readable");
-        render_diagnostics(self.repository.as_ref(), self.revision, &diagnostics)
+        render_diagnostics(self.repository.as_ref(), self.revision(), &diagnostics)
     }
 
     /// Render diagnostics with source annotations.
     pub(crate) fn render_diagnostics(&self, key: Option<ArtifactKey>) -> String {
         let diagnostics = self
             .repository
-            .diagnostics(self.revision, key)
+            .diagnostics(self.revision(), key)
             .expect("test diagnostics should be readable");
 
-        render_source_diagnostics(self.repository.as_ref(), self.revision, &diagnostics, false)
+        render_source_diagnostics(
+            self.repository.as_ref(),
+            self.revision(),
+            &diagnostics,
+            false,
+        )
     }
 
     /// Render diagnostics with colored source annotations for a key closure.
     pub(crate) fn render_terminal_diagnostics_for(&self, keys: &[ArtifactKey]) -> String {
         let diagnostics = self
             .repository
-            .diagnostics_for_keys(self.revision, keys)
+            .diagnostics_for_keys(self.revision(), keys)
             .expect("test diagnostics should be readable");
 
-        render_source_diagnostics(self.repository.as_ref(), self.revision, &diagnostics, true)
+        render_source_diagnostics(
+            self.repository.as_ref(),
+            self.revision(),
+            &diagnostics,
+            true,
+        )
     }
 
     /// Render diagnostics with colored source annotations.
     pub(crate) fn render_terminal_diagnostics(&self, key: Option<ArtifactKey>) -> String {
         let diagnostics = self
             .repository
-            .diagnostics(self.revision, key)
+            .diagnostics(self.revision(), key)
             .expect("test diagnostics should be readable");
 
-        render_source_diagnostics(self.repository.as_ref(), self.revision, &diagnostics, true)
+        render_source_diagnostics(
+            self.repository.as_ref(),
+            self.revision(),
+            &diagnostics,
+            true,
+        )
     }
 
     /// Return one text artifact sidecar.
@@ -311,7 +325,7 @@ impl TestSession {
 
         let sidecar = self
             .repository
-            .artifact_sidecar(self.revision, key, name, labels)
+            .artifact_sidecar(self.revision(), key, name, labels)
             .expect("test artifact sidecar should be readable")
             .unwrap_or_else(|| panic!("test artifact sidecar `{name}` should exist"));
 
@@ -1206,7 +1220,7 @@ impl TestSession {
     /// Require one artifact through the production session.
     fn require_artifact(&self, key: ArtifactKey) -> ArtifactVersion {
         self.require_artifact_result(key).unwrap_or_else(|error| {
-            match self.repository.diagnostics(self.revision, Some(key)) {
+            match self.repository.diagnostics(self.revision(), Some(key)) {
                 Ok(diagnostics) => panic!(
                     "test artifact {key:?} should be ready: {error}, diagnostics={diagnostics:?}"
                 ),
@@ -1226,14 +1240,14 @@ impl TestSession {
             .ok()
             .and_then(|value| value.parse::<u128>().ok())
         else {
-            let result = block_on(self.session.require(self.revision, key));
-            self.merge_profile();
+            self.provide(&[key])?;
 
-            return result;
+            return self.artifact_version(key);
         };
         let started = std::time::Instant::now();
-        let result = block_on(self.session.require(self.revision, key));
-        self.merge_profile();
+        let result = self
+            .provide(&[key])
+            .and_then(|_| self.artifact_version(key));
 
         // print the run trace when it exceeds the requested threshold
         if started.elapsed().as_millis() > threshold {
@@ -1250,7 +1264,38 @@ impl TestSession {
     ) -> Result<(), SessionError> {
         let keys = keys.into_iter().collect::<Vec<_>>();
 
-        block_on(self.session.provide(self.revision, &keys))
+        self.provide(&keys)
+    }
+
+    /// Provide artifact roots through one explicitly traced run.
+    fn provide(&self, keys: &[ArtifactKey]) -> Result<(), SessionError> {
+        let trace = self.session.start_trace(self.is_tracing);
+        let run = self.session.provide_traced(
+            self.revision(),
+            keys,
+            ArtifactPriority::Foreground,
+            trace.clone(),
+            None,
+        );
+        let result = block_on(run.wait());
+        trace.finish();
+
+        // retain traces only when one diagnostic mode requested them
+        if self.is_tracing {
+            self.merge_profile(&trace);
+            *self.last_trace.lock().expect("test trace should lock") = Some(trace);
+        }
+
+        result
+    }
+
+    /// Return one ready artifact version from the test revision.
+    fn artifact_version(&self, key: ArtifactKey) -> Result<ArtifactVersion, SessionError> {
+        self.repository
+            .artifact_version(self.revision(), &key)?
+            .ok_or_else(|| SessionError::Internal {
+                detail: format!("test artifact has no version after provide: {key:?}"),
+            })
     }
 
     /// Require all artifacts while recording one detailed trace.
@@ -1275,13 +1320,15 @@ impl TestSession {
     /// Return the detailed artifact trace for this test session.
     pub(crate) fn trace(&self) -> TraceSnapshot {
         let trace = self
-            .session
-            .last_trace()
-            .expect("test session should have one artifact run");
+            .last_trace
+            .lock()
+            .expect("test trace should lock")
+            .clone()
+            .expect("test session should have one traced artifact run");
         let label = |key: &ArtifactKey| {
             let module_display = |module| {
                 self.repository
-                    .module_display(self.revision, module)
+                    .module_display(self.revision(), module)
                     .ok()
                     .flatten()
             };
@@ -1311,12 +1358,9 @@ impl TestSession {
             .print();
     }
 
-    /// Merge the last run's trace into the shared profile aggregate.
-    fn merge_profile(&self) {
+    /// Merge one run trace into the shared profile aggregate.
+    fn merge_profile(&self, trace: &Arc<Trace>) {
         let Some(path) = env::var_os(PROFILE_ENV) else {
-            return;
-        };
-        let Some(trace) = self.session.last_trace() else {
             return;
         };
 
@@ -1333,8 +1377,8 @@ impl TestSession {
         {
             return;
         }
-        aggregate.merge(&trace);
-        *merged = Some(trace);
+        aggregate.merge(trace);
+        *merged = Some(trace.clone());
         if aggregate.runs() % 64 == 0 {
             std::fs::write(&path, aggregate.render()).expect("profile table should write");
         }
@@ -1411,7 +1455,7 @@ impl TestSession {
             .collect::<Vec<_>>();
         self.require_all(keys)
             .expect("test referenced label artifacts should be ready");
-        let reader = self.repository.artifact_reader(self.revision);
+        let reader = self.repository.artifact_reader(self.revision());
         for module_id in builtins {
             let bound = reader
                 .read::<DirBound>((module_id, entry.profile))
@@ -1482,7 +1526,7 @@ impl TestSession {
         for key in keys {
             let dependencies = self
                 .repository
-                .artifact_dependency_keys(self.revision, &key)
+                .artifact_dependency_keys(self.revision(), &key)
                 .expect("test artifact dependencies should read");
             for dependency in dependencies {
                 if let Some(module) = dependency.module_id()
@@ -1494,7 +1538,7 @@ impl TestSession {
         }
 
         // include modules named by the bound environment
-        let reader = self.repository.artifact_reader(self.revision);
+        let reader = self.repository.artifact_reader(self.revision());
         if let Ok(environment) = reader.read_content::<EnvironmentBound>(entry.profile) {
             let language = environment.language.items_by_symbol.keys().copied();
             let builtins = environment.language.symbols.values().copied();
@@ -1680,17 +1724,8 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
             .expect("warmup anchor should publish");
 
         // start one warmup session on the shared base
-        let root = repository.path().to_path_buf();
-        let session = Session::fork(
-            root.clone(),
-            root,
-            repository.clone(),
-            next_reference(),
-            revision,
-            1,
-            None,
-        )
-        .expect("library warmup session should start");
+        let session = Session::new(repository.clone(), test_executor())
+            .expect("library warmup session should start");
 
         // resolve the builtin library's own profile and the workspace
         //  profile fixture modules check under
@@ -1725,7 +1760,8 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
                 ]
             })
             .collect::<Vec<_>>();
-        block_on(session.provide(revision, &keys)).expect("library warmup should check");
+        let run = session.provide(revision, &keys, ArtifactPriority::Foreground);
+        block_on(run.wait()).expect("library warmup should check");
 
         // drop the anchor for the shared base: the removal invalidates
         //  nothing the warm artifacts depend on, so tests inherit them
@@ -1778,7 +1814,7 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
 
     // publish the default compiler-test configuration
     let revision = repository
-        .fork_with_edits(
+        .edit(
             revision,
             [Edit::AddFile {
                 logical_path: "destack.json".to_string(),
@@ -1787,7 +1823,11 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
                 },
             }],
         )
-        .expect("test repository default config should publish");
+        .expect("test repository default config should publish")
+        .after;
+    repository
+        .set_ref(&reference, revision)
+        .expect("test repository default config should become current");
 
     (repository, revision)
 }
@@ -1800,13 +1840,22 @@ fn test_worker_count() -> usize {
         .unwrap_or(1)
 }
 
-/// Allocate one private compiler test ref.
-fn next_reference() -> Ref {
-    static NEXT_ID: AtomicU32 = AtomicU32::new(0);
+/// Return the shared artifact executor for compiler tests.
+fn test_executor() -> Arc<Executor> {
+    static EXECUTOR: OnceLock<Arc<Executor>> = OnceLock::new();
 
-    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    EXECUTOR
+        .get_or_init(|| {
+            let worker_count = test_worker_count();
+            let execution = match worker_count {
+                1 => Execution::Cooperative,
+                _ => Execution::Threaded,
+            };
 
-    Ref::new(format!("compiler-test:{id}"))
+            Executor::new(execution, worker_count)
+                .expect("compiler test artifact executor should start")
+        })
+        .clone()
 }
 
 /// Return selected sidecar phases in stable order.

@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
     ArtifactKey, BuildId, DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirParsed,
@@ -7,10 +7,10 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_repository::{
-    ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository,
-    Revision, Settings,
+    ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref,
+    Repository, Revision, Settings,
 };
-use destack_session::Session;
+use destack_session::{ArtifactPriority, Executor, Session};
 use destack_source::{File, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 use futures::executor::block_on;
 
@@ -139,20 +139,6 @@ impl TestProgram {
             Settings::default(),
             layout,
         ));
-        let head = Ref::for_root(&root);
-        let session = Session::new(
-            root.clone(),
-            root.clone(),
-            repository.clone(),
-            head,
-            1,
-            None,
-        )
-        .expect("create checked test session");
-        session
-            .reload_from_fs(session.head())
-            .expect("materialize checked test workspace");
-
         Self { repository, root }
     }
 
@@ -174,8 +160,9 @@ impl TestProgram {
         );
         let revision = self
             .repository
-            .fork_with_edits(revision, edits)
-            .expect("write checked test program");
+            .edit(revision, edits)
+            .expect("write checked test program")
+            .after;
         self.repository
             .set_ref(&head, revision)
             .expect("publish checked test program");
@@ -215,20 +202,23 @@ impl TestProgram {
                 ]
             })
             .collect::<Vec<_>>();
-        let head = Ref::for_root(&self.root);
-        let session = Session::new(
-            self.root.clone(),
-            self.root.clone(),
-            self.repository.clone(),
-            head,
-            1,
-            None,
-        )
-        .expect("create checked test session");
-        block_on(session.provide(revision, &keys)).expect("provide checked test artifacts");
+        let session =
+            Session::new(self.repository.clone(), executor()).expect("create checked test session");
+        let run = session.provide(revision, &keys, ArtifactPriority::Foreground);
+        block_on(run.wait()).expect("provide checked test artifacts");
 
-        session
-            .revision(session.head())
-            .expect("read provided checked test revision")
+        revision
     }
+}
+
+/// Return the shared session executor for checked pattern tests.
+fn executor() -> Arc<Executor> {
+    static EXECUTOR: OnceLock<Arc<Executor>> = OnceLock::new();
+
+    EXECUTOR
+        .get_or_init(|| {
+            Executor::new(Execution::Threaded, Executor::default_worker_count())
+                .expect("create checked test artifact executor")
+        })
+        .clone()
 }

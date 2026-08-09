@@ -3,9 +3,10 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use destack_artifact::{ArtifactKey, BuildId, DiskBlobStore};
 use destack_core::FxIndexSet;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository, Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
+    Settings,
 };
-use destack_session::Session;
+use destack_session::{ArtifactPriority, Executor, Session};
 use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, TargetId, glob};
 use futures::executor::block_on;
 use pprof::ProfilerGuard;
@@ -155,11 +156,12 @@ fn build_workspace(workspace_root: &Path, sources: &[SourceFile]) -> (Arc<Sessio
 
         // edited repository state
         let revision = repository
-            .fork_with_edits(
+            .edit(
                 revision,
                 [Edit::set_text(&logical_path, source.content.clone())],
             )
-            .unwrap_or_else(|error| panic!("failed to materialize benchmark source: {error}"));
+            .unwrap_or_else(|error| panic!("failed to materialize benchmark source: {error}"))
+            .after;
 
         // publish the new state
         repository
@@ -175,15 +177,10 @@ fn build_workspace(workspace_root: &Path, sources: &[SourceFile]) -> (Arc<Sessio
     }
 
     // session
-    let session = Session::new(
-        workspace_root.clone(),
-        workspace_root,
-        repository,
-        reference,
-        1,
-        None,
-    )
-    .unwrap_or_else(|error| panic!("failed to create benchmark session: {error}"));
+    let executor = Executor::new(Execution::Threaded, 1)
+        .unwrap_or_else(|error| panic!("failed to create benchmark executor: {error}"));
+    let session = Session::new(repository, executor)
+        .unwrap_or_else(|error| panic!("failed to create benchmark session: {error}"));
     let session = Arc::new(session);
 
     (session, modules)
@@ -192,8 +189,9 @@ fn build_workspace(workspace_root: &Path, sources: &[SourceFile]) -> (Arc<Sessio
 /// Run a compiler pass for the selected mode.
 fn run_compile(session: &Session, modules: &[ModuleId], mode: CompileMode) {
     let repository = session.repository();
-    let revision = session
-        .revision(session.head())
+    let reference = Ref::for_root(repository.path());
+    let revision = repository
+        .current(&reference)
         .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"));
     let mut artifact_keys = FxIndexSet::with_capacity_and_hasher(modules.len(), Default::default());
 
@@ -224,10 +222,8 @@ fn run_compile(session: &Session, modules: &[ModuleId], mode: CompileMode) {
     // stabilize unique artifact roots for the session
     let artifact_keys = artifact_keys.into_iter().collect::<Vec<_>>();
 
-    let revision = session
-        .revision(session.head())
-        .unwrap_or_else(|error| panic!("failed to read benchmark revision: {error}"));
-    block_on(session.provide(revision, &artifact_keys))
+    let run = session.provide(revision, &artifact_keys, ArtifactPriority::Foreground);
+    block_on(run.wait())
         .unwrap_or_else(|error| panic!("failed to provide benchmark artifacts: {error}"));
 }
 

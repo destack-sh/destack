@@ -1,12 +1,9 @@
-use std::path::PathBuf;
-
 use destack_artifact::ArtifactKey;
-use destack_repository::Ref;
-use destack_session::Session;
+use destack_session::{ArtifactPriority, Session};
 use destack_source::TargetId;
 use futures::executor::block_on;
 
-use super::session::{render_diagnostics, shared_repository};
+use super::session::{executor, render_diagnostics, shared_repository};
 
 /// Lint the complete checked-in standard library.
 #[test]
@@ -26,18 +23,10 @@ fn test_lint_library() {
         .map(|module| ArtifactKey::module_linted(module, profile, target))
         .collect::<Vec<_>>();
     keys.push(ArtifactKey::program_linted(profile, target));
-    let reference = Ref::new("linter-library-test");
-    let session = Session::fork(
-        PathBuf::new(),
-        PathBuf::new(),
-        repository.clone(),
-        reference,
-        *revision,
-        1,
-        None,
-    )
-    .expect("library lint session should open");
-    let result = block_on(session.provide(*revision, &keys));
+    let session =
+        Session::new(repository.clone(), executor()).expect("library lint session should open");
+    let run = session.provide(*revision, &keys, ArtifactPriority::Foreground);
+    let result = block_on(run.wait());
 
     // collect every compiler and linter diagnostic together
     let diagnostics = repository

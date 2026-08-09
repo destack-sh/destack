@@ -3,9 +3,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_query::{QueryRequest, QueryResponse};
-use destack_repository::{Edit, Ref, Repository, Revision, Trace, TraceSnapshot, TraceView};
+use destack_repository::{
+    Edit, Execution, Ref, Repository, Revision, Trace, TraceSnapshot, TraceView,
+};
+use destack_session::Executor;
 use destack_source::Content;
-use destack_workspace::{LocalWorkspace, RevisionPolicy, RunQueryInput};
+use destack_workspace::{RevisionPolicy, RunQueryInput, Workspace};
 use futures::executor::block_on;
 use indexmap::IndexMap;
 
@@ -37,7 +40,7 @@ pub(super) struct QueryWorkspace {
     /// The shared artifact repository.
     repository: Arc<Repository>,
     /// The query workspace.
-    local_workspace: LocalWorkspace,
+    workspace: Workspace,
     /// The immutable empty base revision.
     base_revision: Revision,
     /// Whether detailed query traces should be retained.
@@ -62,26 +65,17 @@ impl QueryWorkspace {
             Ok(value) => value
                 .parse::<usize>()
                 .map_err(|error| format!("invalid {WORKERS_ENV} value '{value}': {error}"))?,
-            Err(env::VarError::NotPresent) => LocalWorkspace::default_worker_count(),
+            Err(env::VarError::NotPresent) => Executor::default_worker_count(),
             Err(env::VarError::NotUnicode(_)) => {
                 return Err(format!("{WORKERS_ENV} is not valid UTF-8"));
             }
         };
-        let local_workspace = LocalWorkspace::new(
-            repository.clone(),
-            None,
-            None,
-            vec![root.clone()],
-            worker_count,
-            None,
-        )
-        .map_err(|error| format!("failed to open query workspace: {error}"))?;
+        let executor = Executor::new(Execution::Threaded, worker_count)
+            .map_err(|error| format!("failed to create query artifact executor: {error}"))?;
+        let workspace = Workspace::new(repository.clone(), None, executor)
+            .map_err(|error| format!("failed to open query workspace: {error}"))?;
         let has_timings =
             env::var_os(TIMINGS_ENV).is_some_and(|value| !value.is_empty() && value != "0");
-        let session = local_workspace
-            .session(&root)
-            .map_err(|error| format!("failed to read query session: {error}"))?;
-        session.set_tracing(has_timings);
         let reference = Ref::for_root(&root);
         let base_revision = repository
             .current(&reference)
@@ -90,7 +84,7 @@ impl QueryWorkspace {
         Ok(Self {
             root,
             repository,
-            local_workspace,
+            workspace,
             base_revision,
             has_timings,
         })
@@ -121,8 +115,9 @@ impl QueryWorkspace {
         }
 
         self.repository
-            .fork_with_edits(self.base_revision, edits)
-            .map_err(|error| format!("failed to fork query revision: {error}"))
+            .edit(self.base_revision, edits)
+            .map(|commit| commit.after)
+            .map_err(|error| format!("failed to edit query revision: {error}"))
     }
 
     /// Fork one revision with exact workspace changes.
@@ -137,8 +132,9 @@ impl QueryWorkspace {
             .collect::<Result<Vec<_>, _>>()?;
 
         self.repository
-            .fork_with_edits(revision, edits)
-            .map_err(|error| format!("failed to fork query revision: {error}"))
+            .edit(revision, edits)
+            .map(|commit| commit.after)
+            .map_err(|error| format!("failed to edit query revision: {error}"))
     }
 
     /// Execute one query against an exact revision.
@@ -148,13 +144,13 @@ impl QueryWorkspace {
         request: QueryRequest,
     ) -> Result<QueryExecution, String> {
         let run = self
-            .local_workspace
+            .workspace
             .start_query(
-                &self.root,
                 RunQueryInput {
                     revision: RevisionPolicy::Exact(revision),
                     request,
                 },
+                self.has_timings,
             )
             .map_err(|error| format!("query scheduling failed: {error}"))?;
         let trace = run.trace();

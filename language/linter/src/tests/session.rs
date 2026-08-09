@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use destack_artifact::{
@@ -11,7 +10,7 @@ use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
     Revision, Settings,
 };
-use destack_session::Session;
+use destack_session::{Executor, Session};
 use destack_source::{
     Applicability, Content, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity,
     DiagnosticTarget, DiffOptions, File, FileId, FilePatch, FileType, MemoryFileSystem, ModuleId,
@@ -133,8 +132,13 @@ impl TestSession {
             },
         ];
         let revision = repository
-            .fork_with_edits(*base, edits)
-            .expect("lint test revision should publish");
+            .edit(*base, edits)
+            .expect("lint test revision should publish")
+            .after;
+        let revision_pin = repository
+            .pin(revision)
+            .expect("lint test revision should remain live");
+        let revision = revision_pin.revision();
 
         // resolve the source module and target
         let module = repository
@@ -152,17 +156,8 @@ impl TestSession {
             .id();
 
         // provide the lint artifact through one private session
-        let reference = next_reference();
-        let session = Session::fork(
-            PathBuf::new(),
-            PathBuf::new(),
-            repository.clone(),
-            reference,
-            revision,
-            1,
-            None,
-        )
-        .expect("lint test session should open");
+        let session =
+            Session::new(repository.clone(), executor()).expect("lint test session should open");
         let key = artifact(module.id, profile, target);
         if let Err(error) = block_on(session.require(revision, key)) {
             let diagnostics = repository
@@ -469,13 +464,16 @@ pub(super) fn shared_repository() -> &'static (Arc<Repository>, Revision) {
     })
 }
 
-/// Allocate one private lint test ref.
-fn next_reference() -> Ref {
-    static NEXT_ID: AtomicU32 = AtomicU32::new(0);
+/// Return the shared cooperative session executor for linter tests.
+pub(super) fn executor() -> Arc<Executor> {
+    static EXECUTOR: OnceLock<Arc<Executor>> = OnceLock::new();
 
-    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-
-    Ref::new(format!("linter-test:{id}"))
+    EXECUTOR
+        .get_or_init(|| {
+            Executor::new(Execution::Cooperative, 1)
+                .expect("linter test artifact executor should start")
+        })
+        .clone()
 }
 
 /// Remove one framing newline from each edge of multiline source.

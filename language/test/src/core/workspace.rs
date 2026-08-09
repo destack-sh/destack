@@ -4,13 +4,14 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use destack_artifact::{ArtifactKey, BuildId, MemoryBlobStore};
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, FormatterOptions, Host, LinterOptions,
-    Ref, Repository, Revision, Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, FormatterOptions, Host,
+    LinterOptions, Ref, Repository, Revision, Settings,
 };
-use destack_session::Session;
+use destack_session::{ArtifactPriority, Executor, Session};
 use destack_source::{
     Content, DiagnosticCollection, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
 };
+use destack_workspace::Workspace;
 use futures::executor::block_on;
 use serde_json::{Value, json};
 
@@ -55,7 +56,7 @@ impl SharedMemoryWorkspace {
             Settings::default(),
             layout,
         ));
-        materialize_workspace_root(repository.clone(), &root);
+        materialize_workspace(repository.clone());
 
         Self {
             repository,
@@ -114,8 +115,7 @@ pub fn open_repository_with_options(
         Arc::new(MemoryBlobStore::new()),
     );
     let repository = Arc::new(Repository::new(root, host, Settings::default(), layout));
-    let root = repository.path().to_path_buf();
-    materialize_workspace_root(repository.clone(), &root);
+    materialize_workspace(repository.clone());
     materialize_workspace_options(repository.as_ref(), formatter, linter);
 
     repository
@@ -140,8 +140,9 @@ fn materialize_workspace_options(
         .current(&reference)
         .expect("failed to read workspace test revision");
     let revision = repository
-        .fork_with_edits(revision, [Edit::set_text("destack.json", content)])
-        .expect("failed to materialize workspace test config");
+        .edit(revision, [Edit::set_text("destack.json", content)])
+        .expect("failed to materialize workspace test config")
+        .after;
 
     repository
         .set_ref(&reference, revision)
@@ -200,8 +201,9 @@ pub fn write_workspace_file(repository: &Repository, path: &Path, content: Conte
         .current(&reference)
         .expect("failed to read workspace revision");
     let revision = repository
-        .fork_with_edits(revision, [edit])
-        .expect("failed to apply workspace file change");
+        .edit(revision, [edit])
+        .expect("failed to apply workspace file change")
+        .after;
 
     repository
         .set_ref(&reference, revision)
@@ -312,34 +314,26 @@ pub fn provide_workspace_artifacts(
 ) -> Revision {
     let root = repository.path().to_path_buf();
     let head = Ref::for_root(&root);
-    let session = Session::new(root.clone(), root, repository, head, 1, None)
-        .expect("failed to create workspace session");
-
-    let revision = session
-        .revision(session.head())
+    let revision = repository
+        .current(&head)
         .unwrap_or_else(|error| panic!("failed to read workspace revision: {error}"));
-    block_on(session.provide(revision, artifact_keys))
+    let executor = executor(1);
+    let session = Session::new(repository, executor).expect("failed to create workspace session");
+    let run = session.provide(revision, artifact_keys, ArtifactPriority::Foreground);
+    block_on(run.wait())
         .unwrap_or_else(|error| panic!("failed to provide workspace artifacts: {error}"));
 
-    session
-        .revision(session.head())
-        .unwrap_or_else(|error| panic!("failed to read workspace revision: {error}"))
+    revision
 }
 
-/// Materialize one workspace root through one session driven reload.
-fn materialize_workspace_root(repository: Arc<Repository>, root: &Path) {
-    let head = Ref::for_root(root);
-    let session = Session::new(
-        root.to_path_buf(),
-        root.to_path_buf(),
-        repository,
-        head,
-        1,
-        None,
-    )
-    .expect("failed to create workspace session");
-
-    session
-        .reload_from_fs(session.head())
+/// Materialize one repository through its workspace owner.
+fn materialize_workspace(repository: Arc<Repository>) {
+    let executor = executor(1);
+    let _workspace = Workspace::new(repository, None, executor)
         .unwrap_or_else(|error| panic!("failed to materialize workspace root: {error}"));
+}
+
+/// Create one threaded session executor for test work.
+fn executor(worker_count: usize) -> Arc<Executor> {
+    Executor::new(Execution::Threaded, worker_count).expect("failed to create artifact executor")
 }

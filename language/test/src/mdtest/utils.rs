@@ -7,11 +7,12 @@ use std::{io, thread};
 
 use destack_artifact::{BuildId, MemoryBlobStore, Output, Platform, Runtime};
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, Host, Mode, Profile, Ref, Repository,
+    DestackLayout, DestackLayoutOverride, Environment, Execution, Host, Mode, Profile, Repository,
     Revision, Settings,
 };
-use destack_session::Session;
+use destack_session::Executor;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, TargetId};
+use destack_workspace::Workspace;
 use indexmap::IndexSet;
 
 use crate::core::{CaseResult, discover_file_cases};
@@ -251,21 +252,13 @@ pub fn setup_test_environment_with_repository(
         }
     }
 
-    // choose the main file and create the repository root
+    // choose the main file and import the workspace root
     let main_path = main_path.expect("test should have at least one file");
-    let head = Ref::for_root(repository.path());
-    let session = Session::new(
-        repository.path().to_path_buf(),
-        root.clone(),
-        repository.clone(),
-        head,
-        1,
-        None,
-    )
-    .expect("failed to create mdtest session");
-    session
-        .reload_from_fs(session.head())
+    let executor =
+        Executor::new(Execution::Threaded, 1).expect("failed to create mdtest artifact executor");
+    let _workspace = Workspace::new(repository.clone(), None, executor)
         .expect("failed to materialize mdtest workspace");
+
     (repository, root, main_path)
 }
 
