@@ -158,9 +158,9 @@ pub async fn run(args: &RewriteArgs) -> i32 {
         "rewrite",
         &args.report,
         &args.program,
-        async |workspace, root, progress| {
+        async |workspace, progress| {
             let output = workspace
-                .rewrite(root, request, progress)
+                .rewrite(request, progress)
                 .await
                 .map_err(command_error)?;
 

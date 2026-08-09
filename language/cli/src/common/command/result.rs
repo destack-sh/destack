@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use destack_serde::Value;
 use destack_source::{DiagnosticCollection, File, FileId};
-use destack_workspace::{CommandError, CommandOutput, Error, FileImage, JsonValue, Output};
+use destack_workspace::{CommandError, CommandOutput, Error, FileImage, Output};
 
 use crate::console;
 use crate::diagnostic::{ConsoleError, ConsoleResult};
@@ -12,7 +13,7 @@ use crate::diagnostic::{ConsoleError, ConsoleResult};
 #[derive(Debug)]
 pub(crate) struct CommandResult {
     /// Workspace command output.
-    pub(crate) response: Output<JsonValue>,
+    pub(crate) response: Output<Value>,
     /// Flattened diagnostics from the response.
     pub(crate) diagnostics: DiagnosticCollection,
     /// Files reconstructed from response images.
@@ -28,7 +29,7 @@ impl CommandResult {
     {
         let response = response.into_output();
         let data = serde_json::to_value(response.data)
-            .map(JsonValue::from_json)
+            .map(Value::from)
             .map_err(|error| ConsoleError::message(format!("command payload failed: {error}")))?;
         let diagnostics = DiagnosticCollection::from_diagnostics(response.diagnostics.clone());
         let files = files(&response.files);

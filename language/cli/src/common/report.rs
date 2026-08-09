@@ -1,9 +1,11 @@
 use clap::{Args, ValueEnum};
 use destack_repository::TraceSnapshot;
-use destack_workspace::{CommandMessagePayload, JsonValue};
-use serde::Serialize;
-use serde::de::DeserializeOwned;
-use serde_json::Value;
+use destack_serde as serde;
+use destack_workspace::CommandMessagePayload;
+
+use ::serde::Serialize;
+use ::serde::de::DeserializeOwned;
+use serde_json as json;
 
 use crate::common::format::DiagnosticOutputJson;
 use crate::console;
@@ -123,10 +125,10 @@ pub struct CommandReport {
     pub error: Option<CommandError>,
     /// Command-specific payload.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    pub data: Option<json::Value>,
     /// Command timing trace when requested.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schema", schemars(with = "Option<Value>"))]
+    #[cfg_attr(feature = "schema", schemars(with = "Option<json::Value>"))]
     pub trace: Option<TraceSnapshot>,
 }
 
@@ -178,8 +180,8 @@ pub fn print_report(report: &CommandReport, format: ReportFormat) {
         }
         ReportFormat::Json => {
             // serialize as pretty json
-            if let Ok(json) = serde_json::to_string_pretty(report) {
-                println!("{json}");
+            if let Ok(output) = json::to_string_pretty(report) {
+                println!("{output}");
             }
         }
     }
@@ -211,10 +213,10 @@ pub fn report_error_with(command: &str, report_args: &ReportArgs, error: Command
 pub fn parse_command_payload<T: DeserializeOwned>(
     command: &str,
     report_args: &ReportArgs,
-    payload: Option<&JsonValue>,
+    payload: Option<&serde::Value>,
     payload_label: &str,
     required: bool,
-) -> Result<Option<(T, Value)>, i32> {
+) -> Result<Option<(T, json::Value)>, i32> {
     // return early when the payload is optional and missing
     let payload = match payload {
         Some(payload) => payload,
@@ -237,7 +239,7 @@ pub fn parse_command_payload<T: DeserializeOwned>(
     };
 
     // deserialize into the typed payload
-    let parsed = match serde_json::from_value(value.clone()) {
+    let parsed = match json::from_value(value.clone()) {
         Ok(payload) => payload,
         Err(error) => {
             let message = format!("invalid {payload_label} payload: {error}");
@@ -252,9 +254,9 @@ pub fn parse_command_payload<T: DeserializeOwned>(
 pub fn parse_required_command_payload<T: DeserializeOwned>(
     command: &str,
     report_args: &ReportArgs,
-    payload: Option<&JsonValue>,
+    payload: Option<&serde::Value>,
     payload_label: &str,
-) -> Result<(T, Value), i32> {
+) -> Result<(T, json::Value), i32> {
     // decode the payload with the required flag
     let payload = parse_command_payload::<T>(command, report_args, payload, payload_label, true)?;
 
@@ -273,8 +275,8 @@ pub fn parse_required_command_payload<T: DeserializeOwned>(
 pub fn command_data_json(
     command: &str,
     report_args: &ReportArgs,
-    data: Option<&JsonValue>,
-) -> Result<Option<Value>, i32> {
+    data: Option<&serde::Value>,
+) -> Result<Option<json::Value>, i32> {
     // return early when the command has no payload
     let Some(data) = data else {
         return Ok(None);
@@ -294,7 +296,7 @@ pub fn command_data_json(
 pub fn report_from_payload(
     command: &str,
     exit_code: i32,
-    data: Option<Value>,
+    data: Option<json::Value>,
     summary: Option<String>,
     error: Option<CommandError>,
 ) -> CommandReport {
@@ -314,7 +316,7 @@ pub fn report_from_payload(
 pub fn report_from_message_payload(
     command: &str,
     exit_code: i32,
-    payload: Option<(CommandMessagePayload, Value)>,
+    payload: Option<(CommandMessagePayload, json::Value)>,
 ) -> CommandReport {
     // derive payload-specific report fields
     let (summary, error, data) = match payload {
@@ -350,7 +352,7 @@ pub fn print_json_payload_report<T: Serialize>(
     }
 
     // serialize the payload for the report
-    let data = match serde_json::to_value(payload) {
+    let data = match json::to_value(payload) {
         Ok(data) => data,
         Err(error) => {
             return Err(report_error(

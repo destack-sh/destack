@@ -38,9 +38,9 @@ pub async fn run(args: &SettingsArgs) -> i32 {
         "settings",
         &args.report,
         &args.program,
-        async |workspace, root, _| {
+        async |workspace, _| {
             let result = workspace
-                .settings(root, request, None)
+                .settings(request, None)
                 .await
                 .map_err(command_error)?;
 

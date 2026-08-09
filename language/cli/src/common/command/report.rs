@@ -1,6 +1,5 @@
 use std::io::Write;
 use std::ops::AsyncFnOnce;
-use std::path::Path;
 use std::time::Duration;
 
 use destack_workspace::{
@@ -28,18 +27,12 @@ pub(crate) async fn run_workspace_command<Run>(
     progress: Option<&ProgressReporter>,
 ) -> ConsoleResult<CommandResult>
 where
-    for<'a> Run: AsyncFnOnce(
-        &'a dyn Workspace,
-        &'a Path,
-        Option<CommandProgress>,
-    ) -> ConsoleResult<CommandResult>,
+    for<'a> Run:
+        AsyncFnOnce(&'a Workspace, Option<CommandProgress>) -> ConsoleResult<CommandResult>,
 {
-    let (workspace, roots) = program.workspace(None)?;
-    let Some(root) = roots.first().cloned() else {
-        return Err(ConsoleError::message("roots are empty"));
-    };
+    let workspace = program.workspace()?;
 
-    let result = run_with_progress(workspace.as_ref(), &root, progress, run).await?;
+    let result = run_with_progress(workspace.as_ref(), progress, run).await?;
 
     Ok(result)
 }
@@ -52,11 +45,8 @@ pub(crate) async fn run_workspace_command_or_report<Run>(
     run: Run,
 ) -> Result<CommandResult, i32>
 where
-    for<'a> Run: AsyncFnOnce(
-        &'a dyn Workspace,
-        &'a Path,
-        Option<CommandProgress>,
-    ) -> ConsoleResult<CommandResult>,
+    for<'a> Run:
+        AsyncFnOnce(&'a Workspace, Option<CommandProgress>) -> ConsoleResult<CommandResult>,
 {
     run_workspace_command(program, run, None)
         .await
@@ -90,11 +80,8 @@ where
     T: DeserializeOwned,
     JsonFn: FnOnce(i32, T, Value) -> CommandReport,
     TextFn: FnOnce(i32, T),
-    for<'a> Run: AsyncFnOnce(
-        &'a dyn Workspace,
-        &'a Path,
-        Option<CommandProgress>,
-    ) -> ConsoleResult<CommandResult>,
+    for<'a> Run:
+        AsyncFnOnce(&'a Workspace, Option<CommandProgress>) -> ConsoleResult<CommandResult>,
 {
     // execute the command and decode the payload
     let result = match run_workspace_command_or_report(command, report_args, program, run).await {
@@ -136,22 +123,18 @@ where
 
 /// Run one command with optional workspace progress reporting.
 async fn run_with_progress<Run>(
-    workspace: &dyn Workspace,
-    root: &Path,
+    workspace: &Workspace,
     progress: Option<&ProgressReporter>,
     run: Run,
 ) -> ConsoleResult<CommandResult>
 where
-    for<'a> Run: AsyncFnOnce(
-        &'a dyn Workspace,
-        &'a Path,
-        Option<CommandProgress>,
-    ) -> ConsoleResult<CommandResult>,
+    for<'a> Run:
+        AsyncFnOnce(&'a Workspace, Option<CommandProgress>) -> ConsoleResult<CommandResult>,
 {
     // connect workspace progress to the CLI progress reporter
     if let Some(reporter) = progress {
         let (progress, mut events) = CommandProgress::channel();
-        let command = run(workspace, root, Some(progress)).fuse();
+        let command = run(workspace, Some(progress)).fuse();
         pin_mut!(command);
 
         loop {
@@ -179,7 +162,7 @@ where
         }
     }
 
-    run(workspace, root, None).await
+    run(workspace, None).await
 }
 
 /// Finish a workspace command that primarily reports diagnostics.

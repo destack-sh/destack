@@ -43,9 +43,9 @@ pub async fn run(args: &TargetsArgs) -> i32 {
         "targets",
         &args.report,
         &args.program,
-        async |workspace, root, _| {
+        async |workspace, _| {
             let result = workspace
-                .targets(root, request, None)
+                .targets(request, None)
                 .await
                 .map_err(command_error)?;
 

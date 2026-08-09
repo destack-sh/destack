@@ -43,11 +43,8 @@ pub async fn run(args: &InfoArgs) -> i32 {
         "info",
         &args.report,
         &args.program,
-        async |workspace, root, _| {
-            let result = workspace
-                .info(root, request, None)
-                .await
-                .map_err(command_error)?;
+        async |workspace, _| {
+            let result = workspace.info(request, None).await.map_err(command_error)?;
 
             CommandResult::from_output(result)
         },

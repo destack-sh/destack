@@ -39,9 +39,9 @@ pub async fn run(args: &BenchArgs) -> i32 {
         "bench",
         &args.report,
         &args.program,
-        async |workspace, root, progress| {
+        async |workspace, progress| {
             let result = workspace
-                .bench(root, request, progress)
+                .bench(request, progress)
                 .await
                 .map_err(command_error)?;
 

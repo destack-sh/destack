@@ -15,7 +15,7 @@ use destack_source::{File, FileSystem, MemoryFileSystem};
 use futures::executor::block_on;
 use serde_json::{Value, json};
 
-use crate::common::{InputArgs, ProgramArgs};
+use crate::common::{FileSystemOverride, InputArgs, ProgramArgs};
 
 static TEMP_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -87,7 +87,7 @@ impl TestProgram {
         ProgramArgs {
             cwd: Some(self.root.clone()),
             workspace: Some(self.root.clone()),
-            fs_override: Some(crate::common::FileSystemOverride::new(self.fs.clone())),
+            file_system_override: Some(FileSystemOverride::new(self.fs.clone())),
             ..ProgramArgs::default()
         }
     }
@@ -119,13 +119,14 @@ impl TestProgram {
         // edited repository state
         let revision = self
             .repository
-            .fork_with_edits(revision, [Edit::set_text(logical_path, contents)])
+            .edit(revision, [Edit::set_text(logical_path, contents)])
             .unwrap_or_else(|error| {
                 panic!(
                     "failed to fork repository for '{}' after write: {error}",
                     path.display()
                 )
-            });
+            })
+            .after;
 
         // publish the new state
         self.repository

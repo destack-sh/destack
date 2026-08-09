@@ -17,7 +17,7 @@ fn test_init_minimal_creates_destack_config() {
         name: Some("minimal".to_string()),
         template: Template::Minimal,
         force: false,
-        fs_override: Some(FileSystemOverride::new(fs.clone())),
+        file_system_override: Some(FileSystemOverride::new(fs.clone())),
         report: ReportArgs::default(),
     };
 
@@ -40,7 +40,7 @@ fn test_init_app_creates_entry() {
         name: Some("app".to_string()),
         template: Template::App,
         force: false,
-        fs_override: Some(FileSystemOverride::new(fs.clone())),
+        file_system_override: Some(FileSystemOverride::new(fs.clone())),
         report: ReportArgs::default(),
     };
 

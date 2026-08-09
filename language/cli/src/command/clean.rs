@@ -78,9 +78,9 @@ async fn run_clean(args: &CleanArgs) -> i32 {
         "clean",
         &args.report,
         &args.program,
-        async |workspace, root, _| {
+        async |workspace, _| {
             let result = workspace
-                .clean(root, request, None)
+                .clean(request, None)
                 .await
                 .map_err(command_error)?;
 

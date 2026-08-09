@@ -44,7 +44,7 @@ pub struct InitArgs {
 
     /// Test only file system override.
     #[arg(skip)]
-    pub fs_override: Option<FileSystemOverride>,
+    pub file_system_override: Option<FileSystemOverride>,
 
     /// Report output options.
     #[command(flatten)]
@@ -80,16 +80,16 @@ pub fn run(args: &InitArgs) -> i32 {
     };
 
     // select the file system implementation
-    let fs: Arc<dyn FileSystem> = args
-        .fs_override
+    let file_system: Arc<dyn FileSystem> = args
+        .file_system_override
         .as_ref()
-        .map(FileSystemOverride::fs)
+        .map(FileSystemOverride::file_system)
         .unwrap_or_else(|| Arc::new(PhysicalFileSystem::new()));
 
     let mut created = Vec::new();
 
     // ensure directory exists
-    let dir_exists = match fs.exists(&dir) {
+    let dir_exists = match file_system.exists(&dir) {
         Ok(exists) => exists,
         Err(e) => {
             return report_error(
@@ -100,7 +100,7 @@ pub fn run(args: &InitArgs) -> i32 {
         }
     };
     if !dir_exists {
-        if let Err(e) = fs.create_dir_all(&dir) {
+        if let Err(e) = file_system.create_dir_all(&dir) {
             return report_error(
                 "init",
                 &args.report,
@@ -123,7 +123,7 @@ pub fn run(args: &InitArgs) -> i32 {
 
     // create destack.json
     let destack_config_path = dir.join("destack.json");
-    let destack_config_exists = match fs.exists(&destack_config_path) {
+    let destack_config_exists = match file_system.exists(&destack_config_path) {
         Ok(exists) => exists,
         Err(e) => {
             return report_error(
@@ -139,7 +139,7 @@ pub fn run(args: &InitArgs) -> i32 {
         }
     } else {
         let config = create_destack_config(&name, args.template);
-        if let Err(e) = fs.write(destack_config_path.as_path(), config.as_bytes()) {
+        if let Err(e) = file_system.write(destack_config_path.as_path(), config.as_bytes()) {
             return report_error(
                 "init",
                 &args.report,
@@ -159,7 +159,7 @@ pub fn run(args: &InitArgs) -> i32 {
         }
         Template::Lib => {
             if let Err(code) = create_source_file(
-                fs.as_ref(),
+                file_system.as_ref(),
                 &dir,
                 "src/index.ds",
                 LIB_TEMPLATE,
@@ -171,7 +171,7 @@ pub fn run(args: &InitArgs) -> i32 {
         }
         Template::App => {
             if let Err(code) = create_source_file(
-                fs.as_ref(),
+                file_system.as_ref(),
                 &dir,
                 "src/main.ds",
                 APP_TEMPLATE,
@@ -217,7 +217,7 @@ fn report_code(args: &InitArgs, code: i32) -> i32 {
 
 /// Create a source file from a template.
 fn create_source_file(
-    fs: &dyn FileSystem,
+    file_system: &dyn FileSystem,
     dir: &Path,
     rel_path: &str,
     content: &str,
@@ -229,21 +229,21 @@ fn create_source_file(
 
     // ensure parent directory exists
     if let Some(parent) = file_path.parent() {
-        let parent_exists = match fs.exists(parent) {
+        let parent_exists = match file_system.exists(parent) {
             Ok(exists) => exists,
             Err(e) => {
                 console::error(&format!("failed to check directory: {e}"));
                 return Err(1);
             }
         };
-        if !parent_exists && let Err(e) = fs.create_dir_all(parent) {
+        if !parent_exists && let Err(e) = file_system.create_dir_all(parent) {
             console::error(&format!("failed to create directory: {e}"));
             return Err(1);
         }
     }
 
     // handle existing files without force
-    let file_exists = match fs.exists(&file_path) {
+    let file_exists = match file_system.exists(&file_path) {
         Ok(exists) => exists,
         Err(e) => {
             console::error(&format!("failed to check file: {e}"));
@@ -258,7 +258,7 @@ fn create_source_file(
         }
     } else {
         // write the template content
-        if let Err(e) = fs.write(&file_path, content.as_bytes()) {
+        if let Err(e) = file_system.write(&file_path, content.as_bytes()) {
             console::error(&format!("failed to write {rel_path}: {e}"));
             return Err(1);
         }

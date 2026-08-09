@@ -38,9 +38,9 @@ pub async fn run(args: &CacheArgs) -> i32 {
         "cache",
         &args.report,
         &args.program,
-        async |workspace, root, _| {
+        async |workspace, _| {
             let result = workspace
-                .cache(root, request, None)
+                .cache(request, None)
                 .await
                 .map_err(command_error)?;
 

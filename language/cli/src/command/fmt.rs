@@ -58,7 +58,7 @@ pub async fn run(args: &FmtArgs) -> i32 {
         "fmt",
         &args.report,
         &args.program,
-        async |workspace, root, progress| {
+        async |workspace, progress| {
             let source = match eval {
                 Some(content) => {
                     let content = workspace
@@ -79,7 +79,7 @@ pub async fn run(args: &FmtArgs) -> i32 {
                 ..(CommandRevision::Current, common).into()
             };
             let result = workspace
-                .format(root, request, progress)
+                .format(request, progress)
                 .await
                 .map_err(command_error)?;
 

@@ -70,11 +70,8 @@ pub async fn run(args: &TaskArgs) -> i32 {
         "task",
         &args.report,
         &args.program,
-        async |workspace, root, _| {
-            let result = workspace
-                .task(root, request, None)
-                .await
-                .map_err(command_error)?;
+        async |workspace, _| {
+            let result = workspace.task(request, None).await.map_err(command_error)?;
 
             CommandResult::from_output(result)
         },

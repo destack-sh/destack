@@ -1,47 +1,52 @@
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
-use destack_artifact::{BuildId, MemoryBlobStore};
-use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, FormatterOptions, Host, Ref, Repository,
-    Settings, default_blob_store, open_repository,
+use destack_artifact::{BlobStore, BuildId, MemoryBlobStore};
+use destack_daemon::{
+    DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonLaunch, DaemonLaunchCommand,
+    OpenWorkspaceRequest,
 };
-use destack_source::{FileSystem, FileWatcher, IndentStyle, LineEnding, PhysicalFileSystem};
-use destack_workspace::{LocalWorkspace, ManifestOverride, Workspace};
+use destack_repository::{
+    DestackLayout, DestackLayoutOverride, Environment, Execution, FormatterOptions, Host, Ref,
+    Repository, Settings, SourceRoot, default_blob_store, open_repository,
+};
+use destack_session::Executor;
+use destack_source::{FileSystem, IndentStyle, LineEnding, OverlayFileSystem, PhysicalFileSystem};
+use destack_workspace::{ManifestOverride, Workspace};
 
-use crate::common::overrides_from_program;
-
-use crate::common::{ReportArgs, report_error};
+use crate::common::{ReportArgs, overrides_from_program, report_error};
 use crate::diagnostic::{ConsoleError, ConsoleResult};
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
 pub fn default_workers() -> u16 {
-    LocalWorkspace::default_worker_count() as u16
+    Executor::default_worker_count() as u16
 }
 
 /// File system override for CLI testing.
 #[derive(Clone)]
 pub struct FileSystemOverride {
     /// The file system to use for setup.
-    fs: Arc<dyn FileSystem>,
+    file_system: Arc<dyn FileSystem>,
 }
 
 impl FileSystemOverride {
-    /// Create a new file system override.
-    pub fn new(fs: Arc<dyn FileSystem>) -> Self {
-        Self { fs }
+    /// Create a file system override.
+    pub fn new(file_system: Arc<dyn FileSystem>) -> Self {
+        Self { file_system }
     }
 
     /// Clone the underlying file system handle.
-    pub fn fs(&self) -> Arc<dyn FileSystem> {
-        self.fs.clone()
+    pub fn file_system(&self) -> Arc<dyn FileSystem> {
+        self.file_system.clone()
     }
 }
 
 impl std::fmt::Debug for FileSystemOverride {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FileSystemOverride").finish()
+    /// Format the file system override without its trait object.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("FileSystemOverride").finish()
     }
 }
 
@@ -179,7 +184,7 @@ pub struct ProgramArgs {
 
     /// Test only file system override.
     #[arg(skip)]
-    pub fs_override: Option<FileSystemOverride>,
+    pub file_system_override: Option<FileSystemOverride>,
 
     /// The number of worker threads to use (default: number of CPU cores).
     #[arg(
@@ -221,7 +226,7 @@ impl Default for ProgramArgs {
             home: None,
             package_dir: None,
             cache_dir: None,
-            fs_override: None,
+            file_system_override: None,
             workers: default_workers(),
             watch: false,
             dev: false,
@@ -309,28 +314,27 @@ impl ProgramArgs {
     }
 
     /// Attach a file system override for testing.
-    pub fn with_fs_override(mut self, fs: Arc<dyn FileSystem>) -> Self {
-        self.fs_override = Some(FileSystemOverride::new(fs));
+    pub fn with_file_system_override(mut self, file_system: Arc<dyn FileSystem>) -> Self {
+        self.file_system_override = Some(FileSystemOverride::new(file_system));
         self
     }
 
     /// Open a repository from these arguments.
     pub(crate) fn open_repository(&self) -> ConsoleResult<Arc<Repository>> {
-        self.open_repository_with_fs(self.fs_override.as_ref().map(FileSystemOverride::fs))
+        let file_system = self.file_system();
+        let blob_store = self.blob_store();
+
+        self.open_repository_with_file_system(file_system, blob_store)
     }
 
-    /// Open a repository using an explicit file system override.
-    pub(crate) fn open_repository_with_fs(
+    /// Open a repository using explicit host storage.
+    fn open_repository_with_file_system(
         &self,
-        fs_override: Option<Arc<dyn FileSystem>>,
+        file_system: Arc<dyn FileSystem>,
+        blob_store: Arc<dyn BlobStore>,
     ) -> ConsoleResult<Arc<Repository>> {
         let cwd = self.effective_cwd()?;
         let workspace_path = self.workspace_path()?;
-        let has_fs_override = fs_override.is_some();
-        let fs: Arc<dyn FileSystem> = fs_override.unwrap_or_else(|| {
-            let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
-            fs
-        });
         let mut environment = Environment::capture_process();
         environment.cwd = Some(cwd.clone());
 
@@ -341,7 +345,7 @@ impl ProgramArgs {
             workspace_cache: self.cache_dir.clone(),
         };
         let home = DestackLayout::resolve_home(&cwd, &environment, layout_override.home.as_deref());
-        let settings = Settings::load_from_home(fs.as_ref(), &home).map_err(|error| {
+        let settings = Settings::load_from_home(file_system.as_ref(), &home).map_err(|error| {
             ConsoleError::message(format!(
                 "failed to load Destack settings from {}: {error}",
                 home.display()
@@ -349,15 +353,10 @@ impl ProgramArgs {
         })?;
 
         // discover and import the repository in one step
-        let blob_store = if has_fs_override {
-            Arc::new(MemoryBlobStore::new()) as Arc<dyn destack_artifact::BlobStore>
-        } else {
-            default_blob_store()
-        };
         let build_id = BuildId::current().map_err(|error| {
             ConsoleError::message(format!("failed to identify Destack build: {error}"))
         })?;
-        let host = Host::new(build_id, environment, fs.clone(), blob_store);
+        let host = Host::new(build_id, environment, file_system, blob_store);
         let repository = open_repository(workspace_path, host, settings, layout_override)
             .map_err(|error| ConsoleError::message(format!("failed to open workspace: {error}")))?;
 
@@ -375,24 +374,114 @@ impl ProgramArgs {
         Ok(repository)
     }
 
-    /// Open a local workspace from these arguments.
-    pub(crate) fn workspace(
-        &self,
-        file_watcher: Option<Arc<dyn FileWatcher>>,
-    ) -> ConsoleResult<(Arc<dyn Workspace>, Vec<PathBuf>)> {
-        let repository = self.open_repository()?;
-        let roots = vec![repository.path().to_path_buf()];
-        let workspace = LocalWorkspace::new(
-            repository,
-            None,
-            file_watcher,
-            roots.clone(),
-            self.workers as usize,
-            None,
-        )
-        .map_err(|error| ConsoleError::message(format!("workspace open failed: {error}")))?;
+    /// Open a daemon workspace over one shared editor overlay.
+    pub(crate) fn daemon_workspace(&self) -> ConsoleResult<Workspace> {
+        let file_system = self.file_system();
+        let blob_store = self.blob_store();
+        let overlay = Arc::new(OverlayFileSystem::with_inner(file_system));
+        let repository = self.open_repository_with_file_system(overlay.clone(), blob_store)?;
+        let executor = self.executor()?;
 
-        Ok((Arc::new(workspace), roots))
+        Workspace::new(repository, Some(overlay), executor)
+            .map_err(|error| ConsoleError::message(format!("workspace open failed: {error}")))
+    }
+
+    /// Return the selected host file system.
+    fn file_system(&self) -> Arc<dyn FileSystem> {
+        self.file_system_override
+            .as_ref()
+            .map(FileSystemOverride::file_system)
+            .unwrap_or_else(|| Arc::new(PhysicalFileSystem::new()))
+    }
+
+    /// Return the selected artifact blob store.
+    fn blob_store(&self) -> Arc<dyn BlobStore> {
+        if self.file_system_override.is_some() {
+            Arc::new(MemoryBlobStore::new())
+        } else {
+            default_blob_store()
+        }
+    }
+
+    /// Open a local workspace from these arguments.
+    pub(crate) fn workspace(&self) -> ConsoleResult<Arc<Workspace>> {
+        let repository = self.open_repository()?;
+        let executor = self.executor()?;
+        let workspace = Workspace::new(repository, None, executor)
+            .map_err(|error| ConsoleError::message(format!("workspace open failed: {error}")))?;
+
+        Ok(Arc::new(workspace))
+    }
+
+    /// Connect to the shared daemon and open this program's workspace root.
+    pub(crate) fn connect_daemon(&self) -> ConsoleResult<(DaemonConnection, PathBuf)> {
+        let root = self.workspace_root()?;
+        let endpoint = self.daemon_endpoint()?;
+        let launch = self.daemon_launch(&endpoint, root.clone())?;
+        let connection = endpoint
+            .connect(DaemonConnectOptions::default(), Some(launch))
+            .map_err(|error| ConsoleError::message(format!("daemon connection failed: {error}")))?;
+        let opened = connection
+            .daemon()
+            .open_workspace(OpenWorkspaceRequest { root })
+            .map_err(|error| ConsoleError::message(format!("workspace open failed: {error}")))?;
+
+        Ok((connection, opened.value.root))
+    }
+
+    /// Resolve the daemon endpoint selected by these arguments.
+    pub(crate) fn daemon_endpoint(&self) -> ConsoleResult<DaemonEndpoint> {
+        let cwd = self.effective_cwd()?;
+        let environment = Environment::capture_process();
+        let home = DestackLayout::resolve_home(&cwd, &environment, self.home.as_deref());
+
+        Ok(DaemonEndpoint::new(home))
+    }
+
+    /// Discover the workspace root selected by these arguments.
+    pub(crate) fn workspace_root(&self) -> ConsoleResult<PathBuf> {
+        let file_system = self.file_system();
+        let workspace_path = self.workspace_path()?;
+        let root =
+            SourceRoot::discover(file_system.as_ref(), &workspace_path).map_err(|error| {
+                ConsoleError::message(format!("workspace discovery failed: {error}"))
+            })?;
+
+        Ok(root.into())
+    }
+
+    /// Create the session executor selected by these arguments.
+    fn executor(&self) -> ConsoleResult<Arc<Executor>> {
+        Executor::new(Execution::Threaded, self.workers as usize)
+            .map_err(|error| ConsoleError::message(format!("executor start failed: {error}")))
+    }
+
+    /// Build the daemon process launch for this program.
+    pub(crate) fn daemon_launch(
+        &self,
+        endpoint: &DaemonEndpoint,
+        root: PathBuf,
+    ) -> ConsoleResult<DaemonLaunch> {
+        let cwd = self.effective_cwd()?;
+        let cache_directory = self.cache_dir.as_ref().map(|directory| {
+            if directory.is_absolute() {
+                directory.clone()
+            } else {
+                cwd.join(directory)
+            }
+        });
+        let mut command =
+            DaemonLaunchCommand::current(vec![OsString::from("daemon"), OsString::from("serve")])
+                .map_err(|error| ConsoleError::message(format!("daemon launch failed: {error}")))?;
+
+        // preserve every machine and workspace selection in the daemon process
+        command.home = self.home.clone();
+        command.package_directory = self.package_dir.clone();
+        command.cache_directory = cache_directory;
+        command.manifest = self.manifest.clone();
+        command.current_directory = Some(cwd);
+
+        Ok(command.launch(endpoint, root))
     }
 }
 

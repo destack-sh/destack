@@ -96,9 +96,9 @@ async fn run_build(args: &BuildArgs) -> i32 {
         "build",
         &args.report,
         &args.program,
-        async |workspace, root, progress| {
+        async |workspace, progress| {
             let result = workspace
-                .build(root, request, progress)
+                .build(request, progress)
                 .await
                 .map_err(command_error)?;
 

@@ -353,9 +353,9 @@ pub async fn run(args: &QueryArgs) -> i32 {
         "query",
         &args.report,
         &args.program,
-        async |workspace, root, progress| {
+        async |workspace, progress| {
             let output = workspace
-                .query(root, request, progress)
+                .query(request, progress)
                 .await
                 .map_err(command_error)?;
 

@@ -39,9 +39,9 @@ pub async fn run(args: &TestArgs) -> i32 {
         "test",
         &args.report,
         &args.program,
-        async |workspace, root, progress| {
+        async |workspace, progress| {
             let result = workspace
-                .test(root, request, progress)
+                .test(request, progress)
                 .await
                 .map_err(command_error)?;
 

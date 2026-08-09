@@ -188,9 +188,9 @@ fn test_fmt_payload_includes_changed_and_error_files() {
     // run the workspace command directly so we can inspect payload data
     let result = execute(run_workspace_command(
         &program.program_args(),
-        async |workspace, root, _| {
+        async |workspace, _| {
             let result = workspace
-                .format(root, request, None)
+                .format(request, None)
                 .await
                 .map_err(command_error)?;
 

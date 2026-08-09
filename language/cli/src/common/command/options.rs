@@ -1,8 +1,7 @@
 use destack_repository::TraceView;
-use destack_workspace::{
-    CommandInput, CommandOptions, CommandTargetOverrides, JsonValue, ManifestOverride,
-};
-use serde_json::{Map, Value, json};
+use destack_serde as serde;
+use destack_workspace::{CommandInput, CommandOptions, CommandTargetOverrides, ManifestOverride};
+use serde_json as json;
 
 use crate::common::ProgramArgs;
 use crate::common::program::{
@@ -62,15 +61,6 @@ impl CommandOptionsBuilder {
         self
     }
 
-    /// Add one optional manifest override.
-    pub(crate) fn manifest_override(mut self, override_: Option<ManifestOverride>) -> Self {
-        if let Some(override_) = override_ {
-            self.options.overrides.push(override_);
-        }
-
-        self
-    }
-
     /// Enable dry-run mode.
     pub(crate) fn dry_run(mut self, dry_run: bool) -> Self {
         self.options.dry_run = dry_run;
@@ -91,7 +81,7 @@ pub(crate) fn overrides_from_program(program: &ProgramArgs) -> Vec<ManifestOverr
     if let Some(value) = formatter_override_value(&program.formatter) {
         overrides.push(ManifestOverride {
             path: "formatter".to_string(),
-            value: JsonValue::from(value),
+            value: serde::Value::from(value),
         });
     }
 
@@ -99,7 +89,7 @@ pub(crate) fn overrides_from_program(program: &ProgramArgs) -> Vec<ManifestOverr
     if let Some(value) = linter_override_value(&program.linter) {
         overrides.push(ManifestOverride {
             path: "linter".to_string(),
-            value: JsonValue::from(value),
+            value: serde::Value::from(value),
         });
     }
 
@@ -107,70 +97,70 @@ pub(crate) fn overrides_from_program(program: &ProgramArgs) -> Vec<ManifestOverr
 }
 
 /// Build one formatter override object from explicit CLI flags.
-fn formatter_override_value(args: &FormatterOptionsArgs) -> Option<Value> {
-    let mut object: Map<String, Value> = Map::new();
+fn formatter_override_value(args: &FormatterOptionsArgs) -> Option<json::Value> {
+    let mut object = json::Map::new();
 
     // layout
     if let Some(indent_style) = args.indent_style {
         object.insert(
             "indentStyle".to_string(),
-            json!(indent_style_override_value(indent_style)),
+            json::json!(indent_style_override_value(indent_style)),
         );
     }
     if let Some(indent_width) = args.indent_width {
-        object.insert("indentWidth".to_string(), json!(indent_width));
+        object.insert("indentWidth".to_string(), json::json!(indent_width));
     }
     if let Some(line_ending) = args.line_ending {
         object.insert(
             "lineEnding".to_string(),
-            json!(line_ending_override_value(line_ending)),
+            json::json!(line_ending_override_value(line_ending)),
         );
     }
     if let Some(line_width) = args.line_width {
-        object.insert("lineWidth".to_string(), json!(line_width));
+        object.insert("lineWidth".to_string(), json::json!(line_width));
     }
 
     if object.is_empty() {
         return None;
     }
 
-    Some(Value::Object(object))
+    Some(json::Value::Object(object))
 }
 
 /// Build one linter override object from explicit CLI flags.
-fn linter_override_value(args: &LinterOptionsArgs) -> Option<Value> {
-    let mut object: Map<String, Value> = Map::new();
-    let mut rules: Map<String, Value> = Map::new();
+fn linter_override_value(args: &LinterOptionsArgs) -> Option<json::Value> {
+    let mut object = json::Map::new();
+    let mut rules = json::Map::new();
 
     // select and enable the requested rules
     if !args.only.is_empty() {
-        object.insert("only".to_string(), json!(args.only));
+        object.insert("only".to_string(), json::json!(args.only));
 
         for rule in &args.only {
-            rules.insert(rule.clone(), json!("warning"));
+            rules.insert(rule.clone(), json::json!("warning"));
         }
     }
 
     // apply explicit levels
     for rule in &args.allow {
-        rules.insert(rule.clone(), json!("off"));
+        rules.insert(rule.clone(), json::json!("off"));
     }
     for rule in &args.warn {
-        rules.insert(rule.clone(), json!("warning"));
+        rules.insert(rule.clone(), json::json!("warning"));
     }
     for rule in &args.deny {
-        rules.insert(rule.clone(), json!("error"));
+        rules.insert(rule.clone(), json::json!("error"));
     }
 
     if !rules.is_empty() {
-        object.insert("rules".to_string(), Value::Object(rules));
+        object.insert("rules".to_string(), json::Value::Object(rules));
     }
 
     if object.is_empty() {
         return None;
     }
 
-    Some(Value::Object(object))
+    Some(json::Value::Object(object))
 }
 
 /// Convert one indent style argument to one config value.
