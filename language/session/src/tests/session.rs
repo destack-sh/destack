@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::thread;
 
 use destack_artifact::{ArtifactKey, ArtifactVersion, BuildId, MemoryBlobStore};
 use destack_repository as repository;
@@ -10,7 +11,7 @@ use destack_repository::{
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 use futures::executor::block_on;
 
-use crate::{ArtifactPriority, Session, SessionError};
+use crate::{ArtifactPriority, Executor, Session, SessionError};
 
 const DEFAULT_ROOT: &str = "/workspace";
 
@@ -44,11 +45,32 @@ impl TestSession {
         Self::create(files, worker_count, execution)
     }
 
+    /// Open one test session on a shared artifact executor.
+    fn open_with_executor(
+        files: &[(&str, &str)],
+        executor: Arc<Executor>,
+    ) -> Result<Self, SessionError> {
+        let execution = executor.execution();
+
+        Self::create_with_executor(files, execution, executor)
+    }
+
     /// Create one test session with explicit executor behavior.
     fn create(
         files: &[(&str, &str)],
         worker_count: usize,
         execution: Execution,
+    ) -> Result<Self, SessionError> {
+        let executor = Executor::new(execution, worker_count)?;
+
+        Self::create_with_executor(files, execution, executor)
+    }
+
+    /// Create one test session on an explicit artifact executor.
+    fn create_with_executor(
+        files: &[(&str, &str)],
+        execution: Execution,
+        executor: Arc<Executor>,
     ) -> Result<Self, SessionError> {
         let root = PathBuf::from(DEFAULT_ROOT);
         let fs = Arc::new(MemoryFileSystem::new());
@@ -75,7 +97,7 @@ impl TestSession {
         )?;
         let repository = Arc::new(repository);
         let root = repository.path().to_path_buf();
-        let session = Session::new(repository.clone(), worker_count)?;
+        let session = Session::new(repository.clone(), executor)?;
 
         Ok(Self {
             root,
@@ -90,8 +112,9 @@ impl TestSession {
         let edit = repository::Edit::set_text(path, text);
         let after = self
             .repository
-            .commit_edits(before, vec![edit])
-            .expect("test source edit should commit");
+            .edit(before, vec![edit])
+            .expect("test source edit should commit")
+            .after;
         let after_pin = self
             .repository
             .pin(after)
@@ -176,4 +199,31 @@ impl TestSession {
             )
             .unwrap()
     }
+}
+
+#[test]
+fn test_provide_same_artifact_across_sessions() {
+    let files = [
+        (
+            "destack.json",
+            r#"{
+  "name": "@test/app"
+}
+"#,
+        ),
+        ("src/main.ds", "export const answer = 42;\n"),
+    ];
+    let executor = Executor::new(Execution::Threaded, 2).expect("shared executor should start");
+    let first = TestSession::open_with_executor(&files, executor.clone())
+        .expect("first session should open");
+    let second =
+        TestSession::open_with_executor(&files, executor).expect("second session should open");
+
+    // provide identical task coordinates concurrently through distinct repositories
+    let first = thread::spawn(move || first.check("src/main.ds", "js"));
+    let second = thread::spawn(move || second.check("src/main.ds", "js"));
+    let (first_version, _) = first.join().expect("first session should complete");
+    let (second_version, _) = second.join().expect("second session should complete");
+
+    assert_eq!(first_version, second_version);
 }

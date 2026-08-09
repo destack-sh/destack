@@ -1,41 +1,45 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::task::{Context, Poll};
-use std::thread::{Builder, JoinHandle};
+use std::thread::{Builder, JoinHandle, available_parallelism};
 
 use destack_artifact::{ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactVersion};
 use destack_repository::{Execution, Revision, Trace};
 
-use super::run::{ArtifactPriority, ArtifactRun, ArtifactRunGoal, ArtifactRunState};
+use super::run::{ArtifactPriority, ArtifactRun, ArtifactRunGoal, ArtifactRunId, ArtifactRunState};
 use super::scheduler::Scheduler;
-use super::task::Task;
+use super::task::{SessionId, Task};
 use super::worker::Worker;
 use crate::{Session, SessionError, SessionEvent, SessionEventHandler, SessionState};
 
-/// Executor for session-owned artifact work.
+/// Executor shared by repository-specific artifact sessions.
 #[derive(Debug)]
-pub(crate) struct Executor {
-    /// Shared session state for provider execution.
-    state: Arc<SessionState>,
+pub struct Executor {
     /// Shared scheduler for artifact work.
     scheduler: Arc<Scheduler>,
     /// Execution available to this executor.
     execution: Execution,
-    /// Fixed session worker pool.
+    /// Fixed artifact worker pool.
     workers: Vec<JoinHandle<()>>,
+    /// Monotonic identities for attached sessions.
+    next_session_id: AtomicU32,
+    /// Monotonic identities for artifact runs.
+    next_run_id: AtomicU32,
 }
 
 impl Executor {
-    /// Create an artifact executor with one fixed worker pool.
-    pub(crate) fn new(
-        state: Arc<SessionState>,
-        worker_count: usize,
-    ) -> Result<Arc<Self>, SessionError> {
-        if worker_count == 0 {
+    /// Return the default artifact worker count for this host.
+    pub fn default_worker_count() -> usize {
+        available_parallelism().map_or(1, usize::from)
+    }
+
+    /// Create one artifact executor with a fixed worker pool.
+    pub fn new(execution: Execution, worker_count: usize) -> Result<Arc<Self>, SessionError> {
+        if worker_count == 0 || execution == Execution::Cooperative && worker_count != 1 {
             return Err(SessionError::InvalidWorkerCount { worker_count });
         }
 
         let scheduler = Arc::new(Scheduler::new());
-        let execution = state.repository().host().execution();
         let mut workers = Vec::new();
 
         // spawn fixed workers when the host supports threads
@@ -44,16 +48,15 @@ impl Executor {
             for worker_index in 0..worker_count {
                 let worker = Worker {
                     index: worker_index,
-                    state: state.clone(),
                     scheduler: scheduler.clone(),
                 };
                 let worker = Builder::new()
-                    .name(format!("destack-session-{worker_index}"))
+                    .name(format!("destack-artifact-{worker_index}"))
                     .spawn(move || {
                         worker.run();
                     })
                     .map_err(|error| SessionError::Internal {
-                        detail: format!("failed to spawn session worker: {error}"),
+                        detail: format!("failed to spawn artifact worker: {error}"),
                     })?;
 
                 workers.push(worker);
@@ -61,28 +64,62 @@ impl Executor {
         }
 
         Ok(Arc::new(Self {
-            state,
             scheduler,
             execution,
             workers,
+            next_session_id: AtomicU32::new(1),
+            next_run_id: AtomicU32::new(1),
         }))
+    }
+
+    /// Return the execution capability of this executor.
+    pub fn execution(&self) -> Execution {
+        self.execution
+    }
+
+    /// Return the fixed artifact worker count.
+    pub fn worker_count(&self) -> usize {
+        match self.execution {
+            Execution::Threaded => self.workers.len(),
+            Execution::Cooperative => 1,
+        }
+    }
+
+    /// Allocate one identity for an attached session.
+    pub(crate) fn next_session_id(&self) -> SessionId {
+        SessionId(self.next_session_id.fetch_add(1, Ordering::Relaxed))
+    }
+
+    /// Allocate one artifact run identity.
+    fn next_run_id(&self) -> ArtifactRunId {
+        ArtifactRunId(self.next_run_id.fetch_add(1, Ordering::Relaxed))
     }
 
     /// Provide root artifacts for one immutable revision.
     pub(crate) fn provide(
         self: &Arc<Self>,
+        session: &Arc<SessionState>,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
         priority: ArtifactPriority,
     ) -> ArtifactRun {
-        let trace = self.start_trace(false);
+        let trace = self.start_trace(session, false);
 
-        self.start_run(revision, artifact_keys, priority, trace, true, None)
+        self.start_run(
+            session,
+            revision,
+            artifact_keys,
+            priority,
+            trace,
+            true,
+            None,
+        )
     }
 
     /// Provide root artifacts through an existing operation trace.
     pub(crate) fn provide_traced(
         self: &Arc<Self>,
+        session: &Arc<SessionState>,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
         priority: ArtifactPriority,
@@ -90,6 +127,7 @@ impl Executor {
         event_handler: Option<SessionEventHandler>,
     ) -> ArtifactRun {
         self.start_run(
+            session,
             revision,
             artifact_keys,
             priority,
@@ -102,6 +140,7 @@ impl Executor {
     /// Start one artifact run.
     fn start_run(
         self: &Arc<Self>,
+        session: &Arc<SessionState>,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
         priority: ArtifactPriority,
@@ -112,11 +151,12 @@ impl Executor {
         let root_tasks = artifact_keys
             .iter()
             .copied()
-            .map(|artifact_key| Task::new(revision, artifact_key))
+            .map(|artifact_key| Task::new(session.id(), revision, artifact_key))
             .collect::<Vec<_>>();
 
-        let run_id = self.state.next_run_id();
+        let run_id = self.next_run_id();
         let state = Arc::new(ArtifactRunState::new(
+            session.clone(),
             run_id,
             root_tasks,
             revision,
@@ -139,8 +179,8 @@ impl Executor {
     }
 
     /// Start one trace configured for this executor.
-    pub(crate) fn start_trace(&self, is_enabled: bool) -> Arc<Trace> {
-        let clock = self.state.repository().host().clock();
+    pub(crate) fn start_trace(&self, session: &SessionState, is_enabled: bool) -> Arc<Trace> {
+        let clock = session.repository().host().clock();
         let workers = match self.execution {
             Execution::Threaded => self.workers.len(),
             Execution::Cooperative => 1,
@@ -152,34 +192,31 @@ impl Executor {
     /// Require one artifact version for an immutable revision.
     pub(crate) async fn require_version(
         self: &Arc<Self>,
+        session: &Arc<SessionState>,
         revision: Revision,
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, SessionError> {
-        let pending = self
-            .state
-            .repository()
-            .unclean_artifact_keys(revision, &[artifact_key])?;
+        let repository = session.repository();
+        let pending = repository.unclean_artifact_keys(revision, &[artifact_key])?;
         if pending.is_empty() {
-            return self.ready_version(revision, artifact_key);
+            return self.ready_version(session, revision, artifact_key);
         }
-        self.provide(revision, &pending, ArtifactPriority::Foreground)
+        self.provide(session, revision, &pending, ArtifactPriority::Foreground)
             .wait()
             .await?;
 
-        self.ready_version(revision, artifact_key)
+        self.ready_version(session, revision, artifact_key)
     }
 
     /// Return one ready artifact version from an immutable revision.
     fn ready_version(
         &self,
+        session: &SessionState,
         revision: Revision,
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, SessionError> {
-        let Some(version) = self
-            .state
-            .repository()
-            .artifact_version(revision, &artifact_key)?
-        else {
+        let repository = session.repository();
+        let Some(version) = repository.artifact_version(revision, &artifact_key)? else {
             return Err(SessionError::Internal {
                 detail: format!(
                     "artifact was not bound to revision after provide: {artifact_key:?}"
@@ -187,7 +224,7 @@ impl Executor {
             });
         };
 
-        match self.state.repository().artifact_table().outcome(&version) {
+        match repository.artifact_table().outcome(&version) {
             Some(ArtifactOutcome::Ok) => Ok(version),
 
             Some(ArtifactOutcome::Failed(_)) => Err(SessionError::Internal {
@@ -223,12 +260,12 @@ impl Executor {
         let tasks = artifact_keys
             .iter()
             .copied()
-            .map(|artifact_key| Task::new(run.revision(), artifact_key))
+            .map(|artifact_key| Task::new(run.session().id(), run.revision(), artifact_key))
             .collect::<Vec<_>>();
         run.trace().add_counter("roots", tasks.len() as u64);
 
         // return immediately when every requested payload is already ready
-        if self.roots_satisfy(&tasks, ArtifactRunGoal::Ready)? {
+        if self.roots_satisfy(run.session(), &tasks, ArtifactRunGoal::Ready)? {
             return Ok(());
         }
 
@@ -266,7 +303,7 @@ impl Executor {
 
             return Poll::Ready(Err(SessionError::Cancelled));
         }
-        match self.roots_satisfy(tasks, goal) {
+        match self.roots_satisfy(run.session(), tasks, goal) {
             Ok(true) => return Poll::Ready(Ok(())),
             Ok(false) => {}
             Err(error) => return Poll::Ready(Err(error)),
@@ -285,7 +322,6 @@ impl Executor {
         };
         let worker = Worker {
             index: 0,
-            state: self.state.clone(),
             scheduler: self.scheduler.clone(),
         };
         worker.run_task(claimed_run, task, pending_set);
@@ -313,7 +349,7 @@ impl Executor {
     pub(super) fn finish_completed_run(&self, run: &ArtifactRunState) -> bool {
         let is_complete = run.error().is_some()
             || matches!(
-                self.roots_satisfy(run.roots(), ArtifactRunGoal::Ready),
+                self.roots_satisfy(run.session(), run.roots(), ArtifactRunGoal::Ready),
                 Ok(true) | Err(SessionError::ArtifactFailed { .. })
             );
         if is_complete {
@@ -331,9 +367,14 @@ impl Executor {
     }
 
     /// Return true when every task has a ready terminal artifact outcome.
-    fn roots_satisfy(&self, tasks: &[Task], goal: ArtifactRunGoal) -> Result<bool, SessionError> {
+    fn roots_satisfy(
+        &self,
+        session: &SessionState,
+        tasks: &[Task],
+        goal: ArtifactRunGoal,
+    ) -> Result<bool, SessionError> {
         for task in tasks {
-            let Some(outcome) = self.state.artifact_outcome(*task)? else {
+            let Some(outcome) = session.artifact_outcome(*task)? else {
                 return Ok(false);
             };
 
@@ -368,7 +409,7 @@ impl Drop for Executor {
 impl Session {
     /// Start one trace spanning multiple artifact requests.
     pub fn start_trace(&self, is_enabled: bool) -> Arc<Trace> {
-        self.executor.start_trace(is_enabled)
+        self.executor.start_trace(&self.state, is_enabled)
     }
 
     /// Provide root artifacts for one immutable revision.
@@ -378,7 +419,8 @@ impl Session {
         artifact_keys: &[ArtifactKey],
         priority: ArtifactPriority,
     ) -> ArtifactRun {
-        self.executor.provide(revision, artifact_keys, priority)
+        self.executor
+            .provide(&self.state, revision, artifact_keys, priority)
     }
 
     /// Provide root artifacts through an existing operation trace.
@@ -390,8 +432,14 @@ impl Session {
         trace: Arc<Trace>,
         event_handler: Option<SessionEventHandler>,
     ) -> ArtifactRun {
-        self.executor
-            .provide_traced(revision, artifact_keys, priority, trace, event_handler)
+        self.executor.provide_traced(
+            &self.state,
+            revision,
+            artifact_keys,
+            priority,
+            trace,
+            event_handler,
+        )
     }
 
     /// Require one root artifact for an immutable revision.
@@ -400,7 +448,9 @@ impl Session {
         revision: Revision,
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, SessionError> {
-        self.executor.require_version(revision, artifact_key).await
+        self.executor
+            .require_version(&self.state, revision, artifact_key)
+            .await
     }
 
     /// Persist queued artifact records for this session repository.

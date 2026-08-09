@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::thread;
 
 use destack_repository::Repository;
 
@@ -10,9 +9,9 @@ use super::SessionState;
 
 /// Artifact computation session for one repository.
 pub struct Session {
-    /// Shared session state for providers and workers.
+    /// Repository-specific provider state.
     pub(crate) state: Arc<SessionState>,
-    /// Artifact executor for this live session.
+    /// Shared artifact executor.
     pub(crate) executor: Arc<Executor>,
 }
 
@@ -28,23 +27,30 @@ impl std::fmt::Debug for Session {
 }
 
 impl Session {
-    /// Return the default session worker count.
-    pub fn default_worker_count() -> usize {
-        thread::available_parallelism().map_or(1, usize::from)
-    }
+    /// Create one repository-specific artifact computation session.
+    pub fn new(repository: Arc<Repository>, executor: Arc<Executor>) -> Result<Self, SessionError> {
+        let repository_execution = repository.host().execution();
+        let executor_execution = executor.execution();
+        if repository_execution != executor_execution {
+            return Err(SessionError::ExecutionMismatch {
+                repository: repository_execution,
+                executor: executor_execution,
+            });
+        }
 
-    /// Create one artifact computation session.
-    pub fn new(repository: Arc<Repository>, worker_count: usize) -> Result<Self, SessionError> {
-        let state = Arc::new(SessionState::new(repository));
+        let id = executor.next_session_id();
+        let state = Arc::new(SessionState::new(id, repository));
 
-        Ok(Self {
-            state: state.clone(),
-            executor: Executor::new(state, worker_count)?,
-        })
+        Ok(Self { state, executor })
     }
 
     /// Return the repository for this session.
     pub fn repository(&self) -> Arc<Repository> {
         self.state.repository()
+    }
+
+    /// Return the shared artifact executor attached to this session.
+    pub fn executor(&self) -> Arc<Executor> {
+        self.executor.clone()
     }
 }

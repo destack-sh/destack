@@ -12,7 +12,7 @@ use destack_source::{
 };
 use parking_lot::Mutex;
 
-/// One artifact provider attempt owned by a session worker.
+/// One artifact provider attempt owned by an executor worker.
 #[derive(Debug)]
 pub(crate) struct ProviderAttempt {
     /// The repository that owns the pinned revision.

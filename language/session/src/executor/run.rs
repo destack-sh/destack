@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 use super::executor::Executor;
 use super::scheduler::Scheduler;
 use super::task::Task;
-use crate::{SessionError, SessionEvent, SessionEventHandler};
+use crate::{SessionError, SessionEvent, SessionEventHandler, SessionState};
 
 /// Id for one artifact executor run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -211,6 +211,8 @@ impl ArtifactCancellation {
 
 /// Shared state for one artifact run.
 pub(super) struct ArtifactRunState {
+    /// Repository-specific state used by every task in this run.
+    session: Arc<SessionState>,
     /// The id for this artifact run.
     id: ArtifactRunId,
     /// The root tasks this caller is waiting for.
@@ -242,6 +244,7 @@ impl std::fmt::Debug for ArtifactRunState {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("ArtifactRunState")
+            .field("session", &self.session)
             .field("id", &self.id)
             .field("roots", &self.roots)
             .field("revision", &self.revision)
@@ -259,6 +262,7 @@ impl std::fmt::Debug for ArtifactRunState {
 impl ArtifactRunState {
     /// Create one artifact executor run recorded by the provided trace.
     pub(super) fn new(
+        session: Arc<SessionState>,
         id: ArtifactRunId,
         roots: Vec<Task>,
         revision: Revision,
@@ -268,6 +272,7 @@ impl ArtifactRunState {
         event_handler: Option<SessionEventHandler>,
     ) -> Self {
         Self {
+            session,
             id,
             roots,
             revision,
@@ -281,6 +286,11 @@ impl ArtifactRunState {
             event_handler,
             waker: AtomicWaker::new(),
         }
+    }
+
+    /// Return the session that owns this run.
+    pub(super) fn session(&self) -> &Arc<SessionState> {
+        &self.session
     }
 
     /// Return the trace for this run.

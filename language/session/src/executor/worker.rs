@@ -17,13 +17,11 @@ use super::scheduler::Scheduler;
 use super::task::Task;
 use crate::{SessionError, SessionEvent, SessionState};
 
-/// One worker in the session artifact executor.
+/// One worker in an artifact executor.
 #[derive(Debug, Clone)]
 pub(super) struct Worker {
-    /// The index of this worker in the session pool.
+    /// The index of this worker in the artifact executor.
     pub(super) index: usize,
-    /// Shared session state for provider execution.
-    pub(super) state: Arc<SessionState>,
     /// Shared scheduler for artifact work.
     pub(super) scheduler: Arc<Scheduler>,
 }
@@ -93,15 +91,17 @@ impl Worker {
         task: Task,
         pending_set: Option<PendingSet>,
     ) {
+        let state = run.session().clone();
+
         // finish tasks whose revision binding is already resolved
-        match self.state.artifact_outcome(task) {
+        match state.artifact_outcome(task) {
             Ok(Some(_)) => {
                 self.scheduler.mark_done(task);
             }
             Ok(None) => {
                 // contain provider panics so the scheduler never retains an abandoned task
                 let provided = catch_unwind(AssertUnwindSafe(|| {
-                    self.provide_task(run.as_ref(), task, pending_set)
+                    self.provide_task(&state, run.as_ref(), task, pending_set)
                 }));
                 match provided {
                     Ok(Ok(())) => {}
@@ -128,6 +128,7 @@ impl Worker {
     /// Provide one claimed task per the repository's plan.
     pub(super) fn provide_task(
         &self,
+        state: &SessionState,
         run: &ArtifactRunState,
         task: Task,
         pending_set: Option<PendingSet>,
@@ -141,11 +142,8 @@ impl Worker {
         });
 
         // ask the repository what this attempt requires
-        let repository = self.state.repository();
-        let mut collect = |base| {
-            self.state
-                .collect_dependencies(task.revision, task.key, base)
-        };
+        let repository = state.repository();
+        let mut collect = |base| state.collect_dependencies(task.revision, task.key, base);
         let plan = repository.plan_artifact(
             task.revision,
             task.key,
@@ -179,7 +177,15 @@ impl Worker {
                 let failure = ArtifactFailure::requirement(failed_dependency);
                 let diagnostics = Vec::new();
                 let result = recorder.span("commit", || {
-                    self.fail(run, task, dependencies, diagnostics, Vec::new(), failure)
+                    self.fail(
+                        state,
+                        run,
+                        task,
+                        dependencies,
+                        diagnostics,
+                        Vec::new(),
+                        failure,
+                    )
                 });
                 recorder.finish(ArtifactAttemptOutcome::Failed);
 
@@ -190,7 +196,7 @@ impl Worker {
                 base,
                 dependencies,
                 failed: None,
-            }) => self.provide(run, task, &repository, base, dependencies, &recorder),
+            }) => self.provide(state, run, task, &repository, base, dependencies, &recorder),
             Err(error) => Err(self.fail_internal(&recorder, error.to_string())),
         }
     }
@@ -198,6 +204,7 @@ impl Worker {
     /// Run the provider once and commit everything it produced and read.
     fn provide(
         &self,
+        state: &SessionState,
         run: &ArtifactRunState,
         task: Task,
         repository: &Arc<Repository>,
@@ -210,7 +217,7 @@ impl Worker {
             .with_base(base)
             .with_dependencies(Arc::clone(&dependencies))
             .with_recorder(Arc::clone(recorder));
-        let provided = recorder.span("provide", || self.call_provider(&attempt));
+        let provided = recorder.span("provide", || self.call_provider(state, &attempt));
 
         // park and retry when execution read an artifact that was not ready
         if let Err(error) = &provided
@@ -238,7 +245,7 @@ impl Worker {
         match provided {
             Ok(payload) => {
                 let result = recorder.span("commit", || {
-                    self.state.repository().complete_artifact(
+                    state.repository().complete_artifact(
                         task.revision,
                         task.key,
                         payload,
@@ -260,7 +267,7 @@ impl Worker {
             }
             Err(error) => {
                 let result = recorder.span("commit", || {
-                    self.fail_provider(&attempt, run, task, dependencies, *error)
+                    self.fail_provider(state, &attempt, run, task, dependencies, *error)
                 });
                 recorder.finish(ArtifactAttemptOutcome::Failed);
 
@@ -280,7 +287,7 @@ impl Worker {
         recorder.record_counter("park.frontier", frontier.len() as u64);
         let frontier = frontier
             .into_iter()
-            .map(|key| Task::new(task.revision, key))
+            .map(|key| Task::new(task.session, task.revision, key))
             .collect();
         let result = recorder.span("park", || {
             self.scheduler.wait_on(task, frontier, pending_set)
@@ -305,6 +312,7 @@ impl Worker {
     /// Route one provider failure into a recorded artifact failure.
     fn fail_provider(
         &self,
+        state: &SessionState,
         attempt: &ProviderAttempt,
         run: &ArtifactRunState,
         task: Task,
@@ -318,11 +326,25 @@ impl Worker {
             ProviderError::RequirementFailed { key } => {
                 let failure = ArtifactFailure::requirement(key);
 
-                self.fail(run, task, dependencies, diagnostics, sidecars, failure)
+                self.fail(
+                    state,
+                    run,
+                    task,
+                    dependencies,
+                    diagnostics,
+                    sidecars,
+                    failure,
+                )
             }
-            ProviderError::Failed { failure } => {
-                self.fail(run, task, dependencies, diagnostics, sidecars, failure)
-            }
+            ProviderError::Failed { failure } => self.fail(
+                state,
+                run,
+                task,
+                dependencies,
+                diagnostics,
+                sidecars,
+                failure,
+            ),
             ProviderError::Corrupt { version: corrupt } => Err(SessionError::Internal {
                 detail: format!(
                     "failed to provide artifact {:?}: corrupt required artifact: {corrupt:?}",
@@ -366,6 +388,7 @@ impl Worker {
     /// Record one artifact failure and emit its failed event.
     fn fail(
         &self,
+        state: &SessionState,
         run: &ArtifactRunState,
         task: Task,
         dependencies: Arc<[ArtifactDependency]>,
@@ -373,7 +396,7 @@ impl Worker {
         sidecars: Vec<ArtifactSidecar>,
         failure: ArtifactFailure,
     ) -> Result<(), SessionError> {
-        self.state.repository().fail_artifact(
+        state.repository().fail_artifact(
             task.revision,
             task.key,
             dependencies,
@@ -388,15 +411,18 @@ impl Worker {
     }
 
     /// Call the provider that owns one artifact key.
-    fn call_provider(&self, attempt: &ProviderAttempt) -> ProviderResult<ArtifactPayload> {
+    fn call_provider(
+        &self,
+        state: &SessionState,
+        attempt: &ProviderAttempt,
+    ) -> ProviderResult<ArtifactPayload> {
         match attempt.key().provider() {
-            ArtifactProvider::Loader => self
-                .state
+            ArtifactProvider::Loader => state
                 .provide_loader(attempt)
                 .map_err(|error| ProviderError::internal(error.to_string()).into()),
-            ArtifactProvider::Compiler => self.state.compiler().provide(attempt),
-            ArtifactProvider::Linter => self.state.linter().provide(attempt),
-            ArtifactProvider::Index => self.state.indexer().provide(attempt),
+            ArtifactProvider::Compiler => state.compiler().provide(attempt),
+            ArtifactProvider::Linter => state.linter().provide(attempt),
+            ArtifactProvider::Index => state.indexer().provide(attempt),
         }
     }
 }

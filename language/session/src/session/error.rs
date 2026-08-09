@@ -1,5 +1,5 @@
 use destack_artifact::{ArtifactFailure, ArtifactKey, DiagnosticError};
-use destack_repository::RepositoryError;
+use destack_repository::{Execution, RepositoryError};
 use destack_source::{FileId, ModuleId};
 
 /// Errors produced by artifact session operations.
@@ -19,6 +19,13 @@ pub enum SessionError {
     InvalidWorkerCount {
         /// The invalid worker count.
         worker_count: usize,
+    },
+    /// The repository and artifact executor support different execution modes.
+    ExecutionMismatch {
+        /// Execution required by the repository host.
+        repository: Execution,
+        /// Execution provided by the artifact executor.
+        executor: Execution,
     },
     /// Artifact provisioning was cancelled.
     Cancelled,
@@ -48,7 +55,17 @@ impl std::fmt::Display for SessionError {
                 write!(formatter, "module not tracked: {module_id:?}")
             }
             SessionError::InvalidWorkerCount { worker_count } => {
-                write!(formatter, "invalid session worker count: {worker_count}")
+                write!(formatter, "invalid artifact worker count: {worker_count}")
+            }
+            SessionError::ExecutionMismatch {
+                repository,
+                executor,
+            } => {
+                write!(
+                    formatter,
+                    "repository requires {repository:?} execution, artifact executor provides \
+                     {executor:?} execution"
+                )
             }
             SessionError::Cancelled => {
                 write!(formatter, "artifact provisioning was cancelled")
