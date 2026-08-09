@@ -2,6 +2,7 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBool, jsonField, jsonInteger, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { NodeType } from "../../dir/tree/node.js";
+import type { Commit } from "../../repository/commit.js";
 import type { TraceView } from "../../repository/provider/trace.js";
 import type { FilePatch } from "../../source/edit/edit.js";
 import type { Uri } from "../../source/file/path/uri.js";
@@ -10,8 +11,8 @@ import type { CommandInput } from "./common.js";
 import type { CommandRevision } from "./common.js";
 import type { CommandTargetOverrides } from "./common.js";
 import type { ManifestOverride } from "./common.js";
-import type { Commit } from "../file/update.js";
 import { decodeNodeType, encodeNodeType, fromJsonNodeType, toJsonNodeType } from "../../dir/tree/node.js";
+import { decodeCommit, encodeCommit, fromJsonCommit, toJsonCommit } from "../../repository/commit.js";
 import { decodeTraceView, encodeTraceView, fromJsonTraceView, toJsonTraceView } from "../../repository/provider/trace.js";
 import { decodeFilePatch, encodeFilePatch, fromJsonFilePatch, toJsonFilePatch } from "../../source/edit/edit.js";
 import { decodeUri, encodeUri, fromJsonUri, toJsonUri } from "../../source/file/path/uri.js";
@@ -20,7 +21,6 @@ import { decodeCommandInput, encodeCommandInput, fromJsonCommandInput, toJsonCom
 import { decodeCommandRevision, encodeCommandRevision, fromJsonCommandRevision, toJsonCommandRevision } from "./common.js";
 import { decodeCommandTargetOverrides, encodeCommandTargetOverrides, fromJsonCommandTargetOverrides, toJsonCommandTargetOverrides } from "./common.js";
 import { decodeManifestOverride, encodeManifestOverride, fromJsonManifestOverride, toJsonManifestOverride } from "./common.js";
-import { decodeCommit, encodeCommit, fromJsonCommit, toJsonCommit } from "../file/update.js";
 
 /** One source file changed by a rewrite. */
 export type RewriteChange = {

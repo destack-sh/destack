@@ -389,8 +389,7 @@ export type NodeSpanType =
     /** One indexed item span within a node. */
     | {
           readonly kind: "listItem";
-          readonly 0: NodeSpanList;
-          readonly 1: number;
+          readonly list_item: readonly [NodeSpanList, number];
       }
 ;
 
@@ -421,8 +420,8 @@ export const NodeSpanType = {
     },
 
     /** One indexed item span within a node. */
-    listItem(field0: NodeSpanList, field1: number): NodeSpanType {
-        return { kind: "listItem", 0: field0, 1: field1 };
+    listItem(list_item: readonly [NodeSpanList, number]): NodeSpanType {
+        return { kind: "listItem", list_item };
     },
 
     /** Encode this value. */
@@ -468,8 +467,8 @@ export function encodeNodeSpanType(writer: BinaryWriter, value: NodeSpanType): v
             return;
         case "listItem":
             writer.writeUnsigned(5);
-            encodeNodeSpanList(writer, value[0]);
-            writer.writeUnsigned(value[1]);
+            encodeNodeSpanList(writer, value.list_item[0]);
+            writer.writeUnsigned(value.list_item[1]);
             return;
     }
 
@@ -501,14 +500,9 @@ export function decodeNodeSpanType(reader: BinaryReader): NodeSpanType {
             return { kind: "region", region };
         }
         case 5: {
-            const field0 = decodeNodeSpanList(reader);
-            const field1 = reader.readNumber();
+            const list_item = [decodeNodeSpanList(reader), reader.readNumber()] as const;
 
-            return {
-                kind: "listItem",
-                0: field0,
-                1: field1,
-            };
+            return { kind: "listItem", list_item };
         }
     }
 
@@ -543,8 +537,7 @@ export function toJsonNodeSpanType(value: NodeSpanType): Json {
         case "listItem":
             return {
                 kind: "listItem",
-                0: toJsonNodeSpanList(value[0]),
-                1: value[1],
+                list_item: [toJsonNodeSpanList(value.list_item[0]), value.list_item[1]],
             };
     }
 
@@ -582,8 +575,7 @@ export function fromJsonNodeSpanType(value: Json): NodeSpanType {
         case "listItem":
             return {
                 kind,
-                0: fromJsonNodeSpanList(jsonField(object, "0")),
-                1: jsonInteger(jsonField(object, "1")),
+                list_item: (() => { const items = jsonArray(jsonField(object, "list_item")); if (items.length !== 2) { throw new SerdeError(`expected JSON tuple length 2: ${items.length}`); } return [fromJsonNodeSpanList(items[0]), jsonInteger(items[1])] as const; })(),
             };
     }
 

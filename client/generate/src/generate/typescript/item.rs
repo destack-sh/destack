@@ -1,106 +1,62 @@
-use crate::generate::schema::{Field, Item, Payload, Schema, Shape, Type, Variant};
+use std::iter::repeat_n;
+
+use crate::generate::schema::{Field, Item, Payload, Schema, Type, Variant};
 
 use super::codec::{
     decode_name, encode_name, from_json_name, payload_property_name, property_key, to_json_name,
 };
 use super::name::{identifier, member};
-use super::path::TypeNames;
+use super::scope::Scope;
 use super::text::Text;
 
 /// Render one client item as a TypeScript type.
-pub(super) fn render_item(schema: &Schema, item: &Item, type_names: &TypeNames, text: &mut Text) {
-    ItemRenderer {
-        schema,
-        item,
-        type_names,
-    }
-    .render(text);
-}
+pub(super) fn render_item(schema: &Schema, item: &Item, scope: &Scope, text: &mut Text) {
+    text.doc(item.doc(), "");
 
-/// TypeScript item renderer.
-struct ItemRenderer<'schema> {
-    /// Bridge schema.
-    schema: &'schema Schema,
-    /// Bridge item.
-    item: &'schema Item,
-    /// Visible TypeScript type names.
-    type_names: &'schema TypeNames,
-}
-
-impl<'schema> ItemRenderer<'schema> {
-    /// Render this TypeScript item.
-    fn render(&self, text: &mut Text) {
-        let item = self.item;
-        text.doc(item.doc(), "");
-
-        if let Some(ty) = item.scalar_newtype() {
-            text.line(format!(
-                "export type {} = {};",
-                item.name,
-                render_type(self.schema, self.type_names, ty)
-            ));
+    match &item.ty {
+        Type::Struct(fields) => {
+            text.line(format!("export type {} = {{", item.name));
+            for field in fields {
+                render_field(schema, scope, text, field, "    ");
+            }
+            text.line("};");
             text.blank();
-            render_struct_companion(text, item);
-
-            return;
+            render_companion(text, item);
         }
-
-        match &item.shape {
-            Shape::Struct(fields) => {
-                text.line(format!("export type {} = {{", item.name));
-                for field in fields {
-                    render_field(self.schema, self.type_names, text, field, "    ");
-                }
-                text.line("};");
-                text.blank();
-                render_struct_companion(text, item);
-            }
-            Shape::Enum(variants) if self.schema.is_unit_enum(&item.key) => {
-                text.line(format!(
-                    "export type {} = {};",
-                    item.name,
-                    render_unit_enum(variants)
-                ));
-                text.blank();
-                render_unit_enum_companion(text, item);
-            }
-            Shape::Enum(variants) => {
-                text.line(format!("export type {} =", item.name));
-                render_payload_enum(self.schema, self.type_names, text, variants);
-                text.line(";");
-                text.blank();
-                render_payload_constructors(self.schema, self.type_names, text, item, variants);
-            }
+        Type::Enum(variants) if schema.is_unit_enum(&item.key) => {
+            let variants = render_unit_enum(variants);
+            text.line(format!("export type {} = {variants};", item.name));
+            text.blank();
+            render_companion(text, item);
+        }
+        Type::Enum(variants) => {
+            text.line(format!("export type {} =", item.name));
+            render_payload_enum(schema, scope, text, variants);
+            text.line(";");
+            text.blank();
+            render_payload_constructors(schema, scope, text, item, variants);
+        }
+        ty => {
+            let ty = render_type(schema, scope, ty);
+            text.line(format!("export type {} = {ty};", item.name));
+            text.blank();
+            render_companion(text, item);
         }
     }
 }
 
-/// Render a TypeScript companion object for one struct.
-fn render_struct_companion(text: &mut Text, item: &Item) {
+/// Render a TypeScript companion object for one item.
+fn render_companion(text: &mut Text, item: &Item) {
     text.line(format!("export const {} = {{", item.name));
     render_companion_codecs(text, item, "    ");
     text.line("};");
     text.blank();
 }
 
-/// Render a TypeScript companion object for one unit enum.
-fn render_unit_enum_companion(text: &mut Text, item: &Item) {
-    text.line(format!("export const {} = {{", item.name));
-    render_companion_codecs(text, item, "    ");
-    text.line("};");
-    text.blank();
-}
-
-/// One generated text document.
-fn render_field(
-    schema: &Schema,
-    type_names: &TypeNames,
-    text: &mut Text,
-    field: &Field,
-    indent: &str,
-) {
+/// Render one TypeScript struct field.
+fn render_field(schema: &Schema, scope: &Scope, text: &mut Text, field: &Field, indent: &str) {
     let name = property_key(&field.label());
-    let ty = render_field_type(schema, type_names, &field.ty);
+    let ty = render_property_type(schema, scope, &field.ty);
     let optional = matches!(field.ty, Type::Option(_));
     let marker = if optional { "?" } else { "" };
 
@@ -118,12 +74,7 @@ fn render_unit_enum(variants: &[Variant]) -> String {
 }
 
 /// Render one payload enum as a discriminated union.
-fn render_payload_enum(
-    schema: &Schema,
-    type_names: &TypeNames,
-    text: &mut Text,
-    variants: &[Variant],
-) {
+fn render_payload_enum(schema: &Schema, scope: &Scope, text: &mut Text, variants: &[Variant]) {
     for variant in variants {
         text.doc(variant.doc(), "    ");
         text.line("    | {");
@@ -131,15 +82,15 @@ fn render_payload_enum(
 
         match &variant.payload {
             Payload::Unit => {}
-            Payload::Tuple(ty) => {
+            Payload::Value(ty) => {
                 let name = variant.payload_field_name();
-                let ty = render_type(schema, type_names, ty);
+                let ty = render_type(schema, scope, ty);
 
                 text.line(format!("          readonly {name}: {ty};"));
             }
             Payload::Struct(fields) => {
                 for field in fields {
-                    render_payload_field(schema, type_names, text, field, "          ");
+                    render_payload_field(schema, scope, text, field, "          ");
                 }
             }
         }
@@ -151,7 +102,7 @@ fn render_payload_enum(
 /// Render constructors for one TypeScript payload enum.
 fn render_payload_constructors(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     item: &Item,
     variants: &[Variant],
@@ -160,7 +111,7 @@ fn render_payload_constructors(
 
     for variant in variants {
         let method = member(&variant.label());
-        let arguments = render_constructor_arguments(schema, type_names, variant);
+        let arguments = render_constructor_arguments(schema, scope, variant);
         let fields = render_constructor_fields(variant);
         let fields = if fields.is_empty() {
             String::new()
@@ -224,17 +175,13 @@ fn render_companion_codecs(text: &mut Text, item: &Item, indent: &str) {
 }
 
 /// Render TypeScript constructor arguments for one payload variant.
-fn render_constructor_arguments(
-    schema: &Schema,
-    type_names: &TypeNames,
-    variant: &Variant,
-) -> String {
+fn render_constructor_arguments(schema: &Schema, scope: &Scope, variant: &Variant) -> String {
     constructor_fields(variant)
         .into_iter()
         .map(|(name, ty)| {
-            let parameter = ts_parameter_name(&name);
+            let parameter = identifier(&name);
 
-            format!("{parameter}: {}", render_type(schema, type_names, &ty))
+            format!("{parameter}: {}", render_type(schema, scope, ty))
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -244,9 +191,9 @@ fn render_constructor_arguments(
 fn render_constructor_fields(variant: &Variant) -> Vec<String> {
     constructor_fields(variant)
         .into_iter()
-        .map(|(name, _ty)| {
+        .map(|(name, _)| {
             let property = payload_property_name(&name);
-            let parameter = ts_parameter_name(&name);
+            let parameter = identifier(&name);
             if parameter == property {
                 property
             } else {
@@ -257,32 +204,27 @@ fn render_constructor_fields(variant: &Variant) -> Vec<String> {
 }
 
 /// Return TypeScript constructor fields for one payload variant.
-fn constructor_fields(variant: &Variant) -> Vec<(String, Type)> {
+fn constructor_fields(variant: &Variant) -> Vec<(String, &Type)> {
     match &variant.payload {
         Payload::Unit => Vec::new(),
-        Payload::Tuple(ty) => vec![(variant.payload_field_name(), ty.clone())],
+        Payload::Value(ty) => vec![(variant.payload_field_name(), ty)],
         Payload::Struct(fields) => fields
             .iter()
-            .map(|field| (field.label(), field.ty.clone()))
+            .map(|field| (field.label(), &field.ty))
             .collect(),
     }
-}
-
-/// Return one valid TypeScript parameter name.
-fn ts_parameter_name(name: &str) -> String {
-    identifier(name)
 }
 
 /// Render one payload enum field type.
 fn render_payload_field(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     field: &Field,
     indent: &str,
 ) {
     let name = property_key(&payload_property_name(&field.label()));
-    let ty = render_field_type(schema, type_names, &field.ty);
+    let ty = render_property_type(schema, scope, &field.ty);
     let optional = matches!(field.ty, Type::Option(_));
     let marker = if optional { "?" } else { "" };
 
@@ -290,16 +232,18 @@ fn render_payload_field(
     text.line(format!("{indent}readonly {name}{marker}: {ty};"));
 }
 
-/// Render one TypeScript field type.
-fn render_field_type(schema: &Schema, type_names: &TypeNames, ty: &Type) -> String {
-    match ty {
-        Type::Option(ty) => render_type(schema, type_names, ty),
-        _ => render_type(schema, type_names, ty),
-    }
+/// Render one TypeScript object property type.
+fn render_property_type(schema: &Schema, scope: &Scope, ty: &Type) -> String {
+    let ty = match ty {
+        Type::Option(item) => item,
+        _ => ty,
+    };
+
+    render_type(schema, scope, ty)
 }
 
 /// Render one TypeScript type.
-pub(super) fn render_type(schema: &Schema, type_names: &TypeNames, ty: &Type) -> String {
+pub(super) fn render_type(schema: &Schema, scope: &Scope, ty: &Type) -> String {
     match ty {
         Type::Unit => "null".to_string(),
         Type::String => "string".to_string(),
@@ -309,17 +253,17 @@ pub(super) fn render_type(schema: &Schema, type_names: &TypeNames, ty: &Type) ->
             "number".to_string()
         }
         Type::U64 | Type::U128 | Type::Signed(64 | 128) => "bigint".to_string(),
-        Type::Signed(_) => ty.unsupported_client_type(),
-        Type::Vec(ty) if matches!(ty.as_ref(), Type::U8) => {
+        Type::Signed(_) => ty.unsupported(),
+        Type::Sequence(ty) if matches!(ty.as_ref(), Type::U8) => {
             "Uint8Array | readonly number[]".to_string()
         }
-        Type::Vec(ty) => format!("ReadonlyArray<{}>", render_type(schema, type_names, ty)),
-        Type::Option(ty) => format!("{} | undefined", render_type(schema, type_names, ty)),
-        Type::Array(ty, len) => render_array_type(schema, type_names, ty, *len),
+        Type::Sequence(ty) => format!("ReadonlyArray<{}>", render_type(schema, scope, ty)),
+        Type::Option(ty) => format!("{} | undefined", render_type(schema, scope, ty)),
+        Type::Array(ty, len) => render_array_type(schema, scope, ty, *len),
         Type::Tuple(types) => {
             let types = types
                 .iter()
-                .map(|ty| render_type(schema, type_names, ty))
+                .map(|ty| render_type(schema, scope, ty))
                 .collect::<Vec<_>>()
                 .join(", ");
 
@@ -328,28 +272,27 @@ pub(super) fn render_type(schema: &Schema, type_names: &TypeNames, ty: &Type) ->
         Type::Map(key, value) if matches!(key.as_ref(), Type::String) => {
             format!(
                 "Readonly<Record<string, {}>>",
-                render_type(schema, type_names, value)
+                render_type(schema, scope, value)
             )
         }
         Type::Map(key, value) => format!(
             "ReadonlyMap<{}, {}>",
-            render_type(schema, type_names, key),
-            render_type(schema, type_names, value)
+            render_type(schema, scope, key),
+            render_type(schema, scope, value)
         ),
-        Type::Json => "unknown".to_string(),
-        Type::Named { key, .. } if schema.is_unit_enum(key) => type_names.ty(ty),
-        Type::Named { .. } => type_names.ty(ty),
+        Type::Named { .. } => scope.ty(ty),
+        Type::Struct(_) | Type::Enum(_) => ty.unsupported(),
     }
 }
 
 /// Render one fixed-length array type.
-fn render_array_type(schema: &Schema, type_names: &TypeNames, ty: &Type, len: usize) -> String {
+fn render_array_type(schema: &Schema, scope: &Scope, ty: &Type, len: usize) -> String {
     if matches!(ty, Type::U8) {
-        return "Uint8Array | readonly number[]".to_string();
+        "Uint8Array | readonly number[]".to_string()
+    } else {
+        let ty = render_type(schema, scope, ty);
+        let fields = repeat_n(ty, len).collect::<Vec<_>>().join(", ");
+
+        format!("readonly [{fields}]")
     }
-
-    let ty = render_type(schema, type_names, ty);
-    let fields = std::iter::repeat_n(ty, len).collect::<Vec<_>>().join(", ");
-
-    format!("readonly [{fields}]")
 }

@@ -629,7 +629,7 @@ export function fromJsonMember(value: Json): Member {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
-/** A nominal member slot. */
+/** One member slot within a namespace. */
 export type MemberSlot =
     /** Property keyed by a static key. */
     | {

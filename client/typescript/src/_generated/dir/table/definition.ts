@@ -615,7 +615,7 @@ export type ClassDefinition = {
     /** The extended class. */
     readonly extends?: NominalHeritage;
     /** The implemented interfaces. */
-    readonly implements: ReadonlyArray<NominalHeritage>;
+    readonly implements: ReadonlyArray<NominalConformance>;
     /** The class's direct construct candidates. */
     readonly constructors: ReadonlyArray<ClassConstructorDefinition>;
     /** The members in declaration order. */
@@ -660,7 +660,7 @@ export function encodeClassDefinition(writer: BinaryWriter, value: ClassDefiniti
     });
     writer.writeUnsigned(value.implements.length);
     for (const item6 of value.implements) {
-        encodeNominalHeritage(writer, item6);
+        encodeNominalConformance(writer, item6);
     }
     writer.writeUnsigned(value.constructors.length);
     for (const item7 of value.constructors) {
@@ -680,7 +680,7 @@ export function decodeClassDefinition(reader: BinaryReader): ClassDefinition {
     const isAbstract = reader.readBool();
     const isFinal = reader.readBool();
     const extends_ = reader.readOption(() => decodeNominalHeritage(reader));
-    const implements_ = (() => { const length6 = reader.readNumber(); const items6: Array<NominalHeritage> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeNominalHeritage(reader)); } return items6; })();
+    const implements_ = (() => { const length6 = reader.readNumber(); const items6: Array<NominalConformance> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeNominalConformance(reader)); } return items6; })();
     const constructors = (() => { const length7 = reader.readNumber(); const items7: Array<ClassConstructorDefinition> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeClassConstructorDefinition(reader)); } return items7; })();
     const members = (() => { const length8 = reader.readNumber(); const items8: Array<DefinitionMember> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeDefinitionMember(reader)); } return items8; })();
 
@@ -706,7 +706,7 @@ export function toJsonClassDefinition(value: ClassDefinition): Json {
         isAbstract: value.isAbstract,
         isFinal: value.isFinal,
         ...(value.extends === undefined ? {} : { extends: toJsonNominalHeritage(value.extends) }),
-        implements: value.implements.map((item0) => toJsonNominalHeritage(item0)),
+        implements: value.implements.map((item0) => toJsonNominalConformance(item0)),
         constructors: value.constructors.map((item0) => toJsonClassConstructorDefinition(item0)),
         members: value.members.map((item0) => toJsonDefinitionMember(item0)),
     };
@@ -723,7 +723,7 @@ export function fromJsonClassDefinition(value: Json): ClassDefinition {
         isAbstract: jsonBool(jsonField(object, "isAbstract")),
         isFinal: jsonBool(jsonField(object, "isFinal")),
         extends: jsonOptional(object, "extends", (value) => fromJsonNominalHeritage(value)),
-        implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonNominalHeritage(item0)),
+        implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonNominalConformance(item0)),
         constructors: jsonArray(jsonField(object, "constructors")).map((item0) => fromJsonClassConstructorDefinition(item0)),
         members: jsonArray(jsonField(object, "members")).map((item0) => fromJsonDefinitionMember(item0)),
     };
@@ -1484,7 +1484,7 @@ export type EnumDefinition = {
     /** The scalar type backing every enum variant. */
     readonly backing: EnumBackingType;
     /** The implemented interfaces. */
-    readonly implements: ReadonlyArray<NominalHeritage>;
+    readonly implements: ReadonlyArray<NominalConformance>;
     /** The members in declaration order. */
     readonly members: ReadonlyArray<DefinitionMember>;
 };
@@ -1523,7 +1523,7 @@ export function encodeEnumDefinition(writer: BinaryWriter, value: EnumDefinition
     encodeEnumBackingType(writer, value.backing);
     writer.writeUnsigned(value.implements.length);
     for (const item4 of value.implements) {
-        encodeNominalHeritage(writer, item4);
+        encodeNominalConformance(writer, item4);
     }
     writer.writeUnsigned(value.members.length);
     for (const item5 of value.members) {
@@ -1537,7 +1537,7 @@ export function decodeEnumDefinition(reader: BinaryReader): EnumDefinition {
     const template = reader.readOption(() => decodeLocalGenericTemplateId(reader));
     const representation = decodeRepresentation(reader);
     const backing = decodeEnumBackingType(reader);
-    const implements_ = (() => { const length4 = reader.readNumber(); const items4: Array<NominalHeritage> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeNominalHeritage(reader)); } return items4; })();
+    const implements_ = (() => { const length4 = reader.readNumber(); const items4: Array<NominalConformance> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeNominalConformance(reader)); } return items4; })();
     const members = (() => { const length5 = reader.readNumber(); const items5: Array<DefinitionMember> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeDefinitionMember(reader)); } return items5; })();
 
     return {
@@ -1557,7 +1557,7 @@ export function toJsonEnumDefinition(value: EnumDefinition): Json {
         ...(value.template === undefined ? {} : { template: toJsonLocalGenericTemplateId(value.template) }),
         representation: toJsonRepresentation(value.representation),
         backing: toJsonEnumBackingType(value.backing),
-        implements: value.implements.map((item0) => toJsonNominalHeritage(item0)),
+        implements: value.implements.map((item0) => toJsonNominalConformance(item0)),
         members: value.members.map((item0) => toJsonDefinitionMember(item0)),
     };
 }
@@ -1571,7 +1571,7 @@ export function fromJsonEnumDefinition(value: Json): EnumDefinition {
         template: jsonOptional(object, "template", (value) => fromJsonLocalGenericTemplateId(value)),
         representation: fromJsonRepresentation(jsonField(object, "representation")),
         backing: fromJsonEnumBackingType(jsonField(object, "backing")),
-        implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonNominalHeritage(item0)),
+        implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonNominalConformance(item0)),
         members: jsonArray(jsonField(object, "members")).map((item0) => fromJsonDefinitionMember(item0)),
     };
 }
@@ -1666,7 +1666,7 @@ export type ExtensionDefinition = {
     /** The checked receiver target. */
     readonly target: ExtensionTarget;
     /** The implemented interfaces. */
-    readonly implements: ReadonlyArray<NominalHeritage>;
+    readonly implements: ReadonlyArray<NominalConformance>;
     /** The members in declaration order. */
     readonly members: ReadonlyArray<DefinitionMember>;
 };
@@ -1703,7 +1703,7 @@ export function encodeExtensionDefinition(writer: BinaryWriter, value: Extension
     encodeExtensionTarget(writer, value.target);
     writer.writeUnsigned(value.implements.length);
     for (const item4 of value.implements) {
-        encodeNominalHeritage(writer, item4);
+        encodeNominalConformance(writer, item4);
     }
     writer.writeUnsigned(value.members.length);
     for (const item5 of value.members) {
@@ -1717,7 +1717,7 @@ export function decodeExtensionDefinition(reader: BinaryReader): ExtensionDefini
     const form = decodeExtensionForm(reader);
     const template = reader.readOption(() => decodeLocalGenericTemplateId(reader));
     const target = decodeExtensionTarget(reader);
-    const implements_ = (() => { const length4 = reader.readNumber(); const items4: Array<NominalHeritage> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeNominalHeritage(reader)); } return items4; })();
+    const implements_ = (() => { const length4 = reader.readNumber(); const items4: Array<NominalConformance> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeNominalConformance(reader)); } return items4; })();
     const members = (() => { const length5 = reader.readNumber(); const items5: Array<DefinitionMember> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeDefinitionMember(reader)); } return items5; })();
 
     return {
@@ -1737,7 +1737,7 @@ export function toJsonExtensionDefinition(value: ExtensionDefinition): Json {
         form: toJsonExtensionForm(value.form),
         ...(value.template === undefined ? {} : { template: toJsonLocalGenericTemplateId(value.template) }),
         target: toJsonExtensionTarget(value.target),
-        implements: value.implements.map((item0) => toJsonNominalHeritage(item0)),
+        implements: value.implements.map((item0) => toJsonNominalConformance(item0)),
         members: value.members.map((item0) => toJsonDefinitionMember(item0)),
     };
 }
@@ -1751,7 +1751,7 @@ export function fromJsonExtensionDefinition(value: Json): ExtensionDefinition {
         form: fromJsonExtensionForm(jsonField(object, "form")),
         template: jsonOptional(object, "template", (value) => fromJsonLocalGenericTemplateId(value)),
         target: fromJsonExtensionTarget(jsonField(object, "target")),
-        implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonNominalHeritage(item0)),
+        implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonNominalConformance(item0)),
         members: jsonArray(jsonField(object, "members")).map((item0) => fromJsonDefinitionMember(item0)),
     };
 }
@@ -2283,6 +2283,71 @@ export function fromJsonInterfaceDefinition(value: Json): InterfaceDefinition {
     };
 }
 
+/** One member satisfying an interface requirement. */
+export type MemberConformance = {
+    /** The implementing member symbol. */
+    readonly member: GlobalSymbolId;
+    /** The required interface member symbol. */
+    readonly requirement: GlobalSymbolId;
+};
+
+export const MemberConformance = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: MemberConformance): void {
+        encodeMemberConformance(writer, value);
+    },
+
+    /** Decode one MemberConformance. */
+    decode(reader: BinaryReader): MemberConformance {
+        return decodeMemberConformance(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: MemberConformance): Json {
+        return toJsonMemberConformance(value);
+    },
+
+    /** Return one MemberConformance from one JSON value. */
+    fromJson(value: Json): MemberConformance {
+        return fromJsonMemberConformance(value);
+    },
+};
+
+/** Encode one MemberConformance. */
+export function encodeMemberConformance(writer: BinaryWriter, value: MemberConformance): void {
+    encodeGlobalSymbolId(writer, value.member);
+    encodeGlobalSymbolId(writer, value.requirement);
+}
+
+/** Decode one MemberConformance. */
+export function decodeMemberConformance(reader: BinaryReader): MemberConformance {
+    const member = decodeGlobalSymbolId(reader);
+    const requirement = decodeGlobalSymbolId(reader);
+
+    return {
+        member,
+        requirement,
+    };
+}
+
+/** Return one JSON value for one MemberConformance. */
+export function toJsonMemberConformance(value: MemberConformance): Json {
+    return {
+        member: toJsonGlobalSymbolId(value.member),
+        requirement: toJsonGlobalSymbolId(value.requirement),
+    };
+}
+
+/** Return one MemberConformance from one JSON value. */
+export function fromJsonMemberConformance(value: Json): MemberConformance {
+    const object = jsonObject(value);
+
+    return {
+        member: fromJsonGlobalSymbolId(jsonField(object, "member")),
+        requirement: fromJsonGlobalSymbolId(jsonField(object, "requirement")),
+    };
+}
+
 /** One method member. */
 export type MethodDefinition = {
     /** The member space declaring the method. */
@@ -2664,6 +2729,81 @@ export function fromJsonNewtypeDefinition(value: Json): NewtypeDefinition {
     };
 }
 
+/** One explicit interface conformance. */
+export type NominalConformance = {
+    /** The source `implements` node. */
+    readonly source: GlobalNodeIdAny;
+    /** The applied interface type. */
+    readonly interface: GlobalTypeId;
+    /** The members selected to satisfy interface requirements. */
+    readonly members: ReadonlyArray<MemberConformance>;
+};
+
+export const NominalConformance = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: NominalConformance): void {
+        encodeNominalConformance(writer, value);
+    },
+
+    /** Decode one NominalConformance. */
+    decode(reader: BinaryReader): NominalConformance {
+        return decodeNominalConformance(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: NominalConformance): Json {
+        return toJsonNominalConformance(value);
+    },
+
+    /** Return one NominalConformance from one JSON value. */
+    fromJson(value: Json): NominalConformance {
+        return fromJsonNominalConformance(value);
+    },
+};
+
+/** Encode one NominalConformance. */
+export function encodeNominalConformance(writer: BinaryWriter, value: NominalConformance): void {
+    encodeGlobalNodeIdAny(writer, value.source);
+    encodeGlobalTypeId(writer, value.interface);
+    writer.writeUnsigned(value.members.length);
+    for (const item2 of value.members) {
+        encodeMemberConformance(writer, item2);
+    }
+}
+
+/** Decode one NominalConformance. */
+export function decodeNominalConformance(reader: BinaryReader): NominalConformance {
+    const source = decodeGlobalNodeIdAny(reader);
+    const interface_ = decodeGlobalTypeId(reader);
+    const members = (() => { const length2 = reader.readNumber(); const items2: Array<MemberConformance> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeMemberConformance(reader)); } return items2; })();
+
+    return {
+        source,
+        interface: interface_,
+        members,
+    };
+}
+
+/** Return one JSON value for one NominalConformance. */
+export function toJsonNominalConformance(value: NominalConformance): Json {
+    return {
+        source: toJsonGlobalNodeIdAny(value.source),
+        interface: toJsonGlobalTypeId(value.interface),
+        members: value.members.map((item0) => toJsonMemberConformance(item0)),
+    };
+}
+
+/** Return one NominalConformance from one JSON value. */
+export function fromJsonNominalConformance(value: Json): NominalConformance {
+    const object = jsonObject(value);
+
+    return {
+        source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
+        interface: fromJsonGlobalTypeId(jsonField(object, "interface")),
+        members: jsonArray(jsonField(object, "members")).map((item0) => fromJsonMemberConformance(item0)),
+    };
+}
+
 /** One nominal heritage. */
 export type NominalHeritage = {
     /** The source heritage node. */
@@ -3040,7 +3180,7 @@ export type StructDefinition = {
     /** The selected runtime representation. */
     readonly representation: Representation;
     /** The implemented interfaces. */
-    readonly implements: ReadonlyArray<NominalHeritage>;
+    readonly implements: ReadonlyArray<NominalConformance>;
     /** The members in declaration order. */
     readonly members: ReadonlyArray<DefinitionMember>;
 };
@@ -3078,7 +3218,7 @@ export function encodeStructDefinition(writer: BinaryWriter, value: StructDefini
     encodeRepresentation(writer, value.representation);
     writer.writeUnsigned(value.implements.length);
     for (const item3 of value.implements) {
-        encodeNominalHeritage(writer, item3);
+        encodeNominalConformance(writer, item3);
     }
     writer.writeUnsigned(value.members.length);
     for (const item4 of value.members) {
@@ -3091,7 +3231,7 @@ export function decodeStructDefinition(reader: BinaryReader): StructDefinition {
     const space = reader.readOption(() => decodeSpace(reader));
     const template = reader.readOption(() => decodeLocalGenericTemplateId(reader));
     const representation = decodeRepresentation(reader);
-    const implements_ = (() => { const length3 = reader.readNumber(); const items3: Array<NominalHeritage> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeNominalHeritage(reader)); } return items3; })();
+    const implements_ = (() => { const length3 = reader.readNumber(); const items3: Array<NominalConformance> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeNominalConformance(reader)); } return items3; })();
     const members = (() => { const length4 = reader.readNumber(); const items4: Array<DefinitionMember> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeDefinitionMember(reader)); } return items4; })();
 
     return {
@@ -3109,7 +3249,7 @@ export function toJsonStructDefinition(value: StructDefinition): Json {
         ...(value.space === undefined ? {} : { space: toJsonSpace(value.space) }),
         ...(value.template === undefined ? {} : { template: toJsonLocalGenericTemplateId(value.template) }),
         representation: toJsonRepresentation(value.representation),
-        implements: value.implements.map((item0) => toJsonNominalHeritage(item0)),
+        implements: value.implements.map((item0) => toJsonNominalConformance(item0)),
         members: value.members.map((item0) => toJsonDefinitionMember(item0)),
     };
 }
@@ -3122,7 +3262,7 @@ export function fromJsonStructDefinition(value: Json): StructDefinition {
         space: jsonOptional(object, "space", (value) => fromJsonSpace(value)),
         template: jsonOptional(object, "template", (value) => fromJsonLocalGenericTemplateId(value)),
         representation: fromJsonRepresentation(jsonField(object, "representation")),
-        implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonNominalHeritage(item0)),
+        implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonNominalConformance(item0)),
         members: jsonArray(jsonField(object, "members")).map((item0) => fromJsonDefinitionMember(item0)),
     };
 }

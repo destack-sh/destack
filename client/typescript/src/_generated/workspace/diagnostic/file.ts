@@ -4,14 +4,9 @@ import { BinaryReader, BinaryWriter, Json, SerdeError, jsonField, jsonObject, js
 
 /** Selection for one diagnostic read. */
 export type DiagnosticsRequest =
-    /** Return diagnostics for every open root. */
+    /** Return diagnostics for this workspace. */
     | {
           readonly kind: "all";
-      }
-    /** Return diagnostics for one root. */
-    | {
-          readonly kind: "root";
-          readonly root: string;
       }
     /** Return diagnostics for one file. */
     | {
@@ -21,14 +16,9 @@ export type DiagnosticsRequest =
 ;
 
 export const DiagnosticsRequest = {
-    /** Return diagnostics for every open root. */
+    /** Return diagnostics for this workspace. */
     all(): DiagnosticsRequest {
         return { kind: "all" };
-    },
-
-    /** Return diagnostics for one root. */
-    root(root: string): DiagnosticsRequest {
-        return { kind: "root", root };
     },
 
     /** Return diagnostics for one file. */
@@ -63,12 +53,8 @@ export function encodeDiagnosticsRequest(writer: BinaryWriter, value: Diagnostic
         case "all":
             writer.writeUnsigned(0);
             return;
-        case "root":
-            writer.writeUnsigned(1);
-            writer.writeString(value.root);
-            return;
         case "file":
-            writer.writeUnsigned(2);
+            writer.writeUnsigned(1);
             writer.writeString(value.file);
             return;
     }
@@ -85,11 +71,6 @@ export function decodeDiagnosticsRequest(reader: BinaryReader): DiagnosticsReque
             return { kind: "all" };
         }
         case 1: {
-            const root = reader.readString();
-
-            return { kind: "root", root };
-        }
-        case 2: {
             const file = reader.readString();
 
             return { kind: "file", file };
@@ -105,11 +86,6 @@ export function toJsonDiagnosticsRequest(value: DiagnosticsRequest): Json {
         case "all":
             return {
                 kind: "all",
-            };
-        case "root":
-            return {
-                kind: "root",
-                root: value.root,
             };
         case "file":
             return {
@@ -130,11 +106,6 @@ export function fromJsonDiagnosticsRequest(value: Json): DiagnosticsRequest {
         case "all":
             return {
                 kind,
-            };
-        case "root":
-            return {
-                kind,
-                root: jsonString(jsonField(object, "root")),
             };
         case "file":
             return {

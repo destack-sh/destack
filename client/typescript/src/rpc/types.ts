@@ -20,6 +20,9 @@ export type MethodKind =
     | "clientStreaming"
     | "bidirectionalStreaming";
 
+/** Method behavior under repeated calls. */
+export type Idempotency = "unknown" | "idempotent" | "noSideEffects";
+
 /** Complete generated descriptor for one RPC method. */
 export type Method<Request, Response, Input = never, Output = never> = {
     /** Stable service identifier. */
@@ -30,6 +33,8 @@ export type Method<Request, Response, Input = never, Output = never> = {
     readonly fingerprint: bigint;
     /** Method streaming behavior. */
     readonly kind: MethodKind;
+    /** Method behavior under repeated calls. */
+    readonly idempotency: Idempotency;
     /** Initial request encoder. */
     readonly request: Encoder<Request>;
     /** Terminal response decoder. */

@@ -123,16 +123,6 @@ export class BinaryWriter {
         this.writeByteSlice(bytes);
     }
 
-    /** Write one JSON value. */
-    writeJson(value: unknown): void {
-        const json = JSON.stringify(value);
-        if (json === undefined) {
-            throw new SerdeError("JSON value is not serializable");
-        }
-
-        this.writeString(json);
-    }
-
     /** Write one length-prefixed byte slice. */
     writeByteSlice(value: Uint8Array | readonly number[]): void {
         this.writeUnsigned(value.length);
@@ -293,13 +283,6 @@ export class BinaryReader {
     /** Read one UTF-8 string. */
     readString(): string {
         return new TextDecoder().decode(this.readByteSlice());
-    }
-
-    /** Read one JSON value. */
-    readJson(): unknown {
-        const json = this.readString();
-
-        return JSON.parse(json);
     }
 
     /** Read one length-prefixed byte slice. */

@@ -12,7 +12,6 @@ import type { FormatInput } from "../command/format.js";
 import type { InfoInput } from "../command/info.js";
 import type { QueryInput } from "../command/query.js";
 import type { RewriteInput } from "../command/rewrite.js";
-import type { RunInput } from "../command/run.js";
 import type { SettingsInput } from "../command/settings.js";
 import type { TargetsInput } from "../command/targets.js";
 import type { TaskInput } from "../command/task.js";
@@ -28,7 +27,6 @@ import { decodeFormatInput, encodeFormatInput, fromJsonFormatInput, toJsonFormat
 import { decodeInfoInput, encodeInfoInput, fromJsonInfoInput, toJsonInfoInput } from "../command/info.js";
 import { decodeQueryInput, encodeQueryInput, fromJsonQueryInput, toJsonQueryInput } from "../command/query.js";
 import { decodeRewriteInput, encodeRewriteInput, fromJsonRewriteInput, toJsonRewriteInput } from "../command/rewrite.js";
-import { decodeRunInput, encodeRunInput, fromJsonRunInput, toJsonRunInput } from "../command/run.js";
 import { decodeSettingsInput, encodeSettingsInput, fromJsonSettingsInput, toJsonSettingsInput } from "../command/settings.js";
 import { decodeTargetsInput, encodeTargetsInput, fromJsonTargetsInput, toJsonTargetsInput } from "../command/targets.js";
 import { decodeTaskInput, encodeTaskInput, fromJsonTaskInput, toJsonTaskInput } from "../command/task.js";
@@ -746,71 +744,6 @@ export function fromJsonRewriteRequest(value: Json): RewriteRequest {
     return {
         root: jsonString(jsonField(object, "root")),
         input: fromJsonRewriteInput(jsonField(object, "input")),
-    };
-}
-
-/** Request to run one workspace target. */
-export type RunRequest = {
-    /** Workspace root containing the target. */
-    readonly root: string;
-    /** Run input. */
-    readonly input: RunInput;
-};
-
-export const RunRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: RunRequest): void {
-        encodeRunRequest(writer, value);
-    },
-
-    /** Decode one RunRequest. */
-    decode(reader: BinaryReader): RunRequest {
-        return decodeRunRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: RunRequest): Json {
-        return toJsonRunRequest(value);
-    },
-
-    /** Return one RunRequest from one JSON value. */
-    fromJson(value: Json): RunRequest {
-        return fromJsonRunRequest(value);
-    },
-};
-
-/** Encode one RunRequest. */
-export function encodeRunRequest(writer: BinaryWriter, value: RunRequest): void {
-    writer.writeString(value.root);
-    encodeRunInput(writer, value.input);
-}
-
-/** Decode one RunRequest. */
-export function decodeRunRequest(reader: BinaryReader): RunRequest {
-    const root = reader.readString();
-    const input = decodeRunInput(reader);
-
-    return {
-        root,
-        input,
-    };
-}
-
-/** Return one JSON value for one RunRequest. */
-export function toJsonRunRequest(value: RunRequest): Json {
-    return {
-        root: value.root,
-        input: toJsonRunInput(value.input),
-    };
-}
-
-/** Return one RunRequest from one JSON value. */
-export function fromJsonRunRequest(value: Json): RunRequest {
-    const object = jsonObject(value);
-
-    return {
-        root: jsonString(jsonField(object, "root")),
-        input: fromJsonRunInput(jsonField(object, "input")),
     };
 }
 

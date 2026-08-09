@@ -7,17 +7,19 @@ import type { TextRange } from "../../source/edit/text.js";
 import type { FileId } from "../../source/file/model/file.js";
 import type { FileImage } from "../file/image.js";
 import type { FileOperation } from "../file/image.js";
-import type { SourceUpdate } from "../file/update.js";
+import type { SourceUpdate } from "../update.js";
 import { decodeRevision, encodeRevision, fromJsonRevision, toJsonRevision } from "../../repository/revision.js";
 import { decodePatch, encodePatch, fromJsonPatch, toJsonPatch } from "../../source/edit/edit.js";
 import { decodeTextRange, encodeTextRange, fromJsonTextRange, toJsonTextRange } from "../../source/edit/text.js";
 import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../../source/file/model/file.js";
 import { decodeFileImage, encodeFileImage, fromJsonFileImage, toJsonFileImage } from "../file/image.js";
 import { decodeFileOperation, encodeFileOperation, fromJsonFileOperation, toJsonFileOperation } from "../file/image.js";
-import { decodeSourceUpdate, encodeSourceUpdate, fromJsonSourceUpdate, toJsonSourceUpdate } from "../file/update.js";
+import { decodeSourceUpdate, encodeSourceUpdate, fromJsonSourceUpdate, toJsonSourceUpdate } from "../update.js";
 
 /** Request to apply one workspace file operation. */
 export type ApplyFileOperationRequest = {
+    /** Root receiving the file operation. */
+    readonly root: string;
     /** File operation to apply. */
     readonly operation: FileOperation;
 };
@@ -46,14 +48,17 @@ export const ApplyFileOperationRequest = {
 
 /** Encode one ApplyFileOperationRequest. */
 export function encodeApplyFileOperationRequest(writer: BinaryWriter, value: ApplyFileOperationRequest): void {
+    writer.writeString(value.root);
     encodeFileOperation(writer, value.operation);
 }
 
 /** Decode one ApplyFileOperationRequest. */
 export function decodeApplyFileOperationRequest(reader: BinaryReader): ApplyFileOperationRequest {
+    const root = reader.readString();
     const operation = decodeFileOperation(reader);
 
     return {
+        root,
         operation,
     };
 }
@@ -61,6 +66,7 @@ export function decodeApplyFileOperationRequest(reader: BinaryReader): ApplyFile
 /** Return one JSON value for one ApplyFileOperationRequest. */
 export function toJsonApplyFileOperationRequest(value: ApplyFileOperationRequest): Json {
     return {
+        root: value.root,
         operation: toJsonFileOperation(value.operation),
     };
 }
@@ -70,6 +76,7 @@ export function fromJsonApplyFileOperationRequest(value: Json): ApplyFileOperati
     const object = jsonObject(value);
 
     return {
+        root: jsonString(jsonField(object, "root")),
         operation: fromJsonFileOperation(jsonField(object, "operation")),
     };
 }
@@ -280,6 +287,8 @@ export function fromJsonFormatFileRequest(value: Json): FormatFileRequest {
 
 /** Request to inspect whether one file is open. */
 export type IsFileOpenRequest = {
+    /** Owning workspace root. */
+    readonly root: string;
     /** Source path to inspect. */
     readonly path: string;
 };
@@ -308,14 +317,17 @@ export const IsFileOpenRequest = {
 
 /** Encode one IsFileOpenRequest. */
 export function encodeIsFileOpenRequest(writer: BinaryWriter, value: IsFileOpenRequest): void {
+    writer.writeString(value.root);
     writer.writeString(value.path);
 }
 
 /** Decode one IsFileOpenRequest. */
 export function decodeIsFileOpenRequest(reader: BinaryReader): IsFileOpenRequest {
+    const root = reader.readString();
     const path = reader.readString();
 
     return {
+        root,
         path,
     };
 }
@@ -323,6 +335,7 @@ export function decodeIsFileOpenRequest(reader: BinaryReader): IsFileOpenRequest
 /** Return one JSON value for one IsFileOpenRequest. */
 export function toJsonIsFileOpenRequest(value: IsFileOpenRequest): Json {
     return {
+        root: value.root,
         path: value.path,
     };
 }
@@ -332,6 +345,7 @@ export function fromJsonIsFileOpenRequest(value: Json): IsFileOpenRequest {
     const object = jsonObject(value);
 
     return {
+        root: jsonString(jsonField(object, "root")),
         path: jsonString(jsonField(object, "path")),
     };
 }

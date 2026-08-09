@@ -1,14 +1,14 @@
 use std::path::Path;
 
 use anyhow::Result;
-use destack_rpc::{Limits, ProtocolVersion};
+use destack_rpc as rpc;
 
 use crate::generate::core::write_text;
 
 use super::text::{GENERATED_HEADER, Text};
 
 pub(super) fn generate_rpc_defaults(root: &Path) -> Result<()> {
-    let limits = Limits::default();
+    let limits = rpc::Limits::default();
     let mut text = Text::new();
     text.line(GENERATED_HEADER);
     text.blank();
@@ -19,7 +19,7 @@ pub(super) fn generate_rpc_defaults(root: &Path) -> Result<()> {
     text.doc("Current exact RPC wire grammar.", "");
     text.line(format!(
         "export const protocolVersion: ProtocolVersion = {};",
-        ProtocolVersion::CURRENT.0
+        rpc::ProtocolVersion::CURRENT.0
     ));
     text.blank();
 

@@ -901,6 +901,7 @@ name = "destack_client_generate"
 version = "0.55.4"
 dependencies = [
  "anyhow",
+ "destack_daemon",
  "destack_rpc",
  "destack_serde",
  "destack_workspace",

@@ -1,9 +1,12 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Result, bail};
+use destack_serde as serde;
 
-/// One supported client type reference.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+use super::item::{Field, Variant};
+
+/// One supported client type.
+#[derive(Debug)]
 pub(crate) enum Type {
     /// Unit value.
     Unit,
@@ -27,8 +30,8 @@ pub(crate) enum Type {
     Float(u16),
     /// `usize`.
     Usize,
-    /// `Vec<T>`.
-    Vec(Box<Type>),
+    /// Sequence values.
+    Sequence(Box<Type>),
     /// `Option<T>`.
     Option(Box<Type>),
     /// `[T; N]`.
@@ -37,58 +40,65 @@ pub(crate) enum Type {
     Tuple(Vec<Type>),
     /// Map-like value.
     Map(Box<Type>, Box<Type>),
-    /// Dynamic JSON value.
-    Json,
     /// Another client model.
     Named { key: String, name: String },
+    /// Struct with named fields.
+    Struct(Vec<Field>),
+    /// Enum with variants.
+    Enum(Vec<Variant>),
 }
 
 impl Type {
-    /// Convert one serde schema type reference to one generator type.
+    /// Convert one serde type to one generator type.
     pub(crate) fn from_schema(
-        ty: destack_serde::SchemaRef,
-        names: &BTreeMap<destack_serde::SchemaName, String>,
+        ty: serde::Type,
+        keys: &BTreeMap<serde::Name, String>,
     ) -> Result<Self> {
         match ty {
-            destack_serde::SchemaRef::Unit => Ok(Self::Unit),
-            destack_serde::SchemaRef::String => Ok(Self::String),
-            destack_serde::SchemaRef::Bool => Ok(Self::Bool),
-            destack_serde::SchemaRef::Char => Ok(Self::Char),
-            destack_serde::SchemaRef::Unsigned { bits: 8 } => Ok(Self::U8),
-            destack_serde::SchemaRef::Unsigned { bits: 16 | 32 } => Ok(Self::U32),
-            destack_serde::SchemaRef::Unsigned { bits: 64 } => Ok(Self::U64),
-            destack_serde::SchemaRef::Unsigned { bits: 128 } => Ok(Self::U128),
-            destack_serde::SchemaRef::Signed { bits } => Ok(Self::Signed(bits)),
-            destack_serde::SchemaRef::Float { bits: 32 } => Ok(Self::Float(32)),
-            destack_serde::SchemaRef::Float { bits: 64 } => Ok(Self::Float(64)),
-            destack_serde::SchemaRef::Float { bits } => {
+            serde::Type::Unit => Ok(Self::Unit),
+            serde::Type::String => Ok(Self::String),
+            serde::Type::Bool => Ok(Self::Bool),
+            serde::Type::Char => Ok(Self::Char),
+            serde::Type::Unsigned { bits: 8 } => Ok(Self::U8),
+            serde::Type::Unsigned { bits: 16 | 32 } => Ok(Self::U32),
+            serde::Type::Unsigned { bits: 64 } => Ok(Self::U64),
+            serde::Type::Unsigned { bits: 128 } => Ok(Self::U128),
+            serde::Type::Unsigned { bits } => {
+                bail!("unsupported client unsigned width {bits}")
+            }
+            serde::Type::Signed {
+                bits: bits @ (8 | 16 | 32 | 64 | 128),
+            } => Ok(Self::Signed(bits)),
+            serde::Type::Signed { bits } => {
+                bail!("unsupported client signed width {bits}")
+            }
+            serde::Type::Float { bits: 32 } => Ok(Self::Float(32)),
+            serde::Type::Float { bits: 64 } => Ok(Self::Float(64)),
+            serde::Type::Float { bits } => {
                 bail!("unsupported client float width {bits}")
             }
-            destack_serde::SchemaRef::Usize => Ok(Self::Usize),
-            destack_serde::SchemaRef::Sequence(ty) => {
-                Ok(Self::Vec(Box::new(Self::from_schema(*ty, names)?)))
+            serde::Type::Usize => Ok(Self::Usize),
+            serde::Type::Sequence(ty) => {
+                Ok(Self::Sequence(Box::new(Self::from_schema(*ty, keys)?)))
             }
-            destack_serde::SchemaRef::Option(ty) => {
-                Ok(Self::Option(Box::new(Self::from_schema(*ty, names)?)))
+            serde::Type::Option(ty) => Ok(Self::Option(Box::new(Self::from_schema(*ty, keys)?))),
+            serde::Type::Array { item, len } => {
+                Ok(Self::Array(Box::new(Self::from_schema(*item, keys)?), len))
             }
-            destack_serde::SchemaRef::Array { item, len } => {
-                Ok(Self::Array(Box::new(Self::from_schema(*item, names)?), len))
-            }
-            destack_serde::SchemaRef::Tuple(types) => {
+            serde::Type::Tuple(types) => {
                 let types = types
                     .into_iter()
-                    .map(|ty| Self::from_schema(ty, names))
+                    .map(|ty| Self::from_schema(ty, keys))
                     .collect::<Result<Vec<_>>>()?;
 
                 Ok(Self::Tuple(types))
             }
-            destack_serde::SchemaRef::Map { key, value } => Ok(Self::Map(
-                Box::new(Self::from_schema(*key, names)?),
-                Box::new(Self::from_schema(*value, names)?),
+            serde::Type::Map { key, value } => Ok(Self::Map(
+                Box::new(Self::from_schema(*key, keys)?),
+                Box::new(Self::from_schema(*value, keys)?),
             )),
-            destack_serde::SchemaRef::Json => Ok(Self::Json),
-            destack_serde::SchemaRef::Named(name) => {
-                let Some(generated) = names.get(&name).cloned() else {
+            serde::Type::Named(name) => {
+                let Some(generated) = keys.get(&name).cloned() else {
                     bail!("schema references unknown type {}", name.name);
                 };
 
@@ -97,50 +107,64 @@ impl Type {
                     name: name.name,
                 })
             }
-            other => bail!("unsupported client schema type {other:?}"),
+            serde::Type::Struct(fields) => {
+                let fields = fields
+                    .into_iter()
+                    .map(|field| Field::from_schema(field, keys))
+                    .collect::<Result<Vec<_>>>()?;
+
+                Ok(Self::Struct(fields))
+            }
+            serde::Type::Enum(variants) => {
+                let variants = variants
+                    .into_iter()
+                    .map(|variant| Variant::from_schema(variant, keys))
+                    .collect::<Result<Vec<_>>>()?;
+
+                Ok(Self::Enum(variants))
+            }
         }
     }
 
-    /// Abort when a protocol-only type reaches a public client backend generator.
+    /// Return whether this type references one client model.
+    pub(crate) fn references(&self, name: &str) -> bool {
+        let mut is_referenced = false;
+        self.visit_refs(&mut |reference| is_referenced |= reference == name);
+
+        is_referenced
+    }
+
+    /// Abort when this type is unsupported in the current generator position.
     #[track_caller]
-    pub(crate) fn unsupported_client_type(&self) -> ! {
-        unreachable!("protocol-only type reached public client generator: {self:?}")
+    pub(crate) fn unsupported(&self) -> ! {
+        unreachable!("unsupported TypeScript generator type: {self:?}")
     }
 
     /// Visit referenced client model names.
-    pub(crate) fn visit_refs(&self, visit: &mut impl FnMut(&str) -> Result<()>) -> Result<()> {
+    pub(crate) fn visit_refs(&self, visit: &mut impl FnMut(&str)) {
         match self {
-            Self::Vec(ty) | Self::Option(ty) | Self::Array(ty, _) => ty.visit_refs(visit),
+            Self::Sequence(ty) | Self::Option(ty) | Self::Array(ty, _) => ty.visit_refs(visit),
             Self::Tuple(types) => {
                 for ty in types {
-                    ty.visit_refs(visit)?;
+                    ty.visit_refs(visit);
                 }
-
-                Ok(())
             }
             Self::Map(key, value) => {
-                key.visit_refs(visit)?;
-                value.visit_refs(visit)
+                key.visit_refs(visit);
+                value.visit_refs(visit);
             }
             Self::Named { key, .. } => visit(key),
-            _ => Ok(()),
+            Self::Struct(fields) => {
+                for field in fields {
+                    field.ty.visit_refs(visit);
+                }
+            }
+            Self::Enum(variants) => {
+                for variant in variants {
+                    variant.payload.visit_refs(visit);
+                }
+            }
+            _ => {}
         }
-    }
-
-    /// Return whether this type is a scalar client value.
-    pub(crate) fn is_scalar(&self) -> bool {
-        matches!(
-            self,
-            Self::String
-                | Self::Bool
-                | Self::Char
-                | Self::U8
-                | Self::U32
-                | Self::U64
-                | Self::U128
-                | Self::Signed(_)
-                | Self::Float(_)
-                | Self::Usize
-        )
     }
 }

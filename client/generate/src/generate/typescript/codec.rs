@@ -1,24 +1,19 @@
-use crate::generate::schema::{Field, Item, Payload, Schema, Shape, Type, Variant};
+use crate::generate::schema::{Field, Item, Payload, Schema, Type, Variant};
 
 use super::item::render_type;
 use super::name::{identifier, is_identifier};
-use super::path::TypeNames;
+use super::scope::Scope;
 use super::text::Text;
 
 /// Render encode and decode functions for one protocol item.
-pub(super) fn render_codec_item(
-    schema: &Schema,
-    item: &Item,
-    type_names: &TypeNames,
-    text: &mut Text,
-) {
+pub(super) fn render_codec_item(schema: &Schema, item: &Item, scope: &Scope, text: &mut Text) {
     text.line(format!("/** Encode one {}. */", item.name));
     text.line(format!(
         "export function {}(writer: BinaryWriter, value: {}): void {{",
         encode_name(&item.name),
         item.name
     ));
-    render_encode_item(schema, item, type_names, text, "value", "    ");
+    render_encode_item(schema, item, scope, text, "value", "    ");
     text.line("}");
     text.blank();
 
@@ -28,7 +23,7 @@ pub(super) fn render_codec_item(
         decode_name(&item.name),
         item.name
     ));
-    render_decode_item(schema, item, type_names, text, "    ");
+    render_decode_item(schema, item, scope, text, "    ");
     text.line("}");
     text.blank();
 
@@ -41,7 +36,7 @@ pub(super) fn render_codec_item(
         to_json_name(&item.name),
         item.name
     ));
-    render_to_json_item(schema, item, type_names, text, "value", "    ");
+    render_to_json_item(schema, item, scope, text, "value", "    ");
     text.line("}");
     text.blank();
 
@@ -54,7 +49,7 @@ pub(super) fn render_codec_item(
         from_json_name(&item.name),
         item.name
     ));
-    render_from_json_item(schema, item, type_names, text, "value", "    ");
+    render_from_json_item(schema, item, scope, text, "value", "    ");
     text.line("}");
     text.blank();
 }
@@ -63,61 +58,34 @@ pub(super) fn render_codec_item(
 fn render_encode_item(
     schema: &Schema,
     item: &Item,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     value: &str,
     indent: &str,
 ) {
-    if let Some(ty) = item.scalar_newtype() {
-        render_encode_type(schema, type_names, text, ty, value, indent, 0);
-
-        return;
-    }
-
-    match &item.shape {
-        Shape::Struct(fields) => {
+    match &item.ty {
+        Type::Struct(fields) => {
             for (index, field) in fields.iter().enumerate() {
                 let field_value = property_access(value, &field.label());
-                render_encode_type(
-                    schema,
-                    type_names,
-                    text,
-                    &field.ty,
-                    &field_value,
-                    indent,
-                    index,
-                );
+                render_encode_type(schema, scope, text, &field.ty, &field_value, indent, index);
             }
         }
-        Shape::Enum(variants) if schema.is_unit_enum(&item.key) => {
+        Type::Enum(variants) if schema.is_unit_enum(&item.key) => {
             render_encode_unit_enum(text, variants, value, indent);
         }
-        Shape::Enum(variants) => {
-            render_encode_payload_enum(schema, type_names, text, variants, value, indent);
+        Type::Enum(variants) => {
+            render_encode_payload_enum(schema, scope, text, variants, value, indent);
         }
+        ty => render_encode_type(schema, scope, text, ty, value, indent, 0),
     }
 }
 
 /// Render one item decoder body.
-fn render_decode_item(
-    schema: &Schema,
-    item: &Item,
-    type_names: &TypeNames,
-    text: &mut Text,
-    indent: &str,
-) {
-    if let Some(ty) = item.scalar_newtype() {
-        let value = render_decode_type(schema, type_names, ty, "reader", 0);
-
-        text.line(format!("{indent}return {value};"));
-
-        return;
-    }
-
-    match &item.shape {
-        Shape::Struct(fields) => {
+fn render_decode_item(schema: &Schema, item: &Item, scope: &Scope, text: &mut Text, indent: &str) {
+    match &item.ty {
+        Type::Struct(fields) => {
             for (index, field) in fields.iter().enumerate() {
-                let value = render_decode_type(schema, type_names, &field.ty, "reader", index);
+                let value = render_decode_type(schema, scope, &field.ty, "reader", index);
                 let name = field_local_name(field);
 
                 text.line(format!("{indent}const {name} = {value};"));
@@ -132,11 +100,16 @@ fn render_decode_item(
             }
             text.line(format!("{indent}}};"));
         }
-        Shape::Enum(variants) if schema.is_unit_enum(&item.key) => {
+        Type::Enum(variants) if schema.is_unit_enum(&item.key) => {
             render_decode_unit_enum(text, variants, indent);
         }
-        Shape::Enum(variants) => {
-            render_decode_payload_enum(schema, type_names, text, variants, indent);
+        Type::Enum(variants) => {
+            render_decode_payload_enum(schema, scope, text, variants, indent);
+        }
+        ty => {
+            let value = render_decode_type(schema, scope, ty, "reader", 0);
+
+            text.line(format!("{indent}return {value};"));
         }
     }
 }
@@ -145,32 +118,29 @@ fn render_decode_item(
 fn render_to_json_item(
     schema: &Schema,
     item: &Item,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     value: &str,
     indent: &str,
 ) {
-    if let Some(ty) = item.scalar_newtype() {
-        let value = render_to_json_type(schema, type_names, ty, value, 0);
-
-        text.line(format!("{indent}return {value};"));
-
-        return;
-    }
-
-    match &item.shape {
-        Shape::Struct(fields) => {
+    match &item.ty {
+        Type::Struct(fields) => {
             text.line(format!("{indent}return {{"));
             for field in fields {
-                render_json_field(schema, type_names, text, field, value, indent);
+                render_json_field(schema, scope, text, field, value, indent);
             }
             text.line(format!("{indent}}};"));
         }
-        Shape::Enum(_) if schema.is_unit_enum(&item.key) => {
+        Type::Enum(_) if schema.is_unit_enum(&item.key) => {
             text.line(format!("{indent}return {value};"));
         }
-        Shape::Enum(variants) => {
-            render_to_json_payload_enum(schema, type_names, text, variants, value, indent);
+        Type::Enum(variants) => {
+            render_to_json_payload_enum(schema, scope, text, variants, value, indent);
+        }
+        ty => {
+            let value = render_to_json_type(schema, scope, ty, value, 0);
+
+            text.line(format!("{indent}return {value};"));
         }
     }
 }
@@ -179,21 +149,13 @@ fn render_to_json_item(
 fn render_from_json_item(
     schema: &Schema,
     item: &Item,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     value: &str,
     indent: &str,
 ) {
-    if let Some(ty) = item.scalar_newtype() {
-        let value = render_from_json_type(schema, type_names, ty, value, 0);
-
-        text.line(format!("{indent}return {value};"));
-
-        return;
-    }
-
-    match &item.shape {
-        Shape::Struct(fields) => {
+    match &item.ty {
+        Type::Struct(fields) => {
             text.line(format!("{indent}const object = jsonObject({value});"));
             if !fields.is_empty() {
                 text.blank();
@@ -201,15 +163,20 @@ fn render_from_json_item(
 
             text.line(format!("{indent}return {{"));
             for field in fields {
-                render_from_json_field(schema, type_names, text, field, indent);
+                render_from_json_field(schema, scope, text, field, indent);
             }
             text.line(format!("{indent}}};"));
         }
-        Shape::Enum(variants) if schema.is_unit_enum(&item.key) => {
+        Type::Enum(variants) if schema.is_unit_enum(&item.key) => {
             render_from_json_unit_enum(text, variants, value, indent);
         }
-        Shape::Enum(variants) => {
-            render_from_json_payload_enum(schema, type_names, text, variants, value, indent);
+        Type::Enum(variants) => {
+            render_from_json_payload_enum(schema, scope, text, variants, value, indent);
+        }
+        ty => {
+            let value = render_from_json_type(schema, scope, ty, value, 0);
+
+            text.line(format!("{indent}return {value};"));
         }
     }
 }
@@ -217,7 +184,7 @@ fn render_from_json_item(
 /// Render one JSON struct field.
 fn render_json_field(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     field: &Field,
     value: &str,
@@ -227,14 +194,14 @@ fn render_json_field(
     let field_value = property_access(value, &property);
 
     if let Type::Option(item) = &field.ty {
-        let json = render_to_json_type(schema, type_names, item, &field_value, 0);
+        let json = render_to_json_type(schema, scope, item, &field_value, 0);
         let assignment = property_assignment(&property, &json);
 
         text.line(format!(
             "{indent}    ...({field_value} === undefined ? {{}} : {{ {assignment} }}),"
         ));
     } else {
-        let json = render_to_json_type(schema, type_names, &field.ty, &field_value, 0);
+        let json = render_to_json_type(schema, scope, &field.ty, &field_value, 0);
         let assignment = property_assignment(&property, &json);
 
         text.line(format!("{indent}    {assignment},"));
@@ -244,20 +211,20 @@ fn render_json_field(
 /// Render one JSON struct field decoder.
 fn render_from_json_field(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     field: &Field,
     indent: &str,
 ) {
     let property = field.label();
     let json = if let Type::Option(item) = &field.ty {
-        let value = render_from_json_type(schema, type_names, item, "value", 0);
+        let value = render_from_json_type(schema, scope, item, "value", 0);
 
-        format!("jsonOptional(object, {:?}, (value) => {value})", property)
+        format!("jsonOptional(object, {property:?}, (value) => {value})")
     } else {
         let field_value = format!("jsonField(object, {property:?})");
 
-        render_from_json_type(schema, type_names, &field.ty, &field_value, 0)
+        render_from_json_type(schema, scope, &field.ty, &field_value, 0)
     };
     let assignment = property_assignment(&property, &json);
 
@@ -267,7 +234,7 @@ fn render_from_json_field(
 /// Render one payload enum JSON encoder.
 fn render_to_json_payload_enum(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     variants: &[Variant],
     value: &str,
@@ -281,17 +248,17 @@ fn render_to_json_payload_enum(
 
         match &variant.payload {
             Payload::Unit => {}
-            Payload::Tuple(ty) => {
+            Payload::Value(ty) => {
                 let property = variant.payload_field_name();
                 let field_value = payload_property_access(value, &property);
-                let json = render_to_json_type(schema, type_names, ty, &field_value, 0);
+                let json = render_to_json_type(schema, scope, ty, &field_value, 0);
                 let assignment = property_assignment(&property, &json);
 
                 text.line(format!("{indent}            {assignment},"));
             }
             Payload::Struct(fields) => {
                 for field in fields {
-                    render_json_payload_field(schema, type_names, text, field, value, indent);
+                    render_json_payload_field(schema, scope, text, field, value, indent);
                 }
             }
         }
@@ -308,7 +275,7 @@ fn render_to_json_payload_enum(
 /// Render one JSON payload enum field.
 fn render_json_payload_field(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     field: &Field,
     value: &str,
@@ -318,14 +285,14 @@ fn render_json_payload_field(
     let field_value = property_access(value, &property);
 
     if let Type::Option(item) = &field.ty {
-        let json = render_to_json_type(schema, type_names, item, &field_value, 0);
+        let json = render_to_json_type(schema, scope, item, &field_value, 0);
         let assignment = property_assignment(&property, &json);
 
         text.line(format!(
             "{indent}            ...({field_value} === undefined ? {{}} : {{ {assignment} }}),"
         ));
     } else {
-        let json = render_to_json_type(schema, type_names, &field.ty, &field_value, 0);
+        let json = render_to_json_type(schema, scope, &field.ty, &field_value, 0);
         let assignment = property_assignment(&property, &json);
 
         text.line(format!("{indent}            {assignment},"));
@@ -351,7 +318,7 @@ fn render_from_json_unit_enum(text: &mut Text, variants: &[Variant], value: &str
 /// Render one payload enum JSON decoder.
 fn render_from_json_payload_enum(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     variants: &[Variant],
     value: &str,
@@ -370,17 +337,17 @@ fn render_from_json_payload_enum(
 
         match &variant.payload {
             Payload::Unit => {}
-            Payload::Tuple(ty) => {
+            Payload::Value(ty) => {
                 let property = variant.payload_field_name();
                 let field_value = format!("jsonField(object, {property:?})");
-                let json = render_from_json_type(schema, type_names, ty, &field_value, 0);
+                let json = render_from_json_type(schema, scope, ty, &field_value, 0);
                 let assignment = property_assignment(&property, &json);
 
                 text.line(format!("{indent}            {assignment},"));
             }
             Payload::Struct(fields) => {
                 for field in fields {
-                    render_from_json_payload_field(schema, type_names, text, field, indent);
+                    render_from_json_payload_field(schema, scope, text, field, indent);
                 }
             }
         }
@@ -397,20 +364,20 @@ fn render_from_json_payload_enum(
 /// Render one JSON payload enum field decoder.
 fn render_from_json_payload_field(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     field: &Field,
     indent: &str,
 ) {
     let property = payload_property_name(&field.label());
     let json = if let Type::Option(item) = &field.ty {
-        let value = render_from_json_type(schema, type_names, item, "value", 0);
+        let value = render_from_json_type(schema, scope, item, "value", 0);
 
-        format!("jsonOptional(object, {:?}, (value) => {value})", property)
+        format!("jsonOptional(object, {property:?}, (value) => {value})")
     } else {
         let field_value = format!("jsonField(object, {property:?})");
 
-        render_from_json_type(schema, type_names, &field.ty, &field_value, 0)
+        render_from_json_type(schema, scope, &field.ty, &field_value, 0)
     };
     let assignment = property_assignment(&property, &json);
 
@@ -451,7 +418,7 @@ fn render_decode_unit_enum(text: &mut Text, variants: &[Variant], indent: &str) 
 /// Render one payload enum encoder.
 fn render_encode_payload_enum(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     variants: &[Variant],
     value: &str,
@@ -463,11 +430,11 @@ fn render_encode_payload_enum(
         text.line(format!("{indent}        writer.writeUnsigned({index});"));
         match &variant.payload {
             Payload::Unit => {}
-            Payload::Tuple(ty) => {
+            Payload::Value(ty) => {
                 let field = payload_property_access(value, &variant.payload_field_name());
                 render_encode_type(
                     schema,
-                    type_names,
+                    scope,
                     text,
                     ty,
                     &field,
@@ -480,7 +447,7 @@ fn render_encode_payload_enum(
                     let field_value = payload_property_access(value, &field.label());
                     render_encode_type(
                         schema,
-                        type_names,
+                        scope,
                         text,
                         &field.ty,
                         &field_value,
@@ -502,7 +469,7 @@ fn render_encode_payload_enum(
 /// Render one payload enum decoder.
 fn render_decode_payload_enum(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     variants: &[Variant],
     indent: &str,
@@ -519,8 +486,8 @@ fn render_decode_payload_enum(
                     variant.label()
                 ));
             }
-            Payload::Tuple(ty) => {
-                let value = render_decode_type(schema, type_names, ty, "reader", 0);
+            Payload::Value(ty) => {
+                let value = render_decode_type(schema, scope, ty, "reader", 0);
                 let field = payload_property_name(&variant.payload_field_name());
                 let name = identifier(&field);
                 text.line(format!("{indent}        const {name} = {value};"));
@@ -533,8 +500,7 @@ fn render_decode_payload_enum(
             }
             Payload::Struct(fields) => {
                 for (field_index, field) in fields.iter().enumerate() {
-                    let value =
-                        render_decode_type(schema, type_names, &field.ty, "reader", field_index);
+                    let value = render_decode_type(schema, scope, &field.ty, "reader", field_index);
                     let name = payload_field_local_name(field);
 
                     text.line(format!("{indent}        const {name} = {value};"));
@@ -612,7 +578,7 @@ fn property_assignment(property: &str, value: &str) -> String {
 /// Render one value encoder.
 pub(super) fn render_encode_type(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     ty: &Type,
     value: &str,
@@ -632,12 +598,12 @@ pub(super) fn render_encode_type(
         Type::Signed(_) => text.line(format!("{indent}writer.writeSigned({value});")),
         Type::Float(32) => text.line(format!("{indent}writer.writeF32({value});")),
         Type::Float(64) => text.line(format!("{indent}writer.writeF64({value});")),
-        Type::Float(_) => ty.unsupported_client_type(),
-        Type::Vec(item) if matches!(item.as_ref(), Type::U8) => {
+        Type::Float(_) => ty.unsupported(),
+        Type::Sequence(item) if matches!(item.as_ref(), Type::U8) => {
             text.line(format!("{indent}writer.writeByteSlice({value});"));
         }
-        Type::Vec(item) => {
-            render_encode_sequence(schema, type_names, text, item, value, indent, depth)
+        Type::Sequence(item) => {
+            render_encode_sequence(schema, scope, text, item, value, indent, depth)
         }
         Type::Option(item) => {
             text.line(format!(
@@ -645,7 +611,7 @@ pub(super) fn render_encode_type(
             ));
             render_encode_type(
                 schema,
-                type_names,
+                scope,
                 text,
                 item,
                 &format!("value{depth}"),
@@ -655,26 +621,24 @@ pub(super) fn render_encode_type(
             text.line(format!("{indent}}});"));
         }
         Type::Array(item, _) => {
-            render_encode_array(schema, type_names, text, item, value, indent, depth)
+            render_encode_array(schema, scope, text, item, value, indent, depth)
         }
-        Type::Tuple(items) => {
-            render_encode_tuple(schema, type_names, text, items, value, indent, depth)
-        }
+        Type::Tuple(items) => render_encode_tuple(schema, scope, text, items, value, indent, depth),
         Type::Map(key, item) => {
-            render_encode_map(schema, type_names, text, key, item, value, indent, depth)
+            render_encode_map(schema, scope, text, key, item, value, indent, depth)
         }
-        Type::Json => text.line(format!("{indent}writer.writeJson({value});")),
         Type::Named { key, name } => {
-            let encoder = type_names.encoder(key, name);
+            let encoder = scope.encoder(key, name);
             text.line(format!("{indent}{encoder}(writer, {value});"))
         }
+        Type::Struct(_) | Type::Enum(_) => ty.unsupported(),
     }
 }
 
 /// Render one sequence encoder.
 fn render_encode_sequence(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     item: &Type,
     value: &str,
@@ -686,7 +650,7 @@ fn render_encode_sequence(
     text.line(format!("{indent}for (const {item_name} of {value}) {{"));
     render_encode_type(
         schema,
-        type_names,
+        scope,
         text,
         item,
         &item_name,
@@ -699,7 +663,7 @@ fn render_encode_sequence(
 /// Render one fixed array encoder.
 fn render_encode_array(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     item: &Type,
     value: &str,
@@ -715,7 +679,7 @@ fn render_encode_array(
     text.line(format!("{indent}for (const {item_name} of {value}) {{"));
     render_encode_type(
         schema,
-        type_names,
+        scope,
         text,
         item,
         &item_name,
@@ -728,7 +692,7 @@ fn render_encode_array(
 /// Render one tuple encoder.
 fn render_encode_tuple(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     items: &[Type],
     value: &str,
@@ -738,7 +702,7 @@ fn render_encode_tuple(
     for (index, item) in items.iter().enumerate() {
         render_encode_type(
             schema,
-            type_names,
+            scope,
             text,
             item,
             &format!("{value}[{index}]"),
@@ -751,7 +715,7 @@ fn render_encode_tuple(
 /// Render one map encoder.
 fn render_encode_map(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     text: &mut Text,
     key: &Type,
     item: &Type,
@@ -774,7 +738,7 @@ fn render_encode_map(
     ));
     render_encode_type(
         schema,
-        type_names,
+        scope,
         text,
         key,
         &key_name,
@@ -793,7 +757,7 @@ fn render_encode_map(
     text.line(format!("{indent}for (const {entry} of {entries}) {{"));
     render_encode_type(
         schema,
-        type_names,
+        scope,
         text,
         key,
         &format!("{entry}.{key_name}"),
@@ -802,7 +766,7 @@ fn render_encode_map(
     );
     render_encode_type(
         schema,
-        type_names,
+        scope,
         text,
         item,
         &format!("{entry}.{item_name}"),
@@ -815,7 +779,7 @@ fn render_encode_map(
 /// Render one value decoder expression.
 pub(super) fn render_decode_type(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     ty: &Type,
     reader: &str,
     depth: usize,
@@ -831,44 +795,44 @@ pub(super) fn render_decode_type(
         Type::Signed(8) => format!("{reader}.readI8()"),
         Type::Signed(16 | 32) => format!("{reader}.readSignedNumber()"),
         Type::Signed(64 | 128) => format!("{reader}.readSigned()"),
-        Type::Signed(_) => ty.unsupported_client_type(),
+        Type::Signed(_) => ty.unsupported(),
         Type::Float(32) => format!("{reader}.readF32()"),
         Type::Float(64) => format!("{reader}.readF64()"),
-        Type::Float(_) => ty.unsupported_client_type(),
-        Type::Vec(item) if matches!(item.as_ref(), Type::U8) => format!("{reader}.readByteSlice()"),
-        Type::Vec(item) => render_decode_sequence(schema, type_names, item, reader, depth),
+        Type::Float(_) => ty.unsupported(),
+        Type::Sequence(item) if matches!(item.as_ref(), Type::U8) => {
+            format!("{reader}.readByteSlice()")
+        }
+        Type::Sequence(item) => render_decode_sequence(schema, scope, item, reader, depth),
         Type::Option(item) => {
-            let value = render_decode_type(schema, type_names, item, reader, depth + 1);
+            let value = render_decode_type(schema, scope, item, reader, depth + 1);
 
             format!("{reader}.readOption(() => {value})")
         }
-        Type::Array(item, len) => {
-            render_decode_array(schema, type_names, item, *len, reader, depth)
-        }
-        Type::Tuple(items) => render_decode_tuple(schema, type_names, items, reader, depth),
-        Type::Map(key, item) => render_decode_map(schema, type_names, key, item, reader, depth),
-        Type::Json => format!("{reader}.readJson()"),
+        Type::Array(item, len) => render_decode_array(schema, scope, item, *len, reader, depth),
+        Type::Tuple(items) => render_decode_tuple(schema, scope, items, reader, depth),
+        Type::Map(key, item) => render_decode_map(schema, scope, key, item, reader, depth),
         Type::Named { key, name } => {
-            let decoder = type_names.decoder(key, name);
+            let decoder = scope.decoder(key, name);
 
             format!("{decoder}({reader})")
         }
+        Type::Struct(_) | Type::Enum(_) => ty.unsupported(),
     }
 }
 
 /// Render one sequence decoder expression.
 fn render_decode_sequence(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     item: &Type,
     reader: &str,
     depth: usize,
 ) -> String {
     let len = format!("length{depth}");
     let out = format!("items{depth}");
-    let value = render_decode_type(schema, type_names, item, reader, depth + 1);
+    let value = render_decode_type(schema, scope, item, reader, depth + 1);
 
-    let item = render_type(schema, type_names, item);
+    let item = render_type(schema, scope, item);
 
     format!(
         "(() => {{ const {len} = {reader}.readNumber(); const {out}: Array<{item}> = []; for (let index = 0; index < {len}; index += 1) {{ {out}.push({value}); }} return {out}; }})()"
@@ -878,7 +842,7 @@ fn render_decode_sequence(
 /// Render one fixed array decoder expression.
 fn render_decode_array(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     item: &Type,
     len: usize,
     reader: &str,
@@ -889,7 +853,7 @@ fn render_decode_array(
     }
 
     let items = (0..len)
-        .map(|index| render_decode_type(schema, type_names, item, reader, depth + index))
+        .map(|index| render_decode_type(schema, scope, item, reader, depth + index))
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -899,7 +863,7 @@ fn render_decode_array(
 /// Render one tuple decoder expression.
 fn render_decode_tuple(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     items: &[Type],
     reader: &str,
     depth: usize,
@@ -907,7 +871,7 @@ fn render_decode_tuple(
     let items = items
         .iter()
         .enumerate()
-        .map(|(index, item)| render_decode_type(schema, type_names, item, reader, depth + index))
+        .map(|(index, item)| render_decode_type(schema, scope, item, reader, depth + index))
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -917,7 +881,7 @@ fn render_decode_tuple(
 /// Render one map decoder expression.
 fn render_decode_map(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     key: &Type,
     item: &Type,
     reader: &str,
@@ -925,19 +889,19 @@ fn render_decode_map(
 ) -> String {
     let len = format!("length{depth}");
     let out = format!("items{depth}");
-    let key_value = render_decode_type(schema, type_names, key, reader, depth + 1);
-    let item_value = render_decode_type(schema, type_names, item, reader, depth + 2);
+    let key_value = render_decode_type(schema, scope, key, reader, depth + 1);
+    let item_value = render_decode_type(schema, scope, item, reader, depth + 2);
 
     if matches!(key, Type::String) {
         format!(
             "(() => {{ const {len} = {reader}.readNumber(); const {out}: Record<string, {}> = {{}}; for (let index = 0; index < {len}; index += 1) {{ const key = {key_value}; {out}[key] = {item_value}; }} return {out}; }})()",
-            render_type(schema, type_names, item)
+            render_type(schema, scope, item)
         )
     } else {
         format!(
             "(() => {{ const {len} = {reader}.readNumber(); const {out} = new Map<{}, {}>(); for (let index = 0; index < {len}; index += 1) {{ {out}.set({key_value}, {item_value}); }} return {out}; }})()",
-            render_type(schema, type_names, key),
-            render_type(schema, type_names, item)
+            render_type(schema, scope, key),
+            render_type(schema, scope, item)
         )
     }
 }
@@ -945,7 +909,7 @@ fn render_decode_map(
 /// Render one JSON encoder expression.
 fn render_to_json_type(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     ty: &Type,
     value: &str,
     depth: usize,
@@ -959,37 +923,37 @@ fn render_to_json_type(
         | Type::Usize
         | Type::Signed(8 | 16 | 32)
         | Type::Float(_) => value.to_string(),
-        Type::Json => format!("{value} as Json"),
         Type::Char => value.to_string(),
         Type::U64 | Type::U128 | Type::Signed(64 | 128) => format!("{value}.toString()"),
-        Type::Signed(_) => ty.unsupported_client_type(),
-        Type::Vec(item) if matches!(item.as_ref(), Type::U8) => {
+        Type::Signed(_) => ty.unsupported(),
+        Type::Sequence(item) if matches!(item.as_ref(), Type::U8) => {
             format!("bytesToJson({value})")
         }
-        Type::Vec(item) => render_to_json_sequence(schema, type_names, item, value, depth),
+        Type::Sequence(item) => render_to_json_sequence(schema, scope, item, value, depth),
         Type::Option(item) => {
-            let item = render_to_json_type(schema, type_names, item, value, depth);
+            let item = render_to_json_type(schema, scope, item, value, depth);
 
             format!("{value} === undefined ? null : {item}")
         }
         Type::Array(item, _) if matches!(item.as_ref(), Type::U8) => {
             format!("bytesToJson({value})")
         }
-        Type::Array(item, _) => render_to_json_sequence(schema, type_names, item, value, depth),
-        Type::Tuple(items) => render_to_json_tuple(schema, type_names, items, value, depth),
-        Type::Map(key, item) => render_to_json_map(schema, type_names, key, item, value, depth),
+        Type::Array(item, _) => render_to_json_sequence(schema, scope, item, value, depth),
+        Type::Tuple(items) => render_to_json_tuple(schema, scope, items, value, depth),
+        Type::Map(key, item) => render_to_json_map(schema, scope, key, item, value, depth),
         Type::Named { key, name } => {
-            let encoder = type_names.json_encoder(key, name);
+            let encoder = scope.json_encoder(key, name);
 
             format!("{encoder}({value})")
         }
+        Type::Struct(_) | Type::Enum(_) => ty.unsupported(),
     }
 }
 
 /// Render one JSON decoder expression.
 fn render_from_json_type(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     ty: &Type,
     value: &str,
     depth: usize,
@@ -1002,44 +966,42 @@ fn render_from_json_type(
             format!("jsonInteger({value})")
         }
         Type::U64 | Type::U128 | Type::Signed(64 | 128) => format!("jsonBigint({value})"),
-        Type::Signed(_) => ty.unsupported_client_type(),
+        Type::Signed(_) => ty.unsupported(),
         Type::Float(_) => format!("jsonNumber({value})"),
-        Type::Json => value.to_string(),
-        Type::Vec(item) if matches!(item.as_ref(), Type::U8) => {
+        Type::Sequence(item) if matches!(item.as_ref(), Type::U8) => {
             format!("bytesFromJson({value})")
         }
-        Type::Vec(item) => render_from_json_sequence(schema, type_names, item, value, depth),
+        Type::Sequence(item) => render_from_json_sequence(schema, scope, item, value, depth),
         Type::Option(item) => {
-            let item = render_from_json_type(schema, type_names, item, value, depth);
+            let item = render_from_json_type(schema, scope, item, value, depth);
 
             format!("{value} === null ? undefined : {item}")
         }
         Type::Array(item, _) if matches!(item.as_ref(), Type::U8) => {
             format!("bytesFromJson({value})")
         }
-        Type::Array(item, len) => {
-            render_from_json_array(schema, type_names, item, *len, value, depth)
-        }
-        Type::Tuple(items) => render_from_json_tuple(schema, type_names, items, value, depth),
-        Type::Map(key, item) => render_from_json_map(schema, type_names, key, item, value, depth),
+        Type::Array(item, len) => render_from_json_array(schema, scope, item, *len, value, depth),
+        Type::Tuple(items) => render_from_json_tuple(schema, scope, items, value, depth),
+        Type::Map(key, item) => render_from_json_map(schema, scope, key, item, value, depth),
         Type::Named { key, name } => {
-            let decoder = type_names.json_decoder(key, name);
+            let decoder = scope.json_decoder(key, name);
 
             format!("{decoder}({value})")
         }
+        Type::Struct(_) | Type::Enum(_) => ty.unsupported(),
     }
 }
 
 /// Render one JSON sequence encoder expression.
 fn render_to_json_sequence(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     item: &Type,
     value: &str,
     depth: usize,
 ) -> String {
     let item_name = format!("item{depth}");
-    let item_value = render_to_json_type(schema, type_names, item, &item_name, depth + 1);
+    let item_value = render_to_json_type(schema, scope, item, &item_name, depth + 1);
 
     format!("{value}.map(({item_name}) => {item_value})")
 }
@@ -1047,7 +1009,7 @@ fn render_to_json_sequence(
 /// Render one JSON tuple encoder expression.
 fn render_to_json_tuple(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     items: &[Type],
     value: &str,
     depth: usize,
@@ -1058,7 +1020,7 @@ fn render_to_json_tuple(
         .map(|(index, item)| {
             render_to_json_type(
                 schema,
-                type_names,
+                scope,
                 item,
                 &format!("{value}[{index}]"),
                 depth + index,
@@ -1073,7 +1035,7 @@ fn render_to_json_tuple(
 /// Render one JSON map encoder expression.
 fn render_to_json_map(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     key: &Type,
     item: &Type,
     value: &str,
@@ -1081,14 +1043,14 @@ fn render_to_json_map(
 ) -> String {
     let key_name = format!("key{depth}");
     let item_name = format!("item{depth}");
-    let item_value = render_to_json_type(schema, type_names, item, &item_name, depth + 1);
+    let item_value = render_to_json_type(schema, scope, item, &item_name, depth + 1);
 
     if matches!(key, Type::String) {
         format!(
             "Object.fromEntries(Object.entries({value}).map(([{key_name}, {item_name}]) => [{key_name}, {item_value}] as const))"
         )
     } else {
-        let key_value = render_to_json_type(schema, type_names, key, &key_name, depth + 1);
+        let key_value = render_to_json_type(schema, scope, key, &key_name, depth + 1);
 
         format!(
             "Array.from({value}.entries()).map(([{key_name}, {item_name}]) => [{key_value}, {item_value}] as const)"
@@ -1099,13 +1061,13 @@ fn render_to_json_map(
 /// Render one JSON sequence decoder expression.
 fn render_from_json_sequence(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     item: &Type,
     value: &str,
     depth: usize,
 ) -> String {
     let item_name = format!("item{depth}");
-    let item_value = render_from_json_type(schema, type_names, item, &item_name, depth + 1);
+    let item_value = render_from_json_type(schema, scope, item, &item_name, depth + 1);
 
     format!("jsonArray({value}).map(({item_name}) => {item_value})")
 }
@@ -1113,7 +1075,7 @@ fn render_from_json_sequence(
 /// Render one JSON fixed array decoder expression.
 fn render_from_json_array(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     item: &Type,
     len: usize,
     value: &str,
@@ -1123,7 +1085,7 @@ fn render_from_json_array(
         .map(|index| {
             let value = format!("items[{index}]");
 
-            render_from_json_type(schema, type_names, item, &value, depth + index)
+            render_from_json_type(schema, scope, item, &value, depth + index)
         })
         .collect::<Vec<_>>()
         .join(", ");
@@ -1136,7 +1098,7 @@ fn render_from_json_array(
 /// Render one JSON tuple decoder expression.
 fn render_from_json_tuple(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     items: &[Type],
     value: &str,
     depth: usize,
@@ -1147,7 +1109,7 @@ fn render_from_json_tuple(
         .map(|(index, item)| {
             let value = format!("items[{index}]");
 
-            render_from_json_type(schema, type_names, item, &value, depth + index)
+            render_from_json_type(schema, scope, item, &value, depth + index)
         })
         .collect::<Vec<_>>()
         .join(", ");
@@ -1162,7 +1124,7 @@ fn render_from_json_tuple(
 /// Render one JSON map decoder expression.
 fn render_from_json_map(
     schema: &Schema,
-    type_names: &TypeNames,
+    scope: &Scope,
     key: &Type,
     item: &Type,
     value: &str,
@@ -1170,14 +1132,14 @@ fn render_from_json_map(
 ) -> String {
     let key_name = format!("key{depth}");
     let item_name = format!("item{depth}");
-    let item_value = render_from_json_type(schema, type_names, item, &item_name, depth + 1);
+    let item_value = render_from_json_type(schema, scope, item, &item_name, depth + 1);
 
     if matches!(key, Type::String) {
         format!(
             "Object.fromEntries(Object.entries(jsonObject({value})).map(([{key_name}, {item_name}]) => [{key_name}, {item_value}] as const))"
         )
     } else {
-        let key_value = render_from_json_type(schema, type_names, key, &key_name, depth + 1);
+        let key_value = render_from_json_type(schema, scope, key, &key_name, depth + 1);
 
         format!(
             "new Map(jsonArray({value}).map((entry) => {{ const items = jsonArray(entry); if (items.length !== 2) {{ throw new SerdeError(`expected JSON map entry length 2: ${{items.length}}`); }} const {key_name} = items[0]; const {item_name} = items[1]; return [{key_value}, {item_value}] as const; }}))"

@@ -1,5 +1,7 @@
+use anyhow::Result;
+
 mod generate;
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<()> {
     generate::run()
 }

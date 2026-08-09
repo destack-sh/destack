@@ -142,6 +142,8 @@ export function fromJsonExportRequest(value: Json): ExportRequest {
 
 /** Request to load one content value. */
 export type LoadRequest = {
+    /** Owning workspace root. */
+    readonly root: string;
     /** Content identifier to load. */
     readonly content: ContentId;
 };
@@ -170,14 +172,17 @@ export const LoadRequest = {
 
 /** Encode one LoadRequest. */
 export function encodeLoadRequest(writer: BinaryWriter, value: LoadRequest): void {
+    writer.writeString(value.root);
     encodeContentId(writer, value.content);
 }
 
 /** Decode one LoadRequest. */
 export function decodeLoadRequest(reader: BinaryReader): LoadRequest {
+    const root = reader.readString();
     const content = decodeContentId(reader);
 
     return {
+        root,
         content,
     };
 }
@@ -185,6 +190,7 @@ export function decodeLoadRequest(reader: BinaryReader): LoadRequest {
 /** Return one JSON value for one LoadRequest. */
 export function toJsonLoadRequest(value: LoadRequest): Json {
     return {
+        root: value.root,
         content: toJsonContentId(value.content),
     };
 }
@@ -194,12 +200,15 @@ export function fromJsonLoadRequest(value: Json): LoadRequest {
     const object = jsonObject(value);
 
     return {
+        root: jsonString(jsonField(object, "root")),
         content: fromJsonContentId(jsonField(object, "content")),
     };
 }
 
 /** Request to store one content value. */
 export type StoreRequest = {
+    /** Owning workspace root. */
+    readonly root: string;
     /** Content value to store. */
     readonly content: Content;
 };
@@ -228,14 +237,17 @@ export const StoreRequest = {
 
 /** Encode one StoreRequest. */
 export function encodeStoreRequest(writer: BinaryWriter, value: StoreRequest): void {
+    writer.writeString(value.root);
     encodeContent(writer, value.content);
 }
 
 /** Decode one StoreRequest. */
 export function decodeStoreRequest(reader: BinaryReader): StoreRequest {
+    const root = reader.readString();
     const content = decodeContent(reader);
 
     return {
+        root,
         content,
     };
 }
@@ -243,6 +255,7 @@ export function decodeStoreRequest(reader: BinaryReader): StoreRequest {
 /** Return one JSON value for one StoreRequest. */
 export function toJsonStoreRequest(value: StoreRequest): Json {
     return {
+        root: value.root,
         content: toJsonContent(value.content),
     };
 }
@@ -252,6 +265,7 @@ export function fromJsonStoreRequest(value: Json): StoreRequest {
     const object = jsonObject(value);
 
     return {
+        root: jsonString(jsonField(object, "root")),
         content: fromJsonContent(jsonField(object, "content")),
     };
 }
