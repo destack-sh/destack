@@ -15,6 +15,11 @@ use crate::{
 pub struct ArtifactId(pub(crate) u32);
 
 impl ArtifactId {
+    /// Build one dense artifact id from a table index.
+    pub const fn from_index(index: usize) -> Self {
+        Self(index as u32)
+    }
+
     /// Return this dense artifact id as a table index.
     pub const fn index(self) -> usize {
         self.0 as usize
