@@ -1,4 +1,4 @@
-import { workspaceService } from "./_generated/workspace/client.js";
+import { workspaceService } from "./_generated/workspace/workspace.js";
 import { Connection, EmbeddedTransport, type EmbeddedSession } from "./rpc/index.js";
 import {
     isMemoryWorkspaceOptions,
@@ -8,23 +8,21 @@ import {
 } from "./workspace/memory.js";
 import { Workspace } from "./workspace/workspace.js";
 
-/** Options for opening one physical native workspace. */
-export type PathWorkspaceOptions = {
-    /** Physical workspace path. */
-    readonly workspace: string;
-    /** Root to open, defaulting to the workspace path. */
-    readonly root?: string;
+/** Options for opening one physical workspace. */
+export type PhysicalWorkspaceOptions = {
+    /** Physical workspace root. */
+    readonly root: string;
 };
 
 /** Options for opening one native workspace. */
-export type NapiWorkspaceOptions = PathWorkspaceOptions | MemoryWorkspaceOptions;
+export type NapiWorkspaceOptions = PhysicalWorkspaceOptions | MemoryWorkspaceOptions;
 
 /** Native N-API module shape consumed by this client. */
 type NapiModule = {
     /** In-process workspace RPC session constructor. */
     readonly WorkspaceSession: {
         /** Open one physical workspace. */
-        readonly open: (workspace: string) => NativeSession;
+        readonly open: (root: string) => NativeSession;
         /** Open one in-memory workspace. */
         readonly memory: (root: string, files: readonly NapiMemoryFile[]) => NativeSession;
     };
@@ -42,6 +40,8 @@ type NapiMemoryFile = {
 
 /** Native session using N-API byte arrays. */
 type NativeSession = {
+    /** Canonical workspace root. */
+    readonly root: string;
     /** Dispatch one RPC message. */
     readonly dispatch: (bytes: readonly number[]) => readonly unknown[];
     /** Poll ready RPC calls. */
@@ -58,16 +58,15 @@ type NativeSession = {
 export async function openNapiWorkspace(options: NapiWorkspaceOptions): Promise<Workspace> {
     const napi = (await import("@destack/language-napi")) as unknown as NapiModule;
     const isMemory = isMemoryWorkspaceOptions(options);
-    const workspace = isMemory ? memoryRoot(options) : options.workspace;
-    const root = isMemory ? workspace : (options.root ?? workspace);
+    const root = isMemory ? memoryRoot(options) : options.root;
     const native = isMemory
-        ? napi.WorkspaceSession.memory(workspace, napiMemoryFiles(options))
-        : napi.WorkspaceSession.open(workspace);
+        ? napi.WorkspaceSession.memory(root, napiMemoryFiles(options))
+        : napi.WorkspaceSession.open(root);
     const transport = new EmbeddedTransport(new NapiSession(native));
     const connection = new Connection(transport);
     await connection.handshake([workspaceService]);
 
-    return Workspace.open(connection, workspace, root);
+    return new Workspace(connection, native.root);
 }
 
 /** Adapter between N-API arrays and the generic embedded transport. */

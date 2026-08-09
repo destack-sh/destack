@@ -22,10 +22,11 @@ test("generated RPC client exchanges workspace values through N-API", async () =
 
     try {
         // roundtrip nested content and its bigint identity through generated serde codecs
-        const stored = await workspace.client.store({
-            content: { kind: "text", content: "export const value = 1;\n" },
+        const stored = await workspace.store({
+            kind: "text",
+            content: "export const value = 1;\n",
         });
-        const loaded = await workspace.client.load({ content: stored.value });
+        const loaded = await workspace.load(stored.value);
 
         expect(loaded.value).toEqual({
             kind: "text",
@@ -43,10 +44,7 @@ test("server stream terminates with its command response", async () => {
     });
 
     try {
-        const call = workspace.client.info({
-            root: workspace.root,
-            input: infoInput(),
-        });
+        const call = workspace.info(infoInput());
         const progress = [];
         for await (const event of call) {
             progress.push(event);
@@ -73,10 +71,7 @@ test("compiler work advances through cooperative N-API polls", async () => {
     });
 
     try {
-        const call = workspace.client.check({
-            root: workspace.root,
-            input: checkInput(),
-        });
+        const call = workspace.check(checkInput());
         const progress = [];
         for await (const event of call) {
             progress.push(event);
@@ -105,38 +100,32 @@ test("compiler rechecks an edited workspace revision incrementally", async () =>
     });
 
     try {
-        const before = await workspace.client.readRevision({ root: workspace.root });
-        const firstCall = workspace.client.check({
-            root: workspace.root,
-            input: { ...checkInput(), trace: "detailed" },
-        });
+        const before = await workspace.revision();
+        const firstCall = workspace.check({ ...checkInput(), trace: "detailed" });
         for await (const _event of firstCall) {
             // drain progress until the terminal response
         }
         const first = await firstCall.response();
-        const commit = await workspace.client.applySourceUpdate({
-            root: workspace.root,
-            update: {
-                base: before.value,
-                edits: [
-                    {
-                        kind: "setText",
-                        path: "main.ds",
-                        text: "export const value: int32 = 2;\n",
-                    },
-                ],
-            },
+        const commit = await workspace.applySourceUpdate({
+            base: before.value,
+            edits: [
+                {
+                    kind: "setText",
+                    path: "main.ds",
+                    text: "export const value: int32 = 2;\n",
+                },
+            ],
         });
 
-        const secondCall = workspace.client.check({
-            root: workspace.root,
-            input: { ...checkInput(), trace: "detailed" },
+        const secondCall = workspace.check({
+            ...checkInput(),
+            trace: "detailed",
         });
         for await (const _event of secondCall) {
             // drain progress until the terminal response
         }
         const second = await secondCall.response();
-        const after = await workspace.client.readRevision({ root: workspace.root });
+        const after = await workspace.revision();
         const firstTrace = first.value.trace;
         const secondTrace = second.value.trace;
 
@@ -147,6 +136,39 @@ test("compiler rechecks an edited workspace revision incrementally", async () =>
         expect(secondTrace?.stats.built).toBeGreaterThan(0n);
         expect(secondTrace?.stats.built).toBeLessThan(firstTrace?.stats.built ?? 0n);
     } finally {
+        workspace.connection.close();
+    }
+});
+
+test("workspace watch emits its exact revision and later commits", async () => {
+    const workspace = await openProject({
+        config: { name: "@test/app" },
+        files: { "main.ds": "export const value = 1;\n" },
+    });
+    const watch = workspace.watch();
+
+    try {
+        // establish the root subscription before changing source
+        const before = await workspace.revision();
+        const ready = await watch.receive();
+        expect(ready).toEqual({ kind: "ready", revision: before.value });
+
+        // observe the same commit returned by the mutating operation
+        const commit = await workspace.applySourceUpdate({
+            base: before.value,
+            edits: [
+                {
+                    kind: "setText",
+                    path: "main.ds",
+                    text: "export const value = 2;\n",
+                },
+            ],
+        });
+        const event = await watch.receive();
+
+        expect(event).toEqual({ kind: "commit", commit: commit.value });
+    } finally {
+        await watch.cancel();
         workspace.connection.close();
     }
 });

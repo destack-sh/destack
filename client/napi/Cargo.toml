@@ -19,9 +19,11 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+destack_repository.workspace = true
+destack_rpc.workspace = true
+destack_session.workspace = true
 destack_source.workspace = true
 destack_workspace = { workspace = true, features = ["native"] }
-destack_rpc.workspace = true
 napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"
 

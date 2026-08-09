@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
+use destack_repository::Execution;
 use destack_rpc::{ConnectionOptions, Registry, Session};
+use destack_session::Executor;
 use destack_source::Edit;
-use destack_workspace::{LocalWorkspace, SharedWorkspace, Workspace, WorkspaceServer};
+use destack_workspace::{Workspace, WorkspaceServer};
 use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi::{Result, Status};
 use napi_derive::napi;
@@ -25,6 +27,8 @@ pub struct MemoryFile {
 #[derive(Debug)]
 #[napi]
 pub struct WorkspaceSession {
+    /// Canonical root served by this session.
+    root: String,
     /// Generic RPC session hosting the workspace service.
     session: Session,
 }
@@ -34,8 +38,8 @@ impl WorkspaceSession {
     /// Open one physical workspace RPC session.
     #[napi(factory)]
     pub fn open(path: String) -> Result<Self> {
-        let workers = LocalWorkspace::default_worker_count();
-        let workspace = LocalWorkspace::open(path, workers).map_err(to_error)?;
+        let executor = executor()?;
+        let workspace = Workspace::open(path, executor).map_err(to_error)?;
 
         Self::from_workspace(Arc::new(workspace))
     }
@@ -47,8 +51,8 @@ impl WorkspaceSession {
             .into_iter()
             .map(memory_file)
             .collect::<Result<Vec<_>>>()?;
-        let workers = LocalWorkspace::default_worker_count();
-        let workspace = LocalWorkspace::memory(root, files, workers).map_err(to_error)?;
+        let executor = executor()?;
+        let workspace = Workspace::memory(root, files, executor).map_err(to_error)?;
 
         Self::from_workspace(Arc::new(workspace))
     }
@@ -71,6 +75,12 @@ impl WorkspaceSession {
         self.session.is_ready().map_err(to_error)
     }
 
+    /// Return the canonical workspace root.
+    #[napi(getter)]
+    pub fn root(&self) -> &str {
+        &self.root
+    }
+
     /// Install the JavaScript callback invoked when a cooperative call becomes ready.
     #[napi]
     pub fn on_ready(&self, callback: ThreadsafeFunction<(), (), (), Status, false>) {
@@ -89,15 +99,27 @@ impl WorkspaceSession {
     }
 
     /// Host one workspace implementation in a generic RPC session.
-    fn from_workspace(workspace: Arc<dyn Workspace>) -> Result<Self> {
-        let service = WorkspaceServer::new(SharedWorkspace::new(workspace)).map_err(to_error)?;
+    fn from_workspace(workspace: Arc<Workspace>) -> Result<Self> {
+        let root = workspace
+            .root()
+            .to_str()
+            .ok_or_else(|| to_error("workspace root must be UTF-8"))?
+            .to_string();
+        let service = WorkspaceServer::new(workspace).map_err(to_error)?;
         let mut services = Registry::new();
         services.insert(service).map_err(to_error)?;
         let options = ConnectionOptions::new("destack-napi");
         let session = Session::new(services, options).map_err(to_error)?;
 
-        Ok(Self { session })
+        Ok(Self { root, session })
     }
+}
+
+/// Create one native session executor.
+fn executor() -> Result<Arc<Executor>> {
+    let workers = Executor::default_worker_count();
+
+    Executor::new(Execution::Threaded, workers).map_err(to_error)
 }
 
 /// Convert one Node memory file into one source edit.

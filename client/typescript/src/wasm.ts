@@ -1,4 +1,4 @@
-import { workspaceService } from "./_generated/workspace/client.js";
+import { workspaceService } from "./_generated/workspace/workspace.js";
 import { Connection, EmbeddedTransport, type EmbeddedSession } from "./rpc/index.js";
 import {
     memoryFiles,
@@ -24,6 +24,8 @@ type WasmModule = {
 
 /** Native WebAssembly RPC session. */
 type NativeSession = {
+    /** Workspace root. */
+    readonly root: string;
     /** Dispatch one RPC message. */
     readonly dispatch: (bytes: Uint8Array) => readonly unknown[];
     /** Poll ready RPC calls. */
@@ -45,7 +47,7 @@ export async function openWasmWorkspace(options: WasmWorkspaceOptions): Promise<
     const connection = new Connection(transport);
     await connection.handshake([workspaceService]);
 
-    return Workspace.open(connection, workspace);
+    return new Workspace(connection, native.root);
 }
 
 /** Adapter between wasm-bindgen and the generic embedded transport. */

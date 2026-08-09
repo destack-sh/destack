@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
+use destack_repository::Execution;
 use destack_rpc::{ConnectionOptions, Registry, Session};
+use destack_session::Executor;
 use destack_source::Edit;
-use destack_workspace::{LocalWorkspace, SharedWorkspace, Workspace, WorkspaceServer};
+use destack_workspace::{Workspace, WorkspaceServer};
 use js_sys::{Array, Reflect, Uint8Array};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
@@ -14,6 +16,8 @@ use crate::panic::install_panic_hook;
 #[derive(Debug)]
 #[wasm_bindgen]
 pub struct WorkspaceSession {
+    /// Root served by this session.
+    root: String,
     /// Generic RPC session hosting the workspace service.
     session: Session,
 }
@@ -26,15 +30,20 @@ impl WorkspaceSession {
         install_panic_hook();
 
         let files = memory_files(files)?;
-        let workspace = LocalWorkspace::memory(root, files, 1).map_err(js_error)?;
-        let workspace: Arc<dyn Workspace> = Arc::new(workspace);
-        let service = WorkspaceServer::new(SharedWorkspace::new(workspace)).map_err(js_error)?;
+        let executor = Executor::new(Execution::Cooperative, 1).map_err(js_error)?;
+        let workspace = Workspace::memory(root, files, executor).map_err(js_error)?;
+        let root = workspace
+            .root()
+            .to_str()
+            .ok_or_else(|| js_error("workspace root must be UTF-8"))?
+            .to_string();
+        let service = WorkspaceServer::new(Arc::new(workspace)).map_err(js_error)?;
         let mut services = Registry::new();
         services.insert(service).map_err(js_error)?;
         let options = ConnectionOptions::new("destack-wasm");
         let session = Session::new(services, options).map_err(js_error)?;
 
-        Ok(Self { session })
+        Ok(Self { root, session })
     }
 
     /// Dispatch one complete inbound RPC message.
@@ -57,6 +66,12 @@ impl WorkspaceSession {
     #[wasm_bindgen(js_name = isReady)]
     pub fn is_ready(&self) -> Result<bool, JsValue> {
         self.session.is_ready().map_err(js_error)
+    }
+
+    /// Return the workspace root.
+    #[wasm_bindgen(getter)]
+    pub fn root(&self) -> String {
+        self.root.clone()
     }
 
     /// Close this RPC session.

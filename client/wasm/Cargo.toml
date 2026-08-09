@@ -20,7 +20,9 @@ doctest = false
 
 [dependencies]
 destack_artifact.workspace = true
+destack_repository.workspace = true
 destack_rpc.workspace = true
+destack_session.workspace = true
 destack_source.workspace = true
 destack_workspace.workspace = true
 js-sys = "0.3.81"
