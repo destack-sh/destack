@@ -1,12 +1,8 @@
-use std::ffi::OsString;
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
-use destack_daemon::{
-    DaemonConnectOptions, DaemonEndpoint, DaemonLaunch, DaemonLaunchCommand, DaemonServer,
-    DaemonServerOptions,
-};
+use destack_daemon::{Daemon, DaemonConnectOptions, DaemonEndpoint, DaemonOptions};
 
 use crate::common::program::ProgramArgs;
 use crate::console;
@@ -62,9 +58,9 @@ pub fn run(args: &DaemonArgs) -> i32 {
 
 /// Run the daemon in the foreground.
 fn run_serve(args: &DaemonServeArgs) -> i32 {
-    // build a repository
-    let repository = match args.program.open_repository() {
-        Ok(repository) => repository,
+    // build the persistent workspace
+    let workspace = match args.program.daemon_workspace() {
+        Ok(workspace) => workspace,
         Err(error) => {
             console::error(&error.to_string());
             return 1;
@@ -72,6 +68,7 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
     };
 
     // resolve daemon service metadata
+    let repository = workspace.session().repository();
     let mut endpoint = DaemonEndpoint::new(repository.layout().home.clone());
 
     // override the socket path when requested
@@ -79,21 +76,17 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
         endpoint.socket_path = socket.clone();
     }
 
-    // build server options
-    let server_options = DaemonServerOptions {
-        worker_limit: args.program.workers as usize,
-        ..Default::default()
-    };
-    let server = match DaemonServer::with_options(repository, endpoint, server_options) {
-        Ok(server) => server,
+    // build the daemon over the already prepared workspace
+    let daemon = match Daemon::with_options(workspace, endpoint, DaemonOptions::default()) {
+        Ok(daemon) => daemon,
         Err(error) => {
-            console::error(&format!("failed to start daemon: {error}"));
+            console::error(&format!("daemon error: {error}"));
             return 1;
         }
     };
 
     // serve until shutdown
-    if let Err(error) = server.serve() {
+    if let Err(error) = daemon.serve() {
         console::error(&format!("daemon error: {error}"));
         return 1;
     }
@@ -103,23 +96,32 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
 
 /// Start the daemon.
 fn run_start(args: &DaemonLifecycleArgs) -> i32 {
-    // build repository metadata
-    let repository = match args.program.open_repository() {
-        Ok(repository) => repository,
+    // resolve the daemon endpoint without opening a repository
+    let endpoint = match args.program.daemon_endpoint() {
+        Ok(endpoint) => endpoint,
         Err(error) => {
             console::error(&error.to_string());
             return 1;
         }
     };
-    let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
-    let launch =
-        match daemon_server_launch(&args.program, &endpoint, repository.path().to_path_buf()) {
-            Ok(launch) => launch,
-            Err(error) => {
-                console::error(&format!("failed to start daemon: {error}"));
-                return 1;
-            }
-        };
+
+    // discover only the initial workspace root
+    let root = match args.program.workspace_root() {
+        Ok(root) => root,
+        Err(error) => {
+            console::error(&error.to_string());
+            return 1;
+        }
+    };
+
+    // build the daemon process launch
+    let launch = match args.program.daemon_launch(&endpoint, root) {
+        Ok(launch) => launch,
+        Err(error) => {
+            console::error(&format!("failed to start daemon: {error}"));
+            return 1;
+        }
+    };
     let options = DaemonConnectOptions::default();
     let result = endpoint.start(options, launch);
 
@@ -138,16 +140,16 @@ fn run_start(args: &DaemonLifecycleArgs) -> i32 {
 
 /// Stop the daemon.
 fn run_stop(args: &DaemonLifecycleArgs) -> i32 {
-    // build repository metadata
-    let repository = match args.program.open_repository() {
-        Ok(repository) => repository,
+    // resolve the daemon endpoint without opening a repository
+    let endpoint = match args.program.daemon_endpoint() {
+        Ok(endpoint) => endpoint,
         Err(error) => {
             console::error(&error.to_string());
             return 1;
         }
     };
-    let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
     let options = DaemonConnectOptions::default();
+
     // request shutdown and report the result
     match endpoint.stop(options) {
         Ok(()) => {
@@ -163,15 +165,14 @@ fn run_stop(args: &DaemonLifecycleArgs) -> i32 {
 
 /// Report daemon status.
 fn run_status(args: &DaemonLifecycleArgs) -> i32 {
-    // build repository metadata
-    let repository = match args.program.open_repository() {
-        Ok(repository) => repository,
+    // resolve the daemon endpoint without opening a repository
+    let endpoint = match args.program.daemon_endpoint() {
+        Ok(endpoint) => endpoint,
         Err(error) => {
             console::error(&error.to_string());
             return 1;
         }
     };
-    let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
     let options = DaemonConnectOptions::default();
 
     // probe daemon connectivity
@@ -188,46 +189,4 @@ fn run_status(args: &DaemonLifecycleArgs) -> i32 {
             1
         }
     }
-}
-
-/// Build a daemon server launch from CLI program settings.
-fn daemon_server_launch(
-    program: &ProgramArgs,
-    endpoint: &DaemonEndpoint,
-    root: PathBuf,
-) -> Result<DaemonLaunch, std::io::Error> {
-    let command = daemon_server_command(program)?;
-
-    Ok(command.launch(endpoint, root))
-}
-
-/// Build a daemon server command from CLI program settings.
-fn daemon_server_command(program: &ProgramArgs) -> Result<DaemonLaunchCommand, std::io::Error> {
-    let cwd = program
-        .cwd
-        .clone()
-        .map(Ok)
-        .unwrap_or_else(std::env::current_dir)?;
-    let cache_dir = program.cache_dir.as_ref().map(|cache_dir| {
-        if cache_dir.is_absolute() {
-            cache_dir.clone()
-        } else {
-            cwd.join(cache_dir)
-        }
-    });
-    let mut command = DaemonLaunchCommand::current(daemon_server_arguments())?;
-
-    // pass layout and cwd settings through to the daemon server
-    command.home = program.home.clone();
-    command.package_directory = program.package_dir.clone();
-    command.cache_directory = cache_dir;
-    command.manifest = program.manifest.clone();
-    command.current_directory = Some(cwd);
-
-    Ok(command)
-}
-
-/// Return the CLI arguments that start a daemon server.
-fn daemon_server_arguments() -> Vec<OsString> {
-    vec![OsString::from("daemon"), OsString::from("serve")]
 }

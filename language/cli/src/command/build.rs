@@ -1,24 +1,16 @@
 use std::time::Instant;
 
-use destack_workspace::{BuildInput, BuildOutputs, CommandRevision};
+use destack_workspace::{BuildInput, BuildOutputs, BuildRequest, CommandRevision};
 
 use crate::common::{
     CommandOptionsBuilder, CommandResult, CommandSummary, DiagnosticFormat, FormatOptions,
-    InputArgs, InputSource, ProgramArgs, ReportArgs, TargetArgs, WatchCompileContext,
-    WatchCompileReason, WatchCycle, WorkspaceWatch, command_data_json, command_error,
-    command_inputs_from_sources, emit_watch_compile_report, emit_workspace_text_output,
-    finish_diagnostic_command, report_error, run_workspace_command_or_report,
-    target_overrides_from_args, watch_error,
+    InputArgs, InputSource, ProgramArgs, ReportArgs, TargetArgs, WatchCompileContext, WatchCycle,
+    WorkspaceWatch, command_data_json, command_error, command_inputs_from_sources,
+    emit_workspace_text_output, finish_diagnostic_command, report_error,
+    run_workspace_command_or_report, target_overrides_from_args,
 };
 use crate::diagnostic::ConsoleResult;
 use clap::Args;
-use destack_workspace::WatchPolicy;
-
-/// State for build watch mode.
-struct BuildWatchState {
-    /// The resolved input sources.
-    sources: Vec<InputSource>,
-}
 
 #[derive(Args, Debug, Clone)]
 pub struct BuildArgs {
@@ -46,7 +38,7 @@ pub struct BuildArgs {
 /// Compile source files and produce output.
 pub async fn run(args: &BuildArgs) -> i32 {
     if args.program.watch {
-        return run_watch(args).await;
+        return run_watch(args);
     }
 
     run_build(args).await
@@ -143,23 +135,7 @@ async fn run_build(args: &BuildArgs) -> i32 {
 }
 
 /// Compile source files and produce output in watch mode.
-async fn run_watch(args: &BuildArgs) -> i32 {
-    // run with default watch settings
-    run_watch_with_options(args, WatchPolicy::default(), || {}, |_, _, _| {}, false).await
-}
-
-/// Compile source files and produce output in watch mode with injected options.
-pub(crate) async fn run_watch_with_options<StartFn, ObserveFn>(
-    args: &BuildArgs,
-    watch_policy: WatchPolicy,
-    on_start: StartFn,
-    mut on_compile: ObserveFn,
-    is_one_shot: bool,
-) -> i32
-where
-    StartFn: FnOnce(),
-    ObserveFn: FnMut(WatchCompileReason, bool, bool),
-{
+fn run_watch(args: &BuildArgs) -> i32 {
     // reject unsupported combinations
     if args.dry_run {
         return report_error("build", &args.report, "--watch does not support --dry-run");
@@ -182,127 +158,101 @@ where
         format: DiagnosticFormat::Json,
         ..FormatOptions::default()
     };
-    // set up shared watch state
-    let mut watch_state = BuildWatchState { sources };
+    let mut sources = sources;
 
     // prepare command options for the watch run
     let target_overrides = target_overrides_from_args(&args.target);
-    let build_request = |sources: &[InputSource]| -> ConsoleResult<BuildInput> {
-        let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
-        let common = CommandOptionsBuilder::new(&args.program)?
-            .inputs(inputs)
-            .config_inputs(!args.input.has_input())
-            .target(args.target.target_name().map(str::to_string))
-            .target_overrides(target_overrides.clone())
-            .build();
+    let build_request =
+        |sources: &[InputSource], revision: CommandRevision| -> ConsoleResult<BuildInput> {
+            let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
+            let common = CommandOptionsBuilder::new(&args.program)?
+                .inputs(inputs)
+                .config_inputs(!args.input.has_input())
+                .target(args.target.target_name().map(str::to_string))
+                .target_overrides(target_overrides.clone())
+                .build();
 
-        Ok(BuildInput {
-            product: None,
-            outputs: build_outputs(),
-            ..(CommandRevision::Current, common).into()
-        })
-    };
+            Ok(BuildInput {
+                product: None,
+                outputs: build_outputs(),
+                ..(revision, common).into()
+            })
+        };
 
     let format_options = FormatOptions::default();
 
-    let mut watch = match WorkspaceWatch::start("build", &args.program, &args.report, watch_policy)
-    {
+    let mut watch = match WorkspaceWatch::start("build", &args.program, &args.report) {
         Ok(watch) => watch,
         Err(code) => return code,
     };
 
-    on_start();
+    let compile = |watch: &mut WorkspaceWatch<'_>, sources: &[InputSource], cycle: WatchCycle| {
+        // build options for the updated sources
+        let revision = CommandRevision::Exact(cycle.revision);
+        let request = match build_request(sources, revision) {
+            Ok(request) => request,
+            Err(error) => return watch.report_error(&error.to_string()),
+        };
 
-    let compile = async |watch: &mut WorkspaceWatch, state: &BuildWatchState, cycle: WatchCycle| {
-        watch
-            .run_command(async |workspace, root, reporter| {
-                // build options for the updated sources
-                let request = match build_request(&state.sources) {
-                    Ok(request) => request,
-                    Err(message) => {
-                        let message = watch_error(&message.to_string());
-                        if let Some(reporter) = reporter.as_mut() {
-                            reporter.emit_warning(&message);
-                            return 1;
-                        }
-                        let next_exit = report_error("build", &args.report, &message);
-                        return next_exit;
-                    }
-                };
-
-                // run the workspace build command
-                let result = match workspace.build(root, request, None).await {
-                    Ok(result) => match CommandResult::from_output(result) {
-                        Ok(result) => result,
-                        Err(message) => {
-                            let message = watch_error(&message.to_string());
-                            if let Some(reporter) = reporter.as_mut() {
-                                reporter.emit_warning(&message);
-                                return 1;
-                            }
-                            let next_exit = report_error("build", &args.report, &message);
-                            return next_exit;
-                        }
-                    },
-                    Err(message) => {
-                        let message = watch_error(&message.to_string());
-                        if let Some(reporter) = reporter.as_mut() {
-                            reporter.emit_warning(&message);
-                            return 1;
-                        }
-                        let next_exit = report_error("build", &args.report, &message);
-                        return next_exit;
-                    }
-                };
-
-                // emit workspace output for text mode
-                if !args.report.is_json() {
-                    emit_workspace_text_output(
-                        &args.report,
-                        &result.response.messages,
-                        &result.response.output,
-                    );
-                }
-
-                // report diagnostics for the updated state
-                emit_watch_compile_report(
-                    reporter,
-                    WatchCompileContext {
-                        files: &result.files,
-                        diagnostics: &result.diagnostics,
-                        format_options: &format_options,
-                        json_format_options: &json_format_options,
-                        module_count: result.response.module_count,
-                        line_writer: None,
-                    },
-                    cycle,
-                )
+        // run the workspace build command
+        let output = match watch.command(|workspace, root| {
+            workspace.build(BuildRequest {
+                root: root.to_path_buf(),
+                input: request,
             })
-            .await
+        }) {
+            Ok(output) => output,
+            Err(code) => return code,
+        };
+        let result = match CommandResult::from_output(output) {
+            Ok(result) => result,
+            Err(error) => return watch.report_error(&error.to_string()),
+        };
+
+        // emit workspace output for text mode
+        if !args.report.is_json() {
+            emit_workspace_text_output(
+                &args.report,
+                &result.response.messages,
+                &result.response.output,
+            );
+        }
+
+        // report diagnostics for the updated state
+        WatchCompileContext {
+            files: &result.files,
+            diagnostics: &result.diagnostics,
+            format_options: &format_options,
+            json_format_options: &json_format_options,
+            module_count: result.response.module_count,
+            line_writer: None,
+        }
+        .emit(watch, cycle)
     };
 
-    let mut exit_code = compile(&mut watch, &watch_state, WatchCycle::startup()).await;
-    while let Some(cycle) = watch.next_cycle().await {
-        // refresh sources when the workspace requests a rescan
-        if cycle.requires_rescan {
-            watch_state.sources = match resolve_watch_sources(&args.input) {
+    let startup = watch.startup();
+    compile(&mut watch, &sources, startup);
+
+    loop {
+        // wait for the next exact semantic revision
+        let cycle = match watch.next_cycle() {
+            Ok(cycle) => cycle,
+            Err(code) => return watch.finish(code),
+        };
+
+        // refresh explicit paths when the workspace manifest changed
+        if cycle.requires_source_refresh {
+            sources = match resolve_watch_sources(&args.input) {
                 Ok(sources) => sources,
                 Err(error) => {
-                    watch.emit_warning(&watch_error(&error.to_string()));
+                    watch.emit_warning(&error.to_string());
                     continue;
                 }
             };
         }
 
-        exit_code = compile(&mut watch, &watch_state, cycle).await;
-        on_compile(cycle.reason, cycle.updated, cycle.requires_rescan);
-        if is_one_shot {
-            break;
-        }
+        compile(&mut watch, &sources, cycle);
     }
-
-    watch.stop();
-    exit_code
 }
 
 /// Resolve explicit sources for build watch mode.

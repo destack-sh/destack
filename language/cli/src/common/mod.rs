@@ -13,10 +13,9 @@ mod command;
 
 pub(crate) use command::{
     CommandOptionsBuilder, CommandResult, CommandSummary, WatchCompileContext, WatchCycle,
-    WorkspaceWatch, command_error, emit_watch_compile_report, emit_workspace_text_output,
-    finish_diagnostic_command, finish_workspace_message_command, overrides_from_program,
-    run_workspace_command, run_workspace_command_or_report,
-    run_workspace_payload_command_or_report, watch_error, workspace_error,
+    WorkspaceWatch, command_error, emit_workspace_text_output, finish_diagnostic_command,
+    finish_workspace_message_command, overrides_from_program, run_workspace_command,
+    run_workspace_command_or_report, run_workspace_payload_command_or_report, workspace_error,
 };
 pub use format::{
     DiagnosticFormat, FormatOptions, FormatResult, LineWriter, collect_diagnostics_json,

@@ -2,22 +2,16 @@ use std::time::Instant;
 
 use crate::common::format::{DiagnosticFormat, FormatOptions};
 use crate::common::{
-    CommandOptionsBuilder, CommandResult, CommandSummary, InputArgs, InputSource, ProgramArgs,
-    ProgressMode, ProgressReporter, ReportArgs, WatchCompileContext, WatchCompileReason,
-    WatchCycle, WorkspaceWatch, command_data_json, command_error, command_inputs_from_sources,
-    emit_watch_compile_report, emit_workspace_text_output, finish_diagnostic_command, is_tty,
-    report_error, run_workspace_command, watch_error,
+    CommandOptionsBuilder, CommandResult, CommandSummary, InputArgs, InputSource, LineWriter,
+    ProgramArgs, ProgressMode, ProgressReporter, ReportArgs, WatchCompileContext, WatchCycle,
+    WorkspaceWatch, command_data_json, command_error, command_inputs_from_sources,
+    emit_workspace_text_output, finish_diagnostic_command, is_tty, report_error,
+    run_workspace_command,
 };
 use crate::console;
 use crate::diagnostic::ConsoleResult;
 use clap::{Args, ValueEnum};
-use destack_workspace::{CheckInput, CommandRevision, WatchPolicy};
-
-/// State for check watch mode.
-struct CheckWatchState {
-    /// The resolved input sources.
-    sources: Vec<InputSource>,
-}
+use destack_workspace::{CheckInput, CheckRequest, CommandRevision};
 
 /// Execution context shared across check command paths.
 struct CheckExecutionContext {
@@ -152,7 +146,7 @@ pub async fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
 
     // run watch mode when requested
     if args.program.watch {
-        let exit_code = run_watch(args, command_name, &context).await;
+        let exit_code = run_watch(args, command_name, &context);
         context.finish();
         return exit_code;
     }
@@ -169,7 +163,7 @@ async fn run_check(args: &CheckArgs, command_name: &str, context: &CheckExecutio
         Ok(sources) => sources,
         Err(code) => return code,
     };
-    let request = match build_check_command(args, &sources) {
+    let request = match build_check_command(args, &sources, CommandRevision::Current) {
         Ok(request) => request,
         Err(error) => return report_error(command_name, &args.report, &error.to_string()),
     };
@@ -177,9 +171,9 @@ async fn run_check(args: &CheckArgs, command_name: &str, context: &CheckExecutio
     // execute the workspace command
     let result = match run_workspace_command(
         &args.program,
-        async |workspace, root, progress| {
+        async |workspace, progress| {
             let result = workspace
-                .check(root, request, progress)
+                .check(request, progress)
                 .await
                 .map_err(command_error)?;
 
@@ -211,37 +205,22 @@ async fn run_check(args: &CheckArgs, command_name: &str, context: &CheckExecutio
 }
 
 /// Run check in watch mode with incremental updates.
-async fn run_watch(args: &CheckArgs, command_name: &str, context: &CheckExecutionContext) -> i32 {
-    // run with default watch settings
-    run_watch_with_options(
+fn run_watch(args: &CheckArgs, command_name: &str, context: &CheckExecutionContext) -> i32 {
+    run_watch_loop(
         args,
         command_name,
         &context.format_options,
         context.progress_reporter.as_ref(),
-        WatchPolicy::default(),
-        || {},
-        |_, _, _| {},
-        false,
     )
-    .await
 }
 
-/// Run check in watch mode with injected options.
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn run_watch_with_options<StartFn, ObserveFn>(
+/// Run check against every semantic workspace revision.
+fn run_watch_loop(
     args: &CheckArgs,
     command_name: &str,
     format_options: &FormatOptions,
     progress_reporter: Option<&ProgressReporter>,
-    watch_policy: WatchPolicy,
-    on_start: StartFn,
-    mut on_compile: ObserveFn,
-    is_one_shot: bool,
-) -> i32
-where
-    StartFn: FnOnce(),
-    ObserveFn: FnMut(WatchCompileReason, bool, bool),
-{
+) -> i32 {
     // reject unsupported combinations
     if args.fix || args.diff {
         return report_error(
@@ -275,102 +254,78 @@ where
     };
     let line_writer = progress_reporter.map(|reporter| reporter.line_writer());
 
-    // set up shared watch state
-    let mut watch_state = CheckWatchState { sources };
+    let mut sources = sources;
 
-    let mut watch =
-        match WorkspaceWatch::start(command_name, &args.program, &args.report, watch_policy) {
-            Ok(watch) => watch,
-            Err(code) => return code,
-        };
-
-    on_start();
-
-    let compile = async |watch: &mut WorkspaceWatch, state: &CheckWatchState, cycle: WatchCycle| {
-        watch
-            .run_command(async |workspace, root, reporter| {
-                // build options for the updated sources
-                let request = match build_check_command(args, &state.sources) {
-                    Ok(request) => request,
-                    Err(message) => {
-                        let message = watch_error(&message.to_string());
-                        if let Some(reporter) = reporter.as_mut() {
-                            reporter.emit_warning(&message);
-                            return 1;
-                        }
-                        let next_exit = report_error(command_name, &args.report, &message);
-                        return next_exit;
-                    }
-                };
-
-                // run the workspace check command
-                let result = match workspace.check(root, request, None).await {
-                    Ok(result) => match CommandResult::from_output(result) {
-                        Ok(result) => result,
-                        Err(message) => {
-                            let message = watch_error(&message.to_string());
-                            if let Some(reporter) = reporter.as_mut() {
-                                reporter.emit_warning(&message);
-                                return 1;
-                            }
-                            let next_exit = report_error(command_name, &args.report, &message);
-                            return next_exit;
-                        }
-                    },
-                    Err(message) => {
-                        let message = watch_error(&message.to_string());
-                        if let Some(reporter) = reporter.as_mut() {
-                            reporter.emit_warning(&message);
-                            return 1;
-                        }
-                        let next_exit = report_error(command_name, &args.report, &message);
-                        return next_exit;
-                    }
-                };
-
-                // emit workspace output for text mode
-                emit_workspace_text_output(
-                    &args.report,
-                    &result.response.messages,
-                    &result.response.output,
-                );
-
-                // report diagnostics for the updated state
-                emit_watch_compile_report(
-                    reporter,
-                    WatchCompileContext {
-                        files: &result.files,
-                        diagnostics: &result.diagnostics,
-                        format_options,
-                        json_format_options: &json_format_options,
-                        module_count: result.response.module_count,
-                        line_writer: line_writer.as_ref(),
-                    },
-                    cycle,
-                )
-            })
-            .await
+    let mut watch = match WorkspaceWatch::start(command_name, &args.program, &args.report) {
+        Ok(watch) => watch,
+        Err(code) => return code,
     };
 
-    let mut exit_code = compile(&mut watch, &watch_state, WatchCycle::startup()).await;
-    while let Some(cycle) = watch.next_cycle().await {
-        // refresh sources when the workspace requests a rescan
-        if cycle.requires_rescan
-            && let Err(error) = refresh_check_watch_sources(args, &mut watch_state)
-        {
-            watch.emit_warning(&error.to_string());
-            continue;
+    let compile = |watch: &mut WorkspaceWatch<'_>, sources: &[InputSource], cycle: WatchCycle| {
+        // build options for the updated sources
+        let revision = CommandRevision::Exact(cycle.revision);
+        let request = match build_check_command(args, sources, revision) {
+            Ok(request) => request,
+            Err(error) => return watch.report_error(&error.to_string()),
+        };
+
+        // run the workspace check command
+        let output = match watch.command(|workspace, root| {
+            workspace.check(CheckRequest {
+                root: root.to_path_buf(),
+                input: request,
+            })
+        }) {
+            Ok(output) => output,
+            Err(code) => return code,
+        };
+        let result = match CommandResult::from_output(output) {
+            Ok(result) => result,
+            Err(error) => return watch.report_error(&error.to_string()),
+        };
+
+        // emit workspace output for text mode
+        emit_workspace_text_output(
+            &args.report,
+            &result.response.messages,
+            &result.response.output,
+        );
+
+        // report diagnostics for the updated state
+        WatchCompileContext {
+            files: &result.files,
+            diagnostics: &result.diagnostics,
+            format_options,
+            json_format_options: &json_format_options,
+            module_count: result.response.module_count,
+            line_writer: line_writer.as_ref(),
+        }
+        .emit(watch, cycle)
+    };
+
+    let startup = watch.startup();
+    compile(&mut watch, &sources, startup);
+
+    loop {
+        // wait for the next exact semantic revision
+        let cycle = match watch.next_cycle() {
+            Ok(cycle) => cycle,
+            Err(code) => return watch.finish(code),
+        };
+
+        // refresh explicit paths when the workspace manifest changed
+        if cycle.requires_source_refresh {
+            sources = match args.input.explicit_sources() {
+                Ok(sources) => sources,
+                Err(error) => {
+                    watch.emit_warning(&error.to_string());
+                    continue;
+                }
+            };
         }
 
-        exit_code = compile(&mut watch, &watch_state, cycle).await;
-        on_compile(cycle.reason, cycle.updated, cycle.requires_rescan);
-        if is_one_shot {
-            break;
-        }
+        compile(&mut watch, &sources, cycle);
     }
-
-    watch.stop();
-    exit_code
 }
 
 impl CheckExecutionContext {
@@ -400,7 +355,7 @@ impl CheckExecutionContext {
     }
 
     /// Build a line writer for formatted output.
-    fn line_writer(&self) -> Option<crate::common::LineWriter> {
+    fn line_writer(&self) -> Option<LineWriter> {
         self.progress_reporter
             .as_ref()
             .map(|reporter| reporter.line_writer())
@@ -500,15 +455,12 @@ fn resolve_check_watch_sources_or_report(
         .map_err(|error| report_error(command_name, &args.report, &error.to_string()))
 }
 
-/// Refresh watch sources after a rescan.
-fn refresh_check_watch_sources(args: &CheckArgs, state: &mut CheckWatchState) -> ConsoleResult<()> {
-    state.sources = args.input.explicit_sources()?;
-
-    Ok(())
-}
-
 /// Build the workspace command for the check command.
-fn build_check_command(args: &CheckArgs, sources: &[InputSource]) -> ConsoleResult<CheckInput> {
+fn build_check_command(
+    args: &CheckArgs,
+    sources: &[InputSource],
+    revision: CommandRevision,
+) -> ConsoleResult<CheckInput> {
     let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
     let common = CommandOptionsBuilder::new(&args.program)?
         .inputs(inputs)
@@ -519,7 +471,7 @@ fn build_check_command(args: &CheckArgs, sources: &[InputSource]) -> ConsoleResu
         fix: args.fix,
         unsafe_fixes: args.unsafe_fixes,
         diff: args.diff,
-        ..(CommandRevision::Current, common).into()
+        ..(revision, common).into()
     };
 
     Ok(request)

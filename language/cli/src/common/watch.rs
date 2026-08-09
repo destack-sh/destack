@@ -1,42 +1,33 @@
-use std::path::PathBuf;
-use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
+use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use destack_workspace::{ReloadReason, WatchBatch, WatchEvent, WatchEventKind, WatchStatus};
+use destack_repository::{Commit, Revision};
 use serde::Serialize;
 
 use crate::common::format::DiagnosticOutputJson;
 use crate::console;
 use crate::diagnostic::{ConsoleError, ConsoleResult};
 
-/// Reflect identifier for watch reports.
+/// Schema identifier for semantic watch reports.
 const WATCH_REPORT_SCHEMA: &str = "destack.watch.v1";
 
 /// Reason a watch compile was triggered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WatchCompileReason {
-    /// Initial compile when watch mode starts.
+    /// Initial compile at the subscribed revision.
     Startup,
-    /// A file update triggered a recompile.
-    Update,
-    /// A rescan triggered a recompile.
-    Rescan,
-    /// Both updates and rescans triggered a recompile.
-    UpdateRescan,
+    /// A semantic workspace commit triggered the compile.
+    Commit,
 }
 
-/// JSON payload for a watch compile event.
+/// JSON payload for one watch compile.
 #[derive(Debug, Serialize)]
 pub struct WatchCompileJson {
     /// Reason for the compile.
     pub reason: WatchCompileReason,
-    /// Whether at least one file update was applied.
-    pub updated: bool,
-    /// Whether a rescan was required.
-    pub rescan: bool,
-    /// The batch identifier associated with this compile.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub batch_id: Option<u64>,
+    /// Exact revision compiled by the command.
+    pub revision: Revision,
     /// Diagnostics emitted during the compile.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diagnostics: Option<DiagnosticOutputJson>,
@@ -44,123 +35,87 @@ pub struct WatchCompileJson {
     pub exit_code: i32,
 }
 
-/// JSON payload for a file watch event.
-#[derive(Debug, Clone, Serialize)]
-pub struct WatchFileEventJson {
-    /// The event kind.
-    pub kind: WatchFileEventKindJson,
-    /// The path associated with the event.
-    pub path: String,
-    /// The previous path for rename events.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub previous_path: Option<String>,
-}
-
-/// JSON payload for a file watch status update.
-#[derive(Debug, Clone, Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum WatchStatusJson {
-    /// Watcher started and is ready.
-    Ready { roots: Vec<String> },
-    /// A rescan was requested.
-    RescanRequested {
-        roots: Vec<String>,
-        reason: WatchRescanReasonJson,
-    },
-    /// A watcher error occurred.
-    Error { message: String },
-    /// Watcher has stopped.
-    Stopped,
-}
-
-/// JSON payload for a watch batch.
-#[derive(Debug, Clone, Serialize)]
-pub struct WatchBatchJson {
-    /// The batch identifier.
-    pub id: u64,
-    /// File events in this batch.
-    pub events: Vec<WatchFileEventJson>,
-    /// Status updates in this batch.
-    pub status: Vec<WatchStatusJson>,
-    /// Whether overflow events were observed.
-    pub overflowed: bool,
-    /// Batch duration in milliseconds.
-    pub duration_ms: u64,
-}
-
-/// JSON payload for watch reports.
+/// JSON payload for semantic watch reports.
 #[derive(Debug, Serialize)]
 pub struct WatchReport {
     /// Watch schema identifier.
     pub schema: &'static str,
-    /// Command name associated with the report.
+    /// Command associated with the report.
     pub command: String,
-    /// Sequence id for ordering events.
+    /// Sequence identifier for report ordering.
     pub sequence: u64,
-    /// Timestamp in milliseconds since epoch.
+    /// Unix timestamp in milliseconds.
     pub timestamp_ms: u64,
-    /// The report event payload.
+    /// Report event payload.
     #[serde(flatten)]
     pub event: WatchReportEvent,
 }
 
-/// Event payload for watch reports.
+impl WatchReport {
+    /// Build one report using the current Unix time.
+    fn now(command: String, sequence: u64, event: WatchReportEvent) -> ConsoleResult<Self> {
+        let duration = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|error| {
+                ConsoleError::message(format!("system clock is before unix epoch: {error}"))
+            })?;
+
+        Ok(Self {
+            schema: WATCH_REPORT_SCHEMA,
+            command,
+            sequence,
+            timestamp_ms: duration.as_millis() as u64,
+            event,
+        })
+    }
+}
+
+/// Event payload for semantic watch reports.
 #[derive(Debug, Serialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
 pub enum WatchReportEvent {
-    /// Watch mode started.
-    Start { roots: Vec<String> },
-    /// Batch of watch events.
-    Batch { batch: WatchBatchJson },
-    /// Compile result for a watch cycle.
-    Compile { compile: WatchCompileJson },
-    /// Warning message emitted during watch.
-    Warning { message: String },
+    /// Watch mode started at one exact revision.
+    Start {
+        /// Watched workspace root.
+        root: String,
+        /// Exact subscription revision.
+        revision: Revision,
+    },
+    /// One semantic workspace commit was observed.
+    Commit {
+        /// Exact committed transition.
+        commit: Commit,
+    },
+    /// One command compile completed.
+    Compile {
+        /// Compile result.
+        compile: WatchCompileJson,
+    },
+    /// One warning was emitted.
+    Warning {
+        /// Warning message.
+        message: String,
+    },
+    /// One error was emitted.
+    Error {
+        /// Error message.
+        message: String,
+    },
     /// Watch mode stopped.
     Stop,
 }
 
-/// JSON event kind for file watch events.
-#[derive(Debug, Clone, Copy, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WatchFileEventKindJson {
-    /// The path was created.
-    Created,
-    /// The path content changed.
-    Modified,
-    /// The path was removed.
-    Deleted,
-    /// The path was renamed or moved.
-    Renamed,
-    /// Events were dropped.
-    Overflow,
-}
-
-/// JSON payload for rescan reasons.
-#[derive(Debug, Clone, Copy, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WatchRescanReasonJson {
-    /// Requested when the watcher first starts.
-    Startup,
-    /// Requested because events were dropped.
-    Overflow,
-    /// Requested by the caller.
-    Manual,
-    /// Requested after watch roots or options changed.
-    Update,
-}
-
-/// JSON line emitter for watch mode.
+/// JSON line emitter for semantic watch mode.
 #[derive(Debug)]
 pub struct WatchReporter {
-    /// Command name associated with events.
+    /// Command associated with emitted events.
     command: String,
-    /// Sequence counter for events.
+    /// Sequence counter for emitted reports.
     sequence: u64,
 }
 
 impl WatchReporter {
-    /// Create a new watch reporter for a command.
+    /// Create a reporter for one command.
     pub fn new(command: impl Into<String>) -> Self {
         Self {
             command: command.into(),
@@ -168,267 +123,63 @@ impl WatchReporter {
         }
     }
 
-    /// Emit a watch start event.
-    pub fn emit_start(&mut self, roots: &[PathBuf]) {
-        let roots = roots
-            .iter()
-            .map(|root| root.display().to_string())
-            .collect();
-
-        self.emit(WatchReportEvent::Start { roots });
+    /// Emit the exact semantic watch start.
+    pub fn emit_start(&mut self, root: &Path, revision: Revision) {
+        self.emit(WatchReportEvent::Start {
+            root: root.display().to_string(),
+            revision,
+        });
     }
 
-    /// Emit a watch batch event.
-    pub fn emit_batch(&mut self, id: u64, batch: &WatchBatch) {
-        let payload = watch_batch_json(id, batch);
-
-        self.emit(WatchReportEvent::Batch { batch: payload });
+    /// Emit one exact semantic commit.
+    pub fn emit_commit(&mut self, commit: &Commit) {
+        self.emit(WatchReportEvent::Commit {
+            commit: commit.clone(),
+        });
     }
 
-    /// Emit a watch compile event.
+    /// Emit one command compile.
     pub fn emit_compile(&mut self, compile: WatchCompileJson) {
         self.emit(WatchReportEvent::Compile { compile });
     }
 
-    /// Emit a watch warning event.
+    /// Emit one watch warning.
     pub fn emit_warning(&mut self, message: &str) {
         self.emit(WatchReportEvent::Warning {
             message: message.to_string(),
         });
     }
 
-    /// Emit a watch stop event.
+    /// Emit one watch error.
+    pub fn emit_error(&mut self, message: &str) {
+        self.emit(WatchReportEvent::Error {
+            message: message.to_string(),
+        });
+    }
+
+    /// Emit watch termination.
     pub fn emit_stop(&mut self) {
         self.emit(WatchReportEvent::Stop);
     }
 
-    /// Emit a watch event as json.
+    /// Emit one serialized JSON report.
     fn emit(&mut self, event: WatchReportEvent) {
-        // increment sequence
-        self.sequence = self.sequence.saturating_add(1);
+        self.sequence += 1;
 
-        // read the clock before creating a report
-        let timestamp_ms = match now_ms() {
-            Ok(timestamp_ms) => timestamp_ms,
+        // build the complete timestamped report
+        let report = match WatchReport::now(self.command.clone(), self.sequence, event) {
+            Ok(report) => report,
             Err(error) => {
                 console::error(&format!("watch: failed to emit event: {error}"));
+
                 return;
             }
         };
 
-        // build the report payload
-        let report = WatchReport {
-            schema: WATCH_REPORT_SCHEMA,
-            command: self.command.clone(),
-            sequence: self.sequence,
-            timestamp_ms,
-            event,
-        };
-
-        // serialize to json
+        // serialize one complete report per line
         match serde_json::to_string(&report) {
             Ok(json) => println!("{json}"),
             Err(error) => console::error(&format!("watch: failed to serialize event: {error}")),
         }
-    }
-}
-
-/// Build a json payload for a watch batch.
-fn watch_batch_json(id: u64, batch: &WatchBatch) -> WatchBatchJson {
-    let events = batch.events.iter().map(watch_event_json).collect();
-    let status = batch.status.iter().map(watch_status_json).collect();
-    WatchBatchJson {
-        id,
-        events,
-        status,
-        overflowed: batch.overflowed,
-        duration_ms: batch.duration_nanoseconds / 1_000_000,
-    }
-}
-
-/// Build a json payload for a watch event.
-fn watch_event_json(event: &WatchEvent) -> WatchFileEventJson {
-    WatchFileEventJson {
-        kind: watch_event_kind(event.kind),
-        path: event.path.display().to_string(),
-        previous_path: event
-            .previous_path
-            .as_ref()
-            .map(|path| path.display().to_string()),
-    }
-}
-
-/// Build a json payload for a watch status update.
-fn watch_status_json(status: &WatchStatus) -> WatchStatusJson {
-    match status {
-        WatchStatus::Ready { roots } => WatchStatusJson::Ready {
-            roots: roots
-                .iter()
-                .map(|root| root.display().to_string())
-                .collect(),
-        },
-        WatchStatus::ReloadRequested { roots, reason } => WatchStatusJson::RescanRequested {
-            roots: roots
-                .iter()
-                .map(|root| root.display().to_string())
-                .collect(),
-            reason: watch_rescan_reason(*reason),
-        },
-        WatchStatus::Error { message } => WatchStatusJson::Error {
-            message: message.clone(),
-        },
-        WatchStatus::Stopped => WatchStatusJson::Stopped,
-    }
-}
-
-/// Convert a watch event kind to json.
-fn watch_event_kind(kind: WatchEventKind) -> WatchFileEventKindJson {
-    match kind {
-        WatchEventKind::Created => WatchFileEventKindJson::Created,
-        WatchEventKind::Modified => WatchFileEventKindJson::Modified,
-        WatchEventKind::Deleted => WatchFileEventKindJson::Deleted,
-        WatchEventKind::Renamed => WatchFileEventKindJson::Renamed,
-        WatchEventKind::Overflow => WatchFileEventKindJson::Overflow,
-    }
-}
-
-/// Convert a rescan reason to json.
-fn watch_rescan_reason(reason: ReloadReason) -> WatchRescanReasonJson {
-    match reason {
-        ReloadReason::Overflow => WatchRescanReasonJson::Overflow,
-        ReloadReason::Manual => WatchRescanReasonJson::Manual,
-        ReloadReason::Watch => WatchRescanReasonJson::Update,
-    }
-}
-
-/// Return the current time in milliseconds since epoch.
-fn now_ms() -> ConsoleResult<u64> {
-    let duration = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(system_time_error)?;
-
-    Ok(duration.as_millis() as u64)
-}
-
-/// Convert a system clock error into a console error.
-fn system_time_error(error: SystemTimeError) -> ConsoleError {
-    ConsoleError::message(format!("system clock is before unix epoch: {error}"))
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::BTreeMap;
-    use std::sync::Arc;
-
-    use destack_source::{
-        Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, FileId,
-        FileType, Span, Uri,
-    };
-    use serde_json::Value;
-
-    use crate::common::format::{FormatOptions, collect_diagnostics_json};
-
-    use super::{
-        WATCH_REPORT_SCHEMA, WatchCompileJson, WatchCompileReason, WatchReport, WatchReportEvent,
-    };
-
-    #[test]
-    fn test_watch_report_serializes_warning() {
-        let report = WatchReport {
-            schema: WATCH_REPORT_SCHEMA,
-            command: "check".to_string(),
-            sequence: 1,
-            timestamp_ms: 42,
-            event: WatchReportEvent::Warning {
-                message: "boom".to_string(),
-            },
-        };
-
-        let value = serde_json::to_value(report).expect("report should serialize");
-        let object = value.as_object().expect("report should be a json object");
-
-        let schema = object.get("schema").expect("schema should exist");
-        assert_eq!(schema, &Value::String(WATCH_REPORT_SCHEMA.to_string()));
-
-        let event = object.get("event").expect("event should exist");
-        assert_eq!(event, &Value::String("warning".to_string()));
-
-        let message = object.get("message").expect("message should exist");
-        assert_eq!(message, &Value::String("boom".to_string()));
-    }
-
-    #[test]
-    fn test_watch_report_serializes_compile_with_diagnostics() {
-        let mut files = BTreeMap::new();
-        let uri = Uri::from_string("memory://test.ds");
-        let file_id = FileId::from_logical_str(uri.as_ref());
-        let file = File::from_text(
-            file_id,
-            "test.ds".to_string(),
-            uri,
-            None,
-            FileType::Destack,
-            "export const value = ;".to_string(),
-        );
-        files.insert(file_id, Arc::new(file));
-        let content = files.get(&file_id).unwrap().content_id();
-
-        let span = Span::at(file_id, 0, 1);
-        let diagnostic = Diagnostic::error(
-            "unexpected-syntax",
-            "syntax error",
-            DiagnosticLabel::message(content, DiagnosticTarget::Span(span), "here"),
-        );
-        let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
-        let format_options = FormatOptions::default();
-        let (output, format_result) = collect_diagnostics_json(
-            &|current_file_id| files.get(&current_file_id).cloned(),
-            &diagnostics,
-            &format_options,
-        );
-
-        let report = WatchReport {
-            schema: WATCH_REPORT_SCHEMA,
-            command: "check".to_string(),
-            sequence: 1,
-            timestamp_ms: 42,
-            event: WatchReportEvent::Compile {
-                compile: WatchCompileJson {
-                    reason: WatchCompileReason::Update,
-                    updated: true,
-                    rescan: false,
-                    batch_id: Some(7),
-                    diagnostics: Some(output),
-                    exit_code: format_result.exit_code(),
-                },
-            },
-        };
-
-        let value = serde_json::to_value(report).expect("report should serialize");
-        let object = value.as_object().expect("report should be a json object");
-
-        let event = object.get("event").expect("event should exist");
-        assert_eq!(event, &Value::String("compile".to_string()));
-
-        let compile = object.get("compile").expect("compile should exist");
-        let compile = compile
-            .as_object()
-            .expect("compile should be a json object");
-        let exit_code = compile.get("exit_code").expect("exit_code should exist");
-        assert_eq!(exit_code.as_i64(), Some(1));
-
-        let diagnostics = compile
-            .get("diagnostics")
-            .expect("diagnostics should exist");
-        let diagnostics = diagnostics
-            .get("diagnostics")
-            .expect("diagnostics list should exist");
-        assert_eq!(
-            diagnostics
-                .as_array()
-                .expect("diagnostics should be an array")
-                .len(),
-            1
-        );
     }
 }

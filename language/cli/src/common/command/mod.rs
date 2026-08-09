@@ -11,6 +11,4 @@ pub(crate) use report::{
 };
 pub(crate) use result::{CommandResult, command_error, workspace_error};
 
-pub(crate) use watch::{
-    WatchCompileContext, WatchCycle, WorkspaceWatch, emit_watch_compile_report, watch_error,
-};
+pub(crate) use watch::{WatchCompileContext, WatchCycle, WorkspaceWatch};
