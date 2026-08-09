@@ -24,7 +24,7 @@ pub struct TargetsArgs {
 }
 
 /// List configured build targets.
-pub fn run(args: &TargetsArgs) -> i32 {
+pub async fn run(args: &TargetsArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("targets", &args.program, &args.report) {
         return code;
     }
@@ -39,13 +39,14 @@ pub fn run(args: &TargetsArgs) -> i32 {
         ..(CommandRevision::Current, common).into()
     };
 
-    run_workspace_payload_command_or_report::<TargetsPayload, _, _>(
+    run_workspace_payload_command_or_report::<TargetsPayload, _, _, _>(
         "targets",
         &args.report,
         &args.program,
-        |workspace, root, _| {
+        async |workspace, root, _| {
             let result = workspace
                 .targets(root, request, None)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(result)
@@ -80,4 +81,5 @@ pub fn run(args: &TargetsArgs) -> i32 {
             print_list_with(&list_entries, ListSpacing::Compact, &printer);
         },
     )
+    .await
 }

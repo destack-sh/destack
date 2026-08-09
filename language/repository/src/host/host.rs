@@ -104,8 +104,8 @@ pub fn default_blob_store() -> Arc<dyn BlobStore> {
 pub enum Execution {
     /// Run work on real host threads.
     Threaded,
-    /// Run work inline on the calling thread.
-    Inline,
+    /// Run bounded work when explicitly polled by the host.
+    Cooperative,
 }
 
 impl Default for Execution {
@@ -124,7 +124,7 @@ fn default_execution() -> Execution {
 /// Return inline execution on bare WebAssembly.
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 fn default_execution() -> Execution {
-    Execution::Inline
+    Execution::Cooperative
 }
 
 /// Return a persistent disk store on native hosts.

@@ -46,22 +46,24 @@ impl<'context, 'index> HeritageIndexer<'context, 'index> {
         // collect relation fields by declaration kind
         match definition {
             dir::Definition::Struct(definition) => {
-                self.collect_implements(symbol, symbol, &definition.implements)?;
+                self.collect_implements(symbol, symbol, &definition.implements, 0)?;
             }
             dir::Definition::Class(definition) => {
+                let mut ordinal = 0;
                 if let Some(extends) = &definition.extends {
-                    self.collect_extends(symbol, symbol, extends)?;
+                    self.collect_extends(symbol, symbol, extends, ordinal)?;
+                    ordinal += 1;
                 }
 
-                self.collect_implements(symbol, symbol, &definition.implements)?;
+                self.collect_implements(symbol, symbol, &definition.implements, ordinal)?;
             }
             dir::Definition::Interface(definition) => {
-                for extends in &definition.extends {
-                    self.collect_extends(symbol, symbol, extends)?;
+                for (ordinal, extends) in definition.extends.iter().enumerate() {
+                    self.collect_extends(symbol, symbol, extends, ordinal as u32)?;
                 }
             }
             dir::Definition::Enum(definition) => {
-                self.collect_implements(symbol, symbol, &definition.implements)?;
+                self.collect_implements(symbol, symbol, &definition.implements, 0)?;
             }
             dir::Definition::Extension(extension) => {
                 // blanket extensions have no single derived nominal
@@ -70,7 +72,7 @@ impl<'context, 'index> HeritageIndexer<'context, 'index> {
                 };
 
                 // collect implemented interfaces for the extended nominal
-                self.collect_implements(root, symbol, &extension.implements)?;
+                self.collect_implements(root, symbol, &extension.implements, 0)?;
             }
             dir::Definition::TypeAlias(_) | dir::Definition::Newtype(_) => {}
         }
@@ -84,11 +86,13 @@ impl<'context, 'index> HeritageIndexer<'context, 'index> {
         derived_symbol: dir::GlobalSymbolId,
         declaration_symbol: dir::GlobalSymbolId,
         heritage: &dir::NominalHeritage,
+        ordinal: u32,
     ) -> ProviderResult<()> {
         self.push_heritage(
             derived_symbol,
             declaration_symbol,
-            heritage,
+            heritage.ty,
+            ordinal,
             dir::HeritageKind::Extends,
         )
     }
@@ -98,14 +102,17 @@ impl<'context, 'index> HeritageIndexer<'context, 'index> {
         &mut self,
         derived_symbol: dir::GlobalSymbolId,
         declaration_symbol: dir::GlobalSymbolId,
-        implementations: &[dir::NominalHeritage],
+        implementations: &[dir::NominalConformance],
+        first_ordinal: u32,
     ) -> ProviderResult<()> {
         // emit each implemented interface edge
-        for implementation in implementations {
+        for (index, implementation) in implementations.iter().enumerate() {
+            let ordinal = first_ordinal + index as u32;
             self.push_heritage(
                 derived_symbol,
                 declaration_symbol,
-                implementation,
+                implementation.interface,
+                ordinal,
                 dir::HeritageKind::Implements,
             )?;
         }
@@ -118,31 +125,18 @@ impl<'context, 'index> HeritageIndexer<'context, 'index> {
         &mut self,
         derived_symbol: dir::GlobalSymbolId,
         declaration_symbol: dir::GlobalSymbolId,
-        heritage: &dir::NominalHeritage,
+        ty: dir::GlobalTypeId,
+        ordinal: u32,
         kind: dir::HeritageKind,
     ) -> ProviderResult<()> {
-        // require every indexed relation to retain its editor source
-        let span = self
-            .module
-            .view()
-            .get_span_by_id(heritage.source.local_id.id)
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "heritage source has no authored span: {:?}",
-                    heritage.source
-                ))
-            })?;
-
-        let base = self.heritage_base(heritage.ty)?;
+        let base = self.heritage_base(ty)?;
 
         // emit heritage edge row
         self.entries.push(dir::HeritageEntry {
             derived: derived_symbol,
             declaration: declaration_symbol,
             base,
-            source: heritage.source,
-            ty: heritage.ty,
-            span,
+            ordinal,
             kind,
         });
 

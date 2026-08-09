@@ -202,7 +202,7 @@ const origin: Point = { x: 0,  };
         }
         None => Vec::new(),
     };
-    assert_eq!(labels, ["y", "origin", "Point"]);
+    assert_eq!(labels, ["y", "Point"]);
 }
 
 /// Return declaration, member, and callable details in completion lists.
@@ -211,6 +211,8 @@ async fn test_return_completion_details() {
     let source = r#"struct HostErrorContextProcess {
     kind: "process";
     syscall?: string;
+    /// Send one code.
+    /// @param code - The code to send.
     send(code: int32): string { return ""; }
 }
 
@@ -256,12 +258,13 @@ const sent = context.send(1);
     server
         .assert_completion(
             &document,
-            position(11, 46),
+            position(13, 46),
             CompletionDisplay {
                 label: "HostErrorContextProcess",
                 label_detail: None,
-                description: Some("struct HostErrorContextProcess"),
+                description: None,
                 detail: Some("struct HostErrorContextProcess"),
+                documentation: Some("```ds\nstruct HostErrorContextProcess\n```"),
             },
         )
         .await;
@@ -270,12 +273,13 @@ const sent = context.send(1);
     server
         .assert_completion(
             &document,
-            position(9, 38),
+            position(11, 38),
             CompletionDisplay {
                 label: "Item",
-                label_detail: None,
-                description: Some("T.Item"),
-                detail: Some("T.Item"),
+                label_detail: Some(": T.Item"),
+                description: None,
+                detail: Some("Collection.Item"),
+                documentation: Some("```ds\nCollection.Item\n```"),
             },
         )
         .await;
@@ -284,12 +288,13 @@ const sent = context.send(1);
     server
         .assert_completion(
             &document,
-            position(12, 26),
+            position(14, 26),
             CompletionDisplay {
                 label: "syscall",
                 label_detail: Some(": string | undefined"),
                 description: None,
-                detail: Some("string | undefined"),
+                detail: Some("HostErrorContextProcess.syscall: string"),
+                documentation: Some("```ds\nHostErrorContextProcess.syscall: string\n```"),
             },
         )
         .await;
@@ -298,12 +303,20 @@ const sent = context.send(1);
     server
         .assert_completion(
             &document,
-            position(13, 23),
+            position(15, 23),
             CompletionDisplay {
                 label: "send",
-                label_detail: Some(" (code: int32) => string"),
+                label_detail: Some("(code: int32): string"),
                 description: None,
-                detail: Some("(code: int32) => string"),
+                detail: Some("HostErrorContextProcess.send(code: int32): string"),
+                documentation: Some(concat!(
+                    "```ds\n",
+                    "HostErrorContextProcess.send(code: int32): string\n",
+                    "```\n\n",
+                    "Send one code.\n\n",
+                    "## Parameters\n\n",
+                    "- `code`: The code to send.",
+                )),
             },
         )
         .await;
@@ -602,10 +615,10 @@ export declare function value(): int32;
     let params = document.hover(position(0, 1));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "**Signature**\n\n```ds\nexport newtype languageItem = (string,) | ()\n```\n\n\
-             **Documentation**\n\nCompiler language item marker.\n\n\
-             ```\n@languageItem(\"memory.Unique\")\nexport newtype Unique<T> = intrinsic;\n```\n\n\
-             **Location**\n\n`destack://decorator/intrinsic.ds:17:16`",
+            "`destack://decorator/intrinsic.ds:17:16`\n\n\
+             ```ds\nexport newtype languageItem = (string,) | ()\n```\n\n\
+             Compiler language item marker.\n\n\
+             ```\n@languageItem(\"memory.Unique\")\nexport newtype Unique<T> = intrinsic;\n```",
         )),
         range: Some(range(0, 1, 0, 13)),
     };
@@ -616,10 +629,10 @@ export declare function value(): int32;
     let params = document.hover(position(3, 1));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "**Signature**\n\n```ds\nexport newtype intrinsic = (string,) | ()\n```\n\n\
-             **Documentation**\n\nCompiler intrinsic marker.\n\n\
-             ```\n@intrinsic\ndeclare function typeOf<T>(value: T): Type<T>;\n```\n\n\
-             **Location**\n\n`destack://decorator/intrinsic.ds:8:16`",
+            "`destack://decorator/intrinsic.ds:8:16`\n\n\
+             ```ds\nexport newtype intrinsic = (string,) | ()\n```\n\n\
+             Compiler intrinsic marker.\n\n\
+             ```\n@intrinsic\ndeclare function typeOf<T>(value: T): Type<T>;\n```",
         )),
         range: Some(range(3, 1, 3, 10)),
     };
@@ -632,8 +645,7 @@ export declare function value(): int32;
     let location = format!("{}:5:25", document.uri().as_str());
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(format!(
-            "**Signature**\n\n```ds\nexport declare function value(): int32\n```\n\n\
-             **Location**\n\n`{location}`"
+            "`{location}`\n\n```ds\nexport declare function value(): int32\n```"
         ))),
         range: Some(range(4, 24, 4, 29)),
     };

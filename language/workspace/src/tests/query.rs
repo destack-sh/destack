@@ -1,7 +1,8 @@
 use destack_repository::Revision;
+use futures::executor::block_on;
 
 use crate::tests::harness::TestWorkspace;
-use crate::{DiagnosticsRequest, Error, RevisionPolicy, RunQueryRequest};
+use crate::{DiagnosticsRequest, Error, RevisionPolicy, RunQueryInput};
 
 /// Requires an explicit semantic target when resolving a query file.
 #[test]
@@ -38,28 +39,24 @@ fn test_run_query_selects_exact_revision() {
     let root = test.workspace.root_at(&path).expect("workspace root");
 
     // execute one continuation against its historical immutable revision
-    let exact = test
-        .workspace
-        .run_query(
-            &root,
-            RunQueryRequest {
-                revision: RevisionPolicy::Exact(first),
-                request: empty_rename_files(),
-            },
-        )
-        .expect("exact query");
+    let exact = block_on(test.workspace.run_query(
+        &root,
+        RunQueryInput {
+            revision: RevisionPolicy::Exact(first),
+            request: empty_rename_files(),
+        },
+    ))
+    .expect("exact query");
 
     // execute one fresh program query against the current root head
-    let current = test
-        .workspace
-        .run_query(
-            &root,
-            RunQueryRequest {
-                revision: RevisionPolicy::Latest,
-                request: empty_rename_files(),
-            },
-        )
-        .expect("latest query");
+    let current = block_on(test.workspace.run_query(
+        &root,
+        RunQueryInput {
+            revision: RevisionPolicy::Latest,
+            request: empty_rename_files(),
+        },
+    ))
+    .expect("latest query");
 
     assert_eq!(exact.revision, first);
     assert_eq!(current.revision, latest);
@@ -84,29 +81,25 @@ fn test_run_query_requires_matching_revision() {
         .workspace
         .root_at(&path)
         .expect("expected workspace root");
-    let stale_error = test
-        .workspace
-        .run_query(
-            &root,
-            RunQueryRequest {
-                revision: RevisionPolicy::Current(Revision::NULL),
-                request: empty_rename_files(),
-            },
-        )
-        .expect_err("expected stale revision error");
+    let stale_error = block_on(test.workspace.run_query(
+        &root,
+        RunQueryInput {
+            revision: RevisionPolicy::Current(Revision::NULL),
+            request: empty_rename_files(),
+        },
+    ))
+    .expect_err("expected stale revision error");
     assert!(matches!(stale_error, Error::StaleRevision { .. }));
 
     // accept matching revision preconditions
-    let _ = test
-        .workspace
-        .run_query(
-            &root,
-            RunQueryRequest {
-                revision: RevisionPolicy::Current(current_revision),
-                request: empty_rename_files(),
-            },
-        )
-        .expect("expected query with matching revision");
+    let _ = block_on(test.workspace.run_query(
+        &root,
+        RunQueryInput {
+            revision: RevisionPolicy::Current(current_revision),
+            request: empty_rename_files(),
+        },
+    ))
+    .expect("expected query with matching revision");
 }
 
 /// Reads diagnostics from each exact source revision.
@@ -129,10 +122,11 @@ fn test_diagnose_successive_source_revisions() {
         .expect("first diagnostic revision");
 
     // read the complete diagnostic result for the first revision
-    let first = test
-        .workspace
-        .diagnose(DiagnosticsRequest::File(path.clone()))
-        .expect("first diagnostics");
+    let first = block_on(
+        test.workspace
+            .diagnose(DiagnosticsRequest::File(path.clone())),
+    )
+    .expect("first diagnostics");
     let first_diagnostics = first[0]
         .diagnostics
         .iter()
@@ -157,9 +151,7 @@ fn test_diagnose_successive_source_revisions() {
         .workspace
         .revision_at(&path)
         .expect("second diagnostic revision");
-    let second = test
-        .workspace
-        .diagnose(DiagnosticsRequest::File(path))
+    let second = block_on(test.workspace.diagnose(DiagnosticsRequest::File(path)))
         .expect("second diagnostics");
     assert_ne!(first_revision, second_revision);
     assert_eq!(second[0].revision, second_revision);

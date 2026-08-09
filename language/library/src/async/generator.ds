@@ -120,7 +120,6 @@ export extension<Y: Copy, R: Copy, N> of AsyncGenerator<Y, R, N> implements Asyn
 }
 
 /// Lifecycle of one generator body fiber.
-// TODO(#138): add the suspended, running, and completed states with the generator lowering
 local type GeneratorState = GeneratorIdle;
 
 /// Body not yet started.

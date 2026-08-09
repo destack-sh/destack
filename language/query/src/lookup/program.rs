@@ -7,11 +7,11 @@ use crate::{Module, ProgramQueryContext, QueryError, QueryResult, match_quality}
 /// One exact declaration exposed for import.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum ExportDeclaration {
-    /// One exported declaration symbol and its checked kind.
+    /// One exported declaration symbol and kind.
     Symbol {
         /// The declaration symbol.
         symbol: dir::GlobalSymbolId,
-        /// The checked symbol kind.
+        /// The declaration kind.
         kind: dir::SymbolKind,
     },
     /// One exported module namespace object.
@@ -28,8 +28,18 @@ pub(crate) struct ExportCandidate {
     pub(crate) module: ModuleId,
     /// The import binding to introduce.
     pub(crate) binding: ImportBinding,
-    /// The exposed declaration.
-    pub(crate) declaration: ExportDeclaration,
+    /// The export target.
+    pub(crate) target: dir::ExportTarget,
+}
+
+impl ExportCandidate {
+    /// Resolve the exact declarations exposed by this export.
+    pub(crate) fn resolve_declarations(
+        &self,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<Vec<ExportDeclaration>> {
+        program.export_declarations(&self.target)
+    }
 }
 
 /// One indexed reference with its owning module.
@@ -50,13 +60,13 @@ impl ProgramQueryContext<'_> {
         let index = self.export_index(module_id)?;
         let mut entries = Vec::new();
 
-        // transcribe each exact non-default export
+        // collect each non-default export
         for export in index.entries() {
             if export.name == "default" {
                 continue;
             }
 
-            for declaration in self.export_declarations(export.target)? {
+            for declaration in self.export_declarations(&export.target)? {
                 entries.push((export.name.clone(), declaration));
             }
         }
@@ -91,15 +101,13 @@ impl ProgramQueryContext<'_> {
                     continue;
                 }
 
-                for declaration in self.export_declarations(export.target)? {
-                    entries.push(ExportCandidate {
-                        module,
-                        binding: ImportBinding::Named {
-                            name: export.name.clone(),
-                        },
-                        declaration,
-                    });
-                }
+                entries.push(ExportCandidate {
+                    module,
+                    binding: ImportBinding::Named {
+                        name: export.name.clone(),
+                    },
+                    target: export.target.clone(),
+                });
             }
         }
 
@@ -117,7 +125,7 @@ impl ProgramQueryContext<'_> {
                 .iter()
                 .filter(|export| export.name == "default")
             {
-                for declaration in self.export_declarations(export.target)? {
+                for declaration in self.export_declarations(&export.target)? {
                     let ExportDeclaration::Symbol { symbol, .. } = declaration else {
                         continue;
                     };
@@ -138,7 +146,7 @@ impl ProgramQueryContext<'_> {
                         binding: ImportBinding::Default {
                             name: symbol.name.clone(),
                         },
-                        declaration,
+                        target: export.target.clone(),
                     });
                 }
             }
@@ -214,7 +222,6 @@ impl ProgramQueryContext<'_> {
                 entry.decorator.module_id,
                 entry.owner.local_id.id,
                 entry.decorator.local_id.id,
-                entry.expression.local_id.id,
                 entry.name.clone(),
             )
         });
@@ -238,12 +245,10 @@ impl ProgramQueryContext<'_> {
         entries.sort_by_key(|entry| {
             (
                 entry.base,
-                entry.span.file,
-                entry.span.start,
-                entry.span.end,
-                entry.kind,
                 entry.derived,
                 entry.declaration,
+                entry.ordinal,
+                entry.kind,
             )
         });
         entries.dedup();
@@ -266,17 +271,55 @@ impl ProgramQueryContext<'_> {
         entries.sort_by_key(|entry| {
             (
                 entry.derived,
-                entry.span.file,
-                entry.span.start,
-                entry.span.end,
+                entry.declaration,
+                entry.ordinal,
                 entry.kind,
                 entry.base,
-                entry.declaration,
             )
         });
         entries.dedup();
 
         Ok(entries)
+    }
+
+    /// Collect members implementing one declared member.
+    pub(crate) fn member_implementations(
+        &self,
+        declaration: dir::GlobalSymbolId,
+    ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
+        let mut implementations = Vec::new();
+
+        // collect edges from modules reached by the declared member
+        for ordinal in self.member_postings()?.declarations.get(&declaration) {
+            let (_, index) = self.member_index_at(*ordinal)?;
+            implementations.extend(index.implementations(declaration));
+        }
+
+        // normalize result order
+        implementations.sort();
+        implementations.dedup();
+
+        Ok(implementations)
+    }
+
+    /// Collect member declarations satisfied by one implementation.
+    pub(crate) fn member_declarations(
+        &self,
+        implementation: dir::GlobalSymbolId,
+    ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
+        let mut declarations = Vec::new();
+
+        // collect edges from modules reached by the implementing member
+        for ordinal in self.member_postings()?.implementations.get(&implementation) {
+            let (_, index) = self.member_index_at(*ordinal)?;
+            declarations.extend(index.declarations(implementation));
+        }
+
+        // normalize result order
+        declarations.sort();
+        declarations.dedup();
+
+        Ok(declarations)
     }
 
     /// Collect indexed references to one target symbol.
@@ -415,33 +458,33 @@ impl ProgramQueryContext<'_> {
     /// Sort and deduplicate exported symbol entries.
     fn sort_export_entries(entries: &mut Vec<ExportCandidate>) {
         entries.sort_by(|left, right| {
-            (&left.binding, left.module, left.declaration).cmp(&(
+            (&left.binding, left.module, &left.target).cmp(&(
                 &right.binding,
                 right.module,
-                right.declaration,
+                &right.target,
             ))
         });
         entries.dedup();
     }
 
-    /// Resolve one indexed export target to its checked declarations.
+    /// Resolve one indexed export target to its declarations.
     fn export_declarations(
         &self,
-        target: dir::ExportTarget,
+        target: &dir::ExportTarget,
     ) -> QueryResult<Vec<ExportDeclaration>> {
         match target {
-            dir::ExportTarget::Symbol(symbol) => {
+            dir::ExportTarget::Symbols(symbols) => {
                 let mut declarations = Vec::new();
-                for symbol in self.canonical_symbols(symbol)? {
+                for symbol in symbols {
                     let index = self.symbol_index(symbol.module_id)?;
                     let entry = index
                         .entries()
                         .iter()
-                        .find(|entry| entry.symbol == symbol)
+                        .find(|entry| entry.symbol == *symbol)
                         .ok_or(QueryError::missing(format!("program symbol: {symbol:?}")))?;
 
                     declarations.push(ExportDeclaration::Symbol {
-                        symbol,
+                        symbol: *symbol,
                         kind: entry.kind,
                     });
                 }
@@ -449,7 +492,7 @@ impl ProgramQueryContext<'_> {
                 Ok(declarations)
             }
             dir::ExportTarget::Namespace(module) => {
-                Ok(vec![ExportDeclaration::Namespace { module }])
+                Ok(vec![ExportDeclaration::Namespace { module: *module }])
             }
         }
     }
@@ -480,7 +523,7 @@ impl ProgramQueryContext<'_> {
                 entry.span.end,
                 entry.source,
                 entry.symbol,
-                entry.is_import_alias,
+                entry.is_alias,
             )
         });
     }

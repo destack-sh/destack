@@ -24,8 +24,8 @@ impl CheckState<'_> {
         };
         let target = extension.target;
         let form = extension.form;
-        let implements = self
-            .declared_implementations(symbol)?
+        let interfaces = self
+            .declared_interfaces(symbol)?
             .into_iter()
             .collect::<SmallVec<[_; 2]>>();
 
@@ -39,7 +39,7 @@ impl CheckState<'_> {
             });
         }
 
-        if implements.is_empty() {
+        if interfaces.is_empty() {
             let check = ObligationCheck::from_failures(failures);
 
             return Ok(check);
@@ -50,8 +50,8 @@ impl CheckState<'_> {
             // reject extension implementation pairs outside both packages
             dir::ExtensionTarget::Rooted { root, ty } => {
                 let foreign_target = root.module_id.package_id != package;
-                for implementation in &implements {
-                    let (_, interface) = self.nominal_application(implementation.ty)?;
+                for implemented in &interfaces {
+                    let (_, interface) = self.nominal_application(*implemented)?;
                     let interface = interface.symbol;
                     if foreign_target && interface.module_id.package_id != package {
                         failures.push(ObligationFailure::NonLocalImplementation {
@@ -69,14 +69,14 @@ impl CheckState<'_> {
                     symbol,
                     root,
                     ty,
-                    &implements,
+                    &interfaces,
                 )?;
                 failures.extend(conflicts);
             }
             _ => {
                 // require open implementations beside their interface
-                for implementation in &implements {
-                    let (_, interface) = self.nominal_application(implementation.ty)?;
+                for implemented in &interfaces {
+                    let (_, interface) = self.nominal_application(*implemented)?;
                     let interface = interface.symbol;
                     if interface.module_id.package_id != package {
                         failures.push(ObligationFailure::ForeignBlanketImplementation {
@@ -121,17 +121,23 @@ impl CheckState<'_> {
             .is_none()
     }
 
-    /// Return one symbol's interface implementations as written.
-    fn declared_implementations(
+    /// Return one symbol's implemented interfaces as written.
+    fn declared_interfaces(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Vec<dir::NominalHeritage>> {
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         // prefer the own module's authored implementations over a foreign definition
         if let Some(module) = self.module_maybe(symbol.module_id)
             && let Some(declared) = &module.declared
             && let Some(definition) = declared.definitions.definition(symbol)
         {
-            return Ok(definition.implementations().to_vec());
+            let interfaces = definition
+                .implementations()
+                .iter()
+                .map(|conformance| conformance.interface)
+                .collect();
+
+            return Ok(interfaces);
         }
 
         let Some(definition) = self.definition(symbol)? else {
@@ -140,7 +146,13 @@ impl CheckState<'_> {
             });
         };
 
-        Ok(definition.implementations().to_vec())
+        let interfaces = definition
+            .implementations()
+            .iter()
+            .map(|conformance| conformance.interface)
+            .collect();
+
+        Ok(interfaces)
     }
 
     /// Check visible implementations conflicting with one new extension.
@@ -152,7 +164,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         root: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
-        implementations: &[dir::NominalHeritage],
+        interfaces: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<ObligationFailure>> {
         let mut failures = Vec::new();
 
@@ -161,8 +173,8 @@ impl CheckState<'_> {
             [(
                 dir::GlobalSymbolId,
                 dir::GlobalTypeId,
-                dir::NominalHeritage,
-                dir::NominalHeritage,
+                dir::GlobalTypeId,
+                dir::GlobalTypeId,
             ); 2],
         >::new();
         for other in self.body().visible_extensions(module, root)? {
@@ -172,34 +184,23 @@ impl CheckState<'_> {
             if !self.is_later_definition(source, other) {
                 continue;
             }
-            let Some(dir::Definition::Extension(extension)) = self.definition(other)? else {
-                continue;
-            };
-            let extension = extension.clone();
-            let dir::ExtensionTarget::Rooted {
-                root: other_root,
-                ty: other_ty,
-            } = extension.target
-            else {
-                continue;
+            let (other_root, other_ty) = match self.definition(other)? {
+                Some(dir::Definition::Extension(extension)) => match extension.target {
+                    dir::ExtensionTarget::Rooted { root, ty } => (root, ty),
+                    dir::ExtensionTarget::Blanket { .. } => continue,
+                },
+                Some(_) | None => continue,
             };
             if other_root != root {
                 continue;
             }
-            let other_implementations = self.declared_implementations(other)?;
-            for other_implementation in &other_implementations {
-                let (_, other_interface) = self.nominal_application(other_implementation.ty)?;
-                let other_symbol = self.resolve_symbol_alias(other_interface.symbol)?;
-                for implementation in implementations {
-                    let (_, interface) = self.nominal_application(implementation.ty)?;
-                    let symbol = self.resolve_symbol_alias(interface.symbol)?;
-                    if symbol == other_symbol {
-                        candidates.push((
-                            other,
-                            other_ty,
-                            implementation.clone(),
-                            other_implementation.clone(),
-                        ));
+            let other_interfaces = self.declared_interfaces(other)?;
+            for other_interface_type in other_interfaces {
+                let (_, other_interface) = self.nominal_application(other_interface_type)?;
+                for interface_type in interfaces {
+                    let (_, interface) = self.nominal_application(*interface_type)?;
+                    if interface.symbol == other_interface.symbol {
+                        candidates.push((other, other_ty, *interface_type, other_interface_type));
                         break;
                     }
                 }
@@ -207,19 +208,19 @@ impl CheckState<'_> {
         }
 
         // reject overlapping receivers under one unifiable interface instantiation
-        for (other, other_ty, heritage, other_heritage) in candidates {
+        for (other, other_ty, interface, other_interface) in candidates {
             if !self.types_may_overlap(origin, ty, other_ty)? {
                 continue;
             }
-            let (heritage_module, heritage_interface) = self.nominal_application(heritage.ty)?;
-            let (other_module, other_interface) = self.nominal_application(other_heritage.ty)?;
-            let heritage_arguments =
-                self.filled_application_arguments(heritage_module, &heritage_interface)?;
+            let (interface_module, interface_application) = self.nominal_application(interface)?;
+            let (other_module, other_application) = self.nominal_application(other_interface)?;
+            let interface_arguments =
+                self.filled_application_arguments(interface_module, &interface_application)?;
             let other_arguments =
-                self.filled_application_arguments(other_module, &other_interface)?;
-            if heritage_arguments.len() == other_arguments.len() {
+                self.filled_application_arguments(other_module, &other_application)?;
+            if interface_arguments.len() == other_arguments.len() {
                 let mut distinct = false;
-                for (left, right) in heritage_arguments
+                for (left, right) in interface_arguments
                     .iter()
                     .copied()
                     .zip(other_arguments.iter().copied())
@@ -237,7 +238,7 @@ impl CheckState<'_> {
             failures.push(ObligationFailure::ConflictingImplementation {
                 source,
                 conflict: other,
-                interface: heritage_interface.symbol,
+                interface: interface_application.symbol,
                 ty,
             });
         }

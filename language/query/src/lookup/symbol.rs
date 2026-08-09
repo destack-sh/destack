@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use destack_repository::PackageKind;
 use destack_source::Span;
 
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
@@ -26,6 +25,45 @@ impl ModuleQueryContext<'_> {
 
         Ok(symbol)
     }
+
+    /// Return the exact definition member carried by one indexed symbol.
+    pub(crate) fn definition_member<'a>(
+        &'a self,
+        program: &ProgramQueryContext<'_>,
+        symbol: dir::GlobalSymbolId,
+    ) -> QueryResult<
+        Option<(
+            dir::GlobalSymbolId,
+            &'a dir::Definition,
+            &'a dir::DefinitionMember,
+        )>,
+    > {
+        if symbol.module_id != self.module_id() {
+            return Err(QueryError::invalid(format!(
+                "local member symbol: {symbol:?}, {:?}",
+                self.module_id()
+            )));
+        }
+
+        // select the declaring definition through the persisted member index
+        let Some(entry) = program.member_index(self.module_id())?.symbol_entry(symbol) else {
+            return Ok(None);
+        };
+        let declaring = entry.declaring;
+        let definition = self
+            .definitions()?
+            .definition(declaring)
+            .ok_or(QueryError::missing(format!(
+                "member declaring definition: {symbol:?}, {declaring:?}"
+            )))?;
+        let member = definition
+            .member(symbol)
+            .ok_or(QueryError::missing(format!(
+                "indexed definition member: {symbol:?}, {declaring:?}"
+            )))?;
+
+        Ok(Some((declaring, definition, member)))
+    }
 }
 
 impl ProgramQueryContext<'_> {
@@ -42,107 +80,71 @@ impl ProgramQueryContext<'_> {
                 package: package_id,
             })?;
 
-        Ok(package.kind == PackageKind::Builtin)
+        Ok(package.is_builtin)
     }
 
-    /// Return every canonical symbol reached by dependency bindings.
-    pub(crate) fn canonical_symbols(
+    /// Return every target selected by one symbol binding.
+    pub(crate) fn symbol_targets(
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
-        let mut symbols = Vec::new();
-        let mut path = Vec::new();
-        self.collect_canonical_symbols(symbol_id, &mut path, &mut symbols)?;
-        symbols.sort();
-        symbols.dedup();
-
-        Ok(symbols)
-    }
-
-    /// Return the one canonical symbol reached by dependency bindings.
-    pub(crate) fn canonical_symbol(
-        &self,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> QueryResult<Option<dir::GlobalSymbolId>> {
-        let symbols = self.canonical_symbols(symbol_id)?;
-        match symbols.as_slice() {
-            [] => Ok(None),
-            [symbol_id] => Ok(Some(*symbol_id)),
-            _ => Err(QueryError::conflict(format!(
-                "canonical symbol group: {symbol_id:?}"
-            ))),
-        }
-    }
-
-    /// Collect canonical symbols through one exact dependency path.
-    fn collect_canonical_symbols(
-        &self,
-        symbol_id: dir::GlobalSymbolId,
-        path: &mut Vec<dir::GlobalSymbolId>,
-        symbols: &mut Vec<dir::GlobalSymbolId>,
-    ) -> QueryResult<()> {
-        if path.contains(&symbol_id) {
-            return Err(QueryError::cycle(format!(
-                "canonical symbol: {symbol_id:?}"
-            )));
-        }
-
-        // retain declarations that are not import bindings
+        // retain declarations outside dependency items
         let module = self.module(symbol_id.module_id)?;
-        let binding = module.bindings()?.get_symbol(symbol_id.local_id);
-        let Some(declaration) = binding.declaration else {
-            symbols.push(symbol_id);
-
-            return Ok(());
+        let symbol = module.bindings()?.get_symbol(symbol_id.local_id);
+        let Some(declaration) = symbol.declaration else {
+            return Ok(vec![symbol_id]);
         };
         if declaration.local_id.ty != dir::NodeType::DependencyItem {
-            symbols.push(symbol_id);
-
-            return Ok(());
+            return Ok(vec![symbol_id]);
         }
 
-        // follow every exact overload target
+        // read the dependency targets retained by resolve
         let reference =
             module
                 .resolved()?
                 .references
                 .get(declaration)
                 .ok_or(QueryError::missing(format!(
-                    "canonical reference: {declaration:?}"
+                    "symbol target: {declaration:?}"
                 )))?;
         match reference {
             dir::Reference::Bound(targets) => {
                 if targets.is_empty() {
                     return Err(QueryError::missing(format!(
-                        "canonical reference: {declaration:?}"
+                        "symbol target: {declaration:?}"
                     )));
                 }
 
-                path.push(symbol_id);
-                for target in targets {
-                    self.collect_canonical_symbols(*target, path, symbols)?;
-                }
-                path.pop();
+                Ok(targets.to_vec())
             }
-            dir::Reference::Namespace(_) => symbols.push(symbol_id),
-            dir::Reference::Projected { .. } => {
-                return Err(QueryError::invalid(format!(
-                    "canonical reference: {declaration:?}"
-                )));
-            }
-            dir::Reference::Ambiguous(targets) => {
-                path.push(symbol_id);
-                for target in targets {
-                    if let dir::ImportTarget::Symbol(target) = target {
-                        self.collect_canonical_symbols(*target, path, symbols)?;
-                    }
-                }
-                path.pop();
-            }
-            dir::Reference::Missing => {}
+            dir::Reference::Namespace(_) => Ok(vec![symbol_id]),
+            dir::Reference::Projected { .. } => Err(QueryError::invalid(format!(
+                "symbol target: {declaration:?}"
+            ))),
+            dir::Reference::Ambiguous(targets) => Ok(targets
+                .iter()
+                .filter_map(|target| match target {
+                    dir::ReferenceTarget::Symbol(symbol) => Some(*symbol),
+                    dir::ReferenceTarget::Namespace(_) => None,
+                })
+                .collect()),
+            dir::Reference::Missing => Ok(Vec::new()),
         }
+    }
 
-        Ok(())
+    /// Return the one target selected by one symbol binding.
+    pub(crate) fn symbol_target(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> QueryResult<Option<dir::GlobalSymbolId>> {
+        let symbols = self.symbol_targets(symbol_id)?;
+        match symbols.as_slice() {
+            [] => Ok(None),
+            [symbol_id] => Ok(Some(*symbol_id)),
+            _ => Err(QueryError::conflict(format!(
+                "symbol target group: {symbol_id:?}"
+            ))),
+        }
     }
 
     /// Resolve a symbol name string when possible.
@@ -164,19 +166,20 @@ impl ProgramQueryContext<'_> {
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Span>> {
-        let Some(symbol_id) = self.canonical_symbol(symbol_id)? else {
+        let Some(symbol_id) = self.symbol_target(symbol_id)? else {
             return Ok(None);
         };
         let module = self.module(symbol_id.module_id)?;
 
-        module.symbol_local_definition_span(symbol_id)
+        module.symbol_local_definition_span(self, symbol_id)
     }
 }
 
 impl ModuleQueryContext<'_> {
-    /// Return the local definition span of a symbol without canonical expansion.
+    /// Return a symbol's local definition span without following dependency bindings.
     pub(crate) fn symbol_local_definition_span(
         &self,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Span>> {
         if symbol_id.module_id != self.module_id() {
@@ -203,12 +206,25 @@ impl ModuleQueryContext<'_> {
             return Ok(Some(span));
         }
 
+        // read member selections from their exact definition source
+        if let Some((_, _, member)) = self.definition_member(program, symbol_id)? {
+            let source = member.source();
+            let span = self
+                .node_selection_span(self.view()?, source.local_id)?
+                .ok_or(QueryError::missing(format!(
+                    "member definition: {symbol_id:?}"
+                )))?;
+
+            return Ok(Some(span));
+        }
+
         Ok(None)
     }
 
-    /// Return the local declaration span of a symbol without canonical expansion.
+    /// Return a symbol's local declaration span without following dependency bindings.
     pub(crate) fn symbol_local_declaration_span(
         &self,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Span>> {
         if symbol_id.module_id != self.module_id() {
@@ -221,11 +237,17 @@ impl ModuleQueryContext<'_> {
 
         let symbols = self.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        let Some(declaration) = symbol.declaration else {
-            return Ok(None);
-        };
+        let source = match symbol.declaration {
+            Some(declaration) => declaration.local_id,
+            None => {
+                let Some((_, _, member)) = self.definition_member(program, symbol_id)? else {
+                    return Ok(None);
+                };
 
-        let span = self.node_span(self.view()?, declaration.local_id)?;
+                member.source().local_id
+            }
+        };
+        let span = self.node_span(self.view()?, source)?;
 
         Ok(Some(span))
     }

@@ -6,6 +6,85 @@ import type { PatchSet } from "../edit/edit.js";
 import { decodeDiagnosticLabel, encodeDiagnosticLabel, fromJsonDiagnosticLabel, toJsonDiagnosticLabel } from "./label.js";
 import { decodePatchSet, encodePatchSet, fromJsonPatchSet, toJsonPatchSet } from "../edit/edit.js";
 
+/** Whether a suggestion can be applied automatically. */
+export type Applicability = "automatic" | "unsafe" | "dangerous";
+
+export const Applicability = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: Applicability): void {
+        encodeApplicability(writer, value);
+    },
+
+    /** Decode one Applicability. */
+    decode(reader: BinaryReader): Applicability {
+        return decodeApplicability(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: Applicability): Json {
+        return toJsonApplicability(value);
+    },
+
+    /** Return one Applicability from one JSON value. */
+    fromJson(value: Json): Applicability {
+        return fromJsonApplicability(value);
+    },
+};
+
+/** Encode one Applicability. */
+export function encodeApplicability(writer: BinaryWriter, value: Applicability): void {
+    switch (value) {
+        case "automatic":
+            writer.writeUnsigned(0);
+            return;
+        case "unsafe":
+            writer.writeUnsigned(1);
+            return;
+        case "dangerous":
+            writer.writeUnsigned(2);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one Applicability. */
+export function decodeApplicability(reader: BinaryReader): Applicability {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "automatic";
+        case 1:
+            return "unsafe";
+        case 2:
+            return "dangerous";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one Applicability. */
+export function toJsonApplicability(value: Applicability): Json {
+    return value;
+}
+
+/** Return one Applicability from one JSON value. */
+export function fromJsonApplicability(value: Json): Applicability {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "automatic":
+            return "automatic";
+        case "unsafe":
+            return "unsafe";
+        case "dangerous":
+            return "dangerous";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
 /** One suggested source change for a diagnostic. */
 export type DiagnosticSuggestion = {
     /** Exact source patches for machine application. */
@@ -86,83 +165,4 @@ export function fromJsonDiagnosticSuggestion(value: Json): DiagnosticSuggestion 
         message: jsonString(jsonField(object, "message")),
         applicability: fromJsonApplicability(jsonField(object, "applicability")),
     };
-}
-
-/** Whether a suggestion can be applied automatically. */
-export type Applicability = "automatic" | "unsafe" | "dangerous";
-
-export const Applicability = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: Applicability): void {
-        encodeApplicability(writer, value);
-    },
-
-    /** Decode one Applicability. */
-    decode(reader: BinaryReader): Applicability {
-        return decodeApplicability(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: Applicability): Json {
-        return toJsonApplicability(value);
-    },
-
-    /** Return one Applicability from one JSON value. */
-    fromJson(value: Json): Applicability {
-        return fromJsonApplicability(value);
-    },
-};
-
-/** Encode one Applicability. */
-export function encodeApplicability(writer: BinaryWriter, value: Applicability): void {
-    switch (value) {
-        case "automatic":
-            writer.writeUnsigned(0);
-            return;
-        case "unsafe":
-            writer.writeUnsigned(1);
-            return;
-        case "dangerous":
-            writer.writeUnsigned(2);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one Applicability. */
-export function decodeApplicability(reader: BinaryReader): Applicability {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "automatic";
-        case 1:
-            return "unsafe";
-        case 2:
-            return "dangerous";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one Applicability. */
-export function toJsonApplicability(value: Applicability): Json {
-    return value;
-}
-
-/** Return one Applicability from one JSON value. */
-export function fromJsonApplicability(value: Json): Applicability {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "automatic":
-            return "automatic";
-        case "unsafe":
-            return "unsafe";
-        case "dangerous":
-            return "dangerous";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
 }

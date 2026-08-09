@@ -103,22 +103,6 @@ impl<'a> DefinitionTable<'a> {
         }
     }
 
-    /// Return the definition member carrying one exact symbol.
-    pub fn member(
-        &self,
-        symbol: GlobalSymbolId,
-    ) -> Option<(GlobalSymbolId, &Definition, &DefinitionMember)> {
-        self.segments
-            .iter()
-            .rev()
-            .flat_map(DefinitionSegment::iter_definitions)
-            .find_map(|(declaring, definition)| {
-                definition
-                    .member(symbol)
-                    .map(|member| (declaring, definition, member))
-            })
-    }
-
     /// Iterate extension symbols targeting one nominal symbol.
     pub fn target_extensions(
         &self,
@@ -161,6 +145,13 @@ impl<'a> DefinitionTable<'a> {
         }
 
         definitions.into_iter()
+    }
+
+    /// Iterate checked member conformances in definition order.
+    pub fn member_conformances(&self) -> impl Iterator<Item = &MemberConformance> + '_ {
+        self.iter_definitions()
+            .flat_map(|(_, definition)| definition.implementations())
+            .flat_map(|conformance| &conformance.members)
     }
 
     /// Return true when this table has no definitions.
@@ -425,6 +416,16 @@ impl Definition {
     }
 }
 
+/// Apply one type id mapping to a conformance list.
+fn map_conformances(
+    conformances: &mut [NominalConformance],
+    map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId,
+) {
+    for conformance in conformances {
+        conformance.interface = map(conformance.interface);
+    }
+}
+
 /// Checked declaration data for one transparent type alias.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TypeAliasDefinition {
@@ -444,7 +445,7 @@ pub struct StructDefinition {
     /// The selected runtime representation.
     pub representation: Representation,
     /// The implemented interfaces.
-    pub implements: Vec<NominalHeritage>,
+    pub implements: Vec<NominalConformance>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
@@ -465,7 +466,7 @@ pub struct ClassDefinition {
     /// The extended class.
     pub extends: Option<NominalHeritage>,
     /// The implemented interfaces.
-    pub implements: Vec<NominalHeritage>,
+    pub implements: Vec<NominalConformance>,
     /// The class's direct construct candidates.
     pub constructors: Vec<ClassConstructorDefinition>,
     /// The members in declaration order.
@@ -602,7 +603,7 @@ pub struct EnumDefinition {
     /// The scalar type backing every enum variant.
     pub backing: EnumBackingType,
     /// The implemented interfaces.
-    pub implements: Vec<NominalHeritage>,
+    pub implements: Vec<NominalConformance>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
@@ -677,7 +678,7 @@ pub struct ExtensionDefinition {
     /// The checked receiver target.
     pub target: ExtensionTarget,
     /// The implemented interfaces.
-    pub implements: Vec<NominalHeritage>,
+    pub implements: Vec<NominalConformance>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
@@ -689,7 +690,7 @@ impl ExtensionDefinition {
         form: ExtensionForm,
         template: Option<LocalGenericTemplateId>,
         target: ExtensionTarget,
-        implements: Vec<NominalHeritage>,
+        implements: Vec<NominalConformance>,
         members: Vec<DefinitionMember>,
     ) -> Self {
         Self {
@@ -802,6 +803,26 @@ pub struct NominalHeritage {
     pub source: GlobalNodeIdAny,
     /// The applied heritage type.
     pub ty: GlobalTypeId,
+}
+
+/// One explicit interface conformance.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct NominalConformance {
+    /// The source `implements` node.
+    pub source: GlobalNodeIdAny,
+    /// The applied interface type.
+    pub interface: GlobalTypeId,
+    /// The members selected to satisfy interface requirements.
+    pub members: Vec<MemberConformance>,
+}
+
+/// One member satisfying an interface requirement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct MemberConformance {
+    /// The implementing member symbol.
+    pub member: GlobalSymbolId,
+    /// The required interface member symbol.
+    pub requirement: GlobalSymbolId,
 }
 
 /// One field member.
@@ -918,7 +939,7 @@ pub struct TaggedOptionsDefinition {
 pub struct TaggedKeyDefinition {
     /// The variant symbol.
     pub symbol: GlobalSymbolId,
-    /// The source newtype declaration node.
+    /// The authored backing arm node.
     pub source: GlobalNodeIdAny,
     /// The written backing arm position.
     pub index: u32,
@@ -929,7 +950,7 @@ pub struct TaggedKeyDefinition {
 pub struct TaggedVariantDefinition {
     /// The variant symbol.
     pub symbol: GlobalSymbolId,
-    /// The source newtype declaration node.
+    /// The authored backing arm node.
     pub source: GlobalNodeIdAny,
     /// The derived variant key.
     pub key: StaticKey,
@@ -1227,13 +1248,24 @@ impl Definition {
     }
 
     /// Return the interfaces implemented by this definition.
-    pub fn implementations(&self) -> &[NominalHeritage] {
+    pub fn implementations(&self) -> &[NominalConformance] {
         match self {
             Self::Struct(definition) => &definition.implements,
             Self::Class(definition) => &definition.implements,
             Self::Enum(definition) => &definition.implements,
             Self::Extension(definition) => &definition.implements,
             Self::TypeAlias(_) | Self::Interface(_) | Self::Newtype(_) => &[],
+        }
+    }
+
+    /// Return the implemented interfaces for in-place mutation.
+    pub fn implementations_mut(&mut self) -> Option<&mut [NominalConformance]> {
+        match self {
+            Self::Struct(definition) => Some(&mut definition.implements),
+            Self::Class(definition) => Some(&mut definition.implements),
+            Self::Enum(definition) => Some(&mut definition.implements),
+            Self::Extension(definition) => Some(&mut definition.implements),
+            Self::TypeAlias(_) | Self::Interface(_) | Self::Newtype(_) => None,
         }
     }
 
@@ -1276,22 +1308,6 @@ impl Definition {
     ) -> impl Iterator<Item = &DefinitionMember> + '_ {
         self.members_in(space)
             .filter(move |member| member.key() == Some(key))
-    }
-
-    /// Return the heritage clauses this definition relates to.
-    pub fn heritages(&self) -> SmallVec<[&NominalHeritage; 2]> {
-        match self {
-            Self::Struct(definition) => definition.implements.iter().collect(),
-            Self::Class(definition) => definition
-                .extends
-                .iter()
-                .chain(definition.implements.iter())
-                .collect(),
-            Self::Interface(definition) => definition.extends.iter().collect(),
-            Self::Enum(definition) => definition.implements.iter().collect(),
-            Self::Extension(extension) => extension.implements.iter().collect(),
-            Self::TypeAlias(_) | Self::Newtype(_) => SmallVec::new(),
-        }
     }
 
     /// Return the base declarations whose members are inherited.

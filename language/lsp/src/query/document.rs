@@ -2,7 +2,7 @@ use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 use destack_query as query;
 
-use super::{Document, DocumentSet};
+use super::{Document, DocumentSet, IntoLsp};
 use crate::server::internal_error;
 
 /// Semantic token types in legend order.
@@ -230,10 +230,12 @@ impl Document {
 }
 
 #[allow(deprecated)]
-impl Document {
-    /// Return the LSP symbol kind for one query symbol.
-    pub(crate) fn symbol_kind(kind: query::SymbolKind) -> lsp::SymbolKind {
-        match kind {
+impl IntoLsp for query::SymbolKind {
+    type Lsp = lsp::SymbolKind;
+
+    /// Convert this symbol kind.
+    fn into_lsp(self) -> lsp::SymbolKind {
+        match self {
             query::SymbolKind::AssociatedConst | query::SymbolKind::Constant => {
                 lsp::SymbolKind::CONSTANT
             }
@@ -258,14 +260,17 @@ impl Document {
             query::SymbolKind::Variable => lsp::SymbolKind::VARIABLE,
         }
     }
+}
 
+#[allow(deprecated)]
+impl Document {
     /// Encode one outline symbol as an LSP document symbol.
     pub(crate) fn document_symbol(
         &self,
         outline: &query::OutlineSymbol,
     ) -> jsonrpc::Result<lsp::DocumentSymbol> {
         let (range, selection_range) = self.ranges(outline.range, outline.selection_range)?;
-        let kind = Self::symbol_kind(outline.kind);
+        let kind = outline.kind.into_lsp();
 
         // build child symbols
         let children = if outline.children.is_empty() {

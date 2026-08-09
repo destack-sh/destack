@@ -15,28 +15,26 @@ impl CheckState<'_> {
         obligation: &InterfaceConformanceObligation,
     ) -> CompilerResult<ObligationCheck> {
         let symbol = obligation.symbol;
-        let (members, implementations, extension_target) = {
-            let Some(definition) = self.definition(symbol)? else {
-                return Err(CompilerError::Internal {
-                    message: format!("interface conformance has no definition: {symbol:?}"),
-                });
-            };
-            let extension_target = match definition {
-                dir::Definition::Extension(extension) => Some(extension.target.r#type()),
-                dir::Definition::Struct(_)
-                | dir::Definition::Class(_)
-                | dir::Definition::Enum(_) => None,
-                dir::Definition::TypeAlias(_)
-                | dir::Definition::Interface(_)
-                | dir::Definition::Newtype(_) => return Ok(ObligationCheck::Holds),
-            };
-
-            (
-                definition.members().to_vec(),
-                definition.implementations().to_vec(),
-                extension_target,
-            )
+        let Some(definition) = self.definition(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: format!("interface conformance has no definition: {symbol:?}"),
+            });
         };
+        let extension_target = match definition {
+            dir::Definition::Extension(extension) => Some(extension.target.r#type()),
+            dir::Definition::Struct(_) | dir::Definition::Class(_) | dir::Definition::Enum(_) => {
+                None
+            }
+            dir::Definition::TypeAlias(_)
+            | dir::Definition::Interface(_)
+            | dir::Definition::Newtype(_) => return Ok(ObligationCheck::Holds),
+        };
+        let members = definition.members().to_vec();
+        let implementations = definition
+            .implementations()
+            .iter()
+            .map(|conformance| (conformance.source, conformance.interface))
+            .collect::<SmallVec<[_; 2]>>();
         if implementations.is_empty() {
             return Ok(ObligationCheck::Holds);
         }
@@ -62,37 +60,69 @@ impl CheckState<'_> {
                     application.resolution.target.language_item() == Some(dir::LanguageItem::Unsafe)
                 });
         let mut failures = Vec::new();
+        let mut member_selections = Vec::with_capacity(implementations.len());
 
         // prove each declared interface
-        for heritage in implementations {
-            let conforms = self.decide_declared_conformance(
+        for (source, interface) in implementations {
+            let selected_members = self.select_declared_conformance(
                 origin,
-                heritage.ty,
+                interface,
                 target,
                 &members,
                 is_unsafe_extension,
             )?;
-            if !conforms {
-                failures.push(ObligationFailure::InterfaceNotImplemented {
-                    source: heritage.source,
-                    ty: target,
-                    interface: heritage.ty,
-                });
+            match selected_members {
+                Some(members) => member_selections.push(members),
+                None => {
+                    failures.push(ObligationFailure::InterfaceNotImplemented {
+                        source,
+                        ty: target,
+                        interface,
+                    });
+                    member_selections.push(Vec::new());
+                }
             }
+        }
+
+        // publish selected members after every interface settles
+        let definition = self
+            .definition_mut(symbol)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("interface conformance has no mutable definition: {symbol:?}"),
+            })?;
+        let conformances =
+            definition
+                .implementations_mut()
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("definition {symbol:?} cannot implement interfaces"),
+                })?;
+
+        // require the declaration to retain the queued implementation count
+        if conformances.len() != member_selections.len() {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "definition {symbol:?} has {} conformances, expected {}",
+                    conformances.len(),
+                    member_selections.len()
+                ),
+            });
+        }
+        for (conformance, members) in conformances.iter_mut().zip(member_selections) {
+            conformance.members = members;
         }
 
         Ok(ObligationCheck::from_failures(failures))
     }
 
-    /// Decide whether declared members conform to one applied interface.
-    fn decide_declared_conformance(
+    /// Select the members satisfying one applied interface.
+    fn select_declared_conformance(
         &mut self,
         origin: Origin,
         interface: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
         is_unsafe_extension: bool,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Option<Vec<dir::MemberConformance>>> {
         // validate compiler-known markers through their compiler rule
         let (_, application) = self.nominal_application(interface)?;
         let auto_interface = self
@@ -101,10 +131,12 @@ impl CheckState<'_> {
             .filter(|interface| interface.is_marker());
         if let Some(interface) = auto_interface {
             if is_unsafe_extension && interface.permits_unsafe_implementation() {
-                return Ok(true);
+                return Ok(Some(Vec::new()));
             }
 
-            return self.satisfies_auto_interface(origin, target, interface);
+            let conforms = self.satisfies_auto_interface(origin, target, interface)?;
+
+            return Ok(conforms.then(Vec::new));
         }
 
         // resolve associated projections through the declared implementation
@@ -117,13 +149,15 @@ impl CheckState<'_> {
             &substitution,
         )?
         else {
-            return Ok(false);
+            return Ok(None);
         };
         let requirements = self.interface_requirements(interface, target)?;
+        let mut selected = Vec::new();
 
         // match each named requirement against declared or inherent members
         for requirement in &requirements.members {
-            let mut candidates = SmallVec::<[_; 2]>::new();
+            let mut candidates =
+                SmallVec::<[(dir::GlobalSymbolId, Option<dir::GlobalTypeId>); 2]>::new();
             for member in members {
                 if member.space() != requirement.space || member.key() != Some(requirement.key) {
                     continue;
@@ -132,25 +166,44 @@ impl CheckState<'_> {
                     Some(member) => member,
                     None => continue,
                 };
-                candidates.push(member);
+                let ty = member
+                    .ty
+                    .map(|ty| self.substitute_type(ty, &substitution))
+                    .transpose()?;
+                candidates.push((member.symbol, ty));
             }
+
+            // include matching members inherited by the target declaration
             if candidates.is_empty() {
                 // use target members that do not come from this declaration
                 let inherent = self.inherent_member_candidates(origin, target, requirement)?;
-                if inherent.is_empty() {
-                    if requirement.has_default || requirement.is_optional {
-                        continue;
-                    }
-
-                    return Ok(false);
+                for candidate in inherent {
+                    let ty = candidate.callable.unwrap_or(candidate.access_type);
+                    candidates.push((candidate.symbol, Some(ty)));
                 }
-                let Some(required) = requirement.ty else {
-                    continue;
-                };
+            }
 
-                let mut is_satisfied = false;
-                for candidate in &inherent {
-                    let found = candidate.callable.unwrap_or(candidate.access_type);
+            // resolve requirements with no implementation candidate
+            if candidates.is_empty() {
+                if requirement.has_default {
+                    selected.push(dir::MemberConformance {
+                        member: requirement.symbol,
+                        requirement: requirement.symbol,
+                    });
+                } else if !requirement.is_optional {
+                    return Ok(None);
+                }
+
+                continue;
+            }
+
+            // match typed requirements and accept abstract requirements by presence
+            let member = if let Some(required) = requirement.ty {
+                let mut selected = None;
+                for (symbol, found) in candidates {
+                    let Some(found) = found else {
+                        continue;
+                    };
                     let decision = self.decide_member_relation(
                         origin,
                         Relation::Assignable,
@@ -160,68 +213,49 @@ impl CheckState<'_> {
                         substitution.receiver,
                     )?;
                     if decision {
-                        is_satisfied = true;
+                        selected = Some(symbol);
                         break;
                     }
                 }
-                if !is_satisfied {
-                    return Ok(false);
-                }
-
-                continue;
-            }
-
-            // accept an abstract associated requirement by presence
-            let Some(required) = requirement.ty else {
-                continue;
-            };
-
-            let mut is_satisfied = false;
-            for candidate in candidates {
-                let Some(found) = candidate.ty else {
-                    continue;
+                let Some(member) = selected else {
+                    return Ok(None);
                 };
-                let found = self.substitute_type(found, &substitution)?;
-                let decision = self.decide_member_relation(
-                    origin,
-                    Relation::Assignable,
-                    requirement.role,
-                    found,
-                    required,
-                    substitution.receiver,
-                )?;
-                if decision {
-                    is_satisfied = true;
-                    break;
-                }
-            }
-            if !is_satisfied {
-                return Ok(false);
-            }
+
+                member
+            } else {
+                let (member, _) = candidates.remove(0);
+
+                member
+            };
+            selected.push(dir::MemberConformance {
+                member,
+                requirement: requirement.symbol,
+            });
         }
 
         // validate call, construct, and index requirements from the target
         let signatures =
             self.decide_interface_signatures(origin, Relation::Satisfies, target, &requirements)?;
         if !signatures {
-            return Ok(false);
+            return Ok(None);
         }
 
         // validate inherited interfaces through the same declaration
         for inherited in &requirements.inherited {
-            let conforms = self.decide_declared_conformance(
+            let inherited = self.select_declared_conformance(
                 origin,
                 inherited.ty,
                 target,
                 members,
                 is_unsafe_extension,
             )?;
-            if !conforms {
-                return Ok(false);
-            }
+            let Some(inherited) = inherited else {
+                return Ok(None);
+            };
+            selected.extend(inherited);
         }
 
-        Ok(true)
+        Ok(Some(selected))
     }
 
     /// Return target members matching one interface requirement.

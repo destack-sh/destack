@@ -44,6 +44,13 @@ pub enum Error {
         /// The validation failure detail.
         detail: String,
     },
+    /// The requested watch configuration is invalid.
+    InvalidWatch {
+        /// The validation failure detail.
+        detail: String,
+    },
+    /// This workspace has no file watcher.
+    WatchUnavailable,
     /// The expected revision does not match the current revision.
     StaleRevision {
         /// The caller expected revision.
@@ -121,6 +128,12 @@ impl std::fmt::Display for Error {
             }
             Error::InvalidEdit { detail } => {
                 write!(formatter, "invalid edit: {detail}")
+            }
+            Error::InvalidWatch { detail } => {
+                write!(formatter, "invalid watch: {detail}")
+            }
+            Error::WatchUnavailable => {
+                write!(formatter, "workspace file watching is unavailable")
             }
             Error::StaleRevision { expected, current } => {
                 write!(

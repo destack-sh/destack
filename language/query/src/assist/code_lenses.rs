@@ -29,7 +29,7 @@ pub enum CodeLensAction {
     },
 }
 
-/// Request code lenses for a document.
+/// A code lenses request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CodeLensesRequest {
     /// The queried module profile.
@@ -38,7 +38,7 @@ pub struct CodeLensesRequest {
     pub file_id: FileId,
 }
 
-/// Response payload for code lenses queries.
+/// A code lenses response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CodeLensesResponse {
     /// Code lenses.
@@ -49,14 +49,15 @@ impl ModuleQueryContext<'_> {
     /// Return code lenses for a file.
     pub fn code_lenses(
         &self,
+        request: CodeLensesRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-    ) -> QueryResult<Vec<CodeLens>> {
+    ) -> QueryResult<CodeLensesResponse> {
+        let file_id = request.file_id;
         let view = self.view()?;
         let mut lenses = Vec::new();
 
         // collect relevant authored declarations
-        for (declaration_id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
+        for (declaration_id, declaration) in view.iter_nodes::<dir::Declaration>() {
             let declaration_kind = match declaration {
                 dir::Declaration::Function(function)
                     if function.name.is_some()
@@ -119,7 +120,7 @@ impl ModuleQueryContext<'_> {
         // retain source and action order
         lenses.sort_by_key(|lens| (lens.range.start, lens.range.end, lens.action.order()));
 
-        Ok(lenses)
+        Ok(CodeLensesResponse { lenses })
     }
 }
 

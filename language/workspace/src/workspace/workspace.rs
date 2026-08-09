@@ -4,22 +4,22 @@ use std::sync::Arc;
 use destack_artifact::{ArtifactPayload, ArtifactReference};
 use destack_repository::Revision;
 use destack_source::{Content, ContentId, File, FileId, TextRange};
+use futures::future::BoxFuture;
 
-use super::{ReloadRequest, RunQueryRequest, RunQueryResponse};
+use super::{ReloadRequest, RunQueryInput, RunQueryResponse};
 use crate::diagnostic::{DiagnosticsRequest, Error, FileDiagnostics};
 use crate::file::{Commit, FileOperation, SourceUpdate};
-use crate::protocol::WatchPolicy;
-use crate::watch::WatchUpdate;
+use crate::watch::{WatchId, WatchUpdate};
 use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, CommandError, CommandProgress, DocInput, DocOutput,
-    DoctorInput, DoctorOutput, ExportRequest, ExportResult, FileEdit, FormatInput, FormatOutput,
+    DoctorInput, DoctorOutput, ExportInput, ExportResult, FileEdit, FormatInput, FormatOutput,
     InfoInput, InfoOutput, QueryFile, QueryInput, QueryOutput, RewriteInput, RewriteOutput,
     RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput,
-    TaskOutput, TestInput, TestOutput, UpdateBatch,
+    TaskOutput, TestInput, TestOutput, UpdateBatch, WatchPolicy,
 };
 
-/// Workspace operations shared by local and remote workspace implementations.
+/// Operations over one live Destack workspace.
 pub trait Workspace: std::fmt::Debug + Send + Sync {
     // ================================================================================
     // Roots
@@ -83,139 +83,143 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
     // ================================================================================
 
     /// Check source state for a root.
-    fn check(
-        &self,
-        root: &Path,
+    fn check<'a>(
+        &'a self,
+        root: &'a Path,
         input: CheckInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<CheckOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<CheckOutput, CommandError>>;
 
     /// Format source files or content.
-    fn format(
-        &self,
-        root: &Path,
+    fn format<'a>(
+        &'a self,
+        root: &'a Path,
         input: FormatInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<FormatOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<FormatOutput, CommandError>>;
 
     /// Query source files with one structural pattern.
-    fn query(
-        &self,
-        root: &Path,
+    fn query<'a>(
+        &'a self,
+        root: &'a Path,
         input: QueryInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<QueryOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<QueryOutput, CommandError>>;
 
     /// Rewrite source files with one structural pattern.
-    fn rewrite(
-        &self,
-        root: &Path,
+    fn rewrite<'a>(
+        &'a self,
+        root: &'a Path,
         input: RewriteInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<RewriteOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<RewriteOutput, CommandError>>;
 
     /// Build target artifacts for a root.
-    fn build(
-        &self,
-        root: &Path,
+    fn build<'a>(
+        &'a self,
+        root: &'a Path,
         input: BuildInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<BuildOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<BuildOutput, CommandError>>;
 
     /// Run a workspace target.
-    fn run(
-        &self,
-        root: &Path,
+    fn run<'a>(
+        &'a self,
+        root: &'a Path,
         input: RunInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<RunOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<RunOutput, CommandError>>;
 
     /// Run workspace tests.
-    fn test(
-        &self,
-        root: &Path,
+    fn test<'a>(
+        &'a self,
+        root: &'a Path,
         input: TestInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<TestOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<TestOutput, CommandError>>;
 
     /// Generate documentation.
-    fn doc(
-        &self,
-        root: &Path,
+    fn doc<'a>(
+        &'a self,
+        root: &'a Path,
         input: DocInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<DocOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<DocOutput, CommandError>>;
 
     /// Run benchmarks.
-    fn bench(
-        &self,
-        root: &Path,
+    fn bench<'a>(
+        &'a self,
+        root: &'a Path,
         input: BenchInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<BenchOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<BenchOutput, CommandError>>;
 
     /// Return workspace information.
-    fn info(
-        &self,
-        root: &Path,
+    fn info<'a>(
+        &'a self,
+        root: &'a Path,
         input: InfoInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<InfoOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<InfoOutput, CommandError>>;
 
     /// Return configured targets.
-    fn targets(
-        &self,
-        root: &Path,
+    fn targets<'a>(
+        &'a self,
+        root: &'a Path,
         input: TargetsInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<TargetsOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<TargetsOutput, CommandError>>;
 
     /// Return cache locations.
-    fn cache(
-        &self,
-        root: &Path,
+    fn cache<'a>(
+        &'a self,
+        root: &'a Path,
         input: CacheInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<CacheOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<CacheOutput, CommandError>>;
 
     /// Return resolved settings.
-    fn settings(
-        &self,
-        root: &Path,
+    fn settings<'a>(
+        &'a self,
+        root: &'a Path,
         input: SettingsInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<SettingsOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<SettingsOutput, CommandError>>;
 
     /// Return workspace health information.
-    fn doctor(
-        &self,
-        root: &Path,
+    fn doctor<'a>(
+        &'a self,
+        root: &'a Path,
         input: DoctorInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<DoctorOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<DoctorOutput, CommandError>>;
 
     /// Run workspace tasks.
-    fn task(
-        &self,
-        root: &Path,
+    fn task<'a>(
+        &'a self,
+        root: &'a Path,
         input: TaskInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<TaskOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<TaskOutput, CommandError>>;
 
     /// Clean generated state.
-    fn clean(
-        &self,
-        root: &Path,
+    fn clean<'a>(
+        &'a self,
+        root: &'a Path,
         input: CleanInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<CleanOutput, CommandError>;
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<CleanOutput, CommandError>>;
 
     // ================================================================================
     // Query
     // ================================================================================
 
     /// Run one semantic query for a root.
-    fn run_query(&self, root: &Path, request: RunQueryRequest) -> Result<RunQueryResponse, Error>;
+    fn run_query<'a>(
+        &'a self,
+        root: &'a Path,
+        request: RunQueryInput,
+    ) -> BoxFuture<'a, Result<RunQueryResponse, Error>>;
 
     /// Resolve one source file for semantic queries.
     fn resolve_query_file(&self, root: &Path, path: PathBuf) -> Result<Option<QueryFile>, Error>;
@@ -225,7 +229,10 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
     // ================================================================================
 
     /// Return exact file diagnostics.
-    fn diagnose(&self, request: DiagnosticsRequest) -> Result<Vec<FileDiagnostics>, Error>;
+    fn diagnose(
+        &self,
+        request: DiagnosticsRequest,
+    ) -> BoxFuture<'_, Result<Vec<FileDiagnostics>, Error>>;
 
     // ================================================================================
     // Artifact
@@ -241,18 +248,18 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
     fn load(&self, content: ContentId) -> Result<Content, Error>;
 
     /// Materialize derived outputs on the workspace host.
-    fn export(&self, root: &Path, request: ExportRequest) -> Result<ExportResult, Error>;
+    fn export(&self, root: &Path, request: ExportInput) -> Result<ExportResult, Error>;
 
     // ================================================================================
     // Watch
     // ================================================================================
 
     /// Watch workspace files.
-    fn watch(&self, roots: Vec<PathBuf>, policy: WatchPolicy) -> Result<(), Error>;
+    fn watch(&self, roots: Vec<PathBuf>, policy: WatchPolicy) -> Result<WatchId, Error>;
 
     /// Return the next watch update.
-    fn next_watch(&self, root: &Path) -> Result<Option<WatchUpdate>, Error>;
+    fn next_watch(&self, watch: WatchId) -> BoxFuture<'_, Result<Option<WatchUpdate>, Error>>;
 
     /// Stop watching workspace files.
-    fn unwatch(&self, root: &Path) -> Result<(), Error>;
+    fn unwatch(&self, watch: WatchId);
 }

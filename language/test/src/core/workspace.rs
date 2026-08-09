@@ -11,6 +11,7 @@ use destack_session::Session;
 use destack_source::{
     Content, DiagnosticCollection, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
 };
+use futures::executor::block_on;
 use serde_json::{Value, json};
 
 /// One shared in memory workspace for suite execution.
@@ -317,8 +318,7 @@ pub fn provide_workspace_artifacts(
     let revision = session
         .revision(session.head())
         .unwrap_or_else(|error| panic!("failed to read workspace revision: {error}"));
-    session
-        .provide(revision, artifact_keys)
+    block_on(session.provide(revision, artifact_keys))
         .unwrap_or_else(|error| panic!("failed to provide workspace artifacts: {error}"));
 
     session

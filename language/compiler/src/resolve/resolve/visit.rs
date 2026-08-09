@@ -1,4 +1,4 @@
-use destack_artifact::EnvironmentBound;
+use destack_artifact::{DirExported, EnvironmentBound};
 use destack_dir as dir;
 use dir::NodeVisitor as _;
 
@@ -11,9 +11,13 @@ impl ResolveState<'_> {
     pub(in crate::resolve) fn resolve(
         &mut self,
         environment: &EnvironmentBound,
+        exported: &DirExported,
     ) -> CompilerResult<()> {
-        // explicit module clauses resolve through exports
-        self.resolve_module_clauses()?;
+        // imports resolve before exported local imports and source paths
+        self.resolve_imports()?;
+
+        // resolve references owned by exported names
+        self.resolve_export_references(exported)?;
 
         // globals resolve through the profile's precomputed table
         self.resolve_profile_globals(environment)?;
@@ -77,6 +81,24 @@ impl dir::NodeVisitor for ResolveState<'_> {
         expression: &dir::Expression,
     ) {
         self.stats.expressions += 1;
+
+        // retain imports
+        if matches!(expression, dir::Expression::Import { .. }) {
+            self.stats.import_clauses += 1;
+            self.import_expressions.push(id);
+        }
+
+        // count direct re-exports
+        if matches!(
+            expression,
+            dir::Expression::Export {
+                target: Some(_),
+                ..
+            }
+        ) {
+            self.stats.reexport_clauses += 1;
+        }
+
         self.walk_expression(tree, id, expression);
     }
 

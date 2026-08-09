@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -10,7 +10,11 @@ declare_lint! {
     pub NO_IDENTITY_OPERATION {
         id: "no-identity-operation",
         summary: "Disallow arithmetic with an operand that cannot change the result",
-        explanation: "An integer operation with an identity operand returns the other operand unchanged and usually remains after an incomplete simplification. Remove the operation so the value being produced is explicit.",
+        explanation: r#"
+An integer operation with an identity operand returns the other operand unchanged and usually
+remains after an incomplete simplification. Remove the operation so the value being produced is
+explicit.
+"#,
         example: {
             reported: r#"
 function retain(value: int32): int32 {
@@ -32,36 +36,33 @@ function retain(value: int32): int32 {
 
 /// Report builtin integer operations with an identity operand.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    let view = module.view();
     let mut output = LintOutput::default();
 
     // inspect builtin binary operations over integral values
-    for expression in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::Binary {
-            left,
-            operator,
-            right,
-        } = view.get(expression)
-        else {
-            continue;
-        };
-
-        // select the operand retained by the exact identity
-        let left_constant = module.scalar_constant(*left)?;
-        let right_constant = module.scalar_constant(*right)?;
-        let Some(value) =
-            select_identity_operand(*operator, *left, left_constant, *right, right_constant)
-        else {
-            continue;
-        };
-
-        // require compiler-defined integral behavior
-        let Some(operands) = module.builtin_operands(expression.into_any())? else {
+    for expression in module.operator_expressions() {
+        let expression = expression?;
+        let Some((operator, operands @ [left, right])) = module.builtin_binary(expression)? else {
             continue;
         };
         if !operands.iter().all(dir::BuiltinOperand::is_integral) {
             continue;
         }
+        let left = left.source.local_id;
+        let right = right.source.local_id;
+
+        // select the operand retained by the exact identity
+        let left_constant = module.scalar_constant(left)?;
+        let right_constant = module.scalar_constant(right)?;
+        let Some((value, identity)) =
+            select_identity_operand(operator, left, left_constant, right, right_constant)
+        else {
+            continue;
+        };
+        if !module.is_repeatable_expression(identity)? {
+            continue;
+        }
+
+        // require removal to preserve the checked result type
         if module.node_type_id(expression.into_any())? != module.node_type_id(value.into_any())? {
             continue;
         }
@@ -72,6 +73,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if let Some(suggestion) = suggestion(module, lint, expression, value)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
+
         output.report(diagnostic);
     }
 
@@ -85,43 +87,42 @@ fn select_identity_operand(
     left_constant: Option<dir::ScalarLiteral>,
     right: dir::LocalNodeId<dir::Expression>,
     right_constant: Option<dir::ScalarLiteral>,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
-    let is_left_zero = left_constant.is_some_and(|value| value.as_integral() == Some(0));
-    let is_right_zero = right_constant.is_some_and(|value| value.as_integral() == Some(0));
-    let is_left_one = left_constant.is_some_and(|value| value.as_integral() == Some(1));
-    let is_right_one = right_constant.is_some_and(|value| value.as_integral() == Some(1));
-    let is_left_negative_one = left_constant.is_some_and(|value| value.as_integral() == Some(-1));
-    let is_right_negative_one = right_constant.is_some_and(|value| value.as_integral() == Some(-1));
+) -> Option<(
+    dir::LocalNodeId<dir::Expression>,
+    dir::LocalNodeId<dir::Expression>,
+)> {
+    let left_constant = left_constant.and_then(|value| value.as_integral());
+    let right_constant = right_constant.and_then(|value| value.as_integral());
 
-    match operator {
-        dir::BinaryOperator::Add
-        | dir::BinaryOperator::ElementwiseOr
-        | dir::BinaryOperator::ElementwiseXor
-            if is_left_zero =>
-        {
-            Some(right)
-        }
-        dir::BinaryOperator::Add
-        | dir::BinaryOperator::Subtract
-        | dir::BinaryOperator::ShiftLeft
-        | dir::BinaryOperator::ShiftRight
-        | dir::BinaryOperator::UnsignedShiftRight
-        | dir::BinaryOperator::ElementwiseOr
-        | dir::BinaryOperator::ElementwiseXor
-            if is_right_zero =>
-        {
-            Some(left)
-        }
-        dir::BinaryOperator::Multiply if is_left_one => Some(right),
-        dir::BinaryOperator::Multiply
-        | dir::BinaryOperator::Divide
-        | dir::BinaryOperator::Exponent
-            if is_right_one =>
-        {
-            Some(left)
-        }
-        dir::BinaryOperator::ElementwiseAnd if is_left_negative_one => Some(right),
-        dir::BinaryOperator::ElementwiseAnd if is_right_negative_one => Some(left),
+    match (operator, left_constant, right_constant) {
+        (
+            dir::BinaryOperator::Add
+            | dir::BinaryOperator::ElementwiseOr
+            | dir::BinaryOperator::ElementwiseXor,
+            Some(0),
+            _,
+        ) => Some((right, left)),
+        (
+            dir::BinaryOperator::Add
+            | dir::BinaryOperator::Subtract
+            | dir::BinaryOperator::ShiftLeft
+            | dir::BinaryOperator::ShiftRight
+            | dir::BinaryOperator::UnsignedShiftRight
+            | dir::BinaryOperator::ElementwiseOr
+            | dir::BinaryOperator::ElementwiseXor,
+            _,
+            Some(0),
+        ) => Some((left, right)),
+        (dir::BinaryOperator::Multiply, Some(1), _) => Some((right, left)),
+        (
+            dir::BinaryOperator::Multiply
+            | dir::BinaryOperator::Divide
+            | dir::BinaryOperator::Exponent,
+            _,
+            Some(1),
+        ) => Some((left, right)),
+        (dir::BinaryOperator::ElementwiseAnd, Some(-1), _) => Some((right, left)),
+        (dir::BinaryOperator::ElementwiseAnd, _, Some(-1)) => Some((left, right)),
         _ => None,
     }
 }
@@ -134,19 +135,17 @@ fn suggestion(
     value: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let extent = module.source_extent(expression.into_any())?;
-    let value = module.source_extent(value.into_any())?;
+    let value_span = module.source_extent(value.into_any())?;
 
     // do not discard comments outside the retained operand
-    if module.has_unretained_comment(extent, &[value])? {
+    if module.has_unretained_comment(extent, &[value_span])? {
         return Ok(None);
     }
 
-    // replace the operation with its exact authored operand
-    let replacement = module.source(value)?.to_string();
-    let mut file = FilePatch::new(extent.file);
-    file.replace(extent, replacement);
-    let patches = PatchSet::single(file);
-    let suggestion = lint.fix("remove the identity operation", patches)?;
+    // retain the value with grouping valid under every surrounding operator
+    let replacement = module.operand_source(value, dir::OperatorPrecedence::Postfix)?;
+    let patch = Patch::replace(extent, replacement);
+    let suggestion = lint.fix("remove the identity operation", patch)?;
 
     Ok(Some(suggestion))
 }
@@ -247,6 +246,22 @@ function retain(value: int32): int32 {
             r#"
 function retain(value: float64): float64 {
     return value + 0.0;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Preserve an effectful call whose checked result is an identity value.
+    #[test]
+    fn test_accepts_effectful_identity_operand() {
+        let session = TestSession::dir(
+            &NO_IDENTITY_OPERATION,
+            r#"
+declare function observe(): 0;
+function retain(value: int32): int32 {
+    return observe() + value;
 }
 "#,
         );

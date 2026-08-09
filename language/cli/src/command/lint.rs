@@ -65,7 +65,7 @@ pub struct LintArgs {
 
 /// Lint source files for style and correctness issues.
 /// This is an alias for `check` with linting enabled.
-pub fn run(args: &LintArgs) -> i32 {
+pub async fn run(args: &LintArgs) -> i32 {
     if args.list_rules {
         if args.program.watch {
             return report_error(
@@ -94,7 +94,7 @@ pub fn run(args: &LintArgs) -> i32 {
         progress: args.progress,
     };
 
-    check::run_with_command(&check_args, "lint")
+    check::run_with_command(&check_args, "lint").await
 }
 
 /// Lint rule metadata for list output.

@@ -38,7 +38,7 @@ export local struct ConcurrentMapEntry<K, V> {
 /// A sharded concurrent hash map.
 export shared class ConcurrentMap<K, V> {
     /// The map shards.
-    private shards: Array<RwLock<Map<K, V>>> = Array.new();
+    private shards: Array<RwLock<Map<K, V>>> = [];
 
     /// The number of live entries.
     private count: Atomic<usize> = Atomic.new(0);

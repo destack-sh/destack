@@ -20,7 +20,7 @@ pub struct BenchArgs {
 }
 
 /// Run benchmarks.
-pub fn run(args: &BenchArgs) -> i32 {
+pub async fn run(args: &BenchArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("bench", &args.program, &args.report) {
         return code;
     }
@@ -39,14 +39,17 @@ pub fn run(args: &BenchArgs) -> i32 {
         "bench",
         &args.report,
         &args.program,
-        |workspace, root, progress| {
+        async |workspace, root, progress| {
             let result = workspace
                 .bench(root, request, progress)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(result)
         },
-    ) {
+    )
+    .await
+    {
         Ok(result) => result,
         Err(code) => return code,
     };

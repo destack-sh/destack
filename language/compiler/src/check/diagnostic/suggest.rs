@@ -108,7 +108,7 @@ impl CheckState<'_> {
             .module(module)
             .resolved
             .imports
-            .global_target_by_key
+            .global_resolution_by_key
             .keys()
         {
             if let Some(candidate) = self.reference_key_text(key) {

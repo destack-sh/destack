@@ -8,7 +8,11 @@ declare_lint_stub! {
     pub MISSING_DOCS {
         id: "missing-docs",
         summary: "Require documentation for meaningful named declarations",
-        explanation: "Functions, methods, types, fields, variants, and constants require concise documentation whether or not they are exported. Parameters, local bindings, generated declarations, and obvious protocol implementations are exempt; documentation does not require argument, error, or panic sections.",
+        explanation: r#"
+Functions, methods, types, fields, variants, and constants require concise documentation whether or
+not they are exported. Parameters, local bindings, generated declarations, and obvious protocol
+implementations are exempt; documentation does not require argument, error, or panic sections.
+"#,
         example: {
             reported: r#"
 struct Session {

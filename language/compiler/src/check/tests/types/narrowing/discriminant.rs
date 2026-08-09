@@ -46,8 +46,8 @@ newtype Event =
 /// @type.symbol symbol=Event.Click type=({ x: int32 }) => Event.Click
 /// @type.symbol symbol=Event.Key type=({ key: string }) => Event.Key
 /// @definition.newtype symbol=Event discriminator=kind backing={ kind: "click"; x: int32 } | { kind: "key"; key: string }
-/// @definition.variant symbol=Event.Click key=Click discriminant=click backing={ kind: "click"; x: int32 } argument={ x: int32 }
-/// @definition.variant symbol=Event.Key key=Key discriminant=key backing={ kind: "key"; key: string } argument={ key: string }
+/// @definition.variant symbol=Event.Click source={ kind: "click"; x: int32 } key=Click discriminant=click backing={ kind: "click"; x: int32 } argument={ x: int32 }
+/// @definition.variant symbol=Event.Key source={ kind: "key"; key: string } key=Key discriminant=key backing={ kind: "key"; key: string } argument={ key: string }
 
     | { kind: "click"; x: int32 }
     | { kind: "key"; key: string };
@@ -125,8 +125,8 @@ newtype Event =
 /// @type.symbol symbol=Event.Click type=({ value: int32 }) => Event.Click
 /// @type.symbol symbol=Event.Key type=({ value: int32 }) => Event.Key
 /// @definition.newtype symbol=Event discriminator=kind backing={ kind: "click"; value: int32 } | { kind: "key"; value: int32 }
-/// @definition.variant symbol=Event.Click key=Click discriminant=click backing={ kind: "click"; value: int32 } argument={ value: int32 }
-/// @definition.variant symbol=Event.Key key=Key discriminant=key backing={ kind: "key"; value: int32 } argument={ value: int32 }
+/// @definition.variant symbol=Event.Click source={ kind: "click"; value: int32 } key=Click discriminant=click backing={ kind: "click"; value: int32 } argument={ value: int32 }
+/// @definition.variant symbol=Event.Key source={ kind: "key"; value: int32 } key=Key discriminant=key backing={ kind: "key"; value: int32 } argument={ value: int32 }
 
     | { kind: "click"; value: int32 }
     | { kind: "key"; value: int32 };
@@ -249,8 +249,8 @@ newtype Event = Click | Key;
 /// @type.symbol symbol=Event.Click type=({ category: "pointer"; x: int32 }) => Event.Click
 /// @type.symbol symbol=Event.Key type=({ category: "keyboard"; key: string }) => Event.Key
 /// @definition.newtype symbol=Event source="newtype Event = Click | Key" discriminator=type backing=Click | Key
-/// @definition.variant symbol=Event.Click source="newtype Event = Click | Key" key=Click discriminant=click backing=Click argument={ category: "pointer"; x: int32 }
-/// @definition.variant symbol=Event.Key source="newtype Event = Click | Key" key=Key discriminant=key backing=Key argument={ category: "keyboard"; key: string }
+/// @definition.variant symbol=Event.Click source=Click key=Click discriminant=click backing=Click argument={ category: "pointer"; x: int32 }
+/// @definition.variant symbol=Event.Key source=Key key=Key discriminant=key backing=Key argument={ category: "keyboard"; key: string }
 /// @resolution.name source=Click target=Click
 /// @resolution.name source=Key target=Key
 
@@ -374,8 +374,8 @@ newtype Result<T> = Yield<T> | Return;
 /// @type.symbol symbol=Result.Return type=Result.Return<T#2>
 /// @type.symbol symbol=Result.Yield type=<T#2>({ value: T#2 }) => Result.Yield<T#2>
 /// @definition.newtype symbol=Result source="newtype Result<T> = Yield<T> | Return" template=(out T#2) discriminator=kind backing=Yield<T#2> | Return
-/// @definition.variant symbol=Result.Return source="newtype Result<T> = Yield<T> | Return" key=Return discriminant=return backing=Return
-/// @definition.variant symbol=Result.Yield source="newtype Result<T> = Yield<T> | Return" key=Yield discriminant=yield backing=Yield<T#2> argument={ value: T#2 }
+/// @definition.variant symbol=Result.Return source=Return key=Return discriminant=return backing=Return
+/// @definition.variant symbol=Result.Yield source=Yield<T> key=Yield discriminant=yield backing=Yield<T#2> argument={ value: T#2 }
 /// @type.symbol symbol=Result.T source=T type=T#2
 /// @resolution.name source=Yield target=Yield
 /// @resolution.name source=T target=Result.T

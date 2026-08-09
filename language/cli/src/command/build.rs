@@ -44,16 +44,16 @@ pub struct BuildArgs {
 }
 
 /// Compile source files and produce output.
-pub fn run(args: &BuildArgs) -> i32 {
+pub async fn run(args: &BuildArgs) -> i32 {
     if args.program.watch {
-        return run_watch(args);
+        return run_watch(args).await;
     }
 
-    run_build(args)
+    run_build(args).await
 }
 
 /// Run a single build command.
-fn run_build(args: &BuildArgs) -> i32 {
+async fn run_build(args: &BuildArgs) -> i32 {
     let started_at = Instant::now();
 
     // build command inputs when explicitly provided
@@ -96,14 +96,17 @@ fn run_build(args: &BuildArgs) -> i32 {
         "build",
         &args.report,
         &args.program,
-        |workspace, root, progress| {
+        async |workspace, root, progress| {
             let result = workspace
                 .build(root, request, progress)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(result)
         },
-    ) {
+    )
+    .await
+    {
         Ok(result) => result,
         Err(code) => return code,
     };
@@ -140,13 +143,13 @@ fn run_build(args: &BuildArgs) -> i32 {
 }
 
 /// Compile source files and produce output in watch mode.
-fn run_watch(args: &BuildArgs) -> i32 {
+async fn run_watch(args: &BuildArgs) -> i32 {
     // run with default watch settings
-    run_watch_with_options(args, WatchPolicy::default(), || {}, |_, _, _| {}, false)
+    run_watch_with_options(args, WatchPolicy::default(), || {}, |_, _, _| {}, false).await
 }
 
 /// Compile source files and produce output in watch mode with injected options.
-pub(crate) fn run_watch_with_options<StartFn, ObserveFn>(
+pub(crate) async fn run_watch_with_options<StartFn, ObserveFn>(
     args: &BuildArgs,
     watch_policy: WatchPolicy,
     on_start: StartFn,
@@ -210,26 +213,12 @@ where
 
     on_start();
 
-    let compile = |watch: &mut WorkspaceWatch, state: &BuildWatchState, cycle: WatchCycle| {
-        watch.run_command(|workspace, root, reporter| {
-            // build options for the updated sources
-            let request = match build_request(&state.sources) {
-                Ok(request) => request,
-                Err(message) => {
-                    let message = watch_error(&message.to_string());
-                    if let Some(reporter) = reporter.as_mut() {
-                        reporter.emit_warning(&message);
-                        return 1;
-                    }
-                    let next_exit = report_error("build", &args.report, &message);
-                    return next_exit;
-                }
-            };
-
-            // run the workspace build command
-            let result = match workspace.build(root, request, None) {
-                Ok(result) => match CommandResult::from_output(result) {
-                    Ok(result) => result,
+    let compile = async |watch: &mut WorkspaceWatch, state: &BuildWatchState, cycle: WatchCycle| {
+        watch
+            .run_command(async |workspace, root, reporter| {
+                // build options for the updated sources
+                let request = match build_request(&state.sources) {
+                    Ok(request) => request,
                     Err(message) => {
                         let message = watch_error(&message.to_string());
                         if let Some(reporter) = reporter.as_mut() {
@@ -239,45 +228,61 @@ where
                         let next_exit = report_error("build", &args.report, &message);
                         return next_exit;
                     }
-                },
-                Err(message) => {
-                    let message = watch_error(&message.to_string());
-                    if let Some(reporter) = reporter.as_mut() {
-                        reporter.emit_warning(&message);
-                        return 1;
+                };
+
+                // run the workspace build command
+                let result = match workspace.build(root, request, None).await {
+                    Ok(result) => match CommandResult::from_output(result) {
+                        Ok(result) => result,
+                        Err(message) => {
+                            let message = watch_error(&message.to_string());
+                            if let Some(reporter) = reporter.as_mut() {
+                                reporter.emit_warning(&message);
+                                return 1;
+                            }
+                            let next_exit = report_error("build", &args.report, &message);
+                            return next_exit;
+                        }
+                    },
+                    Err(message) => {
+                        let message = watch_error(&message.to_string());
+                        if let Some(reporter) = reporter.as_mut() {
+                            reporter.emit_warning(&message);
+                            return 1;
+                        }
+                        let next_exit = report_error("build", &args.report, &message);
+                        return next_exit;
                     }
-                    let next_exit = report_error("build", &args.report, &message);
-                    return next_exit;
+                };
+
+                // emit workspace output for text mode
+                if !args.report.is_json() {
+                    emit_workspace_text_output(
+                        &args.report,
+                        &result.response.messages,
+                        &result.response.output,
+                    );
                 }
-            };
 
-            // emit workspace output for text mode
-            if !args.report.is_json() {
-                emit_workspace_text_output(
-                    &args.report,
-                    &result.response.messages,
-                    &result.response.output,
-                );
-            }
-
-            // report diagnostics for the updated state
-            emit_watch_compile_report(
-                reporter,
-                WatchCompileContext {
-                    files: &result.files,
-                    diagnostics: &result.diagnostics,
-                    format_options: &format_options,
-                    json_format_options: &json_format_options,
-                    module_count: result.response.module_count,
-                    line_writer: None,
-                },
-                cycle,
-            )
-        })
+                // report diagnostics for the updated state
+                emit_watch_compile_report(
+                    reporter,
+                    WatchCompileContext {
+                        files: &result.files,
+                        diagnostics: &result.diagnostics,
+                        format_options: &format_options,
+                        json_format_options: &json_format_options,
+                        module_count: result.response.module_count,
+                        line_writer: None,
+                    },
+                    cycle,
+                )
+            })
+            .await
     };
 
-    let mut exit_code = compile(&mut watch, &watch_state, WatchCycle::startup());
-    while let Some(cycle) = watch.next_cycle() {
+    let mut exit_code = compile(&mut watch, &watch_state, WatchCycle::startup()).await;
+    while let Some(cycle) = watch.next_cycle().await {
         // refresh sources when the workspace requests a rescan
         if cycle.requires_rescan {
             watch_state.sources = match resolve_watch_sources(&args.input) {
@@ -289,7 +294,7 @@ where
             };
         }
 
-        exit_code = compile(&mut watch, &watch_state, cycle);
+        exit_code = compile(&mut watch, &watch_state, cycle).await;
         on_compile(cycle.reason, cycle.updated, cycle.requires_rescan);
         if is_one_shot {
             break;

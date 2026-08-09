@@ -225,15 +225,15 @@ impl DirResolved {
                 }
                 dir::Reference::Namespace(module) => namespaces.push(*module),
                 dir::Reference::Projected { base, .. } => match base {
-                    dir::ImportTarget::Symbol(symbol) => symbols.push(*symbol),
-                    dir::ImportTarget::Namespace(module) => namespaces.push(*module),
+                    dir::ReferenceTarget::Symbol(symbol) => symbols.push(*symbol),
+                    dir::ReferenceTarget::Namespace(module) => namespaces.push(*module),
                 },
                 dir::Reference::Ambiguous(targets) => {
                     // retain every candidate because check may select any one
                     for target in targets {
                         match target {
-                            dir::ImportTarget::Symbol(symbol) => symbols.push(*symbol),
-                            dir::ImportTarget::Namespace(module) => namespaces.push(*module),
+                            dir::ReferenceTarget::Symbol(symbol) => symbols.push(*symbol),
+                            dir::ReferenceTarget::Namespace(module) => namespaces.push(*module),
                         }
                     }
                 }
@@ -452,6 +452,8 @@ pub struct DirChecked {
     pub decisions: Arc<dir::DecisionSegment>,
     /// New generic slots and instances.
     pub generics: Arc<dir::GenericSegment>,
+    /// Refined declaration definitions.
+    pub definitions: Arc<dir::DefinitionSegment>,
     /// New implicit coercions.
     pub coercions: Arc<dir::CoercionSegment>,
     /// New captures.
@@ -459,6 +461,14 @@ pub struct DirChecked {
 }
 
 impl DirChecked {
+    /// Return the cumulative definition table for checked DIR.
+    pub fn definition_table(&self, elaborated: &DirElaborated) -> dir::DefinitionTable<'static> {
+        dir::DefinitionTable::from_segments(vec![
+            elaborated.definitions.clone(),
+            self.definitions.clone(),
+        ])
+    }
+
     /// Return the cumulative binding table for checked DIR.
     pub fn binding_table(
         &self,
@@ -689,8 +699,15 @@ impl DirMaterialized {
     }
 
     /// Return the cumulative definition table for materialized DIR.
-    pub fn definition_table(&self, elaborated: &DirElaborated) -> dir::DefinitionTable<'static> {
-        dir::DefinitionTable::from_segment(elaborated.definitions.clone())
+    pub fn definition_table(
+        &self,
+        elaborated: &DirElaborated,
+        checked: &DirChecked,
+    ) -> dir::DefinitionTable<'static> {
+        dir::DefinitionTable::from_segments(vec![
+            elaborated.definitions.clone(),
+            checked.definitions.clone(),
+        ])
     }
 
     /// Return the cumulative coercion table for materialized DIR.

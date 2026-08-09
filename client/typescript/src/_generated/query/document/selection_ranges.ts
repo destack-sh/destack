@@ -8,6 +8,73 @@ import { decodeModule, encodeModule, fromJsonModule, toJsonModule } from "../pro
 import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../../source/file/model/file.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../../source/file/model/span.js";
 
+/** One source range that can be expanded to its parent. */
+export type SelectionRange = {
+    /** The range of this selection. */
+    readonly range: Span;
+    /** The parent selection range (for expand selection). */
+    readonly parent?: SelectionRange;
+};
+
+export const SelectionRange = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: SelectionRange): void {
+        encodeSelectionRange(writer, value);
+    },
+
+    /** Decode one SelectionRange. */
+    decode(reader: BinaryReader): SelectionRange {
+        return decodeSelectionRange(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: SelectionRange): Json {
+        return toJsonSelectionRange(value);
+    },
+
+    /** Return one SelectionRange from one JSON value. */
+    fromJson(value: Json): SelectionRange {
+        return fromJsonSelectionRange(value);
+    },
+};
+
+/** Encode one SelectionRange. */
+export function encodeSelectionRange(writer: BinaryWriter, value: SelectionRange): void {
+    encodeSpan(writer, value.range);
+    writer.writeOption(value.parent, (value1) => {
+        encodeSelectionRange(writer, value1);
+    });
+}
+
+/** Decode one SelectionRange. */
+export function decodeSelectionRange(reader: BinaryReader): SelectionRange {
+    const range = decodeSpan(reader);
+    const parent = reader.readOption(() => decodeSelectionRange(reader));
+
+    return {
+        range,
+        ...(parent === undefined ? {} : { parent }),
+    };
+}
+
+/** Return one JSON value for one SelectionRange. */
+export function toJsonSelectionRange(value: SelectionRange): Json {
+    return {
+        range: toJsonSpan(value.range),
+        ...(value.parent === undefined ? {} : { parent: toJsonSelectionRange(value.parent) }),
+    };
+}
+
+/** Return one SelectionRange from one JSON value. */
+export function fromJsonSelectionRange(value: Json): SelectionRange {
+    const object = jsonObject(value);
+
+    return {
+        range: fromJsonSpan(jsonField(object, "range")),
+        parent: jsonOptional(object, "parent", (value) => fromJsonSelectionRange(value)),
+    };
+}
+
 /** Request selection ranges for positions in a document. */
 export type SelectionRangesRequest = {
     /** The queried module profile. */
@@ -141,72 +208,5 @@ export function fromJsonSelectionRangesResponse(value: Json): SelectionRangesRes
 
     return {
         ranges: jsonArray(jsonField(object, "ranges")).map((item0) => fromJsonSelectionRange(item0)),
-    };
-}
-
-/** One source range that can be expanded to its parent. */
-export type SelectionRange = {
-    /** The range of this selection. */
-    readonly range: Span;
-    /** The parent selection range (for expand selection). */
-    readonly parent?: SelectionRange;
-};
-
-export const SelectionRange = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: SelectionRange): void {
-        encodeSelectionRange(writer, value);
-    },
-
-    /** Decode one SelectionRange. */
-    decode(reader: BinaryReader): SelectionRange {
-        return decodeSelectionRange(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: SelectionRange): Json {
-        return toJsonSelectionRange(value);
-    },
-
-    /** Return one SelectionRange from one JSON value. */
-    fromJson(value: Json): SelectionRange {
-        return fromJsonSelectionRange(value);
-    },
-};
-
-/** Encode one SelectionRange. */
-export function encodeSelectionRange(writer: BinaryWriter, value: SelectionRange): void {
-    encodeSpan(writer, value.range);
-    writer.writeOption(value.parent, (value1) => {
-        encodeSelectionRange(writer, value1);
-    });
-}
-
-/** Decode one SelectionRange. */
-export function decodeSelectionRange(reader: BinaryReader): SelectionRange {
-    const range = decodeSpan(reader);
-    const parent = reader.readOption(() => decodeSelectionRange(reader));
-
-    return {
-        range,
-        ...(parent === undefined ? {} : { parent }),
-    };
-}
-
-/** Return one JSON value for one SelectionRange. */
-export function toJsonSelectionRange(value: SelectionRange): Json {
-    return {
-        range: toJsonSpan(value.range),
-        ...(value.parent === undefined ? {} : { parent: toJsonSelectionRange(value.parent) }),
-    };
-}
-
-/** Return one SelectionRange from one JSON value. */
-export function fromJsonSelectionRange(value: Json): SelectionRange {
-    const object = jsonObject(value);
-
-    return {
-        range: fromJsonSpan(jsonField(object, "range")),
-        parent: jsonOptional(object, "parent", (value) => fromJsonSelectionRange(value)),
     };
 }

@@ -3,12 +3,13 @@ use std::sync::Arc;
 use destack_core::SectionStorage;
 use destack_program::{Object, Program};
 use destack_serde::Reflect;
-use destack_source::ContentId;
+use destack_source::{ContentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
 use crate::{
     ArtifactError, ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build,
     Bundle, Data, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
-    DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared,
+    DirImported,
+    DirMaterialized, DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared, IndexKind,
     MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex,
     ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
@@ -41,9 +42,9 @@ pub enum ArtifactPayload {
     DirDeclared(Arc<DirDeclared>),
     /// One declared environment payload.
     EnvironmentDeclared(Arc<EnvironmentDeclared>),
+    /// Checked DIR module.
     /// Elaborated DIR module.
     DirElaborated(Arc<DirElaborated>),
-    /// Checked DIR module.
     DirChecked(Arc<DirChecked>),
     /// Materialized DIR.
     DirMaterialized(Arc<DirMaterialized>),
@@ -147,6 +148,18 @@ pub enum ArtifactPayloadRef<'a> {
     Product(&'a Product),
 }
 
+/// One typed artifact stored under a typed key.
+pub trait Artifact: Sized {
+    /// The values that identify one artifact of this type.
+    type Key;
+
+    /// Convert one typed key into its repository identity.
+    fn artifact_key(key: Self::Key) -> ArtifactKey;
+
+    /// Extract this artifact type from one stored payload.
+    fn from_payload(payload: ArtifactPayload) -> Option<Arc<Self>>;
+}
+
 impl ArtifactPayload {
     /// Decode one payload from its artifact storage representation.
     pub(crate) fn decode(key: &ArtifactKey, bytes: &[u8]) -> Result<Self, ArtifactError> {
@@ -209,8 +222,7 @@ impl ArtifactPayload {
                     | (
                         ArtifactKey::DirElaborated { .. },
                         ArtifactPayload::DirElaborated(_)
-                    )
-                    | (
+                    ) | (
                         ArtifactKey::DirChecked { .. },
                         ArtifactPayload::DirChecked(_)
                     )
@@ -474,212 +486,200 @@ fn push_projection_fingerprints(
     Ok(())
 }
 
-impl From<DirParsed> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirParsed) -> Self {
-        Self::DirParsed(Arc::new(payload))
-    }
+macro_rules! artifact {
+    ($type:ty, $variant:ident, $key:ty, $key_pattern:pat => $artifact_key:expr) => {
+        impl Artifact for $type {
+            type Key = $key;
+
+            fn artifact_key($key_pattern: Self::Key) -> ArtifactKey {
+                $artifact_key
+            }
+
+            fn from_payload(payload: ArtifactPayload) -> Option<Arc<Self>> {
+                match payload {
+                    ArtifactPayload::$variant(payload) => Some(payload),
+                    _ => None,
+                }
+            }
+        }
+
+        impl From<$type> for ArtifactPayload {
+            /// Convert a typed artifact into an artifact payload.
+            fn from(payload: $type) -> Self {
+                Self::$variant(Arc::new(payload))
+            }
+        }
+    };
 }
 
-impl From<Data> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: Data) -> Self {
-        Self::Data(Arc::new(payload))
-    }
-}
-
-impl From<EnvironmentBound> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: EnvironmentBound) -> Self {
-        Self::EnvironmentBound(Arc::new(payload))
-    }
-}
-
-impl From<ModuleGraph> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: ModuleGraph) -> Self {
-        Self::ModuleGraph(Arc::new(payload))
-    }
-}
-
-impl From<ProgramAnalysis> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: ProgramAnalysis) -> Self {
-        Self::ProgramAnalysis(Arc::new(payload))
-    }
-}
-
-impl From<DirBound> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirBound) -> Self {
-        Self::DirBound(Arc::new(payload))
-    }
-}
-
-impl From<DirImported> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirImported) -> Self {
-        Self::DirImported(Arc::new(payload))
-    }
-}
-
-impl From<DirExpanded> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirExpanded) -> Self {
-        Self::DirExpanded(Arc::new(payload))
-    }
-}
-
-impl From<DirExported> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirExported) -> Self {
-        Self::DirExported(Arc::new(payload))
-    }
-}
-
-impl From<DirResolved> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirResolved) -> Self {
-        Self::DirResolved(Arc::new(payload))
-    }
-}
-
-impl From<DirDeclared> for ArtifactPayload {
-    /// Wrap one declared DIR module payload.
-    fn from(payload: DirDeclared) -> Self {
-        Self::DirDeclared(Arc::new(payload))
-    }
-}
-
-impl From<DirElaborated> for ArtifactPayload {
-    /// Wrap one elaborated DIR module payload.
-    fn from(payload: DirElaborated) -> Self {
-        Self::DirElaborated(Arc::new(payload))
-    }
-}
-
-impl From<DirChecked> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirChecked) -> Self {
-        Self::DirChecked(Arc::new(payload))
-    }
-}
-
-impl From<DirMaterialized> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirMaterialized) -> Self {
-        Self::DirMaterialized(Arc::new(payload))
-    }
-}
-
-impl From<MirLowered> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: MirLowered) -> Self {
-        Self::MirLowered(Arc::new(payload))
-    }
-}
-
-impl From<MirVerified> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: MirVerified) -> Self {
-        Self::MirVerified(Arc::new(payload))
-    }
-}
-
-impl From<MirElaborated> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: MirElaborated) -> Self {
-        Self::MirElaborated(Arc::new(payload))
-    }
-}
-
-impl From<MirAnalyzed> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: MirAnalyzed) -> Self {
-        Self::MirAnalyzed(Arc::new(payload))
-    }
-}
-
-impl From<MirOptimized> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: MirOptimized) -> Self {
-        Self::MirOptimized(Arc::new(payload))
-    }
-}
-
-impl From<ModuleIndex> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: ModuleIndex) -> Self {
-        Self::ModuleIndex(Arc::new(payload))
-    }
-}
-
-impl From<ProgramIndex> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: ProgramIndex) -> Self {
-        Self::ProgramIndex(Arc::new(payload))
-    }
-}
-
-impl From<Script> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: Script) -> Self {
-        Self::Script(Arc::new(payload))
-    }
-}
-
-impl From<Object> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: Object) -> Self {
-        Self::Object(Arc::new(payload))
-    }
-}
-
-impl From<Asset> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: Asset) -> Self {
-        Self::Asset(Arc::new(payload))
-    }
-}
-
-impl From<Build> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: Build) -> Self {
-        Self::Build(Arc::new(payload))
-    }
-}
-
-impl From<Bundle> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: Bundle) -> Self {
-        Self::Bundle(Arc::new(payload))
-    }
-}
-
-impl From<Program> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: Program) -> Self {
-        Self::Program(Arc::new(payload))
-    }
-}
-
-impl From<Product> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: Product) -> Self {
-        Self::Product(Arc::new(payload))
-    }
-}
-
-impl From<ModuleLinted> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: ModuleLinted) -> Self {
-        Self::ModuleLinted(Arc::new(payload))
-    }
-}
-
-impl From<ProgramLinted> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: ProgramLinted) -> Self {
-        Self::ProgramLinted(Arc::new(payload))
-    }
-}
+artifact!(Build, Build, TargetId, target => ArtifactKey::build(target));
+artifact!(DirParsed, DirParsed, ModuleId, module => ArtifactKey::dir_parsed(module));
+artifact!(Data, Data, ModuleId, module => ArtifactKey::data(module));
+artifact!(
+    DirBound,
+    DirBound,
+    (ModuleId, ProfileId),
+    (module, profile) => ArtifactKey::dir_bound(module, profile)
+);
+artifact!(
+    EnvironmentBound,
+    EnvironmentBound,
+    ProfileId,
+    profile => ArtifactKey::environment_bound(profile)
+);
+artifact!(
+    ModuleGraph,
+    ModuleGraph,
+    ProfileId,
+    profile => ArtifactKey::module_graph(profile)
+);
+artifact!(
+    DirImported,
+    DirImported,
+    (ModuleId, ProfileId),
+    (module, profile) => ArtifactKey::dir_imported(module, profile)
+);
+artifact!(
+    DirExpanded,
+    DirExpanded,
+    (ModuleId, ProfileId),
+    (module, profile) => ArtifactKey::dir_expanded(module, profile)
+);
+artifact!(
+    DirExported,
+    DirExported,
+    (ModuleId, ProfileId),
+    (module, profile) => ArtifactKey::dir_exported(module, profile)
+);
+artifact!(
+    DirResolved,
+    DirResolved,
+    (ModuleId, ProfileId),
+    (module, profile) => ArtifactKey::dir_resolved(module, profile)
+);
+artifact!(
+    DirDeclared,
+    DirDeclared,
+    (ModuleId, ProfileId),
+    (module, profile) => ArtifactKey::dir_declared(module, profile)
+);
+artifact!(
+    EnvironmentDeclared,
+    EnvironmentDeclared,
+    ProfileId,
+    profile => ArtifactKey::environment_declared(profile)
+);
+artifact!(
+    DirElaborated,
+    DirElaborated,
+    (ModuleId, ProfileId),
+    (module, profile) => ArtifactKey::dir_elaborated(module, profile)
+);
+artifact!(
+    DirChecked,
+    DirChecked,
+    (ModuleId, ProfileId),
+    (module, profile) => ArtifactKey::dir_checked(module, profile)
+);
+artifact!(
+    DirMaterialized,
+    DirMaterialized,
+    (ModuleId, ProfileId),
+    (module, profile) => ArtifactKey::dir_materialized(module, profile)
+);
+artifact!(
+    MirLowered,
+    MirLowered,
+    (ModuleId, ProfileId, TargetId),
+    (module, profile, target) => ArtifactKey::mir_lowered(module, profile, target)
+);
+artifact!(
+    MirVerified,
+    MirVerified,
+    (ModuleId, ProfileId, TargetId),
+    (module, profile, target) => ArtifactKey::mir_verified(module, profile, target)
+);
+artifact!(
+    MirElaborated,
+    MirElaborated,
+    (ModuleId, ProfileId, TargetId),
+    (module, profile, target) => ArtifactKey::mir_elaborated(module, profile, target)
+);
+artifact!(
+    MirAnalyzed,
+    MirAnalyzed,
+    (ModuleId, ProfileId, TargetId),
+    (module, profile, target) => ArtifactKey::mir_analyzed(module, profile, target)
+);
+artifact!(
+    MirOptimized,
+    MirOptimized,
+    (ModuleId, ProfileId, TargetId),
+    (module, profile, target) => ArtifactKey::mir_optimized(module, profile, target)
+);
+artifact!(
+    ProgramAnalysis,
+    ProgramAnalysis,
+    (ProfileId, TargetId),
+    (profile, target) => ArtifactKey::program_analysis(profile, target)
+);
+artifact!(
+    ModuleIndex,
+    ModuleIndex,
+    (ModuleId, ProfileId, IndexKind),
+    (module, profile, kind) => ArtifactKey::module_index(module, profile, kind)
+);
+artifact!(
+    ProgramIndex,
+    ProgramIndex,
+    (ProfileId, IndexKind),
+    (profile, kind) => ArtifactKey::program_index(profile, kind)
+);
+artifact!(
+    ModuleLinted,
+    ModuleLinted,
+    (ModuleId, ProfileId, TargetId),
+    (module, profile, target) => ArtifactKey::module_linted(module, profile, target)
+);
+artifact!(
+    ProgramLinted,
+    ProgramLinted,
+    (ProfileId, TargetId),
+    (profile, target) => ArtifactKey::program_linted(profile, target)
+);
+artifact!(
+    Script,
+    Script,
+    (ModuleId, TargetId),
+    (module, target) => ArtifactKey::script(module, target)
+);
+artifact!(
+    Object,
+    Object,
+    (ModuleId, TargetId),
+    (module, target) => ArtifactKey::object(module, target)
+);
+artifact!(
+    Asset,
+    Asset,
+    (ModuleId, TargetId),
+    (module, target) => ArtifactKey::asset(module, target)
+);
+artifact!(
+    Bundle,
+    Bundle,
+    (PackageId, TargetId),
+    (package, target) => ArtifactKey::bundle(package, target)
+);
+artifact!(
+    Program,
+    Program,
+    (PackageId, TargetId),
+    (package, target) => ArtifactKey::program(package, target)
+);
+artifact!(
+    Product,
+    Product,
+    (PackageId, ProductId),
+    (package, product) => ArtifactKey::product(package, product)
+);

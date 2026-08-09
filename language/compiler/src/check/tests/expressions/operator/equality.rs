@@ -56,6 +56,7 @@ function use(onValue?: (arg0: unknown) => void): void {
 function use(onValue?: (value: unknown) => void): void {
 /// @type.symbol symbol=use type=(Function<(unknown,), void> | undefined?) => void
 /// @type.symbol symbol=use.onValue source="onValue?: (value: unknown) => void" type=Function<(unknown,), void> | undefined
+/// @type.symbol symbol=use.value source="value: unknown" type=Dynamic<unknown>
 
     if (onValue !== undefined) {
     /// @type.node source="onValue !== undefined" type=boolean
@@ -446,6 +447,7 @@ extension of Badge implements PartialEqual<Badge> {
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=PartialEqual<Badge>
 /// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a exclusive this, Badge) => boolean
+/// @definition.conformance symbol=<module>#2 member=equal requirement=ops.equality.PartialEqual.equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
 /// @resolution.name source=Badge target=Badge
@@ -556,6 +558,7 @@ extension of Measure implements PartialEqual<float64> {
 /// @definition.extension symbol=<module>#2 form=local target=Measure
 /// @definition.implements symbol=<module>#2 source=PartialEqual<float64> target=PartialEqual<float64>
 /// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a exclusive this, float64) => boolean
+/// @definition.conformance symbol=<module>#2 member=equal requirement=ops.equality.PartialEqual.equal
 /// @resolution.name source=Measure target=Measure
 /// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
 

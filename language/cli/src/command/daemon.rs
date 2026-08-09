@@ -3,8 +3,10 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
-use destack_daemon::{DaemonServer, DaemonServerOptions};
-use destack_workspace::{ConnectOptions, Launch, LaunchCommand, Service};
+use destack_daemon::{
+    DaemonConnectOptions, DaemonEndpoint, DaemonLaunch, DaemonLaunchCommand, DaemonServer,
+    DaemonServerOptions,
+};
 
 use crate::common::program::ProgramArgs;
 use crate::console;
@@ -70,11 +72,11 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
     };
 
     // resolve daemon service metadata
-    let mut service = Service::new(repository.layout().home.clone());
+    let mut endpoint = DaemonEndpoint::new(repository.layout().home.clone());
 
     // override the socket path when requested
     if let Some(socket) = args.socket.as_ref() {
-        service.socket_path = socket.clone();
+        endpoint.socket_path = socket.clone();
     }
 
     // build server options
@@ -82,7 +84,7 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
         worker_limit: args.program.workers as usize,
         ..Default::default()
     };
-    let server = match DaemonServer::with_options(repository, service, server_options) {
+    let server = match DaemonServer::with_options(repository, endpoint, server_options) {
         Ok(server) => server,
         Err(error) => {
             console::error(&format!("failed to start daemon: {error}"));
@@ -109,17 +111,17 @@ fn run_start(args: &DaemonLifecycleArgs) -> i32 {
             return 1;
         }
     };
-    let service = Service::new(repository.layout().home.clone());
+    let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
     let launch =
-        match daemon_server_launch(&args.program, &service, repository.path().to_path_buf()) {
+        match daemon_server_launch(&args.program, &endpoint, repository.path().to_path_buf()) {
             Ok(launch) => launch,
             Err(error) => {
                 console::error(&format!("failed to start daemon: {error}"));
                 return 1;
             }
         };
-    let options = ConnectOptions::default();
-    let result = service.start(options, launch);
+    let options = DaemonConnectOptions::default();
+    let result = endpoint.start(options, launch);
 
     // report connectivity status
     match result {
@@ -144,10 +146,10 @@ fn run_stop(args: &DaemonLifecycleArgs) -> i32 {
             return 1;
         }
     };
-    let service = Service::new(repository.layout().home.clone());
-    let options = ConnectOptions::default();
+    let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
+    let options = DaemonConnectOptions::default();
     // request shutdown and report the result
-    match service.stop(options) {
+    match endpoint.stop(options) {
         Ok(()) => {
             console::info("daemon shutdown requested");
             0
@@ -169,14 +171,14 @@ fn run_status(args: &DaemonLifecycleArgs) -> i32 {
             return 1;
         }
     };
-    let service = Service::new(repository.layout().home.clone());
-    let options = ConnectOptions::default();
+    let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
+    let options = DaemonConnectOptions::default();
 
     // probe daemon connectivity
-    match service.ping(options) {
+    match endpoint.ping(options) {
         Ok(()) => {
             console::info("daemon is running");
-            if let Ok(Some(metadata)) = service.read_metadata() {
+            if let Ok(Some(metadata)) = endpoint.read_metadata() {
                 console::info(&format!("websocket: {}", metadata.websocket_url));
             }
             0
@@ -191,16 +193,16 @@ fn run_status(args: &DaemonLifecycleArgs) -> i32 {
 /// Build a daemon server launch from CLI program settings.
 fn daemon_server_launch(
     program: &ProgramArgs,
-    service: &Service,
+    endpoint: &DaemonEndpoint,
     root: PathBuf,
-) -> Result<Launch, std::io::Error> {
+) -> Result<DaemonLaunch, std::io::Error> {
     let command = daemon_server_command(program)?;
 
-    Ok(command.launch(service, root))
+    Ok(command.launch(endpoint, root))
 }
 
 /// Build a daemon server command from CLI program settings.
-fn daemon_server_command(program: &ProgramArgs) -> Result<LaunchCommand, std::io::Error> {
+fn daemon_server_command(program: &ProgramArgs) -> Result<DaemonLaunchCommand, std::io::Error> {
     let cwd = program
         .cwd
         .clone()
@@ -213,14 +215,14 @@ fn daemon_server_command(program: &ProgramArgs) -> Result<LaunchCommand, std::io
             cwd.join(cache_dir)
         }
     });
-    let mut command = LaunchCommand::current_executable(daemon_server_arguments())?;
+    let mut command = DaemonLaunchCommand::current(daemon_server_arguments())?;
 
     // pass layout and cwd settings through to the daemon server
     command.home = program.home.clone();
-    command.package_dir = program.package_dir.clone();
-    command.cache_dir = cache_dir;
-    command.manifest_path = program.manifest.clone();
-    command.cwd = Some(cwd);
+    command.package_directory = program.package_dir.clone();
+    command.cache_directory = cache_dir;
+    command.manifest = program.manifest.clone();
+    command.current_directory = Some(cwd);
 
     Ok(command)
 }

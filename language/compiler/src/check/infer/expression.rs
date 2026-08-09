@@ -216,6 +216,7 @@ impl BodyState<'_, '_> {
                 left,
                 generic_arguments,
                 arguments,
+                is_optional,
                 ..
             } => {
                 self.select_call(
@@ -223,6 +224,7 @@ impl BodyState<'_, '_> {
                     left,
                     &generic_arguments.into_iter().collect::<SmallVec<[_; 2]>>(),
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
+                    is_optional,
                     None,
                 )?;
 
@@ -293,9 +295,12 @@ impl BodyState<'_, '_> {
 
                 Ok(())
             }
-            dir::Expression::Index { left, index, .. } => {
-                self.select_index(site, left, index, use_)
-            }
+            dir::Expression::Index {
+                left,
+                index,
+                is_optional,
+                ..
+            } => self.select_index(site, left, index, is_optional, use_),
             dir::Expression::Instantiation {
                 left,
                 generic_arguments,

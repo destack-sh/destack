@@ -441,16 +441,8 @@ impl WalkState<'_, '_> {
                 }
 
                 // place the method into its declaration slot
-                let slot = match signature.role {
-                    Some(dir::FunctionRole::Constructor) => dir::MemberSlot::Constructor,
-                    Some(dir::FunctionRole::New) => dir::MemberSlot::New,
-                    Some(dir::FunctionRole::Call) => dir::MemberSlot::Call,
-                    _ => match (*key).and_then(dir::Key::direct_static_key) {
-                        Some(key) => dir::MemberSlot::Key(key),
-                        None => {
-                            return Ok(None);
-                        }
-                    },
+                let Some(slot) = member.slot() else {
+                    return Ok(None);
                 };
                 let Some(symbol) = self
                     .check
@@ -761,21 +753,14 @@ impl WalkState<'_, '_> {
             }
             // method(): T
             dir::TypeMember::Method {
-                key,
                 signature,
                 body,
                 is_static,
                 ..
             } => {
-                let (key, body, is_static) = (*key, *body, *is_static);
-                let slot = match signature.role {
-                    Some(dir::FunctionRole::Constructor) => dir::MemberSlot::Constructor,
-                    Some(dir::FunctionRole::New) => dir::MemberSlot::New,
-                    Some(dir::FunctionRole::Call) => dir::MemberSlot::Call,
-                    _ => match key.direct_static_key() {
-                        Some(key) => dir::MemberSlot::Key(key),
-                        None => return Ok(None),
-                    },
+                let (body, is_static) = (*body, *is_static);
+                let Some(slot) = member.slot() else {
+                    return Ok(None);
                 };
                 let Some(symbol) = self
                     .check

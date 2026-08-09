@@ -82,7 +82,7 @@ impl CheckState<'_> {
                 return self.apparent_instance(apparent);
             }
             dir::Type::Application(instance) => ApparentInstance {
-                symbol: self.resolve_symbol_alias(instance.symbol)?,
+                symbol: instance.symbol,
                 arguments: self
                     .type_ids(receiver.module_id, instance.arguments)?
                     .iter()

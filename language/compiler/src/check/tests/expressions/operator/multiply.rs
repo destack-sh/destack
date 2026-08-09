@@ -63,6 +63,8 @@ extension of Force implements Multiply<float64> {
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=Multiply<float64>
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=Force
 /// @definition.method symbol=multiply slot=multiply type=<multiply.'a>(this: &multiply.'a exclusive this, float64) => Force
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.multiply.Multiply.Output
+/// @definition.conformance symbol=<module>#2 member=multiply requirement=ops.multiply.Multiply.multiply
 /// @resolution.name source=Force target=Force
 /// @resolution.name source=Multiply target=ops.multiply.Multiply
 
@@ -163,6 +165,8 @@ extension of Meters implements Multiply<Meters> {
 /// @definition.implements symbol=<module>#2 source=Multiply<Meters> target=Multiply<Meters>
 /// @definition.associated.type symbol=Output source="type Output = float64" key=Output value=float64
 /// @definition.method symbol=multiply slot=multiply type=<multiply.'a>(this: &multiply.'a exclusive this, Meters) => float64
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.multiply.Multiply.Output
+/// @definition.conformance symbol=<module>#2 member=multiply requirement=ops.multiply.Multiply.multiply
 /// @resolution.name source=Meters target=Meters
 /// @resolution.name source=Multiply target=ops.multiply.Multiply
 /// @resolution.name source=Meters target=Meters

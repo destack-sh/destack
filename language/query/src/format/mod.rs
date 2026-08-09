@@ -1,5 +1,6 @@
 mod argument;
 mod declaration;
+mod documentation;
 mod formatter;
 mod function;
 mod key;

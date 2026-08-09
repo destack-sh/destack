@@ -63,6 +63,8 @@ extension of Charge implements Negate {
 /// @definition.implements symbol=<module>#2 source=Negate target=Negate
 /// @definition.associated.type symbol=Output source="type Output = Charge" key=Output value=Charge
 /// @definition.method symbol=negate slot=negate type=<negate.'a>(this: &negate.'a exclusive this) => Charge
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.negate.Negate.Output
+/// @definition.conformance symbol=<module>#2 member=negate requirement=ops.negate.Negate.negate
 /// @resolution.name source=Charge target=Charge
 /// @resolution.name source=Negate target=ops.negate.Negate
 

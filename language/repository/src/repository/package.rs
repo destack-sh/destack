@@ -6,7 +6,7 @@ use destack_artifact::{
     ConditionSet, ExportPattern, ExportTarget, PackageDependency, PackageExports, PackageNode,
 };
 use destack_core::{TreapRoot, stable_hash_value_128};
-use destack_source::{FileId, PackageId, TargetId, Uri, matches as glob_matches};
+use destack_source::{PackageId, TargetId, Uri, matches as glob_matches};
 use im::OrdMap;
 use indexmap::IndexMap;
 
@@ -15,40 +15,24 @@ use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{DestackFile, Package, PackageDependencies, PackageExport, PackageIndex, PackageKind};
 
 impl Repository {
-    /// Build one tracked file id for one package-relative file when it exists.
-    fn tracked_file_id(&self, file_root: TreapRoot, path: &Path) -> Option<FileId> {
-        let file_id = self.file_id(path);
-
-        self.files
-            .entries
-            .contains(file_root, &file_id)
-            .then_some(file_id)
-    }
-
     /// Build one Package from an authored package root.
     fn build_package(
         &self,
         revision: Revision,
-        file_root: TreapRoot,
         discovered_kind: PackageKind,
         package_root: &Path,
     ) -> Result<Arc<Package>, RepositoryError> {
         let config_path = package_root.join("destack.json");
-        let destack_file_id = self.tracked_file_id(file_root, &config_path);
-        let destack_config = self
+        let configuration = self
             .inherited_destack_for_path(revision, &config_path)?
             .map(Arc::new);
-        let config = destack_config.as_deref();
+        let config = configuration.as_deref();
         let is_builtin = config
             .and_then(|config| config.name.as_deref())
             .is_some_and(|name| name == self.embedded_builtin.package_name());
-        let kind = if is_builtin {
-            PackageKind::Builtin
-        } else {
-            discovered_kind
-        };
-        let id = self.package_id(kind, package_root);
-        let uri = if kind == PackageKind::Builtin {
+        let kind = discovered_kind;
+        let id = self.package_id(is_builtin, package_root);
+        let uri = if is_builtin {
             self.embedded_builtin.package_uri().clone()
         } else {
             Uri::logical(package_root.to_string_lossy())
@@ -84,6 +68,7 @@ impl Repository {
         let package = Package {
             id,
             kind,
+            is_builtin,
             uri,
             path: Some(package_root.to_path_buf()),
             name,
@@ -99,8 +84,8 @@ impl Repository {
             topology: config
                 .map(|config| config.topology.clone())
                 .unwrap_or_default(),
-            destack_file_id,
             targets,
+            configuration,
         };
 
         Ok(Arc::new(package))
@@ -117,9 +102,8 @@ impl Repository {
 
         // build authored packages from config
         for (package_root, discovered_kind) in package_roots {
-            let package =
-                self.build_package(revision, file_root, discovered_kind, &package_root)?;
-            if package.kind == PackageKind::Builtin && packages.contains_key(&package.id) {
+            let package = self.build_package(revision, discovered_kind, &package_root)?;
+            if package.is_builtin && packages.contains_key(&package.id) {
                 return Err(RepositoryError::DuplicatePackageName {
                     name: self.embedded_builtin.package_name().to_string(),
                 });
@@ -374,12 +358,11 @@ impl Repository {
     }
 
     /// Return the package id for one package root.
-    fn package_id(&self, kind: PackageKind, root: &Path) -> PackageId {
-        match kind {
-            PackageKind::Builtin => self.embedded_builtin.package_id(),
-            PackageKind::Declared | PackageKind::Dependency | PackageKind::Implicit => {
-                PackageId::from_path(root)
-            }
+    fn package_id(&self, is_builtin: bool, root: &Path) -> PackageId {
+        if is_builtin {
+            self.embedded_builtin.package_id()
+        } else {
+            PackageId::from_path(root)
         }
     }
 

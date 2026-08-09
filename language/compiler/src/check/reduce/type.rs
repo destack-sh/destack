@@ -416,25 +416,8 @@ impl CheckState<'_> {
                 }
             }
 
-            // transparent alias references expand to their substituted bodies
+            // written applications complete their elided arguments
             dir::Type::Application(instance) => {
-                // follow import binders to their target declarations
-                if let Some(target) = self.import_binder_target(instance.symbol)? {
-                    if !self.is_own_module(target.module_id) {
-                        self.import_external_module(target.module_id)?;
-                    }
-
-                    // rebuild the application over the target declaration
-                    let rebuilt =
-                        self.intern_type(dir::Type::Application(dir::GenericApplication {
-                            symbol: target,
-                            arguments: instance.arguments,
-                        }))?;
-
-                    return self.head_reduction(origin, rebuilt);
-                }
-
-                // written applications complete their elided arguments
                 if let Some(filled) = self.fill_elided_application(id.module_id, &instance)? {
                     return self.head_reduction(origin, filled);
                 }
@@ -742,17 +725,6 @@ impl CheckState<'_> {
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // resolve binder symbols to their declaring targets
-        let symbol = self.resolve_symbol_alias(instance.symbol)?;
-        let symbol = match self.import_binder_target(symbol)? {
-            Some(target) => target,
-            None => symbol,
-        };
-        let instance = dir::GenericApplication {
-            symbol,
-            arguments: instance.arguments,
-        };
-
         let Some(template) = self.symbol_template(instance.symbol)? else {
             return Ok(None);
         };

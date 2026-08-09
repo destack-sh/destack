@@ -18,9 +18,10 @@ use destack_source::{
     PackageId, PrintOptions, ProfileId, TargetId, Uri, apply_file_patch, format_diff,
     print_diagnostics,
 };
+use futures::executor::block_on;
 use serde_json::{Map, Value, json};
 
-use crate::{Fixability, LINTS, Lint, LintCheck, LintScope, LintTier, MirModule};
+use crate::{Fixability, Lint, LintCheck, LintScope, LintTier, MirModule};
 
 const SOURCE_PATH: &str = "main.ds";
 const TARGET_NAME: &str = "native";
@@ -163,7 +164,7 @@ impl TestSession {
         )
         .expect("lint test session should open");
         let key = artifact(module.id, profile, target);
-        if let Err(error) = session.require(revision, key) {
+        if let Err(error) = block_on(session.require(revision, key)) {
             let diagnostics = repository
                 .diagnostics(revision, None)
                 .expect("lint test diagnostics should be readable");
@@ -416,21 +417,16 @@ fn render_diagnostics_with(
 
 /// Build a configuration that enables only the selected lint.
 fn lint_configuration(selected: &Lint) -> String {
-    let rules = LINTS
-        .iter()
-        .map(|lint| {
-            let level = if lint.id == selected.id {
-                "warning"
-            } else {
-                "off"
-            };
-
-            (lint.id.to_string(), Value::String(level.to_string()))
-        })
-        .collect::<Map<_, _>>();
+    let rules = [(
+        selected.id.to_string(),
+        Value::String("warning".to_string()),
+    )]
+    .into_iter()
+    .collect::<Map<_, _>>();
     let configuration = json!({
         "name": "@test/app",
         "linter": {
+            "only": [selected.id],
             "rules": rules,
         },
     });
@@ -460,7 +456,7 @@ pub(super) fn shared_repository() -> &'static (Arc<Repository>, Revision) {
             Arc::new(MemoryFileSystem::new()),
             Arc::new(MemoryBlobStore::new()),
         )
-        .with_execution(Execution::Inline);
+        .with_execution(Execution::Cooperative);
         let repository = Repository::new(root, host, settings, layout)
             .with_artifact_store(Arc::new(NullArtifactStore::new()));
         let repository = Arc::new(repository);

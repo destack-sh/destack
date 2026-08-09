@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -10,7 +10,10 @@ declare_lint! {
     pub NO_UNNEEDED_TERNARY {
         id: "no-unneeded-ternary",
         summary: "Disallow unnecessary ternary expressions",
-        explanation: "A ternary that chooses opposite boolean literals only restates its boolean condition. Use the condition directly, or negate it when the branches reverse the condition.",
+        explanation: r#"
+A ternary that chooses opposite boolean literals only restates its boolean condition. Use the
+condition directly, or negate it when the branches reverse the condition.
+"#,
         example: {
             reported: r#"
 function active(condition: boolean): boolean {
@@ -36,13 +39,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect ternaries with one expression condition and two boolean branches
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::If {
             form: dir::IfForm::Ternary,
             condition,
             then_expression,
             else_expression: Some(else_expression),
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };
@@ -99,10 +102,8 @@ fn suggestion(
     } else {
         module.negated_source(condition)?
     };
-    let mut file = FilePatch::new(extent.file);
-    file.replace(extent, replacement);
-    let patches = PatchSet::single(file);
-    let suggestion = lint.fix("use the boolean condition directly", patches)?;
+    let patch = Patch::replace(extent, replacement);
+    let suggestion = lint.fix("use the boolean condition directly", patch)?;
 
     Ok(Some(suggestion))
 }

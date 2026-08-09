@@ -15,8 +15,8 @@ use crate::check::{
 pub(in crate::check) struct SignatureSelection {
     /// The callable type after substitution.
     pub(in crate::check) callable: dir::GlobalTypeId,
-    /// The parameter types after substitution.
-    pub(in crate::check) parameters: SmallVec<[dir::FunctionParameterType; 4]>,
+    /// The selected parameters in declaration order.
+    pub(in crate::check) parameters: SmallVec<[ParameterSelection; 4]>,
     /// The return type after substitution.
     pub(in crate::check) return_type: dir::GlobalTypeId,
     /// The solved generic argument bindings.
@@ -25,6 +25,28 @@ pub(in crate::check) struct SignatureSelection {
     pub(in crate::check) receiver_steps: Option<ReceiverSteps>,
     /// Runtime coercions selected for the supplied arguments.
     pub(in crate::check) coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
+}
+
+impl SignatureSelection {}
+
+/// One substituted parameter and its accepted argument type.
+#[derive(Debug, Clone, Copy)]
+pub(in crate::check) struct ParameterSelection {
+    /// The complete substituted parameter.
+    pub(in crate::check) parameter: dir::FunctionParameterType,
+    /// The type accepted from each bound argument source.
+    pub(in crate::check) argument_type: dir::GlobalTypeId,
+}
+
+impl ParameterSelection {
+    /// Bind one runtime source to this selected parameter.
+    pub(in crate::check) fn bind(&self, source: dir::ArgumentSource) -> dir::ArgumentBinding {
+        dir::ArgumentBinding {
+            parameter_type: self.parameter.ty,
+            argument_type: self.argument_type,
+            source,
+        }
+    }
 }
 
 /// One instantiated closed signature decision, replayed across call sites.
@@ -202,14 +224,12 @@ impl BodyState<'_, '_> {
     /// Create one substituted function signature type.
     fn instantiate_signature_type(
         &mut self,
-        origin: Origin,
-        source: ModuleId,
-        target: ModuleId,
         signature: &dir::FunctionSignatureType,
         substitution: &TypeSubstitution,
-        receiver: Option<dir::GlobalTypeId>,
+        parameters: &[ParameterSelection],
         return_type: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // substitute the selected receiver parameter
         let this_parameter = match signature.this_parameter {
             Some(this_parameter) => {
                 let this_parameter = self.substitute_type(this_parameter, substitution)?;
@@ -218,26 +238,15 @@ impl BodyState<'_, '_> {
             }
             None => None,
         };
-        let mut parameters = Vec::new();
-        for parameter in self
-            .signature_parameters(source, signature.parameters)?
-            .to_vec()
-        {
-            let ty = self.instantiate_parameter_type(
-                origin,
-                target,
-                parameter.ty,
-                substitution,
-                receiver,
-            )?;
-            parameters.push(dir::FunctionParameterType {
-                ty,
-                is_optional: parameter.is_optional,
-                is_rest: parameter.is_rest,
-            });
-        }
+
+        // collect selected parameters
+        let parameters = parameters
+            .iter()
+            .map(|selected| selected.parameter)
+            .collect::<Vec<_>>();
         let parameters = self.intern_parameters(&parameters)?;
 
+        // intern the selected signature
         let signature = self.intern_signature(dir::FunctionSignatureType {
             asynchrony: signature.asynchrony,
             template: None,
@@ -250,20 +259,94 @@ impl BodyState<'_, '_> {
         Ok(signature)
     }
 
-    /// Instantiate one selected parameter type.
-    fn instantiate_parameter_type(
+    /// Select one parameter for an invocation.
+    pub(in crate::check) fn select_parameter(
         &mut self,
         origin: Origin,
-        module: ModuleId,
-        parameter: dir::GlobalTypeId,
+        parameter: dir::FunctionParameterType,
         substitution: &TypeSubstitution,
         receiver: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let parameter = self.substitute_type(parameter, substitution)?;
-        let parameter = self.erase_inference_barriers(module, parameter)?;
-        let parameter = self.receiver_relative_type(origin, receiver, parameter)?;
+    ) -> CompilerResult<ParameterSelection> {
+        // substitute the complete declared parameter type
+        let parameter_type = self.substitute_type(parameter.ty, substitution)?;
 
-        Ok(parameter)
+        // resolve relative member parameters at the receiver's place
+        let parameter_type = self.receiver_relative_type(origin, receiver, parameter_type)?;
+        let parameter_type = self.shallow_resolve(parameter_type)?;
+
+        // rest parameters retain their collection type and accept its element per source
+        let argument_type = match parameter.is_rest {
+            true => self
+                .rest_element_type(origin, parameter_type)?
+                .unwrap_or(parameter_type),
+            false => parameter_type,
+        };
+
+        // replace the declared type with the selected type
+        let parameter = dir::FunctionParameterType {
+            ty: parameter_type,
+            ..parameter
+        };
+
+        Ok(ParameterSelection {
+            parameter,
+            argument_type,
+        })
+    }
+
+    /// Bind authored arguments to selected parameters, projecting rest elements.
+    pub(in crate::check) fn selected_argument_bindings(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        module: ModuleId,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        signature: &SignatureSelection,
+    ) -> CompilerResult<Vec<dir::ArgumentBinding>> {
+        let parameters = signature
+            .parameters
+            .iter()
+            .map(|selected| selected.parameter)
+            .collect::<Vec<_>>();
+
+        self.argument_bindings(
+            Origin::Node(node, None),
+            module,
+            argument_nodes,
+            &parameters,
+        )
+    }
+
+    /// Bind recorded argument sources to selected parameters, projecting rest elements.
+    pub(in crate::check) fn bind_argument_sources(
+        &mut self,
+        origin: Origin,
+        signature: &SignatureSelection,
+        sources: &[dir::ArgumentSource],
+    ) -> CompilerResult<Vec<dir::ArgumentBinding>> {
+        let mut bindings = Vec::with_capacity(signature.parameters.len());
+        for (index, selected) in signature.parameters.iter().enumerate() {
+            let parameter = selected.parameter;
+            let source = match sources.get(index) {
+                Some(source) => source.clone(),
+                None if parameter.is_rest => dir::ArgumentSource::Rest(Vec::new()),
+                None => dir::ArgumentSource::Omitted,
+            };
+
+            // settled selections project rest elements through the full reduce
+            let argument_type = match parameter.is_rest {
+                true => self
+                    .rest_element_type(origin, parameter.ty)?
+                    .unwrap_or(parameter.ty),
+                false => parameter.ty,
+            };
+            bindings.push(dir::ArgumentBinding {
+                parameter_type: parameter.ty,
+                argument_type,
+                source,
+            });
+        }
+
+        Ok(bindings)
     }
 
     /// Return the element type one rest parameter accepts per tail argument.
@@ -273,6 +356,18 @@ impl BodyState<'_, '_> {
         rest: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let reduced = self.check.reduce_type(origin, rest)?;
+
+        // placed collections accept their element in the collection's place
+        if let dir::Type::Form(form) = self.check.ty(reduced)?
+            && let dir::Form::Placed { place } = form.form
+        {
+            let Some(element) = self.rest_element_type(origin, form.value)? else {
+                return Ok(None);
+            };
+            let element = self.check.resolve_relative_place(origin, element, place)?;
+
+            return Ok(Some(element));
+        }
 
         // project the element from the collection the annotation names
         match self.check.ty(reduced)? {
@@ -310,8 +405,6 @@ impl BodyState<'_, '_> {
         arguments: &[CallableArgument],
         expectation: Option<Expectation>,
     ) -> CompilerResult<SignatureMatch> {
-        let module = origin.module();
-
         // reduce the callable shape before selecting a signature
         let function_type = self.reduce_type_head(origin, function_type)?;
         let function = match self.ty(function_type)? {
@@ -356,7 +449,6 @@ impl BodyState<'_, '_> {
 
         self.constrain_signature(
             origin,
-            module,
             function_type.module_id,
             owner,
             carried,
@@ -373,7 +465,6 @@ impl BodyState<'_, '_> {
     pub(in crate::check) fn match_signature(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         signature_module: ModuleId,
         owner: Option<dir::GlobalSymbolId>,
         carried: &[dir::GenericArgumentBinding],
@@ -388,7 +479,6 @@ impl BodyState<'_, '_> {
 
         self.constrain_signature(
             origin,
-            module,
             signature_module,
             owner,
             carried,
@@ -405,7 +495,6 @@ impl BodyState<'_, '_> {
     fn constrain_signature(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         signature_module: ModuleId,
         owner: Option<dir::GlobalSymbolId>,
         carried: &[dir::GenericArgumentBinding],
@@ -551,24 +640,13 @@ impl BodyState<'_, '_> {
                         SignatureRejection::Inapplicable,
                     ));
                 };
-                let parameter_type = self.substitute_type(parameter.ty, &substitution)?;
-
-                // resolve relative member parameters at the receiver's place
-                let parameter_type = self.receiver_relative_type(
+                let parameter = self.select_parameter(
                     origin,
+                    *parameter,
+                    &substitution,
                     receiver.map(|receiver| receiver.ty),
-                    parameter_type,
                 )?;
-                let parameter_type = self.shallow_resolve(parameter_type)?;
-
-                // relate a rest tail against its element type
-                let parameter_type = match parameter.is_rest {
-                    true => self
-                        .rest_element_type(origin, parameter_type)?
-                        .unwrap_or(parameter_type),
-                    false => parameter_type,
-                };
-                argument_parameters.push((index, argument, parameter_type));
+                argument_parameters.push((index, argument, parameter.argument_type));
             }
 
             // collect the callable and owner template constraints
@@ -679,7 +757,6 @@ impl BodyState<'_, '_> {
 
         let mut selection = self.signature_selection(
             origin,
-            module,
             signature_module,
             function,
             function_return,
@@ -722,7 +799,6 @@ impl BodyState<'_, '_> {
     fn signature_selection(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         signature_module: ModuleId,
         function: &dir::FunctionSignatureType,
         function_return: Option<dir::GlobalTypeId>,
@@ -741,29 +817,20 @@ impl BodyState<'_, '_> {
             .signature_parameters(signature_module, function.parameters)?
             .to_vec()
         {
-            let ty = self.instantiate_parameter_type(
-                origin,
-                origin.module(),
-                parameter.ty,
-                substitution,
-                receiver,
-            )?;
-            parameters.push(dir::FunctionParameterType {
-                ty,
-                is_optional: parameter.is_optional,
-                is_rest: parameter.is_rest,
-            });
+            let parameter = self.select_parameter(origin, parameter, substitution, receiver)?;
+            let parameter = ParameterSelection {
+                parameter: dir::FunctionParameterType {
+                    ty: self.erase_inference_barriers(origin.module(), parameter.parameter.ty)?,
+                    ..parameter.parameter
+                },
+                argument_type: self
+                    .erase_inference_barriers(origin.module(), parameter.argument_type)?,
+            };
+            parameters.push(parameter);
         }
         let arguments = self.settled_argument_bindings(&substitution.bindings)?;
-        let function_type = self.instantiate_signature_type(
-            origin,
-            signature_module,
-            module,
-            function,
-            substitution,
-            receiver,
-            return_type,
-        )?;
+        let function_type =
+            self.instantiate_signature_type(function, substitution, &parameters, return_type)?;
 
         Ok(SignatureSelection {
             callable: function_type,
@@ -795,6 +862,7 @@ impl BodyState<'_, '_> {
             },
         ));
         let mode = self.contextual_literal_mode(parameter_type, InferMode::Widen)?;
+
         // apply target-directed syntax before converting the resulting value
         let ty = match argument.ty {
             Some(ty) => ty,

@@ -1,6 +1,5 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -16,21 +15,21 @@ pub struct TypeItem {
     /// The kind of type.
     pub kind: SymbolKind,
     /// The rendered generic parameters.
-    pub detail: Option<String>,
+    pub generics: Option<String>,
     /// The target source.
     pub target: Target,
     /// The resolved type symbol.
     pub symbol_id: dir::GlobalSymbolId,
 }
 
-/// Request the type item at a cursor position.
+/// A type item request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeItemRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for type item queries.
+/// A type item response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeItemResponse {
     /// Type hierarchy item, if available.
@@ -59,14 +58,14 @@ pub(crate) struct TypeItemOrder<'a> {
 impl TypeItem {
     /// Build the hierarchy item for one type symbol.
     pub(crate) fn from_symbol(
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Self>> {
-        let Some(canonical_id) = query.canonical_symbol(symbol_id)? else {
+        let Some(target_id) = program.symbol_target(symbol_id)? else {
             return Ok(None);
         };
-        let module = query.module(canonical_id.module_id)?;
-        let symbol = module.bindings()?.get_symbol(canonical_id.local_id);
+        let module = program.module(target_id.module_id)?;
+        let symbol = module.bindings()?.get_symbol(target_id.local_id);
         let kind = match symbol.kind {
             dir::SymbolKind::Class
             | dir::SymbolKind::Struct
@@ -74,38 +73,37 @@ impl TypeItem {
             | dir::SymbolKind::NewtypeInterface
             | dir::SymbolKind::Enum
             | dir::SymbolKind::Newtype => SymbolKind::try_from(symbol.kind)
-                .map_err(|_| QueryError::invalid(format!("type item symbol: {canonical_id:?}")))?,
+                .map_err(|_| QueryError::invalid(format!("type item symbol: {target_id:?}")))?,
             _ => return Ok(None),
         };
-        let name = query
-            .symbol_name(canonical_id)?
+        let name = program
+            .symbol_name(target_id)?
             .ok_or(QueryError::invalid(format!(
-                "type item symbol: {canonical_id:?}"
+                "type item symbol: {target_id:?}"
             )))?;
 
         // resolve source ranges around the declaration name
         let selection_range =
-            query
-                .symbol_definition_span(canonical_id)?
+            program
+                .symbol_definition_span(target_id)?
                 .ok_or(QueryError::missing(format!(
-                    "type item span: {canonical_id:?}"
+                    "type item span: {target_id:?}"
                 )))?;
-        let range =
-            module
-                .symbol_local_declaration_span(canonical_id)?
-                .ok_or(QueryError::missing(format!(
-                    "type item span: {canonical_id:?}"
-                )))?;
+        let range = module
+            .symbol_local_declaration_span(program, target_id)?
+            .ok_or(QueryError::missing(format!(
+                "type item span: {target_id:?}"
+            )))?;
 
         let target = Target::new(module.module(), range).with_selection_span(selection_range)?;
-        let detail = Formatter::new(&module, query).symbol_generics(canonical_id)?;
+        let generics = Formatter::new(&module, program).symbol_generics(target_id)?;
 
         Ok(Some(Self {
             name,
             kind,
-            detail,
+            generics,
             target,
-            symbol_id: canonical_id,
+            symbol_id: target_id,
         }))
     }
 
@@ -127,17 +125,19 @@ impl ModuleQueryContext<'_> {
     /// Return a type item at the given position.
     pub fn type_item(
         &self,
-        query: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<TypeItem>> {
-        let Some(symbol_at) = self.symbol_at_offset(file_id, offset)? else {
-            return Ok(None);
+        request: TypeItemRequest,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<TypeItemResponse> {
+        let position = request.position;
+        let Some(symbol_at) = self.symbol_at_offset(program, position.file_id, position.offset)?
+        else {
+            return Ok(TypeItemResponse { item: None });
         };
         let Some(symbol_id) = symbol_at.symbol() else {
-            return Ok(None);
+            return Ok(TypeItemResponse { item: None });
         };
+        let item = TypeItem::from_symbol(program, symbol_id)?;
 
-        TypeItem::from_symbol(query, symbol_id)
+        Ok(TypeItemResponse { item })
     }
 }

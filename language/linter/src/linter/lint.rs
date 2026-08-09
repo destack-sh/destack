@@ -117,7 +117,7 @@ impl LintOutput {
 pub type DirModuleCheck = for<'a> fn(&DirModule<'a>, &Lint) -> LintResult;
 
 /// One checked DIR program lint function.
-pub type DirProgramCheck = fn(&DirProgram, &Lint) -> LintResult;
+pub type DirProgramCheck = for<'a> fn(&DirProgram<'a>, &Lint) -> LintResult;
 
 /// One verified MIR module lint function.
 pub type MirModuleCheck = fn(&mut MirModule, &Lint) -> LintResult;
@@ -232,18 +232,18 @@ impl Lint {
     pub fn fix(
         &self,
         message: impl Into<String>,
-        patches: PatchSet,
+        patches: impl Into<PatchSet>,
     ) -> Result<DiagnosticSuggestion, ProviderError> {
-        self.correction(message, patches, Applicability::Automatic)
+        self.correction(message, patches.into(), Applicability::Automatic)
     }
 
     /// Create a review correction for this lint.
     pub fn suggestion(
         &self,
         message: impl Into<String>,
-        patches: PatchSet,
+        patches: impl Into<PatchSet>,
     ) -> Result<DiagnosticSuggestion, ProviderError> {
-        self.correction(message, patches, Applicability::Dangerous)
+        self.correction(message, patches.into(), Applicability::Dangerous)
     }
 
     /// Return whether this lint can provide fixes.

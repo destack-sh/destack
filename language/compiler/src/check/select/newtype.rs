@@ -6,7 +6,7 @@ use destack_source::ModuleId;
 use crate::check::{
     BodyState, CallableArgument, Callee, CandidateOutcome, CandidateVerdict, CheckState,
     Expectation, ObligationCheck, Origin, Selection, SignatureMatch, SignatureRejection,
-    TypeSubstitution, ValueUse,
+    SignatureSelection, TypeSubstitution, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -39,14 +39,10 @@ pub(in crate::check) enum NewtypeMatch {
 /// One selected newtype backing signature.
 #[derive(Debug, Clone)]
 pub(in crate::check) struct NewtypeSignature {
-    /// The durable nominal selection.
+    /// The selected newtype backing.
     pub(in crate::check) selection: dir::NewtypeSelection,
-    /// The selected parameter types.
-    pub(in crate::check) parameters: SmallVec<[dir::FunctionParameterType; 4]>,
-    /// The instantiated nominal return type.
-    pub(in crate::check) return_type: dir::GlobalTypeId,
-    /// The argument conversions selected with the backing.
-    pub(in crate::check) coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
+    /// The selected backing signature.
+    pub(in crate::check) signature: SignatureSelection,
 }
 
 /// Reason no backing alternative accepted the supplied arguments.
@@ -91,8 +87,7 @@ impl BodyState<'_, '_> {
         self.register_argument_function_values(module, argument_nodes)?;
         let arguments = self.callable_arguments(module, argument_nodes, use_)?;
 
-        // select the backing once for closed operand lists; later matches
-        //  replay that selection, converting their own arguments in place
+        // select the backing once for closed operand lists, then replay it per site
         let selection_key = match arguments
             .iter()
             .map(|argument| argument.ty)
@@ -294,9 +289,7 @@ impl BodyState<'_, '_> {
         // build the selected signature over the substituted backing
         let signature = NewtypeSignature {
             selection,
-            parameters: signature.parameters,
-            return_type: signature.return_type,
-            coercions: signature.coercions,
+            signature,
         };
 
         // carry any rejection or return mismatch alongside the selection
@@ -315,7 +308,7 @@ impl BodyState<'_, '_> {
             && self.newtype_signature_is_closed(signature)?
         {
             let mut stored = signature.clone();
-            stored.coercions = SmallVec::new();
+            stored.signature.coercions = SmallVec::new();
             self.check.selections.insert(
                 key,
                 Selection::Newtype(NewtypeInstance { selection: stored }),
@@ -336,22 +329,23 @@ impl BodyState<'_, '_> {
         let mut signature = instance;
         for (index, argument) in arguments.iter().copied().enumerate() {
             let parameter = signature
+                .signature
                 .parameters
                 .get(index)
-                .or_else(|| signature.parameters.last());
+                .or_else(|| signature.signature.parameters.last());
             let Some(parameter) = parameter else {
                 return Ok(None);
             };
-            let parameter_type = match parameter.is_rest {
-                true => self
-                    .rest_element_type(origin, parameter.ty)?
-                    .unwrap_or(parameter.ty),
-                false => parameter.ty,
-            };
+            let parameter_type = parameter.argument_type;
             let conversion =
                 self.match_signature_argument(origin, index, argument, parameter_type)?;
             match conversion {
-                Ok(Some(coercion)) => signature.coercions.push((argument.source, coercion)),
+                Ok(Some(coercion)) => {
+                    signature
+                        .signature
+                        .coercions
+                        .push((argument.source, coercion));
+                }
                 Ok(None) => {}
                 Err(_) => return Ok(None),
             }
@@ -367,9 +361,15 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<bool> {
         // collect every type the selection embeds
         let mut types = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-        types.push(signature.return_type);
+        types.push(signature.signature.return_type);
         types.push(signature.selection.backing);
-        types.extend(signature.parameters.iter().map(|parameter| parameter.ty));
+        types.extend(
+            signature
+                .signature
+                .parameters
+                .iter()
+                .map(|parameter| parameter.parameter.ty),
+        );
         types.extend(dir::GenericArgumentBinding::values(
             &signature.selection.generic_arguments,
         ));
@@ -513,7 +513,6 @@ impl BodyState<'_, '_> {
         arguments: &[CallableArgument],
         expectation: Option<Expectation>,
     ) -> CompilerResult<SignatureMatch> {
-        let module = origin.module();
         let Some(function) = self.signature_head(candidate.signature)? else {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -525,7 +524,6 @@ impl BodyState<'_, '_> {
 
         self.match_signature(
             origin,
-            module,
             candidate.signature.module_id,
             None,
             &[],

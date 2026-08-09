@@ -317,7 +317,7 @@ impl RunResult {
 #[cfg(not(target_arch = "wasm32"))]
 impl CommandContext<'_> {
     /// Execute a run command.
-    pub(crate) fn execute_run_command(
+    pub(crate) async fn execute_run_command(
         &mut self,
         input: &RunInput,
     ) -> CommandResult<CommandOutcome<Option<RunPayload>>> {
@@ -338,7 +338,7 @@ impl CommandContext<'_> {
         let artifact_keys = vec![ArtifactKey::program(target.id.package_id(), target.id)];
 
         // provide the requested roots
-        self.provide(revision, &artifact_keys)?;
+        self.provide(revision, &artifact_keys).await?;
         let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
         let exit_code = diagnostics.get_status_code();
         let profile_count = self
@@ -398,7 +398,7 @@ impl CommandContext<'_> {
 #[cfg(target_arch = "wasm32")]
 impl CommandContext<'_> {
     /// Execute a run command.
-    pub(crate) fn execute_run_command(
+    pub(crate) async fn execute_run_command(
         &mut self,
         _input: &RunInput,
     ) -> CommandResult<CommandOutcome<Option<RunPayload>>> {
@@ -429,7 +429,7 @@ fn run_entry_module(
     // load the linked Program
     let artifacts = repository.artifact_reader(revision);
     let program = artifacts
-        .program(target_id.package_id(), target_id)
+        .read::<Program>((target_id.package_id(), target_id))
         .map_err(|error| error.to_string())?;
 
     // runtime launch

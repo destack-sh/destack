@@ -8,7 +8,11 @@ declare_lint_stub! {
     pub PREFER_METHOD {
         id: "prefer-method",
         summary: "Prefer methods when the first parameter establishes a receiver",
-        explanation: "A function whose first parameter supplies the operation's canonical nominal owner should be an inherent or extension method. Symmetric operations, protocol implementations, constructors, callbacks, intrinsics, and generated declarations are exempt.",
+        explanation: r#"
+A function whose first parameter supplies the operation's canonical nominal owner should be an
+inherent or extension method. Symmetric operations, protocol implementations, constructors,
+callbacks, intrinsics, and generated declarations are exempt.
+"#,
         example: {
             reported: r#"
 struct Counter {

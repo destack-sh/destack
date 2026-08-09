@@ -8,7 +8,10 @@ declare_lint! {
     pub NO_USELESS_CONCAT {
         id: "no-useless-concat",
         summary: "Disallow concatenating adjacent string literals",
-        explanation: "Concatenating two authored string literals represents constant text as an operation without adding any dynamic value. Write one string or template literal so the text is represented directly.",
+        explanation: r#"
+Concatenating two authored string literals represents constant text as an operation without adding
+any dynamic value. Write one string or template literal so the text is represented directly.
+"#,
         example: {
             reported: r#"
 function message(): string {
@@ -34,12 +37,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect builtin addition between two literal strings
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for expression in module.operator_expressions() {
+        let expression = expression?;
+        let node = view.get(expression);
         let dir::Expression::Binary {
             left,
             operator: dir::BinaryOperator::Add,
             right,
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };
@@ -54,7 +59,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if !is_left_string || !is_right_string {
             continue;
         }
-        let string_add = dir::LanguageMember::named(dir::LanguageItem::String, "add");
+        let string_add = dir::LanguageItem::String.member("add");
         if module.operator_language_member(expression)? != Some(string_add) {
             continue;
         }

@@ -92,7 +92,7 @@ impl<'a> JsLinker<'a> {
     /// Return one structured script for this target.
     pub(crate) fn script(&self, module_id: ModuleId) -> LinkResult<Arc<Script>> {
         self.artifacts
-            .script(module_id, *self.target_id)
+            .read::<Script>((module_id, *self.target_id))
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
@@ -114,7 +114,7 @@ impl<'a> JsLinker<'a> {
     /// Return the parsed data payload for one linked module.
     pub(crate) fn data(&self, module_id: ModuleId) -> LinkResult<Arc<Data>> {
         self.artifacts
-            .data(module_id)
+            .read::<Data>(module_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,

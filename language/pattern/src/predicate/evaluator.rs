@@ -179,7 +179,7 @@ impl<'a> Evaluator<'a> {
         Ok(result)
     }
 
-    /// Resolve one expression as a canonical symbol set.
+    /// Resolve one expression as a target symbol set.
     fn symbols(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -203,7 +203,7 @@ impl<'a> Evaluator<'a> {
         };
 
         self.program
-            .canonical_symbols(&symbols)
+            .symbol_targets(&symbols)
             .map_err(MatchError::from)
     }
 

@@ -8,7 +8,11 @@ declare_lint_stub! {
     pub LOOP_SINGLE_ITERATION {
         id: "loop-single-iteration",
         summary: "Disallow loops that cannot repeat",
-        explanation: "A loop whose control flow cannot reach a second iteration obscures a single conditional execution. Expressing that control flow as a condition makes its cardinality explicit without changing its behavior.",
+        explanation: r#"
+A loop whose control flow cannot reach a second iteration obscures a single conditional execution.
+Expressing that control flow as a condition makes its cardinality explicit without changing its
+behavior.
+"#,
         example: {
             reported: r#"
 declare function ready(): boolean;

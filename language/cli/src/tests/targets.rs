@@ -1,7 +1,7 @@
 use crate::command::targets::{TargetsArgs, run};
 use crate::common::ReportArgs;
 
-use super::tests::{TestProgram, assert_success};
+use super::tests::{TestProgram, assert_success, execute};
 use serde_json::json;
 
 /// Lists targets defined in destack.json.
@@ -23,7 +23,7 @@ fn test_targets_lists_configured_targets() {
     };
 
     // run the targets command
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the command succeeded
     assert_success(code);

@@ -50,7 +50,7 @@ pub struct SearchSymbolOrder {
     end: u32,
 }
 
-/// Request symbol search for a query string.
+/// A symbol search request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SearchSymbolsRequest {
     /// The search query string.
@@ -59,7 +59,7 @@ pub struct SearchSymbolsRequest {
     pub max_results: u32,
 }
 
-/// Response payload for symbol search queries.
+/// A symbol search response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SearchSymbolsResponse {
     /// The matching symbols.
@@ -68,18 +68,20 @@ pub struct SearchSymbolsResponse {
 
 /// Search for symbols across indexed programs.
 pub fn search_symbols(
+    request: SearchSymbolsRequest,
     programs: &[ProgramQueryContext<'_>],
-    query: &str,
-    max_results: usize,
-) -> QueryResult<Vec<SearchSymbol>> {
+) -> QueryResult<SearchSymbolsResponse> {
+    let max_results = request.max_results as usize;
     if max_results == 0 {
-        return Ok(Vec::new());
+        return Ok(SearchSymbolsResponse {
+            symbols: Vec::new(),
+        });
     }
 
     let mut candidates = Vec::new();
 
     // trim surrounding query whitespace
-    let query = query.trim();
+    let query = request.query.trim();
 
     // collect matching declarations
     for program in programs {
@@ -107,7 +109,7 @@ pub fn search_symbols(
     });
     symbols.truncate(max_results);
 
-    Ok(symbols)
+    Ok(SearchSymbolsResponse { symbols })
 }
 
 impl SearchSymbol {
@@ -133,7 +135,7 @@ impl SearchSymbol {
         kind: SymbolKind,
     ) -> QueryResult<Self> {
         let module = Module {
-            module_id: entry.source.module_id,
+            module_id: entry.symbol.module_id,
             profile_id,
         };
         let target = Target::new(module, entry.span).with_selection_span(entry.selection)?;

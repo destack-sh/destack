@@ -35,7 +35,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect checked equality expressions
-    for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+    for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::Binary {
             left,
             operator,
@@ -86,7 +86,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             file_patch.replace(negation_span, "!(");
             file_patch.insert(comparison_span.end, ")");
             file_patch.sort();
-            let patches = PatchSet::single(file_patch);
+            let patches = PatchSet::from_files(vec![file_patch]);
             let suggestion = lint.suggestion("negate the complete equality check", patches)?;
             diagnostic = diagnostic.suggestion(suggestion);
         }

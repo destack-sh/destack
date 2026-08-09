@@ -112,6 +112,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         callee_site: FlowSite,
+        is_optional: bool,
     ) -> CompilerResult<Option<CallCandidates>> {
         let callee_node = callee_site.node;
         let callee = callee_node.into_typed::<dir::Expression>().local_id;
@@ -125,7 +126,7 @@ impl BodyState<'_, '_> {
         };
         if !uses_callee_decision {
             // every other callee calls through its function-typed value
-            return self.value_callable_candidates(origin, callee_site);
+            return self.value_callable_candidates(origin, callee_site, is_optional);
         }
 
         // resolve declaration callees through their recorded name decision
@@ -144,7 +145,7 @@ impl BodyState<'_, '_> {
                     .is_some_and(dir::SymbolKind::is_binding);
             }
             if is_value_binding {
-                return self.value_callable_candidates(origin, callee_site);
+                return self.value_callable_candidates(origin, callee_site, is_optional);
             }
 
             // build one overload candidate per declared symbol
@@ -218,13 +219,17 @@ impl BodyState<'_, '_> {
                 };
                 let candidates = match &resolution {
                     dir::OperationResolution::One(access) => {
-                        self.member_access_call_candidates(origin, receiver, access)?
+                        self.member_access_call_candidates(origin, receiver, access, is_optional)?
                     }
                     dir::OperationResolution::Union { arms, .. } => {
                         let mut runtime_arms = SmallVec::with_capacity(arms.len());
                         for access in arms {
-                            let candidates =
-                                self.member_access_call_candidates(origin, receiver, access)?;
+                            let candidates = self.member_access_call_candidates(
+                                origin,
+                                receiver,
+                                access,
+                                is_optional,
+                            )?;
                             runtime_arms.extend(candidates.arms);
                         }
 
@@ -244,7 +249,9 @@ impl BodyState<'_, '_> {
                 // route an identifier callee through its symbol set, not its value
                 if let dir::Expression::Identifier { .. } = self.module(module).view().get(callee) {
                     return match self.decide_reference(callee_node)? {
-                        Some(_) => self.callable_candidates(origin, module, callee_site),
+                        Some(_) => {
+                            self.callable_candidates(origin, module, callee_site, is_optional)
+                        }
                         // unresolved names already reported their diagnostic
                         None => Ok(None),
                     };
@@ -253,8 +260,8 @@ impl BodyState<'_, '_> {
                 // decide a member callee by checking it in place, else call its value
                 let _ = self.infer_node(callee_site, PlaceUse::Read, InferMode::Exact)?;
                 match self.decision(callee_node) {
-                    Some(_) => self.callable_candidates(origin, module, callee_site),
-                    None => self.value_callable_candidates(origin, callee_site),
+                    Some(_) => self.callable_candidates(origin, module, callee_site, is_optional),
+                    None => self.value_callable_candidates(origin, callee_site, is_optional),
                 }
             }
         }
@@ -266,7 +273,9 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver: Value,
         access: &dir::MemberAccess,
+        is_optional: bool,
     ) -> CompilerResult<CallCandidates> {
+        let ty = self.select_chain_operand(origin, access.ty, is_optional)?;
         if let Some(arm) = self.member_target_callable_arm(receiver, &access.target)? {
             let mut arms = SmallVec::new();
             arms.push(arm);
@@ -275,7 +284,7 @@ impl BodyState<'_, '_> {
         }
 
         // stored and computed members call through their selected value
-        let arms = self.callable_value_arms(origin, access.ty)?;
+        let arms = self.callable_value_arms(origin, ty)?;
 
         Ok(CallCandidates { arms })
     }
@@ -451,9 +460,11 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         callee: FlowSite,
+        is_optional: bool,
     ) -> CompilerResult<Option<CallCandidates>> {
         let ty = self.infer_node_type(callee, PlaceUse::Read)?;
         let ty = self.strip_form(origin, ty)?;
+        let ty = self.select_chain_operand(origin, ty, is_optional)?;
         let arms = self.callable_value_arms(origin, ty)?;
 
         Ok(Some(CallCandidates { arms }))
@@ -691,12 +702,7 @@ impl BodyState<'_, '_> {
             let Some(parameter) = parameter else {
                 return Ok(None);
             };
-            let parameter_type = match parameter.is_rest {
-                true => self
-                    .rest_element_type(origin, parameter.ty)?
-                    .unwrap_or(parameter.ty),
-                false => parameter.ty,
-            };
+            let parameter_type = parameter.argument_type;
             let conversion =
                 self.match_signature_argument(origin, index, argument, parameter_type)?;
             match conversion {
@@ -715,7 +721,12 @@ impl BodyState<'_, '_> {
         let mut types = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         types.push(signature.callable);
         types.push(signature.return_type);
-        types.extend(signature.parameters.iter().map(|parameter| parameter.ty));
+        types.extend(
+            signature
+                .parameters
+                .iter()
+                .map(|parameter| parameter.parameter.ty),
+        );
         types.extend(dir::GenericArgumentBinding::values(
             &signature.generic_arguments,
         ));
@@ -860,6 +871,7 @@ impl BodyState<'_, '_> {
         callee: dir::LocalNodeId<dir::Expression>,
         generic_argument_nodes: &[dir::LocalNodeId<dir::GenericArgument>],
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        is_optional: bool,
         expectation: Option<Expectation>,
     ) -> CompilerResult<ValueCheck> {
         let node = site.node;
@@ -929,7 +941,8 @@ impl BodyState<'_, '_> {
         let callee_site = self.visit_site(callee.into_global_any(module))?;
 
         // collect callable candidates from the callee
-        let Some(callees) = self.callable_candidates(origin, module, callee_site)? else {
+        let Some(callees) = self.callable_candidates(origin, module, callee_site, is_optional)?
+        else {
             // rejected callees already reported their own diagnostic
             return self.reject_call(node, expectation);
         };
@@ -951,11 +964,13 @@ impl BodyState<'_, '_> {
                 message: "call candidate set contains no runtime arm".to_string(),
             });
         };
+
         // poison, defer, or reject a callee that exposes no callable
         let candidates = &arm.overloads;
         if candidates.is_empty() {
             let callee_type = self.require_node_type(callee_site.node)?;
             let callee_type = self.flow_type_at(callee_site, callee_type)?;
+
             // poison instead of reporting again when the callee already reported an error
             if self.any_error_operand(&[callee_type])? {
                 return self.poison_call(node, expectation);
@@ -1382,8 +1397,12 @@ impl BodyState<'_, '_> {
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         signature: &SignatureSelection,
     ) -> CompilerResult<dir::Call> {
-        let arguments =
-            self.argument_bindings(origin, module, argument_nodes, &signature.parameters)?;
+        let parameters = signature
+            .parameters
+            .iter()
+            .map(|selected| selected.parameter)
+            .collect::<Vec<_>>();
+        let arguments = self.argument_bindings(origin, module, argument_nodes, &parameters)?;
         let return_type =
             self.select_call_return_type(module, candidate, argument_nodes, signature.return_type)?;
         let target = match &candidate.target {
@@ -1530,11 +1549,16 @@ impl BodyState<'_, '_> {
             discriminator,
             discriminant: dir::ScalarLiteral::String(variant.discriminant),
         });
+        let parameters = signature
+            .parameters
+            .iter()
+            .map(|selected| selected.parameter)
+            .collect::<Vec<_>>();
         let arguments = self.argument_bindings(
             Origin::Node(node, None),
             node.module_id,
             argument_nodes,
-            &signature.parameters,
+            &parameters,
         )?;
         let resolution = dir::ConstructDecision::new(target, arguments, signature.return_type);
 

@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 use std::fmt;
+use std::ops::AsyncFnOnce;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_source::{DiagnosticCollection, File, FileId, PhysicalFileWatcher};
 use destack_workspace::{
-    MessageKind, ReloadReason, WatchBatch, WatchPolicy, WatchStatus, Workspace,
+    MessageKind, ReloadReason, WatchBatch, WatchId, WatchPolicy, WatchStatus, Workspace,
 };
 
 use crate::common::format::{
@@ -87,6 +88,8 @@ pub(crate) struct WorkspaceWatch {
     workspace: Arc<dyn Workspace>,
     /// Primary root used for workspace commands.
     root: PathBuf,
+    /// Active workspace watch identifier.
+    watch: WatchId,
     /// Optional JSON reporter.
     reporter: Option<WatchReporter>,
     /// Latest emitted batch identifier.
@@ -136,36 +139,32 @@ impl WorkspaceWatch {
         }
 
         // start workspace-owned watching
-        if let Err(error) = workspace.watch(roots, watch_policy.clone()) {
-            return Err(report_watch_start_error(
-                command_name,
-                report,
-                &mut reporter,
-                &error.to_string(),
-            ));
-        }
+        let watch = workspace.watch(roots, watch_policy).map_err(|error| {
+            report_watch_start_error(command_name, report, &mut reporter, &error.to_string())
+        })?;
 
         Ok(Self {
             workspace,
             root,
+            watch,
             reporter,
             batch_id: 0,
         })
     }
 
     /// Run one workspace command with the active watch context.
-    pub(crate) fn run_command<RunFn>(&mut self, run: RunFn) -> i32
+    pub(crate) async fn run_command<Run>(&mut self, run: Run) -> i32
     where
-        RunFn: FnOnce(&dyn Workspace, &Path, &mut Option<WatchReporter>) -> i32,
+        for<'a> Run: AsyncFnOnce(&'a dyn Workspace, &'a Path, &'a mut Option<WatchReporter>) -> i32,
     {
-        run(self.workspace.as_ref(), &self.root, &mut self.reporter)
+        run(self.workspace.as_ref(), &self.root, &mut self.reporter).await
     }
 
     /// Receive the next watch cycle that should rerun the command.
-    pub(crate) fn next_cycle(&mut self) -> Option<WatchCycle> {
+    pub(crate) async fn next_cycle(&mut self) -> Option<WatchCycle> {
         loop {
             // receive the next non-empty batch
-            let result = match self.next_watch_batch() {
+            let result = match self.next_watch_batch().await {
                 Ok(Some(result)) => result,
                 Ok(None) => return None,
                 Err(error) => {
@@ -201,17 +200,18 @@ impl WorkspaceWatch {
 
     /// Stop watching and emit the final event.
     pub(crate) fn stop(mut self) {
-        let _ = self.workspace.unwatch(&self.root);
+        self.workspace.unwatch(self.watch);
         if let Some(reporter) = self.reporter.as_mut() {
             reporter.emit_stop();
         }
     }
 
     /// Receive and apply the next watch batch.
-    fn next_watch_batch(&self) -> ConsoleResult<Option<WatchBatchSummary>> {
+    async fn next_watch_batch(&self) -> ConsoleResult<Option<WatchBatchSummary>> {
         let response = self
             .workspace
-            .next_watch(&self.root)
+            .next_watch(self.watch)
+            .await
             .map_err(|error| ConsoleError::message(format!("next watch batch failed: {error}")))?;
         let Some(response) = response else {
             return Ok(None);

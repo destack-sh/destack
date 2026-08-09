@@ -5,7 +5,9 @@ import { MutexGuard } from "./mutex.ds";
 /// Condition variable paired with a mutex.
 export shared class Condvar {
     /// Create a condition variable.
-    constructor() {}
+    constructor() {
+        // no initialization required
+    }
 
     /// Wait and reacquire the mutex before returning.
     wait<T>(guard: MutexGuard<T>): MutexGuard<T> {

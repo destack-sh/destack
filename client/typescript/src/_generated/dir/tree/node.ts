@@ -4,6 +4,407 @@ import { BinaryReader, BinaryWriter, Json, SerdeError, jsonField, jsonInteger, j
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
+/** The asynchrony of a function. */
+export type Asynchrony = "sync" | "async";
+
+export const Asynchrony = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: Asynchrony): void {
+        encodeAsynchrony(writer, value);
+    },
+
+    /** Decode one Asynchrony. */
+    decode(reader: BinaryReader): Asynchrony {
+        return decodeAsynchrony(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: Asynchrony): Json {
+        return toJsonAsynchrony(value);
+    },
+
+    /** Return one Asynchrony from one JSON value. */
+    fromJson(value: Json): Asynchrony {
+        return fromJsonAsynchrony(value);
+    },
+};
+
+/** Encode one Asynchrony. */
+export function encodeAsynchrony(writer: BinaryWriter, value: Asynchrony): void {
+    switch (value) {
+        case "sync":
+            writer.writeUnsigned(0);
+            return;
+        case "async":
+            writer.writeUnsigned(1);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one Asynchrony. */
+export function decodeAsynchrony(reader: BinaryReader): Asynchrony {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "sync";
+        case 1:
+            return "async";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one Asynchrony. */
+export function toJsonAsynchrony(value: Asynchrony): Json {
+    return value;
+}
+
+/** Return one Asynchrony from one JSON value. */
+export function fromJsonAsynchrony(value: Json): Asynchrony {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "sync":
+            return "sync";
+        case "async":
+            return "async";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
+/** Global node id across modules. */
+export type GlobalNodeId = {
+    /** The module id of the global node. */
+    readonly moduleId: ModuleId;
+    /** The local id of the global node. */
+    readonly localId: LocalNodeId;
+};
+
+export const GlobalNodeId = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: GlobalNodeId): void {
+        encodeGlobalNodeId(writer, value);
+    },
+
+    /** Decode one GlobalNodeId. */
+    decode(reader: BinaryReader): GlobalNodeId {
+        return decodeGlobalNodeId(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: GlobalNodeId): Json {
+        return toJsonGlobalNodeId(value);
+    },
+
+    /** Return one GlobalNodeId from one JSON value. */
+    fromJson(value: Json): GlobalNodeId {
+        return fromJsonGlobalNodeId(value);
+    },
+};
+
+/** Encode one GlobalNodeId. */
+export function encodeGlobalNodeId(writer: BinaryWriter, value: GlobalNodeId): void {
+    encodeModuleId(writer, value.moduleId);
+    encodeLocalNodeId(writer, value.localId);
+}
+
+/** Decode one GlobalNodeId. */
+export function decodeGlobalNodeId(reader: BinaryReader): GlobalNodeId {
+    const moduleId = decodeModuleId(reader);
+    const localId = decodeLocalNodeId(reader);
+
+    return {
+        moduleId,
+        localId,
+    };
+}
+
+/** Return one JSON value for one GlobalNodeId. */
+export function toJsonGlobalNodeId(value: GlobalNodeId): Json {
+    return {
+        moduleId: toJsonModuleId(value.moduleId),
+        localId: toJsonLocalNodeId(value.localId),
+    };
+}
+
+/** Return one GlobalNodeId from one JSON value. */
+export function fromJsonGlobalNodeId(value: Json): GlobalNodeId {
+    const object = jsonObject(value);
+
+    return {
+        moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
+        localId: fromJsonLocalNodeId(jsonField(object, "localId")),
+    };
+}
+
+/** Global node id across modules. */
+export type GlobalNodeIdAny = {
+    /** The module id of the global node. */
+    readonly moduleId: ModuleId;
+    /** The local id of the global node. */
+    readonly localId: LocalNodeIdAny;
+};
+
+export const GlobalNodeIdAny = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: GlobalNodeIdAny): void {
+        encodeGlobalNodeIdAny(writer, value);
+    },
+
+    /** Decode one GlobalNodeIdAny. */
+    decode(reader: BinaryReader): GlobalNodeIdAny {
+        return decodeGlobalNodeIdAny(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: GlobalNodeIdAny): Json {
+        return toJsonGlobalNodeIdAny(value);
+    },
+
+    /** Return one GlobalNodeIdAny from one JSON value. */
+    fromJson(value: Json): GlobalNodeIdAny {
+        return fromJsonGlobalNodeIdAny(value);
+    },
+};
+
+/** Encode one GlobalNodeIdAny. */
+export function encodeGlobalNodeIdAny(writer: BinaryWriter, value: GlobalNodeIdAny): void {
+    encodeModuleId(writer, value.moduleId);
+    encodeLocalNodeIdAny(writer, value.localId);
+}
+
+/** Decode one GlobalNodeIdAny. */
+export function decodeGlobalNodeIdAny(reader: BinaryReader): GlobalNodeIdAny {
+    const moduleId = decodeModuleId(reader);
+    const localId = decodeLocalNodeIdAny(reader);
+
+    return {
+        moduleId,
+        localId,
+    };
+}
+
+/** Return one JSON value for one GlobalNodeIdAny. */
+export function toJsonGlobalNodeIdAny(value: GlobalNodeIdAny): Json {
+    return {
+        moduleId: toJsonModuleId(value.moduleId),
+        localId: toJsonLocalNodeIdAny(value.localId),
+    };
+}
+
+/** Return one GlobalNodeIdAny from one JSON value. */
+export function fromJsonGlobalNodeIdAny(value: Json): GlobalNodeIdAny {
+    const object = jsonObject(value);
+
+    return {
+        moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
+        localId: fromJsonLocalNodeIdAny(jsonField(object, "localId")),
+    };
+}
+
+/** Unique identifier for nodes in a local arena, parameterized by node type. */
+export type LocalNodeId = {
+    readonly id: number;
+};
+
+export const LocalNodeId = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: LocalNodeId): void {
+        encodeLocalNodeId(writer, value);
+    },
+
+    /** Decode one LocalNodeId. */
+    decode(reader: BinaryReader): LocalNodeId {
+        return decodeLocalNodeId(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: LocalNodeId): Json {
+        return toJsonLocalNodeId(value);
+    },
+
+    /** Return one LocalNodeId from one JSON value. */
+    fromJson(value: Json): LocalNodeId {
+        return fromJsonLocalNodeId(value);
+    },
+};
+
+/** Encode one LocalNodeId. */
+export function encodeLocalNodeId(writer: BinaryWriter, value: LocalNodeId): void {
+    writer.writeUnsigned(value.id);
+}
+
+/** Decode one LocalNodeId. */
+export function decodeLocalNodeId(reader: BinaryReader): LocalNodeId {
+    const id = reader.readNumber();
+
+    return {
+        id,
+    };
+}
+
+/** Return one JSON value for one LocalNodeId. */
+export function toJsonLocalNodeId(value: LocalNodeId): Json {
+    return {
+        id: value.id,
+    };
+}
+
+/** Return one LocalNodeId from one JSON value. */
+export function fromJsonLocalNodeId(value: Json): LocalNodeId {
+    const object = jsonObject(value);
+
+    return {
+        id: jsonInteger(jsonField(object, "id")),
+    };
+}
+
+/** Unique identifier for nodes with dynamic type in a local arena. */
+export type LocalNodeIdAny = {
+    readonly id: number;
+    readonly ty: NodeType;
+};
+
+export const LocalNodeIdAny = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: LocalNodeIdAny): void {
+        encodeLocalNodeIdAny(writer, value);
+    },
+
+    /** Decode one LocalNodeIdAny. */
+    decode(reader: BinaryReader): LocalNodeIdAny {
+        return decodeLocalNodeIdAny(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: LocalNodeIdAny): Json {
+        return toJsonLocalNodeIdAny(value);
+    },
+
+    /** Return one LocalNodeIdAny from one JSON value. */
+    fromJson(value: Json): LocalNodeIdAny {
+        return fromJsonLocalNodeIdAny(value);
+    },
+};
+
+/** Encode one LocalNodeIdAny. */
+export function encodeLocalNodeIdAny(writer: BinaryWriter, value: LocalNodeIdAny): void {
+    writer.writeUnsigned(value.id);
+    encodeNodeType(writer, value.ty);
+}
+
+/** Decode one LocalNodeIdAny. */
+export function decodeLocalNodeIdAny(reader: BinaryReader): LocalNodeIdAny {
+    const id = reader.readNumber();
+    const ty = decodeNodeType(reader);
+
+    return {
+        id,
+        ty,
+    };
+}
+
+/** Return one JSON value for one LocalNodeIdAny. */
+export function toJsonLocalNodeIdAny(value: LocalNodeIdAny): Json {
+    return {
+        id: value.id,
+        ty: toJsonNodeType(value.ty),
+    };
+}
+
+/** Return one LocalNodeIdAny from one JSON value. */
+export function fromJsonLocalNodeIdAny(value: Json): LocalNodeIdAny {
+    const object = jsonObject(value);
+
+    return {
+        id: jsonInteger(jsonField(object, "id")),
+        ty: fromJsonNodeType(jsonField(object, "ty")),
+    };
+}
+
+/** A Mutability is a const, mutable, or exclusive access qualifier. */
+export type Mutability = "immutable" | "mutable" | "exclusive";
+
+export const Mutability = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: Mutability): void {
+        encodeMutability(writer, value);
+    },
+
+    /** Decode one Mutability. */
+    decode(reader: BinaryReader): Mutability {
+        return decodeMutability(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: Mutability): Json {
+        return toJsonMutability(value);
+    },
+
+    /** Return one Mutability from one JSON value. */
+    fromJson(value: Json): Mutability {
+        return fromJsonMutability(value);
+    },
+};
+
+/** Encode one Mutability. */
+export function encodeMutability(writer: BinaryWriter, value: Mutability): void {
+    switch (value) {
+        case "immutable":
+            writer.writeUnsigned(0);
+            return;
+        case "mutable":
+            writer.writeUnsigned(1);
+            return;
+        case "exclusive":
+            writer.writeUnsigned(2);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one Mutability. */
+export function decodeMutability(reader: BinaryReader): Mutability {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "immutable";
+        case 1:
+            return "mutable";
+        case 2:
+            return "exclusive";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one Mutability. */
+export function toJsonMutability(value: Mutability): Json {
+    return value;
+}
+
+/** Return one Mutability from one JSON value. */
+export function fromJsonMutability(value: Json): Mutability {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "immutable":
+            return "immutable";
+        case "mutable":
+            return "mutable";
+        case "exclusive":
+            return "exclusive";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
 /** The type of a node. */
 export type NodeType = "expression" | "typeExpression" | "block" | "catch" | "declaration" | "declarator" | "property" | "typeMember" | "typeMappedParameter" | "member" | "enumField" | "whereClause" | "dependencyItem" | "genericParameter" | "parameter" | "genericArgument" | "tupleElement" | "argument" | "treeAttribute" | "treeChild" | "matchArm" | "pattern" | "patternField" | "assignPattern" | "assignPatternField" | "decorator" | "switchCase";
 
@@ -251,252 +652,81 @@ export function fromJsonNodeType(value: Json): NodeType {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** Global node id across modules. */
-export type GlobalNodeId = {
-    /** The module id of the global node. */
-    readonly moduleId: ModuleId;
-    /** The local id of the global node. */
-    readonly localId: LocalNodeId;
-};
+/** A Visibility is the visibility of an item. */
+export type Visibility = "public" | "protected" | "private";
 
-export const GlobalNodeId = {
+export const Visibility = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: GlobalNodeId): void {
-        encodeGlobalNodeId(writer, value);
+    encode(writer: BinaryWriter, value: Visibility): void {
+        encodeVisibility(writer, value);
     },
 
-    /** Decode one GlobalNodeId. */
-    decode(reader: BinaryReader): GlobalNodeId {
-        return decodeGlobalNodeId(reader);
+    /** Decode one Visibility. */
+    decode(reader: BinaryReader): Visibility {
+        return decodeVisibility(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: GlobalNodeId): Json {
-        return toJsonGlobalNodeId(value);
+    toJson(value: Visibility): Json {
+        return toJsonVisibility(value);
     },
 
-    /** Return one GlobalNodeId from one JSON value. */
-    fromJson(value: Json): GlobalNodeId {
-        return fromJsonGlobalNodeId(value);
-    },
-};
-
-/** Encode one GlobalNodeId. */
-export function encodeGlobalNodeId(writer: BinaryWriter, value: GlobalNodeId): void {
-    encodeModuleId(writer, value.moduleId);
-    encodeLocalNodeId(writer, value.localId);
-}
-
-/** Decode one GlobalNodeId. */
-export function decodeGlobalNodeId(reader: BinaryReader): GlobalNodeId {
-    const moduleId = decodeModuleId(reader);
-    const localId = decodeLocalNodeId(reader);
-
-    return {
-        moduleId,
-        localId,
-    };
-}
-
-/** Return one JSON value for one GlobalNodeId. */
-export function toJsonGlobalNodeId(value: GlobalNodeId): Json {
-    return {
-        moduleId: toJsonModuleId(value.moduleId),
-        localId: toJsonLocalNodeId(value.localId),
-    };
-}
-
-/** Return one GlobalNodeId from one JSON value. */
-export function fromJsonGlobalNodeId(value: Json): GlobalNodeId {
-    const object = jsonObject(value);
-
-    return {
-        moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
-        localId: fromJsonLocalNodeId(jsonField(object, "localId")),
-    };
-}
-
-/** Unique identifier for nodes in a local arena, parameterized by node type. */
-export type LocalNodeId = {
-    readonly id: number;
-};
-
-export const LocalNodeId = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: LocalNodeId): void {
-        encodeLocalNodeId(writer, value);
-    },
-
-    /** Decode one LocalNodeId. */
-    decode(reader: BinaryReader): LocalNodeId {
-        return decodeLocalNodeId(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: LocalNodeId): Json {
-        return toJsonLocalNodeId(value);
-    },
-
-    /** Return one LocalNodeId from one JSON value. */
-    fromJson(value: Json): LocalNodeId {
-        return fromJsonLocalNodeId(value);
+    /** Return one Visibility from one JSON value. */
+    fromJson(value: Json): Visibility {
+        return fromJsonVisibility(value);
     },
 };
 
-/** Encode one LocalNodeId. */
-export function encodeLocalNodeId(writer: BinaryWriter, value: LocalNodeId): void {
-    writer.writeUnsigned(value.id);
+/** Encode one Visibility. */
+export function encodeVisibility(writer: BinaryWriter, value: Visibility): void {
+    switch (value) {
+        case "public":
+            writer.writeUnsigned(0);
+            return;
+        case "protected":
+            writer.writeUnsigned(1);
+            return;
+        case "private":
+            writer.writeUnsigned(2);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
 }
 
-/** Decode one LocalNodeId. */
-export function decodeLocalNodeId(reader: BinaryReader): LocalNodeId {
-    const id = reader.readNumber();
+/** Decode one Visibility. */
+export function decodeVisibility(reader: BinaryReader): Visibility {
+    const variant = reader.readNumber();
 
-    return {
-        id,
-    };
+    switch (variant) {
+        case 0:
+            return "public";
+        case 1:
+            return "protected";
+        case 2:
+            return "private";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
 }
 
-/** Return one JSON value for one LocalNodeId. */
-export function toJsonLocalNodeId(value: LocalNodeId): Json {
-    return {
-        id: value.id,
-    };
+/** Return one JSON value for one Visibility. */
+export function toJsonVisibility(value: Visibility): Json {
+    return value;
 }
 
-/** Return one LocalNodeId from one JSON value. */
-export function fromJsonLocalNodeId(value: Json): LocalNodeId {
-    const object = jsonObject(value);
+/** Return one Visibility from one JSON value. */
+export function fromJsonVisibility(value: Json): Visibility {
+    const variant = jsonString(value);
 
-    return {
-        id: jsonInteger(jsonField(object, "id")),
-    };
-}
+    switch (variant) {
+        case "public":
+            return "public";
+        case "protected":
+            return "protected";
+        case "private":
+            return "private";
+    }
 
-/** Global node id across modules. */
-export type GlobalNodeIdAny = {
-    /** The module id of the global node. */
-    readonly moduleId: ModuleId;
-    /** The local id of the global node. */
-    readonly localId: LocalNodeIdAny;
-};
-
-export const GlobalNodeIdAny = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: GlobalNodeIdAny): void {
-        encodeGlobalNodeIdAny(writer, value);
-    },
-
-    /** Decode one GlobalNodeIdAny. */
-    decode(reader: BinaryReader): GlobalNodeIdAny {
-        return decodeGlobalNodeIdAny(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: GlobalNodeIdAny): Json {
-        return toJsonGlobalNodeIdAny(value);
-    },
-
-    /** Return one GlobalNodeIdAny from one JSON value. */
-    fromJson(value: Json): GlobalNodeIdAny {
-        return fromJsonGlobalNodeIdAny(value);
-    },
-};
-
-/** Encode one GlobalNodeIdAny. */
-export function encodeGlobalNodeIdAny(writer: BinaryWriter, value: GlobalNodeIdAny): void {
-    encodeModuleId(writer, value.moduleId);
-    encodeLocalNodeIdAny(writer, value.localId);
-}
-
-/** Decode one GlobalNodeIdAny. */
-export function decodeGlobalNodeIdAny(reader: BinaryReader): GlobalNodeIdAny {
-    const moduleId = decodeModuleId(reader);
-    const localId = decodeLocalNodeIdAny(reader);
-
-    return {
-        moduleId,
-        localId,
-    };
-}
-
-/** Return one JSON value for one GlobalNodeIdAny. */
-export function toJsonGlobalNodeIdAny(value: GlobalNodeIdAny): Json {
-    return {
-        moduleId: toJsonModuleId(value.moduleId),
-        localId: toJsonLocalNodeIdAny(value.localId),
-    };
-}
-
-/** Return one GlobalNodeIdAny from one JSON value. */
-export function fromJsonGlobalNodeIdAny(value: Json): GlobalNodeIdAny {
-    const object = jsonObject(value);
-
-    return {
-        moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
-        localId: fromJsonLocalNodeIdAny(jsonField(object, "localId")),
-    };
-}
-
-/** Unique identifier for nodes with dynamic type in a local arena. */
-export type LocalNodeIdAny = {
-    readonly id: number;
-    readonly ty: NodeType;
-};
-
-export const LocalNodeIdAny = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: LocalNodeIdAny): void {
-        encodeLocalNodeIdAny(writer, value);
-    },
-
-    /** Decode one LocalNodeIdAny. */
-    decode(reader: BinaryReader): LocalNodeIdAny {
-        return decodeLocalNodeIdAny(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: LocalNodeIdAny): Json {
-        return toJsonLocalNodeIdAny(value);
-    },
-
-    /** Return one LocalNodeIdAny from one JSON value. */
-    fromJson(value: Json): LocalNodeIdAny {
-        return fromJsonLocalNodeIdAny(value);
-    },
-};
-
-/** Encode one LocalNodeIdAny. */
-export function encodeLocalNodeIdAny(writer: BinaryWriter, value: LocalNodeIdAny): void {
-    writer.writeUnsigned(value.id);
-    encodeNodeType(writer, value.ty);
-}
-
-/** Decode one LocalNodeIdAny. */
-export function decodeLocalNodeIdAny(reader: BinaryReader): LocalNodeIdAny {
-    const id = reader.readNumber();
-    const ty = decodeNodeType(reader);
-
-    return {
-        id,
-        ty,
-    };
-}
-
-/** Return one JSON value for one LocalNodeIdAny. */
-export function toJsonLocalNodeIdAny(value: LocalNodeIdAny): Json {
-    return {
-        id: value.id,
-        ty: toJsonNodeType(value.ty),
-    };
-}
-
-/** Return one LocalNodeIdAny from one JSON value. */
-export function fromJsonLocalNodeIdAny(value: Json): LocalNodeIdAny {
-    const object = jsonObject(value);
-
-    return {
-        id: jsonInteger(jsonField(object, "id")),
-        ty: fromJsonNodeType(jsonField(object, "ty")),
-    };
+    throw new SerdeError(`unknown enum variant: ${variant}`);
 }

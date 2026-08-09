@@ -24,9 +24,9 @@ let label: string = "";
 declare const point: { x: int32; y: string };
 
 ({ x, y: label } = point);
-/// @reference.bound source=x targets=[x#1]
-/// @reference.bound source=label targets=[label]
-/// @reference.bound source=point targets=[point]
+/// @reference.target source=x kind=bound targets=[x#1]
+/// @reference.target source=label kind=bound targets=[label]
+/// @reference.target source=point kind=bound targets=[point]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
@@ -60,7 +60,7 @@ let value: User;
         r#"
 type User = string;
 let value: User;
-/// @reference.bound source=User targets=[User]
+/// @reference.target source=User kind=bound targets=[User]
 
 /// @import.language item=string.String symbol=string.string.String
 
@@ -87,8 +87,8 @@ type Args<T> = T extends (...parameters: infer P) => unknown ? P : never;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 type Args<T> = T extends (...parameters: infer P) => unknown ? P : never;
-/// @reference.bound source=T targets=[Args.T]
-/// @reference.bound source=P targets=[Args.P]
+/// @reference.target source=T kind=bound targets=[Args.T]
+/// @reference.target source=P kind=bound targets=[Args.P]
 
 /// @import.summary
 /// @resolve.stats roots=1 expressions=1 types=7
@@ -114,7 +114,7 @@ type User = string;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let value: User;
-/// @reference.bound source=User targets=[User]
+/// @reference.target source=User kind=bound targets=[User]
 
 type User = string;
 
@@ -144,7 +144,7 @@ const answer = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 const value = answer;
-/// @reference.bound source=answer targets=[answer]
+/// @reference.target source=answer kind=bound targets=[answer]
 
 const answer = 1;
 
@@ -171,7 +171,7 @@ const value = missing;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 const value = missing;
-/// @reference.missing source=missing
+/// @reference.target source=missing kind=missing
 
 /// @import.summary
 /// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
@@ -196,7 +196,7 @@ let value: Missing;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let value: Missing;
-/// @reference.missing source=Missing
+/// @reference.target source=Missing kind=missing
 
 /// @import.summary
 /// @resolve.stats roots=1 expressions=1 types=1 globals=required:1

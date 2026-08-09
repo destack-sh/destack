@@ -2,9 +2,10 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, Mutability,
-    Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind, StaticKey, StringId,
-    SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral, VarianceBound, WhereClause,
+    Expression, FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, MemberSlot,
+    MemberSpace, Mutability, Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind,
+    StaticKey, StringId, SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral, VarianceBound,
+    WhereClause,
 };
 
 /// One type-surface member.
@@ -68,6 +69,48 @@ impl Node for TypeMember {
 }
 
 impl TypeMember {
+    /// Return the slot occupied by this type member.
+    pub fn slot(&self) -> Option<MemberSlot> {
+        match self {
+            Self::AssociatedType { name, .. } | Self::AssociatedConst { name, .. } => {
+                Some(MemberSlot::Key(StaticKey::Name(*name)))
+            }
+            Self::Field { key, .. } => key.direct_static_key().map(MemberSlot::Key),
+            Self::Method { key, signature, .. } => signature
+                .role
+                .and_then(MemberSlot::from_function_role)
+                .or_else(|| key.direct_static_key().map(MemberSlot::Key)),
+            Self::CallSignature { .. } => Some(MemberSlot::Call),
+            Self::ConstructSignature { .. } => Some(MemberSlot::New),
+            Self::IndexSignature { .. } | Self::Error => None,
+        }
+    }
+
+    /// Return the member namespace.
+    pub fn space(&self) -> Option<MemberSpace> {
+        let space = match self {
+            Self::Field { is_static, .. } | Self::Method { is_static, .. } => match is_static {
+                true => MemberSpace::Static,
+                false => MemberSpace::Instance,
+            },
+            Self::CallSignature { .. } | Self::ConstructSignature { .. } => MemberSpace::Instance,
+            Self::AssociatedType { .. } | Self::AssociatedConst { .. } => MemberSpace::Static,
+            Self::IndexSignature { .. } | Self::Error => return None,
+        };
+
+        Some(space)
+    }
+
+    /// Return the parameters declared by this type member.
+    pub fn parameters(&self) -> Option<&[LocalNodeId<Parameter>]> {
+        match self {
+            Self::Method { signature, .. } => Some(&signature.parameters),
+            Self::CallSignature { signature } => Some(&signature.parameters),
+            Self::ConstructSignature { signature } => Some(&signature.parameters),
+            _ => None,
+        }
+    }
+
     /// Return the symbol key introduced by this type member.
     pub fn symbol_key(&self) -> Option<StaticKey> {
         match self {
@@ -700,4 +743,15 @@ pub enum TypeExpression {
 
 impl Node for TypeExpression {
     const TYPE: NodeType = NodeType::TypeExpression;
+}
+
+impl TypeExpression {
+    /// Return the parameters declared by this type expression.
+    pub fn parameters(&self) -> Option<&[LocalNodeId<Parameter>]> {
+        match self {
+            Self::Function(signature) => Some(&signature.parameters),
+            Self::Constructor(signature) => Some(&signature.parameters),
+            _ => None,
+        }
+    }
 }

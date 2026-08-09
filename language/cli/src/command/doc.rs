@@ -20,7 +20,7 @@ pub struct DocArgs {
 }
 
 /// Generate documentation.
-pub fn run(args: &DocArgs) -> i32 {
+pub async fn run(args: &DocArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("doc", &args.program, &args.report) {
         return code;
     }
@@ -39,14 +39,17 @@ pub fn run(args: &DocArgs) -> i32 {
         "doc",
         &args.report,
         &args.program,
-        |workspace, root, progress| {
+        async |workspace, root, progress| {
             let result = workspace
                 .doc(root, request, progress)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(result)
         },
-    ) {
+    )
+    .await
+    {
         Ok(result) => result,
         Err(code) => return code,
     };

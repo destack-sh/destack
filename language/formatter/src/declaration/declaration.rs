@@ -284,8 +284,8 @@ fn type_expression_is_assignment_like_generic_condition(
     }
 }
 
-/// Return whether JSDoc precedes a type declaration value.
-fn type_declaration_has_jsdoc_before_value(
+/// Return whether documentation precedes a type declaration value.
+fn type_declaration_has_documentation_before_value(
     context: &DestackFormatContext<'_>,
     declaration: &TypeDeclaration,
 ) -> bool {
@@ -326,9 +326,9 @@ fn type_declaration_should_break_after_operator(
                 || comments.has_comment_before(value_start)
         }
 
-        // break before union-leading jsdoc so the declaration owns its indentation
+        // break before union leading documentation
         TypeExpression::Union { .. } => {
-            type_declaration_has_jsdoc_before_value(context, declaration)
+            type_declaration_has_documentation_before_value(context, declaration)
         }
 
         _ => comments.has_comment_before(value_start),

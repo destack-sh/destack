@@ -77,7 +77,7 @@ pub struct Tree {
     /// Decorator attachments in insertion order for rollback.
     #[serde(skip)]
     decorator_attachments: Vec<DecoratorAttachment>,
-    /// The normalized documentation attached to nodes.
+    /// The parsed documentation attached to nodes.
     documentation_by_node_id: SparseNodeMap<Documentation>,
     /// Final source span overrides by node id.
     source_span_by_node_id: SparseNodeMap<Span>,
@@ -458,8 +458,20 @@ impl Tree {
         T: Node,
         Self: TreeStore<T>,
     {
-        let local_id = <Self as TreeStore<T>>::allocate(self, node);
+        assert_eq!(
+            node_id.ty,
+            T::TYPE,
+            "DIR reserved node type differs from its inserted value"
+        );
         let index = self.node_index(node_id.id);
+        let entry = self.node_index_by_node_id[index];
+        assert!(
+            entry.is_placeholder(),
+            "DIR reserved node was already filled"
+        );
+
+        // fill the reserved node in its typed arena
+        let local_id = <Self as TreeStore<T>>::allocate(self, node);
         self.node_index_by_node_id[index] = NodeIndexEntry::new(local_id, T::TYPE);
 
         LocalNodeId::new(node_id.id)
@@ -605,7 +617,7 @@ impl Tree {
     }
 
     /// Iterate over all nodes of a given type together with their NodeId.
-    pub fn iter_nodes_of_type<'a, T>(&'a self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + 'a
+    pub fn iter_nodes<'a, T>(&'a self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + 'a
     where
         T: Node + 'a,
         Self: TreeStore<T>,
@@ -624,16 +636,6 @@ impl Tree {
             })
     }
 
-    /// Iterate all node ids of one type.
-    #[inline]
-    pub fn iter_nodes<'a, T>(&'a self) -> impl Iterator<Item = LocalNodeId<T>> + 'a
-    where
-        T: Node + 'a,
-        Self: TreeStore<T>,
-    {
-        self.iter_node_ids_of_type::<T>().into_iter()
-    }
-
     /// Iterate over all nodes ids.
     pub fn iter_node_ids(&self) -> impl Iterator<Item = LocalNodeIdAny> + '_ {
         self.node_index_by_node_id
@@ -645,7 +647,7 @@ impl Tree {
     }
 
     /// Iterate over all nodes ids of a given type.
-    pub fn iter_node_ids_of_type<T>(&self) -> Vec<LocalNodeId<T>>
+    pub fn iter_node_ids_of_type<T>(&self) -> impl Iterator<Item = LocalNodeId<T>> + '_
     where
         T: Node,
         Self: TreeStore<T>,
@@ -661,7 +663,6 @@ impl Tree {
                     None
                 }
             })
-            .collect()
     }
 
     /// Get the parent node id for a node id.
@@ -1130,25 +1131,31 @@ impl Tree {
             .unwrap_or(&[])
     }
 
-    /// Set normalized documentation for a node.
+    /// Set parsed documentation for a node.
     #[inline]
     pub fn set_documentation(&mut self, node_id: u32, documentation: Documentation) {
         self.documentation_by_node_id.insert(node_id, documentation);
     }
 
-    /// Return whether one node has normalized documentation.
+    /// Return whether one node has parsed documentation.
     #[inline]
     pub fn has_documentation(&self, node_id: u32) -> bool {
         self.documentation_by_node_id.get_ref(node_id).is_some()
     }
 
-    /// Get normalized documentation attached to a node.
+    /// Get parsed documentation attached to a node.
     #[inline]
     pub fn get_documentation(&self, node_id: u32) -> Option<&Documentation> {
         self.documentation_by_node_id.get_ref(node_id)
     }
 
-    /// Take normalized documentation from one node.
+    /// Iterate over documented node IDs and their documentation.
+    #[inline]
+    pub fn iter_documentation(&self) -> impl Iterator<Item = (u32, &Documentation)> {
+        self.documentation_by_node_id.iter()
+    }
+
+    /// Take parsed documentation from one node.
     #[inline]
     pub fn take_documentation(&mut self, node_id: u32) -> Option<Documentation> {
         self.documentation_by_node_id.take(node_id)
@@ -1159,7 +1166,7 @@ impl Tree {
 mod tests {
     use destack_source::{FileId, ModuleId, PackageId, Span};
 
-    use crate::{Decorator, DecoratorPosition, Expression, Tree, TypeExpression, View};
+    use crate::{Decorator, DecoratorPosition, Expression, Patch, Tree, TypeExpression, View};
 
     fn test_module_id() -> ModuleId {
         ModuleId::new(PackageId::new(1), 1)
@@ -1181,6 +1188,39 @@ mod tests {
             view.get_node_id_by_source_id(expression.id),
             Some(expression.into_any())
         );
+    }
+
+    /// Iterate replacements and introduced nodes exactly once.
+    #[test]
+    fn test_view_iterates_visible_nodes() {
+        let mut tree = Tree::new(test_module_id());
+        let replaced = tree.insert(Expression::Error, test_span(0));
+        let deleted = tree.insert(Expression::Debugger, test_span(1));
+        tree.index_parents(&[replaced, deleted]);
+
+        // replace one base root, delete another, and introduce one patch root
+        let mut patch = Patch::new(&tree, "test");
+        let replacement = patch.tree.insert(Expression::Debugger, test_span(2));
+        let introduced = patch.tree.insert(Expression::Error, test_span(3));
+        patch.tree.index_parents(&[replacement, introduced]);
+        patch.replace(replaced.into_any(), replacement.into_any());
+        patch.delete(deleted.into_any());
+
+        // replace the introduced root in a later patch
+        let mut next_patch = Patch::new(&patch.tree, "next");
+        let next_replacement = next_patch.tree.insert(Expression::Debugger, test_span(4));
+        next_patch.tree.index_parents(&[next_replacement]);
+        next_patch.replace(introduced.into_any(), next_replacement.into_any());
+        let patches = [patch, next_patch];
+        let view = View::with_patches(&tree, &patches);
+
+        // retain replacement source ids and yield each visible value once
+        let nodes = view.iter_nodes::<Expression>().collect::<Vec<_>>();
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].0, replaced);
+        assert!(matches!(nodes[0].1, Expression::Debugger));
+        assert_eq!(nodes[1].0, introduced);
+        assert!(matches!(nodes[1].1, Expression::Debugger));
     }
 
     #[test]
@@ -1231,6 +1271,9 @@ mod tests {
         assert!(!tree.has_node_id(ty.id));
         assert!(!tree.has_node_id(decorator_expression.id));
         assert!(!tree.has_node_id(decorator.id));
+        assert_eq!(tree.iter_nodes::<Expression>().count(), 1);
+        assert_eq!(tree.iter_nodes::<TypeExpression>().count(), 0);
+        assert_eq!(tree.iter_nodes::<Decorator>().count(), 0);
         assert_eq!(tree.next_global_id(), mark.next_global_id());
     }
 

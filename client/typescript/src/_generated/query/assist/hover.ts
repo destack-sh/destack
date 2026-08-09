@@ -8,124 +8,6 @@ import { decodeTarget, encodeTarget, fromJsonTarget, toJsonTarget } from "../pro
 import { decodeQueryPosition, encodeQueryPosition, fromJsonQueryPosition, toJsonQueryPosition } from "../protocol/target.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../../source/file/model/span.js";
 
-/** Request hover content at a cursor position. */
-export type HoverRequest = {
-    /** The queried position. */
-    readonly position: QueryPosition;
-};
-
-export const HoverRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: HoverRequest): void {
-        encodeHoverRequest(writer, value);
-    },
-
-    /** Decode one HoverRequest. */
-    decode(reader: BinaryReader): HoverRequest {
-        return decodeHoverRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: HoverRequest): Json {
-        return toJsonHoverRequest(value);
-    },
-
-    /** Return one HoverRequest from one JSON value. */
-    fromJson(value: Json): HoverRequest {
-        return fromJsonHoverRequest(value);
-    },
-};
-
-/** Encode one HoverRequest. */
-export function encodeHoverRequest(writer: BinaryWriter, value: HoverRequest): void {
-    encodeQueryPosition(writer, value.position);
-}
-
-/** Decode one HoverRequest. */
-export function decodeHoverRequest(reader: BinaryReader): HoverRequest {
-    const position = decodeQueryPosition(reader);
-
-    return {
-        position,
-    };
-}
-
-/** Return one JSON value for one HoverRequest. */
-export function toJsonHoverRequest(value: HoverRequest): Json {
-    return {
-        position: toJsonQueryPosition(value.position),
-    };
-}
-
-/** Return one HoverRequest from one JSON value. */
-export function fromJsonHoverRequest(value: Json): HoverRequest {
-    const object = jsonObject(value);
-
-    return {
-        position: fromJsonQueryPosition(jsonField(object, "position")),
-    };
-}
-
-/** Response payload for hover queries. */
-export type HoverResponse = {
-    /** Hover content, if available. */
-    readonly hover?: Hover;
-};
-
-export const HoverResponse = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: HoverResponse): void {
-        encodeHoverResponse(writer, value);
-    },
-
-    /** Decode one HoverResponse. */
-    decode(reader: BinaryReader): HoverResponse {
-        return decodeHoverResponse(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: HoverResponse): Json {
-        return toJsonHoverResponse(value);
-    },
-
-    /** Return one HoverResponse from one JSON value. */
-    fromJson(value: Json): HoverResponse {
-        return fromJsonHoverResponse(value);
-    },
-};
-
-/** Encode one HoverResponse. */
-export function encodeHoverResponse(writer: BinaryWriter, value: HoverResponse): void {
-    writer.writeOption(value.hover, (value0) => {
-        encodeHover(writer, value0);
-    });
-}
-
-/** Decode one HoverResponse. */
-export function decodeHoverResponse(reader: BinaryReader): HoverResponse {
-    const hover = reader.readOption(() => decodeHover(reader));
-
-    return {
-        ...(hover === undefined ? {} : { hover }),
-    };
-}
-
-/** Return one JSON value for one HoverResponse. */
-export function toJsonHoverResponse(value: HoverResponse): Json {
-    return {
-        ...(value.hover === undefined ? {} : { hover: toJsonHover(value.hover) }),
-    };
-}
-
-/** Return one HoverResponse from one JSON value. */
-export function fromJsonHoverResponse(value: Json): HoverResponse {
-    const object = jsonObject(value);
-
-    return {
-        hover: jsonOptional(object, "hover", (value) => fromJsonHover(value)),
-    };
-}
-
 /** Hover payload for a source position. */
 export type Hover = {
     /** The declarations named by the hovered occurrence. */
@@ -283,5 +165,123 @@ export function fromJsonHoverItem(value: Json): HoverItem {
         typeText: jsonOptional(object, "typeText", (value) => jsonString(value)),
         documentation: jsonOptional(object, "documentation", (value) => jsonString(value)),
         target: fromJsonTarget(jsonField(object, "target")),
+    };
+}
+
+/** Request hover content at a cursor position. */
+export type HoverRequest = {
+    /** The queried position. */
+    readonly position: QueryPosition;
+};
+
+export const HoverRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: HoverRequest): void {
+        encodeHoverRequest(writer, value);
+    },
+
+    /** Decode one HoverRequest. */
+    decode(reader: BinaryReader): HoverRequest {
+        return decodeHoverRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: HoverRequest): Json {
+        return toJsonHoverRequest(value);
+    },
+
+    /** Return one HoverRequest from one JSON value. */
+    fromJson(value: Json): HoverRequest {
+        return fromJsonHoverRequest(value);
+    },
+};
+
+/** Encode one HoverRequest. */
+export function encodeHoverRequest(writer: BinaryWriter, value: HoverRequest): void {
+    encodeQueryPosition(writer, value.position);
+}
+
+/** Decode one HoverRequest. */
+export function decodeHoverRequest(reader: BinaryReader): HoverRequest {
+    const position = decodeQueryPosition(reader);
+
+    return {
+        position,
+    };
+}
+
+/** Return one JSON value for one HoverRequest. */
+export function toJsonHoverRequest(value: HoverRequest): Json {
+    return {
+        position: toJsonQueryPosition(value.position),
+    };
+}
+
+/** Return one HoverRequest from one JSON value. */
+export function fromJsonHoverRequest(value: Json): HoverRequest {
+    const object = jsonObject(value);
+
+    return {
+        position: fromJsonQueryPosition(jsonField(object, "position")),
+    };
+}
+
+/** Response payload for hover queries. */
+export type HoverResponse = {
+    /** Hover content, if available. */
+    readonly hover?: Hover;
+};
+
+export const HoverResponse = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: HoverResponse): void {
+        encodeHoverResponse(writer, value);
+    },
+
+    /** Decode one HoverResponse. */
+    decode(reader: BinaryReader): HoverResponse {
+        return decodeHoverResponse(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: HoverResponse): Json {
+        return toJsonHoverResponse(value);
+    },
+
+    /** Return one HoverResponse from one JSON value. */
+    fromJson(value: Json): HoverResponse {
+        return fromJsonHoverResponse(value);
+    },
+};
+
+/** Encode one HoverResponse. */
+export function encodeHoverResponse(writer: BinaryWriter, value: HoverResponse): void {
+    writer.writeOption(value.hover, (value0) => {
+        encodeHover(writer, value0);
+    });
+}
+
+/** Decode one HoverResponse. */
+export function decodeHoverResponse(reader: BinaryReader): HoverResponse {
+    const hover = reader.readOption(() => decodeHover(reader));
+
+    return {
+        ...(hover === undefined ? {} : { hover }),
+    };
+}
+
+/** Return one JSON value for one HoverResponse. */
+export function toJsonHoverResponse(value: HoverResponse): Json {
+    return {
+        ...(value.hover === undefined ? {} : { hover: toJsonHover(value.hover) }),
+    };
+}
+
+/** Return one HoverResponse from one JSON value. */
+export function fromJsonHoverResponse(value: Json): HoverResponse {
+    const object = jsonObject(value);
+
+    return {
+        hover: jsonOptional(object, "hover", (value) => fromJsonHover(value)),
     };
 }

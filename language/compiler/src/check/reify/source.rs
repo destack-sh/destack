@@ -95,7 +95,7 @@ impl CheckState<'_> {
         let unannotated = {
             let state = self.module(module_id);
             let view = dir::View::new(state.source_tree());
-            view.iter_nodes_of_type::<dir::Declarator>()
+            view.iter_nodes::<dir::Declarator>()
                 .into_iter()
                 .filter(|(_, declarator)| declarator.ty.is_none())
                 .filter_map(|(_, declarator)| {
@@ -179,7 +179,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     fn reify_type_expressions(&mut self) -> CompilerResult<()> {
         let module_id = self.state.module.id;
         let view = dir::View::new(self.state.source_tree());
-        for (hole_id, expression) in view.iter_nodes_of_type::<dir::TypeExpression>() {
+        for (hole_id, expression) in view.iter_nodes::<dir::TypeExpression>() {
             if !matches!(
                 expression,
                 dir::TypeExpression::Infer {
@@ -210,7 +210,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     fn reify_declarations(&mut self) -> CompilerResult<()> {
         let module_id = self.state.module.id;
         let view = dir::View::new(self.state.source_tree());
-        for (declaration_id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
+        for (declaration_id, declaration) in view.iter_nodes::<dir::Declaration>() {
             self.reify_declaration_generic_parameters(module_id, declaration_id)?;
             self.reify_declaration_return(declaration_id, declaration)?;
         }
@@ -347,7 +347,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     /// Reify binding declarator checked types.
     fn reify_declarators(&mut self) -> CompilerResult<()> {
         let view = dir::View::new(self.state.source_tree());
-        for (declarator_id, declarator) in view.iter_nodes_of_type::<dir::Declarator>() {
+        for (declarator_id, declarator) in view.iter_nodes::<dir::Declarator>() {
             if !matches!(view.get(declarator.pattern), dir::Pattern::Binding { .. }) {
                 continue;
             }
@@ -375,7 +375,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     /// Reify named parameter checked types.
     fn reify_parameters(&mut self) -> CompilerResult<()> {
         let view = dir::View::new(self.state.source_tree());
-        for (parameter_id, parameter) in view.iter_nodes_of_type::<dir::Parameter>() {
+        for (parameter_id, parameter) in view.iter_nodes::<dir::Parameter>() {
             if let Some(dir::StaticKey::Name(name)) = parameter.symbol_key()
                 && self.check.strings().get(name) == "this"
             {
@@ -414,7 +414,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     /// Reify member checked types.
     fn reify_members(&mut self) -> CompilerResult<()> {
         let view = dir::View::new(self.state.source_tree());
-        for (member_id, member) in view.iter_nodes_of_type::<dir::Member>() {
+        for (member_id, member) in view.iter_nodes::<dir::Member>() {
             match member {
                 // reify field types
                 dir::Member::Field { .. } => {
@@ -458,7 +458,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     fn reify_expressions(&mut self) -> CompilerResult<()> {
         let module_id = self.state.module.id;
         let view = dir::View::new(self.state.source_tree());
-        for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+        for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
             match expression {
                 dir::Expression::Call { .. } => {
                     self.reify_inferred_construct_head(module_id, expression_id, expression)?;

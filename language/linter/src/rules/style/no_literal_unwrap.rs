@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_source::{FilePatch, PatchSet};
+use destack_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -9,7 +9,10 @@ declare_lint! {
     pub NO_LITERAL_UNWRAP {
         id: "no-literal-unwrap",
         summary: "Disallow immediately unwrapping a known successful result variant",
-        explanation: "Unwrapping a result immediately after constructing the variant that succeeds for that operation is redundant. Use the constructed value directly; statically failing unwraps are reported separately.",
+        explanation: r#"
+Unwrapping a result immediately after constructing the variant that succeeds for that operation is
+redundant. Use the constructed value directly; statically failing unwraps are reported separately.
+"#,
         example: {
             reported: r#"
 function identity(value: int32): int32 {
@@ -33,17 +36,19 @@ function identity(value: int32): int32 {
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let result = dir::LanguageItem::Result;
-    let unwrap = dir::LanguageMember::named(result, "unwrap");
-    let unwrap_err = dir::LanguageMember::named(result, "unwrapErr");
-    let ok = dir::LanguageMember::named(result, "ok");
-    let err = dir::LanguageMember::named(result, "err");
+    let unwrap = result.member("unwrap");
+    let unwrap_err = result.member("unwrapErr");
+    let ok = result.member("ok");
+    let err = result.member("err");
     let mut output = LintOutput::default();
 
     // inspect selected zero-argument unwrap calls
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for expression in module.call_expressions() {
+        let expression = expression?;
+        let node = view.get(expression);
         let dir::Expression::Call {
             left, arguments, ..
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };
@@ -89,16 +94,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let mut diagnostic =
             lint.diagnostic("result is unwrapped immediately after construction", span);
         if !module.has_unretained_comment(span, &[value_span])? {
-            let replacement = module.postfix_source(value)?;
-            let mut file = FilePatch::new(span.file);
-            file.replace(span, replacement);
-            let patches = PatchSet::single(file);
+            let replacement = module.operand_source(value, dir::OperatorPrecedence::Postfix)?;
+            let patch = Patch::replace(span, replacement);
             let preserves_type = module.node_type_id(expression.into_any())?
                 == module.node_type_id(value.into_any())?;
             let suggestion = if preserves_type {
-                lint.fix("use the constructed value directly", patches)?
+                lint.fix("use the constructed value directly", patch)?
             } else {
-                lint.suggestion("use the constructed value directly", patches)?
+                lint.suggestion("use the constructed value directly", patch)?
             };
             diagnostic = diagnostic.suggestion(suggestion);
         }

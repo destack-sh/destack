@@ -1,6 +1,60 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_interface_implementation_records_selected_members() {
+    let session = TestSession::single(
+        r#"
+declare interface ForeignProtocol {
+    snake_name(): void;
+}
+struct Value {}
+extension of Value implements ForeignProtocol {
+    snake_name(): void {}
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+declare interface ForeignProtocol {
+    snake_name(): void;
+}
+struct Value {}
+extension of Value implements ForeignProtocol {
+    snake_name(): void {}
+}
+
+=== checked ===
+declare interface ForeignProtocol {
+/// @type.symbol symbol=ForeignProtocol type=ForeignProtocol
+/// @definition.interface symbol=ForeignProtocol
+/// @definition.method symbol=ForeignProtocol.snake_name source="snake_name(): void" slot=snake_name type=(this: this) => void
+
+    snake_name(): void;
+    /// @type.symbol symbol=ForeignProtocol.snake_name source="snake_name(): void" type=(this: this) => void
+
+}
+struct Value {}
+/// @type.symbol symbol=Value source="struct Value {}" type=Value
+/// @definition.struct symbol=Value source="struct Value {}"
+
+extension of Value implements ForeignProtocol {
+/// @definition.extension symbol=<module>#2 form=local target=Value
+/// @definition.implements symbol=<module>#2 source=ForeignProtocol target=ForeignProtocol
+/// @definition.method symbol=snake_name source="snake_name(): void {}" slot=snake_name type=<snake_name.'a>(this: &snake_name.'a exclusive this) => void
+/// @definition.conformance symbol=<module>#2 member=snake_name requirement=ForeignProtocol.snake_name
+/// @resolution.name source=Value target=Value
+/// @resolution.name source=ForeignProtocol target=ForeignProtocol
+
+    snake_name(): void {}
+    /// @generic.template symbol=snake_name parent=template#1 parameters=('a)
+    /// @type.symbol symbol=snake_name source="snake_name(): void {}" type=<snake_name.'a>(this: &snake_name.'a exclusive this) => void
+
+}
+"#);
+}
+
+#[test]
 fn test_interface_declares_fields_and_methods() {
     let session = TestSession::single(
         r#"

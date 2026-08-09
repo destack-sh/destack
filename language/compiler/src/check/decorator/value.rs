@@ -150,7 +150,7 @@ impl CheckState<'_> {
         let mut values = Vec::with_capacity(bindings.len());
 
         for binding in bindings {
-            match &binding.argument {
+            match &binding.source {
                 dir::ArgumentSource::Provided(argument) => {
                     let value = match self.evaluate_static_argument(module, anchor, *argument)? {
                         Ok(value) => value,

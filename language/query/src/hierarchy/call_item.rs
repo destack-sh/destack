@@ -15,8 +15,8 @@ pub struct CallItem {
     pub name: String,
     /// The callable kind.
     pub kind: CallItemKind,
-    /// The rendered signature when available.
-    pub detail: Option<String>,
+    /// The rendered callable signature when available.
+    pub signature: Option<String>,
     /// The target source.
     pub target: Target,
     /// The resolved callable symbol.
@@ -36,14 +36,14 @@ pub enum CallItemKind {
     Constructor,
 }
 
-/// Request the call item at a cursor position.
+/// A call item request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallItemRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for call item queries.
+/// A call item response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallItemResponse {
     /// Call item, if available.
@@ -54,24 +54,31 @@ impl ModuleQueryContext<'_> {
     /// Return a call item at one offset.
     pub fn call_item(
         &self,
-        query: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<CallItem>> {
+        request: CallItemRequest,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<CallItemResponse> {
+        let position = request.position;
+
         // use only the exact callable selection at a call head
-        if let Some(selection) = self.selected_callable_at_offset(file_id, offset)? {
-            return CallItem::from_selection(query, selection);
+        if let Some(selection) =
+            self.selected_callable_at_offset(position.file_id, position.offset)?
+        {
+            let item = CallItem::from_selection(program, selection)?;
+
+            return Ok(CallItemResponse { item });
         }
 
         // otherwise classify the exact symbol occurrence
-        let Some(symbol_at) = self.symbol_at_offset(file_id, offset)? else {
-            return Ok(None);
+        let Some(symbol_at) = self.symbol_at_offset(program, position.file_id, position.offset)?
+        else {
+            return Ok(CallItemResponse { item: None });
         };
         let Some(symbol_id) = symbol_at.symbol() else {
-            return Ok(None);
+            return Ok(CallItemResponse { item: None });
         };
+        let item = CallItem::from_symbol(program, symbol_id)?;
 
-        CallItem::from_symbol(query, symbol_id)
+        Ok(CallItemResponse { item })
     }
 }
 
@@ -145,27 +152,25 @@ impl<'a> ConstructorCall<'a> {
 impl CallItem {
     /// Build one hierarchy item from a callable symbol.
     pub(crate) fn from_symbol(
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Self>> {
-        // follow exact import bindings to their declared symbol
-        let Some(canonical_id) = query.canonical_symbol(symbol_id)? else {
+        // read the target selected by an import binding
+        let Some(target_id) = program.symbol_target(symbol_id)? else {
             return Ok(None);
         };
-        let canonical_module = query.module(canonical_id.module_id)?;
-        let symbols = canonical_module.bindings()?;
-        let symbol = symbols.get_symbol(canonical_id.local_id);
+        let target_module = program.module(target_id.module_id)?;
+        let symbols = target_module.bindings()?;
+        let symbol = symbols.get_symbol(target_id.local_id);
 
         // build only declaration-backed callable kinds
         match symbol.kind {
             dir::SymbolKind::Function => {
-                canonical_module.function_call_item(query, canonical_id, symbol)
+                target_module.function_call_item(program, target_id, symbol)
             }
-            dir::SymbolKind::Class => canonical_module.class_call_item(query, canonical_id),
-            dir::SymbolKind::Newtype => {
-                canonical_module.newtype_call_item(query, canonical_id, None)
-            }
-            dir::SymbolKind::Variant => canonical_module.variant_call_item(query, canonical_id),
+            dir::SymbolKind::Class => target_module.class_call_item(program, target_id),
+            dir::SymbolKind::Newtype => target_module.newtype_call_item(program, target_id, None),
+            dir::SymbolKind::Variant => target_module.variant_call_item(program, target_id),
             _ => Ok(None),
         }
     }
@@ -173,11 +178,11 @@ impl CallItem {
     /// Build one exact callee item from an indexed call edge.
     pub(crate) fn from_entry(
         source_module: &ModuleQueryContext<'_>,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         entry: dir::CallEntry,
     ) -> QueryResult<Option<Self>> {
         if entry.kind == dir::CallKind::Call {
-            return Self::from_symbol(query, entry.callee);
+            return Self::from_symbol(program, entry.callee);
         }
 
         // require the construction selected for this exact indexed edge
@@ -191,7 +196,7 @@ impl CallItem {
         let selected = match &resolution.target {
             dir::ConstructTarget::Newtype(candidate) => candidate.symbol,
             dir::ConstructTarget::Variant(candidate) => candidate.case.variant,
-            dir::ConstructTarget::Class(_) => return Self::from_symbol(query, entry.callee),
+            dir::ConstructTarget::Class(_) => return Self::from_symbol(program, entry.callee),
             // skip dynamic constructions, they index no declaration edge
             dir::ConstructTarget::Dynamic { .. } => {
                 return Err(QueryError::invalid(format!(
@@ -201,7 +206,7 @@ impl CallItem {
         };
 
         // require the indexed edge to name this exact constructor
-        let Some(selected) = query.canonical_symbol(selected)? else {
+        let Some(selected) = program.symbol_target(selected)? else {
             return Err(QueryError::invalid(format!(
                 "call hierarchy symbol: {selected:?}"
             )));
@@ -213,16 +218,16 @@ impl CallItem {
             )));
         }
 
-        let module = query.module(entry.callee.module_id)?;
+        let module = program.module(entry.callee.module_id)?;
 
         // format only the exact generated constructor selected at this call
         match &resolution.target {
             dir::ConstructTarget::Newtype(candidate) => {
                 let call = ConstructorCall::new(&candidate.generic_arguments, resolution);
 
-                module.newtype_call_item(query, entry.callee, Some(call))
+                module.newtype_call_item(program, entry.callee, Some(call))
             }
-            dir::ConstructTarget::Variant(_) => module.variant_call_item(query, entry.callee),
+            dir::ConstructTarget::Variant(_) => module.variant_call_item(program, entry.callee),
             dir::ConstructTarget::Class(_) | dir::ConstructTarget::Dynamic { .. } => {
                 Err(QueryError::invalid("construct call item"))
             }
@@ -231,33 +236,31 @@ impl CallItem {
 
     /// Build one hierarchy item from an exact callable selection.
     fn from_selection(
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         selection: CallableSelection<'_>,
     ) -> QueryResult<Option<Self>> {
         match selection {
             CallableSelection::DeclarationFree | CallableSelection::Multiple => Ok(None),
-            CallableSelection::Symbol(symbol_id) => Self::from_symbol(query, symbol_id),
+            CallableSelection::Symbol(symbol_id) => Self::from_symbol(program, symbol_id),
             CallableSelection::Newtype { symbol_id, call } => {
-                let canonical_id =
-                    query
-                        .canonical_symbol(symbol_id)?
-                        .ok_or(QueryError::missing(format!(
-                            "call item symbol: {symbol_id:?}"
-                        )))?;
-                let module = query.module(canonical_id.module_id)?;
+                let target_id = program
+                    .symbol_target(symbol_id)?
+                    .ok_or(QueryError::missing(format!(
+                        "call item symbol: {symbol_id:?}"
+                    )))?;
+                let module = program.module(target_id.module_id)?;
 
-                module.newtype_call_item(query, canonical_id, Some(call))
+                module.newtype_call_item(program, target_id, Some(call))
             }
             CallableSelection::Variant { symbol_id } => {
-                let canonical_id =
-                    query
-                        .canonical_symbol(symbol_id)?
-                        .ok_or(QueryError::missing(format!(
-                            "call item symbol: {symbol_id:?}"
-                        )))?;
-                let module = query.module(canonical_id.module_id)?;
+                let target_id = program
+                    .symbol_target(symbol_id)?
+                    .ok_or(QueryError::missing(format!(
+                        "call item symbol: {symbol_id:?}"
+                    )))?;
+                let module = program.module(target_id.module_id)?;
 
-                module.variant_call_item(query, canonical_id)
+                module.variant_call_item(program, target_id)
             }
         }
     }
@@ -412,7 +415,7 @@ impl ModuleQueryContext<'_> {
     /// Build one function, method, or declared constructor item.
     fn function_call_item(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         symbol: &dir::Symbol,
     ) -> QueryResult<Option<CallItem>> {
@@ -422,9 +425,9 @@ impl ModuleQueryContext<'_> {
 
         match declaration.local_id.ty {
             dir::NodeType::Declaration => {
-                self.function_declaration_call_item(query, symbol_id, declaration.local_id)
+                self.function_declaration_call_item(program, symbol_id, declaration.local_id)
             }
-            dir::NodeType::Member => self.method_call_item(query, symbol_id),
+            dir::NodeType::Member => self.method_call_item(program, symbol_id),
             _ => Err(QueryError::invalid(format!(
                 "call item symbol: {symbol_id:?}"
             ))),
@@ -434,7 +437,7 @@ impl ModuleQueryContext<'_> {
     /// Build one free function item.
     fn function_declaration_call_item(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         source: dir::LocalNodeIdAny,
     ) -> QueryResult<Option<CallItem>> {
@@ -446,19 +449,19 @@ impl ModuleQueryContext<'_> {
                 "call item symbol: {symbol_id:?}"
             )));
         };
-        let name = query
+        let name = program
             .symbol_name(symbol_id)?
             .ok_or(QueryError::missing(format!(
                 "call item name: {symbol_id:?}"
             )))?;
-        let detail =
-            Formatter::new(self, query).call_signature(&name, &function.signature, false)?;
+        let signature =
+            Formatter::new(self, program).call_signature(&name, &function.signature, false)?;
         let target = self.call_item_target(source)?;
 
         Ok(Some(CallItem {
             name,
             kind: CallItemKind::Function,
-            detail: Some(detail),
+            signature: Some(signature),
             target,
             symbol_id,
         }))
@@ -467,12 +470,11 @@ impl ModuleQueryContext<'_> {
     /// Build one method or declared constructor item.
     fn method_call_item(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<CallItem>> {
         let (declaring, definition, member) =
-            self.definitions()?
-                .member(symbol_id)
+            self.definition_member(program, symbol_id)?
                 .ok_or(QueryError::missing(format!(
                     "call item member: {symbol_id:?}"
                 )))?;
@@ -481,7 +483,7 @@ impl ModuleQueryContext<'_> {
                 "call item member: {symbol_id:?}"
             )));
         };
-        let name = Formatter::new(self, query).member_name(member)?;
+        let name = Formatter::new(self, program).member_name(member)?;
         let kind = match method.slot {
             dir::MemberSlot::Constructor | dir::MemberSlot::New => CallItemKind::Constructor,
             dir::MemberSlot::Key(_) | dir::MemberSlot::Call => CallItemKind::Method,
@@ -498,16 +500,16 @@ impl ModuleQueryContext<'_> {
             .ok_or(QueryError::invalid(format!(
                 "call item symbol: {symbol_id:?}"
             )))?;
-        let container = self.call_item_container(query, declaring, definition)?;
+        let container = self.call_item_container(program, declaring, definition)?;
         let qualified_name = format!("{container}.{name}");
-        let detail =
-            Formatter::new(self, query).call_signature(&qualified_name, signature, false)?;
+        let signature =
+            Formatter::new(self, program).call_signature(&qualified_name, signature, false)?;
         let target = self.call_item_target(method.source.local_id)?;
 
         Ok(Some(CallItem {
             name,
             kind,
-            detail: Some(detail),
+            signature: Some(signature),
             target,
             symbol_id,
         }))
@@ -516,7 +518,7 @@ impl ModuleQueryContext<'_> {
     /// Build one implicit class constructor item.
     fn class_call_item(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<CallItem>> {
         let Some(definition) = self.definitions()?.definition(symbol_id) else {
@@ -543,7 +545,7 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         }
 
-        let name = query
+        let name = program
             .symbol_name(symbol_id)?
             .ok_or(QueryError::missing(format!(
                 "call item name: {symbol_id:?}"
@@ -554,12 +556,12 @@ impl ModuleQueryContext<'_> {
             )));
         };
         let target = self.call_item_target(source.local_id)?;
-        let detail = format!("{name}()");
+        let signature = format!("{name}()");
 
         Ok(Some(CallItem {
             name,
             kind: CallItemKind::Constructor,
-            detail: Some(detail),
+            signature: Some(signature),
             target,
             symbol_id,
         }))
@@ -568,11 +570,11 @@ impl ModuleQueryContext<'_> {
     /// Build one nominal newtype constructor item.
     fn newtype_call_item(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         call: Option<ConstructorCall<'_>>,
     ) -> QueryResult<Option<CallItem>> {
-        let name = query
+        let name = program
             .symbol_name(symbol_id)?
             .ok_or(QueryError::missing(format!(
                 "call item name: {symbol_id:?}"
@@ -589,11 +591,11 @@ impl ModuleQueryContext<'_> {
             )));
         };
         // format a selected construction or the one declared constructor
-        let detail = match call {
-            Some(call) => Some(self.construct_call_signature(query, &name, call)?),
+        let signature = match call {
+            Some(call) => Some(self.construct_call_signature(program, &name, call)?),
             None => match definition.constructors.as_slice() {
                 [constructor] => {
-                    Some(Formatter::new(self, query).callable_signature(&name, constructor.ty)?)
+                    Some(Formatter::new(self, program).callable_signature(&name, constructor.ty)?)
                 }
                 _ => None,
             },
@@ -608,7 +610,7 @@ impl ModuleQueryContext<'_> {
         Ok(Some(CallItem {
             name,
             kind: CallItemKind::Constructor,
-            detail,
+            signature,
             target,
             symbol_id,
         }))
@@ -617,15 +619,14 @@ impl ModuleQueryContext<'_> {
     /// Build one generated tagged variant constructor item.
     fn variant_call_item(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<CallItem>> {
-        let (_, _, member) = self
-            .definitions()?
-            .member(symbol_id)
-            .ok_or(QueryError::invalid(format!(
-                "call item symbol: {symbol_id:?}"
-            )))?;
+        let (declaring, _, member) =
+            self.definition_member(program, symbol_id)?
+                .ok_or(QueryError::invalid(format!(
+                    "call item symbol: {symbol_id:?}"
+                )))?;
         if matches!(member, dir::DefinitionMember::EnumVariant(_)) {
             return Ok(None);
         }
@@ -642,16 +643,14 @@ impl ModuleQueryContext<'_> {
             )));
         };
         let name = self.strings().get(name).to_string();
-        let detail = match self.types()?.get_symbol_type_id(variant.symbol) {
-            Some(type_id) => Some(Formatter::new(self, query).callable_signature(&name, type_id)?),
-            None => None,
-        };
-        let target = self.symbol_target(symbol_id)?;
+        let signature =
+            Formatter::new(self, program).tagged_variant_signature(declaring, variant)?;
+        let target = self.declaration_target(program, symbol_id)?;
 
         Ok(Some(CallItem {
             name,
             kind: CallItemKind::Constructor,
-            detail,
+            signature: Some(signature),
             target,
             symbol_id,
         }))
@@ -660,12 +659,12 @@ impl ModuleQueryContext<'_> {
     /// Format one exact generated constructor call.
     fn construct_call_signature(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         name: &str,
         call: ConstructorCall<'_>,
     ) -> QueryResult<String> {
         let parameter_names = vec![None; call.arguments.len()];
-        let formatter = Formatter::new(self, query);
+        let formatter = Formatter::new(self, program);
         let signature = formatter.applied_signature(
             name,
             call.generic_arguments,
@@ -680,18 +679,18 @@ impl ModuleQueryContext<'_> {
     /// Return the display name for one call item container.
     fn call_item_container(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         declaring: dir::GlobalSymbolId,
         definition: &dir::Definition,
     ) -> QueryResult<String> {
         let name = match definition {
             dir::Definition::Extension(extension) => match extension.target {
-                dir::ExtensionTarget::Rooted { root, .. } => query.symbol_name(root),
+                dir::ExtensionTarget::Rooted { root, .. } => program.symbol_name(root),
                 dir::ExtensionTarget::Blanket { ty: type_id, .. } => {
-                    Ok(Some(Formatter::new(self, query).global_type(type_id)?))
+                    Ok(Some(Formatter::new(self, program).global_type(type_id)?))
                 }
             },
-            _ => query.symbol_name(declaring),
+            _ => program.symbol_name(declaring),
         }?;
 
         name.ok_or(QueryError::missing(format!(

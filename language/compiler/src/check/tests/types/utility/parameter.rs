@@ -16,7 +16,7 @@ ok satisfies (string, number);
         DirRows::checked(),
         r#"
 === annotated ===
-type Args = Parameters<(name: string, count: number) => boolean>;
+type Args = Parameters<(name: string, count: float64) => boolean>;
 
 const ok: Args = ("Ada", 1);
 ok satisfies (string, number);
@@ -26,6 +26,8 @@ type Args = Parameters<(name: string, count: number) => boolean>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
 /// @resolution.name source=Parameters target=types.function.Parameters
+/// @type.symbol symbol=Args.name source="name: string" type=string
+/// @type.symbol symbol=Args.count source="count: number" type=float64
 
 const ok: Args = ("Ada", 1);
 /// @type.symbol symbol=ok source=ok type=Args reduced=(string, float64)
@@ -58,7 +60,7 @@ const full: Args = ("Ada", 1);
         DirRows::checked(),
         r#"
 === annotated ===
-type Args = Parameters<(name: string, count?: number) => boolean>;
+type Args = Parameters<(name: string, count?: float64) => boolean>;
 
 const short: Args = ("Ada",) as (string, float64 | undefined?);
 const full: Args = ("Ada", 1 as float64 | undefined);
@@ -68,6 +70,8 @@ type Args = Parameters<(name: string, count?: number) => boolean>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" type=Parameters<Function<(string, float64 | undefined?), boolean>> reduced=(string, float64 | undefined?)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" value=Parameters<Function<(string, float64 | undefined?), boolean>> reduced=(string, float64 | undefined?)
 /// @resolution.name source=Parameters target=types.function.Parameters
+/// @type.symbol symbol=Args.name source="name: string" type=string
+/// @type.symbol symbol=Args.count source="count?: number" type=float64 | undefined
 
 const short: Args = ("Ada",);
 /// @type.symbol symbol=short source=short type=Args reduced=(string, float64 | undefined?)
@@ -108,6 +112,8 @@ type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=Parameters<Function<(string, ...boolean[]), void>> reduced=(string, ...boolean[])
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=Parameters<Function<(string, ...boolean[]), void>> reduced=(string, ...boolean[])
 /// @resolution.name source=Parameters target=types.function.Parameters
+/// @type.symbol symbol=Args.name source="name: string" type=string
+/// @type.symbol symbol=Args.flags source="...flags: boolean[]" type=Array<boolean>
 
 const ok: Args = ("Ada", true, false);
 /// @type.symbol symbol=ok source=ok type=Args reduced=(string, ...boolean[])
@@ -134,7 +140,7 @@ const bad: Args = ("Ada", "one");
         DirRows::checked(),
         r#"
 === annotated ===
-type Args = Parameters<(name: string, count: number) => boolean>;
+type Args = Parameters<(name: string, count: float64) => boolean>;
 
 const bad: Args = ("Ada", "one");
 
@@ -143,6 +149,8 @@ type Args = Parameters<(name: string, count: number) => boolean>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
 /// @resolution.name source=Parameters target=types.function.Parameters
+/// @type.symbol symbol=Args.name source="name: string" type=string
+/// @type.symbol symbol=Args.count source="count: number" type=float64
 
 const bad: Args = ("Ada", "one");
 /// @type.symbol symbol=bad source=bad type=Args reduced=(string, float64)

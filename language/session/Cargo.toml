@@ -26,6 +26,7 @@ destack_source = { workspace = true }
 destack_repository = { path = "../repository", default-features = false }
 
 # general
+futures = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
@@ -33,6 +34,9 @@ serde_yaml_ng = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 toml = { workspace = true }
+
+[dev-dependencies]
+futures = { workspace = true, features = ["executor"] }
 
 [features]
 default = ["native"]

@@ -47,16 +47,16 @@ pub struct CleanArgs {
 }
 
 /// Remove build outputs and caches.
-pub fn run(args: &CleanArgs) -> i32 {
+pub async fn run(args: &CleanArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("clean", &args.program, &args.report) {
         return code;
     }
 
-    run_clean(args)
+    run_clean(args).await
 }
 
 /// Run a clean command.
-fn run_clean(args: &CleanArgs) -> i32 {
+async fn run_clean(args: &CleanArgs) -> i32 {
     // build command options for workspace execution
     let common = match CommandOptionsBuilder::new(&args.program) {
         Ok(common) => common,
@@ -78,14 +78,17 @@ fn run_clean(args: &CleanArgs) -> i32 {
         "clean",
         &args.report,
         &args.program,
-        |workspace, root, _| {
+        async |workspace, root, _| {
             let result = workspace
                 .clean(root, request, None)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(result)
         },
-    ) {
+    )
+    .await
+    {
         Ok(result) => result,
         Err(code) => return code,
     };

@@ -324,8 +324,12 @@ impl BodyState<'_, '_> {
             }
 
             // skip extensions without interface declarations
-            let implements = extension.implements.clone();
-            if implements.is_empty() {
+            let interfaces = extension
+                .implements
+                .iter()
+                .map(|conformance| conformance.interface)
+                .collect::<SmallVec<[_; 2]>>();
+            if interfaces.is_empty() {
                 continue;
             }
 
@@ -342,7 +346,7 @@ impl BodyState<'_, '_> {
                     interface,
                     template,
                     target_type,
-                    &implements,
+                    &interfaces,
                 )?;
                 Ok(match matched {
                     Some(_) => CandidateOutcome::Accepted(()),
@@ -368,7 +372,7 @@ impl BodyState<'_, '_> {
         interface: &dir::GenericApplication,
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
-        implements: &[dir::NominalHeritage],
+        interfaces: &[dir::GlobalTypeId],
     ) -> CompilerResult<Option<(TypeSubstitution, dir::GlobalTypeId)>> {
         // bind extension parameters through its declared target
         let parameters = match template {
@@ -401,7 +405,7 @@ impl BodyState<'_, '_> {
             interface_module,
             &parameters,
             &mut substitution,
-            implements,
+            interfaces,
             interface,
         )?;
         let Some(implementation) = implementation else {
@@ -487,7 +491,6 @@ impl BodyState<'_, '_> {
         )?;
 
         // admit the implicit implementors of the interface
-        let interface = self.resolve_symbol_alias(interface)?;
         if let Some(environment) = &self.check.environment_declared
             && let Some(implementors) = environment.implementations_by_interface.get(&interface)
         {

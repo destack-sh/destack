@@ -50,12 +50,6 @@ impl ProgramIndexer<'_> {
                     _ => None,
                 })?,
             )),
-            IndexKind::Extensions => ProgramIndex::Extensions(dir::ExtensionPostings::build(
-                &self.indexes(kind, |module| match module {
-                    ModuleIndex::Extensions(index) => Some(index),
-                    _ => None,
-                })?,
-            )),
             IndexKind::Decorators => ProgramIndex::Decorators(dir::DecoratorPostings::build(
                 &self.indexes(kind, |module| match module {
                     ModuleIndex::Decorators(index) => Some(index),
@@ -90,9 +84,6 @@ impl ProgramIndexer<'_> {
                     postings.update(*ordinal, index);
                 }
                 (ProgramIndex::Heritage(postings), ModuleIndex::Heritage(index)) => {
-                    postings.update(*ordinal, index);
-                }
-                (ProgramIndex::Extensions(postings), ModuleIndex::Extensions(index)) => {
                     postings.update(*ordinal, index);
                 }
                 (ProgramIndex::Decorators(postings), ModuleIndex::Decorators(index)) => {

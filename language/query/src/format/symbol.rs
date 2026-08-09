@@ -14,7 +14,7 @@ impl Formatter<'_, '_, '_> {
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<String>> {
-        let module = self.query.module(symbol_id.module_id)?;
+        let module = self.program.module(symbol_id.module_id)?;
         let type_id = module
             .types()?
             .get_symbol_type_id(symbol_id)
@@ -28,7 +28,7 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one symbol type.
     pub(crate) fn symbol_type(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
-        let module = self.query.module(symbol_id.module_id)?;
+        let module = self.program.module(symbol_id.module_id)?;
         let type_id = module
             .types()?
             .get_symbol_type_id(symbol_id)
@@ -44,11 +44,11 @@ impl Formatter<'_, '_, '_> {
         type_id: dir::GlobalTypeId,
         module: &crate::ModuleQueryContext<'_>,
     ) -> QueryResult<String> {
-        let formatter = Formatter::new(module, self.query);
+        let formatter = Formatter::new(module, self.program);
 
         // retain authored parameter names on callable types
         let type_text =
-            if let Some(parameter_names) = self.query.symbol_parameter_names(symbol_id)? {
+            if let Some(parameter_names) = self.program.symbol_parameter_names(symbol_id)? {
                 formatter.callable_type(type_id, Some(&parameter_names))
             } else {
                 formatter.global_type(type_id)
@@ -62,7 +62,7 @@ impl Formatter<'_, '_, '_> {
         &self,
         parameter: dir::GlobalGenericParameterId,
     ) -> QueryResult<String> {
-        let module = self.query.module(parameter.module_id)?;
+        let module = self.program.module(parameter.module_id)?;
         let parameter = module.generics()?.get_parameter(parameter.local_id);
 
         let name = match parameter.key {
@@ -85,7 +85,7 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one symbol path.
     pub(super) fn symbol(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
-        let module = self.query.module(symbol_id.module_id)?;
+        let module = self.program.module(symbol_id.module_id)?;
         let symbols = module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.into_local());
         let Some(symbol_name) = static_key_segment(symbol.key, module.strings()) else {
@@ -176,13 +176,13 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one symbol from its exact declaration.
     pub(crate) fn symbol_signature(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
-        let module = self.query.module(symbol_id.module_id)?;
-        let formatter = Formatter::new(&module, self.query);
+        let module = self.program.module(symbol_id.module_id)?;
+        let formatter = Formatter::new(&module, self.program);
         let symbols = module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.into_local());
-        let declaration = symbol.declaration.ok_or(QueryError::missing(format!(
-            "signature declaration: {symbol_id:?}"
-        )))?;
+        let Some(declaration) = symbol.declaration else {
+            return formatter.member_symbol_signature(symbol_id);
+        };
         let name = symbol
             .name()
             .map(|name| module.strings().get(name).to_string());
@@ -207,7 +207,7 @@ impl Formatter<'_, '_, '_> {
                 let parameter_id =
                     dir::LocalNodeId::<dir::GenericParameter>::new(declaration.local_id.id);
 
-                formatter.generic_parameter_symbol_signature(parameter_id)?
+                formatter.generic_parameter(parameter_id)?
             }
             dir::NodeType::Pattern => {
                 let name = name.as_deref().ok_or(QueryError::missing(format!(
@@ -229,41 +229,17 @@ impl Formatter<'_, '_, '_> {
         Ok(signature)
     }
 
-    /// Format one generic parameter symbol.
-    fn generic_parameter_symbol_signature(
-        &self,
-        parameter_id: dir::LocalNodeId<dir::GenericParameter>,
-    ) -> QueryResult<String> {
-        let parameter = self.module.view()?.get(parameter_id);
-        let kind = match parameter {
-            dir::GenericParameter::Type { .. } | dir::GenericParameter::VariadicType { .. } => {
-                "type parameter"
-            }
-            dir::GenericParameter::Value { .. } | dir::GenericParameter::VariadicValue { .. } => {
-                "value parameter"
-            }
-            dir::GenericParameter::Lifetime { .. } => "lifetime parameter",
-            dir::GenericParameter::Error => {
-                return Err(QueryError::missing("generic parameter signature"));
-            }
-        };
-        let parameter = self.generic_parameter(parameter_id)?;
-
-        Ok(format!("({kind}) {parameter}"))
-    }
-
     /// Format one member symbol.
     fn member_symbol_signature(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
-        let (declaring, definition, member) =
-            self.module
-                .definitions()?
-                .member(symbol_id)
-                .ok_or(QueryError::missing(format!(
-                    "signature member: {symbol_id:?}"
-                )))?;
+        let (declaring, definition, member) = self
+            .module
+            .definition_member(self.program, symbol_id)?
+            .ok_or(QueryError::missing(format!(
+                "signature member: {symbol_id:?}"
+            )))?;
         let owner = definition.member_owner(declaring);
         let container = owner
-            .map(|owner| self.query.symbol_name(owner))
+            .map(|owner| self.program.symbol_name(owner))
             .transpose()?
             .flatten();
         let name = self.member_name(member)?;
@@ -272,91 +248,99 @@ impl Formatter<'_, '_, '_> {
             None => name,
         };
 
-        let signature =
-            match member {
-                dir::DefinitionMember::Field(_) => {
-                    let type_text = self.member_type(member)?;
+        let signature = match member {
+            dir::DefinitionMember::Field(_) => {
+                let type_text = self.member_type(member)?;
 
-                    format!("(property) {name}: {type_text}")
-                }
-                dir::DefinitionMember::Method(method) => {
-                    if matches!(
-                        method.role,
-                        Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
-                    ) {
-                        let type_text = self.member_type(member)?;
+                format!("{name}: {type_text}")
+            }
+            dir::DefinitionMember::Method(method) => {
+                let signature = self.authored_member_signature(member.source())?;
+                let signature = self.call_signature(&name, signature, false)?;
+                let static_prefix = if method.space == dir::MemberSpace::Static {
+                    "static "
+                } else {
+                    ""
+                };
+                let role_prefix = match method.role {
+                    Some(dir::FunctionRole::Getter) => "get ",
+                    Some(dir::FunctionRole::Setter) => "set ",
+                    _ => "",
+                };
 
-                        return Ok(format!("(property) {name}: {type_text}"));
-                    }
+                format!("{static_prefix}{role_prefix}{signature}")
+            }
+            dir::DefinitionMember::AssociatedType(associated) => {
+                let constraint = associated
+                    .constraint
+                    .map(|constraint| self.global_type(constraint))
+                    .transpose()?;
+                let value = associated
+                    .value
+                    .map(|value| self.global_type(value))
+                    .transpose()?;
 
-                    let signature = self.authored_member_signature(member.source())?;
-                    let signature = self.call_signature(&name, signature, false)?;
-                    let kind = match method.slot {
-                        dir::MemberSlot::Key(_) => "method",
-                        dir::MemberSlot::Constructor | dir::MemberSlot::New => "constructor",
-                        dir::MemberSlot::Call => "function",
-                    };
-
-                    format!("({kind}) {signature}")
-                }
-                dir::DefinitionMember::AssociatedType(associated) => {
-                    let constraint = associated
-                        .constraint
-                        .map(|constraint| self.global_type(constraint))
-                        .transpose()?;
-                    let value = associated
-                        .value
-                        .map(|value| self.global_type(value))
-                        .transpose()?;
-
-                    match (constraint, value) {
-                        (None, None) => format!("(type member) {name}"),
-                        (Some(constraint), None) => {
-                            format!("(type member) {name}: {constraint}")
-                        }
-                        (None, Some(value)) => format!("(type member) {name} = {value}"),
-                        (Some(constraint), Some(value)) => {
-                            format!("(type member) {name}: {constraint} = {value}")
-                        }
+                match (constraint, value) {
+                    (None, None) => name,
+                    (Some(constraint), None) => format!("{name}: {constraint}"),
+                    (None, Some(value)) => format!("{name} = {value}"),
+                    (Some(constraint), Some(value)) => {
+                        format!("{name}: {constraint} = {value}")
                     }
                 }
-                dir::DefinitionMember::AssociatedConst(_) => {
-                    let type_text = self.member_type(member)?;
+            }
+            dir::DefinitionMember::AssociatedConst(_) => {
+                let type_text = self.member_type(member)?;
 
-                    format!("(comptime const) {name}: {type_text}")
-                }
-                dir::DefinitionMember::EnumVariant(_) => {
-                    let type_text = self.member_type(member)?;
+                format!("{name}: {type_text}")
+            }
+            dir::DefinitionMember::EnumVariant(_) => {
+                let type_text = self.member_type(member)?;
 
-                    format!("(enum member) {name}: {type_text}")
-                }
-                // format the declared variant identity alone in unchecked modules
-                dir::DefinitionMember::TaggedKey(_) => {
-                    format!("(constructor) {name}")
-                }
-                dir::DefinitionMember::TaggedVariant(variant) => {
-                    let type_id = self.types()?.get_symbol_type_id(variant.symbol).ok_or(
-                        QueryError::missing(format!("tagged variant type: {:?}", variant.symbol)),
-                    )?;
-                    let signature = self.callable_signature(&name, type_id)?;
+                format!("{name}: {type_text}")
+            }
+            dir::DefinitionMember::TaggedKey(_) => {
+                return Err(QueryError::invalid(format!(
+                    "tagged member has no selected variant: {symbol_id:?}"
+                )));
+            }
+            dir::DefinitionMember::TaggedVariant(variant) => {
+                self.tagged_variant_signature(declaring, variant)?
+            }
+            dir::DefinitionMember::CallSignature(_)
+            | dir::DefinitionMember::ConstructSignature(_) => {
+                let signature = self.authored_member_signature(member.source())?;
 
-                    format!("(constructor) {signature}")
-                }
-                dir::DefinitionMember::CallSignature(_)
-                | dir::DefinitionMember::ConstructSignature(_) => {
-                    let signature = self.authored_member_signature(member.source())?;
-                    let signature = self.call_signature(&name, signature, false)?;
+                self.call_signature(&name, signature, false)?
+            }
+            dir::DefinitionMember::IndexSignature(_) => {
+                let type_text = self.member_type(member)?;
 
-                    format!("(function) {signature}")
-                }
-                dir::DefinitionMember::IndexSignature(_) => {
-                    let type_text = self.member_type(member)?;
-
-                    format!("(property) {name}: {type_text}")
-                }
-            };
+                format!("{name}: {type_text}")
+            }
+        };
 
         Ok(signature)
+    }
+
+    /// Format one generated tagged variant constructor.
+    pub(crate) fn tagged_variant_signature(
+        &self,
+        declaring: dir::GlobalSymbolId,
+        variant: &dir::TaggedVariantDefinition,
+    ) -> QueryResult<String> {
+        let owner = self.symbol(declaring)?;
+        let generic_parameters = self.symbol_generics(declaring)?.unwrap_or_default();
+        let name = self.property_key(variant.key)?;
+        let parameters = variant
+            .argument
+            .map(|argument| self.global_type(argument))
+            .transpose()?
+            .unwrap_or_default();
+
+        Ok(format!(
+            "{owner}.{name}{generic_parameters}({parameters}): {owner}{generic_parameters}"
+        ))
     }
 
     /// Format one parameter symbol.
@@ -369,7 +353,7 @@ impl Formatter<'_, '_, '_> {
         let node_id = parameter_id.into_global(self.module.module_id()).into_any();
         let type_text = self.node_type(node_id)?;
 
-        Ok(format!("(parameter) {name}: {type_text}"))
+        Ok(format!("{name}: {type_text}"))
     }
 
     /// Format one local binding symbol.
@@ -443,7 +427,7 @@ impl Formatter<'_, '_, '_> {
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<String>> {
-        let module = self.query.module(symbol_id.module_id)?;
+        let module = self.program.module(symbol_id.module_id)?;
         let symbols = module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let source = symbol.declaration.ok_or(QueryError::invalid(format!(
@@ -466,7 +450,7 @@ impl Formatter<'_, '_, '_> {
             .ok_or(QueryError::invalid(format!(
                 "type item symbol: {symbol_id:?}"
             )))?;
-        let formatted = Formatter::new(&module, self.query).generics(parameters)?;
+        let formatted = Formatter::new(&module, self.program).generics(parameters)?;
 
         Ok((!formatted.is_empty()).then_some(formatted))
     }

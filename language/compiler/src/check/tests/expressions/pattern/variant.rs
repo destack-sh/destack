@@ -50,8 +50,8 @@ const rectangle = Shape.rectangle_shape({ width: 10, height: 20 });
 }))
 newtype Shape =
 /// @definition.newtype symbol=Shape discriminator=kind backing={ kind: "rectangleShape"; width: int32; height: int32 } | { kind: "circle"; radius: int32 }
-/// @definition.variant symbol=Shape.Round key=Round discriminant=circle backing={ kind: "circle"; radius: int32 } argument={ radius: int32 }
-/// @definition.variant symbol=Shape.rectangle_shape key=rectangle_shape discriminant=rectangleShape backing={ kind: "rectangleShape"; width: int32; height: int32 } argument={ width: int32; height: int32 }
+/// @definition.variant symbol=Shape.Round source={ kind: "circle"; radius: int32 } key=Round discriminant=circle backing={ kind: "circle"; radius: int32 } argument={ radius: int32 }
+/// @definition.variant symbol=Shape.rectangle_shape source={ kind: "rectangleShape"; width: int32; height: int32 } key=rectangle_shape discriminant=rectangleShape backing={ kind: "rectangleShape"; width: int32; height: int32 } argument={ width: int32; height: int32 }
 
     | { kind: "rectangleShape"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
@@ -102,8 +102,8 @@ newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status.Err type=({ error: int32 }) => Status.Err
 /// @type.symbol symbol=Status.Ok type=({ value: string }) => Status.Ok
 /// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" discriminator=kind backing=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
+/// @definition.variant symbol=Status.Err source=Err<int32> key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
+/// @definition.variant symbol=Status.Ok source=Ok<string> key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -189,8 +189,8 @@ newtype Event = { kind: "click"; x: int32; y: int32 } | { kind: "key"; key: stri
 /// @type.symbol symbol=Event.Click type=({ x: int32; y: int32 }) => Event.Click
 /// @type.symbol symbol=Event.Key type=({ key: string }) => Event.Key
 /// @definition.newtype symbol=Event discriminator=kind backing={ kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string }
-/// @definition.variant symbol=Event.Click key=Click discriminant=click backing={ kind: "click"; x: int32; y: int32 } argument={ x: int32; y: int32 }
-/// @definition.variant symbol=Event.Key key=Key discriminant=key backing={ kind: "key"; key: string } argument={ key: string }
+/// @definition.variant symbol=Event.Click source={ kind: "click"; x: int32; y: int32 } key=Click discriminant=click backing={ kind: "click"; x: int32; y: int32 } argument={ x: int32; y: int32 }
+/// @definition.variant symbol=Event.Key source={ kind: "key"; key: string } key=Key discriminant=key backing={ kind: "key"; key: string } argument={ key: string }
 
 declare const event: Event;
 /// @type.symbol symbol=event source=event type=Event
@@ -285,8 +285,8 @@ newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status.Err type=({ error: int32 }) => Status.Err
 /// @type.symbol symbol=Status.Ok type=({ value: string }) => Status.Ok
 /// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" discriminator=kind backing=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
+/// @definition.variant symbol=Status.Err source=Err<int32> key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
+/// @definition.variant symbol=Status.Ok source=Ok<string> key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -300,7 +300,7 @@ newtype Other = Ok<string>;
 /// @type.symbol symbol=Other source="newtype Other = Ok<string>" type=Other
 /// @type.symbol symbol=Other.Ok type=({ value: string }) => Other.Ok
 /// @definition.newtype symbol=Other source="newtype Other = Ok<string>" discriminator=kind backing=Ok<string>
-/// @definition.variant symbol=Other.Ok source="newtype Other = Ok<string>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
+/// @definition.variant symbol=Other.Ok source=Ok<string> key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 
 declare const status: Status;
@@ -374,8 +374,8 @@ newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status.Err type=({ error: int32 }) => Status.Err
 /// @type.symbol symbol=Status.Ok type=({ value: string }) => Status.Ok
 /// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" discriminator=kind backing=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
+/// @definition.variant symbol=Status.Err source=Err<int32> key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
+/// @definition.variant symbol=Status.Ok source=Ok<string> key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -452,8 +452,8 @@ newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status.Err type=({ error: int32 }) => Status.Err
 /// @type.symbol symbol=Status.Ok type=({ value: string }) => Status.Ok
 /// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" discriminator=kind backing=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
+/// @definition.variant symbol=Status.Err source=Err<int32> key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
+/// @definition.variant symbol=Status.Ok source=Ok<string> key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -533,8 +533,8 @@ newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status.Err type=({ error: int32 }) => Status.Err
 /// @type.symbol symbol=Status.Ok type=({ value: string }) => Status.Ok
 /// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" discriminator=kind backing=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
+/// @definition.variant symbol=Status.Err source=Err<int32> key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
+/// @definition.variant symbol=Status.Ok source=Ok<string> key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 

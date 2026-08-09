@@ -19,7 +19,7 @@ handler.run(1) satisfies number;
         DirRows::checked(),
         r#"
 === annotated ===
-type Handler = { run: (value: number) => number };
+type Handler = { run: (value: float64) => number };
 
 const handler: { run: (arg0: float64) => float64 } = {
     run: (value: float64): float64 => value + 1,
@@ -31,6 +31,7 @@ handler.run(1) satisfies number;
 type Handler = { run: (value: number) => number };
 /// @type.symbol symbol=Handler source="type Handler = { run: (value: number) => number }" type={ run: Function<(float64,), float64> }
 /// @definition.type symbol=Handler source="type Handler = { run: (value: number) => number }" value={ run: Function<(float64,), float64> }
+/// @type.symbol symbol=Handler.value source="value: number" type=float64
 
 const handler = {
 /// @type.symbol symbol=handler source=handler type={ run: Function<(float64,), float64> }

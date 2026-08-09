@@ -698,7 +698,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "too few arguments for one intrinsic".to_string(),
             });
         };
-        let dir::ArgumentSource::Provided(argument) = binding.argument else {
+        let dir::ArgumentSource::Provided(argument) = binding.source else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a defaulted or spread intrinsic argument".to_string(),

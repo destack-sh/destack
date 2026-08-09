@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -11,6 +12,7 @@ use destack_repository::{
     Settings,
 };
 use destack_source::{File, FileSystem, MemoryFileSystem};
+use futures::executor::block_on;
 use serde_json::{Value, json};
 
 use crate::common::{InputArgs, ProgramArgs};
@@ -227,6 +229,11 @@ pub(super) fn input_args_from_path(path: PathBuf) -> InputArgs {
         files: vec![path],
         ..InputArgs::default()
     }
+}
+
+/// Execute one asynchronous CLI operation.
+pub(super) fn execute<T>(operation: impl Future<Output = T>) -> T {
+    block_on(operation)
 }
 
 /// Assert a command exits with the expected code.

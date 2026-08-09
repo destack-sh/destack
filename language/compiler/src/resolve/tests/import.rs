@@ -24,15 +24,53 @@ export let value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import { value as local } from "./dep.ds";
-/// @import.symbol symbol=local target=dep.value
-/// @reference.bound source=value targets=[dep.value]
+/// @import.resolved symbol=local declarations=[dep.value] targets=[dep.value]
+/// @reference.target source=value kind=bound targets=[dep.value]
 
 local;
-/// @reference.bound source=local targets=[dep.value]
-/// @reference.declaration source=local targets=[local]
+/// @reference.target source=local kind=bound targets=[dep.value]
+/// @reference.declaration source=local kind=bound targets=[local]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=2 expressions=2 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0
+/// @reference.summary references=2 declarations=1
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_records_imported_overload_group() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+import { parse } from "./dep.ds";
+
+parse;
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export declare function parse(value: int32): int32;
+export declare function parse(value: string): string;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries(),
+        r#"
+import { parse } from "./dep.ds";
+/// @import.resolved symbol=parse declarations=[dep.parse#1, dep.parse#2] targets=[dep.parse#1, dep.parse#2]
+/// @reference.target source=parse kind=bound targets=[dep.parse#1, dep.parse#2]
+
+parse;
+/// @reference.target source=parse kind=bound targets=[dep.parse#1, dep.parse#2]
+/// @reference.declaration source=parse kind=bound targets=[parse]
+
+/// @import.summary symbols=1
 /// @reference.summary references=2 declarations=1
 "#,
     );
@@ -60,8 +98,8 @@ export let value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import * as dep from "./dep.ds";
-/// @import.namespace symbol=dep module=dep.ds
-/// @reference.namespace source=<namespace> module=dep.ds
+/// @import.resolved symbol=dep declarations=[dep.ds] targets=[dep.ds]
+/// @reference.target source=<namespace> kind=namespace module=dep.ds
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0
@@ -94,13 +132,13 @@ export let value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import * as dep from "./dep.ds";
-/// @import.namespace symbol=dep module=dep.ds
-/// @reference.namespace source=<namespace> module=dep.ds
+/// @import.resolved symbol=dep declarations=[dep.ds] targets=[dep.ds]
+/// @reference.target source=<namespace> kind=namespace module=dep.ds
 
 dep.value;
-/// @reference.namespace source=dep module=dep.ds
-/// @reference.declaration source=dep targets=[dep]
-/// @reference.bound source=dep.value targets=[dep.value]
+/// @reference.declaration source=dep kind=bound targets=[dep]
+/// @reference.target source=dep kind=namespace module=dep.ds
+/// @reference.target source=dep.value kind=bound targets=[dep.value]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
@@ -140,13 +178,13 @@ export declare function make(): { value: number };
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import * as dep from "./dep.ds";
-/// @import.namespace symbol=dep module=dep.ds
-/// @reference.namespace source=<namespace> module=dep.ds
+/// @import.resolved symbol=dep declarations=[dep.ds] targets=[dep.ds]
+/// @reference.target source=<namespace> kind=namespace module=dep.ds
 
 dep.make().value;
-/// @reference.namespace source=dep module=dep.ds
-/// @reference.declaration source=dep targets=[dep]
-/// @reference.bound source=dep.make targets=[dep.make]
+/// @reference.declaration source=dep kind=bound targets=[dep]
+/// @reference.target source=dep kind=namespace module=dep.ds
+/// @reference.target source=dep.make kind=bound targets=[dep.make]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
@@ -192,14 +230,15 @@ export let value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import * as dep from "./dep.ds";
-/// @import.namespace symbol=dep module=dep.ds
-/// @reference.namespace source=<namespace> module=dep.ds
+/// @import.resolved symbol=dep declarations=[dep.ds] targets=[dep.ds]
+/// @reference.target source=<namespace> kind=namespace module=dep.ds
 
 dep.api.value;
-/// @reference.namespace source=dep module=dep.ds
-/// @reference.declaration source=dep targets=[dep]
-/// @reference.namespace source=dep.api module=api.ds
-/// @reference.bound source=dep.api.value targets=[api.value]
+/// @reference.declaration source=dep kind=bound targets=[dep]
+/// @reference.target source=dep kind=namespace module=dep.ds
+/// @reference.declaration source=dep.api kind=bound targets=[dep.api]
+/// @reference.target source=dep.api kind=namespace module=api.ds
+/// @reference.target source=dep.api.value kind=bound targets=[api.value]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
@@ -210,7 +249,7 @@ dep.api.value;
 
 /// @import.summary symbols=1 language=6
 /// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=uses:6 exports=miss:2,hit:0,cycle:0
-/// @reference.summary references=4 declarations=1
+/// @reference.summary references=4 declarations=2
 "#,
     );
 }
@@ -246,14 +285,15 @@ export let value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import * as dep from "./dep.ds";
-/// @import.namespace symbol=dep module=dep.ds
-/// @reference.namespace source=<namespace> module=dep.ds
+/// @import.resolved symbol=dep declarations=[dep.ds] targets=[dep.ds]
+/// @reference.target source=<namespace> kind=namespace module=dep.ds
 
 dep.api.value;
-/// @reference.namespace source=dep module=dep.ds
-/// @reference.declaration source=dep targets=[dep]
-/// @reference.namespace source=dep.api module=api.ds
-/// @reference.bound source=dep.api.value targets=[api.value]
+/// @reference.declaration source=dep kind=bound targets=[dep]
+/// @reference.target source=dep kind=namespace module=dep.ds
+/// @reference.declaration source=dep.api kind=bound targets=[dep.api]
+/// @reference.target source=dep.api kind=namespace module=api.ds
+/// @reference.target source=dep.api.value kind=bound targets=[api.value]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
@@ -264,7 +304,7 @@ dep.api.value;
 
 /// @import.summary symbols=1 language=6
 /// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=uses:6 exports=miss:2,hit:0,cycle:0
-/// @reference.summary references=4 declarations=1
+/// @reference.summary references=4 declarations=2
 "#,
     );
 }
@@ -292,12 +332,13 @@ export { value as default };
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import value from "./dep.ds";
-/// @import.symbol symbol=value target=dep.value
-/// @reference.bound source=<default> targets=[dep.value]
+/// @import.resolved symbol=value declarations=[dep.default] targets=[dep.value]
+/// @reference.declaration source=<default> kind=bound targets=[dep.default]
+/// @reference.target source=<default> kind=bound targets=[dep.value]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0
-/// @reference.summary references=1
+/// @reference.summary references=1 declarations=1
 "#,
     );
 }
@@ -324,8 +365,8 @@ export type Foo = string;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import type { Foo } from "./dep.ds";
-/// @import.symbol symbol=Foo target=dep.Foo
-/// @reference.bound source=Foo targets=[dep.Foo]
+/// @import.resolved symbol=Foo declarations=[dep.Foo] targets=[dep.Foo]
+/// @reference.target source=Foo kind=bound targets=[dep.Foo]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0
@@ -350,8 +391,8 @@ import { todo } from "destack:error";
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import { todo } from "destack:error";
-/// @import.symbol symbol=todo target=error.panic.todo
-/// @reference.bound source=todo targets=[error.panic.todo]
+/// @import.resolved symbol=todo declarations=[error.panic.todo] targets=[error.panic.todo]
+/// @reference.target source=todo kind=bound targets=[error.panic.todo]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:9,hit:0,cycle:0
@@ -382,7 +423,7 @@ export let value = 1;
         r#"
 import { missing } from "./dep.ds";
 /// @import.missing symbol=missing
-/// @reference.missing source=missing
+/// @reference.target source=missing kind=missing
 
 /// @import.summary symbols=1
 /// @reference.summary references=1
@@ -411,7 +452,7 @@ import { Missing } from "./missing.ds";
         r#"
 import { Missing } from "./missing.ds";
 /// @import.missing symbol=Missing
-/// @reference.missing source=Missing
+/// @reference.target source=Missing kind=missing
 
 /// @import.summary symbols=1
 /// @reference.summary references=1
@@ -545,8 +586,8 @@ export let value = 2;
         DirRows::imports().with_summaries(),
         r#"
 import { value } from "./mid.ds";
-/// @import.ambiguous symbol=value targets=[a.value, b.value]
-/// @reference.ambiguous source=value targets=[a.value, b.value]
+/// @import.ambiguous symbol=value declarations=[a.value, b.value] targets=[a.value, b.value]
+/// @reference.target source=value kind=ambiguous targets=[a.value, b.value]
 
 /// @import.summary symbols=1
 /// @reference.summary references=1

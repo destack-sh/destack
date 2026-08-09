@@ -6,7 +6,9 @@ import { ContextVar } from "./variable.ds";
 @languageItem("context.Context")
 export local class Context {
     /// Prevent direct construction.
-    private constructor() {}
+    private constructor() {
+        // construction is intentionally unavailable
+    }
 
     /// Return the current execution context.
     static current(): Context {

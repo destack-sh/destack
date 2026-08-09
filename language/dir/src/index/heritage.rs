@@ -1,18 +1,17 @@
-use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Postings};
+use crate::{GlobalSymbolId, Postings};
 use destack_serde::Reflect;
-use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 /// Indexed nominal heritage edges.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct HeritageIndex {
     /// Heritage edges ordered by base symbol.
-    by_base: Vec<HeritageEntry>,
-    /// Heritage edges ordered by derived symbol.
-    by_derived: Vec<HeritageEntry>,
+    entries: Vec<HeritageEntry>,
+    /// Heritage ordinals ordered by derived symbol.
+    by_derived: Vec<u32>,
 }
 
-/// Heritage postings by base symbol.
+/// Heritage postings by base and derived symbols.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct HeritagePostings {
     /// Heritage base postings.
@@ -25,8 +24,8 @@ impl HeritageIndex {
     /// Create a heritage index from edges.
     pub fn new(entries: Vec<HeritageEntry>) -> Self {
         let mut index = Self {
-            by_base: entries.clone(),
-            by_derived: entries,
+            entries,
+            by_derived: Vec::new(),
         };
         index.finish();
 
@@ -35,36 +34,42 @@ impl HeritageIndex {
 
     /// Sort and deduplicate this index.
     pub fn finish(&mut self) {
-        self.by_base.sort_by(HeritageEntry::compare_by_base);
-        self.by_base.dedup();
+        // normalize edges in base order
+        self.entries.sort_by(HeritageEntry::compare_by_base);
+        self.entries.dedup();
 
-        self.by_derived.sort_by(HeritageEntry::compare_by_derived);
-        self.by_derived.dedup();
+        // index edges in derived order
+        self.by_derived = (0..self.entries.len() as u32).collect();
+        self.by_derived.sort_by(|left, right| {
+            self.entries[*left as usize].compare_by_derived(&self.entries[*right as usize])
+        });
     }
 
     /// Iterate heritage edges that target one base symbol.
     pub fn base_entries(&self, base: GlobalSymbolId) -> impl Iterator<Item = &HeritageEntry> {
         let range = self.base_range(base);
 
-        self.by_base[range].iter()
+        self.entries[range].iter()
     }
 
     /// Return all indexed heritage edges.
     pub fn entries(&self) -> &[HeritageEntry] {
-        &self.by_base
+        &self.entries
     }
 
     /// Iterate heritage edges declared by one derived symbol.
     pub fn derived_entries(&self, derived: GlobalSymbolId) -> impl Iterator<Item = &HeritageEntry> {
         let range = self.derived_range(derived);
 
-        self.by_derived[range].iter()
+        self.by_derived[range]
+            .iter()
+            .map(|ordinal| &self.entries[*ordinal as usize])
     }
 
     /// Return the stored range for one base symbol.
     fn base_range(&self, base: GlobalSymbolId) -> std::ops::Range<usize> {
-        let start = self.by_base.partition_point(|entry| entry.base < base);
-        let end = self.by_base[start..].partition_point(|entry| entry.base == base) + start;
+        let start = self.entries.partition_point(|entry| entry.base < base);
+        let end = self.entries[start..].partition_point(|entry| entry.base == base) + start;
 
         start..end
     }
@@ -73,9 +78,10 @@ impl HeritageIndex {
     fn derived_range(&self, derived: GlobalSymbolId) -> std::ops::Range<usize> {
         let start = self
             .by_derived
-            .partition_point(|entry| entry.derived < derived);
-        let end =
-            self.by_derived[start..].partition_point(|entry| entry.derived == derived) + start;
+            .partition_point(|ordinal| self.entries[*ordinal as usize].derived < derived);
+        let end = self.by_derived[start..]
+            .partition_point(|ordinal| self.entries[*ordinal as usize].derived == derived)
+            + start;
 
         start..end
     }
@@ -122,12 +128,8 @@ pub struct HeritageEntry {
     pub declaration: GlobalSymbolId,
     /// The inherited or implemented nominal symbol.
     pub base: GlobalSymbolId,
-    /// The source heritage node.
-    pub source: GlobalNodeIdAny,
-    /// The applied heritage type.
-    pub ty: GlobalTypeId,
-    /// The authored heritage range.
-    pub span: Span,
+    /// The relation's ordinal within its declaring definition.
+    pub ordinal: u32,
     /// The heritage kind.
     pub kind: HeritageKind,
 }
@@ -137,21 +139,17 @@ impl HeritageEntry {
     fn compare_by_base(&self, other: &Self) -> std::cmp::Ordering {
         let left = (
             self.base,
-            self.span.file,
-            self.span.start,
-            self.span.end,
-            self.kind,
             self.derived,
             self.declaration,
+            self.ordinal,
+            self.kind,
         );
         let right = (
             other.base,
-            other.span.file,
-            other.span.start,
-            other.span.end,
-            other.kind,
             other.derived,
             other.declaration,
+            other.ordinal,
+            other.kind,
         );
 
         left.cmp(&right)
@@ -161,21 +159,17 @@ impl HeritageEntry {
     fn compare_by_derived(&self, other: &Self) -> std::cmp::Ordering {
         let left = (
             self.derived,
-            self.span.file,
-            self.span.start,
-            self.span.end,
+            self.declaration,
+            self.ordinal,
             self.kind,
             self.base,
-            self.declaration,
         );
         let right = (
             other.derived,
-            other.span.file,
-            other.span.start,
-            other.span.end,
+            other.declaration,
+            other.ordinal,
             other.kind,
             other.base,
-            other.declaration,
         );
 
         left.cmp(&right)

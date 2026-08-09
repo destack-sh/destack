@@ -192,8 +192,7 @@ impl CheckState<'_> {
             }
             _ => return Ok(None),
         };
-        let symbol = self.resolve_symbol_alias(instance.symbol)?;
-        let Some(dir::Definition::Newtype(definition)) = self.definition(symbol)? else {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol)? else {
             return Ok(None);
         };
         if definition.discriminator != Some(key) {
@@ -205,7 +204,8 @@ impl CheckState<'_> {
                     .tagged_variant_by_symbol(selected)
                     .ok_or_else(|| CompilerError::Internal {
                         message: format!(
-                            "variant {selected:?} is missing from Tagged owner {symbol:?}"
+                            "variant {selected:?} is missing from Tagged owner {:?}",
+                            instance.symbol
                         ),
                     })?
                     .discriminant,

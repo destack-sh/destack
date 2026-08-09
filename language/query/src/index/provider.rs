@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactVersion,
-    DirChecked, IndexKind, ModuleIndex, ProgramIndex, SourceDependencyKey,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirParsed,
+    DirResolved, IndexKind,
+    ModuleIndex, ProgramIndex, SourceDependencyKey,
 };
 use destack_core::FxIndexMap;
 use destack_repository::{
@@ -12,7 +14,7 @@ use destack_repository::{
 use destack_source::{ModuleId, ProfileId};
 
 use super::module::{
-    CallIndexer, DecoratorIndexer, ExportIndexer, ExtensionIndexer, HeritageIndexer, MemberIndexer,
+    CallIndexer, DecoratorIndexer, ExportIndexer, HeritageIndexer, MemberIndexer,
     ModuleIndexContext, ReferenceIndexer, SymbolIndexer,
 };
 use super::program::ProgramIndexer;
@@ -112,7 +114,7 @@ impl Indexer {
             }
 
             // a blocked table defers the remaining walk to the next attempt
-            let exported = match artifacts.dir_exported(module, profile_id) {
+            let exported = match artifacts.read::<DirExported>((module, profile_id)) {
                 Ok(exported) => exported,
                 Err(ProviderError::Blocked { .. }) => {
                     dependencies.mark_partial();
@@ -144,6 +146,7 @@ impl Indexer {
         })?;
         module_ids.sort_unstable();
         module_ids.dedup();
+
         // require every module's index of this family
         let mut dependencies = ArtifactDependencySet::default();
         for module in &module_ids {
@@ -190,16 +193,16 @@ impl Indexer {
         // build the exact selected index family
         let payload = match kind {
             IndexKind::Symbols => {
-                let parsed = artifacts.dir_parsed(module_id)?;
-                let bound = artifacts.dir_bound(module_id, profile_id)?;
-                let expanded = artifacts.dir_expanded(module_id, profile_id)?;
+                let parsed = artifacts.read::<DirParsed>(module_id)?;
+                let bound = artifacts.read::<DirBound>((module_id, profile_id))?;
+                let expanded = artifacts.read::<DirExpanded>((module_id, profile_id))?;
                 let strings = self.repository().string_pool();
 
                 ModuleIndex::Symbols(SymbolIndexer::build(&parsed, &bound, &expanded, strings)?)
             }
             IndexKind::Exports => {
-                let exported = artifacts.dir_exported(module_id, profile_id)?;
-                let resolved = artifacts.dir_resolved(module_id, profile_id)?;
+                let exported = artifacts.read::<DirExported>((module_id, profile_id))?;
+                let resolved = artifacts.read::<DirResolved>((module_id, profile_id))?;
                 let strings = self.repository().string_pool();
 
                 // load the export views behind any star exports
@@ -213,8 +216,8 @@ impl Indexer {
                     if module == module_id || closure.contains_key(&module) {
                         continue;
                     }
-                    let dep_exported = artifacts.dir_exported(module, profile_id)?;
-                    let dep_resolved = artifacts.dir_resolved(module, profile_id)?;
+                    let dep_exported = artifacts.read::<DirExported>((module, profile_id))?;
+                    let dep_resolved = artifacts.read::<DirResolved>((module, profile_id))?;
                     for star in dep_exported.exports.star_exports() {
                         if let Some(target) = star.target {
                             queue.push(target);
@@ -228,24 +231,26 @@ impl Indexer {
                 )?)
             }
             kind => {
-                let checked = artifacts.dir_checked(module_id, profile_id)?;
+                let checked = artifacts.read::<DirChecked>((module_id, profile_id))?;
                 let module =
                     self.module_index_context(&artifacts, module_id, profile_id, &checked)?;
 
                 match kind {
-                    IndexKind::Members => ModuleIndex::Members(MemberIndexer::build(&module)?),
+                    IndexKind::Members => ModuleIndex::Members(MemberIndexer::build(&module)),
                     IndexKind::References => {
                         ModuleIndex::References(ReferenceIndexer::build(&module)?)
                     }
                     IndexKind::Calls => ModuleIndex::Calls(CallIndexer::build(&module)?),
                     IndexKind::Heritage => ModuleIndex::Heritage(HeritageIndexer::build(&module)?),
-                    IndexKind::Extensions => {
-                        ModuleIndex::Extensions(ExtensionIndexer::build(&module)?)
-                    }
                     IndexKind::Decorators => {
                         ModuleIndex::Decorators(DecoratorIndexer::build(&module))
                     }
-                    IndexKind::Symbols | IndexKind::Exports => unreachable!(),
+                    IndexKind::Symbols | IndexKind::Exports => {
+                        return Err(ProviderError::internal(format!(
+                            "checked module index kind: {kind:?}"
+                        ))
+                        .into());
+                    }
                 }
             }
         };
@@ -253,7 +258,7 @@ impl Indexer {
         Ok(ArtifactPayload::ModuleIndex(Arc::new(payload)))
     }
 
-    /// Read semantic DIR state for one module index row.
+    /// Read checked DIR for one module index row.
     fn module_index_context<'a>(
         &'a self,
         artifacts: &ArtifactReader<'_>,
@@ -261,12 +266,12 @@ impl Indexer {
         profile_id: ProfileId,
         checked: &DirChecked,
     ) -> ProviderResult<ModuleIndexContext<'a>> {
-        let parsed = artifacts.dir_parsed(module_id)?;
-        let bound = artifacts.dir_bound(module_id, profile_id)?;
-        let expanded = artifacts.dir_expanded(module_id, profile_id)?;
-        let resolved = artifacts.dir_resolved(module_id, profile_id)?;
-        let declared = artifacts.dir_declared(module_id, profile_id)?;
-        let elaborated = artifacts.dir_elaborated(module_id, profile_id)?;
+        let parsed = artifacts.read::<DirParsed>(module_id)?;
+        let bound = artifacts.read::<DirBound>((module_id, profile_id))?;
+        let expanded = artifacts.read::<DirExpanded>((module_id, profile_id))?;
+        let resolved = artifacts.read::<DirResolved>((module_id, profile_id))?;
+        let declared = artifacts.read::<DirDeclared>((module_id, profile_id))?;
+        let elaborated = artifacts.read::<DirElaborated>((module_id, profile_id))?;
         let strings = self.repository().string_pool();
 
         Ok(ModuleIndexContext::new(
@@ -469,7 +474,7 @@ impl Indexer {
         // load the predecessor program index
         let base_index = repository
             .artifact_table()
-            .program_index(&base.version)
+            .artifact::<ProgramIndex>(&base.version)
             .ok_or(ProviderError::Corrupt {
                 version: base.version,
             })?;
@@ -539,7 +544,7 @@ impl Indexer {
                 }
                 repository
                     .artifact_table()
-                    .module_index(&version)
+                    .artifact::<ModuleIndex>(&version)
                     .ok_or(ProviderError::Corrupt { version })?
             }
             key => {

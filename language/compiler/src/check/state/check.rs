@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirResolved, EnvironmentBound, EnvironmentDeclared};
+use destack_artifact::{
+    DirBound, DirDeclared, DirElaborated, DirExpanded, DirParsed, DirResolved, EnvironmentBound,
+    EnvironmentDeclared,
+};
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Environment, ProviderContext};
@@ -232,25 +235,25 @@ impl<'a> CheckState<'a> {
         let repository_module = compiler.module(context.revision(), module_id)?;
         let package = compiler.package(context.revision(), repository_module.package_id)?;
         let parsed = artifacts
-            .dir_parsed(module_id)
+            .read::<DirParsed>(module_id)
             .map_err(CompilerError::from)?;
         let bound = artifacts
-            .dir_bound(module_id, profile)
+            .read::<DirBound>((module_id, profile))
             .map_err(CompilerError::from)?;
         let resolved = artifacts
-            .dir_resolved(module_id, profile)
+            .read::<DirResolved>((module_id, profile))
             .map_err(CompilerError::from)?;
         let expanded = artifacts
-            .dir_expanded(module_id, profile)
+            .read::<DirExpanded>((module_id, profile))
             .map_err(CompilerError::from)?;
 
         // seed later passes from the module's own committed artifacts
         let declared = (pass != Pass::Declare)
-            .then(|| artifacts.dir_declared(module_id, profile))
+            .then(|| artifacts.read::<DirDeclared>((module_id, profile)))
             .transpose()
             .map_err(CompilerError::from)?;
         let elaborated = (pass == Pass::Check)
-            .then(|| artifacts.dir_elaborated(module_id, profile))
+            .then(|| artifacts.read::<DirElaborated>((module_id, profile)))
             .transpose()
             .map_err(CompilerError::from)?;
         let module = CheckModuleState::new(
@@ -444,8 +447,6 @@ impl<'a> CheckState<'a> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::LanguageItem>> {
-        let symbol = self.resolve_symbol_alias(symbol)?;
-
         Ok(self.environment_bound.language.item(symbol))
     }
 

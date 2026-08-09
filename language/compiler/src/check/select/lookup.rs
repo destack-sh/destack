@@ -62,7 +62,6 @@ impl BodyState<'_, '_> {
             return Ok(dir::MemberSpace::Instance);
         };
 
-        let symbol = self.resolve_symbol_alias(symbol)?;
         let kind = self.symbol_kind(symbol)?;
 
         // select static members for names that resolve to types
@@ -567,8 +566,7 @@ impl BodyState<'_, '_> {
             return Ok(MemberLookup::Missing);
         }
 
-        // resolve aliases before reading declaration members
-        let mut symbol = self.resolve_symbol_alias(reference.symbol)?;
+        let mut symbol = reference.symbol;
 
         // a type alias names its body's root declaration for statics,
         //  and the body's own members serve whatever the root lacks;
@@ -579,7 +577,7 @@ impl BodyState<'_, '_> {
             let head = self.reduce_type_head(origin, value)?;
             alias_body = Some(head);
             if let Some(named) = self.type_symbol(head)? {
-                symbol = self.resolve_symbol_alias(named)?;
+                symbol = named;
             }
         }
         if !self.is_own_module(symbol.module_id) {
@@ -1671,7 +1669,7 @@ impl BodyState<'_, '_> {
         keys: &mut FxIndexSet<dir::StaticKey>,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
-        let symbol = self.resolve_symbol_alias(reference.symbol)?;
+        let symbol = reference.symbol;
         let alias = match self.definition(symbol)? {
             Some(dir::Definition::TypeAlias(alias)) => Some(alias.value),
             _ => None,
@@ -1730,7 +1728,6 @@ impl BodyState<'_, '_> {
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
         // collect the declaration's own member keys
-        let symbol = self.resolve_symbol_alias(symbol)?;
         self.collect_definition_keys(symbol, space, keys)?;
 
         // collect the tagged discriminator
@@ -1741,13 +1738,23 @@ impl BodyState<'_, '_> {
             keys.insert(discriminator);
         }
 
-        // collect inherited keys through the heritage clauses
+        // collect inherited keys through base declarations and interfaces
         let heritages = match self.definition(symbol)? {
-            Some(definition) => definition
-                .heritages()
-                .into_iter()
-                .map(|heritage| heritage.ty)
-                .collect::<SmallVec<[_; 2]>>(),
+            Some(definition) => {
+                let mut heritages = definition
+                    .bases()
+                    .into_iter()
+                    .map(|heritage| heritage.ty)
+                    .collect::<SmallVec<[_; 2]>>();
+                heritages.extend(
+                    definition
+                        .implementations()
+                        .iter()
+                        .map(|conformance| conformance.interface),
+                );
+
+                heritages
+            }
             None => SmallVec::new(),
         };
         for heritage in heritages {

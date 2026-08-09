@@ -144,6 +144,7 @@ impl CheckState<'_> {
             resolutions,
             decisions,
             generics,
+            definitions,
             coercions,
             capture_segment: captures,
             ..
@@ -159,6 +160,7 @@ impl CheckState<'_> {
             &resolutions,
             &decisions,
             &generics,
+            &definitions,
             &coercions,
             &captures,
         ))
@@ -176,6 +178,7 @@ impl CheckState<'_> {
             resolutions: Arc::new(resolutions),
             decisions: Arc::new(decisions),
             generics: Arc::new(generics),
+            definitions: Arc::new(definitions),
             coercions: Arc::new(coercions),
             captures: Arc::new(captures),
         })

@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
-use crate::check::{CheckState, Origin, Relation, TypeSubstitution};
+use crate::check::{CheckState, MemberRole, Origin, Relation, TypeSubstitution};
+use crate::{CompilerError, CompilerResult};
 
 /// One signature instantiated at its required signature.
 pub(in crate::check) struct SignatureInstantiation {
@@ -86,7 +86,7 @@ impl CheckState<'_> {
                 Some(dir::SymbolKind::Class | dir::SymbolKind::Struct | dir::SymbolKind::Interface)
             ),
             dir::Type::Form(form) => self.is_keyed_type(origin, form.value)?,
-            // every alternative of a union must answer keys on its own
+            // every alternative of a union must be keyed on its own
             dir::Type::Union(union) => {
                 let elements = SmallVec::<[dir::GlobalTypeId; 8]>::from_slice(
                     self.type_ids(ty.module_id, union.elements)?,
@@ -401,6 +401,61 @@ impl CheckState<'_> {
         }
 
         Ok(true)
+    }
+
+    /// Return the structural property operations exposed by one member.
+    pub(in crate::check) fn property_access(
+        &self,
+        role: MemberRole,
+        ty: dir::GlobalTypeId,
+        is_readonly: bool,
+    ) -> CompilerResult<Option<dir::PropertyAccess>> {
+        let access = match role {
+            MemberRole::Field | MemberRole::Method if is_readonly => dir::PropertyAccess::Read(ty),
+            MemberRole::Field | MemberRole::Method => dir::PropertyAccess::ReadWrite {
+                read: ty,
+                write: ty,
+            },
+            MemberRole::Getter | MemberRole::Setter => {
+                let dir::Type::FunctionSignature(signature) = self.ty(ty)? else {
+                    return Err(CompilerError::Internal {
+                        message: format!("accessor has non-signature type {ty:?}"),
+                    });
+                };
+                let signature = self.type_signature(ty.module_id, signature)?;
+
+                // getters expose their return type
+                if role == MemberRole::Getter {
+                    let result = signature
+                        .return_type
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: format!("getter signature {ty:?} has no return type"),
+                        })?;
+
+                    dir::PropertyAccess::Read(result)
+                }
+                // setters expose their single value parameter
+                else {
+                    let parameters =
+                        self.signature_parameters(ty.module_id, signature.parameters)?;
+                    let [parameter] = parameters else {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "setter signature {ty:?} has {} value parameters",
+                                parameters.len(),
+                            ),
+                        });
+                    };
+
+                    dir::PropertyAccess::Write(parameter.ty)
+                }
+            }
+            MemberRole::Associated | MemberRole::VariantValue | MemberRole::VariantConstructor => {
+                return Ok(None);
+            }
+        };
+
+        Ok(Some(access))
     }
 
     /// Return the value relations one matched structural property demands.

@@ -45,7 +45,7 @@ pub(crate) enum Type {
 
 impl Type {
     /// Convert one serde schema type reference to one generator type.
-    pub(super) fn from_schema(
+    pub(crate) fn from_schema(
         ty: destack_serde::SchemaRef,
         names: &BTreeMap<destack_serde::SchemaName, String>,
     ) -> Result<Self> {
@@ -108,7 +108,7 @@ impl Type {
     }
 
     /// Visit referenced client model names.
-    pub(super) fn visit_refs(&self, visit: &mut impl FnMut(&str) -> Result<()>) -> Result<()> {
+    pub(crate) fn visit_refs(&self, visit: &mut impl FnMut(&str) -> Result<()>) -> Result<()> {
         match self {
             Self::Vec(ty) | Self::Option(ty) | Self::Array(ty, _) => ty.visit_refs(visit),
             Self::Tuple(types) => {

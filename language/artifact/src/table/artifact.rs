@@ -5,7 +5,6 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
 use destack_core::StringPool;
-use destack_program::{Object, Program};
 use destack_source::ContentId;
 
 use crate::DiagnosticRecord;
@@ -19,26 +18,10 @@ use super::entry::{
 };
 use super::pin::ArtifactBindingPin;
 use crate::{
-    ArtifactDependency, ArtifactError, ArtifactFailure, ArtifactKey, ArtifactPayload,
+    Artifact, ArtifactDependency, ArtifactError, ArtifactFailure, ArtifactKey, ArtifactPayload,
     ArtifactProjection, ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactRecord,
-    ArtifactVersion, Asset, Build, Bundle, Data, DirBound, DirChecked, DirDeclared, DirElaborated,
-    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    EnvironmentBound, EnvironmentDeclared, MirAnalyzed, MirElaborated, MirLowered, MirOptimized,
-    MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex,
-    ProgramLinted, Script,
+    ArtifactVersion,
 };
-
-macro_rules! artifact_getter {
-    ($name:ident, $type:ty, $variant:ident) => {
-        /// Get one typed artifact payload.
-        pub fn $name(&self, version: &ArtifactVersion) -> Option<Arc<$type>> {
-            match self.payload(version)? {
-                ArtifactPayload::$variant(payload) => Some(payload),
-                _ => None,
-            }
-        }
-    };
-}
 
 /// Table of published artifact results and exact bindings.
 #[derive(Debug, Default)]
@@ -327,6 +310,13 @@ impl ArtifactTable {
         entry.result.payload()
     }
 
+    /// Return one typed artifact payload.
+    pub fn artifact<A: Artifact>(&self, version: &ArtifactVersion) -> Option<Arc<A>> {
+        let payload = self.payload(version)?;
+
+        A::from_payload(payload)
+    }
+
     /// Insert one already fingerprinted ready result.
     fn insert_result(
         &self,
@@ -444,42 +434,6 @@ impl ArtifactTable {
             first = last;
         }
     }
-
-    artifact_getter!(build, Build, Build);
-    artifact_getter!(dir_parsed, DirParsed, DirParsed);
-    artifact_getter!(data, Data, Data);
-    artifact_getter!(dir_bound, DirBound, DirBound);
-    artifact_getter!(environment_bound, EnvironmentBound, EnvironmentBound);
-    artifact_getter!(module_graph, ModuleGraph, ModuleGraph);
-    artifact_getter!(dir_imported, DirImported, DirImported);
-    artifact_getter!(dir_expanded, DirExpanded, DirExpanded);
-    artifact_getter!(dir_exported, DirExported, DirExported);
-    artifact_getter!(dir_resolved, DirResolved, DirResolved);
-    artifact_getter!(dir_declared, DirDeclared, DirDeclared);
-    artifact_getter!(
-        environment_declared,
-        EnvironmentDeclared,
-        EnvironmentDeclared
-    );
-    artifact_getter!(dir_elaborated, DirElaborated, DirElaborated);
-    artifact_getter!(dir_checked, DirChecked, DirChecked);
-    artifact_getter!(dir_materialized, DirMaterialized, DirMaterialized);
-    artifact_getter!(mir_lowered, MirLowered, MirLowered);
-    artifact_getter!(mir_verified, MirVerified, MirVerified);
-    artifact_getter!(mir_elaborated, MirElaborated, MirElaborated);
-    artifact_getter!(mir_analyzed, MirAnalyzed, MirAnalyzed);
-    artifact_getter!(mir_optimized, MirOptimized, MirOptimized);
-    artifact_getter!(program_analysis, ProgramAnalysis, ProgramAnalysis);
-    artifact_getter!(module_index, ModuleIndex, ModuleIndex);
-    artifact_getter!(program_index, ProgramIndex, ProgramIndex);
-    artifact_getter!(module_linted, ModuleLinted, ModuleLinted);
-    artifact_getter!(program_linted, ProgramLinted, ProgramLinted);
-    artifact_getter!(script, Script, Script);
-    artifact_getter!(object, Object, Object);
-    artifact_getter!(asset, Asset, Asset);
-    artifact_getter!(bundle, Bundle, Bundle);
-    artifact_getter!(program, Program, Program);
-    artifact_getter!(product, Product, Product);
 
     /// Return content ids referenced by one exact artifact payload.
     pub fn content_ids(&self, version: &ArtifactVersion) -> Option<Vec<ContentId>> {

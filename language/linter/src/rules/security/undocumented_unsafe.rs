@@ -10,7 +10,12 @@ declare_lint! {
     pub UNDOCUMENTED_UNSAFE {
         id: "undocumented-unsafe",
         summary: "Require a safety rationale for every unsafe declaration and expression",
-        explanation: "Unsafe APIs must state the obligations their callers must uphold, and local unsafe regions must explain why those obligations hold at the use site. Document every unsafe declaration with a `# Safety` section and local regions with an immediately preceding `SAFETY:` comment or a nonempty `@unsafe` reason.",
+        explanation: r#"
+Unsafe APIs must state the obligations their callers must uphold, and local unsafe regions must
+explain why those obligations hold at the use site. Document every unsafe declaration with a
+`# Safety` section and local regions with an immediately preceding `SAFETY:` comment or a nonempty
+`@unsafe` reason.
+"#,
         example: {
             reported: r#"
 function execute(): void {
@@ -86,7 +91,7 @@ fn has_safety_section(module: &DirModule<'_>, owner: dir::LocalNodeIdAny) -> boo
     let Some(documentation) = view.get_documentation_any(owner) else {
         return false;
     };
-    let documentation = module.dir.strings.get(documentation.text);
+    let documentation = module.dir.strings.get(documentation.markdown);
 
     documentation.lines().any(|line| line.trim() == "# Safety")
 }

@@ -8,24 +8,26 @@ impl SnapshotTable for dir::ImportTable {
         for (symbol_id, resolution) in &self.resolution_by_symbol {
             let anchor = builder.anchor_symbol(symbol_id.into_global(self.module_id));
             let row = match resolution {
-                dir::ImportResolution::Resolved(dir::ImportTarget::Symbol(target)) => {
-                    SnapshotRow::new(anchor, "import", "symbol")
+                dir::ImportResolution::Resolved(resolution) => {
+                    SnapshotRow::new(anchor, "import", "resolved")
                         .field("symbol", builder.local_symbol_label(*symbol_id))
-                        .field("target", builder.symbol_path_label(*target))
+                        .list_field(
+                            "declarations",
+                            builder.export_target_labels(&resolution.declaration),
+                        )
+                        .list_field("targets", builder.export_target_labels(&resolution.target))
                 }
-                dir::ImportResolution::Resolved(dir::ImportTarget::Namespace(module_id)) => {
-                    SnapshotRow::new(anchor, "import", "namespace")
-                        .field("symbol", builder.local_symbol_label(*symbol_id))
-                        .field("module", builder.module_path(*module_id))
-                }
-                dir::ImportResolution::Ambiguous(targets) => {
-                    let targets = targets.iter().map(|target| match target {
-                        dir::ImportTarget::Symbol(symbol) => builder.symbol_path_label(*symbol),
-                        dir::ImportTarget::Namespace(module) => builder.module_path(*module),
+                dir::ImportResolution::Ambiguous(resolutions) => {
+                    let declarations = resolutions.iter().flat_map(|resolution| {
+                        builder.export_target_labels(&resolution.declaration)
                     });
+                    let targets = resolutions
+                        .iter()
+                        .flat_map(|resolution| builder.export_target_labels(&resolution.target));
 
                     SnapshotRow::new(anchor, "import", "ambiguous")
                         .field("symbol", builder.local_symbol_label(*symbol_id))
+                        .list_field("declarations", declarations)
                         .list_field("targets", targets)
                 }
                 dir::ImportResolution::Missing => SnapshotRow::new(anchor, "import", "missing")
@@ -34,13 +36,16 @@ impl SnapshotTable for dir::ImportTable {
             builder.push(row);
         }
 
-        for (key, targets) in &self.global_target_by_key {
-            let targets = targets.iter().map(|target| match target {
-                dir::ImportTarget::Symbol(symbol) => builder.symbol_path_label(*symbol),
-                dir::ImportTarget::Namespace(module) => builder.module_path(*module),
-            });
+        for (key, resolutions) in &self.global_resolution_by_key {
+            let declarations = resolutions
+                .iter()
+                .flat_map(|resolution| builder.export_target_labels(&resolution.declaration));
+            let targets = resolutions
+                .iter()
+                .flat_map(|resolution| builder.export_target_labels(&resolution.target));
             let row = SnapshotRow::new(SnapshotAnchor::End, "import", "global")
                 .field("key", builder.static_key(*key))
+                .list_field("declarations", declarations)
                 .list_field("targets", targets);
             builder.push(row);
         }
@@ -54,7 +59,7 @@ impl SnapshotTable for dir::ImportTable {
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "import", "summary")
             .count_field("symbols", self.resolution_by_symbol.len())
-            .count_field("globals", self.global_target_by_key.len())
+            .count_field("globals", self.global_resolution_by_key.len())
             .count_field("language", self.language_symbol_by_item.len());
         builder.push(row);
     }

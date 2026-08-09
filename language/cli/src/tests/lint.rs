@@ -2,7 +2,7 @@ use crate::command::check::{Format, Progress};
 use crate::command::lint::{LintArgs, run};
 use crate::common::{InputArgs, ProgramArgs, ReportArgs};
 
-use super::tests::assert_success;
+use super::tests::{assert_success, execute};
 /// Lists lint rules without requiring inputs.
 #[test]
 fn test_lint_list_rules() {
@@ -24,7 +24,7 @@ fn test_lint_list_rules() {
     };
 
     // run lint list rules
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the command succeeded
     assert_success(code);

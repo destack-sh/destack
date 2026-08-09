@@ -1,6 +1,6 @@
 use std::collections::{HashSet, VecDeque};
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, Script};
 use destack_repository::ProviderError;
 use destack_source::ModuleId;
 use indexmap::IndexSet;
@@ -215,7 +215,7 @@ impl<'a> JsLinker<'a> {
             required_modules.push(module_id);
 
             // the bundle closure is revealed once the emitted output is built
-            match self.artifacts.script(module_id, *self.target_id) {
+            match self.artifacts.read::<Script>((module_id, *self.target_id)) {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { .. }) => continue,
                 Err(error) => return Err(CompilerError::from(error)),

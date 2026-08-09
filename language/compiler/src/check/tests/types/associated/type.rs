@@ -234,6 +234,8 @@ class Factory implements Producing {
 /// @definition.implements symbol=Factory source=Producing target=Producing
 /// @definition.associated.type symbol=Factory.Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=Factory.produce slot=produce type=(this: this) => this.Output
+/// @definition.conformance symbol=Factory member=Factory.Output requirement=Producing.Output
+/// @definition.conformance symbol=Factory member=Factory.produce requirement=Producing.produce
 /// @resolution.name source=Producing target=Producing
 
     type Output = int32;
@@ -433,6 +435,7 @@ class Message<T extends string> implements Envelope<T> {}
 /// @definition.class symbol=Message source="class Message<T extends string> implements Envelope<T> {}" template=(in out T#2: string)
 /// @definition.where symbol=Message source=Envelope<T> relation=satisfies left=this right=Envelope<T#2>
 /// @definition.implements symbol=Message source=Envelope<T> target=Envelope<T#2>
+/// @definition.conformance symbol=Message member=Envelope.Label requirement=Envelope.Label
 /// @type.symbol symbol=Message.T source="T extends string" type=T#2
 /// @resolution.name source=Envelope target=Envelope
 /// @resolution.name source=T target=Message.T
@@ -490,6 +493,7 @@ class Message<T extends string> implements Envelope<T> {}
 /// @definition.class symbol=Message source="class Message<T extends string> implements Envelope<T> {}" template=(in out T: string)
 /// @definition.where symbol=Message source=Envelope<T> relation=satisfies left=this right=envelope.Envelope<T>
 /// @definition.implements symbol=Message source=Envelope<T> target=envelope.Envelope<T>
+/// @definition.conformance symbol=Message member=envelope.Envelope.Label requirement=envelope.Envelope.Label
 /// @type.symbol symbol=Message.T source="T extends string" type=T
 /// @resolution.name source=Envelope target=envelope.Envelope
 /// @resolution.name source=T target=Message.T

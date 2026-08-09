@@ -250,6 +250,7 @@ struct DrawnPoint implements Drawable {
 /// @definition.implements symbol=DrawnPoint source=Drawable target=Drawable
 /// @definition.field symbol=DrawnPoint.x source="x: int32" key=x type=int32
 /// @definition.method symbol=DrawnPoint.draw source="draw(): void {}" slot=draw type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a exclusive this) => void
+/// @definition.conformance symbol=DrawnPoint member=DrawnPoint.draw requirement=Drawable.draw
 /// @resolution.name source=Drawable target=Drawable
 
     x: int32;

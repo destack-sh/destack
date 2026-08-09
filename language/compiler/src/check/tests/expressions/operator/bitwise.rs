@@ -184,6 +184,8 @@ extension of Flags implements And<Flags> {
 /// @definition.implements symbol=<module>#2 source=And<Flags> target=And<Flags>
 /// @definition.associated.type symbol=Output source="type Output = Flags" key=Output value=Flags
 /// @definition.method symbol=and slot=and type=<and.'a>(this: &and.'a exclusive this, Flags) => Flags
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.bitwise.And.Output
+/// @definition.conformance symbol=<module>#2 member=and requirement=ops.bitwise.And.and
 /// @resolution.name source=Flags target=Flags
 /// @resolution.name source=And target=ops.bitwise.And
 /// @resolution.name source=Flags target=Flags

@@ -8,132 +8,6 @@ import { decodeModule, encodeModule, fromJsonModule, toJsonModule } from "../pro
 import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../../source/file/model/file.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../../source/file/model/span.js";
 
-/** Request semantic tokens for a document. */
-export type SemanticTokensRequest = {
-    /** The queried module profile. */
-    readonly module: Module;
-    /** The queried source file. */
-    readonly fileId: FileId;
-};
-
-export const SemanticTokensRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: SemanticTokensRequest): void {
-        encodeSemanticTokensRequest(writer, value);
-    },
-
-    /** Decode one SemanticTokensRequest. */
-    decode(reader: BinaryReader): SemanticTokensRequest {
-        return decodeSemanticTokensRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: SemanticTokensRequest): Json {
-        return toJsonSemanticTokensRequest(value);
-    },
-
-    /** Return one SemanticTokensRequest from one JSON value. */
-    fromJson(value: Json): SemanticTokensRequest {
-        return fromJsonSemanticTokensRequest(value);
-    },
-};
-
-/** Encode one SemanticTokensRequest. */
-export function encodeSemanticTokensRequest(writer: BinaryWriter, value: SemanticTokensRequest): void {
-    encodeModule(writer, value.module);
-    encodeFileId(writer, value.fileId);
-}
-
-/** Decode one SemanticTokensRequest. */
-export function decodeSemanticTokensRequest(reader: BinaryReader): SemanticTokensRequest {
-    const module_ = decodeModule(reader);
-    const fileId = decodeFileId(reader);
-
-    return {
-        module: module_,
-        fileId,
-    };
-}
-
-/** Return one JSON value for one SemanticTokensRequest. */
-export function toJsonSemanticTokensRequest(value: SemanticTokensRequest): Json {
-    return {
-        module: toJsonModule(value.module),
-        fileId: toJsonFileId(value.fileId),
-    };
-}
-
-/** Return one SemanticTokensRequest from one JSON value. */
-export function fromJsonSemanticTokensRequest(value: Json): SemanticTokensRequest {
-    const object = jsonObject(value);
-
-    return {
-        module: fromJsonModule(jsonField(object, "module")),
-        fileId: fromJsonFileId(jsonField(object, "fileId")),
-    };
-}
-
-/** Response payload for semantic tokens queries. */
-export type SemanticTokensResponse = {
-    /** Semantic tokens. */
-    readonly tokens: ReadonlyArray<SemanticToken>;
-};
-
-export const SemanticTokensResponse = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: SemanticTokensResponse): void {
-        encodeSemanticTokensResponse(writer, value);
-    },
-
-    /** Decode one SemanticTokensResponse. */
-    decode(reader: BinaryReader): SemanticTokensResponse {
-        return decodeSemanticTokensResponse(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: SemanticTokensResponse): Json {
-        return toJsonSemanticTokensResponse(value);
-    },
-
-    /** Return one SemanticTokensResponse from one JSON value. */
-    fromJson(value: Json): SemanticTokensResponse {
-        return fromJsonSemanticTokensResponse(value);
-    },
-};
-
-/** Encode one SemanticTokensResponse. */
-export function encodeSemanticTokensResponse(writer: BinaryWriter, value: SemanticTokensResponse): void {
-    writer.writeUnsigned(value.tokens.length);
-    for (const item0 of value.tokens) {
-        encodeSemanticToken(writer, item0);
-    }
-}
-
-/** Decode one SemanticTokensResponse. */
-export function decodeSemanticTokensResponse(reader: BinaryReader): SemanticTokensResponse {
-    const tokens = (() => { const length0 = reader.readNumber(); const items0: Array<SemanticToken> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeSemanticToken(reader)); } return items0; })();
-
-    return {
-        tokens,
-    };
-}
-
-/** Return one JSON value for one SemanticTokensResponse. */
-export function toJsonSemanticTokensResponse(value: SemanticTokensResponse): Json {
-    return {
-        tokens: value.tokens.map((item0) => toJsonSemanticToken(item0)),
-    };
-}
-
-/** Return one SemanticTokensResponse from one JSON value. */
-export function fromJsonSemanticTokensResponse(value: Json): SemanticTokensResponse {
-    const object = jsonObject(value);
-
-    return {
-        tokens: jsonArray(jsonField(object, "tokens")).map((item0) => fromJsonSemanticToken(item0)),
-    };
-}
-
 /** A single semantic token. */
 export type SemanticToken = {
     /** The span of the token. */
@@ -204,6 +78,51 @@ export function fromJsonSemanticToken(value: Json): SemanticToken {
         tokenType: fromJsonSemanticTokenType(jsonField(object, "tokenType")),
         modifiers: fromJsonSemanticTokenModifiers(jsonField(object, "modifiers")),
     };
+}
+
+/** Semantic token modifiers. */
+export type SemanticTokenModifiers = number;
+
+export const SemanticTokenModifiers = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: SemanticTokenModifiers): void {
+        encodeSemanticTokenModifiers(writer, value);
+    },
+
+    /** Decode one SemanticTokenModifiers. */
+    decode(reader: BinaryReader): SemanticTokenModifiers {
+        return decodeSemanticTokenModifiers(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: SemanticTokenModifiers): Json {
+        return toJsonSemanticTokenModifiers(value);
+    },
+
+    /** Return one SemanticTokenModifiers from one JSON value. */
+    fromJson(value: Json): SemanticTokenModifiers {
+        return fromJsonSemanticTokenModifiers(value);
+    },
+};
+
+/** Encode one SemanticTokenModifiers. */
+export function encodeSemanticTokenModifiers(writer: BinaryWriter, value: SemanticTokenModifiers): void {
+    writer.writeUnsigned(value);
+}
+
+/** Decode one SemanticTokenModifiers. */
+export function decodeSemanticTokenModifiers(reader: BinaryReader): SemanticTokenModifiers {
+    return reader.readNumber();
+}
+
+/** Return one JSON value for one SemanticTokenModifiers. */
+export function toJsonSemanticTokenModifiers(value: SemanticTokenModifiers): Json {
+    return value;
+}
+
+/** Return one SemanticTokenModifiers from one JSON value. */
+export function fromJsonSemanticTokenModifiers(value: Json): SemanticTokenModifiers {
+    return jsonInteger(value);
 }
 
 /** Semantic token type for LSP semantic highlighting. */
@@ -376,47 +295,128 @@ export function fromJsonSemanticTokenType(value: Json): SemanticTokenType {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** Semantic token modifiers. */
-export type SemanticTokenModifiers = number;
+/** Request semantic tokens for a document. */
+export type SemanticTokensRequest = {
+    /** The queried module profile. */
+    readonly module: Module;
+    /** The queried source file. */
+    readonly fileId: FileId;
+};
 
-export const SemanticTokenModifiers = {
+export const SemanticTokensRequest = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: SemanticTokenModifiers): void {
-        encodeSemanticTokenModifiers(writer, value);
+    encode(writer: BinaryWriter, value: SemanticTokensRequest): void {
+        encodeSemanticTokensRequest(writer, value);
     },
 
-    /** Decode one SemanticTokenModifiers. */
-    decode(reader: BinaryReader): SemanticTokenModifiers {
-        return decodeSemanticTokenModifiers(reader);
+    /** Decode one SemanticTokensRequest. */
+    decode(reader: BinaryReader): SemanticTokensRequest {
+        return decodeSemanticTokensRequest(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: SemanticTokenModifiers): Json {
-        return toJsonSemanticTokenModifiers(value);
+    toJson(value: SemanticTokensRequest): Json {
+        return toJsonSemanticTokensRequest(value);
     },
 
-    /** Return one SemanticTokenModifiers from one JSON value. */
-    fromJson(value: Json): SemanticTokenModifiers {
-        return fromJsonSemanticTokenModifiers(value);
+    /** Return one SemanticTokensRequest from one JSON value. */
+    fromJson(value: Json): SemanticTokensRequest {
+        return fromJsonSemanticTokensRequest(value);
     },
 };
 
-/** Encode one SemanticTokenModifiers. */
-export function encodeSemanticTokenModifiers(writer: BinaryWriter, value: SemanticTokenModifiers): void {
-    writer.writeUnsigned(value);
+/** Encode one SemanticTokensRequest. */
+export function encodeSemanticTokensRequest(writer: BinaryWriter, value: SemanticTokensRequest): void {
+    encodeModule(writer, value.module);
+    encodeFileId(writer, value.fileId);
 }
 
-/** Decode one SemanticTokenModifiers. */
-export function decodeSemanticTokenModifiers(reader: BinaryReader): SemanticTokenModifiers {
-    return reader.readNumber();
+/** Decode one SemanticTokensRequest. */
+export function decodeSemanticTokensRequest(reader: BinaryReader): SemanticTokensRequest {
+    const module_ = decodeModule(reader);
+    const fileId = decodeFileId(reader);
+
+    return {
+        module: module_,
+        fileId,
+    };
 }
 
-/** Return one JSON value for one SemanticTokenModifiers. */
-export function toJsonSemanticTokenModifiers(value: SemanticTokenModifiers): Json {
-    return value;
+/** Return one JSON value for one SemanticTokensRequest. */
+export function toJsonSemanticTokensRequest(value: SemanticTokensRequest): Json {
+    return {
+        module: toJsonModule(value.module),
+        fileId: toJsonFileId(value.fileId),
+    };
 }
 
-/** Return one SemanticTokenModifiers from one JSON value. */
-export function fromJsonSemanticTokenModifiers(value: Json): SemanticTokenModifiers {
-    return jsonInteger(value);
+/** Return one SemanticTokensRequest from one JSON value. */
+export function fromJsonSemanticTokensRequest(value: Json): SemanticTokensRequest {
+    const object = jsonObject(value);
+
+    return {
+        module: fromJsonModule(jsonField(object, "module")),
+        fileId: fromJsonFileId(jsonField(object, "fileId")),
+    };
+}
+
+/** Response payload for semantic tokens queries. */
+export type SemanticTokensResponse = {
+    /** Semantic tokens. */
+    readonly tokens: ReadonlyArray<SemanticToken>;
+};
+
+export const SemanticTokensResponse = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: SemanticTokensResponse): void {
+        encodeSemanticTokensResponse(writer, value);
+    },
+
+    /** Decode one SemanticTokensResponse. */
+    decode(reader: BinaryReader): SemanticTokensResponse {
+        return decodeSemanticTokensResponse(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: SemanticTokensResponse): Json {
+        return toJsonSemanticTokensResponse(value);
+    },
+
+    /** Return one SemanticTokensResponse from one JSON value. */
+    fromJson(value: Json): SemanticTokensResponse {
+        return fromJsonSemanticTokensResponse(value);
+    },
+};
+
+/** Encode one SemanticTokensResponse. */
+export function encodeSemanticTokensResponse(writer: BinaryWriter, value: SemanticTokensResponse): void {
+    writer.writeUnsigned(value.tokens.length);
+    for (const item0 of value.tokens) {
+        encodeSemanticToken(writer, item0);
+    }
+}
+
+/** Decode one SemanticTokensResponse. */
+export function decodeSemanticTokensResponse(reader: BinaryReader): SemanticTokensResponse {
+    const tokens = (() => { const length0 = reader.readNumber(); const items0: Array<SemanticToken> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeSemanticToken(reader)); } return items0; })();
+
+    return {
+        tokens,
+    };
+}
+
+/** Return one JSON value for one SemanticTokensResponse. */
+export function toJsonSemanticTokensResponse(value: SemanticTokensResponse): Json {
+    return {
+        tokens: value.tokens.map((item0) => toJsonSemanticToken(item0)),
+    };
+}
+
+/** Return one SemanticTokensResponse from one JSON value. */
+export function fromJsonSemanticTokensResponse(value: Json): SemanticTokensResponse {
+    const object = jsonObject(value);
+
+    return {
+        tokens: jsonArray(jsonField(object, "tokens")).map((item0) => fromJsonSemanticToken(item0)),
+    };
 }

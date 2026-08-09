@@ -313,6 +313,7 @@ struct Sink<out T> {
 
     readonly accept: (value: T) => void;
     /// @type.symbol symbol=Sink.accept source="readonly accept: (value: T) => void" type=Function<(T,), void>
+    /// @type.symbol symbol=Sink.value source="value: T" type=T
     /// @resolution.name source=T target=Sink.T
 
 }
@@ -627,11 +628,13 @@ class Circle extends Shape {}
 declare const useShape: (shape: Shape) => void;
 /// @type.symbol symbol=useShape source=useShape type=Function<(Shape,), void>
 /// @resolution.pattern source=useShape kind=binding target=useShape
+/// @type.symbol symbol=shape#1 source="shape: Shape" type=Shape
 /// @resolution.name source=Shape target=Shape
 
 const useCircle: (circle: Circle) => void = useShape;
 /// @type.symbol symbol=useCircle source=useCircle type=Function<(Circle,), void>
 /// @resolution.pattern source=useCircle kind=binding target=useCircle
+/// @type.symbol symbol=circle#1 source="circle: Circle" type=Circle
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=useShape target=useShape
 /// @resolution.place source=useShape placement="local" lifetime="static" access="exclusive"
@@ -640,11 +643,13 @@ const useCircle: (circle: Circle) => void = useShape;
 declare const useCircle2: (circle: Circle) => void;
 /// @type.symbol symbol=useCircle2 source=useCircle2 type=Function<(Circle,), void>
 /// @resolution.pattern source=useCircle2 kind=binding target=useCircle2
+/// @type.symbol symbol=circle#2 source="circle: Circle" type=Circle
 /// @resolution.name source=Circle target=Circle
 
 const useShape2: (shape: Shape) => void = useCircle2;
 /// @type.symbol symbol=useShape2 source=useShape2 type=Function<(Shape,), void>
 /// @resolution.pattern source=useShape2 kind=binding target=useShape2
+/// @type.symbol symbol=shape#2 source="shape: Shape" type=Shape
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=useCircle2 target=useCircle2
 /// @resolution.place source=useCircle2 placement="local" lifetime="static" access="exclusive"

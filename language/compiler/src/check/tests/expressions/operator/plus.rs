@@ -100,6 +100,8 @@ extension of Vector implements Add<Vector> {
 /// @definition.implements symbol=<module>#2 source=Add<Vector> target=Add<Vector>
 /// @definition.associated.type symbol=Output source="type Output = Vector" key=Output value=Vector
 /// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a exclusive this, Vector) => Vector
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.plus.Add.Output
+/// @definition.conformance symbol=<module>#2 member=add requirement=ops.plus.Add.add
 /// @resolution.name source=Vector target=Vector
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Vector target=Vector
@@ -250,6 +252,8 @@ extension of Score implements Add<Score> {
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
 /// @definition.method symbol=add#1 slot=add type=<add#1.'a>(this: &add#1.'a exclusive this, Score) => string
 /// @definition.method symbol=add#2 slot=add type=<add#2.'a>(this: &add#2.'a exclusive this, Score) => Score
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.plus.Add.Output
+/// @definition.conformance symbol=<module>#2 member=add#2 requirement=ops.plus.Add.add
 /// @resolution.name source=Score target=Score
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Score target=Score
@@ -376,6 +380,8 @@ extension of Score implements Add<Score> {
 /// @definition.implements symbol=<module>#2 source=Add<Score> target=Add<Score>
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
 /// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a exclusive this, Score) => Score
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.plus.Add.Output
+/// @definition.conformance symbol=<module>#2 member=add requirement=ops.plus.Add.add
 /// @resolution.name source=Score target=Score
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Score target=Score
@@ -495,6 +501,8 @@ extension of Score implements Add {
 /// @definition.implements symbol=<module>#2 source=Add target=Add
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
 /// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a exclusive this, Score) => Score
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.plus.Add.Output
+/// @definition.conformance symbol=<module>#2 member=add requirement=ops.plus.Add.add
 /// @resolution.name source=Score target=Score
 /// @resolution.name source=Add target=ops.plus.Add
 

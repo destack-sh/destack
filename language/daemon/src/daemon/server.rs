@@ -1,33 +1,37 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
 use destack_repository::Repository;
-use destack_session::{Session, SessionEventHandler};
-use destack_workspace::{
-    IpcError, IpcListener, Metadata, Server, ServerActivity, ServerLifecycle, ServerOptions,
-    Service, ServiceError, WebSocketError, WebSocketListener,
+use destack_rpc::{
+    ConnectionOptions, IpcListener, Registry, ServerError, Transport, WebSocketError,
+    WebSocketListener,
 };
+use destack_session::{Session, SessionEventHandler};
+use destack_workspace::{SharedWorkspace, WorkspaceServer};
 
 use super::constants::{DEFAULT_IDLE_SHUTDOWN_MS, IDLE_SHUTDOWN_POLL_MS};
-use crate::{Daemon, DaemonError, OpenedWorkspace};
+use crate::{
+    Control, ControlServer, Daemon, DaemonActivity, DaemonEndpoint, DaemonEndpointError,
+    DaemonError, DaemonLifecycle, DaemonMetadata, OpenedWorkspace,
+};
 
-/// Options for the daemon server.
+/// Options for serving daemon RPC connections.
 #[derive(Clone)]
 pub struct DaemonServerOptions {
     /// Number of workers for each opened session.
     pub worker_limit: usize,
     /// Optional session event handler for daemon progress.
     pub session_event_handler: Option<SessionEventHandler>,
-    /// Protocol options for workspace connections.
-    pub protocol: ServerOptions,
+    /// RPC negotiation and resource options.
+    pub rpc: ConnectionOptions,
     /// Idle shutdown timeout.
     pub idle_shutdown: Option<Duration>,
 }
 
 impl std::fmt::Debug for DaemonServerOptions {
-    /// Format the visible daemon server options.
+    /// Format visible daemon server options.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("DaemonServerOptions")
@@ -36,261 +40,329 @@ impl std::fmt::Debug for DaemonServerOptions {
                 "session_event_handler",
                 &self.session_event_handler.is_some(),
             )
-            .field("protocol", &self.protocol)
+            .field("rpc", &self.rpc)
             .field("idle_shutdown", &self.idle_shutdown)
             .finish()
     }
 }
 
-/// Running process bound to workspace connection transports.
+/// Daemon process serving workspace and control RPC services.
 #[derive(Debug)]
 pub struct DaemonServer {
-    /// Workspace service metadata.
-    service: Service,
-    /// Workspace exposed by this daemon service.
+    /// Discovery and transport addresses.
+    endpoint: DaemonEndpoint,
+    /// Workspace exposed by this daemon.
     workspace: Arc<OpenedWorkspace>,
-    /// Daemon server options in use.
+    /// Server options.
     options: DaemonServerOptions,
-    /// Shutdown flag shared across connections.
-    shutdown: Arc<AtomicBool>,
+    /// Shared process lifecycle.
+    lifecycle: DaemonLifecycle,
 }
 
 impl DaemonServer {
-    /// Create a new daemon server for a repository and service.
-    pub fn new(repository: Arc<Repository>, service: Service) -> Result<Self, DaemonServerError> {
-        // use server defaults
-        let options = DaemonServerOptions::default();
-
-        // build the server state
-        Self::with_options(repository, service, options)
+    /// Create a daemon server with default options.
+    pub fn new(
+        repository: Arc<Repository>,
+        endpoint: DaemonEndpoint,
+    ) -> Result<Self, DaemonServerError> {
+        Self::with_options(repository, endpoint, DaemonServerOptions::default())
     }
 
     /// Create a daemon server with explicit options.
     pub fn with_options(
         repository: Arc<Repository>,
-        service: Service,
+        endpoint: DaemonEndpoint,
         options: DaemonServerOptions,
     ) -> Result<Self, DaemonServerError> {
-        // build the daemon state
         let workspace_root = repository.path().to_path_buf();
-        let daemon = Arc::new(Daemon::new(
+        let daemon = Daemon::new(
             repository,
             options.worker_limit,
             options.session_event_handler.clone(),
-        )?);
+        )?;
         let workspace = daemon.open(&workspace_root)?;
+        let activity = Arc::new(DaemonActivity::new(options.idle_shutdown));
+        let lifecycle = DaemonLifecycle::new(Arc::new(AtomicBool::new(false)), activity);
 
-        // return the server state
         Ok(Self {
-            service,
+            endpoint,
             workspace,
             options,
-            shutdown: Arc::new(AtomicBool::new(false)),
+            lifecycle,
         })
     }
 
-    /// Serve workspace requests until shutdown.
+    /// Serve daemon connections until shutdown.
     pub fn serve(&self) -> Result<(), DaemonServerError> {
-        // lock the workspace service
-        let _lock = self.service.lock().map_err(DaemonServerError::Service)?;
-
-        // clear any stale socket path
-        self.service
-            .clear_socket_path()
-            .map_err(DaemonServerError::Service)?;
-
-        // create browser connection token
-        let websocket_token = self
-            .service
-            .create_websocket_token()
-            .map_err(DaemonServerError::Service)?;
-
-        // bind the ipc and websocket listeners
-        let max_frame_bytes = self.options.protocol.limits.max_frame_bytes as usize;
-        let ipc_listener = IpcListener::bind(&self.service.socket_path, max_frame_bytes)
-            .map_err(DaemonServerError::Transport)?;
-        let websocket_listener = WebSocketListener::bind(
-            self.service.websocket_addr,
-            max_frame_bytes,
-            self.service.websocket_path.clone(),
+        let _lock = self.endpoint.lock()?;
+        self.endpoint.clear_socket()?;
+        let websocket_token = self.endpoint.websocket_token()?;
+        let max_message_bytes = self.options.rpc.limits.max_message_bytes as usize;
+        let ipc = IpcListener::bind(&self.endpoint.socket_path, max_message_bytes)?;
+        let websocket = WebSocketListener::bind(
+            self.endpoint.websocket_address,
+            max_message_bytes,
+            self.endpoint.websocket_path.clone(),
             websocket_token.clone(),
-        )
-        .map_err(DaemonServerError::WebSocket)?;
-        let websocket_addr = websocket_listener
-            .local_addr()
-            .map_err(DaemonServerError::WebSocket)?;
+        )?;
+        let websocket_address = websocket.local_address()?;
+        let metadata = DaemonMetadata::new(&self.endpoint, websocket_address, &websocket_token)?;
+        self.endpoint.write_metadata(&metadata)?;
 
-        // write daemon server metadata
-        let metadata = Metadata::new(&self.service, websocket_addr, &websocket_token)
-            .map_err(DaemonServerError::Service)?;
-        self.service
-            .write_metadata(&metadata)
-            .map_err(DaemonServerError::Service)?;
+        let result = self.serve_connections(ipc, websocket);
+        let metadata_result = self.endpoint.remove_metadata();
+        let socket_result = self.endpoint.clear_socket();
 
-        // serve incoming connections
-        let result = self.serve_listeners(ipc_listener, websocket_listener);
+        result?;
+        metadata_result?;
+        socket_result?;
 
-        // clean up workspace metadata and socket path
-        let _ = self.service.remove_metadata();
-        let _ = self.service.clear_socket_path();
-
-        // return the serve result
-        result
-    }
-
-    /// Serve workspace connections from listeners.
-    fn serve_listeners(
-        &self,
-        ipc_listener: IpcListener,
-        websocket_listener: WebSocketListener,
-    ) -> Result<(), DaemonServerError> {
-        // initialize connection state
-        let mut handles: Vec<JoinHandle<()>> = Vec::new();
-        let activity = Arc::new(ServerActivity::new(self.options.idle_shutdown));
-        let lifecycle = ServerLifecycle::with_activity(self.shutdown.clone(), activity);
-        let monitor = self.spawn_idle_monitor(lifecycle.clone());
-
-        // accept connections until shutdown
-        loop {
-            // exit when shutdown is requested
-            if self.shutdown.load(Ordering::SeqCst) {
-                break;
-            }
-
-            // accept the next ready transports
-            let ipc_transport = ipc_listener
-                .try_accept()
-                .map_err(DaemonServerError::Transport)?;
-            let websocket_transport = websocket_listener
-                .try_accept()
-                .map_err(DaemonServerError::WebSocket)?;
-
-            // spawn connection handlers for accepted transports
-            let mut accepted_any = false;
-            let accepted = ipc_transport.into_iter().chain(websocket_transport);
-            for transport in accepted {
-                accepted_any = true;
-                let workspace = self.workspace.workspace();
-                let root_lease = self.workspace.root_lease();
-                let options = self.options.protocol.clone();
-                let lifecycle = lifecycle.clone();
-                let handle = std::thread::spawn(move || {
-                    let server = Server::with_root_lease(workspace, root_lease, options, lifecycle);
-                    let _ = server.serve(transport.as_ref());
-                });
-                handles.push(handle);
-            }
-
-            // wait briefly when neither listener produced work
-            if !accepted_any {
-                std::thread::sleep(std::time::Duration::from_millis(25));
-            }
-        }
-
-        // join the idle monitor if it was spawned
-        if let Some(handle) = monitor {
-            let _ = handle.join();
-        }
-
-        // join all connection threads
-        for handle in handles {
-            let _ = handle.join();
-        }
-
-        // signal success
         Ok(())
     }
 
-    /// Spawn an idle shutdown monitor when configured.
-    fn spawn_idle_monitor(&self, lifecycle: ServerLifecycle) -> Option<JoinHandle<()>> {
-        // return early when idle shutdown is disabled
+    /// Accept and serve both local and browser transports.
+    fn serve_connections(
+        &self,
+        ipc: IpcListener,
+        websocket: WebSocketListener,
+    ) -> Result<(), DaemonServerError> {
+        let monitor = self.spawn_idle_monitor();
+        let mut connections = Vec::new();
+
+        while !self.lifecycle.is_shutdown() {
+            let ipc_transport = ipc.try_accept()?;
+            let websocket_transport = websocket.try_accept()?;
+            let accepted = ipc_transport.into_iter().chain(websocket_transport);
+            let mut accepted_any = false;
+
+            for transport in accepted {
+                accepted_any = true;
+                connections.push(self.spawn_connection(transport)?);
+            }
+            Self::reap_connections(&mut connections)?;
+
+            if !accepted_any {
+                std::thread::sleep(Duration::from_millis(25));
+            }
+        }
+
+        // allow the shutdown caller to receive its terminal response and disconnect
+        while !connections.is_empty() && !connections.iter().any(ConnectionTask::is_finished) {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        Self::reap_connections(&mut connections)?;
+        for connection in &connections {
+            connection.transport.close()?;
+        }
+        Self::join_connections(connections)?;
+
+        if let Some(monitor) = monitor {
+            monitor.join().map_err(|_| DaemonServerError::Thread)?;
+        }
+
+        Ok(())
+    }
+
+    /// Spawn one RPC connection.
+    fn spawn_connection(
+        &self,
+        transport: Arc<dyn Transport>,
+    ) -> Result<ConnectionTask, DaemonServerError> {
+        let server = self.rpc_server()?;
+        let lifecycle = self.lifecycle.clone();
+        let connection_transport = transport.clone();
+        lifecycle.connect();
+        let handle = std::thread::spawn(move || {
+            let result = server.serve(connection_transport);
+            lifecycle.disconnect();
+
+            result
+        });
+
+        Ok(ConnectionTask { transport, handle })
+    }
+
+    /// Build connection-scoped RPC services.
+    fn rpc_server(&self) -> Result<destack_rpc::Server, DaemonServerError> {
+        let workspace = SharedWorkspace::new(self.workspace.workspace());
+        let workspace = WorkspaceServer::new(workspace)?;
+        let control = ControlServer::new(Control::new(self.lifecycle.clone()))?;
+        let mut services = Registry::new();
+        services.insert(workspace)?;
+        services.insert(control)?;
+
+        Ok(destack_rpc::Server::new(services, self.options.rpc.clone()))
+    }
+
+    /// Spawn idle shutdown monitoring when configured.
+    fn spawn_idle_monitor(&self) -> Option<JoinHandle<()>> {
         self.options.idle_shutdown?;
+        let lifecycle = self.lifecycle.clone();
+        let interval = Duration::from_millis(IDLE_SHUTDOWN_POLL_MS);
 
-        // capture shared shutdown state
-        let shutdown = self.shutdown.clone();
-        let poll_interval = Duration::from_millis(IDLE_SHUTDOWN_POLL_MS);
-
-        // spawn the idle monitor thread
         Some(std::thread::spawn(move || {
-            loop {
-                // exit if shutdown already requested
-                if shutdown.load(Ordering::SeqCst) {
-                    break;
+            while !lifecycle.is_shutdown() {
+                if lifecycle.shutdown_if_idle() {
+                    return;
                 }
-
-                // shut down when the daemon server is idle
-                if lifecycle.should_shutdown() {
-                    lifecycle.request_shutdown();
-                    break;
-                }
-
-                // wait for the next poll interval
-                std::thread::sleep(poll_interval);
+                std::thread::sleep(interval);
             }
         }))
     }
+
+    /// Join and remove completed connections.
+    fn reap_connections(connections: &mut Vec<ConnectionTask>) -> Result<(), DaemonServerError> {
+        let mut index = 0;
+
+        while index < connections.len() {
+            if connections[index].is_finished() {
+                let connection = connections.swap_remove(index);
+                connection.join()?;
+            } else {
+                index += 1;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Join every remaining connection.
+    fn join_connections(connections: Vec<ConnectionTask>) -> Result<(), DaemonServerError> {
+        for connection in connections {
+            connection.join()?;
+        }
+
+        Ok(())
+    }
 }
 
-/// Errors returned by daemon servers.
+/// One live daemon RPC connection.
+#[derive(Debug)]
+struct ConnectionTask {
+    /// Transport used to interrupt the connection during shutdown.
+    transport: Arc<dyn Transport>,
+    /// Connection server thread.
+    handle: JoinHandle<Result<(), ServerError>>,
+}
+
+impl ConnectionTask {
+    /// Return whether this connection thread terminated.
+    fn is_finished(&self) -> bool {
+        self.handle.is_finished()
+    }
+
+    /// Join this connection and propagate its failure.
+    fn join(self) -> Result<(), DaemonServerError> {
+        self.handle
+            .join()
+            .map_err(|_| DaemonServerError::Thread)??;
+
+        Ok(())
+    }
+}
+
+/// Failure while serving daemon connections.
 #[derive(Debug)]
 pub enum DaemonServerError {
-    /// Workspace service error.
-    Service(ServiceError),
-    /// Transport error.
-    Transport(IpcError),
-    /// WebSocket transport error.
-    WebSocket(WebSocketError),
-    /// Daemon state error.
+    /// Daemon repository state failed.
     Daemon(DaemonError),
+    /// Endpoint discovery or local transport failed.
+    Endpoint(DaemonEndpointError),
+    /// WebSocket listener failed.
+    WebSocket(WebSocketError),
+    /// RPC service declaration failed.
+    Schema(destack_rpc::ServiceSchemaError),
+    /// RPC service registration failed.
+    Registry(destack_rpc::RegistryError),
+    /// RPC connection failed.
+    Connection(ServerError),
+    /// A daemon thread panicked.
+    Thread,
 }
 
 impl std::fmt::Display for DaemonServerError {
-    /// Format the daemon server error.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    /// Format this daemon server failure.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DaemonServerError::Service(error) => {
-                write!(f, "daemon server service error: {error}")
-            }
-            DaemonServerError::Transport(error) => {
-                write!(f, "daemon server transport error: {error}")
-            }
-            DaemonServerError::WebSocket(error) => {
-                write!(f, "daemon server websocket error: {error}")
-            }
-            DaemonServerError::Daemon(error) => {
-                write!(f, "daemon server state error: {error}")
-            }
+            Self::Daemon(error) => write!(formatter, "daemon state failed: {error}"),
+            Self::Endpoint(error) => write!(formatter, "{error}"),
+            Self::WebSocket(error) => write!(formatter, "daemon WebSocket failed: {error}"),
+            Self::Schema(error) => write!(formatter, "daemon RPC schema failed: {error}"),
+            Self::Registry(error) => write!(formatter, "daemon RPC registry failed: {error}"),
+            Self::Connection(error) => write!(formatter, "daemon RPC connection failed: {error}"),
+            Self::Thread => write!(formatter, "daemon thread panicked"),
         }
     }
 }
 
-impl std::error::Error for DaemonServerError {}
-
-impl From<ServiceError> for DaemonServerError {
-    /// Convert a service error into a server error.
-    fn from(error: ServiceError) -> Self {
-        DaemonServerError::Service(error)
-    }
-}
-
-impl From<IpcError> for DaemonServerError {
-    /// Convert an ipc transport error into a server error.
-    fn from(error: IpcError) -> Self {
-        DaemonServerError::Transport(error)
-    }
-}
-
-impl From<WebSocketError> for DaemonServerError {
-    /// Convert a WebSocket error into a server error.
-    fn from(error: WebSocketError) -> Self {
-        DaemonServerError::WebSocket(error)
+impl std::error::Error for DaemonServerError {
+    /// Return the underlying daemon server failure when present.
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Daemon(error) => Some(error),
+            Self::Endpoint(error) => Some(error),
+            Self::WebSocket(error) => Some(error),
+            Self::Schema(error) => Some(error),
+            Self::Registry(error) => Some(error),
+            Self::Connection(error) => Some(error),
+            Self::Thread => None,
+        }
     }
 }
 
 impl From<DaemonError> for DaemonServerError {
-    /// Convert a daemon error into a server error.
+    /// Convert one daemon state failure.
     fn from(error: DaemonError) -> Self {
-        DaemonServerError::Daemon(error)
+        Self::Daemon(error)
+    }
+}
+
+impl From<DaemonEndpointError> for DaemonServerError {
+    /// Convert one endpoint failure.
+    fn from(error: DaemonEndpointError) -> Self {
+        Self::Endpoint(error)
+    }
+}
+
+impl From<destack_rpc::IpcError> for DaemonServerError {
+    /// Convert one local transport failure.
+    fn from(error: destack_rpc::IpcError) -> Self {
+        Self::Endpoint(error.into())
+    }
+}
+
+impl From<destack_rpc::TransportError> for DaemonServerError {
+    /// Convert one established transport failure.
+    fn from(error: destack_rpc::TransportError) -> Self {
+        Self::Connection(destack_rpc::ConnectionError::from(error).into())
+    }
+}
+
+impl From<WebSocketError> for DaemonServerError {
+    /// Convert one WebSocket listener failure.
+    fn from(error: WebSocketError) -> Self {
+        Self::WebSocket(error)
+    }
+}
+
+impl From<destack_rpc::ServiceSchemaError> for DaemonServerError {
+    /// Convert one service declaration failure.
+    fn from(error: destack_rpc::ServiceSchemaError) -> Self {
+        Self::Schema(error)
+    }
+}
+
+impl From<destack_rpc::RegistryError> for DaemonServerError {
+    /// Convert one service registration failure.
+    fn from(error: destack_rpc::RegistryError) -> Self {
+        Self::Registry(error)
+    }
+}
+
+impl From<ServerError> for DaemonServerError {
+    /// Convert one RPC connection failure.
+    fn from(error: ServerError) -> Self {
+        Self::Connection(error)
     }
 }
 
@@ -300,7 +372,7 @@ impl Default for DaemonServerOptions {
         Self {
             worker_limit: Session::default_worker_count(),
             session_event_handler: None,
-            protocol: ServerOptions::default(),
+            rpc: ConnectionOptions::new("destack-daemon"),
             idle_shutdown: Some(Duration::from_millis(DEFAULT_IDLE_SHUTDOWN_MS)),
         }
     }

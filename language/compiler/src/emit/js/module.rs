@@ -1,5 +1,5 @@
 use crate::{Compiler, CompilerError, CompilerResult};
-use destack_artifact::Script;
+use destack_artifact::{DirBound, DirExpanded, DirImported, DirMaterialized, DirParsed, Script};
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
 use destack_source::ModuleId;
 
@@ -18,19 +18,19 @@ impl Compiler {
         // snapshot module for this emit pass
         let module = self.module(context.revision(), module_id)?;
         let parsed = artifacts
-            .dir_parsed(module_id)
+            .read::<DirParsed>(module_id)
             .map_err(CompilerError::from)?;
         let bound = artifacts
-            .dir_bound(module_id, profile)
+            .read::<DirBound>((module_id, profile))
             .map_err(CompilerError::from)?;
         let imported = artifacts
-            .dir_imported(module_id, profile)
+            .read::<DirImported>((module_id, profile))
             .map_err(CompilerError::from)?;
         let expanded = artifacts
-            .dir_expanded(module_id, profile)
+            .read::<DirExpanded>((module_id, profile))
             .map_err(CompilerError::from)?;
         let materialized = artifacts
-            .dir_materialized(module_id, profile)
+            .read::<DirMaterialized>((module_id, profile))
             .map_err(CompilerError::from)?;
 
         // emit one structured script

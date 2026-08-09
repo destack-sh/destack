@@ -56,7 +56,7 @@ impl CheckState<'_> {
         let mut conditions = FxIndexSet::default();
 
         // collect condition sites directly from visible checked DIR
-        for expression in view.iter_nodes::<dir::Expression>() {
+        for expression in view.iter_node_ids_of_type::<dir::Expression>() {
             match view.get(expression) {
                 dir::Expression::If { condition, .. } => {
                     for operand in &condition.operands {

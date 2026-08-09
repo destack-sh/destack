@@ -9,7 +9,7 @@ pub enum ModuleIndex {
     Symbols(dir::SymbolIndex),
     /// Resolved exports.
     Exports(dir::ExportIndex),
-    /// Checked members.
+    /// Member declarations and implementations.
     Members(dir::MemberIndex),
     /// Resolved reference occurrences.
     References(dir::ReferenceIndex),
@@ -17,8 +17,6 @@ pub enum ModuleIndex {
     Calls(dir::CallIndex),
     /// Nominal heritage edges.
     Heritage(dir::HeritageIndex),
-    /// Checked extensions.
-    Extensions(dir::ExtensionIndex),
     /// Decorator applications.
     Decorators(dir::DecoratorIndex),
 }
@@ -33,7 +31,6 @@ impl ModuleIndex {
             Self::References(_) => IndexKind::References,
             Self::Calls(_) => IndexKind::Calls,
             Self::Heritage(_) => IndexKind::Heritage,
-            Self::Extensions(_) => IndexKind::Extensions,
             Self::Decorators(_) => IndexKind::Decorators,
         }
     }
@@ -47,7 +44,6 @@ impl ModuleIndex {
             Self::References(index) => index.finish(),
             Self::Calls(index) => index.finish(),
             Self::Heritage(index) => index.finish(),
-            Self::Extensions(index) => index.finish(),
             Self::Decorators(index) => index.finish(),
         }
     }
@@ -60,7 +56,7 @@ pub enum ProgramIndex {
     Symbols(dir::SymbolPostings),
     /// Export name postings.
     Exports(dir::ExportPostings),
-    /// Member lookup postings.
+    /// Member implementation postings.
     Members(dir::MemberPostings),
     /// Reference target postings.
     References(dir::ReferencePostings),
@@ -68,8 +64,6 @@ pub enum ProgramIndex {
     Calls(dir::CallPostings),
     /// Heritage lookup postings.
     Heritage(dir::HeritagePostings),
-    /// Extension lookup postings.
-    Extensions(dir::ExtensionPostings),
     /// Decorator name postings.
     Decorators(dir::DecoratorPostings),
 }
@@ -84,13 +78,12 @@ impl ProgramIndex {
             Self::References(_) => IndexKind::References,
             Self::Calls(_) => IndexKind::Calls,
             Self::Heritage(_) => IndexKind::Heritage,
-            Self::Extensions(_) => IndexKind::Extensions,
             Self::Decorators(_) => IndexKind::Decorators,
         }
     }
 }
 
-/// One query index kind shared by module, inference-component, and program artifacts.
+/// One query index kind shared by module and program artifacts.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
@@ -99,7 +92,7 @@ pub enum IndexKind {
     Symbols,
     /// Resolved exports.
     Exports,
-    /// Checked members.
+    /// Member declarations and implementations.
     Members,
     /// Resolved reference occurrences.
     References,
@@ -107,22 +100,19 @@ pub enum IndexKind {
     Calls,
     /// Nominal heritage edges.
     Heritage,
-    /// Checked extensions.
-    Extensions,
     /// Decorator applications.
     Decorators,
 }
 
 impl IndexKind {
     /// All query index kinds in stable order.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 7] = [
         Self::Symbols,
         Self::Exports,
         Self::Members,
         Self::References,
         Self::Calls,
         Self::Heritage,
-        Self::Extensions,
         Self::Decorators,
     ];
     /// Return this kind's stable ordinal.
@@ -134,8 +124,7 @@ impl IndexKind {
             Self::References => 3,
             Self::Calls => 4,
             Self::Heritage => 5,
-            Self::Extensions => 6,
-            Self::Decorators => 7,
+            Self::Decorators => 6,
         }
     }
 }

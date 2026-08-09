@@ -1,5 +1,4 @@
 use destack_serde::Reflect;
-use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -7,14 +6,14 @@ use crate::{
     QueryResult, sort_and_dedup_navigation_targets,
 };
 
-/// Request goto definition at a cursor position.
+/// A goto definition request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoDefinitionRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for goto definition queries.
+/// A goto definition response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoDefinitionResponse {
     /// Definition targets.
@@ -25,12 +24,15 @@ impl ModuleQueryContext<'_> {
     /// Find the definition of the symbol at one position.
     pub fn goto_definition(
         &self,
-        query: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Vec<NavigationTarget>> {
-        let Some(occurrence) = self.symbol_at_offset(file_id, offset)? else {
-            return Ok(Vec::new());
+        request: GotoDefinitionRequest,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<GotoDefinitionResponse> {
+        let position = request.position;
+        let Some(occurrence) = self.symbol_at_offset(program, position.file_id, position.offset)?
+        else {
+            return Ok(GotoDefinitionResponse {
+                targets: Vec::new(),
+            });
         };
         let origin = QueryRange {
             module: self.module(),
@@ -40,15 +42,15 @@ impl ModuleQueryContext<'_> {
         // collect each exact definition target
         let mut targets = Vec::new();
         for symbol_id in occurrence.symbols {
-            for symbol_id in query.canonical_symbols(symbol_id)? {
-                let module = query.module(symbol_id.module_id)?;
+            for symbol_id in program.symbol_targets(symbol_id)? {
+                let module = program.module(symbol_id.module_id)?;
 
-                targets.push(module.navigation_target(symbol_id, origin)?);
+                targets.push(module.navigation_target(program, symbol_id, origin)?);
             }
         }
 
         sort_and_dedup_navigation_targets(&mut targets);
 
-        Ok(targets)
+        Ok(GotoDefinitionResponse { targets })
     }
 }

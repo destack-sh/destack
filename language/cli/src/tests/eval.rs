@@ -1,7 +1,7 @@
 use crate::command::eval::{EvalArgs, run};
 use crate::common::{ProgramArgs, ReportArgs, RuntimeArgs, TargetArgs};
 
-use super::tests::assert_exit;
+use super::tests::{assert_exit, execute};
 
 /// Rejects conflicting eval inputs.
 #[test]
@@ -22,7 +22,7 @@ fn test_eval_rejects_conflicting_inputs() {
     };
 
     // run eval with invalid input
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the command fails
     assert_exit(code, 1);

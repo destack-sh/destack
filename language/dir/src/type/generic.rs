@@ -337,21 +337,21 @@ impl GenericArgumentBinding {
     }
 }
 
-/// One runtime argument bound to its selected parameter slot.
+/// One selected parameter bound to its runtime argument source.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ArgumentBinding {
-    /// The selected parameter position.
-    pub parameter: usize,
-    /// The selected parameter type after static substitutions.
-    pub ty: GlobalTypeId,
-    /// The source argument bound to this parameter.
-    pub argument: ArgumentSource,
+    /// The complete parameter type after static substitutions.
+    pub parameter_type: GlobalTypeId,
+    /// The type accepted from each bound argument source.
+    pub argument_type: GlobalTypeId,
+    /// The runtime argument source bound to this parameter.
+    pub source: ArgumentSource,
 }
 
 impl ArgumentBinding {
     /// Return whether this binding consumes one source argument node.
     pub fn contains_argument(&self, argument: GlobalNodeIdAny) -> bool {
-        match &self.argument {
+        match &self.source {
             ArgumentSource::Provided(source) => *source == argument,
             ArgumentSource::Rest(sources) => sources.contains(&argument),
             ArgumentSource::Static(_) | ArgumentSource::Write | ArgumentSource::Omitted => false,

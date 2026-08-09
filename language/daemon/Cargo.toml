@@ -13,18 +13,25 @@ doctest = false
 
 [dependencies]
 # language
+destack_artifact = { workspace = true }
+destack_core = { workspace = true }
 destack_query = { workspace = true }
 destack_repository = { workspace = true }
+destack_rpc = { workspace = true }
+destack_serde = { workspace = true }
 destack_session = { workspace = true, features = ["native"] }
 destack_workspace = { workspace = true }
 destack_source = { workspace = true }
 
 # general
+base64 = { workspace = true }
+fs2 = { workspace = true }
+getrandom = { workspace = true }
 parking_lot = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 
 [dev-dependencies]
-# language
-destack_artifact = { workspace = true }
 
 [lints]
 workspace = true

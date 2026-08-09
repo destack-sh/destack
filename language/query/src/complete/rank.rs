@@ -18,8 +18,6 @@ struct CompletionScore {
     origin_order: u8,
     /// The item-kind order bucket for the active context.
     kind_order: u8,
-    /// The producer order bucket.
-    producer_order: u32,
     /// The deprecated order bucket.
     deprecated_order: u8,
 }
@@ -75,7 +73,6 @@ impl CompletionScore {
             context_order: scorer.context_order(completion),
             origin_order: scorer.origin_order(completion),
             kind_order: scorer.kind_order(completion),
-            producer_order: completion.producer_order,
             deprecated_order: u8::from(completion.is_deprecated),
         }
     }
@@ -117,7 +114,6 @@ impl CompletionScorer<'_> {
                     .completion_order()
                     .cmp(&right.score.lexical.kind.completion_order()),
             )
-            .then(left.score.producer_order.cmp(&right.score.producer_order))
             .then_with(|| self.compare_auto_imports(left, right))
             .then(right.score.lexical.score.cmp(&left.score.lexical.score))
             .then(
@@ -127,11 +123,6 @@ impl CompletionScorer<'_> {
             )
             .then_with(|| self.compare_ordering_text(left, right))
             .then(left.stable_index.cmp(&right.stable_index))
-            .then_with(|| {
-                left.completion
-                    .ordering_text()
-                    .cmp(right.completion.ordering_text())
-            })
     }
 
     /// Compare two auto-import candidates by import ordering.
@@ -202,7 +193,10 @@ impl CompletionScorer<'_> {
             CompletionContext::CallArgument {
                 expected_type: Some(expected_type),
                 ..
-            } => u8::from(completion.type_id != Some(*expected_type)),
+            } => {
+                // FUGU #Incomplete: rank compatible candidates from exact checked type relations
+                u8::from(completion.type_id != Some(*expected_type))
+            }
             CompletionContext::MemberAccess { .. } => u8::from(!completion.kind.is_member_like()),
             CompletionContext::ImportPath { .. } => u8::from(!matches!(
                 completion.kind,
@@ -386,11 +380,6 @@ impl CompletionItemKind {
                 | CompletionItemKind::AssociatedConst
                 | CompletionItemKind::AssociatedType
         )
-    }
-
-    /// Return whether this completion kind is constructable with `new`.
-    pub(crate) fn is_constructable(self) -> bool {
-        matches!(self, CompletionItemKind::Class | CompletionItemKind::Struct)
     }
 }
 

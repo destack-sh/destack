@@ -275,6 +275,8 @@ struct Point implements PointLike {
 /// @definition.implements symbol=Point source=PointLike target=PointLike
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.field symbol=Point.y source="y: int32" key=y type=int32
+/// @definition.conformance symbol=Point member=Point.x requirement=PointLike.x
+/// @definition.conformance symbol=Point member=Point.y requirement=PointLike.y
 /// @resolution.name source=PointLike target=PointLike
 
     x: int32;
@@ -292,6 +294,8 @@ struct Offset implements PointLike {
 /// @definition.implements symbol=Offset source=PointLike target=PointLike
 /// @definition.field symbol=Offset.x source="x: int32" key=x type=int32
 /// @definition.field symbol=Offset.y source="y: int32" key=y type=int32
+/// @definition.conformance symbol=Offset member=Offset.x requirement=PointLike.x
+/// @definition.conformance symbol=Offset member=Offset.y requirement=PointLike.y
 /// @resolution.name source=PointLike target=PointLike
 
     x: int32;

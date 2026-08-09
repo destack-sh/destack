@@ -36,7 +36,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect checked equality and switch expressions
-    for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+    for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
         match expression {
             // value === NaN
             dir::Expression::Binary {
@@ -189,7 +189,7 @@ impl NanEquality {
         // replace the complete ineffective comparison
         let mut file_patch = FilePatch::new(comparison_span.file);
         file_patch.replace(comparison_span, replacement);
-        let patches = PatchSet::single(file_patch);
+        let patches = PatchSet::from_files(vec![file_patch]);
 
         let suggestion =
             lint.suggestion("replace the equality check with a NaN predicate", patches)?;

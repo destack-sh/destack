@@ -17,7 +17,7 @@ impl ModuleContext {
         }
 
         let symbols = self.symbol_targets(node);
-        let symbols = program.canonical_symbols(&symbols)?;
+        let symbols = program.symbol_targets(&symbols)?;
         let [symbol] = symbols.as_slice() else {
             return Ok(None);
         };
@@ -27,12 +27,12 @@ impl ModuleContext {
 }
 
 impl ProgramContext {
-    /// Return one canonical symbol's checked static scalar.
+    /// Return one target symbol's static scalar.
     pub fn static_scalar(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Result<Option<dir::ScalarLiteral>, ContextError> {
-        let symbols = self.canonical_symbols(&[symbol])?;
+        let symbols = self.symbol_targets(&[symbol])?;
         let [symbol] = symbols.as_slice() else {
             return Ok(None);
         };

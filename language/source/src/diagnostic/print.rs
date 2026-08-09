@@ -375,8 +375,8 @@ mod tests {
 
     use crate::{
         Applicability, Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticSuggestion,
-        DiagnosticTarget, File, FileId, FilePatch, FileType, Patch, PatchSet, PrintOptions, Span,
-        Uri, print_diagnostics,
+        DiagnosticTarget, File, FileId, FilePatch, FileType, Patch, PrintOptions, Span, Uri,
+        print_diagnostics,
     };
 
     /// Capture diagnostic printer output as one string.
@@ -419,16 +419,13 @@ mod tests {
         let content = file.content_id();
         let mut file_patch = FilePatch::new(file_id);
         file_patch.push(Patch::replace(let_span, "const"));
-        let suggestion = DiagnosticSuggestion::new(
-            "use `const`",
-            PatchSet::single(file_patch),
-            Applicability::Automatic,
-        )
-        .label(DiagnosticLabel::message(
-            content,
-            DiagnosticTarget::Span(let_span),
-            "replace `let` with `const`",
-        ));
+        let suggestion =
+            DiagnosticSuggestion::new("use `const`", file_patch.into(), Applicability::Automatic)
+                .label(DiagnosticLabel::message(
+                    content,
+                    DiagnosticTarget::Span(let_span),
+                    "replace `let` with `const`",
+                ));
         let diagnostic = Diagnostic::warning(
             "prefer-const",
             "variable is never reassigned",

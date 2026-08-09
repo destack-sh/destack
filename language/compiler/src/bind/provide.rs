@@ -37,7 +37,9 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
         let artifacts = self.artifact_reader(context);
-        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
+        let parsed = artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module)?;
         let profile = self.profile(context.revision(), profile)?;
 
@@ -111,7 +113,7 @@ impl Compiler {
             dependencies.require(ArtifactKey::dir_bound(module, profile));
         }
 
-        // global module export surfaces back the global targets
+        // global module exports back the visible global resolutions
         let mut globals = self.load_global_module_ids(profile, context)?;
         if let Some((module, _)) = self.tree_builder_reference(profile, context)? {
             globals.push(module);
@@ -135,13 +137,13 @@ impl Compiler {
         // build language environment for profile
         let artifacts = self.artifact_reader(context);
         let language = self.build_language_environment(profile, &artifacts, &language_modules)?;
-        let global_targets = self.build_global_targets(profile, &artifacts, &globals)?;
+        let global_resolutions = self.build_global_resolutions(profile, &artifacts, &globals)?;
         let tree = self.resolve_tree_builder(profile, context, &artifacts)?;
 
         let environment = EnvironmentBound {
             language,
             globals,
-            global_targets_by_key: global_targets,
+            global_resolutions_by_key: global_resolutions,
             tree,
         };
 

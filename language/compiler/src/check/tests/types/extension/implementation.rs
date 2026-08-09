@@ -66,6 +66,7 @@ extension of User implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
 /// @definition.implements symbol=<module>#2 source=Show target=Show
 /// @definition.method symbol=show#1 slot=show type=<show#1.'a>(this: &show#1.'a exclusive this) => string
+/// @definition.conformance symbol=<module>#2 member=show#1 requirement=Show.show
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
@@ -81,6 +82,7 @@ extension of User implements Show {
 /// @definition.extension symbol=<module>#3 form=local target=User
 /// @definition.implements symbol=<module>#3 source=Show target=Show
 /// @definition.method symbol=show#2 slot=show type=<show#2.'a>(this: &show#2.'a exclusive this) => string
+/// @definition.conformance symbol=<module>#3 member=show#2 requirement=Show.show
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
@@ -332,6 +334,7 @@ extension of Badge implements Equal<Badge> {
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=Equal<Badge> target=Equal<Badge>
 /// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a exclusive this, Badge) => boolean
+/// @definition.conformance symbol=<module>#2 member=equal requirement=PartialEqual.equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=Badge target=Badge
@@ -642,6 +645,8 @@ extension of int32 implements Doubling {
 /// @definition.implements symbol=<module>#2 source=Doubling target=Doubling
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=double slot=double type=<double.'a>(this: &double.'a exclusive this) => this.Output
+/// @definition.conformance symbol=<module>#2 member=Output requirement=Doubling.Output
+/// @definition.conformance symbol=<module>#2 member=double requirement=Doubling.double
 /// @resolution.name source=Doubling target=Doubling
 
     type Output = int32;
@@ -740,6 +745,8 @@ extension<T> of Box<T> implements Container {
 /// @definition.implements symbol=<module>#2 source=Container target=Container
 /// @definition.associated.type symbol=Item source="type Item = T" key=Item value=T#2
 /// @definition.method symbol=get slot=get type=<get.'a>(this: &get.'a exclusive this) => T#2
+/// @definition.conformance symbol=<module>#2 member=Item requirement=Container.Item
+/// @definition.conformance symbol=<module>#2 member=get requirement=Container.get
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T
@@ -884,6 +891,9 @@ extension<T> of Box<T> implements Container<T> {
 /// @definition.implements symbol=<module>#2 source=Container<T> target=Container<T#2>
 /// @definition.associated.type symbol=Item source="type Item = int32" key=Item value=int32
 /// @definition.method symbol=get slot=get type=<get.'a>(this: &get.'a exclusive this, T#2) => (int32, int32, int32, Container<string>.Item, string)
+/// @definition.conformance symbol=<module>#2 member=Container.Output requirement=Container.Output
+/// @definition.conformance symbol=<module>#2 member=Item requirement=Container.Item
+/// @definition.conformance symbol=<module>#2 member=get requirement=Container.get
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T
@@ -1003,6 +1013,8 @@ extension<T, E> of Result<T, E> implements Source<E>, Carrier {
 /// @definition.implements symbol=<module>#2 source=Source<E> target=Source<E#2>
 /// @definition.associated.type symbol=Error source="type Error = E" key=Error value=E#2
 /// @definition.method symbol=from slot=from static=true type=(E#2) => Result<T#3, E#2>
+/// @definition.conformance symbol=<module>#2 member=Error requirement=Carrier.Error
+/// @definition.conformance symbol=<module>#2 member=from requirement=Source.from
 /// @type.symbol symbol=T source=T type=T#3
 /// @type.symbol symbol=E source=E type=E#2
 /// @resolution.name source=Result target=Result
@@ -1091,6 +1103,8 @@ extension of int32 implements Halving {
 /// @definition.implements symbol=<module>#2 source=Halving target=Halving
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=halve slot=halve type=<halve.'a>(this: &halve.'a readonly this) => this.Output
+/// @definition.conformance symbol=<module>#2 member=Output requirement=Halving.Output
+/// @definition.conformance symbol=<module>#2 member=halve requirement=Halving.halve
 /// @resolution.name source=Halving target=Halving
 
     type Output = int32;
@@ -1227,6 +1241,8 @@ extension of Cell implements Reading {
 /// @definition.implements symbol=<module>#2 source=Reading target=Reading
 /// @definition.associated.type symbol=Output#1 source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=read slot=read type=<read.'a>(this: &read.'a exclusive this) => this.Output
+/// @definition.conformance symbol=<module>#2 member=Output#1 requirement=Reading.Output
+/// @definition.conformance symbol=<module>#2 member=read requirement=Reading.read
 /// @resolution.name source=Cell target=Cell
 /// @resolution.name source=Reading target=Reading
 
@@ -1249,6 +1265,8 @@ extension of Cell implements Writing {
 /// @definition.implements symbol=<module>#3 source=Writing target=Writing
 /// @definition.associated.type symbol=Output#2 source="type Output = float64" key=Output value=float64
 /// @definition.method symbol=write slot=write type=<write.'a>(this: &write.'a exclusive this) => this.Output
+/// @definition.conformance symbol=<module>#3 member=Output#2 requirement=Writing.Output
+/// @definition.conformance symbol=<module>#3 member=write requirement=Writing.write
 /// @resolution.name source=Cell target=Cell
 /// @resolution.name source=Writing target=Writing
 
@@ -1413,6 +1431,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#4>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#4>
 /// @definition.method symbol=has slot=has type=<Q: Eq<Q>, has.'a, has.'b>(this: &has.'b exclusive this, &has.'a readonly Q) => boolean
+/// @definition.conformance symbol=<module>#2 member=has requirement=Has.has
 /// @type.symbol symbol=T source="T: Eq<T>" type=T#4
 /// @resolution.name source=Eq target=Eq
 /// @resolution.name source=T target=T
@@ -1766,6 +1785,8 @@ export extension<K, V> of Bag<K, V>
 /// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target="iter.iterator.Iterable<Entry<&<module>#2.'a readonly K#3, &<module>#2.'b V#3>>"
 /// @definition.method symbol=iterator#1 slot=iterator type=(this: this) => iter.iterator.Iterator<(K#3, V#3)>
 /// @definition.method symbol=iterator#2 slot=iterator type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>
+/// @definition.conformance symbol=<module>#2 member=iterator#1 requirement=iter.iterator.Iterable.iterator
+/// @definition.conformance symbol=<module>#2 member=iterator#2 requirement=iter.iterator.Iterable.iterator
 /// @type.symbol symbol=K source=K type=K#3
 /// @type.symbol symbol=V source=V type=V#3
 /// @resolution.name source=Bag target=Bag
@@ -1902,6 +1923,7 @@ class Robot {
 extension of Robot implements Greeter {}
 /// @definition.extension symbol=<module>#2 source="extension of Robot implements Greeter {}" form=local target=Robot
 /// @definition.implements symbol=<module>#2 source=Greeter target=Greeter
+/// @definition.conformance symbol=<module>#2 member=Robot.greet requirement=Greeter.greet
 /// @resolution.name source=Robot target=Robot
 /// @resolution.name source=Greeter target=Greeter
 

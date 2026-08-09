@@ -5,8 +5,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, GenericParameterBinding, GenericTemplate, GlobalNodeIdAny, GlobalSymbolId,
-    LocalGenericParameterId, LocalGenericTemplateId, LocalScopeId, SegmentView, VarianceModifier,
+    Arena, GenericParameterBinding, GenericParameterKey, GenericTemplate, GlobalNodeIdAny,
+    GlobalSymbolId, LocalGenericParameterId, LocalGenericTemplateId, LocalScopeId, SegmentView,
+    VarianceModifier,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
@@ -91,6 +92,14 @@ impl<'a> GenericTable<'a> {
             .flat_map(|segment| segment.iter_parameters())
     }
 
+    /// Return the generic parameter declared by one symbol.
+    pub fn parameter_by_symbol(&self, symbol: GlobalSymbolId) -> Option<LocalGenericParameterId> {
+        self.iter_parameters()
+            .find_map(|(parameter_id, parameter)| {
+                (parameter.key == GenericParameterKey::Symbol(symbol)).then_some(parameter_id)
+            })
+    }
+
     /// Return the generic template declared by one source node.
     pub fn template_by_source(&self, source: GlobalNodeIdAny) -> Option<LocalGenericTemplateId> {
         for (template_id, template) in self.iter_templates() {
@@ -118,17 +127,6 @@ impl<'a> GenericTable<'a> {
         for (template_id, template) in self.iter_templates() {
             if template.symbol == Some(symbol) {
                 return Some(template_id);
-            }
-        }
-
-        None
-    }
-
-    /// Return the generic parameter declared by one symbol.
-    pub fn parameter_by_symbol(&self, symbol: GlobalSymbolId) -> Option<LocalGenericParameterId> {
-        for (parameter_id, parameter) in self.iter_parameters() {
-            if parameter.symbol == Some(symbol) {
-                return Some(parameter_id);
             }
         }
 

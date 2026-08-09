@@ -125,6 +125,7 @@ declare function withParsed<T: string, U>(value: `id:${T}`, callback: (segment: 
 /// @type.symbol symbol=withParsed.value source="value: `id:${T}`" type=`id:${T}`
 /// @resolution.name source=T target=withParsed.T
 /// @type.symbol symbol=withParsed.callback source="callback: (segment: T) => U" type=Function<(T,), U>
+/// @type.symbol symbol=withParsed.segment source="segment: T" type=T
 /// @resolution.name source=T target=withParsed.T
 /// @resolution.name source=U target=withParsed.U
 /// @resolution.name source=U target=withParsed.U

@@ -416,38 +416,11 @@ impl DeclaredMember {
         check: &CheckState<'_>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if !matches!(self.role, MemberRole::Getter | MemberRole::Setter) {
+        let Some(access) = check.property_access(self.role, ty, false)? else {
             return Ok(ty);
-        }
-        let dir::Type::FunctionSignature(function) = check.ty(ty)? else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "accessor member {:?} has non-signature type {ty:?}",
-                    self.symbol
-                ),
-            });
-        };
-        let function = check.type_signature(ty.module_id, function)?;
-
-        if self.role == MemberRole::Getter {
-            return function.return_type.ok_or_else(|| CompilerError::Internal {
-                message: format!("getter member {:?} has no result type", self.symbol),
-            });
-        }
-
-        // setters expose their one written parameter as the property type
-        let parameters = check.signature_parameters(ty.module_id, function.parameters)?;
-        let [parameter] = parameters else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "setter member {:?} has {} value parameters",
-                    self.symbol,
-                    parameters.len(),
-                ),
-            });
         };
 
-        Ok(parameter.ty)
+        Ok(access.store())
     }
 
     /// Return the callable type exposed by this declaration member.
@@ -693,10 +666,10 @@ impl BodyState<'_, '_> {
         if let Some(resolution) = resolution
             && let [symbol] = resolution.symbols()
         {
-            let symbol = self.resolve_symbol_alias(*symbol)?;
-            if self.symbol_kind(symbol)?.is_type_alias() {
+            if self.symbol_kind(*symbol)?.is_type_alias() {
                 space = dir::MemberSpace::Static;
-                subject = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+                subject =
+                    self.intern_type(dir::Type::Reference(dir::TypeReference { symbol: *symbol }))?;
             }
         }
 
@@ -1148,7 +1121,7 @@ impl BodyState<'_, '_> {
         let SignatureMatch::Selected(signature) = selected else {
             return Ok(None);
         };
-        let arguments = Self::source_argument_bindings(&[], &signature.parameters);
+        let arguments = self.bind_argument_sources(origin, &signature, &[])?;
         let resolution = signature.member_call(resolution, candidate.owner, symbol, arguments);
 
         Ok(Some(resolution))
@@ -1198,7 +1171,7 @@ impl BodyState<'_, '_> {
                 message: format!("selected setter {symbol:?} rejects its declared value type"),
             });
         };
-        let arguments = Self::source_argument_bindings(&sources, &signature.parameters);
+        let arguments = self.bind_argument_sources(origin, &signature, &sources)?;
         let resolution = signature.member_call(resolution, candidate.owner, symbol, arguments);
 
         Ok(resolution)
@@ -1485,7 +1458,7 @@ impl BodyState<'_, '_> {
         let owner = member.owner;
 
         // project a declaring class scope's own associated member
-        let scope = self.resolve_symbol_alias(interface.symbol)?;
+        let scope = interface.symbol;
         if let Some(definition) = self.definition(scope)?
             && !matches!(definition, dir::Definition::Interface(_))
         {
@@ -1514,9 +1487,13 @@ impl BodyState<'_, '_> {
                 continue;
             }
 
-            // read the extension's target, implements, and members
+            // read the extension target, interfaces, and members
             let target_type = extension.target.r#type();
-            let implements = extension.implements.clone();
+            let interfaces = extension
+                .implements
+                .iter()
+                .map(|conformance| conformance.interface)
+                .collect::<SmallVec<[_; 2]>>();
             let members = extension.members.clone();
             let template = self.symbol_template(extension_symbol)?;
 
@@ -1531,7 +1508,7 @@ impl BodyState<'_, '_> {
                     &interface,
                     template,
                     target_type,
-                    &implements,
+                    &interfaces,
                 )?;
 
                 Ok(match matched {
@@ -1553,7 +1530,7 @@ impl BodyState<'_, '_> {
                 &interface,
                 template,
                 target_type,
-                &implements,
+                &interfaces,
             )?;
             let Some((substitution, _)) = matched else {
                 continue;
@@ -1574,9 +1551,13 @@ impl BodyState<'_, '_> {
         if let Some((application_module, application)) = self.nominal_application_maybe(owner)?
             && let Some(definition) = self.definition(application.symbol)?
         {
-            let implements = definition.implementations().to_vec();
+            let interfaces = definition
+                .implementations()
+                .iter()
+                .map(|conformance| conformance.interface)
+                .collect::<SmallVec<[_; 2]>>();
             let members = definition.members().to_vec();
-            if !implements.is_empty() {
+            if !interfaces.is_empty() {
                 let mut substitution =
                     self.instance_substitution(application_module, &application)?;
                 let matched = self.match_implemented_interface(
@@ -1585,7 +1566,7 @@ impl BodyState<'_, '_> {
                     interface_module,
                     &[],
                     &mut substitution,
-                    &implements,
+                    &interfaces,
                     &interface,
                 )?;
                 if matched.is_some() {

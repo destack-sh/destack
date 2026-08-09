@@ -36,7 +36,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect checked equality expressions
-    for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+    for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::Binary {
             left,
             operator,
@@ -150,7 +150,7 @@ impl BooleanLiteralComparison {
         // replace the complete comparison
         let mut file_patch = FilePatch::new(comparison_span.file);
         file_patch.replace(comparison_span, replacement);
-        let patches = PatchSet::single(file_patch);
+        let patches = PatchSet::from_files(vec![file_patch]);
         let preserves_type = self.is_negated
             || module.node_type_id(comparison.into_any())?
                 == module.node_type_id(self.value.into_any())?;

@@ -4,6 +4,7 @@ use destack_dir as dir;
 use destack_repository::{Environment, Module, Package};
 use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
+use smallvec::{SmallVec, smallvec};
 
 use crate::export::stats::ExportStats;
 use crate::{ExportError, ExportResult};
@@ -38,7 +39,7 @@ pub(crate) struct ExportState<'a> {
     pub(in crate::export) static_visibility_by_node: IndexMap<dir::LocalNodeIdAny, bool>,
     /// Nodes skipped by static guards.
     pub(in crate::export) static_skipped_nodes: IndexSet<dir::LocalNodeIdAny>,
-    /// The recoverable diagnostics produced while exporting.
+    /// The diagnostics produced while exporting.
     pub(in crate::export) diagnostics: Vec<DiagnosticBuilder<ExportError>>,
     /// The work stats accumulated while exporting.
     pub(in crate::export) stats: ExportStats,
@@ -115,11 +116,13 @@ impl<'a> ExportState<'a> {
     ) -> ExportResult<()> {
         let key = export.key();
         if let Some(previous) = self.exports.export_by_key.get(&key) {
+            // report a repeated exported name
+            let previous_item = previous.item();
             let error = ExportError::DuplicateExport {
                 anchor,
                 key: self.export_key_text(key),
             };
-            let diagnostic = match previous.item().map(|item| self.anchor_node(item.id)) {
+            let diagnostic = match previous_item.map(|item| self.anchor_node(item.id)) {
                 Some(Ok(first)) => {
                     DiagnosticBuilder::new(error).label(first, "first exported here")
                 }
@@ -135,7 +138,7 @@ impl<'a> ExportState<'a> {
         Ok(())
     }
 
-    /// Report one recoverable export diagnostic.
+    /// Report one export diagnostic.
     pub(in crate::export) fn report_diagnostic(
         &mut self,
         diagnostic: impl Into<DiagnosticBuilder<ExportError>>,
@@ -166,65 +169,134 @@ impl<'a> ExportState<'a> {
             })
     }
 
-    /// Find the most recent module-scope symbol for one key.
-    pub(in crate::export) fn find_module_symbol(
+    /// Return the visible module declaration group for one key.
+    pub(in crate::export) fn visible_declarations(
         &self,
         key: dir::StaticKey,
-    ) -> Option<dir::LocalSymbolId> {
+    ) -> SmallVec<[dir::LocalSymbolId; 2]> {
         let scope = self.bindings.get_scope_by_id(self.namespace_scope);
+        let scope = dir::LocalScope::new(self.namespace_scope, scope.mark());
+        let lookup = self.bindings.lookup_symbol_from_scope(scope, key);
+        let mut candidates = match lookup {
+            dir::SymbolLookup::Missing => SmallVec::new(),
+            dir::SymbolLookup::Found(symbol) => smallvec![symbol],
+            dir::SymbolLookup::Ambiguous(symbols) => symbols.into_iter().collect(),
+        };
 
-        scope.find_symbol(key)
+        // preserve a complete function overload group
+        let Some(last) = candidates.last().copied() else {
+            return SmallVec::new();
+        };
+        if self.bindings.get_symbol(last).kind == dir::SymbolKind::Function {
+            candidates.retain(|symbol| {
+                self.bindings.get_symbol(*symbol).kind == dir::SymbolKind::Function
+            });
+
+            return candidates;
+        }
+
+        smallvec![last]
     }
 
-    /// Return the target module for one namespace import symbol.
-    pub(in crate::export) fn namespace_import_target(
+    /// Return the explicit declaration introduced by one export item.
+    pub(in crate::export) fn export_declaration(
+        &self,
+        item: dir::LocalNodeId<dir::DependencyItem>,
+    ) -> ExportResult<Option<dir::LocalSymbolId>> {
+        if self.view.get(item).alias().is_none() {
+            return Ok(None);
+        }
+
+        // require the binding declared for the authored alias
+        let anchor = self.anchor_node(item.id)?;
+        let declaration = item.into_global_any(self.view.tree().module_id);
+        let symbol = self
+            .bindings
+            .declaration_symbol(declaration)
+            .ok_or_else(|| ExportError::Internal {
+                anchor: anchor.clone(),
+                module: self.view.tree().module_id,
+                message: format!("export alias {item:?} has no declaration"),
+            })?;
+        if self.bindings.get_symbol(symbol).kind != dir::SymbolKind::ExportAlias {
+            return Err(ExportError::Internal {
+                anchor,
+                module: self.view.tree().module_id,
+                message: format!("export alias {item:?} has invalid symbol {symbol:?}"),
+            });
+        }
+
+        Ok(Some(symbol))
+    }
+
+    /// Return the imported route selected by one local symbol.
+    pub(in crate::export) fn import_binding(
         &self,
         symbol_id: dir::LocalSymbolId,
-    ) -> Option<ModuleId> {
-        // require an import symbol
+    ) -> ExportResult<Option<dir::ExportBinding>> {
         let symbol = self.bindings.get_symbol(symbol_id);
         if symbol.kind != dir::SymbolKind::Import {
-            return None;
+            return Ok(None);
         }
 
-        // require a local dependency item declaration
-        let declaration = symbol.declaration?;
+        // require a local import declaration
+        let declaration = symbol.declaration.ok_or_else(|| ExportError::Internal {
+            anchor: self.module_anchor(),
+            module: self.view.tree().module_id,
+            message: format!("import symbol {symbol_id:?} has no declaration"),
+        })?;
         if declaration.module_id != self.view.tree().module_id {
-            return None;
+            return Err(ExportError::Internal {
+                anchor: self.module_anchor(),
+                module: self.view.tree().module_id,
+                message: format!("import symbol {symbol_id:?} belongs to another module"),
+            });
         }
 
-        // require a namespace import item
+        // read the selected imported name
         let item_id = declaration
             .local_id
             .try_into_typed::<dir::DependencyItem>()
-            .ok()?;
-        let item = self.view.get(item_id);
-        if item.binding()? != dir::DependencyBinding::Namespace {
-            return None;
-        }
+            .map_err(|_| ExportError::Internal {
+                anchor: self.module_anchor(),
+                module: self.view.tree().module_id,
+                message: format!("import symbol {symbol_id:?} has invalid declaration"),
+            })?;
+        let selector =
+            self.view
+                .get(item_id)
+                .export_selector()
+                .ok_or_else(|| ExportError::Internal {
+                    anchor: self.module_anchor(),
+                    module: self.view.tree().module_id,
+                    message: format!("import item {item_id:?} has no selector"),
+                })?;
 
-        // find the import edge that owns this item
-        for edge in self.modules.iter() {
-            if edge.relation != dir::ModuleRelation::Import {
-                continue;
-            }
+        // read the exact import edge owned by the parent expression
+        let expression_id = self
+            .view
+            .get_parent_for(item_id)
+            .and_then(|parent| parent.try_into_typed::<dir::Expression>().ok())
+            .ok_or_else(|| ExportError::Internal {
+                anchor: self.module_anchor(),
+                module: self.view.tree().module_id,
+                message: format!("import item {item_id:?} has no expression owner"),
+            })?;
+        let source = expression_id.into_global_any(self.view.tree().module_id);
+        let edge = self
+            .modules
+            .edge_for_source(source, dir::ModuleRelation::Import)
+            .ok_or_else(|| ExportError::Internal {
+                anchor: self.module_anchor(),
+                module: self.view.tree().module_id,
+                message: format!("import expression {expression_id:?} has no module edge"),
+            })?;
 
-            let Ok(expression_id) = edge.source.local_id.try_into_typed::<dir::Expression>() else {
-                continue;
-            };
-            let expression = self.view.get(expression_id);
-            let dir::Expression::Import {
-                items: Some(items), ..
-            } = expression
-            else {
-                continue;
-            };
-            if items.contains(&item_id) {
-                return edge.target;
-            }
-        }
-
-        None
+        Ok(Some(dir::ExportBinding::Import {
+            local: symbol_id,
+            module: edge.target,
+            selector,
+        }))
     }
 
     /// Render one static export key.
@@ -264,18 +336,32 @@ impl<'a> ExportState<'a> {
     /// Return the source anchor for one local export.
     pub(in crate::export) fn local_export_anchor(
         &self,
-        export: &dir::LocalExport,
+        export: &dir::NamedExport,
     ) -> ExportResult<DiagnosticAnchor> {
         if let Some(item) = export.item {
             return self.anchor_node(item.id);
         }
 
-        let symbol = self.bindings.get_symbol(export.source);
+        let dir::ExportBinding::Local { symbols } = &export.binding else {
+            return Err(ExportError::Internal {
+                anchor: self.module_anchor(),
+                module: self.view.tree().module_id,
+                message: format!("indirect export {:?} has no local anchor", export.key),
+            });
+        };
+        let Some(source) = symbols.first().copied() else {
+            return Err(ExportError::Internal {
+                anchor: self.module_anchor(),
+                module: self.view.tree().module_id,
+                message: format!("local export {:?} has no source", export.key),
+            });
+        };
+        let symbol = self.bindings.get_symbol(source);
         let Some(declaration) = symbol.declaration else {
             return Err(ExportError::Internal {
                 anchor: self.module_anchor(),
                 module: self.view.tree().module_id,
-                message: format!("exported symbol {:?} has no declaration", export.source),
+                message: format!("exported symbol {source:?} has no declaration"),
             });
         };
 

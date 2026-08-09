@@ -6,6 +6,74 @@ import type { Span } from "../../source/file/model/span.js";
 import { decodeCallItem, encodeCallItem, fromJsonCallItem, toJsonCallItem } from "./call_item.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../../source/file/model/span.js";
 
+/** One incoming call. */
+export type IncomingCall = {
+    /** The item that contains the call sites. */
+    readonly from: CallItem;
+    /** The call expression ranges within `from`. */
+    readonly fromRanges: ReadonlyArray<Span>;
+};
+
+export const IncomingCall = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: IncomingCall): void {
+        encodeIncomingCall(writer, value);
+    },
+
+    /** Decode one IncomingCall. */
+    decode(reader: BinaryReader): IncomingCall {
+        return decodeIncomingCall(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: IncomingCall): Json {
+        return toJsonIncomingCall(value);
+    },
+
+    /** Return one IncomingCall from one JSON value. */
+    fromJson(value: Json): IncomingCall {
+        return fromJsonIncomingCall(value);
+    },
+};
+
+/** Encode one IncomingCall. */
+export function encodeIncomingCall(writer: BinaryWriter, value: IncomingCall): void {
+    encodeCallItem(writer, value.from);
+    writer.writeUnsigned(value.fromRanges.length);
+    for (const item1 of value.fromRanges) {
+        encodeSpan(writer, item1);
+    }
+}
+
+/** Decode one IncomingCall. */
+export function decodeIncomingCall(reader: BinaryReader): IncomingCall {
+    const from_ = decodeCallItem(reader);
+    const fromRanges = (() => { const length1 = reader.readNumber(); const items1: Array<Span> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeSpan(reader)); } return items1; })();
+
+    return {
+        from: from_,
+        fromRanges,
+    };
+}
+
+/** Return one JSON value for one IncomingCall. */
+export function toJsonIncomingCall(value: IncomingCall): Json {
+    return {
+        from: toJsonCallItem(value.from),
+        fromRanges: value.fromRanges.map((item0) => toJsonSpan(item0)),
+    };
+}
+
+/** Return one IncomingCall from one JSON value. */
+export function fromJsonIncomingCall(value: Json): IncomingCall {
+    const object = jsonObject(value);
+
+    return {
+        from: fromJsonCallItem(jsonField(object, "from")),
+        fromRanges: jsonArray(jsonField(object, "fromRanges")).map((item0) => fromJsonSpan(item0)),
+    };
+}
+
 /** Request incoming calls. */
 export type IncomingCallsRequest = {
     /** The call item to expand. */
@@ -122,73 +190,5 @@ export function fromJsonIncomingCallsResponse(value: Json): IncomingCallsRespons
 
     return {
         calls: jsonArray(jsonField(object, "calls")).map((item0) => fromJsonIncomingCall(item0)),
-    };
-}
-
-/** One incoming call. */
-export type IncomingCall = {
-    /** The item that contains the call sites. */
-    readonly from: CallItem;
-    /** The call expression ranges within `from`. */
-    readonly fromRanges: ReadonlyArray<Span>;
-};
-
-export const IncomingCall = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: IncomingCall): void {
-        encodeIncomingCall(writer, value);
-    },
-
-    /** Decode one IncomingCall. */
-    decode(reader: BinaryReader): IncomingCall {
-        return decodeIncomingCall(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: IncomingCall): Json {
-        return toJsonIncomingCall(value);
-    },
-
-    /** Return one IncomingCall from one JSON value. */
-    fromJson(value: Json): IncomingCall {
-        return fromJsonIncomingCall(value);
-    },
-};
-
-/** Encode one IncomingCall. */
-export function encodeIncomingCall(writer: BinaryWriter, value: IncomingCall): void {
-    encodeCallItem(writer, value.from);
-    writer.writeUnsigned(value.fromRanges.length);
-    for (const item1 of value.fromRanges) {
-        encodeSpan(writer, item1);
-    }
-}
-
-/** Decode one IncomingCall. */
-export function decodeIncomingCall(reader: BinaryReader): IncomingCall {
-    const from_ = decodeCallItem(reader);
-    const fromRanges = (() => { const length1 = reader.readNumber(); const items1: Array<Span> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeSpan(reader)); } return items1; })();
-
-    return {
-        from: from_,
-        fromRanges,
-    };
-}
-
-/** Return one JSON value for one IncomingCall. */
-export function toJsonIncomingCall(value: IncomingCall): Json {
-    return {
-        from: toJsonCallItem(value.from),
-        fromRanges: value.fromRanges.map((item0) => toJsonSpan(item0)),
-    };
-}
-
-/** Return one IncomingCall from one JSON value. */
-export function fromJsonIncomingCall(value: Json): IncomingCall {
-    const object = jsonObject(value);
-
-    return {
-        from: fromJsonCallItem(jsonField(object, "from")),
-        fromRanges: jsonArray(jsonField(object, "fromRanges")).map((item0) => fromJsonSpan(item0)),
     };
 }

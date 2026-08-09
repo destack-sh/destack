@@ -5,7 +5,7 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalNodeIdAny, GlobalSymbolId, LabelResolution, NameResolution, Path, SegmentView};
+use crate::{GlobalNodeIdAny, GlobalSymbolId, NameResolution, Path, SegmentView};
 
 /// Cumulative lexical resolutions for one DIR module.
 #[derive(Debug, Clone)]
@@ -82,14 +82,6 @@ impl<'a> ResolutionTable<'a> {
             .find_map(|inner| inner.path_resolution(node_id, segment))
     }
 
-    /// Get the label resolution for a node.
-    pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<LabelResolution> {
-        self.segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.label_resolution(node_id))
-    }
-
     /// Get the unresolved reference path for a node.
     pub fn unresolved_reference(&self, node_id: GlobalNodeIdAny) -> Option<&Path> {
         self.segments
@@ -114,13 +106,6 @@ impl<'a> ResolutionTable<'a> {
             .flat_map(|segment| segment.path_entries())
     }
 
-    /// Iterate visible label resolutions.
-    pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &LabelResolution)> + '_ {
-        self.segments
-            .iter()
-            .flat_map(|segment| segment.label_entries())
-    }
-
     /// Iterate visible unresolved reference paths.
     pub fn unresolved_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &Path)> + '_ {
         self.segments
@@ -143,8 +128,6 @@ pub struct ResolutionSegment {
     names: IndexMap<GlobalNodeIdAny, NameResolution>,
     /// Resolved path segment names keyed by DIR node and segment index.
     paths: IndexMap<(GlobalNodeIdAny, u16), NameResolution>,
-    /// Resolved labels keyed by DIR node.
-    labels: IndexMap<GlobalNodeIdAny, LabelResolution>,
     /// Unresolved reference paths keyed by DIR node.
     unresolved: IndexMap<GlobalNodeIdAny, Path>,
 }
@@ -156,7 +139,6 @@ impl ResolutionSegment {
             module_id,
             names: IndexMap::default(),
             paths: IndexMap::default(),
-            labels: IndexMap::default(),
             unresolved: IndexMap::default(),
         }
     }
@@ -200,16 +182,6 @@ impl ResolutionSegment {
         self.paths.get(&(node_id, segment))
     }
 
-    /// Set the label resolution for a node.
-    pub fn set_label_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: LabelResolution) {
-        self.labels.insert(node_id, resolution);
-    }
-
-    /// Get the label resolution for a node.
-    pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<LabelResolution> {
-        self.labels.get(&node_id).copied()
-    }
-
     /// Set the unresolved reference path for a node.
     pub fn set_unresolved_reference(&mut self, node_id: GlobalNodeIdAny, path: Path) {
         self.unresolved.insert(node_id, path);
@@ -234,13 +206,6 @@ impl ResolutionSegment {
             .map(|(key, resolution)| (*key, resolution))
     }
 
-    /// Iterate the label resolutions in this segment.
-    pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &LabelResolution)> + '_ {
-        self.labels
-            .iter()
-            .map(|(node_id, resolution)| (*node_id, resolution))
-    }
-
     /// Iterate the unresolved reference paths in this segment.
     pub fn unresolved_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &Path)> + '_ {
         self.unresolved
@@ -253,10 +218,7 @@ impl ResolutionSegment {
         self.names
             .retain(|node, name| sealed.names.get(node) != Some(name));
         self.paths
-            .retain(|key, resolution| sealed.paths.get(key) != Some(resolution));
-        self.labels
-            .retain(|node, resolution| sealed.labels.get(node) != Some(resolution));
-        self.unresolved
+            .retain(|key, resolution| sealed.paths.get(key) != Some(resolution));        self.unresolved
             .retain(|node, path| sealed.unresolved.get(node) != Some(path));
     }
 
@@ -264,7 +226,6 @@ impl ResolutionSegment {
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
             && self.paths.is_empty()
-            && self.labels.is_empty()
             && self.unresolved.is_empty()
     }
 }

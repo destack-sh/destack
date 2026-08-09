@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CallIndex {
     /// The calls ordered by callee symbol.
-    by_callee: Vec<CallEntry>,
-    /// The calls ordered by caller symbol.
-    by_caller: Vec<CallEntry>,
+    entries: Vec<CallEntry>,
+    /// Call ordinals ordered by caller symbol.
+    by_caller: Vec<u32>,
 }
 
 /// Call postings by caller and callee symbols.
@@ -25,8 +25,8 @@ impl CallIndex {
     /// Create a call index from entries.
     pub fn new(entries: Vec<CallEntry>) -> Self {
         let mut index = Self {
-            by_callee: entries.clone(),
-            by_caller: entries,
+            entries,
+            by_caller: Vec::new(),
         };
         index.finish();
 
@@ -35,38 +35,44 @@ impl CallIndex {
 
     /// Sort and deduplicate this index.
     pub fn finish(&mut self) {
-        self.by_callee.sort_by(CallEntry::compare_by_callee);
-        self.by_callee.dedup();
+        // normalize calls in callee order
+        self.entries.sort_by(CallEntry::compare_by_callee);
+        self.entries.dedup();
 
-        self.by_caller.sort_by(CallEntry::compare_by_caller);
-        self.by_caller.dedup();
+        // index calls in caller order
+        self.by_caller = (0..self.entries.len() as u32).collect();
+        self.by_caller
+            .retain(|ordinal| self.entries[*ordinal as usize].caller.is_some());
+        self.by_caller.sort_by(|left, right| {
+            self.entries[*left as usize].compare_by_caller(&self.entries[*right as usize])
+        });
     }
 
     /// Iterate calls that target one callee symbol.
     pub fn callee_entries(&self, callee: GlobalSymbolId) -> impl Iterator<Item = &CallEntry> {
         let range = self.callee_range(callee);
 
-        self.by_callee[range].iter()
+        self.entries[range].iter()
     }
 
     /// Iterate calls that originate from one caller symbol.
     pub fn caller_entries(&self, caller: GlobalSymbolId) -> impl Iterator<Item = &CallEntry> {
         let range = self.caller_range(caller);
 
-        self.by_caller[range].iter()
+        self.by_caller[range]
+            .iter()
+            .map(|ordinal| &self.entries[*ordinal as usize])
     }
 
     /// Return all calls ordered by callee.
     pub fn entries(&self) -> &[CallEntry] {
-        &self.by_callee
+        &self.entries
     }
 
     /// Return the stored range for one callee symbol.
     fn callee_range(&self, callee: GlobalSymbolId) -> std::ops::Range<usize> {
-        let start = self
-            .by_callee
-            .partition_point(|entry| entry.callee < callee);
-        let end = self.by_callee[start..].partition_point(|entry| entry.callee == callee) + start;
+        let start = self.entries.partition_point(|entry| entry.callee < callee);
+        let end = self.entries[start..].partition_point(|entry| entry.callee == callee) + start;
 
         start..end
     }
@@ -76,8 +82,10 @@ impl CallIndex {
         let caller = Some(caller);
         let start = self
             .by_caller
-            .partition_point(|entry| entry.caller < caller);
-        let end = self.by_caller[start..].partition_point(|entry| entry.caller == caller) + start;
+            .partition_point(|ordinal| self.entries[*ordinal as usize].caller < caller);
+        let end = self.by_caller[start..]
+            .partition_point(|ordinal| self.entries[*ordinal as usize].caller == caller)
+            + start;
 
         start..end
     }

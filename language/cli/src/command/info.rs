@@ -24,7 +24,7 @@ pub struct InfoArgs {
 }
 
 /// Show workspace and target information.
-pub fn run(args: &InfoArgs) -> i32 {
+pub async fn run(args: &InfoArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("info", &args.program, &args.report) {
         return code;
     }
@@ -39,12 +39,15 @@ pub fn run(args: &InfoArgs) -> i32 {
         ..(CommandRevision::Current, common).into()
     };
 
-    run_workspace_payload_command_or_report::<InfoPayload, _, _>(
+    run_workspace_payload_command_or_report::<InfoPayload, _, _, _>(
         "info",
         &args.report,
         &args.program,
-        |workspace, root, _| {
-            let result = workspace.info(root, request, None).map_err(command_error)?;
+        async |workspace, root, _| {
+            let result = workspace
+                .info(root, request, None)
+                .await
+                .map_err(command_error)?;
 
             CommandResult::from_output(result)
         },
@@ -73,6 +76,7 @@ pub fn run(args: &InfoArgs) -> i32 {
             }
         },
     )
+    .await
 }
 
 /// Emit target details for an info payload section.

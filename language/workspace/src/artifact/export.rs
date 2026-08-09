@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// Request to materialize derived outputs on the workspace host.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct ExportRequest {
+pub struct ExportInput {
     /// Artifact to export.
     pub artifact: ArtifactReference,
     /// Output directory on the workspace host.

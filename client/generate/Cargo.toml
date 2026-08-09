@@ -15,6 +15,7 @@ path = "src/main.rs"
 [dependencies]
 # destack
 destack_serde.workspace = true
+destack_rpc.workspace = true
 destack_workspace.workspace = true
 
 # general

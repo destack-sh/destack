@@ -8,7 +8,11 @@ declare_lint_stub! {
     pub MISSING_CONTROL_FLOW_COMMENT {
         id: "missing-control-flow-comment",
         summary: "Require intent comments before substantial control flow",
-        explanation: "A substantial branch or loop should state the operation it performs when the code alone does not provide a short local name. The comment must describe intent rather than restate the condition, and trivial guards remain exempt.",
+        explanation: r#"
+A substantial branch or loop should state the operation it performs when the code alone does not
+provide a short local name. The comment must describe intent rather than restate the condition, and
+trivial guards remain exempt.
+"#,
         example: {
             reported: r#"
 function sum(limit: int32): int32 {

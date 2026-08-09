@@ -375,6 +375,8 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
 /// @definition.implements symbol=<module>#2 source=Keyed<K> target=Keyed<K#2>
 /// @definition.associated.type symbol=Output source="type Output = V | undefined" key=Output value="V#2 | undefined"
 /// @definition.method symbol=index slot=index type=<index.'a>(this: &index.'a exclusive this, K#2) => V#2 | undefined
+/// @definition.conformance symbol=<module>#2 member=Output requirement=Keyed.Output
+/// @definition.conformance symbol=<module>#2 member=index requirement=Keyed.index
 /// @type.symbol symbol=K source="K: Hash" type=K#2
 /// @resolution.name source=Hash target=ops.hash.Hash
 /// @type.symbol symbol=V source=V type=V#2

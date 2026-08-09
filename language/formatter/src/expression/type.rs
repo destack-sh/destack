@@ -114,14 +114,19 @@ fn type_needs_index_object_parentheses(
     }
 }
 
-/// One summary of union-leading comments.
+/// Leading comments relevant to union layout.
 #[derive(Debug, Clone, Copy, Default)]
-struct LeadingCommentShape {
+struct LeadingComments {
+    /// Whether any leading comments exist.
     has_comments: bool,
+    /// Whether a comment begins on its own line.
     has_own_line_comment: bool,
+    /// Whether a comment ends its line.
     has_end_of_line_comment: bool,
+    /// Whether a trailing block comment occupies its own line.
     has_trailing_own_line_block_comment: bool,
-    has_jsdoc_line_break: bool,
+    /// Whether documentation ends its line.
+    has_documentation_line_break: bool,
 }
 
 /// The object type body layout for type expression formatting.
@@ -180,27 +185,27 @@ impl DerivedParentheses {
     }
 }
 
-impl LeadingCommentShape {
+impl LeadingComments {
     /// Classify one sequence of leading comments.
     fn from_comments(comments: &[Comment]) -> Self {
-        let mut shape = Self {
+        let mut leading = Self {
             has_comments: !comments.is_empty(),
             ..Self::default()
         };
 
-        // classify every comment boundary
+        // classify every comment
         for comment in comments.iter().copied() {
-            shape.has_own_line_comment |= comment.preceded_by_newline();
-            shape.has_end_of_line_comment |= comment.followed_by_newline();
-            shape.has_trailing_own_line_block_comment |= comment.is_block()
+            leading.has_own_line_comment |= comment.preceded_by_newline();
+            leading.has_end_of_line_comment |= comment.followed_by_newline();
+            leading.has_trailing_own_line_block_comment |= comment.is_block()
                 && comment.is_trailing()
                 && comment.followed_by_newline()
                 && !comment.is_documentation();
-            shape.has_jsdoc_line_break |=
+            leading.has_documentation_line_break |=
                 comment.is_documentation() && comment.followed_by_newline();
         }
 
-        shape
+        leading
     }
 }
 
@@ -1068,7 +1073,7 @@ fn union_should_hug(
 fn union_should_indent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
-    leading_comment_shape: LeadingCommentShape,
+    leading_comments: LeadingComments,
 ) -> bool {
     let Some((parent_id, parent_type)) = union_indent_parent(context, node_id) else {
         return false;
@@ -1081,7 +1086,7 @@ fn union_should_indent(
             match context.tree.get(declaration_id) {
                 // type aliases have one comment-sensitive layout
                 Declaration::Type(_) => {
-                    type_alias_union_should_indent(context, declaration_id, leading_comment_shape)
+                    type_alias_union_should_indent(context, declaration_id, leading_comments)
                 }
 
                 // other declarations follow the default union layout
@@ -1095,7 +1100,7 @@ fn union_should_indent(
         // direct type arguments already indent their value wrapper
         NodeType::GenericArgument => false,
 
-        // expression parents need one more shape-based split
+        // expression parents follow their own layout
         NodeType::Expression => {
             let expression_id = LocalNodeId::<Expression>::new(parent_id);
 
@@ -1111,10 +1116,10 @@ fn union_should_indent(
 fn type_alias_union_should_indent(
     context: &DestackFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
-    leading_comment_shape: LeadingCommentShape,
+    leading_comments: LeadingComments,
 ) -> bool {
-    // jsdoc before the union arms already inherits the assignment layout
-    if leading_comment_shape.has_jsdoc_line_break {
+    // keep documented union arms at the assignment indentation
+    if leading_comments.has_documentation_line_break {
         return false;
     }
 
@@ -1328,7 +1333,7 @@ pub(crate) fn write_union_type<'ast>(
     };
 
     // inline unions
-    let leading_comment_shape = LeadingCommentShape::from_comments(&union_leading_comments);
+    let leading_comments = LeadingComments::from_comments(&union_leading_comments);
     let should_hug = union_should_hug(f, format_node_id, format_elements)
         && !has_leading_separator_prefix_comment
         && !format_elements
@@ -1344,7 +1349,7 @@ pub(crate) fn write_union_type<'ast>(
     }
 
     // multiline indent
-    let should_indent = union_should_indent(f.context(), node_id, leading_comment_shape);
+    let should_indent = union_should_indent(f.context(), node_id, leading_comments);
     let needs_parentheses = parent_needs_parentheses && !is_in_explicit_parentheses;
     let chain_head = union_chain_head(f.context(), format_node_id, format_elements.len());
     let only_type = chain_head.element_count == 1;
@@ -1353,7 +1358,7 @@ pub(crate) fn write_union_type<'ast>(
     // grouped content
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let leading_separator = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if should_indent && !leading_comment_shape.has_comments {
+            if should_indent && !leading_comments.has_comments {
                 write!(f, [soft_line_break_or_space()])?;
             }
 
@@ -1468,7 +1473,7 @@ pub(crate) fn write_union_type<'ast>(
     });
 
     let format_inner_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let has_own_line_comment = leading_comment_shape.has_own_line_comment
+        let has_own_line_comment = leading_comments.has_own_line_comment
             || matches!(
                 chain_head.parent,
                 Some((parent_id, NodeType::Declaration))
@@ -1478,10 +1483,10 @@ pub(crate) fn write_union_type<'ast>(
                             .get(LocalNodeId::<Declaration>::new(parent_id)),
                         Declaration::Type(_)
                     )
-            ) && leading_comment_shape.has_trailing_own_line_block_comment;
+            ) && leading_comments.has_trailing_own_line_block_comment;
 
         if (has_own_line_comment && !only_type)
-            || (leading_comment_shape.has_end_of_line_comment && only_type)
+            || (leading_comments.has_end_of_line_comment && only_type)
         {
             write!(f, [soft_line_break()])?;
         }
@@ -1493,7 +1498,7 @@ pub(crate) fn write_union_type<'ast>(
             )?;
         }
 
-        if !leading_comment_shape.has_end_of_line_comment && has_own_line_comment && only_type {
+        if !leading_comments.has_end_of_line_comment && has_own_line_comment && only_type {
             write!(f, [soft_line_break()])?;
         }
 

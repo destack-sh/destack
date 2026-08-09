@@ -304,8 +304,8 @@ newtype Edge<T> =
 /// @type.symbol symbol=Edge.Bounded type=<T#1>({ limit: T#1 }) => Edge.Bounded<T#1>
 /// @type.symbol symbol=Edge.Open type=Edge.Open<T#1>
 /// @definition.newtype symbol=Edge template=(in out T#1) discriminator=kind backing={ kind: "bounded"; limit: T#1 } | { kind: "open" }
-/// @definition.variant symbol=Edge.Bounded key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: T#1 } argument={ limit: T#1 }
-/// @definition.variant symbol=Edge.Open key=Open discriminant=open backing={ kind: "open" }
+/// @definition.variant symbol=Edge.Bounded source={ kind: "bounded"; limit: T } key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: T#1 } argument={ limit: T#1 }
+/// @definition.variant symbol=Edge.Open source={ kind: "open" } key=Open discriminant=open backing={ kind: "open" }
 /// @type.symbol symbol=Edge.T source=T type=T#1
 
     | { kind: "bounded"; limit: T }
@@ -404,8 +404,8 @@ newtype Edge<T> =
 /// @type.symbol symbol=Edge.Bounded type=<T>({ limit: T }) => Edge.Bounded<T>
 /// @type.symbol symbol=Edge.Open type=Edge.Open<T>
 /// @definition.newtype symbol=Edge template=(in out T) discriminator=kind backing={ kind: "bounded"; limit: T } | { kind: "open" }
-/// @definition.variant symbol=Edge.Bounded key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: T } argument={ limit: T }
-/// @definition.variant symbol=Edge.Open key=Open discriminant=open backing={ kind: "open" }
+/// @definition.variant symbol=Edge.Bounded source={ kind: "bounded"; limit: T } key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: T } argument={ limit: T }
+/// @definition.variant symbol=Edge.Open source={ kind: "open" } key=Open discriminant=open backing={ kind: "open" }
 /// @type.symbol symbol=Edge.T source=T type=T
 
     | { kind: "bounded"; limit: T }

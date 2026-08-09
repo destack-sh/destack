@@ -2,7 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    GenericArgument, Origin, Receiver, TypeSubstitution, VariableRole, WalkState, Widening,
+    GenericArgument, MemberRole, Origin, Receiver, TypeSubstitution, VariableRole, WalkState,
+    Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -645,7 +646,7 @@ impl WalkState<'_, '_> {
                 }
             }
             Some(dir::Reference::Projected {
-                base: dir::ImportTarget::Symbol(base),
+                base: dir::ReferenceTarget::Symbol(base),
                 ..
             }) => {
                 self.commit_reference_name(source, base)?;
@@ -656,7 +657,7 @@ impl WalkState<'_, '_> {
             }
             Some(dir::Reference::Namespace(_))
             | Some(dir::Reference::Projected {
-                base: dir::ImportTarget::Namespace(_),
+                base: dir::ReferenceTarget::Namespace(_),
                 ..
             })
             | Some(dir::Reference::Missing) => {
@@ -694,7 +695,7 @@ impl WalkState<'_, '_> {
 
             // project a type-member path from the resolved base declaration
             Some(dir::Reference::Projected {
-                base: dir::ImportTarget::Symbol(base),
+                base: dir::ReferenceTarget::Symbol(base),
                 from,
             }) => self.walk_member_path_type(
                 id,
@@ -715,7 +716,7 @@ impl WalkState<'_, '_> {
             // reject namespaces and missing references in type position
             Some(dir::Reference::Namespace(_))
             | Some(dir::Reference::Projected {
-                base: dir::ImportTarget::Namespace(_),
+                base: dir::ReferenceTarget::Namespace(_),
                 ..
             })
             | Some(dir::Reference::Missing) => {
@@ -1161,18 +1162,13 @@ impl WalkState<'_, '_> {
                         tracked,
                     )?;
 
-                    let access = match signature.role {
-                        Some(dir::FunctionRole::Getter) => {
-                            dir::PropertyAccess::Read(self.type_member_getter_type(ty)?)
-                        }
-                        Some(dir::FunctionRole::Setter) => {
-                            dir::PropertyAccess::Write(self.type_member_setter_type(ty)?)
-                        }
-                        _ => dir::PropertyAccess::ReadWrite {
-                            read: ty,
-                            write: ty,
-                        },
-                    };
+                    let role = MemberRole::from(signature.role);
+                    let access = self
+                        .check
+                        .property_access(role, ty, false)?
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: format!("structural property {member:?} has no access"),
+                        })?;
                     push_shape_property(
                         &mut properties,
                         dir::TypeProperty {
@@ -1449,45 +1445,6 @@ impl WalkState<'_, '_> {
             modifiers: dir::MappedTypeModifiers { readonly, optional },
             value,
         }))
-    }
-    /// Return the result type of one structural getter.
-    fn type_member_getter_type(&self, ty: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
-        let dir::Type::FunctionSignature(function) = self.check.ty(ty)? else {
-            return Err(CompilerError::Internal {
-                message: format!("structural getter has non-signature type {ty:?}"),
-            });
-        };
-        let function = self.check.type_signature(ty.module_id, function)?;
-        let Some(result) = function.return_type else {
-            return Err(CompilerError::Internal {
-                message: "structural getter has no result type".into(),
-            });
-        };
-
-        Ok(result)
-    }
-
-    /// Return the parameter type of one structural setter.
-    fn type_member_setter_type(&self, ty: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
-        let dir::Type::FunctionSignature(function) = self.check.ty(ty)? else {
-            return Err(CompilerError::Internal {
-                message: format!("structural setter has non-signature type {ty:?}"),
-            });
-        };
-        let function = self.check.type_signature(ty.module_id, function)?;
-        let parameters = self
-            .check
-            .signature_parameters(ty.module_id, function.parameters)?;
-        let [parameter] = parameters else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "structural setter has {} value parameters",
-                    parameters.len()
-                ),
-            });
-        };
-
-        Ok(parameter.ty)
     }
 }
 

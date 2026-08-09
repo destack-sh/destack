@@ -1302,6 +1302,7 @@ declare class Promise<T> {
     /// @type.symbol symbol=Promise.then source="then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>" type=<U#1>(this: this, Function<(T#1,), U#1 | Promise<U#1>>) => Promise<U#1>
     /// @type.symbol symbol=Promise.then.U source=U type=U#1
     /// @type.symbol symbol=Promise.then.onFulfilled source="onFulfilled: (value: T) => U | Promise<U>" type=Function<(T#1,), U#1 | Promise<U#1>>
+    /// @type.symbol symbol=Promise.then.value source="value: T" type=T#1
     /// @resolution.name source=T target=Promise.T
     /// @resolution.name source=U target=Promise.then.U
     /// @resolution.name source=Promise target=Promise
@@ -1355,8 +1356,8 @@ newtype Result<T, E> = Ok<T> | Err<E>;
 /// @type.symbol symbol=Result.Err type=<T#3, E#2>({ error: E#2 }) => Result.Err<T#3, E#2>
 /// @type.symbol symbol=Result.Ok type=<T#3, E#2>({ value: T#3 }) => Result.Ok<T#3, E#2>
 /// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#3, out E#2) discriminator=kind backing=Ok<T#3> | Err<E#2>
-/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err discriminant=Err backing=Err<E#2> argument={ error: E#2 }
-/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok discriminant=Ok backing=Ok<T#3> argument={ value: T#3 }
+/// @definition.variant symbol=Result.Err source=Err<E> key=Err discriminant=Err backing=Err<E#2> argument={ error: E#2 }
+/// @definition.variant symbol=Result.Ok source=Ok<T> key=Ok discriminant=Ok backing=Ok<T#3> argument={ value: T#3 }
 /// @type.symbol symbol=Result.T source=T type=T#3
 /// @type.symbol symbol=Result.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -1389,6 +1390,7 @@ extension<T, E> of Result<T, E> {
     /// @type.symbol symbol=andThen.U source=U type=U#2
     /// @type.symbol symbol=andThen.F source=F type=F#1
     /// @type.symbol symbol=andThen.f source="f: (value: T) => Result<U, F>" type=Function<(T#5,), Result<U#2, F#1>>
+    /// @type.symbol symbol=andThen.value source="value: T" type=T#5
     /// @resolution.name source=T target=T#1
     /// @resolution.name source=Result target=Result
     /// @resolution.name source=U target=andThen.U
@@ -1436,6 +1438,7 @@ extension<T, E> of AsyncResult<T, E> {
     /// @type.symbol symbol=andThenSync.U source=U type=U#3
     /// @type.symbol symbol=andThenSync.F source=F type=F#2
     /// @type.symbol symbol=andThenSync.f source="f: (value: T) => Result<U, F>" type=Function<(T#7,), Result<U#3, F#2>>
+    /// @type.symbol symbol=andThenSync.value source="value: T" type=T#7
     /// @resolution.name source=T target=T#2
     /// @resolution.name source=Result target=Result
     /// @resolution.name source=U target=andThenSync.U

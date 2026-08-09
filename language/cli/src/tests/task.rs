@@ -1,7 +1,7 @@
 use crate::command::task::{TaskArgs, run};
 use crate::common::ReportArgs;
 
-use super::tests::{TestProgram, assert_success};
+use super::tests::{TestProgram, assert_success, execute};
 use serde_json::json;
 
 /// Lists tasks defined in destack.json.
@@ -29,7 +29,7 @@ fn test_task_list_reads_tasks() {
     };
 
     // run the task command
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the command succeeded
     assert_success(code);
@@ -60,7 +60,7 @@ fn test_task_run_dry_run() {
     };
 
     // run the task command
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the command succeeded
     assert_success(code);
@@ -114,7 +114,7 @@ fn test_task_run_dry_run_for_workspace_group() {
     };
 
     // run the task command
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the command succeeded
     assert_success(code);

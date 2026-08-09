@@ -179,7 +179,6 @@ impl Worker {
                     }
                     .boxed());
                 }
-                // TODO(#141): drive the event loop under a parked entry fiber
                 Outcome::Parked => {
                     return Err(RuntimeError::Internal {
                         message: "entry execution parked outside the event loop".to_string(),

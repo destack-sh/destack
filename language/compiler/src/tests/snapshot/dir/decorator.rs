@@ -29,7 +29,7 @@ impl SnapshotTable for dir::DecoratorSegment {
                             "parameters",
                             arguments
                                 .iter()
-                                .map(|argument| builder.global_type_label(argument.ty)),
+                                .map(|argument| builder.global_type_label(argument.parameter_type)),
                         )
                         .optional_field("arguments", builder.argument_bindings_label(arguments));
 

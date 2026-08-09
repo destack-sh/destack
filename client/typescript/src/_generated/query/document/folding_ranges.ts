@@ -6,132 +6,6 @@ import type { FileId } from "../../source/file/model/file.js";
 import { decodeModule, encodeModule, fromJsonModule, toJsonModule } from "../protocol/target.js";
 import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../../source/file/model/file.js";
 
-/** Request folding ranges for a document. */
-export type FoldingRangesRequest = {
-    /** The queried module profile. */
-    readonly module: Module;
-    /** The queried source file. */
-    readonly fileId: FileId;
-};
-
-export const FoldingRangesRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: FoldingRangesRequest): void {
-        encodeFoldingRangesRequest(writer, value);
-    },
-
-    /** Decode one FoldingRangesRequest. */
-    decode(reader: BinaryReader): FoldingRangesRequest {
-        return decodeFoldingRangesRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: FoldingRangesRequest): Json {
-        return toJsonFoldingRangesRequest(value);
-    },
-
-    /** Return one FoldingRangesRequest from one JSON value. */
-    fromJson(value: Json): FoldingRangesRequest {
-        return fromJsonFoldingRangesRequest(value);
-    },
-};
-
-/** Encode one FoldingRangesRequest. */
-export function encodeFoldingRangesRequest(writer: BinaryWriter, value: FoldingRangesRequest): void {
-    encodeModule(writer, value.module);
-    encodeFileId(writer, value.fileId);
-}
-
-/** Decode one FoldingRangesRequest. */
-export function decodeFoldingRangesRequest(reader: BinaryReader): FoldingRangesRequest {
-    const module_ = decodeModule(reader);
-    const fileId = decodeFileId(reader);
-
-    return {
-        module: module_,
-        fileId,
-    };
-}
-
-/** Return one JSON value for one FoldingRangesRequest. */
-export function toJsonFoldingRangesRequest(value: FoldingRangesRequest): Json {
-    return {
-        module: toJsonModule(value.module),
-        fileId: toJsonFileId(value.fileId),
-    };
-}
-
-/** Return one FoldingRangesRequest from one JSON value. */
-export function fromJsonFoldingRangesRequest(value: Json): FoldingRangesRequest {
-    const object = jsonObject(value);
-
-    return {
-        module: fromJsonModule(jsonField(object, "module")),
-        fileId: fromJsonFileId(jsonField(object, "fileId")),
-    };
-}
-
-/** Response payload for folding ranges queries. */
-export type FoldingRangesResponse = {
-    /** Folding ranges. */
-    readonly ranges: ReadonlyArray<FoldingRange>;
-};
-
-export const FoldingRangesResponse = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: FoldingRangesResponse): void {
-        encodeFoldingRangesResponse(writer, value);
-    },
-
-    /** Decode one FoldingRangesResponse. */
-    decode(reader: BinaryReader): FoldingRangesResponse {
-        return decodeFoldingRangesResponse(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: FoldingRangesResponse): Json {
-        return toJsonFoldingRangesResponse(value);
-    },
-
-    /** Return one FoldingRangesResponse from one JSON value. */
-    fromJson(value: Json): FoldingRangesResponse {
-        return fromJsonFoldingRangesResponse(value);
-    },
-};
-
-/** Encode one FoldingRangesResponse. */
-export function encodeFoldingRangesResponse(writer: BinaryWriter, value: FoldingRangesResponse): void {
-    writer.writeUnsigned(value.ranges.length);
-    for (const item0 of value.ranges) {
-        encodeFoldingRange(writer, item0);
-    }
-}
-
-/** Decode one FoldingRangesResponse. */
-export function decodeFoldingRangesResponse(reader: BinaryReader): FoldingRangesResponse {
-    const ranges = (() => { const length0 = reader.readNumber(); const items0: Array<FoldingRange> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeFoldingRange(reader)); } return items0; })();
-
-    return {
-        ranges,
-    };
-}
-
-/** Return one JSON value for one FoldingRangesResponse. */
-export function toJsonFoldingRangesResponse(value: FoldingRangesResponse): Json {
-    return {
-        ranges: value.ranges.map((item0) => toJsonFoldingRange(item0)),
-    };
-}
-
-/** Return one FoldingRangesResponse from one JSON value. */
-export function fromJsonFoldingRangesResponse(value: Json): FoldingRangesResponse {
-    const object = jsonObject(value);
-
-    return {
-        ranges: jsonArray(jsonField(object, "ranges")).map((item0) => fromJsonFoldingRange(item0)),
-    };
-}
-
 /** A foldable range in source code. */
 export type FoldingRange = {
     /** Start line. */
@@ -310,4 +184,130 @@ export function fromJsonFoldingRangeKind(value: Json): FoldingRangeKind {
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
+/** Request folding ranges for a document. */
+export type FoldingRangesRequest = {
+    /** The queried module profile. */
+    readonly module: Module;
+    /** The queried source file. */
+    readonly fileId: FileId;
+};
+
+export const FoldingRangesRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: FoldingRangesRequest): void {
+        encodeFoldingRangesRequest(writer, value);
+    },
+
+    /** Decode one FoldingRangesRequest. */
+    decode(reader: BinaryReader): FoldingRangesRequest {
+        return decodeFoldingRangesRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: FoldingRangesRequest): Json {
+        return toJsonFoldingRangesRequest(value);
+    },
+
+    /** Return one FoldingRangesRequest from one JSON value. */
+    fromJson(value: Json): FoldingRangesRequest {
+        return fromJsonFoldingRangesRequest(value);
+    },
+};
+
+/** Encode one FoldingRangesRequest. */
+export function encodeFoldingRangesRequest(writer: BinaryWriter, value: FoldingRangesRequest): void {
+    encodeModule(writer, value.module);
+    encodeFileId(writer, value.fileId);
+}
+
+/** Decode one FoldingRangesRequest. */
+export function decodeFoldingRangesRequest(reader: BinaryReader): FoldingRangesRequest {
+    const module_ = decodeModule(reader);
+    const fileId = decodeFileId(reader);
+
+    return {
+        module: module_,
+        fileId,
+    };
+}
+
+/** Return one JSON value for one FoldingRangesRequest. */
+export function toJsonFoldingRangesRequest(value: FoldingRangesRequest): Json {
+    return {
+        module: toJsonModule(value.module),
+        fileId: toJsonFileId(value.fileId),
+    };
+}
+
+/** Return one FoldingRangesRequest from one JSON value. */
+export function fromJsonFoldingRangesRequest(value: Json): FoldingRangesRequest {
+    const object = jsonObject(value);
+
+    return {
+        module: fromJsonModule(jsonField(object, "module")),
+        fileId: fromJsonFileId(jsonField(object, "fileId")),
+    };
+}
+
+/** Response payload for folding ranges queries. */
+export type FoldingRangesResponse = {
+    /** Folding ranges. */
+    readonly ranges: ReadonlyArray<FoldingRange>;
+};
+
+export const FoldingRangesResponse = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: FoldingRangesResponse): void {
+        encodeFoldingRangesResponse(writer, value);
+    },
+
+    /** Decode one FoldingRangesResponse. */
+    decode(reader: BinaryReader): FoldingRangesResponse {
+        return decodeFoldingRangesResponse(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: FoldingRangesResponse): Json {
+        return toJsonFoldingRangesResponse(value);
+    },
+
+    /** Return one FoldingRangesResponse from one JSON value. */
+    fromJson(value: Json): FoldingRangesResponse {
+        return fromJsonFoldingRangesResponse(value);
+    },
+};
+
+/** Encode one FoldingRangesResponse. */
+export function encodeFoldingRangesResponse(writer: BinaryWriter, value: FoldingRangesResponse): void {
+    writer.writeUnsigned(value.ranges.length);
+    for (const item0 of value.ranges) {
+        encodeFoldingRange(writer, item0);
+    }
+}
+
+/** Decode one FoldingRangesResponse. */
+export function decodeFoldingRangesResponse(reader: BinaryReader): FoldingRangesResponse {
+    const ranges = (() => { const length0 = reader.readNumber(); const items0: Array<FoldingRange> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeFoldingRange(reader)); } return items0; })();
+
+    return {
+        ranges,
+    };
+}
+
+/** Return one JSON value for one FoldingRangesResponse. */
+export function toJsonFoldingRangesResponse(value: FoldingRangesResponse): Json {
+    return {
+        ranges: value.ranges.map((item0) => toJsonFoldingRange(item0)),
+    };
+}
+
+/** Return one FoldingRangesResponse from one JSON value. */
+export function fromJsonFoldingRangesResponse(value: Json): FoldingRangesResponse {
+    const object = jsonObject(value);
+
+    return {
+        ranges: jsonArray(jsonField(object, "ranges")).map((item0) => fromJsonFoldingRange(item0)),
+    };
 }

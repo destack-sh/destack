@@ -55,11 +55,12 @@ impl<'a> ExportIndexer<'a> {
                 continue;
             };
 
-            // retain one row per exact overload or namespace target
-            for target in self.export_targets(self.module_id, self.resolved, *export)? {
+            // retain one row for the complete exported target
+            if let Some(resolution) = self.resolve_export(self.module_id, self.resolved, export)? {
                 self.entries.push(dir::ExportEntry {
-                    name: name.clone(),
-                    target,
+                    name,
+                    declaration: resolution.declaration,
+                    target: resolution.target,
                 });
             }
         }
@@ -97,13 +98,14 @@ impl<'a> ExportIndexer<'a> {
                 let Some((exported, resolved)) = self.closure.get(&declarer) else {
                     continue;
                 };
-                let Some(export) = exported.exports.export_by_key.get(&key).copied() else {
+                let Some(export) = exported.exports.export_by_key.get(&key).cloned() else {
                     continue;
                 };
-                for target in self.export_targets(declarer, resolved, export)? {
+                if let Some(resolution) = self.resolve_export(declarer, resolved, &export)? {
                     self.entries.push(dir::ExportEntry {
                         name: name.clone(),
-                        target,
+                        declaration: resolution.declaration,
+                        target: resolution.target,
                     });
                 }
             }
@@ -165,55 +167,106 @@ impl<'a> ExportIndexer<'a> {
         }
     }
 
-    /// Return every exact target for one module's named export.
-    fn export_targets(
+    /// Return the exact resolution of one named export.
+    fn resolve_export(
         &self,
         module_id: ModuleId,
         resolved: &DirResolved,
-        export: dir::NamedExport,
-    ) -> ProviderResult<Vec<dir::ExportTarget>> {
-        match export {
-            dir::NamedExport::Local(export) => {
-                let symbol = export.source.into_global(module_id);
-
-                Ok(vec![dir::ExportTarget::Symbol(symbol)])
-            }
-            dir::NamedExport::Indirect(export) => {
-                let source = export.item.into_global_any(module_id);
-                let reference = resolved.references.get(source).ok_or_else(|| {
+        export: &dir::NamedExport,
+    ) -> ProviderResult<Option<dir::ExportResolution>> {
+        match &export.binding {
+            // resolve local declarations directly
+            dir::ExportBinding::Local { symbols } => {
+                let target = dir::ExportTarget::symbols(
+                    symbols
+                        .iter()
+                        .map(|symbol| symbol.into_global(module_id)),
+                )
+                .ok_or_else(|| {
                     ProviderError::internal(format!(
-                        "export dependency has no resolved reference: {source:?}"
+                        "local export {:?} has no declarations",
+                        export.key
                     ))
                 })?;
-                let targets = match reference {
-                    dir::Reference::Bound(symbols) => symbols
-                        .iter()
-                        .copied()
-                        .map(dir::ExportTarget::Symbol)
-                        .collect(),
-                    dir::Reference::Namespace(module) => {
-                        vec![dir::ExportTarget::Namespace(*module)]
+
+                // retain an authored public alias separately
+                let declaration = match export.declaration {
+                    Some(declaration) => {
+                        dir::ExportTarget::symbol(declaration.into_global(module_id))
                     }
-                    dir::Reference::Ambiguous(targets) => targets
-                        .iter()
-                        .map(|target| match target {
-                            dir::ImportTarget::Symbol(symbol) => dir::ExportTarget::Symbol(*symbol),
-                            dir::ImportTarget::Namespace(module) => {
-                                dir::ExportTarget::Namespace(*module)
-                            }
-                        })
-                        .collect(),
-                    dir::Reference::Missing => Vec::new(),
-                    dir::Reference::Projected { .. } => {
-                        return Err(ProviderError::internal(format!(
-                            "export dependency has a projected reference: {source:?}"
-                        ))
-                        .into());
+                    None => target.clone(),
+                };
+
+                Ok(Some(dir::ExportResolution {
+                    declaration,
+                    target,
+                }))
+            }
+
+            // resolve imported declarations and their targets separately
+            dir::ExportBinding::Import { .. } | dir::ExportBinding::ReExport { .. } => {
+                // require the dependency item and its target
+                let item = export.item.ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "indirect export {:?} has no dependency item",
+                        export.key
+                    ))
+                })?;
+                let source = item.into_global_any(module_id);
+                let target = resolved.references.get(source).ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "indirect export {item:?} has no resolved target"
+                    ))
+                })?;
+
+                // retain the authored public declaration
+                let declaration = match export.declaration {
+                    Some(declaration) => Some(dir::ExportTarget::symbol(
+                        declaration.into_global(module_id),
+                    )),
+                    None => {
+                        let declaration =
+                            resolved
+                                .references
+                                .declaration(source)
+                                .ok_or_else(|| {
+                                    ProviderError::internal(format!(
+                                        "indirect export {item:?} has no resolved declaration"
+                                    ))
+                                })?;
+
+                        self.resolve_reference(declaration, item)?
                     }
                 };
 
-                Ok(targets)
+                // retain rows with both declaration and target
+                let target = self.resolve_reference(target, item)?;
+                let (Some(declaration), Some(target)) = (declaration, target) else {
+                    return Ok(None);
+                };
+
+                Ok(Some(dir::ExportResolution {
+                    declaration,
+                    target,
+                }))
             }
+        }
+    }
+
+    /// Resolve one export reference into its target.
+    fn resolve_reference(
+        &self,
+        reference: &dir::Reference,
+        item: dir::LocalNodeId<dir::DependencyItem>,
+    ) -> ProviderResult<Option<dir::ExportTarget>> {
+        match reference {
+            dir::Reference::Bound(symbols) => Ok(Some(dir::ExportTarget::Symbols(symbols.clone()))),
+            dir::Reference::Namespace(module) => Ok(Some(dir::ExportTarget::Namespace(*module))),
+            dir::Reference::Ambiguous(_) | dir::Reference::Missing => Ok(None),
+            dir::Reference::Projected { .. } => Err(ProviderError::internal(format!(
+                "export dependency item {item:?} has a projected target"
+            ))
+            .into()),
         }
     }
 }

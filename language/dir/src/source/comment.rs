@@ -1,12 +1,9 @@
-use destack_serde::Reflect;
 use std::borrow::Cow;
 use std::fmt::Debug;
 
-use destack_core::StringId;
+use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
-
-use crate::TokenType;
 
 /// Indicates a line or block comment.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -44,7 +41,7 @@ pub enum CommentAnchor {
     End,
 }
 
-/// Newline shape flags captured around one raw comment.
+/// Newline flags captured around one source comment.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default, Reflect)]
 pub struct CommentNewlines {
@@ -98,13 +95,54 @@ pub struct Comment {
     pub anchor: CommentAnchor,
     /// The kind of the comment.
     pub kind: CommentKind,
-    /// The newline shape around the comment.
+    /// The newlines around the comment.
     pub newlines: CommentNewlines,
     /// The authored role of the comment.
     pub role: CommentRole,
 }
 
 impl Comment {
+    /// Return comment text without its source markers.
+    pub fn text<'a>(self, source: &'a str) -> Cow<'a, str> {
+        let raw = &source[self.span.start as usize..self.span.end as usize];
+        let marker_width = 2 + usize::from(self.is_documentation());
+        let closing_width = usize::from(self.is_block()) * 2;
+        let content = &raw[marker_width..raw.len() - closing_width];
+
+        match self.kind {
+            // trim the conventional space after a line marker
+            CommentKind::Line => {
+                let content = content.strip_prefix(' ').unwrap_or(content);
+
+                Cow::Borrowed(content.trim_end())
+            }
+
+            // preserve leading content inside single line block comments
+            CommentKind::SingleLineBlock => Cow::Borrowed(content.trim_end()),
+
+            // remove conventional multiline block leaders
+            CommentKind::MultiLineBlock => {
+                let mut text = String::with_capacity(content.len());
+                for (index, line) in content.lines().enumerate() {
+                    if index > 0 {
+                        text.push('\n');
+                    }
+
+                    let line = line.trim_end().trim_start();
+                    let line = line.strip_prefix('*').unwrap_or(line);
+                    let line = line.strip_prefix(' ').unwrap_or(line);
+                    text.push_str(line);
+                }
+
+                if content.ends_with('\n') {
+                    text.push('\n');
+                }
+
+                Cow::Owned(text)
+            }
+        }
+    }
+
     /// Return the content span inside the comment delimiters.
     #[inline]
     pub fn content_span(self) -> Span {
@@ -206,84 +244,5 @@ impl Comment {
         } else {
             self.newlines.bits &= !CommentNewlines::TRAILING;
         }
-    }
-}
-
-/// Normalized documentation attached to one DIR node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct Documentation {
-    /// The complete authored documentation span.
-    pub span: Span,
-    /// The normalized documentation text.
-    pub text: StringId,
-}
-
-/// Normalize one comment payload from raw source text.
-pub fn normalize_comment_payload<'a>(raw: &'a str) -> Cow<'a, str> {
-    let token_type = if raw.starts_with("///") {
-        Some(TokenType::DocLineComment)
-    } else if raw.starts_with("//") {
-        Some(TokenType::LineComment)
-    } else if raw.starts_with("/**") {
-        Some(TokenType::DocBlockComment)
-    } else if raw.starts_with("/*") {
-        Some(TokenType::BlockComment)
-    } else {
-        None
-    };
-
-    let mut inner = match token_type {
-        Some(TokenType::LineComment) => raw.strip_prefix("//").unwrap_or(raw),
-        Some(TokenType::DocLineComment) => raw.strip_prefix("///").unwrap_or(raw),
-        Some(TokenType::BlockComment) => raw
-            .strip_prefix("/*")
-            .unwrap_or(raw)
-            .strip_suffix("*/")
-            .unwrap_or(raw),
-        Some(TokenType::DocBlockComment) => raw
-            .strip_prefix("/**")
-            .unwrap_or(raw)
-            .strip_suffix("*/")
-            .unwrap_or(raw),
-        _ => raw,
-    };
-
-    if matches!(
-        token_type,
-        Some(TokenType::LineComment | TokenType::DocLineComment)
-    ) && inner.starts_with(' ')
-    {
-        inner = &inner[1..];
-    }
-
-    if matches!(
-        token_type,
-        Some(TokenType::BlockComment | TokenType::DocBlockComment)
-    ) && inner.contains('\n')
-    {
-        let has_trailing_newline = inner.ends_with('\n');
-        let mut cleaned = inner
-            .lines()
-            .map(|line| {
-                let line = line.trim_end();
-                let line = line.trim_start();
-                let line = line.strip_prefix('*').unwrap_or(line);
-                line.strip_prefix(' ').unwrap_or(line)
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        if has_trailing_newline {
-            cleaned.push('\n');
-        }
-
-        return Cow::Owned(cleaned);
-    }
-
-    let trimmed = inner.trim_end();
-    if std::ptr::eq(trimmed.as_ptr(), inner.as_ptr()) && trimmed.len() == inner.len() {
-        Cow::Borrowed(inner)
-    } else {
-        Cow::Owned(trimmed.to_string())
     }
 }

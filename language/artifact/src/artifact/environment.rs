@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_dir::{GlobalSymbolId, ImportTarget, LanguageItem, PrimitiveType, StaticKey};
+use destack_dir::{ExportResolution, GlobalSymbolId, LanguageItem, PrimitiveType, StaticKey};
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
@@ -41,7 +41,7 @@ pub struct EnvironmentBound {
     /// Explicit global modules in load order.
     pub globals: Vec<ModuleId>,
     /// Resolved global bindings by key across the global modules.
-    pub global_targets_by_key: IndexMap<StaticKey, Vec<ImportTarget>>,
+    pub global_resolutions_by_key: IndexMap<StaticKey, Vec<ExportResolution>>,
     /// The default tree builder selected by the profile.
     pub tree: Option<GlobalSymbolId>,
 }
@@ -60,8 +60,9 @@ pub struct EnvironmentDeclared {
 }
 
 impl EnvironmentBound {
-    /// Return the modules whose exports load without imports, in stable order.
+    /// Return the compiler implicit modules in stable order.
     pub fn implicit_modules(&self) -> Vec<ModuleId> {
+        let configured = self.globals.iter().copied();
         let language = self
             .language
             .items_by_symbol
@@ -73,15 +74,22 @@ impl EnvironmentBound {
             .values()
             .map(|symbol| symbol.module_id);
         let globals = self
-            .global_targets_by_key
+            .global_resolutions_by_key
             .values()
             .flatten()
-            .map(|target| match target {
-                ImportTarget::Symbol(symbol) => symbol.module_id,
-                ImportTarget::Namespace(module) => *module,
+            .flat_map(|resolution| {
+                [resolution.declaration.module(), resolution.target.module()]
+                    .into_iter()
+                    .flatten()
             });
 
-        let mut modules = language.chain(builtins).chain(globals).collect::<Vec<_>>();
+        let mut modules = configured
+            .chain(language)
+            .chain(builtins)
+            .chain(globals)
+            .collect::<Vec<_>>();
+
+        // return each module once in stable order
         modules.sort_unstable();
         modules.dedup();
 

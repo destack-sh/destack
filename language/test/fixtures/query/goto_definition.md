@@ -475,13 +475,14 @@ const userId = UserId("user-1");
 @goto_definition.target origin=main.ds#reference:user_id location=main.ds#declaration:user_id selection=main.ds#definition:user_id symbol=main.ds#UserId@1
 ```
 
-### [ignored] Resolve tagged construction to the variant definition
+### Resolve tagged construction to the variant definition
 
 A tagged construction resolves to its variant declaration.
 
 ```ds main.ds
 @derive(Tagged)
 newtype Status = Ok<string>;
+                 ^^^^^^^^^^ declaration:ok
                  ^^ definition:ok
 
 const status = Status.Ok({ value: "ready" });
@@ -489,16 +490,17 @@ const status = Status.Ok({ value: "ready" });
 ```
 
 ```query goto_definition main.ds#reference:ok
-@goto_definition.target origin=main.ds#reference:ok location=main.ds#definition:ok symbol=main.ds#Ok@3
+@goto_definition.target origin=main.ds#reference:ok location=main.ds#declaration:ok selection=main.ds#definition:ok symbol=main.ds#Ok@3
 ```
 
-### [ignored] Resolve a tagged pattern to the variant definition
+### Resolve a tagged pattern to the variant definition
 
 A tagged pattern resolves to its variant declaration.
 
 ```ds main.ds
 @derive(Tagged)
 newtype Status = Ok<string>;
+                 ^^^^^^^^^^ declaration:ok
                  ^^ definition:ok
 
 declare const status: Status;
@@ -509,7 +511,7 @@ const value = match (status) {
 ```
 
 ```query goto_definition main.ds#reference:ok
-@goto_definition.target origin=main.ds#reference:ok location=main.ds#definition:ok symbol=main.ds#Ok@5
+@goto_definition.target origin=main.ds#reference:ok location=main.ds#declaration:ok selection=main.ds#definition:ok symbol=main.ds#Ok@5
 ```
 
 ## Imports and Exports
@@ -766,7 +768,7 @@ function main(): int32 {
 
 ## Pattern Bindings
 
-### [ignored] Resolve a match binding definition
+### Resolve a match binding definition
 
 A match-arm reference resolves to the binding introduced by its pattern.
 
@@ -776,32 +778,34 @@ declare const pair: (int32, int32);
 const total = match (pair) {
     (left, right) => left + right
      ^^^^ definition:match_left
-                    ^^^^ reference:match_left
+                     ^^^^ reference:match_left
 };
 ```
 
 ```query goto_definition main.ds#reference:match_left
-@goto_definition.target origin=main.ds#reference:match_left location=main.ds#definition:match_left symbol=main.ds#left@3
+@goto_definition.target origin=main.ds#reference:match_left location=main.ds#definition:match_left symbol=main.ds#left@2
 ```
 
 ## Labels
 
-### [ignored] Resolve a control label definition
+### Resolve a control label definition
 
 A labeled break resolves to its enclosing label.
 
 ```ds main.ds
 function choose(): int32 {
     outer: loop {
+    ^ target:outer:start
     ^^^^^ definition:outer
         break outer: 1;
               ^^^^^ reference:outer
     }
+    ^ target:outer:end
 }
 ```
 
 ```query goto_definition main.ds#reference:outer
-@goto_definition.target origin=main.ds#reference:outer location=main.ds#definition:outer symbol=main.ds#outer@2
+@goto_definition.target origin=main.ds#reference:outer location=main.ds#target:outer selection=main.ds#definition:outer symbol=main.ds#outer@2
 ```
 
 ## Calls
@@ -811,7 +815,7 @@ function choose(): int32 {
 A tagged template resolves its tag like an ordinary call.
 
 ```ds main.ds
-function sql(parts: string[], ...values: int32): string {
+function sql(parts: string[], ...values: int32[]): string {
 ^ declaration:sql:start
          ^^^ definition:sql
     return "";

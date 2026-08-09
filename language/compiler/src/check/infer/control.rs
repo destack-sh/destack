@@ -4,13 +4,30 @@ use smallvec::SmallVec;
 
 use crate::check::{
     BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, ConditionBranch, Constraint,
-    ControlTargetForm, Expectation, ExpectedType, FlowBranch, FlowSite, ForInSourceObligation,
-    InferMode, Obligation, Origin, PatternArm, PatternCoverage, PatternCoverageObligation,
-    PlaceUse, Relation, ValueCheck, ValueUse,
+    ControlLabel, ControlTargetForm, Expectation, ExpectedType, FlowBranch, FlowSite,
+    ForInSourceObligation, InferMode, Obligation, Origin, PatternArm, PatternCoverage,
+    PatternCoverageObligation, PlaceUse, Relation, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
+    /// Select the non-nullish operand inspected by one chain segment.
+    pub(in crate::check) fn select_chain_operand(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        is_optional: bool,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let Some(split) = self.split_nullish_type(origin, ty)? else {
+            return Ok(ty);
+        };
+        if !is_optional {
+            self.report_possibly_nullish(origin, split.rejected.label().to_string())?;
+        }
+
+        Ok(split.value)
+    }
+
     /// Infer one optional chain from its accesses.
     pub(in crate::check) fn infer_chain_expression(
         &mut self,
@@ -779,6 +796,10 @@ impl BodyState<'_, '_> {
         )?;
 
         // check the loop body with the iteration bindings assigned
+        let label = label.map(|name| ControlLabel {
+            name,
+            source: site.node,
+        });
         self.check
             .enter_control_target(label, ControlTargetForm::Iteration);
         let before_body = self.check.fork_flow();
@@ -857,6 +878,7 @@ impl BodyState<'_, '_> {
             &[],
             &[],
         )?;
+
         // sources without an implementation cannot be iterated
         let Some((protocol, _call)) = selected else {
             self.report_for_of_source_not_iterable(source);

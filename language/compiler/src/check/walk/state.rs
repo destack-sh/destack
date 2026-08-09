@@ -364,7 +364,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let symbol = self.check.resolve_symbol_alias(symbol)?;
         self.check.import_external_module(symbol.module_id)?;
         let committed = self
             .check

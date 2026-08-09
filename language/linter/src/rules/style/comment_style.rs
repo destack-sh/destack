@@ -1,7 +1,7 @@
-use destack_source::{FilePatch, PatchSet, Span};
+use destack_source::{FilePatch, Patch, Span};
 
 use crate::rules::declare_lint;
-use crate::{CommentSentenceEnding, DirModule, Lint, LintOutput, LintResult};
+use crate::{CommentSentence, CommentSentenceEnding, DirModule, Lint, LintOutput, LintResult};
 
 const COMMENT_LINE_WIDTH: u32 = 100;
 
@@ -10,7 +10,14 @@ declare_lint! {
     pub COMMENT_STYLE {
         id: "comment-style",
         summary: "Require canonical style for comments and documentation",
-        explanation: "Documentation uses uppercase sentence starts, terminal punctuation, and a one-sentence summary paragraph. Ordinary comments begin with a lowercase action or label and omit the final period when they contain one sentence. Every sentence begins on its own physical line, while ordinary sentence continuations use one additional space. Comment prose ends at or before visual column 100. Initialisms, marked source, legal comments, Markdown, code blocks, and unbreakable tokens retain their authored form.",
+        explanation: r#"
+Documentation uses uppercase sentence starts, terminal punctuation, and a one-sentence summary
+paragraph. Ordinary comments begin with a lowercase action or label and omit the final period when
+they contain one sentence. Every sentence begins on its own physical line, while ordinary sentence
+continuations use one additional space. Comment prose ends at or before visual column 100.
+Initialisms, marked source, legal comments, Markdown, code blocks, and unbreakable tokens retain
+their authored form.
+"#,
         example: {
             reported: r#"
 /// return the active session.
@@ -39,10 +46,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
         let lines = block.lines()?;
-        let sentences = block.sentences()?;
+        let sentences = CommentSentence::collect(&lines)?;
 
         // enforce canonical delimiter spacing and ordinary continuation indentation
         for line in lines.iter().copied() {
+            // classify the physical comment line
             let is_continuation = !block.is_documentation()
                 && line.is_line_comment()
                 && sentences
@@ -53,6 +61,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let Some(spacing) = line.spacing else {
                 continue;
             };
+
+            // select the spacing required by its prose role
             let expected = if line.text.is_empty() {
                 ""
             } else if is_continuation {
@@ -68,10 +78,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let Some((span, replacement)) = correction else {
                 continue;
             };
-            let mut file = FilePatch::new(span.file);
-            file.replace(span, replacement);
-            let patches = PatchSet::single(file);
-            let fix = lint.fix("use canonical comment spacing", patches)?;
+
+            // report and replace the delimiter spacing
+            let patch = Patch::replace(span, replacement);
+            let fix = lint.fix("use canonical comment spacing", patch)?;
             let (message, help) = if is_continuation {
                 (
                     "ordinary comment continuation is not indented",
@@ -95,6 +105,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let Some((span, character)) = sentence.initial else {
                 continue;
             };
+
+            // determine casing from documentation and annotation roles
             let expects_lowercase =
                 sentence.is_annotation || (!block.is_documentation() && index == 0);
             let is_valid = if expects_lowercase {
@@ -105,6 +117,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             if is_valid {
                 continue;
             }
+
+            // select the diagnostic and corrected initial character
             let (message, help, replacement) = if expects_lowercase {
                 (
                     "ordinary comment begins with uppercase prose",
@@ -118,16 +132,17 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                     character.to_uppercase().collect::<String>(),
                 )
             };
-            let mut file = FilePatch::new(span.file);
-            file.replace(span, replacement);
-            let patches = PatchSet::single(file);
-            let fix = lint.fix("use canonical comment casing", patches)?;
+
+            // report and replace the initial character
+            let patch = Patch::replace(span, replacement);
+            let fix = lint.fix("use canonical comment casing", patch)?;
             let diagnostic = lint.diagnostic(message, span).help(help).suggestion(fix);
             output.report(diagnostic);
         }
 
         // begin every later sentence on its own physical line
         for (index, pair) in sentences.windows(2).enumerate() {
+            // classify the sentence boundary
             let previous = pair[0];
             let sentence = pair[1];
             let is_summary_boundary = block.is_documentation() && index == 0;
@@ -136,6 +151,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             if !is_same_line && (!is_summary_boundary || has_summary_gap) {
                 continue;
             }
+
+            // select the required line separation
             let (message, help) = if is_summary_boundary {
                 (
                     "documentation summary is not separated from following prose",
@@ -150,6 +167,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let mut diagnostic = lint
                 .diagnostic(message, sentence.start_line.span)
                 .help(help);
+
+            // construct the exact line break or summary gap
             let correction = if is_same_line {
                 sentence.start_line.break_before(
                     sentence.span.start,
@@ -160,18 +179,18 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 sentence.start_line.blank_before()?
             };
             if let Some((span, replacement)) = correction {
-                let mut file = FilePatch::new(span.file);
-                file.replace(span, replacement);
-                let patches = PatchSet::single(file);
-                let fix = lint.fix("use canonical comment sentence layout", patches)?;
+                let patch = Patch::replace(span, replacement);
+                let fix = lint.fix("use canonical comment sentence layout", patch)?;
                 diagnostic = diagnostic.suggestion(fix);
             }
+
             output.report(diagnostic);
         }
 
         // enforce punctuation from the block role and sentence count
         let is_single_ordinary = !block.is_documentation() && sentences.len() == 1;
         for sentence in sentences.iter().copied() {
+            // select punctuation from the sentence and block roles
             let correction = match sentence.ending {
                 CommentSentenceEnding::Period(span) if is_single_ordinary => {
                     Some((span, "", "remove the final period"))
@@ -191,10 +210,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let Some((span, replacement, help)) = correction else {
                 continue;
             };
-            let mut file = FilePatch::new(span.file);
-            file.replace(span, replacement);
-            let patches = PatchSet::single(file);
-            let fix = lint.fix("use canonical comment punctuation", patches)?;
+
+            // report and replace the sentence ending
+            let patch = Patch::replace(span, replacement);
+            let fix = lint.fix("use canonical comment punctuation", patch)?;
             let diagnostic = lint
                 .diagnostic("comment uses non-canonical punctuation", span)
                 .help(help)
@@ -205,10 +224,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // enforce the standard width for authored prose
         let mut is_fenced_code = false;
         for line in lines {
+            // track fenced code independently of prose width
             if line.is_code_fence() {
                 is_fenced_code = !is_fenced_code;
                 continue;
             }
+
+            // exclude structured and unbreakable source lines
             if is_fenced_code
                 || line.is_indented_code()
                 || line.is_markdown()
@@ -222,6 +244,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let mut diagnostic = lint
                 .diagnostic("comment line exceeds 100 columns", line.span)
                 .help("wrap comment prose before visual column 100");
+
+            // select indentation from the comment role
             let is_continuation = !block.is_documentation()
                 && sentences
                     .iter()
@@ -229,6 +253,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                     .any(|sentence| sentence.continues_on(line));
             let first_spacing = if is_continuation { 2 } else { 1 };
             let continuation_spacing = if block.is_documentation() { 1 } else { 2 };
+
+            // wrap the authored line when every word can be retained
             if let Some(replacements) =
                 line.wrap(COMMENT_LINE_WIDTH, first_spacing, continuation_spacing)?
             {
@@ -236,10 +262,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 for (span, replacement) in replacements {
                     file.replace(span, replacement);
                 }
-                let patches = PatchSet::single(file);
-                let fix = lint.fix("wrap the comment line", patches)?;
+                let fix = lint.fix("wrap the comment line", file)?;
                 diagnostic = diagnostic.suggestion(fix);
             }
+
             output.report(diagnostic);
         }
     }

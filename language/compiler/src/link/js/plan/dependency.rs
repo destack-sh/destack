@@ -20,7 +20,7 @@ impl JsLinker<'_> {
     ) -> LinkResult<Option<Script>> {
         let script = self
             .artifacts
-            .script(module_id, *target_id)
+            .read::<Script>((module_id, *target_id))
             .map_err(CompilerError::from)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),

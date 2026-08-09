@@ -114,7 +114,7 @@ const created = new Packet();
 
 ## Field
 
-### [ignored] Rename a field
+### Rename a field
 
 Renaming a field updates its declaration and accesses.
 
@@ -168,7 +168,7 @@ const horizontal = 1;
 const point = Point { x: horizontal };
 ```
 
-### [ignored] Rename a string-keyed field access
+### Rename a string-keyed field access
 
 A static string key changes with its nominal field.
 
@@ -196,9 +196,9 @@ function read(counter: Counter): int32 {
 }
 ```
 
-### [ignored] Rename a structural field
+### Reject a structural field rename
 
-A structural field declaration and its accesses share one rename identity.
+Structural fields have no declaration identity shared by every compatible shape.
 
 ```ds main.ds
 type Counter = {
@@ -212,21 +212,12 @@ function read(counter: Counter): int32 {
 ```
 
 ```query rename main.ds#target new_name=value
-```
-
-```ds main.ds after
-type Counter = {
-    value: int32,
-};
-
-function read(counter: Counter): int32 {
-    return counter.value;
-}
+@rename.none
 ```
 
 ## Imported Functions
 
-### [ignored] Rename an exported function
+### Rename an exported function
 
 Renaming an export updates its declaration, import, and call.
 
@@ -258,7 +249,7 @@ import { welcome } from "./library.ds";
 const message = welcome("Destack");
 ```
 
-### [ignored] Preserve a local import alias
+### Preserve a local import alias
 
 Renaming an export leaves its explicit local alias unchanged.
 
@@ -294,7 +285,7 @@ const message = importedGreet("Destack");
 
 ## Namespace Imports
 
-### [ignored] Rename a namespace member
+### Rename a namespace member
 
 Renaming an export updates its namespace member accesses.
 
@@ -328,7 +319,7 @@ const message = api.welcome("Destack");
 
 ## Re-Exports
 
-### [ignored] Rename through a named re-export
+### Rename through a named re-export
 
 Renaming an export updates its re-export, downstream import, and call.
 
@@ -368,7 +359,7 @@ import { welcome } from "./barrel.ds";
 const message = welcome("Destack");
 ```
 
-### [ignored] Preserve a public re-export alias
+### Preserve a public re-export alias
 
 Renaming an export leaves its explicit public alias unchanged.
 
@@ -436,7 +427,7 @@ import { Configuration } from "./library.ds";
 const configuration: Configuration = { enabled: true };
 ```
 
-### [ignored] Rename a type through a re-export
+### Rename a type through a re-export
 
 Renaming an exported type updates its re-export while preserving the public alias.
 
@@ -472,7 +463,7 @@ export { Configuration as ApplicationSettings } from "./library.ds";
 
 ## Methods
 
-### [ignored] Rename a method
+### Rename a method
 
 Renaming a method updates its declaration and accesses.
 
@@ -500,7 +491,7 @@ function start(service: Service): void {
 }
 ```
 
-### [ignored] Rename an extension method
+### Rename an extension method
 
 Renaming an extension method updates its declaration and every extension call.
 
@@ -536,7 +527,7 @@ function total(calculator: Calculator): int32 {
 }
 ```
 
-### [ignored] Rename an interface method
+### Rename an interface method
 
 Renaming an interface method updates implementations and calls through the interface.
 
@@ -576,9 +567,57 @@ function display(value: Renderable): string {
 }
 ```
 
+### Rename from an implementing method
+
+Renaming an implementation updates its interface requirement and calls.
+
+```ds library.ds
+export interface Renderable {
+    render(): string;
+}
+```
+
+```ds main.ds
+import { Renderable } from "./library.ds";
+
+export class View implements Renderable {
+    render(): string {
+    ^^^^^^ target
+        return "";
+    }
+}
+
+function display(value: View): string {
+    return value.render();
+}
+```
+
+```query rename main.ds#target new_name=draw
+```
+
+```ds library.ds after
+export interface Renderable {
+    draw(): string;
+}
+```
+
+```ds main.ds after
+import { Renderable } from "./library.ds";
+
+export class View implements Renderable {
+    draw(): string {
+        return "";
+    }
+}
+
+function display(value: View): string {
+    return value.draw();
+}
+```
+
 ## Associated Constants
 
-### [ignored] Rename an associated constant
+### Rename an associated constant
 
 Renaming an associated constant updates its declaration and nominal accesses.
 
@@ -630,20 +669,20 @@ enum Color {
 const color = Color.Crimson;
 ```
 
-### [ignored] Rename a tagged variant
+### Rename a tagged variant
 
 Renaming a tagged variant updates its declaration, construction, and pattern occurrences.
 
 ```ds main.ds
 @derive(Tagged)
-newtype Status = Ok<string> | Error<int32>;
+newtype Status = Ok<string> | Err<int32>;
                  ^^ target
 
 const status = Status.Ok({ value: "ready" });
 
 const message = match (status) {
     Status.Ok(value) => value
-    Status.Error(code) => ""
+    Status.Err(code) => ""
 };
 ```
 
@@ -652,19 +691,19 @@ const message = match (status) {
 
 ```ds main.ds after
 @derive(Tagged)
-newtype Status = Ready<string> | Error<int32>;
+newtype Status = Ready<string> | Err<int32>;
 
 const status = Status.Ready({ value: "ready" });
 
 const message = match (status) {
     Status.Ready(value) => value
-    Status.Error(code) => ""
+    Status.Err(code) => ""
 };
 ```
 
 ## Overloads
 
-### [ignored] Rename an overload family
+### Rename an overload family
 
 Renaming one overload updates every declaration and call in its overload family.
 
@@ -800,7 +839,7 @@ declare const settings: Configuration;
 
 ## Default Exports
 
-### [ignored] Rename a named default export
+### Rename a named default export
 
 Renaming a default declaration leaves downstream local import names unchanged.
 
@@ -988,12 +1027,12 @@ function start(): void {}
 
 ## Calls
 
-### [ignored] Rename a tagged-template function
+### Rename a tagged-template function
 
 Tagged templates and ordinary calls share the function identity.
 
 ```ds main.ds
-function sql(parts: string[], ...values: int32): string {
+function sql(parts: string[], ...values: int32[]): string {
          ^^^ target
     return "";
 }
@@ -1006,7 +1045,7 @@ const text = sql([""], 2);
 ```
 
 ```ds main.ds after
-function execute(parts: string[], ...values: int32): string {
+function execute(parts: string[], ...values: int32[]): string {
     return "";
 }
 
@@ -1014,7 +1053,7 @@ const query = execute`select ${1}`;
 const text = execute([""], 2);
 ```
 
-### [ignored] Rename a function used at comptime
+### Rename a function used at comptime
 
 Comptime and runtime calls share the function declaration.
 
@@ -1042,7 +1081,7 @@ const second = make();
 
 ## Labels
 
-### [ignored] Rename a control label
+### Rename a control label
 
 Renaming a control label updates its declaration and every targeted break.
 
@@ -1200,7 +1239,7 @@ const result = value;
 @rename.none
 ```
 
-### [ignored] Reject a rename shared by unrelated union members
+### Reject a rename shared by unrelated union members
 
 Renaming one declaration cannot rewrite an occurrence that also belongs to another declaration.
 

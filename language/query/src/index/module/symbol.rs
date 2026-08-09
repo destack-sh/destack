@@ -93,21 +93,29 @@ impl<'a> SymbolIndexer<'a> {
     ) -> ProviderResult<Option<dir::SymbolEntry>> {
         let symbol = self.symbols.get_symbol(symbol_id);
         let member_kind = self.member_kind(source.local_id)?;
+        let source_id = self.view.get_source_any(source.local_id);
 
         // omit generated declarations without source positions
-        let Some(span) = self.view.get_span_by_id(source.local_id.id) else {
+        if self.source_index.try_get(source_id).is_none() {
             return Ok(None);
-        };
+        }
 
-        // require the authored declaration name
-        let source_id = self.view.get_source_any(source.local_id);
+        // require the authored declaration and its name
+        let span = self
+            .view
+            .get_span_by_id(source.local_id.id)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "indexed symbol has no declaration span: {source:?}"
+                ))
+            })?;
         let selection = self.source_index.get_main(source_id).ok_or_else(|| {
             ProviderError::internal(format!(
                 "indexed symbol has no declaration name span: {source:?}"
             ))
         })?;
 
-        // transcribe the declaration row
+        // record the declaration row
         let name = self.strings.get(name_id).to_string();
         let container = self.symbol_container_name(symbol_id);
         let global_symbol = symbol_id.into_global(self.module_id);
@@ -116,10 +124,7 @@ impl<'a> SymbolIndexer<'a> {
             name,
             kind: symbol.kind,
             member_kind,
-            role: symbol.role,
             symbol: global_symbol,
-            source,
-            file: span.file,
             span,
             selection,
             container,

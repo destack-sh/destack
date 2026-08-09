@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::Error;
 use crate::file::FileUpdate;
-use crate::protocol::{WatchBatch, WatchEventKind, WatchStatus};
 use crate::workspace::{LocalWorkspace, Message, ReloadReason, UpdateBatch};
+use crate::{WatchBatch, WatchEventKind, WatchStatus};
 
 /// One requested source mutation batch.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

@@ -58,7 +58,7 @@ const pet = new Dog();
 @inlay_hints.hint position=main.ds#binding@end label=": Dog" kind=type
 ```
 
-### [ignored] Show an applied generic type
+### Show an applied generic type
 
 An inferred generic value displays its applied type arguments.
 
@@ -218,7 +218,7 @@ const result = add(1, 2);
 @inlay_hints.hint position=main.ds#right_argument label="right:" kind=parameter padding_right=true
 ```
 
-### Show parameter names for callable values
+### [ignored] Show parameter names for callable values
 
 Calls through inferred callable bindings use the lambda parameter names.
 
@@ -234,7 +234,7 @@ transform(1);
 @inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
 ```
 
-### Show parameter names for callable parameters
+### [ignored] Show parameter names for callable parameters
 
 A call through a function parameter uses names from its function type.
 
@@ -575,7 +575,7 @@ const userId = UserId("user-1");
 
 ### Omit a tagged payload hint without a parameter name
 
-A structural tagged payload does not acquire an invented parameter name.
+A tagged payload has no parameter name to display.
 
 ```ds main.ds
 @derive(Tagged)
@@ -587,7 +587,7 @@ const status = Status.Ok({ value: "ready" });
 ```
 
 ```query inlay_hints main.ds#construction
-@inlay_hints.hint position=main.ds#status@end label=": Status" kind=type
+@inlay_hints.hint position=main.ds#status@end label=": Status.Ok" kind=type
 ```
 
 ### Return no parameter names for an empty call

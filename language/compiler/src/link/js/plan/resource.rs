@@ -1,7 +1,7 @@
 use crate::emit::js;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use destack_artifact::{Data, Script};
+use destack_artifact::{Data, DirBound, Script};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::Module;
@@ -293,7 +293,7 @@ impl<'a> JsLinker<'a> {
         let profile_id = self.profile_id()?;
         let dir = self
             .artifacts
-            .dir_bound(module_id, profile_id)
+            .read::<DirBound>((module_id, profile_id))
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,

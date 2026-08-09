@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Result, bail};
+use destack_rpc::ServiceSchema;
 use destack_serde::SchemaRegistry;
 
 use super::item::{Item, Payload, Shape};
@@ -8,10 +9,14 @@ use super::path::{ModulePath, SchemaRoot, schema_type_key, schema_type_keys};
 
 /// Schema consumed by one client generator.
 pub(crate) struct Schema {
+    /// Workspace RPC service description.
+    pub(crate) service: ServiceSchema,
     /// Items keyed by generator identity.
     pub(crate) items: BTreeMap<String, Item>,
     /// Generated modules in source path order.
     pub(crate) modules: Vec<SchemaModule>,
+    /// Generator keys for exact reflected names.
+    type_keys: BTreeMap<destack_serde::SchemaName, String>,
     /// Generated module path keyed by generator identity.
     item_modules: BTreeMap<String, ModulePath>,
 }
@@ -25,21 +30,38 @@ pub(crate) struct SchemaModule {
 }
 
 impl Schema {
-    /// Load types reachable from the workspace protocol.
+    /// Load types reachable from the RPC grammar and workspace service.
     pub(crate) fn load() -> Result<Self> {
-        let registry = destack_workspace::protocol::schema();
+        let service = destack_workspace::WorkspaceClient::service_schema()?;
+        let mut registry = destack_rpc::protocol_schema();
+        merge_registry(&mut registry, service.types().clone())?;
 
-        Self::from_registry(SchemaRoot::Protocol, registry)
+        Self::from_registry(SchemaRoot::Service, service, registry)
     }
 
     /// Convert one Destack serde schema registry into generator schema.
-    fn from_registry(root: SchemaRoot, registry: SchemaRegistry) -> Result<Self> {
+    fn from_registry(
+        root: SchemaRoot,
+        service: ServiceSchema,
+        registry: SchemaRegistry,
+    ) -> Result<Self> {
         let type_keys = schema_type_keys(&registry);
-        let root_names = registry
+        let mut root_names = registry
             .modules
             .iter()
             .filter(|(module, _)| root.owns_module(module))
-            .flat_map(|(_, names)| names.iter().cloned());
+            .flat_map(|(_, names)| names.iter().cloned())
+            .collect::<Vec<_>>();
+        for method in service.methods() {
+            visit_service_type(method.request(), &mut |name| root_names.push(name.clone()));
+            visit_service_type(method.response(), &mut |name| root_names.push(name.clone()));
+            if let Some(input) = method.input() {
+                visit_service_type(input, &mut |name| root_names.push(name.clone()));
+            }
+            if let Some(output) = method.output() {
+                visit_service_type(output, &mut |name| root_names.push(name.clone()));
+            }
+        }
         let reachable_names = reachable_schema_items(&registry.items, root_names)?;
         let reachable_keys = reachable_names
             .iter()
@@ -97,8 +119,10 @@ impl Schema {
             .collect();
 
         Ok(Self {
+            service,
             items,
             modules,
+            type_keys,
             item_modules,
         })
     }
@@ -126,21 +150,6 @@ impl Schema {
         self.items
             .get(key)
             .unwrap_or_else(|| unreachable!("schema type {key} was not parsed"))
-    }
-
-    /// Return one schema item by exported source name.
-    pub(crate) fn named_item(&self, name: &str) -> &Item {
-        let mut matches = self
-            .items
-            .values()
-            .filter(|item| item.name == name)
-            .collect::<Vec<_>>();
-
-        match matches.len() {
-            1 => matches.remove(0),
-            0 => unreachable!("schema type {name} was not parsed"),
-            _ => unreachable!("schema type {name} is ambiguous"),
-        }
     }
 
     /// Return the generated module path for one schema item.
@@ -181,6 +190,35 @@ impl Schema {
             .iter()
             .all(|variant| matches!(variant.payload, Payload::Unit))
     }
+
+    /// Convert one reflected value type into its generator type.
+    pub(crate) fn ty(&self, reference: destack_serde::SchemaRef) -> Result<super::Type> {
+        super::Type::from_schema(reference, &self.type_keys)
+    }
+}
+
+/// Merge one exact reflected registry without accepting conflicting declarations.
+fn merge_registry(target: &mut SchemaRegistry, source: SchemaRegistry) -> Result<()> {
+    for (name, item) in source.items {
+        if let Some(existing) = target.items.get(&name) {
+            if existing != &item {
+                bail!("schema type {} has conflicting declarations", name.name);
+            }
+        } else {
+            target.items.insert(name, item);
+        }
+    }
+
+    for (module, names) in source.modules {
+        let target_names = target.modules.entry(module).or_default();
+        for name in names {
+            if !target_names.contains(&name) {
+                target_names.push(name);
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Return every raw schema item reachable from explicit protocol roots.
@@ -230,6 +268,14 @@ fn visit_schema_shape(
             }
         }
     }
+}
+
+/// Visit every named type referenced by one service value.
+fn visit_service_type(
+    ty: &destack_serde::SchemaRef,
+    visit: &mut impl FnMut(&destack_serde::SchemaName),
+) {
+    visit_schema_type(ty, visit);
 }
 
 /// Visit every named type referenced by raw schema fields.

@@ -610,7 +610,7 @@ fn property_assignment(property: &str, value: &str) -> String {
 }
 
 /// Render one value encoder.
-fn render_encode_type(
+pub(super) fn render_encode_type(
     schema: &Schema,
     type_names: &TypeNames,
     text: &mut Text,
@@ -813,7 +813,7 @@ fn render_encode_map(
 }
 
 /// Render one value decoder expression.
-fn render_decode_type(
+pub(super) fn render_decode_type(
     schema: &Schema,
     type_names: &TypeNames,
     ty: &Type,
@@ -1201,11 +1201,6 @@ pub(super) fn property_access(value: &str, name: &str) -> String {
     } else {
         format!("{value}[{}]", property_key(name))
     }
-}
-
-/// Return one property key for TypeScript indexed access types.
-pub(super) fn type_property_key(name: &str) -> String {
-    format!("{name:?}")
 }
 
 /// Return one payload enum property name.

@@ -1,7 +1,10 @@
 use std::mem;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, DirParsed};
+use destack_artifact::{
+    ArtifactKey, DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirParsed,
+    DirResolved, EnvironmentBound, DirElaborated,
+};
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_pattern::{Matcher, ModuleContext, Pattern, PatternMatch, ProgramContext};
@@ -48,7 +51,7 @@ impl PatternSelection {
         // match every physical source file independently
         for module in modules.iter().copied() {
             let parsed = artifacts
-                .dir_parsed(module)
+                .read::<DirParsed>(module)
                 .map_err(|error| error.to_string())?;
             let view = dir::View::new(&parsed.tree);
             let matcher = Matcher::new(pattern, view);
@@ -145,7 +148,7 @@ impl PatternSelection {
 
 impl CommandContext<'_> {
     /// Provide checked DIR and build one ProgramContext from selected roots.
-    pub(super) fn provide_program_context(
+    pub(super) async fn provide_program_context(
         &self,
         profile: ProfileId,
         roots: &[ModuleId],
@@ -156,23 +159,26 @@ impl CommandContext<'_> {
             .map(|module| ArtifactKey::dir_checked(*module, profile))
             .collect::<Vec<_>>();
         root_keys.push(ArtifactKey::module_graph(profile));
-        self.provide(revision, &root_keys)?;
+        self.provide(revision, &root_keys).await?;
 
         // resolve the import closure from the roots and implicit globals
-        let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
-        let graph = artifacts
-            .module_graph_reader(profile)
-            .map_err(|error| error.to_string())?;
-        let global = artifacts
-            .environment_bound(profile)
-            .map_err(|error| error.to_string())?;
-        let mut walk_roots = roots.to_vec();
-        walk_roots.extend(global.implicit_modules());
-        let modules = graph
-            .reachable(&walk_roots)
-            .map_err(|error| error.to_string())?
-            .into_iter()
-            .collect::<FxIndexSet<_>>();
+        let modules = {
+            let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
+            let graph = artifacts
+                .module_graph_reader(profile)
+                .map_err(|error| error.to_string())?;
+            let global = artifacts
+                .read::<EnvironmentBound>(profile)
+                .map_err(|error| error.to_string())?;
+            let mut walk_roots = roots.to_vec();
+            walk_roots.extend(global.implicit_modules());
+
+            graph
+                .reachable(&walk_roots)
+                .map_err(|error| error.to_string())?
+                .into_iter()
+                .collect::<FxIndexSet<_>>()
+        };
 
         // provide every checked artifact consumed by ModuleContext
         let keys = modules
@@ -188,7 +194,7 @@ impl CommandContext<'_> {
                 ]
             })
             .collect::<Vec<_>>();
-        self.provide(revision, &keys)?;
+        self.provide(revision, &keys).await?;
 
         // assemble immutable checked module contexts
         let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
@@ -196,28 +202,28 @@ impl CommandContext<'_> {
             .into_iter()
             .map(|module| {
                 let parsed = artifacts
-                    .dir_parsed(module)
+                    .read::<DirParsed>(module)
                     .map_err(|error| error.to_string())?;
                 let bound = artifacts
-                    .dir_bound(module, profile)
+                    .read::<DirBound>((module, profile))
                     .map_err(|error| error.to_string())?;
                 let expanded = artifacts
-                    .dir_expanded(module, profile)
+                    .read::<DirExpanded>((module, profile))
                     .map_err(|error| error.to_string())?;
                 let exported = artifacts
-                    .dir_exported(module, profile)
+                    .read::<DirExported>((module, profile))
                     .map_err(|error| error.to_string())?;
                 let resolved = artifacts
-                    .dir_resolved(module, profile)
+                    .read::<DirResolved>((module, profile))
                     .map_err(|error| error.to_string())?;
                 let declared = artifacts
-                    .dir_declared(module, profile)
+                    .read::<DirDeclared>((module, profile))
                     .map_err(|error| error.to_string())?;
                 let elaborated = artifacts
-                    .dir_elaborated(module, profile)
+                    .read::<DirElaborated>((module, profile))
                     .map_err(|error| error.to_string())?;
                 let checked = artifacts
-                    .dir_checked(module, profile)
+                    .read::<DirChecked>((module, profile))
                     .map_err(|error| error.to_string())?;
 
                 ModuleContext::new(

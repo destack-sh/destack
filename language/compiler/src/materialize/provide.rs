@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirMaterialized};
+use destack_artifact::{
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirChecked, DirExpanded, DirMaterialized,
+    DirParsed,
+};
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::ModuleId;
@@ -32,12 +35,14 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
         let artifacts = self.artifact_reader(context);
-        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
+        let parsed = artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
         let expanded = artifacts
-            .dir_expanded(module, profile)
+            .read::<DirExpanded>((module, profile))
             .map_err(CompilerError::from)?;
         let checked = artifacts
-            .dir_checked(module, profile)
+            .read::<DirChecked>((module, profile))
             .map_err(CompilerError::from)?;
 
         // TODO #Incomplete: implement proper materialization

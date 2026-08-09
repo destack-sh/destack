@@ -199,7 +199,7 @@ impl<'a> CounterUpdate<'a> {
     fn suggestion(&self, lint: &Lint) -> Result<DiagnosticSuggestion, ProviderError> {
         let mut file = FilePatch::new(self.operator.file);
         file.replace(self.operator, self.opposite_operator);
-        let patches = PatchSet::single(file);
+        let patches = PatchSet::from_files(vec![file]);
 
         lint.suggestion("reverse the counter update", patches)
     }
@@ -211,7 +211,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect complete three-part for loops
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for expression in view.iter_node_ids_of_type::<dir::Expression>() {
         let dir::Expression::For {
             condition: Some(condition),
             increment: Some(increment),

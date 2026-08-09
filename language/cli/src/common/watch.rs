@@ -242,7 +242,7 @@ fn watch_batch_json(id: u64, batch: &WatchBatch) -> WatchBatchJson {
         events,
         status,
         overflowed: batch.overflowed,
-        duration_ms: (batch.ended_at_ns.saturating_sub(batch.started_at_ns)) / 1_000_000,
+        duration_ms: batch.duration_nanoseconds / 1_000_000,
     }
 }
 

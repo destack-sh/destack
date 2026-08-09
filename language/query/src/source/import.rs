@@ -285,7 +285,7 @@ impl ModuleQueryContext<'_> {
         let mut imports = Vec::new();
         let view = self.view()?;
 
-        for node_id in view.iter_nodes::<dir::Expression>() {
+        for node_id in view.iter_node_ids_of_type::<dir::Expression>() {
             let expression = view.get(node_id);
             let dir::Expression::Import { target, items, .. } = expression else {
                 continue;

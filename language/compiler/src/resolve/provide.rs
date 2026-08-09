@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, ArtifactSidecar,
+    DirBound, DirExpanded, DirExported, DirImported, DirParsed, EnvironmentBound,
 };
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderContext, ProviderError};
@@ -24,6 +25,7 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_bound(module, profile));
         dependencies.require(ArtifactKey::dir_imported(module, profile));
         dependencies.require(ArtifactKey::dir_expanded(module, profile));
+        dependencies.require(ArtifactKey::dir_exported(module, profile));
         dependencies.require(ArtifactKey::environment_bound(profile));
 
         Ok(dependencies)
@@ -38,18 +40,23 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
         let artifacts = self.artifact_reader(context);
-        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
+        let parsed = artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
         let bound = artifacts
-            .dir_bound(module, profile)
+            .read::<DirBound>((module, profile))
             .map_err(CompilerError::from)?;
         let imported = artifacts
-            .dir_imported(module, profile)
+            .read::<DirImported>((module, profile))
             .map_err(CompilerError::from)?;
         let expanded = artifacts
-            .dir_expanded(module, profile)
+            .read::<DirExpanded>((module, profile))
+            .map_err(CompilerError::from)?;
+        let exported = artifacts
+            .read::<DirExported>((module, profile))
             .map_err(CompilerError::from)?;
         let environment = artifacts
-            .environment_bound(profile)
+            .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
 
         // build expanded resolve inputs
@@ -69,11 +76,10 @@ impl Compiler {
         );
 
         // collect source references, module clauses, and syntax language items
-        state.collect_module_clauses(&expanded.roots);
         state.walk(&expanded.roots);
 
         // resolve every collected reference over the declared export closure
-        state.resolve(&environment)?;
+        state.resolve(&environment, &exported)?;
 
         // pull in tree literals to the default builder
         if parsed.tree.has_tree_expressions() {
@@ -91,7 +97,7 @@ impl Compiler {
             },
         ));
 
-        // emit recoverable resolve diagnostics
+        // emit resolve diagnostics
         for diagnostic in state.take_diagnostics() {
             self.emit_diagnostic::<ResolveError>(context, diagnostic)?;
         }
@@ -125,7 +131,7 @@ impl Compiler {
             );
 
             // follow re-export edges through exports that are already built
-            match artifacts.dir_exported_content(module, profile) {
+            match artifacts.read_content::<DirExported>((module, profile)) {
                 Ok(exported) => frontier.extend(exported.reexport_modules()),
                 Err(ProviderError::Blocked { .. }) => dependencies.mark_partial(),
                 Err(error) => return Err(CompilerError::from(error)),

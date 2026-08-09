@@ -8,7 +8,9 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::export::{ExportLookup, ExportResolver};
 use crate::resolve::stats::ResolveStats;
-use crate::{CompilerResult, ResolveError, diagnostic_suggestion_distance, rename_suggestion};
+use crate::{
+    CompilerError, CompilerResult, ResolveError, diagnostic_suggestion_distance, rename_suggestion,
+};
 
 /// Resolve phase state for one module.
 pub(in crate::resolve) struct ResolveState<'a> {
@@ -28,12 +30,12 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) imports: dir::ImportTable,
     /// The reference resolutions being built.
     pub(in crate::resolve) references: dir::ReferenceTable,
-    /// The recoverable diagnostics produced while resolving.
+    /// The diagnostics produced while resolving.
     pub(in crate::resolve) diagnostics: Vec<DiagnosticBuilder<ResolveError>>,
     /// The work stats accumulated while resolving.
     pub(in crate::resolve) stats: ResolveStats,
-    /// Import and re-export clauses collected from active roots.
-    pub(in crate::resolve) module_clauses: Vec<ModuleClause>,
+    /// Import expressions collected from active roots.
+    pub(in crate::resolve) import_expressions: Vec<dir::LocalNodeId<dir::Expression>>,
     /// Namespace path references collected from active roots.
     pub(in crate::resolve) path_references: Vec<PathReference>,
     /// Source-visible global keys referenced by active roots.
@@ -46,25 +48,6 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) exports: ExportResolver,
     /// The DIR visitor options.
     pub(in crate::resolve) options: dir::NodeVisitorOptions,
-}
-
-/// One import or re-export clause to resolve.
-#[derive(Debug, Clone)]
-pub(in crate::resolve) enum ModuleClause {
-    /// An import declaration.
-    Import {
-        /// The expression node id.
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        /// Imported items.
-        items: Option<Vec<dir::LocalNodeId<dir::DependencyItem>>>,
-    },
-    /// A re-export declaration.
-    ReExport {
-        /// The expression node id.
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        /// Re-exported items.
-        items: Vec<dir::LocalNodeId<dir::DependencyItem>>,
-    },
 }
 
 /// One namespace path reference to resolve after imports are known.
@@ -108,7 +91,7 @@ impl<'a> ResolveState<'a> {
             references: dir::ReferenceTable::new(module),
             diagnostics: Vec::new(),
             stats: ResolveStats::default(),
-            module_clauses: Vec::new(),
+            import_expressions: Vec::new(),
             path_references: Vec::new(),
             global_keys: IndexSet::new(),
             language_items: IndexSet::new(),
@@ -192,7 +175,7 @@ impl<'a> ResolveState<'a> {
         self.function_stack.last().copied()
     }
 
-    /// Drain recoverable diagnostics.
+    /// Drain resolve diagnostics.
     pub(in crate::resolve) fn take_diagnostics(&mut self) -> Vec<DiagnosticBuilder<ResolveError>> {
         std::mem::take(&mut self.diagnostics)
     }
@@ -298,7 +281,7 @@ impl<'a> ResolveState<'a> {
         let name = self.export_key_text(key);
         let target = self.strings.get(specifier).to_string();
 
-        // a matching unexported binding beats any spelling suggestion
+        // a matching unexported binding beats any similar-name suggestion
         let exported = self
             .exports
             .exported_module(&self.artifacts, target_module)?;
@@ -340,7 +323,7 @@ impl<'a> ResolveState<'a> {
             diagnostic = diagnostic.suggestion(suggestion);
         }
 
-        // record recoverable error
+        // record the diagnostic
         self.diagnostics.push(diagnostic);
 
         Ok(())
@@ -352,7 +335,7 @@ impl<'a> ResolveState<'a> {
         item_id: dir::LocalNodeId<dir::DependencyItem>,
         key: dir::ExportKey,
         specifier: dir::StringId,
-        targets: &[dir::ExportTarget],
+        resolutions: &[dir::ExportResolution],
     ) -> CompilerResult<()> {
         // render diagnostic payload
         let anchor = self.anchor_node(item_id.id)?;
@@ -366,11 +349,17 @@ impl<'a> ResolveState<'a> {
 
         // point at each origin module supplying the name
         let mut diagnostic = DiagnosticBuilder::new(error);
-        for target in targets {
-            let module = match target {
-                dir::ExportTarget::Symbol(symbol) => symbol.module_id,
-                dir::ExportTarget::Namespace(module) => *module,
-            };
+        for resolution in resolutions {
+            let module =
+                resolution
+                    .declaration
+                    .module()
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!(
+                            "ambiguous export declaration spans modules: {:?}",
+                            resolution.declaration
+                        ),
+                    })?;
             diagnostic = diagnostic.label(
                 DiagnosticAnchor::Module(module),
                 format!("one '{name}' comes from this module"),
@@ -378,7 +367,7 @@ impl<'a> ResolveState<'a> {
         }
         diagnostic = diagnostic.help(format!("import '{name}' directly from one origin module"));
 
-        // record recoverable error
+        // record the diagnostic
         self.diagnostics.push(diagnostic);
 
         Ok(())

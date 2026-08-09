@@ -152,7 +152,7 @@ impl RewriteInput {
 
 impl CommandContext<'_> {
     /// Execute a structural rewrite command.
-    pub(crate) fn run_rewrite_command(
+    pub(crate) async fn run_rewrite_command(
         &mut self,
         input: &RewriteInput,
     ) -> CommandResult<CommandOutcome<RewritePayload>> {
@@ -176,9 +176,12 @@ impl CommandContext<'_> {
             .iter()
             .map(|module| ArtifactKey::dir_parsed(*module))
             .collect::<Vec<_>>();
-        trace.span("command.parse sources", || {
-            self.provide(revision, &parsed_keys)
-        })?;
+        trace
+            .span_async(
+                "command.parse sources",
+                self.provide(revision, &parsed_keys),
+            )
+            .await?;
         let diagnostics = self.command_diagnostics(revision, &parsed_keys)?;
         let exit_code = diagnostics.get_status_code();
         if exit_code != 0 {
@@ -200,19 +203,23 @@ impl CommandContext<'_> {
         let profile_count = profiles.len();
         let mut programs = Vec::with_capacity(profile_count);
         let mut checked_keys = Vec::new();
-        trace.span("command.check matches", || -> CommandResult<()> {
-            for (profile, roots) in profiles {
-                checked_keys.extend(
-                    roots
-                        .iter()
-                        .map(|module| ArtifactKey::dir_checked(*module, profile)),
-                );
-                let program = self.provide_program_context(profile, &roots, revision)?;
-                programs.push((roots, program));
-            }
+        trace
+            .span_async("command.check matches", async {
+                for (profile, roots) in profiles {
+                    checked_keys.extend(
+                        roots
+                            .iter()
+                            .map(|module| ArtifactKey::dir_checked(*module, profile)),
+                    );
+                    let program = self
+                        .provide_program_context(profile, &roots, revision)
+                        .await?;
+                    programs.push((roots, program));
+                }
 
-            Ok(())
-        })?;
+                Ok::<(), CommandError>(())
+            })
+            .await?;
 
         // stop before predicate evaluation when checked roots are invalid
         let diagnostics = if checked_keys.is_empty() {

@@ -384,6 +384,7 @@ class Deferred<T> {
     then(callback: (value: T) => void): void {}
     /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=(this: this, Function<(T#1,), void>) => void
     /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
+    /// @type.symbol symbol=Deferred.then.value source="value: T" type=T#1
     /// @resolution.name source=T target=Deferred.T
 
 }
@@ -472,6 +473,7 @@ class Deferred<T> {
     then(callback: (value: T) => void): void {}
     /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=(this: this, Function<(T#1,), void>) => void
     /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
+    /// @type.symbol symbol=Deferred.then.value source="value: T" type=T#1
     /// @resolution.name source=T target=Deferred.T
 
 }
@@ -576,6 +578,7 @@ class Deferred<T> {
     then(callback: (value: T) => void): void {}
     /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=(this: this, Function<(T#1,), void>) => void
     /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
+    /// @type.symbol symbol=Deferred.then.value source="value: T" type=T#1
     /// @resolution.name source=T target=Deferred.T
 
 }

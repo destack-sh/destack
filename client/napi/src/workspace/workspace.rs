@@ -1,6 +1,10 @@
+use std::sync::Arc;
+
+use destack_rpc::{ConnectionOptions, Registry, Session};
 use destack_source::Edit;
-use destack_workspace::{Server, WebSocketServer};
-use napi::Result;
+use destack_workspace::{LocalWorkspace, SharedWorkspace, Workspace, WorkspaceServer};
+use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
+use napi::{Result, Status};
 use napi_derive::napi;
 
 use crate::core::to_error;
@@ -17,77 +21,86 @@ pub struct MemoryFile {
     pub bytes: Option<Vec<u8>>,
 }
 
-/// In-process workspace protocol server exposed to Node.
+/// In-process workspace RPC session exposed to Node.
 #[derive(Debug)]
 #[napi]
-pub struct LocalWorkspaceServer {
-    /// Local Rust server.
-    server: Server,
-}
-
-/// Remote workspace protocol server exposed to Node.
-#[derive(Debug)]
-#[napi]
-pub struct RemoteWorkspaceServer {
-    /// Workspace WebSocket server.
-    server: WebSocketServer,
+pub struct WorkspaceSession {
+    /// Generic RPC session hosting the workspace service.
+    session: Session,
 }
 
 #[napi]
-impl LocalWorkspaceServer {
-    /// Open an in-process workspace protocol server.
+impl WorkspaceSession {
+    /// Open one physical workspace RPC session.
     #[napi(factory)]
-    pub fn open(home: String) -> Result<Self> {
-        let server = Server::open(home).map_err(to_error)?;
+    pub fn open(path: String) -> Result<Self> {
+        let workers = LocalWorkspace::default_worker_count();
+        let workspace = LocalWorkspace::open(path, workers).map_err(to_error)?;
 
-        Ok(Self { server })
+        Self::from_workspace(Arc::new(workspace))
     }
 
-    /// Open an in-process workspace protocol server from in-memory files.
+    /// Open one in-memory workspace RPC session.
     #[napi(factory)]
     pub fn memory(root: String, files: Vec<MemoryFile>) -> Result<Self> {
         let files = files
             .into_iter()
             .map(memory_file)
             .collect::<Result<Vec<_>>>()?;
-        let server = Server::memory(root, files).map_err(to_error)?;
+        let workers = LocalWorkspace::default_worker_count();
+        let workspace = LocalWorkspace::memory(root, files, workers).map_err(to_error)?;
 
-        Ok(Self { server })
+        Self::from_workspace(Arc::new(workspace))
     }
 
-    /// Dispatch one encoded protocol message payload.
+    /// Dispatch one complete inbound RPC message.
     #[napi]
-    pub fn dispatch(&self, payload: Vec<u8>) -> Result<Vec<Vec<u8>>> {
-        self.server.dispatch(&payload).map_err(to_error)
+    pub fn dispatch(&self, bytes: Vec<u8>) -> Result<Vec<Vec<u8>>> {
+        self.session.dispatch(&bytes).map_err(to_error)
+    }
+
+    /// Poll ready RPC calls.
+    #[napi]
+    pub fn poll(&self) -> Result<Vec<Vec<u8>>> {
+        self.session.poll().map_err(to_error)
+    }
+
+    /// Return whether cooperative workspace calls requested another poll.
+    #[napi]
+    pub fn is_ready(&self) -> Result<bool> {
+        self.session.is_ready().map_err(to_error)
+    }
+
+    /// Install the JavaScript callback invoked when a cooperative call becomes ready.
+    #[napi]
+    pub fn on_ready(&self, callback: ThreadsafeFunction<(), (), (), Status, false>) {
+        self.session.set_wake_handler(Arc::new(move || {
+            let status = callback.call((), ThreadsafeFunctionCallMode::NonBlocking);
+            if !matches!(status, Status::Ok | Status::Closing) {
+                eprintln!("failed to wake the JavaScript RPC host: {status:?}");
+            }
+        }));
+    }
+
+    /// Close this RPC session.
+    #[napi]
+    pub fn close(&self) -> Result<()> {
+        self.session.close().map_err(to_error)
+    }
+
+    /// Host one workspace implementation in a generic RPC session.
+    fn from_workspace(workspace: Arc<dyn Workspace>) -> Result<Self> {
+        let service = WorkspaceServer::new(SharedWorkspace::new(workspace)).map_err(to_error)?;
+        let mut services = Registry::new();
+        services.insert(service).map_err(to_error)?;
+        let options = ConnectionOptions::new("destack-napi");
+        let session = Session::new(services, options).map_err(to_error)?;
+
+        Ok(Self { session })
     }
 }
 
-#[napi]
-impl RemoteWorkspaceServer {
-    /// Open a remote workspace protocol server over WebSocket.
-    #[napi(factory)]
-    pub fn open(root: String) -> Result<Self> {
-        let server = WebSocketServer::open(root).map_err(to_error)?;
-
-        Ok(Self { server })
-    }
-
-    /// Return the WebSocket URL for this server.
-    #[napi]
-    pub fn url(&self) -> String {
-        self.server.url().to_string()
-    }
-
-    /// Close this server.
-    #[napi]
-    pub fn close(&mut self) -> Result<()> {
-        self.server
-            .close()
-            .map_err(|_| to_error("remote workspace server thread panicked"))
-    }
-}
-
-/// Convert one Node memory file into one Rust memory file.
+/// Convert one Node memory file into one source edit.
 fn memory_file(file: MemoryFile) -> Result<Edit> {
     match (file.text, file.bytes) {
         (Some(text), None) => Ok(Edit::SetText {

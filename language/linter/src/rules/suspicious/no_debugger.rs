@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -10,7 +10,11 @@ declare_lint! {
     pub NO_DEBUGGER {
         id: "no-debugger",
         summary: "Disallow debugger statements",
-        explanation: "The `debugger` statement interrupts execution only when an attached debugger honors it and otherwise has no useful runtime effect. It is normally an accidental development artifact and should not remain in checked source.",
+        explanation: r#"
+The `debugger` statement interrupts execution only when an attached debugger honors it and otherwise
+has no useful runtime effect. It is normally an accidental development artifact and should not
+remain in checked source.
+"#,
         example: {
             reported: r#"
 declare const active: boolean;
@@ -34,7 +38,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // report every visible debugger expression
-    for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+    for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
         // skip other expressions
         if !matches!(expression, dir::Expression::Debugger) {
             continue;
@@ -119,10 +123,8 @@ fn suggest_removal(
     } else {
         module.statement_span(expression)?
     };
-    let mut file_patch = FilePatch::new(span.file);
-    file_patch.replace(span, replacement);
-    let patches = PatchSet::single(file_patch);
-    let suggestion = lint.fix("remove the debugger statement", patches)?;
+    let patch = Patch::replace(span, replacement);
+    let suggestion = lint.fix("remove the debugger statement", patch)?;
 
     Ok(suggestion)
 }

@@ -36,7 +36,7 @@ export class LinkedList<T> {
     private tail: LinkedListNodeKey | undefined = undefined;
 
     /// The node storage.
-    private nodes: Array<LinkedListNode<T>> = Array.new();
+    private nodes: Array<LinkedListNode<T>> = [];
 
     /// The first free node key.
     private firstFree: LinkedListNodeKey | undefined = undefined;

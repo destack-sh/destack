@@ -8,7 +8,11 @@ declare_lint! {
     pub ALMOST_SWAPPED {
         id: "almost-swapped",
         summary: "Disallow assignments that overwrite a value before swapping it",
-        explanation: "Two assignments of `left = right; right = left` do not exchange their values because the first assignment destroys the original left value. Preserve one value temporarily or use a checked swap operation.",
+        explanation: r#"
+Two assignments of `left = right; right = left` do not exchange their values because the first
+assignment destroys the original left value. Preserve one value temporarily or use a checked swap
+operation.
+"#,
         example: {
             reported: r#"
 function exchange(pair: { left: int32; right: int32 }): void {
@@ -76,8 +80,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect adjacent statements within each checked block
-    for block in view.iter_nodes::<dir::Block>() {
-        let mut expressions = view.get(block).iter_expressions();
+    for (_, block) in view.iter_nodes::<dir::Block>() {
+        let mut expressions = block.iter_expressions();
         let Some(mut first) = expressions.next() else {
             continue;
         };

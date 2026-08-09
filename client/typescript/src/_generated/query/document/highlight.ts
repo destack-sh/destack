@@ -6,125 +6,6 @@ import type { Span } from "../../source/file/model/span.js";
 import { decodeQueryPosition, encodeQueryPosition, fromJsonQueryPosition, toJsonQueryPosition } from "../protocol/target.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../../source/file/model/span.js";
 
-/** Request highlights at a cursor position. */
-export type HighlightRequest = {
-    /** The queried position. */
-    readonly position: QueryPosition;
-};
-
-export const HighlightRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: HighlightRequest): void {
-        encodeHighlightRequest(writer, value);
-    },
-
-    /** Decode one HighlightRequest. */
-    decode(reader: BinaryReader): HighlightRequest {
-        return decodeHighlightRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: HighlightRequest): Json {
-        return toJsonHighlightRequest(value);
-    },
-
-    /** Return one HighlightRequest from one JSON value. */
-    fromJson(value: Json): HighlightRequest {
-        return fromJsonHighlightRequest(value);
-    },
-};
-
-/** Encode one HighlightRequest. */
-export function encodeHighlightRequest(writer: BinaryWriter, value: HighlightRequest): void {
-    encodeQueryPosition(writer, value.position);
-}
-
-/** Decode one HighlightRequest. */
-export function decodeHighlightRequest(reader: BinaryReader): HighlightRequest {
-    const position = decodeQueryPosition(reader);
-
-    return {
-        position,
-    };
-}
-
-/** Return one JSON value for one HighlightRequest. */
-export function toJsonHighlightRequest(value: HighlightRequest): Json {
-    return {
-        position: toJsonQueryPosition(value.position),
-    };
-}
-
-/** Return one HighlightRequest from one JSON value. */
-export function fromJsonHighlightRequest(value: Json): HighlightRequest {
-    const object = jsonObject(value);
-
-    return {
-        position: fromJsonQueryPosition(jsonField(object, "position")),
-    };
-}
-
-/** Response payload for highlight queries. */
-export type HighlightResponse = {
-    /** Highlights. */
-    readonly highlights: ReadonlyArray<Highlight>;
-};
-
-export const HighlightResponse = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: HighlightResponse): void {
-        encodeHighlightResponse(writer, value);
-    },
-
-    /** Decode one HighlightResponse. */
-    decode(reader: BinaryReader): HighlightResponse {
-        return decodeHighlightResponse(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: HighlightResponse): Json {
-        return toJsonHighlightResponse(value);
-    },
-
-    /** Return one HighlightResponse from one JSON value. */
-    fromJson(value: Json): HighlightResponse {
-        return fromJsonHighlightResponse(value);
-    },
-};
-
-/** Encode one HighlightResponse. */
-export function encodeHighlightResponse(writer: BinaryWriter, value: HighlightResponse): void {
-    writer.writeUnsigned(value.highlights.length);
-    for (const item0 of value.highlights) {
-        encodeHighlight(writer, item0);
-    }
-}
-
-/** Decode one HighlightResponse. */
-export function decodeHighlightResponse(reader: BinaryReader): HighlightResponse {
-    const highlights = (() => { const length0 = reader.readNumber(); const items0: Array<Highlight> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeHighlight(reader)); } return items0; })();
-
-    return {
-        highlights,
-    };
-}
-
-/** Return one JSON value for one HighlightResponse. */
-export function toJsonHighlightResponse(value: HighlightResponse): Json {
-    return {
-        highlights: value.highlights.map((item0) => toJsonHighlight(item0)),
-    };
-}
-
-/** Return one HighlightResponse from one JSON value. */
-export function fromJsonHighlightResponse(value: Json): HighlightResponse {
-    const object = jsonObject(value);
-
-    return {
-        highlights: jsonArray(jsonField(object, "highlights")).map((item0) => fromJsonHighlight(item0)),
-    };
-}
-
 /** A highlighted range in a module. */
 export type Highlight = {
     /** The highlighted range. */
@@ -267,4 +148,123 @@ export function fromJsonHighlightKind(value: Json): HighlightKind {
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
+/** Request highlights at a cursor position. */
+export type HighlightRequest = {
+    /** The queried position. */
+    readonly position: QueryPosition;
+};
+
+export const HighlightRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: HighlightRequest): void {
+        encodeHighlightRequest(writer, value);
+    },
+
+    /** Decode one HighlightRequest. */
+    decode(reader: BinaryReader): HighlightRequest {
+        return decodeHighlightRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: HighlightRequest): Json {
+        return toJsonHighlightRequest(value);
+    },
+
+    /** Return one HighlightRequest from one JSON value. */
+    fromJson(value: Json): HighlightRequest {
+        return fromJsonHighlightRequest(value);
+    },
+};
+
+/** Encode one HighlightRequest. */
+export function encodeHighlightRequest(writer: BinaryWriter, value: HighlightRequest): void {
+    encodeQueryPosition(writer, value.position);
+}
+
+/** Decode one HighlightRequest. */
+export function decodeHighlightRequest(reader: BinaryReader): HighlightRequest {
+    const position = decodeQueryPosition(reader);
+
+    return {
+        position,
+    };
+}
+
+/** Return one JSON value for one HighlightRequest. */
+export function toJsonHighlightRequest(value: HighlightRequest): Json {
+    return {
+        position: toJsonQueryPosition(value.position),
+    };
+}
+
+/** Return one HighlightRequest from one JSON value. */
+export function fromJsonHighlightRequest(value: Json): HighlightRequest {
+    const object = jsonObject(value);
+
+    return {
+        position: fromJsonQueryPosition(jsonField(object, "position")),
+    };
+}
+
+/** Response payload for highlight queries. */
+export type HighlightResponse = {
+    /** Highlights. */
+    readonly highlights: ReadonlyArray<Highlight>;
+};
+
+export const HighlightResponse = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: HighlightResponse): void {
+        encodeHighlightResponse(writer, value);
+    },
+
+    /** Decode one HighlightResponse. */
+    decode(reader: BinaryReader): HighlightResponse {
+        return decodeHighlightResponse(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: HighlightResponse): Json {
+        return toJsonHighlightResponse(value);
+    },
+
+    /** Return one HighlightResponse from one JSON value. */
+    fromJson(value: Json): HighlightResponse {
+        return fromJsonHighlightResponse(value);
+    },
+};
+
+/** Encode one HighlightResponse. */
+export function encodeHighlightResponse(writer: BinaryWriter, value: HighlightResponse): void {
+    writer.writeUnsigned(value.highlights.length);
+    for (const item0 of value.highlights) {
+        encodeHighlight(writer, item0);
+    }
+}
+
+/** Decode one HighlightResponse. */
+export function decodeHighlightResponse(reader: BinaryReader): HighlightResponse {
+    const highlights = (() => { const length0 = reader.readNumber(); const items0: Array<Highlight> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeHighlight(reader)); } return items0; })();
+
+    return {
+        highlights,
+    };
+}
+
+/** Return one JSON value for one HighlightResponse. */
+export function toJsonHighlightResponse(value: HighlightResponse): Json {
+    return {
+        highlights: value.highlights.map((item0) => toJsonHighlight(item0)),
+    };
+}
+
+/** Return one HighlightResponse from one JSON value. */
+export function fromJsonHighlightResponse(value: Json): HighlightResponse {
+    const object = jsonObject(value);
+
+    return {
+        highlights: jsonArray(jsonField(object, "highlights")).map((item0) => fromJsonHighlight(item0)),
+    };
 }

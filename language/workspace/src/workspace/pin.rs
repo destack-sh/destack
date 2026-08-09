@@ -2,6 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactKey, IndexKind};
+use destack_query::Module;
 use destack_repository::{Package, Repository, RepositoryError, Revision, RevisionPin};
 use destack_session::{Session, SessionError};
 use destack_source::{File, FileId, ModuleId, ProfileId, TargetId};
@@ -121,36 +122,73 @@ impl SessionPin {
         Ok(profile_ids)
     }
 
-    /// Return DIR diagnostic artifacts for selected modules.
-    pub(crate) fn diagnostic_artifacts(
-        &self,
-        modules: &[ModuleId],
-    ) -> Result<Vec<ArtifactKey>, Error> {
-        let mut artifacts = Vec::new();
+    /// Resolve one module in its package's selected program.
+    pub(crate) fn module(&self, module_id: ModuleId) -> Result<Module, Error> {
+        let repository = self.repository();
+        let revision = self.revision();
+        let module = repository
+            .module(revision, module_id)?
+            .ok_or(RepositoryError::MissingModule { module: module_id })?;
+        let package = repository.package(revision, module.package_id)?.ok_or(
+            RepositoryError::MissingPackage {
+                package: module.package_id,
+            },
+        )?;
+        let Some((_, profile_id)) = self.selected_target(&package)? else {
+            return Err(Error::TargetNotSelected {
+                package_id: package.id,
+            });
+        };
 
-        // request each DIR phase through check for selected authored modules
+        Ok(Module {
+            module_id,
+            profile_id,
+        })
+    }
+
+    /// Select requested modules belonging to active programs.
+    pub(crate) fn selected_modules(&self, module_ids: &[ModuleId]) -> Result<Vec<Module>, Error> {
+        let mut modules = Vec::new();
+
+        // pair modules with the selected program owned by their package
         for (target_id, profile_id) in self.selected_targets()? {
-            for module_id in modules.iter().copied() {
+            for module_id in module_ids.iter().copied() {
                 if module_id.package_id == target_id.package_id() {
-                    artifacts.extend([
-                        ArtifactKey::dir_parsed(module_id),
-                        ArtifactKey::dir_bound(module_id, profile_id),
-                        ArtifactKey::dir_imported(module_id, profile_id),
-                        ArtifactKey::dir_expanded(module_id, profile_id),
-                        ArtifactKey::dir_exported(module_id, profile_id),
-                        ArtifactKey::dir_resolved(module_id, profile_id),
-                        ArtifactKey::dir_declared(module_id, profile_id),
-                    ]);
-
-                    artifacts.push(ArtifactKey::dir_checked(module_id, profile_id));
+                    modules.push(Module {
+                        module_id,
+                        profile_id,
+                    });
                 }
             }
+        }
+        modules.sort_unstable_by_key(|module| (module.profile_id, module.module_id));
+        modules.dedup();
+
+        Ok(modules)
+    }
+
+    /// Return DIR diagnostic artifacts for exact program modules.
+    pub(crate) fn diagnostic_artifacts(&self, modules: &[Module]) -> Vec<ArtifactKey> {
+        let mut artifacts = Vec::new();
+
+        // request each DIR phase through check for every exact module
+        for module in modules {
+            artifacts.extend([
+                ArtifactKey::dir_parsed(module.module_id),
+                ArtifactKey::dir_bound(module.module_id, module.profile_id),
+                ArtifactKey::dir_imported(module.module_id, module.profile_id),
+                ArtifactKey::dir_expanded(module.module_id, module.profile_id),
+                ArtifactKey::dir_exported(module.module_id, module.profile_id),
+                ArtifactKey::dir_resolved(module.module_id, module.profile_id),
+                ArtifactKey::dir_declared(module.module_id, module.profile_id),
+                ArtifactKey::dir_checked(module.module_id, module.profile_id),
+            ]);
         }
 
         artifacts.sort_unstable();
         artifacts.dedup();
 
-        Ok(artifacts)
+        artifacts
     }
 
     /// Return every program index root for the selected profiles.

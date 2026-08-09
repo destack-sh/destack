@@ -34,8 +34,6 @@ impl Formatter<'_, '_, '_> {
         };
 
         // format parameters in binding order
-        let mut bindings = bindings.iter().collect::<Vec<_>>();
-        bindings.sort_by_key(|binding| binding.parameter);
         if parameter_names.len() != bindings.len() {
             return Err(QueryError::invalid(format!(
                 "signature parameter names: expected {}, found {}",
@@ -45,14 +43,8 @@ impl Formatter<'_, '_, '_> {
         }
 
         let mut parameters = Vec::with_capacity(bindings.len());
-        for (index, binding) in bindings.into_iter().enumerate() {
-            if binding.parameter != index {
-                return Err(QueryError::invalid(format!(
-                    "call argument binding: expected {index}, found {}",
-                    binding.parameter
-                )));
-            }
-            let type_text = self.global_type(binding.ty)?;
+        for (index, binding) in bindings.iter().enumerate() {
+            let type_text = self.global_type(binding.parameter_type)?;
             let label = match parameter_names[index].as_deref() {
                 Some(name) => format!("{name}: {type_text}"),
                 None => type_text,

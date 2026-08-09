@@ -55,6 +55,8 @@ pub(in crate::check) struct InterfaceIndexSignature {
 /// One member required by an applied interface.
 #[derive(Debug, Clone, Copy)]
 pub(in crate::check) struct InterfaceMember {
+    /// The required interface member symbol.
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The interface member's source declaration.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The member space.
@@ -205,7 +207,7 @@ impl CheckState<'_> {
         interface_module: ModuleId,
         parameters: &[GenericParameterId],
         substitution: &mut TypeSubstitution,
-        implementations: &[dir::NominalHeritage],
+        interfaces: &[dir::GlobalTypeId],
         interface: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // compare each declared implemented interface
@@ -217,9 +219,9 @@ impl CheckState<'_> {
             symbol: interface.symbol,
             arguments,
         }))?;
-        for heritage in implementations {
+        for implemented in interfaces {
             // fill elided arguments before matching
-            let declared = self.shallow_resolve(heritage.ty)?;
+            let declared = self.shallow_resolve(*implemented)?;
             let declared = match self.ty(declared)? {
                 dir::Type::Application(instance) => {
                     match self.fill_elided_application(declared.module_id, &instance)? {
@@ -247,15 +249,13 @@ impl CheckState<'_> {
             // select the implemented application naming the requested interface
             let (implemented_module, implemented_instance) =
                 self.nominal_application(implemented)?;
-            let implemented_symbol = self.resolve_symbol_alias(implemented_instance.symbol)?;
-            let interface_symbol = self.resolve_symbol_alias(interface.symbol)?;
-            let (instance, matched) = if implemented_symbol == interface_symbol {
+            let (instance, matched) = if implemented_instance.symbol == interface.symbol {
                 (
                     Some((implemented_module, implemented_instance)),
                     implemented,
                 )
             } else if let Some(inherited) =
-                self.heritage_instance(origin, implemented, interface_symbol)?
+                self.heritage_instance(origin, implemented, interface.symbol)?
             {
                 (Some(self.nominal_application(inherited)?), inherited)
             } else {
@@ -424,28 +424,66 @@ impl CheckState<'_> {
                 return Ok(false);
             };
 
-            let Some(found) = self.body().member_read_type(origin, &lookup)? else {
-                // absent optional and defaulted members satisfy by omission
-                if member.is_optional || member.has_default {
-                    continue;
-                }
+            let access = self.property_access(member.role, member_type, member.is_readonly)?;
+            let member_decision = match access {
+                // properties relate their complete read and write operations
+                Some(required) if member.role != MemberRole::Method => {
+                    let Some(found) = self.body().member_binding(origin, member.key, &lookup)?
+                    else {
+                        if member.is_optional || member.has_default {
+                            continue;
+                        }
 
-                return Ok(false);
-            };
+                        return Ok(false);
+                    };
+                    let source = dir::TypeProperty {
+                        key: member.key,
+                        access: found.access,
+                        is_optional: found.is_optional,
+                    };
+                    let target = dir::TypeProperty {
+                        key: member.key,
+                        access: required,
+                        is_optional: member.is_optional,
+                    };
+                    let Some(relations) =
+                        self.shape_property_relations(Relation::Assignable, &source, &target)
+                    else {
+                        return Ok(false);
+                    };
 
-            let member_decision = match member.role {
-                // setters accept writes flowing back into the source
-                MemberRole::Setter => {
-                    self.decide_relation(origin, Relation::Assignable, member_type, found)?
+                    self.decide_shape_fields(origin, &relations)?
                 }
-                role if role.is_callable() => self.decide_method_relation(
-                    origin,
-                    Relation::Assignable,
-                    found,
-                    member_type,
-                    None,
-                )?,
-                _ => self.decide_relation(origin, Relation::Assignable, found, member_type)?,
+                // methods compare callable signatures without their receivers
+                Some(_) => {
+                    let Some(found) = self.body().member_read_type(origin, &lookup)? else {
+                        if member.is_optional || member.has_default {
+                            continue;
+                        }
+
+                        return Ok(false);
+                    };
+
+                    self.decide_method_relation(
+                        origin,
+                        Relation::Assignable,
+                        found,
+                        member_type,
+                        None,
+                    )?
+                }
+                // associated members use their selected value type
+                None => {
+                    let Some(found) = self.body().member_read_type(origin, &lookup)? else {
+                        if member.is_optional || member.has_default {
+                            continue;
+                        }
+
+                        return Ok(false);
+                    };
+
+                    self.decide_relation(origin, Relation::Assignable, found, member_type)?
+                }
             };
             if !member_decision {
                 return Ok(false);
@@ -698,14 +736,20 @@ impl CheckState<'_> {
 
         // collect direct interface members with applied arguments
         for member in members {
-            let Some(role) = MemberRole::from_definition(&member) else {
+            let Ok(role) = MemberRole::try_from(&member) else {
                 continue;
             };
             let Some(key) = member.key() else {
                 continue;
             };
-            // associated types bound implementers by constraint; a written
-            //  value is a default the implementer may override
+            let symbol = member.symbol().ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "named interface member has no symbol: {:?}",
+                    member.source()
+                ),
+            })?;
+
+            // bind associated types by constraint and treat a written value as a default
             let (declared, has_default) = match &member {
                 dir::DefinitionMember::AssociatedType(associated) => {
                     (associated.constraint, associated.value.is_some())
@@ -721,6 +765,7 @@ impl CheckState<'_> {
                 _ => (false, false),
             };
             required.push(InterfaceMember {
+                symbol,
                 source: member.source(),
                 space: member.space(),
                 key,
@@ -751,7 +796,7 @@ impl CheckState<'_> {
 
         // collect inherited interface fields first
         let requirements = self.interface_requirements(interface, receiver)?;
-        let mut fields = Vec::new();
+        let mut fields = Vec::<dir::TypeProperty>::new();
         for inherited in requirements.inherited {
             let Some(nested) = self.interface_instance_fields(inherited.ty, receiver)? else {
                 return Err(CompilerError::Internal {
@@ -761,28 +806,35 @@ impl CheckState<'_> {
                     ),
                 });
             };
-            fields.extend(nested);
+
+            // compose accessor operations inherited through separate requirements
+            for property in nested {
+                if !fields.iter_mut().any(|field| field.compose(property)) {
+                    fields.push(property);
+                }
+            }
         }
         for member in requirements.members {
             if member.space != dir::MemberSpace::Instance {
                 continue;
             }
+
             let Some(ty) = member.ty else {
                 continue;
             };
-
-            let access = match member.is_readonly {
-                true => dir::PropertyAccess::Read(ty),
-                false => dir::PropertyAccess::ReadWrite {
-                    read: ty,
-                    write: ty,
-                },
+            let Some(access) = self.property_access(member.role, ty, member.is_readonly)? else {
+                continue;
             };
-            fields.push(dir::TypeProperty {
+            let property = dir::TypeProperty {
                 key: member.key,
                 access,
                 is_optional: member.is_optional || member.has_default,
-            });
+            };
+
+            // merge complementary getter and setter operations
+            if !fields.iter_mut().any(|field| field.compose(property)) {
+                fields.push(property);
+            }
         }
 
         Ok(Some(fields))

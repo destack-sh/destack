@@ -1,4 +1,5 @@
 mod comment;
+mod documentation;
 mod identifier;
 mod keyword;
 mod parent;
@@ -7,6 +8,7 @@ mod span;
 mod token;
 
 pub use comment::*;
+pub use documentation::*;
 pub use identifier::*;
 pub use keyword::*;
 pub use parent::*;

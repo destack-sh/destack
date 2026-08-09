@@ -1,13 +1,15 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::{CheckState, ControlTarget, ControlTargetForm, FlowBranch, TryTarget};
+use crate::check::{
+    CheckState, ControlLabel, ControlTarget, ControlTargetForm, FlowBranch, TryTarget,
+};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Enter one break or continue target.
     pub(in crate::check) fn enter_control_target(
         &mut self,
-        label: Option<dir::StringId>,
+        label: Option<ControlLabel>,
         form: ControlTargetForm,
     ) {
         // capture flow state before the control body
@@ -60,7 +62,7 @@ impl CheckState<'_> {
         &mut self,
         source: dir::LocalNodeIdAny,
         label: Option<dir::StringId>,
-    ) {
+    ) -> CompilerResult<()> {
         // resolve the chosen loop target
         let Some(index) = self.flow.continue_target_index(label) else {
             self.report_continue_outside_loop(self.module_id, source);
@@ -68,14 +70,38 @@ impl CheckState<'_> {
             // unbound jumps already emitted diagnostics
             self.flow.mark_unbound_jump(source);
 
-            return;
+            return Ok(());
         };
+
+        // record the selected label target
+        if label.is_some() {
+            self.commit_label_target(source, index)?;
+        }
 
         // capture branch flow at the continue site
         let checkpoint = self.flow.control_target_checkpoint(index);
         let branch = self.flow.branch(checkpoint);
 
         self.flow.push_continue_branch(index, branch);
+
+        Ok(())
+    }
+
+    /// Commit the target selected by one explicit control transfer.
+    pub(in crate::check) fn commit_label_target(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        target: usize,
+    ) -> CompilerResult<()> {
+        let label =
+            self.flow
+                .control_target_label(target)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("labeled transfer {source:?} selected an unlabeled target"),
+                })?;
+        let source = source.into_global(self.module_id);
+
+        self.commit_decision(source, dir::Decision::Label(label.source))
     }
 
     /// Take continue branches collected by the current control target.

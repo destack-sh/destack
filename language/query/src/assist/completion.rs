@@ -2,7 +2,7 @@ use std::mem;
 
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::{FileId, Patch, Span};
+use destack_source::{Patch, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::complete::{CompletionCollector, CompletionCursor, rank_completions};
@@ -10,19 +10,6 @@ use crate::source::ImportBinding;
 use crate::{
     ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
 };
-
-/// Sort order for contextual candidates.
-pub(crate) const SORT_CONTEXTUAL: u32 = 0;
-/// Sort order for local declaration candidates.
-pub(crate) const SORT_LOCAL_SYMBOL: u32 = 10;
-/// Sort order for member candidates.
-pub(crate) const SORT_MEMBER: u32 = 20;
-/// Sort order for builtin candidates.
-pub(crate) const SORT_BUILTIN: u32 = 30;
-/// Sort order for default candidates.
-pub(crate) const SORT_DEFAULT: u32 = 100;
-/// Sort order for keyword candidates.
-pub(crate) const SORT_KEYWORD: u32 = 700;
 
 /// Kind of completion item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -85,23 +72,6 @@ pub enum CompletionItemKind {
     BuiltinType,
 }
 
-/// The origin bucket for one completion candidate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub(crate) enum CompletionOrigin {
-    /// A context-shaped completion, such as an expected object-literal field.
-    Contextual,
-    /// A local or in-scope declaration.
-    Local,
-    /// A builtin or ambient candidate.
-    Builtin,
-    /// A candidate that requires a new import.
-    AutoImport,
-    /// A language keyword candidate.
-    Keyword,
-    /// A member of the completed receiver.
-    Member,
-}
-
 impl From<dir::SymbolKind> for CompletionItemKind {
     /// Convert a symbol type into a completion kind.
     fn from(symbol_kind: dir::SymbolKind) -> Self {
@@ -117,7 +87,7 @@ impl From<dir::SymbolKind> for CompletionItemKind {
             dir::SymbolKind::Enum => CompletionItemKind::Enum,
             dir::SymbolKind::Variant => CompletionItemKind::EnumMember,
             dir::SymbolKind::Function => CompletionItemKind::Function,
-            dir::SymbolKind::Import => CompletionItemKind::Reference,
+            dir::SymbolKind::Import | dir::SymbolKind::ExportAlias => CompletionItemKind::Reference,
             dir::SymbolKind::Extension => CompletionItemKind::Extension,
             dir::SymbolKind::TypeAlias => CompletionItemKind::TypeAlias,
             dir::SymbolKind::AssociatedType => CompletionItemKind::AssociatedType,
@@ -173,9 +143,11 @@ pub struct CompletionItem {
     pub label: String,
     /// The kind of completion.
     pub kind: CompletionItemKind,
-    /// Detail shown alongside the label.
-    pub detail: Option<String>,
-    /// Description shown separately from the label.
+    /// The exact text shown directly after the label.
+    pub label_suffix: Option<String>,
+    /// The declaration shown in completion details.
+    pub declaration: Option<String>,
+    /// The declaration owner or import source.
     pub description: Option<String>,
     /// Documentation for the item.
     pub documentation: Option<String>,
@@ -193,6 +165,104 @@ pub struct CompletionItem {
     pub match_positions: Vec<usize>,
 }
 
+/// Trigger character that caused the completion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum CompletionTrigger {
+    /// Invoked manually or automatically.
+    Invoked,
+    /// Triggered by one character, for example `.`.
+    Character(char),
+    /// Retriggered for incomplete results.
+    Incomplete,
+}
+
+/// A completion request.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct CompletionRequest {
+    /// The queried position.
+    pub position: QueryPosition,
+    /// The trigger that initiated completion.
+    pub trigger: CompletionTrigger,
+    /// Whether to include auto import completions.
+    pub include_auto_imports: bool,
+}
+
+/// A completion response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct CompletionResponse {
+    /// Completion items.
+    pub items: Vec<CompletionItem>,
+    /// Whether another request may produce more items.
+    pub is_incomplete: bool,
+}
+
+impl ModuleQueryContext<'_> {
+    /// Return completion items at one position.
+    pub fn completion(
+        &self,
+        request: CompletionRequest,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<CompletionResponse> {
+        let position = request.position;
+        let file_id = position.file_id;
+        let offset = position.offset;
+        let Some(CompletionCursor { context, token }) =
+            self.classify_completion(file_id, offset)?
+        else {
+            return Ok(CompletionResponse {
+                items: Vec::new(),
+                is_incomplete: false,
+            });
+        };
+
+        // exclude bindings declared by the pattern under initialization
+        let initializing_pattern = self.initializing_pattern_at_offset(file_id, offset)?;
+
+        // collect and rank candidates for the selected context
+        let collector = CompletionCollector::new(self, program, file_id, initializing_pattern);
+        let completions = collector.collect(
+            request.trigger,
+            &context,
+            token.as_ref(),
+            request.include_auto_imports,
+        )?;
+        let is_incomplete = completions.is_incomplete;
+        let completions = rank_completions(completions.items, &context, token.as_ref());
+
+        // resolve only candidates returned to the editor
+        let replacement_start = token.as_ref().map_or(offset, |token| token.start);
+        let replacement_end = token.as_ref().map_or(offset, |token| token.end);
+        let replacement = Span::new(file_id, replacement_start, replacement_end);
+        let mut items = Vec::with_capacity(completions.len());
+        for completion in completions {
+            let completion = collector.resolve(completion)?;
+            items.push(completion.into_item(replacement)?);
+        }
+
+        Ok(CompletionResponse {
+            items,
+            is_incomplete,
+        })
+    }
+}
+
+/// The origin bucket for one completion candidate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub(crate) enum CompletionOrigin {
+    /// A context-shaped completion, such as an expected object-literal field.
+    Contextual,
+    /// A local or in-scope declaration.
+    Local,
+    /// A builtin or ambient candidate.
+    Builtin,
+    /// A candidate that requires a new import.
+    AutoImport,
+    /// A language keyword candidate.
+    Keyword,
+    /// A member of the completed receiver.
+    Member,
+}
+
 /// One completion candidate before ranking and source edit construction.
 #[derive(Debug)]
 pub(crate) struct CompletionCandidate {
@@ -200,16 +270,16 @@ pub(crate) struct CompletionCandidate {
     pub(crate) label: String,
     /// The kind of completion.
     pub(crate) kind: CompletionItemKind,
-    /// Detail shown alongside the label.
-    pub(crate) detail: Option<String>,
-    /// Description shown separately from the label.
+    /// The exact text shown directly after the label.
+    pub(crate) label_suffix: Option<String>,
+    /// The declaration shown in completion details.
+    pub(crate) declaration: Option<String>,
+    /// The declaration owner or import source.
     pub(crate) description: Option<String>,
     /// Documentation for the item.
     pub(crate) documentation: Option<String>,
     /// The insertion produced when this candidate is selected.
     insertion: CompletionInsertion,
-    /// The producer ordering bucket.
-    pub(crate) producer_order: u32,
     /// Stable text used to order otherwise equal candidates.
     pub(crate) ordering_text: Option<String>,
     /// Whether to preselect this item.
@@ -226,7 +296,7 @@ pub(crate) struct CompletionCandidate {
     pub(crate) import_order: Option<ImportOrder>,
     /// The exact value type when this candidate denotes one.
     pub(crate) type_id: Option<dir::GlobalTypeId>,
-    /// The canonical declaration carried by this candidate.
+    /// The target declaration carried by this candidate.
     symbol: Option<dir::GlobalSymbolId>,
     /// The specialized resolution selected for this candidate.
     resolution: CompletionResolution,
@@ -295,96 +365,21 @@ pub(crate) struct CompletionCandidates {
     pub(crate) is_incomplete: bool,
 }
 
-/// Trigger character that caused the completion.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum CompletionTrigger {
-    /// Invoked manually or automatically.
-    Invoked,
-    /// Triggered by one character, for example `.`.
-    Character(char),
-    /// Retriggered for incomplete results.
-    Incomplete,
-}
-
-/// Request completion items at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct CompletionRequest {
-    /// The queried position.
-    pub position: QueryPosition,
-    /// The trigger that initiated completion.
-    pub trigger: CompletionTrigger,
-    /// Whether to include auto import completions.
-    pub include_auto_imports: bool,
-}
-
-/// Response payload for completion queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct CompletionResponse {
-    /// Completion items.
-    pub items: Vec<CompletionItem>,
-    /// Whether another request may produce more items.
-    pub is_incomplete: bool,
-}
-
-impl ModuleQueryContext<'_> {
-    /// Return completion items at one position.
-    pub fn completion(
-        &self,
-        program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-        trigger: CompletionTrigger,
-        include_auto_imports: bool,
-    ) -> QueryResult<CompletionResponse> {
-        let Some(CompletionCursor { context, token }) =
-            self.classify_completion(file_id, offset)?
-        else {
-            return Ok(CompletionResponse {
-                items: Vec::new(),
-                is_incomplete: false,
-            });
-        };
-
-        // collect and rank candidates for the selected context
-        let collector = CompletionCollector::new(self, program, file_id);
-        let completions =
-            collector.collect(trigger, &context, token.as_ref(), include_auto_imports)?;
-        let is_incomplete = completions.is_incomplete;
-        let completions = rank_completions(completions.items, &context, token.as_ref());
-
-        // resolve only candidates returned to the editor
-        let replacement_start = token.as_ref().map_or(offset, |token| token.start);
-        let replacement_end = token.as_ref().map_or(offset, |token| token.end);
-        let replacement = Span::new(file_id, replacement_start, replacement_end);
-        let mut items = Vec::with_capacity(completions.len());
-        for completion in completions {
-            let completion = collector.resolve(completion)?;
-            items.push(completion.into_item(replacement)?);
-        }
-
-        Ok(CompletionResponse {
-            items,
-            is_incomplete,
-        })
-    }
-}
-
 impl CompletionCandidate {
     /// Create a simple completion.
     pub(crate) fn new(
         label: impl Into<String>,
         kind: CompletionItemKind,
         origin: CompletionOrigin,
-        producer_order: u32,
     ) -> Self {
         Self {
             label: label.into(),
             kind,
-            detail: None,
+            label_suffix: None,
+            declaration: None,
             description: None,
             documentation: None,
             insertion: CompletionInsertion::Label,
-            producer_order,
             ordering_text: None,
             preselect: false,
             is_deprecated: false,
@@ -410,9 +405,17 @@ impl CompletionCandidate {
         matches!(self.insertion, CompletionInsertion::Call)
     }
 
-    /// Set the detail text.
-    pub(crate) fn with_detail(mut self, detail: impl Into<String>) -> Self {
-        self.detail = Some(detail.into());
+    /// Set the exact suffix shown after the label.
+    pub(crate) fn with_label_suffix(mut self, suffix: impl Into<String>) -> Self {
+        self.label_suffix = Some(suffix.into());
+
+        self
+    }
+
+    /// Set the declaration shown in completion details.
+    pub(crate) fn with_declaration(mut self, declaration: impl Into<String>) -> Self {
+        self.declaration = Some(declaration.into());
+
         self
     }
 
@@ -426,6 +429,7 @@ impl CompletionCandidate {
     /// Set the documentation.
     pub(crate) fn with_documentation(mut self, documentation: impl Into<String>) -> Self {
         self.documentation = Some(documentation.into());
+
         self
     }
 
@@ -446,6 +450,7 @@ impl CompletionCandidate {
     /// Add additional edits.
     pub(crate) fn with_additional_edits(mut self, edits: Vec<Patch>) -> Self {
         self.additional_edits = edits;
+
         self
     }
 
@@ -473,7 +478,7 @@ impl CompletionCandidate {
         self
     }
 
-    /// Set the canonical declaration.
+    /// Set the target declaration.
     pub(crate) fn with_symbol(mut self, symbol: dir::GlobalSymbolId) -> Self {
         self.symbol = Some(symbol);
 
@@ -542,7 +547,7 @@ impl CompletionCandidate {
         mem::replace(&mut self.resolution, CompletionResolution::None)
     }
 
-    /// Return the canonical declaration carried by this candidate.
+    /// Return the target declaration carried by this candidate.
     pub(crate) fn symbol(&self) -> Option<dir::GlobalSymbolId> {
         self.symbol
     }
@@ -570,7 +575,8 @@ impl CompletionCandidate {
         Ok(CompletionItem {
             label: self.label,
             kind: self.kind,
-            detail: self.detail,
+            label_suffix: self.label_suffix,
+            declaration: self.declaration,
             description: self.description,
             documentation: self.documentation,
             edit: CompletionEdit {
@@ -591,5 +597,42 @@ impl CompletionItemKind {
     /// Return whether this item can insert a call.
     pub(crate) fn is_callable(self) -> bool {
         matches!(self, Self::Constructor | Self::Function | Self::Method)
+    }
+
+    /// Return whether this item shows a value type after its label.
+    pub(crate) fn has_value_suffix(self) -> bool {
+        matches!(
+            self,
+            Self::AssociatedConst
+                | Self::Constant
+                | Self::EnumMember
+                | Self::Field
+                | Self::Function
+                | Self::Method
+                | Self::Property
+                | Self::Value
+                | Self::ValueParameter
+                | Self::Variable
+        )
+    }
+
+    /// Return whether this item shows generic parameters after its label.
+    pub(crate) fn has_generic_suffix(self) -> bool {
+        matches!(
+            self,
+            Self::Class
+                | Self::Enum
+                | Self::Extension
+                | Self::Interface
+                | Self::Newtype
+                | Self::NewtypeInterface
+                | Self::Struct
+                | Self::TypeAlias
+        )
+    }
+
+    /// Return whether this item is constructable with `new`.
+    pub(crate) fn is_constructable(self) -> bool {
+        matches!(self, Self::Class | Self::Struct)
     }
 }

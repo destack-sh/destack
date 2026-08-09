@@ -447,22 +447,24 @@ function start(service: Alpha | Beta): void {
 
 ## Labels
 
-### [ignored] Resolve a control label declaration
+### Resolve a control label declaration
 
 A labeled break resolves to its enclosing label.
 
 ```ds main.ds
 function choose(): int32 {
     outer: loop {
+    ^ target:outer:start
     ^^^^^ declaration:outer
         break outer: 1;
               ^^^^^ reference:outer
     }
+    ^ target:outer:end
 }
 ```
 
 ```query goto_declaration main.ds#reference:outer
-@goto_declaration.target origin=main.ds#reference:outer location=main.ds#declaration:outer symbol=main.ds#outer@2
+@goto_declaration.target origin=main.ds#reference:outer location=main.ds#target:outer selection=main.ds#declaration:outer symbol=main.ds#outer@2
 ```
 
 ## Missing Symbols

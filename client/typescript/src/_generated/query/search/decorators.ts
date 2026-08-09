@@ -14,70 +14,98 @@ import { decodeTarget, encodeTarget, fromJsonTarget, toJsonTarget } from "../pro
 import { decodeModule, encodeModule, fromJsonModule, toJsonModule } from "../protocol/target.js";
 import { decodeProfileId, encodeProfileId, fromJsonProfileId, toJsonProfileId } from "../../source/file/model/profile.js";
 
-/** Request payload for decorator queries. */
-export type DecoratorsRequest = {
-    /** The query scope. */
-    readonly scope: DecoratorScope;
-    /** The decorator name filter. */
+/** One decorator query item. */
+export type DecoratorItem = {
+    /** The decorator name when syntactically known. */
     readonly name?: string;
+    /** The decorator application source. */
+    readonly application: Target;
+    /** The decorator application node. */
+    readonly applicationNode: GlobalNodeId;
+    /** The decorated owner source. */
+    readonly owner: Target;
+    /** The decorated owner node. */
+    readonly ownerNode: GlobalNodeIdAny;
+    /** The exact checked decorator declaration. */
+    readonly declaration: DecoratorTarget;
 };
 
-export const DecoratorsRequest = {
+export const DecoratorItem = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: DecoratorsRequest): void {
-        encodeDecoratorsRequest(writer, value);
+    encode(writer: BinaryWriter, value: DecoratorItem): void {
+        encodeDecoratorItem(writer, value);
     },
 
-    /** Decode one DecoratorsRequest. */
-    decode(reader: BinaryReader): DecoratorsRequest {
-        return decodeDecoratorsRequest(reader);
+    /** Decode one DecoratorItem. */
+    decode(reader: BinaryReader): DecoratorItem {
+        return decodeDecoratorItem(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: DecoratorsRequest): Json {
-        return toJsonDecoratorsRequest(value);
+    toJson(value: DecoratorItem): Json {
+        return toJsonDecoratorItem(value);
     },
 
-    /** Return one DecoratorsRequest from one JSON value. */
-    fromJson(value: Json): DecoratorsRequest {
-        return fromJsonDecoratorsRequest(value);
+    /** Return one DecoratorItem from one JSON value. */
+    fromJson(value: Json): DecoratorItem {
+        return fromJsonDecoratorItem(value);
     },
 };
 
-/** Encode one DecoratorsRequest. */
-export function encodeDecoratorsRequest(writer: BinaryWriter, value: DecoratorsRequest): void {
-    encodeDecoratorScope(writer, value.scope);
-    writer.writeOption(value.name, (value1) => {
-        writer.writeString(value1);
+/** Encode one DecoratorItem. */
+export function encodeDecoratorItem(writer: BinaryWriter, value: DecoratorItem): void {
+    writer.writeOption(value.name, (value0) => {
+        writer.writeString(value0);
     });
+    encodeTarget(writer, value.application);
+    encodeGlobalNodeId(writer, value.applicationNode);
+    encodeTarget(writer, value.owner);
+    encodeGlobalNodeIdAny(writer, value.ownerNode);
+    encodeDecoratorTarget(writer, value.declaration);
 }
 
-/** Decode one DecoratorsRequest. */
-export function decodeDecoratorsRequest(reader: BinaryReader): DecoratorsRequest {
-    const scope = decodeDecoratorScope(reader);
+/** Decode one DecoratorItem. */
+export function decodeDecoratorItem(reader: BinaryReader): DecoratorItem {
     const name = reader.readOption(() => reader.readString());
+    const application = decodeTarget(reader);
+    const applicationNode = decodeGlobalNodeId(reader);
+    const owner = decodeTarget(reader);
+    const ownerNode = decodeGlobalNodeIdAny(reader);
+    const declaration = decodeDecoratorTarget(reader);
 
     return {
-        scope,
         ...(name === undefined ? {} : { name }),
+        application,
+        applicationNode,
+        owner,
+        ownerNode,
+        declaration,
     };
 }
 
-/** Return one JSON value for one DecoratorsRequest. */
-export function toJsonDecoratorsRequest(value: DecoratorsRequest): Json {
+/** Return one JSON value for one DecoratorItem. */
+export function toJsonDecoratorItem(value: DecoratorItem): Json {
     return {
-        scope: toJsonDecoratorScope(value.scope),
         ...(value.name === undefined ? {} : { name: value.name }),
+        application: toJsonTarget(value.application),
+        applicationNode: toJsonGlobalNodeId(value.applicationNode),
+        owner: toJsonTarget(value.owner),
+        ownerNode: toJsonGlobalNodeIdAny(value.ownerNode),
+        declaration: toJsonDecoratorTarget(value.declaration),
     };
 }
 
-/** Return one DecoratorsRequest from one JSON value. */
-export function fromJsonDecoratorsRequest(value: Json): DecoratorsRequest {
+/** Return one DecoratorItem from one JSON value. */
+export function fromJsonDecoratorItem(value: Json): DecoratorItem {
     const object = jsonObject(value);
 
     return {
-        scope: fromJsonDecoratorScope(jsonField(object, "scope")),
         name: jsonOptional(object, "name", (value) => jsonString(value)),
+        application: fromJsonTarget(jsonField(object, "application")),
+        applicationNode: fromJsonGlobalNodeId(jsonField(object, "applicationNode")),
+        owner: fromJsonTarget(jsonField(object, "owner")),
+        ownerNode: fromJsonGlobalNodeIdAny(jsonField(object, "ownerNode")),
+        declaration: fromJsonDecoratorTarget(jsonField(object, "declaration")),
     };
 }
 
@@ -202,6 +230,73 @@ export function fromJsonDecoratorScope(value: Json): DecoratorScope {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
+/** Request payload for decorator queries. */
+export type DecoratorsRequest = {
+    /** The query scope. */
+    readonly scope: DecoratorScope;
+    /** The decorator name filter. */
+    readonly name?: string;
+};
+
+export const DecoratorsRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: DecoratorsRequest): void {
+        encodeDecoratorsRequest(writer, value);
+    },
+
+    /** Decode one DecoratorsRequest. */
+    decode(reader: BinaryReader): DecoratorsRequest {
+        return decodeDecoratorsRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: DecoratorsRequest): Json {
+        return toJsonDecoratorsRequest(value);
+    },
+
+    /** Return one DecoratorsRequest from one JSON value. */
+    fromJson(value: Json): DecoratorsRequest {
+        return fromJsonDecoratorsRequest(value);
+    },
+};
+
+/** Encode one DecoratorsRequest. */
+export function encodeDecoratorsRequest(writer: BinaryWriter, value: DecoratorsRequest): void {
+    encodeDecoratorScope(writer, value.scope);
+    writer.writeOption(value.name, (value1) => {
+        writer.writeString(value1);
+    });
+}
+
+/** Decode one DecoratorsRequest. */
+export function decodeDecoratorsRequest(reader: BinaryReader): DecoratorsRequest {
+    const scope = decodeDecoratorScope(reader);
+    const name = reader.readOption(() => reader.readString());
+
+    return {
+        scope,
+        ...(name === undefined ? {} : { name }),
+    };
+}
+
+/** Return one JSON value for one DecoratorsRequest. */
+export function toJsonDecoratorsRequest(value: DecoratorsRequest): Json {
+    return {
+        scope: toJsonDecoratorScope(value.scope),
+        ...(value.name === undefined ? {} : { name: value.name }),
+    };
+}
+
+/** Return one DecoratorsRequest from one JSON value. */
+export function fromJsonDecoratorsRequest(value: Json): DecoratorsRequest {
+    const object = jsonObject(value);
+
+    return {
+        scope: fromJsonDecoratorScope(jsonField(object, "scope")),
+        name: jsonOptional(object, "name", (value) => jsonString(value)),
+    };
+}
+
 /** Response payload for decorator queries. */
 export type DecoratorsResponse = {
     /** Matching decorators. */
@@ -260,100 +355,5 @@ export function fromJsonDecoratorsResponse(value: Json): DecoratorsResponse {
 
     return {
         decorators: jsonArray(jsonField(object, "decorators")).map((item0) => fromJsonDecoratorItem(item0)),
-    };
-}
-
-/** One decorator query item. */
-export type DecoratorItem = {
-    /** The decorator name when syntactically known. */
-    readonly name?: string;
-    /** The decorator application source. */
-    readonly application: Target;
-    /** The decorator application node. */
-    readonly applicationNode: GlobalNodeId;
-    /** The decorated owner source. */
-    readonly owner: Target;
-    /** The decorated owner node. */
-    readonly ownerNode: GlobalNodeIdAny;
-    /** The exact checked decorator declaration. */
-    readonly declaration: DecoratorTarget;
-};
-
-export const DecoratorItem = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: DecoratorItem): void {
-        encodeDecoratorItem(writer, value);
-    },
-
-    /** Decode one DecoratorItem. */
-    decode(reader: BinaryReader): DecoratorItem {
-        return decodeDecoratorItem(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: DecoratorItem): Json {
-        return toJsonDecoratorItem(value);
-    },
-
-    /** Return one DecoratorItem from one JSON value. */
-    fromJson(value: Json): DecoratorItem {
-        return fromJsonDecoratorItem(value);
-    },
-};
-
-/** Encode one DecoratorItem. */
-export function encodeDecoratorItem(writer: BinaryWriter, value: DecoratorItem): void {
-    writer.writeOption(value.name, (value0) => {
-        writer.writeString(value0);
-    });
-    encodeTarget(writer, value.application);
-    encodeGlobalNodeId(writer, value.applicationNode);
-    encodeTarget(writer, value.owner);
-    encodeGlobalNodeIdAny(writer, value.ownerNode);
-    encodeDecoratorTarget(writer, value.declaration);
-}
-
-/** Decode one DecoratorItem. */
-export function decodeDecoratorItem(reader: BinaryReader): DecoratorItem {
-    const name = reader.readOption(() => reader.readString());
-    const application = decodeTarget(reader);
-    const applicationNode = decodeGlobalNodeId(reader);
-    const owner = decodeTarget(reader);
-    const ownerNode = decodeGlobalNodeIdAny(reader);
-    const declaration = decodeDecoratorTarget(reader);
-
-    return {
-        ...(name === undefined ? {} : { name }),
-        application,
-        applicationNode,
-        owner,
-        ownerNode,
-        declaration,
-    };
-}
-
-/** Return one JSON value for one DecoratorItem. */
-export function toJsonDecoratorItem(value: DecoratorItem): Json {
-    return {
-        ...(value.name === undefined ? {} : { name: value.name }),
-        application: toJsonTarget(value.application),
-        applicationNode: toJsonGlobalNodeId(value.applicationNode),
-        owner: toJsonTarget(value.owner),
-        ownerNode: toJsonGlobalNodeIdAny(value.ownerNode),
-        declaration: toJsonDecoratorTarget(value.declaration),
-    };
-}
-
-/** Return one DecoratorItem from one JSON value. */
-export function fromJsonDecoratorItem(value: Json): DecoratorItem {
-    const object = jsonObject(value);
-
-    return {
-        name: jsonOptional(object, "name", (value) => jsonString(value)),
-        application: fromJsonTarget(jsonField(object, "application")),
-        applicationNode: fromJsonGlobalNodeId(jsonField(object, "applicationNode")),
-        owner: fromJsonTarget(jsonField(object, "owner")),
-        ownerNode: fromJsonGlobalNodeIdAny(jsonField(object, "ownerNode")),
-        declaration: fromJsonDecoratorTarget(jsonField(object, "declaration")),
     };
 }

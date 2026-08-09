@@ -16,10 +16,46 @@ export let value: number = 1;
         DirRows::exports().with_summaries().with_export_stats(),
         r#"
 export let value: number = 1;
-/// @export.local key=value source=value
+/// @export.local key=value symbols=[value]
 
 /// @export.summary exports=1
 /// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:2
+"#,
+    );
+}
+
+#[test]
+fn test_export_records_local_overload_group() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+export function parse(value: int32): int32 {
+    return value;
+}
+
+export function parse(value: string): string {
+    return value;
+}
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_exported(
+        "main.ds",
+        DirRows::exports().with_summaries(),
+        r#"
+export function parse(value: int32): int32 {
+/// @export.local key=parse symbols=[parse#1, parse#2]
+
+    return value;
+}
+
+export function parse(value: string): string {
+    return value;
+}
+
+/// @export.summary exports=1
 "#,
     );
 }
@@ -42,10 +78,10 @@ export { value as renamed };
         r#"
 let value = 1;
 export { value as renamed };
-/// @export.local key=renamed source=value
+/// @export.local key=renamed symbols=[value] declaration=renamed
 
 /// @export.summary exports=1
-/// @export.stats roots=2 expressions=visibility:2,export:2 symbols=scanned:2
+/// @export.stats roots=2 expressions=visibility:2,export:2 symbols=scanned:3
 "#,
     );
 }
@@ -79,7 +115,7 @@ import * as api from "./api.ds";
 /// @module.edge relation=import specifier=./api.ds module=api.ds
 
 export { api };
-/// @export.indirect key=api imported=<namespace> module=api.ds
+/// @export.import key=api imported=<namespace> local=api declaration=api module=api.ds
 
 /// @module.summary edges=1
 /// @export.summary exports=1
@@ -108,7 +144,7 @@ export { value };
 let value = 1;
 let value = 2;
 export { value };
-/// @export.local key=value source=value#2
+/// @export.local key=value symbols=[value#2]
 
 /// @export.summary exports=1
 /// @export.stats roots=3 expressions=visibility:3,export:3 symbols=scanned:3
@@ -136,10 +172,10 @@ global {
         r#"
 global {
     let process: string;
-    /// @global.local key=process source=process
+    /// @global.local key=process symbols=[process]
 
     const answer: int32 = 42;
-    /// @global.local key=answer source=answer
+    /// @global.local key=answer symbols=[answer]
 
 }
 
@@ -176,13 +212,13 @@ export type Option = string;
         r#"
 global {
     export { Function, Option as Maybe } from "./types.ds";
-    /// @global.indirect key=Function imported=Function module=types.ds
-    /// @global.indirect key=Maybe imported=Option module=types.ds
+    /// @global.reexport key=Function imported=Function module=types.ds
+    /// @global.reexport key=Maybe imported=Option declaration=Maybe module=types.ds
 
 }
 
 /// @export.summary
-/// @export.stats roots=1 expressions=visibility:2,export:2 symbols=scanned:1
+/// @export.stats roots=1 expressions=visibility:2,export:2 symbols=scanned:2
 /// @global.summary keys=2 entries=2
 "#,
     );
@@ -213,12 +249,12 @@ export const value = 1;
         r#"
 global {
     export * as api from "./api.ds";
-    /// @global.indirect key=api imported=<namespace> module=api.ds
+    /// @global.reexport key=api imported=<namespace> declaration=api module=api.ds
 
 }
 
 /// @export.summary
-/// @export.stats roots=1 expressions=visibility:2,export:2 symbols=scanned:1
+/// @export.stats roots=1 expressions=visibility:2,export:2 symbols=scanned:2
 /// @global.summary keys=1 entries=1
 "#,
     );
@@ -244,14 +280,15 @@ global {
         DirRows::exports().with_summaries().with_export_stats(),
         r#"
 const value: int32 = 1;
-/// @global.local key=globalValue source=value
 
 global {
     export { value as globalValue };
+    /// @global.local key=globalValue symbols=[value] declaration=globalValue
+
 }
 
 /// @export.summary
-/// @export.stats roots=2 expressions=visibility:3,export:3 symbols=scanned:2
+/// @export.stats roots=2 expressions=visibility:3,export:3 symbols=scanned:3
 /// @global.summary keys=1 entries=1
 "#,
     );
@@ -290,7 +327,7 @@ import * as api from "./api.ds";
 
 global {
     export { api };
-    /// @global.indirect key=api imported=<namespace> module=api.ds
+    /// @global.import key=api imported=<namespace> local=api declaration=api module=api.ds
 
 }
 

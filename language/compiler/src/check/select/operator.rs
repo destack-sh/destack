@@ -878,6 +878,9 @@ impl BodyState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::BuiltinOperand> {
         let scalar_families = self.scalar_families(origin, ty)?;
+        let source = source
+            .try_into_typed::<dir::Expression>()
+            .map_err(|message| CompilerError::Internal { message })?;
         let operand = dir::BuiltinOperand {
             source,
             ty,
@@ -1221,8 +1224,8 @@ fn rebind_call_arguments(resolution: &mut dir::CallDecision, operand: dir::Globa
     };
     for call in calls {
         for argument in &mut call.arguments {
-            if matches!(argument.argument, dir::ArgumentSource::Provided(_)) {
-                argument.argument = dir::ArgumentSource::Provided(operand);
+            if matches!(argument.source, dir::ArgumentSource::Provided(_)) {
+                argument.source = dir::ArgumentSource::Provided(operand);
             }
         }
     }

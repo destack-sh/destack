@@ -555,8 +555,10 @@ pub fn normalize_workspace_path(path: PathBuf) -> Option<PathBuf> {
 
 /// Return candidate module paths in deterministic order.
 fn module_candidate_paths(path: PathBuf, loader: Option<Loader>) -> Vec<PathBuf> {
-    // retain an explicit extension
-    if path.extension().is_some() {
+    let file_type = FileType::from_path(&path);
+
+    // retain recognized source and loader paths
+    if file_type.is_some() || loader.is_some() && path.extension().is_some() {
         vec![path]
     }
     // apply an explicit loader extension
@@ -568,9 +570,18 @@ fn module_candidate_paths(path: PathBuf, loader: Option<Loader>) -> Vec<PathBuf>
         CODE_FILE_TYPES
             .iter()
             .filter_map(FileType::extension)
-            .map(|extension| path.with_extension(extension))
+            .map(|extension| append_extension(&path, extension))
             .collect()
     }
+}
+
+/// Append one extension without replacing a dotted basename suffix.
+fn append_extension(path: &Path, extension: &str) -> PathBuf {
+    let mut path = path.as_os_str().to_os_string();
+    path.push(".");
+    path.push(extension);
+
+    PathBuf::from(path)
 }
 
 #[cfg(test)]

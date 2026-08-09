@@ -154,6 +154,7 @@ extension of Point implements Display {
 /// @definition.extension symbol=<module>#2 form=local target=Point
 /// @definition.implements symbol=<module>#2 source=Display target=ops.format.Display
 /// @definition.method symbol=display slot=display type=<display.'a>(this: &display.'a readonly this) => memory.cow.cow.MaybeOwned<string>
+/// @definition.conformance symbol=<module>#2 member=display requirement=ops.format.Display.display
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Display target=ops.format.Display
 

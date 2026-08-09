@@ -8,7 +8,11 @@ declare_lint_stub! {
     pub LARGE_FUNCTION {
         id: "large-function",
         summary: "Disallow functions longer than the canonical authored-line limit",
-        explanation: "Large function bodies require readers to retain too much local state at once. Extract a coherent operation when a function exceeds Destack's standard authored-line limit; blank lines and comment-only lines do not count.",
+        explanation: r#"
+Large function bodies require readers to retain too much local state at once. Extract a coherent
+operation when a function exceeds Destack's standard authored-line limit; blank lines and
+comment-only lines do not count.
+"#,
         example: {
             reported: r#"
 function publish(article: Article): Result<Article, PublishError> {

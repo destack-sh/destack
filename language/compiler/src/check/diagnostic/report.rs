@@ -326,7 +326,7 @@ impl CheckState<'_> {
             .and_then(|state| state.resolved.references.get(source.into_global(module)))
         {
             for target in candidates.clone().iter().take(4) {
-                let dir::ImportTarget::Symbol(symbol) = target else {
+                let dir::ReferenceTarget::Symbol(symbol) = target else {
                     continue;
                 };
                 let Ok(declaration) = self.symbol_source(*symbol) else {
@@ -2736,6 +2736,17 @@ impl CheckState<'_> {
             module,
             member,
         };
+
+        self.report(module, error);
+    }
+
+    /// Report one accessor used as a struct field initializer.
+    pub(in crate::check) fn report_invalid_struct_accessor(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let error = CheckError::InvalidStructAccessor { anchor, module };
 
         self.report(module, error);
     }

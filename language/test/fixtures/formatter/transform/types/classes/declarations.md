@@ -567,9 +567,9 @@ Combined declaration fixtures cover documentation, decorators, heritage clauses,
 
 ## Classes
 
-### jsdoc decorated exported class with heritage
+### documented decorated exported class with heritage
 
-JSDoc, decorators, exports, heritage clauses, and decorated members keep their relative order.
+Documentation, decorators, exports, heritage clauses, and decorated members keep their relative order.
 
 ```ds:main.ds line-width=80
 /**

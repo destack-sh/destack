@@ -328,6 +328,26 @@ pub enum CheckError {
         target: String,
     },
 
+    /// Struct literal contains a getter or setter instead of a field initializer.
+    ///
+    /// ```ds
+    /// struct Store {
+    ///     value: () => string;
+    /// }
+    ///
+    /// Store { get value(): string { return "ready"; } };
+    /// ```
+    #[diagnostic(
+        id = "invalid-struct-accessor",
+        message = "accessors are not valid in struct literals"
+    )]
+    InvalidStructAccessor {
+        /// Report the invalid accessor property.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// Type cannot be explicitly cast to the requested target type.
     ///
     /// ```ds

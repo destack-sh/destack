@@ -21,17 +21,19 @@
     ],
     "files": [
         "dist",
+        "loader.d.ts",
+        "loader.js",
         "scripts",
         "README.md",
         "Cargo.toml"
     ],
-    "main": "./dist/destack_wasm.js",
-    "types": "./dist/destack_wasm.d.ts",
+    "main": "./loader.js",
+    "types": "./loader.d.ts",
     "exports": {
         ".": {
-            "types": "./dist/destack_wasm.d.ts",
-            "import": "./dist/destack_wasm.js",
-            "default": "./dist/destack_wasm.js"
+            "types": "./loader.d.ts",
+            "import": "./loader.js",
+            "default": "./loader.js"
         }
     },
     "sideEffects": false,

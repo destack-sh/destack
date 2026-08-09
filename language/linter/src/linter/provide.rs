@@ -56,7 +56,7 @@ impl Linter {
     ) -> Result<Option<Arc<EnvironmentBound>>, ProviderError> {
         dependencies.require(ArtifactKey::environment_bound(profile));
         let artifacts = self.artifact_reader(context);
-        let environment = match artifacts.environment_bound(profile) {
+        let environment = match artifacts.read::<EnvironmentBound>(profile) {
             Ok(environment) => environment,
             Err(ProviderError::Blocked { .. }) => {
                 dependencies.mark_partial();

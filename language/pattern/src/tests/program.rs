@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, BuildId, MemoryBlobStore};
+use destack_artifact::{
+    ArtifactKey, BuildId, DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirParsed,
+    DirResolved, MemoryBlobStore, DirElaborated,
+};
 use destack_core::StringPool;
 use destack_repository::{
     ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository,
@@ -9,6 +12,7 @@ use destack_repository::{
 };
 use destack_session::Session;
 use destack_source::{File, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
+use futures::executor::block_on;
 
 use crate::{ModuleContext, ProgramContext};
 
@@ -64,28 +68,33 @@ impl TestProgram {
         let contexts = modules
             .iter()
             .map(|(module, profile)| {
-                let parsed = artifacts.dir_parsed(*module).expect("read parsed test DIR");
+                let parsed = artifacts
+                    .read::<DirParsed>(*module)
+                    .expect("read parsed test DIR");
                 let bound = artifacts
-                    .dir_bound(*module, *profile)
+                    .read::<DirBound>((*module, *profile))
                     .expect("read bound test DIR");
                 let expanded = artifacts
-                    .dir_expanded(*module, *profile)
+                    .read::<DirExpanded>((*module, *profile))
                     .expect("read expanded test DIR");
                 let exported = artifacts
-                    .dir_exported(*module, *profile)
+                    .read::<DirExported>((*module, *profile))
                     .expect("read exported test DIR");
                 let resolved = artifacts
-                    .dir_resolved(*module, *profile)
+                    .read::<DirResolved>((*module, *profile))
                     .expect("read resolved test DIR");
                 let declared = artifacts
-                    .dir_declared(*module, *profile)
+                    .read::<DirDeclared>((*module, *profile))
                     .expect("read declared test DIR");
+                let elaborated = artifacts
+                    .read::<DirElaborated>((*module, *profile))
+                    .expect("read elaborated test DIR");
                 let checked = artifacts
-                    .dir_checked(*module, *profile)
+                    .read::<DirChecked>((*module, *profile))
                     .expect("read checked test DIR");
 
                 ModuleContext::new(
-                    parsed, bound, expanded, exported, resolved, declared, checked,
+                    parsed, bound, expanded, exported, resolved, declared, elaborated, checked,
                 )
                 .expect("build checked test module")
             })
@@ -216,9 +225,7 @@ impl TestProgram {
             None,
         )
         .expect("create checked test session");
-        session
-            .provide(revision, &keys)
-            .expect("provide checked test artifacts");
+        block_on(session.provide(revision, &keys)).expect("provide checked test artifacts");
 
         session
             .revision(session.head())

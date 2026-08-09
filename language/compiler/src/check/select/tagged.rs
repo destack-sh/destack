@@ -82,7 +82,7 @@ impl BodyState<'_, '_> {
             dir::TypeExpression::Reference { path, .. } => {
                 let reference = self.module(module).resolved.references.get(source).cloned();
                 let Some(dir::Reference::Projected {
-                    base: dir::ImportTarget::Symbol(base),
+                    base: dir::ReferenceTarget::Symbol(base),
                     from,
                 }) = reference
                 else {
@@ -158,7 +158,6 @@ impl BodyState<'_, '_> {
         let Some(owner) = self.reference_symbol(owner.into_global_any(module)) else {
             return Ok(None);
         };
-        let owner = self.resolve_symbol_alias(owner)?;
         let case = self.variant_case(owner, dir::StaticKey::Name(name))?;
 
         Ok(case)

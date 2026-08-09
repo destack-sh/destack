@@ -97,6 +97,9 @@ extension of Panel implements TreeBuilder {
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -269,6 +272,9 @@ extension of Panel implements TreeBuilder {
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -667,6 +673,9 @@ extension of Panel implements TreeBuilder {
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -846,6 +855,9 @@ extension of Panel implements TreeBuilder {
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -1077,6 +1089,9 @@ extension of Panel implements TreeBuilder {
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -1323,6 +1338,9 @@ extension of Panel implements TreeBuilder {
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -1532,6 +1550,9 @@ extension of Panel implements TreeBuilder {
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::emit::js;
+use destack_artifact::DirBound;
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -102,7 +103,7 @@ impl JsLinker<'_> {
         let profile_id = self.profile_id()?;
         let dir = self
             .artifacts
-            .dir_bound(module_id, profile_id)
+            .read::<DirBound>((module_id, profile_id))
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,

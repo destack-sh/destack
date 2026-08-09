@@ -2,639 +2,6 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBigint, jsonField, jsonInteger, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 
-/** Trace detail returned to a caller. */
-export type TraceView = "summary" | "detailed";
-
-export const TraceView = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TraceView): void {
-        encodeTraceView(writer, value);
-    },
-
-    /** Decode one TraceView. */
-    decode(reader: BinaryReader): TraceView {
-        return decodeTraceView(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TraceView): Json {
-        return toJsonTraceView(value);
-    },
-
-    /** Return one TraceView from one JSON value. */
-    fromJson(value: Json): TraceView {
-        return fromJsonTraceView(value);
-    },
-};
-
-/** Encode one TraceView. */
-export function encodeTraceView(writer: BinaryWriter, value: TraceView): void {
-    switch (value) {
-        case "summary":
-            writer.writeUnsigned(0);
-            return;
-        case "detailed":
-            writer.writeUnsigned(1);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one TraceView. */
-export function decodeTraceView(reader: BinaryReader): TraceView {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "summary";
-        case 1:
-            return "detailed";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one TraceView. */
-export function toJsonTraceView(value: TraceView): Json {
-    return value;
-}
-
-/** Return one TraceView from one JSON value. */
-export function fromJsonTraceView(value: Json): TraceView {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "summary":
-            return "summary";
-        case "detailed":
-            return "detailed";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** Serializable snapshot of one trace. */
-export type TraceSnapshot = {
-    /** The wall time of the traced operation in microseconds. */
-    readonly totalMicros: bigint;
-    /** The executor workers available to this operation. */
-    readonly workers: number;
-    /** Artifact stats. */
-    readonly stats: TraceStats;
-    /** Operation-level spans around artifact execution. */
-    readonly spans: ReadonlyArray<TraceSpanSnapshot>;
-    /** Operation-level counters. */
-    readonly counters: ReadonlyArray<TraceCounterSnapshot>;
-    /** Busy time per toolchain stage, ordered by stage. */
-    readonly stages: ReadonlyArray<TraceStageSnapshot>;
-    /** Summed time per named trace span. */
-    readonly times: ReadonlyArray<TraceTimeSnapshot>;
-    /** The recorded artifact attempts, present only in detailed snapshots. */
-    readonly attempts: ReadonlyArray<ArtifactAttemptSnapshot>;
-    /** Work, span, and the artifact dependency critical path. */
-    readonly parallelism: TraceParallelismSnapshot;
-};
-
-export const TraceSnapshot = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TraceSnapshot): void {
-        encodeTraceSnapshot(writer, value);
-    },
-
-    /** Decode one TraceSnapshot. */
-    decode(reader: BinaryReader): TraceSnapshot {
-        return decodeTraceSnapshot(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TraceSnapshot): Json {
-        return toJsonTraceSnapshot(value);
-    },
-
-    /** Return one TraceSnapshot from one JSON value. */
-    fromJson(value: Json): TraceSnapshot {
-        return fromJsonTraceSnapshot(value);
-    },
-};
-
-/** Encode one TraceSnapshot. */
-export function encodeTraceSnapshot(writer: BinaryWriter, value: TraceSnapshot): void {
-    writer.writeUnsigned(value.totalMicros);
-    writer.writeUnsigned(value.workers);
-    encodeTraceStats(writer, value.stats);
-    writer.writeUnsigned(value.spans.length);
-    for (const item3 of value.spans) {
-        encodeTraceSpanSnapshot(writer, item3);
-    }
-    writer.writeUnsigned(value.counters.length);
-    for (const item4 of value.counters) {
-        encodeTraceCounterSnapshot(writer, item4);
-    }
-    writer.writeUnsigned(value.stages.length);
-    for (const item5 of value.stages) {
-        encodeTraceStageSnapshot(writer, item5);
-    }
-    writer.writeUnsigned(value.times.length);
-    for (const item6 of value.times) {
-        encodeTraceTimeSnapshot(writer, item6);
-    }
-    writer.writeUnsigned(value.attempts.length);
-    for (const item7 of value.attempts) {
-        encodeArtifactAttemptSnapshot(writer, item7);
-    }
-    encodeTraceParallelismSnapshot(writer, value.parallelism);
-}
-
-/** Decode one TraceSnapshot. */
-export function decodeTraceSnapshot(reader: BinaryReader): TraceSnapshot {
-    const totalMicros = reader.readUnsigned();
-    const workers = reader.readNumber();
-    const stats = decodeTraceStats(reader);
-    const spans = (() => { const length3 = reader.readNumber(); const items3: Array<TraceSpanSnapshot> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeTraceSpanSnapshot(reader)); } return items3; })();
-    const counters = (() => { const length4 = reader.readNumber(); const items4: Array<TraceCounterSnapshot> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeTraceCounterSnapshot(reader)); } return items4; })();
-    const stages = (() => { const length5 = reader.readNumber(); const items5: Array<TraceStageSnapshot> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeTraceStageSnapshot(reader)); } return items5; })();
-    const times = (() => { const length6 = reader.readNumber(); const items6: Array<TraceTimeSnapshot> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeTraceTimeSnapshot(reader)); } return items6; })();
-    const attempts = (() => { const length7 = reader.readNumber(); const items7: Array<ArtifactAttemptSnapshot> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeArtifactAttemptSnapshot(reader)); } return items7; })();
-    const parallelism = decodeTraceParallelismSnapshot(reader);
-
-    return {
-        totalMicros,
-        workers,
-        stats,
-        spans,
-        counters,
-        stages,
-        times,
-        attempts,
-        parallelism,
-    };
-}
-
-/** Return one JSON value for one TraceSnapshot. */
-export function toJsonTraceSnapshot(value: TraceSnapshot): Json {
-    return {
-        totalMicros: value.totalMicros.toString(),
-        workers: value.workers,
-        stats: toJsonTraceStats(value.stats),
-        spans: value.spans.map((item0) => toJsonTraceSpanSnapshot(item0)),
-        counters: value.counters.map((item0) => toJsonTraceCounterSnapshot(item0)),
-        stages: value.stages.map((item0) => toJsonTraceStageSnapshot(item0)),
-        times: value.times.map((item0) => toJsonTraceTimeSnapshot(item0)),
-        attempts: value.attempts.map((item0) => toJsonArtifactAttemptSnapshot(item0)),
-        parallelism: toJsonTraceParallelismSnapshot(value.parallelism),
-    };
-}
-
-/** Return one TraceSnapshot from one JSON value. */
-export function fromJsonTraceSnapshot(value: Json): TraceSnapshot {
-    const object = jsonObject(value);
-
-    return {
-        totalMicros: jsonBigint(jsonField(object, "totalMicros")),
-        workers: jsonInteger(jsonField(object, "workers")),
-        stats: fromJsonTraceStats(jsonField(object, "stats")),
-        spans: jsonArray(jsonField(object, "spans")).map((item0) => fromJsonTraceSpanSnapshot(item0)),
-        counters: jsonArray(jsonField(object, "counters")).map((item0) => fromJsonTraceCounterSnapshot(item0)),
-        stages: jsonArray(jsonField(object, "stages")).map((item0) => fromJsonTraceStageSnapshot(item0)),
-        times: jsonArray(jsonField(object, "times")).map((item0) => fromJsonTraceTimeSnapshot(item0)),
-        attempts: jsonArray(jsonField(object, "attempts")).map((item0) => fromJsonArtifactAttemptSnapshot(item0)),
-        parallelism: fromJsonTraceParallelismSnapshot(jsonField(object, "parallelism")),
-    };
-}
-
-/** Artifact attempt outcome counts in one trace. */
-export type TraceStats = {
-    /** Attempts that produced an artifact. */
-    readonly built: bigint;
-    /** Attempts served from memory. */
-    readonly memoryCached: bigint;
-    /** Attempts restored from the persistent store. */
-    readonly storeCached: bigint;
-    /** Attempts parked on missing requirements. */
-    readonly parked: bigint;
-    /** Attempts that failed. */
-    readonly failed: bigint;
-};
-
-export const TraceStats = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TraceStats): void {
-        encodeTraceStats(writer, value);
-    },
-
-    /** Decode one TraceStats. */
-    decode(reader: BinaryReader): TraceStats {
-        return decodeTraceStats(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TraceStats): Json {
-        return toJsonTraceStats(value);
-    },
-
-    /** Return one TraceStats from one JSON value. */
-    fromJson(value: Json): TraceStats {
-        return fromJsonTraceStats(value);
-    },
-};
-
-/** Encode one TraceStats. */
-export function encodeTraceStats(writer: BinaryWriter, value: TraceStats): void {
-    writer.writeUnsigned(value.built);
-    writer.writeUnsigned(value.memoryCached);
-    writer.writeUnsigned(value.storeCached);
-    writer.writeUnsigned(value.parked);
-    writer.writeUnsigned(value.failed);
-}
-
-/** Decode one TraceStats. */
-export function decodeTraceStats(reader: BinaryReader): TraceStats {
-    const built = reader.readUnsigned();
-    const memoryCached = reader.readUnsigned();
-    const storeCached = reader.readUnsigned();
-    const parked = reader.readUnsigned();
-    const failed = reader.readUnsigned();
-
-    return {
-        built,
-        memoryCached,
-        storeCached,
-        parked,
-        failed,
-    };
-}
-
-/** Return one JSON value for one TraceStats. */
-export function toJsonTraceStats(value: TraceStats): Json {
-    return {
-        built: value.built.toString(),
-        memoryCached: value.memoryCached.toString(),
-        storeCached: value.storeCached.toString(),
-        parked: value.parked.toString(),
-        failed: value.failed.toString(),
-    };
-}
-
-/** Return one TraceStats from one JSON value. */
-export function fromJsonTraceStats(value: Json): TraceStats {
-    const object = jsonObject(value);
-
-    return {
-        built: jsonBigint(jsonField(object, "built")),
-        memoryCached: jsonBigint(jsonField(object, "memoryCached")),
-        storeCached: jsonBigint(jsonField(object, "storeCached")),
-        parked: jsonBigint(jsonField(object, "parked")),
-        failed: jsonBigint(jsonField(object, "failed")),
-    };
-}
-
-/** One span in a trace snapshot. */
-export type TraceSpanSnapshot = {
-    /** How this span contributes to timing aggregates. */
-    readonly kind: TraceSpanKind;
-    /** The span name. */
-    readonly name: string;
-    /** The offset from the trace start in microseconds. */
-    readonly startMicros: bigint;
-    /** The span duration in microseconds. */
-    readonly micros: bigint;
-};
-
-export const TraceSpanSnapshot = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TraceSpanSnapshot): void {
-        encodeTraceSpanSnapshot(writer, value);
-    },
-
-    /** Decode one TraceSpanSnapshot. */
-    decode(reader: BinaryReader): TraceSpanSnapshot {
-        return decodeTraceSpanSnapshot(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TraceSpanSnapshot): Json {
-        return toJsonTraceSpanSnapshot(value);
-    },
-
-    /** Return one TraceSpanSnapshot from one JSON value. */
-    fromJson(value: Json): TraceSpanSnapshot {
-        return fromJsonTraceSpanSnapshot(value);
-    },
-};
-
-/** Encode one TraceSpanSnapshot. */
-export function encodeTraceSpanSnapshot(writer: BinaryWriter, value: TraceSpanSnapshot): void {
-    encodeTraceSpanKind(writer, value.kind);
-    writer.writeString(value.name);
-    writer.writeUnsigned(value.startMicros);
-    writer.writeUnsigned(value.micros);
-}
-
-/** Decode one TraceSpanSnapshot. */
-export function decodeTraceSpanSnapshot(reader: BinaryReader): TraceSpanSnapshot {
-    const kind = decodeTraceSpanKind(reader);
-    const name = reader.readString();
-    const startMicros = reader.readUnsigned();
-    const micros = reader.readUnsigned();
-
-    return {
-        kind,
-        name,
-        startMicros,
-        micros,
-    };
-}
-
-/** Return one JSON value for one TraceSpanSnapshot. */
-export function toJsonTraceSpanSnapshot(value: TraceSpanSnapshot): Json {
-    return {
-        kind: toJsonTraceSpanKind(value.kind),
-        name: value.name,
-        startMicros: value.startMicros.toString(),
-        micros: value.micros.toString(),
-    };
-}
-
-/** Return one TraceSpanSnapshot from one JSON value. */
-export function fromJsonTraceSpanSnapshot(value: Json): TraceSpanSnapshot {
-    const object = jsonObject(value);
-
-    return {
-        kind: fromJsonTraceSpanKind(jsonField(object, "kind")),
-        name: jsonString(jsonField(object, "name")),
-        startMicros: jsonBigint(jsonField(object, "startMicros")),
-        micros: jsonBigint(jsonField(object, "micros")),
-    };
-}
-
-/** How one trace span contributes to timing aggregates. */
-export type TraceSpanKind = "work" | "breakdown";
-
-export const TraceSpanKind = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TraceSpanKind): void {
-        encodeTraceSpanKind(writer, value);
-    },
-
-    /** Decode one TraceSpanKind. */
-    decode(reader: BinaryReader): TraceSpanKind {
-        return decodeTraceSpanKind(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TraceSpanKind): Json {
-        return toJsonTraceSpanKind(value);
-    },
-
-    /** Return one TraceSpanKind from one JSON value. */
-    fromJson(value: Json): TraceSpanKind {
-        return fromJsonTraceSpanKind(value);
-    },
-};
-
-/** Encode one TraceSpanKind. */
-export function encodeTraceSpanKind(writer: BinaryWriter, value: TraceSpanKind): void {
-    switch (value) {
-        case "work":
-            writer.writeUnsigned(0);
-            return;
-        case "breakdown":
-            writer.writeUnsigned(1);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one TraceSpanKind. */
-export function decodeTraceSpanKind(reader: BinaryReader): TraceSpanKind {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "work";
-        case 1:
-            return "breakdown";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one TraceSpanKind. */
-export function toJsonTraceSpanKind(value: TraceSpanKind): Json {
-    return value;
-}
-
-/** Return one TraceSpanKind from one JSON value. */
-export function fromJsonTraceSpanKind(value: Json): TraceSpanKind {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "work":
-            return "work";
-        case "breakdown":
-            return "breakdown";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** One counter in a trace snapshot. */
-export type TraceCounterSnapshot = {
-    /** The counter name. */
-    readonly name: string;
-    /** The counter value. */
-    readonly value: bigint;
-};
-
-export const TraceCounterSnapshot = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TraceCounterSnapshot): void {
-        encodeTraceCounterSnapshot(writer, value);
-    },
-
-    /** Decode one TraceCounterSnapshot. */
-    decode(reader: BinaryReader): TraceCounterSnapshot {
-        return decodeTraceCounterSnapshot(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TraceCounterSnapshot): Json {
-        return toJsonTraceCounterSnapshot(value);
-    },
-
-    /** Return one TraceCounterSnapshot from one JSON value. */
-    fromJson(value: Json): TraceCounterSnapshot {
-        return fromJsonTraceCounterSnapshot(value);
-    },
-};
-
-/** Encode one TraceCounterSnapshot. */
-export function encodeTraceCounterSnapshot(writer: BinaryWriter, value: TraceCounterSnapshot): void {
-    writer.writeString(value.name);
-    writer.writeUnsigned(value.value);
-}
-
-/** Decode one TraceCounterSnapshot. */
-export function decodeTraceCounterSnapshot(reader: BinaryReader): TraceCounterSnapshot {
-    const name = reader.readString();
-    const value = reader.readUnsigned();
-
-    return {
-        name,
-        value,
-    };
-}
-
-/** Return one JSON value for one TraceCounterSnapshot. */
-export function toJsonTraceCounterSnapshot(value: TraceCounterSnapshot): Json {
-    return {
-        name: value.name,
-        value: value.value.toString(),
-    };
-}
-
-/** Return one TraceCounterSnapshot from one JSON value. */
-export function fromJsonTraceCounterSnapshot(value: Json): TraceCounterSnapshot {
-    const object = jsonObject(value);
-
-    return {
-        name: jsonString(jsonField(object, "name")),
-        value: jsonBigint(jsonField(object, "value")),
-    };
-}
-
-/** Executor and provider work for one toolchain stage. */
-export type TraceStageSnapshot = {
-    /** The stage display name. */
-    readonly name: string;
-    /** The summed work time in microseconds. */
-    readonly micros: bigint;
-};
-
-export const TraceStageSnapshot = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TraceStageSnapshot): void {
-        encodeTraceStageSnapshot(writer, value);
-    },
-
-    /** Decode one TraceStageSnapshot. */
-    decode(reader: BinaryReader): TraceStageSnapshot {
-        return decodeTraceStageSnapshot(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TraceStageSnapshot): Json {
-        return toJsonTraceStageSnapshot(value);
-    },
-
-    /** Return one TraceStageSnapshot from one JSON value. */
-    fromJson(value: Json): TraceStageSnapshot {
-        return fromJsonTraceStageSnapshot(value);
-    },
-};
-
-/** Encode one TraceStageSnapshot. */
-export function encodeTraceStageSnapshot(writer: BinaryWriter, value: TraceStageSnapshot): void {
-    writer.writeString(value.name);
-    writer.writeUnsigned(value.micros);
-}
-
-/** Decode one TraceStageSnapshot. */
-export function decodeTraceStageSnapshot(reader: BinaryReader): TraceStageSnapshot {
-    const name = reader.readString();
-    const micros = reader.readUnsigned();
-
-    return {
-        name,
-        micros,
-    };
-}
-
-/** Return one JSON value for one TraceStageSnapshot. */
-export function toJsonTraceStageSnapshot(value: TraceStageSnapshot): Json {
-    return {
-        name: value.name,
-        micros: value.micros.toString(),
-    };
-}
-
-/** Return one TraceStageSnapshot from one JSON value. */
-export function fromJsonTraceStageSnapshot(value: Json): TraceStageSnapshot {
-    const object = jsonObject(value);
-
-    return {
-        name: jsonString(jsonField(object, "name")),
-        micros: jsonBigint(jsonField(object, "micros")),
-    };
-}
-
-/** Summed time of one named trace span. */
-export type TraceTimeSnapshot = {
-    /** The span name. */
-    readonly name: string;
-    /** The summed span time in microseconds. */
-    readonly micros: bigint;
-};
-
-export const TraceTimeSnapshot = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TraceTimeSnapshot): void {
-        encodeTraceTimeSnapshot(writer, value);
-    },
-
-    /** Decode one TraceTimeSnapshot. */
-    decode(reader: BinaryReader): TraceTimeSnapshot {
-        return decodeTraceTimeSnapshot(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TraceTimeSnapshot): Json {
-        return toJsonTraceTimeSnapshot(value);
-    },
-
-    /** Return one TraceTimeSnapshot from one JSON value. */
-    fromJson(value: Json): TraceTimeSnapshot {
-        return fromJsonTraceTimeSnapshot(value);
-    },
-};
-
-/** Encode one TraceTimeSnapshot. */
-export function encodeTraceTimeSnapshot(writer: BinaryWriter, value: TraceTimeSnapshot): void {
-    writer.writeString(value.name);
-    writer.writeUnsigned(value.micros);
-}
-
-/** Decode one TraceTimeSnapshot. */
-export function decodeTraceTimeSnapshot(reader: BinaryReader): TraceTimeSnapshot {
-    const name = reader.readString();
-    const micros = reader.readUnsigned();
-
-    return {
-        name,
-        micros,
-    };
-}
-
-/** Return one JSON value for one TraceTimeSnapshot. */
-export function toJsonTraceTimeSnapshot(value: TraceTimeSnapshot): Json {
-    return {
-        name: value.name,
-        micros: value.micros.toString(),
-    };
-}
-
-/** Return one TraceTimeSnapshot from one JSON value. */
-export function fromJsonTraceTimeSnapshot(value: Json): TraceTimeSnapshot {
-    const object = jsonObject(value);
-
-    return {
-        name: jsonString(jsonField(object, "name")),
-        micros: jsonBigint(jsonField(object, "micros")),
-    };
-}
-
 /** One artifact attempt in a detailed trace snapshot. */
 export type ArtifactAttemptSnapshot = {
     /** The artifact kind name. */
@@ -773,6 +140,173 @@ export function fromJsonArtifactAttemptSnapshot(value: Json): ArtifactAttemptSna
     };
 }
 
+/** One counter in a trace snapshot. */
+export type TraceCounterSnapshot = {
+    /** The counter name. */
+    readonly name: string;
+    /** The counter value. */
+    readonly value: bigint;
+};
+
+export const TraceCounterSnapshot = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TraceCounterSnapshot): void {
+        encodeTraceCounterSnapshot(writer, value);
+    },
+
+    /** Decode one TraceCounterSnapshot. */
+    decode(reader: BinaryReader): TraceCounterSnapshot {
+        return decodeTraceCounterSnapshot(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TraceCounterSnapshot): Json {
+        return toJsonTraceCounterSnapshot(value);
+    },
+
+    /** Return one TraceCounterSnapshot from one JSON value. */
+    fromJson(value: Json): TraceCounterSnapshot {
+        return fromJsonTraceCounterSnapshot(value);
+    },
+};
+
+/** Encode one TraceCounterSnapshot. */
+export function encodeTraceCounterSnapshot(writer: BinaryWriter, value: TraceCounterSnapshot): void {
+    writer.writeString(value.name);
+    writer.writeUnsigned(value.value);
+}
+
+/** Decode one TraceCounterSnapshot. */
+export function decodeTraceCounterSnapshot(reader: BinaryReader): TraceCounterSnapshot {
+    const name = reader.readString();
+    const value = reader.readUnsigned();
+
+    return {
+        name,
+        value,
+    };
+}
+
+/** Return one JSON value for one TraceCounterSnapshot. */
+export function toJsonTraceCounterSnapshot(value: TraceCounterSnapshot): Json {
+    return {
+        name: value.name,
+        value: value.value.toString(),
+    };
+}
+
+/** Return one TraceCounterSnapshot from one JSON value. */
+export function fromJsonTraceCounterSnapshot(value: Json): TraceCounterSnapshot {
+    const object = jsonObject(value);
+
+    return {
+        name: jsonString(jsonField(object, "name")),
+        value: jsonBigint(jsonField(object, "value")),
+    };
+}
+
+/** One artifact on a trace critical path. */
+export type TraceCriticalArtifactSnapshot = {
+    /** The artifact kind name. */
+    readonly name: string;
+    /** The toolchain stage display name. */
+    readonly stage: string;
+    /** The resolved artifact label. */
+    readonly label?: string;
+    /** Exclusive work across this artifact's attempts. */
+    readonly workMicros: bigint;
+    /** Cumulative critical work through this artifact. */
+    readonly cumulativeMicros: bigint;
+    /** Direct attempted artifacts this artifact depended on. */
+    readonly dependencies: number;
+    /** Direct attempted artifacts that depended on this artifact. */
+    readonly dependents: number;
+};
+
+export const TraceCriticalArtifactSnapshot = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TraceCriticalArtifactSnapshot): void {
+        encodeTraceCriticalArtifactSnapshot(writer, value);
+    },
+
+    /** Decode one TraceCriticalArtifactSnapshot. */
+    decode(reader: BinaryReader): TraceCriticalArtifactSnapshot {
+        return decodeTraceCriticalArtifactSnapshot(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TraceCriticalArtifactSnapshot): Json {
+        return toJsonTraceCriticalArtifactSnapshot(value);
+    },
+
+    /** Return one TraceCriticalArtifactSnapshot from one JSON value. */
+    fromJson(value: Json): TraceCriticalArtifactSnapshot {
+        return fromJsonTraceCriticalArtifactSnapshot(value);
+    },
+};
+
+/** Encode one TraceCriticalArtifactSnapshot. */
+export function encodeTraceCriticalArtifactSnapshot(writer: BinaryWriter, value: TraceCriticalArtifactSnapshot): void {
+    writer.writeString(value.name);
+    writer.writeString(value.stage);
+    writer.writeOption(value.label, (value2) => {
+        writer.writeString(value2);
+    });
+    writer.writeUnsigned(value.workMicros);
+    writer.writeUnsigned(value.cumulativeMicros);
+    writer.writeUnsigned(value.dependencies);
+    writer.writeUnsigned(value.dependents);
+}
+
+/** Decode one TraceCriticalArtifactSnapshot. */
+export function decodeTraceCriticalArtifactSnapshot(reader: BinaryReader): TraceCriticalArtifactSnapshot {
+    const name = reader.readString();
+    const stage = reader.readString();
+    const label = reader.readOption(() => reader.readString());
+    const workMicros = reader.readUnsigned();
+    const cumulativeMicros = reader.readUnsigned();
+    const dependencies = reader.readNumber();
+    const dependents = reader.readNumber();
+
+    return {
+        name,
+        stage,
+        ...(label === undefined ? {} : { label }),
+        workMicros,
+        cumulativeMicros,
+        dependencies,
+        dependents,
+    };
+}
+
+/** Return one JSON value for one TraceCriticalArtifactSnapshot. */
+export function toJsonTraceCriticalArtifactSnapshot(value: TraceCriticalArtifactSnapshot): Json {
+    return {
+        name: value.name,
+        stage: value.stage,
+        ...(value.label === undefined ? {} : { label: value.label }),
+        workMicros: value.workMicros.toString(),
+        cumulativeMicros: value.cumulativeMicros.toString(),
+        dependencies: value.dependencies,
+        dependents: value.dependents,
+    };
+}
+
+/** Return one TraceCriticalArtifactSnapshot from one JSON value. */
+export function fromJsonTraceCriticalArtifactSnapshot(value: Json): TraceCriticalArtifactSnapshot {
+    const object = jsonObject(value);
+
+    return {
+        name: jsonString(jsonField(object, "name")),
+        stage: jsonString(jsonField(object, "stage")),
+        label: jsonOptional(object, "label", (value) => jsonString(value)),
+        workMicros: jsonBigint(jsonField(object, "workMicros")),
+        cumulativeMicros: jsonBigint(jsonField(object, "cumulativeMicros")),
+        dependencies: jsonInteger(jsonField(object, "dependencies")),
+        dependents: jsonInteger(jsonField(object, "dependents")),
+    };
+}
+
 /** Work and span measurements of one artifact trace. */
 export type TraceParallelismSnapshot = {
     /** Aggregate exclusive work across every artifact attempt. */
@@ -883,104 +417,570 @@ export function fromJsonTraceParallelismSnapshot(value: Json): TraceParallelismS
     };
 }
 
-/** One artifact on a trace critical path. */
-export type TraceCriticalArtifactSnapshot = {
-    /** The artifact kind name. */
-    readonly name: string;
-    /** The toolchain stage display name. */
-    readonly stage: string;
-    /** The resolved artifact label. */
-    readonly label?: string;
-    /** Exclusive work across this artifact's attempts. */
-    readonly workMicros: bigint;
-    /** Cumulative critical work through this artifact. */
-    readonly cumulativeMicros: bigint;
-    /** Direct attempted artifacts this artifact depended on. */
-    readonly dependencies: number;
-    /** Direct attempted artifacts that depended on this artifact. */
-    readonly dependents: number;
+/** Serializable snapshot of one trace. */
+export type TraceSnapshot = {
+    /** The wall time of the traced operation in microseconds. */
+    readonly totalMicros: bigint;
+    /** The executor workers available to this operation. */
+    readonly workers: number;
+    /** Artifact stats. */
+    readonly stats: TraceStats;
+    /** Operation-level spans around artifact execution. */
+    readonly spans: ReadonlyArray<TraceSpanSnapshot>;
+    /** Operation-level counters. */
+    readonly counters: ReadonlyArray<TraceCounterSnapshot>;
+    /** Busy time per toolchain stage, ordered by stage. */
+    readonly stages: ReadonlyArray<TraceStageSnapshot>;
+    /** Summed time per named trace span. */
+    readonly times: ReadonlyArray<TraceTimeSnapshot>;
+    /** The recorded artifact attempts, present only in detailed snapshots. */
+    readonly attempts: ReadonlyArray<ArtifactAttemptSnapshot>;
+    /** Work, span, and the artifact dependency critical path. */
+    readonly parallelism: TraceParallelismSnapshot;
 };
 
-export const TraceCriticalArtifactSnapshot = {
+export const TraceSnapshot = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: TraceCriticalArtifactSnapshot): void {
-        encodeTraceCriticalArtifactSnapshot(writer, value);
+    encode(writer: BinaryWriter, value: TraceSnapshot): void {
+        encodeTraceSnapshot(writer, value);
     },
 
-    /** Decode one TraceCriticalArtifactSnapshot. */
-    decode(reader: BinaryReader): TraceCriticalArtifactSnapshot {
-        return decodeTraceCriticalArtifactSnapshot(reader);
+    /** Decode one TraceSnapshot. */
+    decode(reader: BinaryReader): TraceSnapshot {
+        return decodeTraceSnapshot(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: TraceCriticalArtifactSnapshot): Json {
-        return toJsonTraceCriticalArtifactSnapshot(value);
+    toJson(value: TraceSnapshot): Json {
+        return toJsonTraceSnapshot(value);
     },
 
-    /** Return one TraceCriticalArtifactSnapshot from one JSON value. */
-    fromJson(value: Json): TraceCriticalArtifactSnapshot {
-        return fromJsonTraceCriticalArtifactSnapshot(value);
+    /** Return one TraceSnapshot from one JSON value. */
+    fromJson(value: Json): TraceSnapshot {
+        return fromJsonTraceSnapshot(value);
     },
 };
 
-/** Encode one TraceCriticalArtifactSnapshot. */
-export function encodeTraceCriticalArtifactSnapshot(writer: BinaryWriter, value: TraceCriticalArtifactSnapshot): void {
-    writer.writeString(value.name);
-    writer.writeString(value.stage);
-    writer.writeOption(value.label, (value2) => {
-        writer.writeString(value2);
-    });
-    writer.writeUnsigned(value.workMicros);
-    writer.writeUnsigned(value.cumulativeMicros);
-    writer.writeUnsigned(value.dependencies);
-    writer.writeUnsigned(value.dependents);
+/** Encode one TraceSnapshot. */
+export function encodeTraceSnapshot(writer: BinaryWriter, value: TraceSnapshot): void {
+    writer.writeUnsigned(value.totalMicros);
+    writer.writeUnsigned(value.workers);
+    encodeTraceStats(writer, value.stats);
+    writer.writeUnsigned(value.spans.length);
+    for (const item3 of value.spans) {
+        encodeTraceSpanSnapshot(writer, item3);
+    }
+    writer.writeUnsigned(value.counters.length);
+    for (const item4 of value.counters) {
+        encodeTraceCounterSnapshot(writer, item4);
+    }
+    writer.writeUnsigned(value.stages.length);
+    for (const item5 of value.stages) {
+        encodeTraceStageSnapshot(writer, item5);
+    }
+    writer.writeUnsigned(value.times.length);
+    for (const item6 of value.times) {
+        encodeTraceTimeSnapshot(writer, item6);
+    }
+    writer.writeUnsigned(value.attempts.length);
+    for (const item7 of value.attempts) {
+        encodeArtifactAttemptSnapshot(writer, item7);
+    }
+    encodeTraceParallelismSnapshot(writer, value.parallelism);
 }
 
-/** Decode one TraceCriticalArtifactSnapshot. */
-export function decodeTraceCriticalArtifactSnapshot(reader: BinaryReader): TraceCriticalArtifactSnapshot {
+/** Decode one TraceSnapshot. */
+export function decodeTraceSnapshot(reader: BinaryReader): TraceSnapshot {
+    const totalMicros = reader.readUnsigned();
+    const workers = reader.readNumber();
+    const stats = decodeTraceStats(reader);
+    const spans = (() => { const length3 = reader.readNumber(); const items3: Array<TraceSpanSnapshot> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeTraceSpanSnapshot(reader)); } return items3; })();
+    const counters = (() => { const length4 = reader.readNumber(); const items4: Array<TraceCounterSnapshot> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeTraceCounterSnapshot(reader)); } return items4; })();
+    const stages = (() => { const length5 = reader.readNumber(); const items5: Array<TraceStageSnapshot> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeTraceStageSnapshot(reader)); } return items5; })();
+    const times = (() => { const length6 = reader.readNumber(); const items6: Array<TraceTimeSnapshot> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeTraceTimeSnapshot(reader)); } return items6; })();
+    const attempts = (() => { const length7 = reader.readNumber(); const items7: Array<ArtifactAttemptSnapshot> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeArtifactAttemptSnapshot(reader)); } return items7; })();
+    const parallelism = decodeTraceParallelismSnapshot(reader);
+
+    return {
+        totalMicros,
+        workers,
+        stats,
+        spans,
+        counters,
+        stages,
+        times,
+        attempts,
+        parallelism,
+    };
+}
+
+/** Return one JSON value for one TraceSnapshot. */
+export function toJsonTraceSnapshot(value: TraceSnapshot): Json {
+    return {
+        totalMicros: value.totalMicros.toString(),
+        workers: value.workers,
+        stats: toJsonTraceStats(value.stats),
+        spans: value.spans.map((item0) => toJsonTraceSpanSnapshot(item0)),
+        counters: value.counters.map((item0) => toJsonTraceCounterSnapshot(item0)),
+        stages: value.stages.map((item0) => toJsonTraceStageSnapshot(item0)),
+        times: value.times.map((item0) => toJsonTraceTimeSnapshot(item0)),
+        attempts: value.attempts.map((item0) => toJsonArtifactAttemptSnapshot(item0)),
+        parallelism: toJsonTraceParallelismSnapshot(value.parallelism),
+    };
+}
+
+/** Return one TraceSnapshot from one JSON value. */
+export function fromJsonTraceSnapshot(value: Json): TraceSnapshot {
+    const object = jsonObject(value);
+
+    return {
+        totalMicros: jsonBigint(jsonField(object, "totalMicros")),
+        workers: jsonInteger(jsonField(object, "workers")),
+        stats: fromJsonTraceStats(jsonField(object, "stats")),
+        spans: jsonArray(jsonField(object, "spans")).map((item0) => fromJsonTraceSpanSnapshot(item0)),
+        counters: jsonArray(jsonField(object, "counters")).map((item0) => fromJsonTraceCounterSnapshot(item0)),
+        stages: jsonArray(jsonField(object, "stages")).map((item0) => fromJsonTraceStageSnapshot(item0)),
+        times: jsonArray(jsonField(object, "times")).map((item0) => fromJsonTraceTimeSnapshot(item0)),
+        attempts: jsonArray(jsonField(object, "attempts")).map((item0) => fromJsonArtifactAttemptSnapshot(item0)),
+        parallelism: fromJsonTraceParallelismSnapshot(jsonField(object, "parallelism")),
+    };
+}
+
+/** How one trace span contributes to timing aggregates. */
+export type TraceSpanKind = "work" | "breakdown";
+
+export const TraceSpanKind = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TraceSpanKind): void {
+        encodeTraceSpanKind(writer, value);
+    },
+
+    /** Decode one TraceSpanKind. */
+    decode(reader: BinaryReader): TraceSpanKind {
+        return decodeTraceSpanKind(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TraceSpanKind): Json {
+        return toJsonTraceSpanKind(value);
+    },
+
+    /** Return one TraceSpanKind from one JSON value. */
+    fromJson(value: Json): TraceSpanKind {
+        return fromJsonTraceSpanKind(value);
+    },
+};
+
+/** Encode one TraceSpanKind. */
+export function encodeTraceSpanKind(writer: BinaryWriter, value: TraceSpanKind): void {
+    switch (value) {
+        case "work":
+            writer.writeUnsigned(0);
+            return;
+        case "breakdown":
+            writer.writeUnsigned(1);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one TraceSpanKind. */
+export function decodeTraceSpanKind(reader: BinaryReader): TraceSpanKind {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "work";
+        case 1:
+            return "breakdown";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one TraceSpanKind. */
+export function toJsonTraceSpanKind(value: TraceSpanKind): Json {
+    return value;
+}
+
+/** Return one TraceSpanKind from one JSON value. */
+export function fromJsonTraceSpanKind(value: Json): TraceSpanKind {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "work":
+            return "work";
+        case "breakdown":
+            return "breakdown";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
+/** One span in a trace snapshot. */
+export type TraceSpanSnapshot = {
+    /** How this span contributes to timing aggregates. */
+    readonly kind: TraceSpanKind;
+    /** The span name. */
+    readonly name: string;
+    /** The offset from the trace start in microseconds. */
+    readonly startMicros: bigint;
+    /** The span duration in microseconds. */
+    readonly micros: bigint;
+};
+
+export const TraceSpanSnapshot = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TraceSpanSnapshot): void {
+        encodeTraceSpanSnapshot(writer, value);
+    },
+
+    /** Decode one TraceSpanSnapshot. */
+    decode(reader: BinaryReader): TraceSpanSnapshot {
+        return decodeTraceSpanSnapshot(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TraceSpanSnapshot): Json {
+        return toJsonTraceSpanSnapshot(value);
+    },
+
+    /** Return one TraceSpanSnapshot from one JSON value. */
+    fromJson(value: Json): TraceSpanSnapshot {
+        return fromJsonTraceSpanSnapshot(value);
+    },
+};
+
+/** Encode one TraceSpanSnapshot. */
+export function encodeTraceSpanSnapshot(writer: BinaryWriter, value: TraceSpanSnapshot): void {
+    encodeTraceSpanKind(writer, value.kind);
+    writer.writeString(value.name);
+    writer.writeUnsigned(value.startMicros);
+    writer.writeUnsigned(value.micros);
+}
+
+/** Decode one TraceSpanSnapshot. */
+export function decodeTraceSpanSnapshot(reader: BinaryReader): TraceSpanSnapshot {
+    const kind = decodeTraceSpanKind(reader);
     const name = reader.readString();
-    const stage = reader.readString();
-    const label = reader.readOption(() => reader.readString());
-    const workMicros = reader.readUnsigned();
-    const cumulativeMicros = reader.readUnsigned();
-    const dependencies = reader.readNumber();
-    const dependents = reader.readNumber();
+    const startMicros = reader.readUnsigned();
+    const micros = reader.readUnsigned();
+
+    return {
+        kind,
+        name,
+        startMicros,
+        micros,
+    };
+}
+
+/** Return one JSON value for one TraceSpanSnapshot. */
+export function toJsonTraceSpanSnapshot(value: TraceSpanSnapshot): Json {
+    return {
+        kind: toJsonTraceSpanKind(value.kind),
+        name: value.name,
+        startMicros: value.startMicros.toString(),
+        micros: value.micros.toString(),
+    };
+}
+
+/** Return one TraceSpanSnapshot from one JSON value. */
+export function fromJsonTraceSpanSnapshot(value: Json): TraceSpanSnapshot {
+    const object = jsonObject(value);
+
+    return {
+        kind: fromJsonTraceSpanKind(jsonField(object, "kind")),
+        name: jsonString(jsonField(object, "name")),
+        startMicros: jsonBigint(jsonField(object, "startMicros")),
+        micros: jsonBigint(jsonField(object, "micros")),
+    };
+}
+
+/** Executor and provider work for one toolchain stage. */
+export type TraceStageSnapshot = {
+    /** The stage display name. */
+    readonly name: string;
+    /** The summed work time in microseconds. */
+    readonly micros: bigint;
+};
+
+export const TraceStageSnapshot = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TraceStageSnapshot): void {
+        encodeTraceStageSnapshot(writer, value);
+    },
+
+    /** Decode one TraceStageSnapshot. */
+    decode(reader: BinaryReader): TraceStageSnapshot {
+        return decodeTraceStageSnapshot(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TraceStageSnapshot): Json {
+        return toJsonTraceStageSnapshot(value);
+    },
+
+    /** Return one TraceStageSnapshot from one JSON value. */
+    fromJson(value: Json): TraceStageSnapshot {
+        return fromJsonTraceStageSnapshot(value);
+    },
+};
+
+/** Encode one TraceStageSnapshot. */
+export function encodeTraceStageSnapshot(writer: BinaryWriter, value: TraceStageSnapshot): void {
+    writer.writeString(value.name);
+    writer.writeUnsigned(value.micros);
+}
+
+/** Decode one TraceStageSnapshot. */
+export function decodeTraceStageSnapshot(reader: BinaryReader): TraceStageSnapshot {
+    const name = reader.readString();
+    const micros = reader.readUnsigned();
 
     return {
         name,
-        stage,
-        ...(label === undefined ? {} : { label }),
-        workMicros,
-        cumulativeMicros,
-        dependencies,
-        dependents,
+        micros,
     };
 }
 
-/** Return one JSON value for one TraceCriticalArtifactSnapshot. */
-export function toJsonTraceCriticalArtifactSnapshot(value: TraceCriticalArtifactSnapshot): Json {
+/** Return one JSON value for one TraceStageSnapshot. */
+export function toJsonTraceStageSnapshot(value: TraceStageSnapshot): Json {
     return {
         name: value.name,
-        stage: value.stage,
-        ...(value.label === undefined ? {} : { label: value.label }),
-        workMicros: value.workMicros.toString(),
-        cumulativeMicros: value.cumulativeMicros.toString(),
-        dependencies: value.dependencies,
-        dependents: value.dependents,
+        micros: value.micros.toString(),
     };
 }
 
-/** Return one TraceCriticalArtifactSnapshot from one JSON value. */
-export function fromJsonTraceCriticalArtifactSnapshot(value: Json): TraceCriticalArtifactSnapshot {
+/** Return one TraceStageSnapshot from one JSON value. */
+export function fromJsonTraceStageSnapshot(value: Json): TraceStageSnapshot {
     const object = jsonObject(value);
 
     return {
         name: jsonString(jsonField(object, "name")),
-        stage: jsonString(jsonField(object, "stage")),
-        label: jsonOptional(object, "label", (value) => jsonString(value)),
-        workMicros: jsonBigint(jsonField(object, "workMicros")),
-        cumulativeMicros: jsonBigint(jsonField(object, "cumulativeMicros")),
-        dependencies: jsonInteger(jsonField(object, "dependencies")),
-        dependents: jsonInteger(jsonField(object, "dependents")),
+        micros: jsonBigint(jsonField(object, "micros")),
     };
+}
+
+/** Artifact attempt outcome counts in one trace. */
+export type TraceStats = {
+    /** Attempts that produced an artifact. */
+    readonly built: bigint;
+    /** Attempts served from memory. */
+    readonly memoryCached: bigint;
+    /** Attempts restored from the persistent store. */
+    readonly storeCached: bigint;
+    /** Attempts parked on missing requirements. */
+    readonly parked: bigint;
+    /** Attempts that failed. */
+    readonly failed: bigint;
+};
+
+export const TraceStats = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TraceStats): void {
+        encodeTraceStats(writer, value);
+    },
+
+    /** Decode one TraceStats. */
+    decode(reader: BinaryReader): TraceStats {
+        return decodeTraceStats(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TraceStats): Json {
+        return toJsonTraceStats(value);
+    },
+
+    /** Return one TraceStats from one JSON value. */
+    fromJson(value: Json): TraceStats {
+        return fromJsonTraceStats(value);
+    },
+};
+
+/** Encode one TraceStats. */
+export function encodeTraceStats(writer: BinaryWriter, value: TraceStats): void {
+    writer.writeUnsigned(value.built);
+    writer.writeUnsigned(value.memoryCached);
+    writer.writeUnsigned(value.storeCached);
+    writer.writeUnsigned(value.parked);
+    writer.writeUnsigned(value.failed);
+}
+
+/** Decode one TraceStats. */
+export function decodeTraceStats(reader: BinaryReader): TraceStats {
+    const built = reader.readUnsigned();
+    const memoryCached = reader.readUnsigned();
+    const storeCached = reader.readUnsigned();
+    const parked = reader.readUnsigned();
+    const failed = reader.readUnsigned();
+
+    return {
+        built,
+        memoryCached,
+        storeCached,
+        parked,
+        failed,
+    };
+}
+
+/** Return one JSON value for one TraceStats. */
+export function toJsonTraceStats(value: TraceStats): Json {
+    return {
+        built: value.built.toString(),
+        memoryCached: value.memoryCached.toString(),
+        storeCached: value.storeCached.toString(),
+        parked: value.parked.toString(),
+        failed: value.failed.toString(),
+    };
+}
+
+/** Return one TraceStats from one JSON value. */
+export function fromJsonTraceStats(value: Json): TraceStats {
+    const object = jsonObject(value);
+
+    return {
+        built: jsonBigint(jsonField(object, "built")),
+        memoryCached: jsonBigint(jsonField(object, "memoryCached")),
+        storeCached: jsonBigint(jsonField(object, "storeCached")),
+        parked: jsonBigint(jsonField(object, "parked")),
+        failed: jsonBigint(jsonField(object, "failed")),
+    };
+}
+
+/** Summed time of one named trace span. */
+export type TraceTimeSnapshot = {
+    /** The span name. */
+    readonly name: string;
+    /** The summed span time in microseconds. */
+    readonly micros: bigint;
+};
+
+export const TraceTimeSnapshot = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TraceTimeSnapshot): void {
+        encodeTraceTimeSnapshot(writer, value);
+    },
+
+    /** Decode one TraceTimeSnapshot. */
+    decode(reader: BinaryReader): TraceTimeSnapshot {
+        return decodeTraceTimeSnapshot(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TraceTimeSnapshot): Json {
+        return toJsonTraceTimeSnapshot(value);
+    },
+
+    /** Return one TraceTimeSnapshot from one JSON value. */
+    fromJson(value: Json): TraceTimeSnapshot {
+        return fromJsonTraceTimeSnapshot(value);
+    },
+};
+
+/** Encode one TraceTimeSnapshot. */
+export function encodeTraceTimeSnapshot(writer: BinaryWriter, value: TraceTimeSnapshot): void {
+    writer.writeString(value.name);
+    writer.writeUnsigned(value.micros);
+}
+
+/** Decode one TraceTimeSnapshot. */
+export function decodeTraceTimeSnapshot(reader: BinaryReader): TraceTimeSnapshot {
+    const name = reader.readString();
+    const micros = reader.readUnsigned();
+
+    return {
+        name,
+        micros,
+    };
+}
+
+/** Return one JSON value for one TraceTimeSnapshot. */
+export function toJsonTraceTimeSnapshot(value: TraceTimeSnapshot): Json {
+    return {
+        name: value.name,
+        micros: value.micros.toString(),
+    };
+}
+
+/** Return one TraceTimeSnapshot from one JSON value. */
+export function fromJsonTraceTimeSnapshot(value: Json): TraceTimeSnapshot {
+    const object = jsonObject(value);
+
+    return {
+        name: jsonString(jsonField(object, "name")),
+        micros: jsonBigint(jsonField(object, "micros")),
+    };
+}
+
+/** Trace detail returned to a caller. */
+export type TraceView = "summary" | "detailed";
+
+export const TraceView = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TraceView): void {
+        encodeTraceView(writer, value);
+    },
+
+    /** Decode one TraceView. */
+    decode(reader: BinaryReader): TraceView {
+        return decodeTraceView(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TraceView): Json {
+        return toJsonTraceView(value);
+    },
+
+    /** Return one TraceView from one JSON value. */
+    fromJson(value: Json): TraceView {
+        return fromJsonTraceView(value);
+    },
+};
+
+/** Encode one TraceView. */
+export function encodeTraceView(writer: BinaryWriter, value: TraceView): void {
+    switch (value) {
+        case "summary":
+            writer.writeUnsigned(0);
+            return;
+        case "detailed":
+            writer.writeUnsigned(1);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one TraceView. */
+export function decodeTraceView(reader: BinaryReader): TraceView {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "summary";
+        case 1:
+            return "detailed";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one TraceView. */
+export function toJsonTraceView(value: TraceView): Json {
+    return value;
+}
+
+/** Return one TraceView from one JSON value. */
+export function fromJsonTraceView(value: Json): TraceView {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "summary":
+            return "summary";
+        case "detailed":
+            return "detailed";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
 }

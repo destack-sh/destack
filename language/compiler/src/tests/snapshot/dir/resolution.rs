@@ -23,9 +23,6 @@ impl SnapshotTable for dir::ResolutionTable<'_> {
         for ((node_id, segment), resolution) in self.path_entries() {
             add_path_resolution_row(builder, node_id, segment, resolution);
         }
-        for (node_id, resolution) in self.label_entries() {
-            add_label_resolution_row(builder, node_id, *resolution);
-        }
         for (node_id, path) in self.unresolved_entries() {
             add_unresolved_reference_row(builder, node_id, path);
         }
@@ -46,6 +43,9 @@ impl SnapshotTable for dir::DecisionTable<'_> {
             match resolution {
                 dir::Decision::Instantiation(resolution) => {
                     add_instantiation_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Label(target) => {
+                    add_label_decision_row(builder, node_id, *target);
                 }
                 dir::Decision::Receiver(resolution) => {
                     add_receiver_decision_row(builder, node_id, *resolution);
@@ -251,9 +251,10 @@ fn builtin_operand_label(
     builder: &DirSnapshotBuilder<'_>,
     operand: &dir::BuiltinOperand,
 ) -> String {
+    let source_node = operand.source.into_any();
     let source = builder
-        .node_source(operand.source)
-        .unwrap_or_else(|| builder.node_label(operand.source));
+        .node_source(source_node)
+        .unwrap_or_else(|| builder.node_label(source_node));
     let ty = builder.global_type_label(operand.ty);
     let Some(families) = &operand.scalar_families else {
         return format!("{source} as {ty}");
@@ -340,6 +341,34 @@ fn add_unresolved_reference_row(
     builder.push(row);
 }
 
+/// Add one label target decision row.
+fn add_label_decision_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    target: dir::GlobalNodeIdAny,
+) {
+    // name the selected loop by its authored label
+    let label = target
+        .local_id
+        .try_into_typed::<dir::Expression>()
+        .ok()
+        .and_then(|id| match builder.tree.get(id) {
+            dir::Expression::While { label, .. }
+            | dir::Expression::ForEach { label, .. }
+            | dir::Expression::For { label, .. }
+            | dir::Expression::Loop { label, .. } => *label,
+            _ => None,
+        });
+    let target = match label {
+        Some(name) => builder.strings.get(name).to_string(),
+        None => builder.node_label(target),
+    };
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "label")
+        .optional_field("source", builder.node_source(node_id))
+        .field("target", target);
+    builder.push(row);
+}
+
 /// Add one explicit instantiation resolution row.
 fn add_instantiation_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
@@ -363,26 +392,6 @@ fn add_instantiation_decision_row(
         resolution.symbol,
         &resolution.generic_arguments,
     );
-}
-
-/// Add one label resolution row.
-fn add_label_resolution_row(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    resolution: dir::LabelResolution,
-) {
-    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "label")
-        .optional_field("source", builder.node_source(node_id));
-
-    let row = match resolution {
-        dir::LabelResolution::Symbol(symbol_id) => row
-            .field("kind", "symbol")
-            .field("target", builder.symbol_label(symbol_id)),
-        dir::LabelResolution::Loop => row.field("kind", "loop"),
-        dir::LabelResolution::Function => row.field("kind", "function"),
-    };
-
-    builder.push(row);
 }
 
 /// Add one receiver resolution row.
@@ -595,7 +604,7 @@ fn add_call_fields(
         "parameters",
         call.arguments
             .iter()
-            .map(|argument| builder.global_type_label(argument.ty)),
+            .map(|argument| builder.global_type_label(argument.parameter_type)),
     )
     .optional_field(
         "arguments",
@@ -1227,7 +1236,7 @@ fn direct_call_label(
 ) -> String {
     let parameters = arguments
         .iter()
-        .map(|argument| builder.global_type_label(argument.ty))
+        .map(|argument| builder.global_type_label(argument.parameter_type))
         .collect::<Vec<_>>()
         .join(", ");
     let arguments = builder
@@ -1293,7 +1302,7 @@ fn add_construct_decision_row(
             resolution
                 .arguments
                 .iter()
-                .map(|argument| builder.global_type_label(argument.ty)),
+                .map(|argument| builder.global_type_label(argument.parameter_type)),
         )
         .optional_field(
             "arguments",
@@ -2910,7 +2919,7 @@ fn argument_binding_label(
     builder: &DirSnapshotBuilder<'_>,
     binding: &dir::ArgumentBinding,
 ) -> String {
-    let source = match &binding.argument {
+    let source = match &binding.source {
         dir::ArgumentSource::Provided(node) => {
             let source = builder
                 .node_source(*node)
@@ -2938,7 +2947,11 @@ fn argument_binding_label(
         }
     };
 
-    format!("{} as {}", source, builder.global_type_label(binding.ty))
+    format!(
+        "{} as {}",
+        source,
+        builder.global_type_label(binding.argument_type)
+    )
 }
 
 /// Return selected generic argument values in binding order.

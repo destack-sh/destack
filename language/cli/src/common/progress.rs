@@ -210,13 +210,7 @@ impl ProgressReporter {
     }
 
     /// Update the status line from one workspace progress event.
-    pub fn update_workspace(&self, task: &str, message: Option<&str>, done: bool) {
-        if done {
-            self.finish();
-
-            return;
-        }
-
+    pub fn update_workspace(&self, task: &str, message: Option<&str>) {
         // workspace updates share the ticker line's shape
         let styled_label = style_label(&self.label);
         let sep = console::dim(" · ");
@@ -230,6 +224,12 @@ impl ProgressReporter {
         parts.push(console::format_duration(self.started_at.elapsed()));
         self.status
             .set_message(format!("{styled_label}{sep}{}", parts.join(&sep)));
+    }
+
+    /// Stop updating the progress display.
+    pub fn stop(&self) {
+        self.status.disable_steady_tick();
+        self.stop_ticker.store(true, Ordering::Relaxed);
     }
 
     /// Finish the progress display.

@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     BodyState, Cause, CauseKind, FlowSite, InferMode, InterfaceIndexSignature, Origin, PlaceUse,
-    Relation, SubscriptProtocol, Value, ValueUse,
+    Relation, SubscriptProtocol, TypeSubstitution, Value, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -312,6 +312,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         left: dir::LocalNodeId<dir::Expression>,
         index: Option<dir::LocalNodeId<dir::Expression>>,
+        is_optional: bool,
         use_: PlaceUse,
     ) -> CompilerResult<()> {
         let node = site.node.into_typed::<dir::Expression>();
@@ -324,6 +325,7 @@ impl BodyState<'_, '_> {
         let receiver_site = self.visit_site(receiver_node)?;
         let receiver = self.infer_node_type(receiver_site, PlaceUse::Read)?;
         let receiver_value = self.expression_value(receiver_site, receiver)?;
+        let receiver = self.select_chain_operand(origin, receiver, is_optional)?;
         let Some(index) = index else {
             return self.reject_operator(node, origin, "[]".to_string(), &[receiver]);
         };
@@ -342,7 +344,7 @@ impl BodyState<'_, '_> {
         let space = self.member_receiver_space(receiver_node, receiver)?;
         let index = self.reduce_type_head(origin, index)?;
 
-        // select subscript
+        // select the subscript operation for the reduced operands
         let Some(selection) = self.select_subscript(
             origin,
             module,
@@ -659,7 +661,15 @@ impl BodyState<'_, '_> {
         let parameters = self
             .signature_parameters(callable_type.module_id, parameters)?
             .to_vec();
-        let arguments = Self::source_argument_bindings(&sources, &parameters);
+        let arguments = parameters
+            .iter()
+            .zip(sources)
+            .map(|(parameter, source)| dir::ArgumentBinding {
+                parameter_type: parameter.ty,
+                argument_type: parameter.ty,
+                source,
+            })
+            .collect();
         let dispatch = dir::DynamicDispatch {
             receiver: dir::AdjustedReceiver::direct(receiver),
             constraint,
@@ -966,8 +976,7 @@ impl BodyState<'_, '_> {
         let sources = [source];
         let key = method.key(self.strings());
 
-        // the checked key classifies candidates in probes, while the
-        //  committed selection still flows context into the key argument
+        // classify candidates against the checked key while still flowing context into it
         let index = self.shallow_resolve(index)?;
         let Some((_protocol, call)) = self.select_language_protocol_call(
             origin,
@@ -1213,9 +1222,25 @@ impl BodyState<'_, '_> {
         else {
             return Ok(None);
         };
-        let parameters = self
+
+        // select each substituted parameter in the receiver placement
+        let parameter_types = self
             .signature_parameters(callable.module_id, signature.parameters)?
             .to_vec();
+        let substitution = TypeSubstitution::default();
+        let receiver = match &candidate.receiver {
+            dir::MemberReceiver::Direct(receiver) => receiver.ty(),
+            dir::MemberReceiver::Dynamic(dispatch) => dispatch.constraint,
+        };
+        let mut parameters = SmallVec::<[_; 2]>::with_capacity(parameter_types.len());
+        for parameter in parameter_types {
+            parameters.push(self.select_parameter(
+                origin,
+                parameter,
+                &substitution,
+                Some(receiver),
+            )?);
+        }
         let Some(return_type) = signature.return_type else {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -1240,10 +1265,24 @@ impl BodyState<'_, '_> {
                 generic_arguments: candidate.generic_arguments.clone(),
             },
         };
+
+        // require one recorded source for every IndexSet parameter
+        if parameters.len() != sources.len() {
+            return Err(CompilerError::Internal {
+                message: "selected IndexSet signature has an incompatible arity".to_string(),
+            });
+        }
+
+        // bind parameters and sources in declaration order
+        let arguments = parameters
+            .into_iter()
+            .zip(sources)
+            .map(|(selected, source)| selected.bind(source.clone()))
+            .collect();
         let call = dir::Call {
             target,
             callable_type: callable,
-            arguments: Self::source_argument_bindings(sources, &parameters),
+            arguments,
             return_type,
         };
 

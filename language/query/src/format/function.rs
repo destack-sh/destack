@@ -25,6 +25,28 @@ impl Formatter<'_, '_, '_> {
         })
     }
 
+    /// Format one callable as a completion label suffix.
+    pub(crate) fn callable_suffix(
+        &self,
+        type_id: dir::GlobalTypeId,
+        parameter_names: Option<&[String]>,
+    ) -> QueryResult<String> {
+        self.read_type(type_id, |type_value, formatter| match type_value {
+            dir::Type::FunctionSignature(function) => {
+                formatter.function_suffix(formatter.types()?.signature(*function), parameter_names)
+            }
+            dir::Type::Function(function) => {
+                formatter.callable_suffix(function.signature, parameter_names)
+            }
+            dir::Type::FunctionPointer(function) => {
+                formatter.callable_suffix(function.signature, parameter_names)
+            }
+            _ => Err(QueryError::invalid(format!(
+                "callable completion suffix: {type_id:?}"
+            ))),
+        })
+    }
+
     /// Format one named callable signature.
     pub(crate) fn callable_signature(
         &self,
@@ -73,6 +95,34 @@ impl Formatter<'_, '_, '_> {
         function: &dir::FunctionSignatureType,
         parameter_names: Option<&[String]>,
     ) -> QueryResult<String> {
+        let parameters = self.function_parameters(function, parameter_names)?;
+        let return_type = self.function_return_type(function)?;
+        let prefix = match function.asynchrony {
+            dir::Asynchrony::Sync => "",
+            dir::Asynchrony::Async => "async ",
+        };
+
+        Ok(format!("{prefix}({parameters}) => {return_type}"))
+    }
+
+    /// Format one function type as a completion label suffix.
+    fn function_suffix(
+        &self,
+        function: &dir::FunctionSignatureType,
+        parameter_names: Option<&[String]>,
+    ) -> QueryResult<String> {
+        let parameters = self.function_parameters(function, parameter_names)?;
+        let return_type = self.function_return_type(function)?;
+
+        Ok(format!("({parameters}): {return_type}"))
+    }
+
+    /// Format parameters carried by one function type.
+    fn function_parameters(
+        &self,
+        function: &dir::FunctionSignatureType,
+        parameter_names: Option<&[String]>,
+    ) -> QueryResult<String> {
         let parameters = self.types()?.parameters(function.parameters);
         if let Some(parameter_names) = parameter_names
             && parameters.len() != parameter_names.len()
@@ -85,25 +135,21 @@ impl Formatter<'_, '_, '_> {
         }
 
         // format parameters in declaration order
-        let mut formatted_parameters = Vec::with_capacity(parameters.len());
+        let mut formatted = Vec::with_capacity(parameters.len());
         for (index, parameter) in parameters.iter().enumerate() {
             let name = parameter_names.map(|names| names[index].trim_start_matches("..."));
-            let parameter = self.parameter_type(parameter, name)?;
-            formatted_parameters.push(parameter);
+            formatted.push(self.parameter_type(parameter, name)?);
         }
-        let parameters = formatted_parameters.join(", ");
 
-        // format the return and callable modifiers
-        let return_type = match function.return_type {
-            Some(type_id) => self.global_type(type_id)?,
-            None => "void".to_string(),
-        };
-        let prefix = match function.asynchrony {
-            dir::Asynchrony::Sync => "",
-            dir::Asynchrony::Async => "async ",
-        };
+        Ok(formatted.join(", "))
+    }
 
-        Ok(format!("{prefix}({parameters}) => {return_type}"))
+    /// Format the return type carried by one function type.
+    fn function_return_type(&self, function: &dir::FunctionSignatureType) -> QueryResult<String> {
+        match function.return_type {
+            Some(type_id) => self.global_type(type_id),
+            None => Ok("void".to_string()),
+        }
     }
 
     /// Format one method signature with its declaration modifiers.

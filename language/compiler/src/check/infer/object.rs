@@ -1,10 +1,10 @@
 use destack_dir as dir;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::check::{
     BodyState, Cause, CauseKind, CheckAttempt, CheckFailure, CheckOutcome, Expectation, FlowSite,
-    InferMode, Origin, PlaceUse, Relation, ValueCheck, ValueUse,
+    InferMode, MemberRole, Origin, PlaceUse, Relation, ValueCheck, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -20,7 +20,7 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         let mut fields = IndexMap::<dir::StaticKey, dir::TypeProperty>::new();
         let mut sources = IndexMap::<dir::StaticKey, dir::GlobalNodeIdAny>::new();
-        let mut authored = IndexSet::<dir::StaticKey>::new();
+        let mut authored = IndexMap::<dir::StaticKey, dir::PropertyAccess>::new();
         let field_mode = mode.descend(mode.is_readonly());
 
         // collect literal fields, methods, and spreads into one shape
@@ -32,52 +32,44 @@ impl BodyState<'_, '_> {
                         continue;
                     };
 
-                    // report a key the literal already wrote
-                    if !authored.insert(key) {
-                        self.check.report_duplicate_definition_member(
-                            property.into_global_any(module),
-                            &key,
-                        );
-                    }
-
                     // infer the written value under the field mode
                     let value_site = self.visit_site(value.into_global_any(module))?;
                     let ty = self.infer_node(value_site, PlaceUse::Read, field_mode)?;
                     let ty = self.flow_type_at(value_site, ty)?;
 
                     // record the field slot and the value that wrote it
-                    let access = match mode.is_readonly() {
+                    let typed_access = match mode.is_readonly() {
                         true => dir::PropertyAccess::Read(ty),
                         false => dir::PropertyAccess::ReadWrite {
                             read: ty,
                             write: ty,
                         },
                     };
-                    fields.insert(
+                    let authored_access = dir::PropertyAccess::ReadWrite {
+                        read: ty,
+                        write: ty,
+                    };
+                    let field = dir::TypeProperty {
                         key,
-                        dir::TypeProperty {
-                            key,
-                            access,
-                            is_optional: false,
-                        },
-                    );
+                        access: typed_access,
+                        is_optional: false,
+                    };
+                    self.upsert_object_property(
+                        &mut authored,
+                        &mut fields,
+                        property.into_global_any(module),
+                        authored_access,
+                        field,
+                    )?;
                     sources.insert(key, value.into_global_any(module));
                 }
-                dir::Property::Method { key, .. } => {
+                dir::Property::Method { key, signature, .. } => {
                     let Some(key) = (match key {
                         Some(key) => self.select_property_key(site, key)?,
                         None => None,
                     }) else {
                         continue;
                     };
-
-                    // report a key the literal already wrote
-                    if !authored.insert(key) {
-                        self.check.report_duplicate_definition_member(
-                            property.into_global_any(module),
-                            &key,
-                        );
-                    }
 
                     // read the method signature from its declared symbol
                     let symbol = self
@@ -86,28 +78,50 @@ impl BodyState<'_, '_> {
                         .ok_or_else(|| CompilerError::Internal {
                             message: format!("object method property {property:?} has no symbol"),
                         })?;
+
+                    // walk methods inference discovers before their walk
+                    if self.symbol_type_maybe(symbol).is_none() {
+                        let (parsed, expanded) = self.patched_inputs(module);
+                        let tree = dir::View::with_patches(
+                            &parsed.tree,
+                            std::slice::from_ref(&expanded.patch),
+                        );
+                        let mut walk = WalkState::new(module, tree, self.check);
+                        walk.walk_property(property, &tree.get(property).clone())?;
+                        walk.flush_flows()?;
+                    }
                     let Some(ty) = self.symbol_type_maybe(symbol) else {
                         return Err(CompilerError::Internal {
                             message: format!("object method property {symbol:?} has no type"),
                         });
                     };
 
-                    // record the method slot
-                    let access = match mode.is_readonly() {
-                        true => dir::PropertyAccess::Read(ty),
-                        false => dir::PropertyAccess::ReadWrite {
-                            read: ty,
-                            write: ty,
-                        },
+                    // record the operations exposed by the method
+                    let role = MemberRole::from(signature.role);
+                    let authored_access =
+                        self.check
+                            .property_access(role, ty, false)?
+                            .ok_or_else(|| CompilerError::Internal {
+                                message: format!(
+                                    "object property {property:?} has no property access"
+                                ),
+                            })?;
+                    let typed_access = match mode.is_readonly() {
+                        true => authored_access.readonly(),
+                        false => authored_access,
                     };
-                    fields.insert(
+                    let field = dir::TypeProperty {
                         key,
-                        dir::TypeProperty {
-                            key,
-                            access,
-                            is_optional: false,
-                        },
-                    );
+                        access: typed_access,
+                        is_optional: false,
+                    };
+                    self.upsert_object_property(
+                        &mut authored,
+                        &mut fields,
+                        property.into_global_any(module),
+                        authored_access,
+                        field,
+                    )?;
                 }
                 dir::Property::Spread { value } => {
                     // infer the spread source
@@ -230,7 +244,7 @@ impl BodyState<'_, '_> {
             .members
             .record_subject(dir::MemberSite::Node(node.into_any()), subject);
 
-        let mut authored = IndexSet::<dir::StaticKey>::new();
+        let mut authored = IndexMap::<dir::StaticKey, dir::PropertyAccess>::new();
         let mut source_fields = IndexMap::<dir::StaticKey, dir::TypeProperty>::new();
         let mut check = CheckOutcome::Holds;
 
@@ -242,14 +256,6 @@ impl BodyState<'_, '_> {
                     let Some(key) = self.select_property_key(site, key)? else {
                         return Ok(CheckAttempt::NotApplicable);
                     };
-
-                    // report a key the literal already wrote
-                    if !authored.insert(key) {
-                        self.check.report_duplicate_definition_member(
-                            property.into_global_any(node.module_id),
-                            &key,
-                        );
-                    }
 
                     // select a declared field before a matching index signature
                     let mut field = target_fields.iter().find(|field| field.key == key).copied();
@@ -288,21 +294,29 @@ impl BodyState<'_, '_> {
                         let ty = self.infer_node(child_site, PlaceUse::Read, mode)?;
                         let ty = self.flow_type_at(child_site, ty)?;
                         let storage = self.inference_candidate_type(ty, mode)?;
-                        let access = match expectation.mode.is_readonly() {
+                        let typed_access = match expectation.mode.is_readonly() {
                             true => dir::PropertyAccess::Read(storage),
                             false => dir::PropertyAccess::ReadWrite {
                                 read: storage,
                                 write: storage,
                             },
                         };
-                        source_fields.insert(
+                        let authored_access = dir::PropertyAccess::ReadWrite {
+                            read: storage,
+                            write: storage,
+                        };
+                        let field = dir::TypeProperty {
                             key,
-                            dir::TypeProperty {
-                                key,
-                                access,
-                                is_optional: false,
-                            },
-                        );
+                            access: typed_access,
+                            is_optional: false,
+                        };
+                        self.upsert_object_property(
+                            &mut authored,
+                            &mut source_fields,
+                            property.into_global_any(node.module_id),
+                            authored_access,
+                            field,
+                        )?;
                         check =
                             check.and(CheckOutcome::Fails(CheckFailure::ExcessProperty { key }));
 
@@ -339,41 +353,41 @@ impl BodyState<'_, '_> {
                     let is_readonly = expectation.mode.is_readonly()
                         || expectation.relation != Relation::Satisfies
                             && !field.access.is_writable();
-                    let access = match is_readonly {
+                    let typed_access = match is_readonly {
                         true => dir::PropertyAccess::Read(storage),
                         false => dir::PropertyAccess::ReadWrite {
                             read: storage,
                             write: storage,
                         },
                     };
-                    source_fields.insert(
+                    let authored_access = dir::PropertyAccess::ReadWrite {
+                        read: storage,
+                        write: storage,
+                    };
+                    let field = dir::TypeProperty {
                         key,
-                        dir::TypeProperty {
-                            key,
-                            access,
-                            is_optional: false,
-                        },
-                    );
+                        access: typed_access,
+                        is_optional: false,
+                    };
+                    self.upsert_object_property(
+                        &mut authored,
+                        &mut source_fields,
+                        property.into_global_any(node.module_id),
+                        authored_access,
+                        field,
+                    )?;
                     check = check.and(child_check.outcome);
                 }
                 dir::Property::Spread { .. } => {
                     return Ok(CheckAttempt::NotApplicable);
                 }
-                dir::Property::Method { key, .. } => {
+                dir::Property::Method { key, signature, .. } => {
                     let Some(key) = (match key {
                         Some(key) => self.select_property_key(site, key)?,
                         None => None,
                     }) else {
                         return Ok(CheckAttempt::NotApplicable);
                     };
-
-                    // report a key the literal already wrote
-                    if !authored.insert(key) {
-                        self.check.report_duplicate_definition_member(
-                            property.into_global_any(node.module_id),
-                            &key,
-                        );
-                    }
 
                     // read the method signature from its declared symbol
                     let symbol = self
@@ -382,28 +396,50 @@ impl BodyState<'_, '_> {
                         .ok_or_else(|| CompilerError::Internal {
                             message: format!("object method property {property:?} has no symbol"),
                         })?;
+
+                    // walk methods inference discovers before their walk
+                    if self.symbol_type_maybe(symbol).is_none() {
+                        let (parsed, expanded) = self.patched_inputs(node.module_id);
+                        let tree = dir::View::with_patches(
+                            &parsed.tree,
+                            std::slice::from_ref(&expanded.patch),
+                        );
+                        let mut walk = WalkState::new(node.module_id, tree, self.check);
+                        walk.walk_property(property, &tree.get(property).clone())?;
+                        walk.flush_flows()?;
+                    }
                     let Some(ty) = self.symbol_type_maybe(symbol) else {
                         return Err(CompilerError::Internal {
                             message: format!("object method property {symbol:?} has no type"),
                         });
                     };
 
-                    // record the method slot
-                    let access = match expectation.mode.is_readonly() {
-                        true => dir::PropertyAccess::Read(ty),
-                        false => dir::PropertyAccess::ReadWrite {
-                            read: ty,
-                            write: ty,
-                        },
+                    // record the operations exposed by the method
+                    let role = MemberRole::from(signature.role);
+                    let authored_access =
+                        self.check
+                            .property_access(role, ty, false)?
+                            .ok_or_else(|| CompilerError::Internal {
+                                message: format!(
+                                    "object property {property:?} has no property access"
+                                ),
+                            })?;
+                    let typed_access = match expectation.mode.is_readonly() {
+                        true => authored_access.readonly(),
+                        false => authored_access,
                     };
-                    source_fields.insert(
+                    let field = dir::TypeProperty {
                         key,
-                        dir::TypeProperty {
-                            key,
-                            access,
-                            is_optional: false,
-                        },
-                    );
+                        access: typed_access,
+                        is_optional: false,
+                    };
+                    self.upsert_object_property(
+                        &mut authored,
+                        &mut source_fields,
+                        property.into_global_any(node.module_id),
+                        authored_access,
+                        field,
+                    )?;
                 }
                 dir::Property::Error => {}
             }
@@ -412,15 +448,14 @@ impl BodyState<'_, '_> {
         // require every nonoptional declared field from the final property set
         if let Some(missing) = target_fields
             .iter()
-            .find(|field| !field.is_optional && !authored.contains(&field.key))
+            .find(|field| !field.is_optional && !authored.contains_key(&field.key))
         {
             check = check.and(CheckOutcome::Fails(CheckFailure::MissingRequiredProperty {
                 key: missing.key,
             }));
         }
 
-        // adopt the slot class and its memory form for storage into a concrete
-        //  object class, contracts and check-only relations keep the authored row
+        // adopt the slot class and memory form only for storage into a concrete object
         let is_adopting = expectation.relation != Relation::Satisfies
             && matches!(self.ty(target_value)?, dir::Type::Object(_));
         let source = match is_adopting {
@@ -443,6 +478,50 @@ impl BodyState<'_, '_> {
             outcome: check,
             target,
         }))
+    }
+
+    /// Upsert one object property and report overlapping authored operations.
+    fn upsert_object_property(
+        &mut self,
+        authored: &mut IndexMap<dir::StaticKey, dir::PropertyAccess>,
+        fields: &mut IndexMap<dir::StaticKey, dir::TypeProperty>,
+        source: dir::GlobalNodeIdAny,
+        authored_access: dir::PropertyAccess,
+        property: dir::TypeProperty,
+    ) -> CompilerResult<()> {
+        let key = property.key;
+        let previous_authored = authored.get(&key).copied();
+        let composed = match previous_authored {
+            Some(existing) => existing.composed(authored_access),
+            None => None,
+        };
+
+        // compose one getter and setter already authored for this key
+        if let Some(composed) = composed {
+            let Some(existing) = fields.get_mut(&key) else {
+                return Err(CompilerError::Internal {
+                    message: format!("authored property {key:?} has no typed field"),
+                });
+            };
+            if !existing.compose(property) {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "property {key:?} has complementary authored operations but overlapping typed operations"
+                    ),
+                });
+            }
+            authored.insert(key, composed);
+        }
+        // otherwise replace a spread or diagnosed overlapping declaration
+        else {
+            if previous_authored.is_some() {
+                self.check.report_duplicate_definition_member(source, &key);
+            }
+            authored.insert(key, authored_access);
+            fields.insert(key, property);
+        }
+
+        Ok(())
     }
 
     /// Return the members an object literal target expects.

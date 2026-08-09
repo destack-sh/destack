@@ -105,7 +105,7 @@ impl Compiler {
         let item = state.view.get(item_id);
 
         match item {
-            // skip parser recovery items and default value exports
+            // skip malformed items and default value exports
             dir::DependencyItem::Error => Ok(None),
             _ if item.is_default_value_export() => Ok(None),
 
@@ -121,7 +121,8 @@ impl Compiler {
                     return Ok(None);
                 };
 
-                let Some(source) = state.find_module_symbol(source_key) else {
+                let declarations = state.visible_declarations(source_key);
+                if declarations.is_empty() {
                     let name = state.static_key_text(source_key);
                     let anchor = state.anchor_node(item_id.id)?;
                     let best = find_best_match(
@@ -148,7 +149,7 @@ impl Compiler {
                     state.report_diagnostic(diagnostic);
 
                     return Ok(None);
-                };
+                }
 
                 let key = match item.export_key(state.strings()) {
                     Some(key) => Ok(key),
@@ -159,24 +160,40 @@ impl Compiler {
                     }),
                 }?;
 
-                // preserve namespace aliases as module exports
-                if let Some(target) = state.namespace_import_target(source) {
-                    let export = dir::IndirectExport {
-                        key,
-                        item: item_id,
-                        target: Some(target),
-                        imported: dir::ExportSelector::Namespace,
-                    };
+                let declaration = state.export_declaration(item_id)?;
+                let imported = match declarations.as_slice() {
+                    [source] => state.import_binding(*source)?,
+                    _ => None,
+                };
+                let declaration = declaration.or_else(|| match &imported {
+                    Some(dir::ExportBinding::Import { local, .. }) => Some(*local),
+                    Some(
+                        dir::ExportBinding::Local { .. } | dir::ExportBinding::ReExport { .. },
+                    )
+                    | None => None,
+                });
 
-                    return Ok(Some(dir::NamedExport::Indirect(export)));
-                }
+                // retain local declarations or the exact imported route
+                let binding = match imported {
+                    Some(binding) => binding,
+                    None => {
+                        for declaration in &declarations {
+                            let form = state.symbol_form(*declaration);
+                            state.exports.insert_symbol_form(*declaration, form);
+                        }
 
-                Ok(Some(dir::NamedExport::Local(dir::LocalExport {
+                        dir::ExportBinding::Local {
+                            symbols: declarations,
+                        }
+                    }
+                };
+
+                Ok(Some(dir::NamedExport {
                     key,
-                    source,
-                    form: state.symbol_form(source),
                     item: Some(item_id),
-                })))
+                    declaration,
+                    binding,
+                }))
             }
         }
     }
@@ -219,78 +236,15 @@ impl Compiler {
                 continue;
             };
 
-            match export {
-                // publish a local global symbol
-                dir::NamedExport::Local(export) => {
-                    state.globals.push_local(key, export.source);
-                }
-
-                // publish an indirect global export
-                dir::NamedExport::Indirect(export) => {
-                    state.globals.push_indirect(dir::IndirectGlobalEntry {
-                        key,
-                        item: export.item,
-                        target: export.target,
-                        imported: export.imported,
-                    });
-                }
-            }
+            state.globals.push(dir::GlobalEntry {
+                key,
+                item: export.item,
+                declaration: export.declaration,
+                binding: export.binding,
+            });
         }
 
         Ok(())
-    }
-
-    /// Return one global re-export entry from a dependency item.
-    fn global_reexport_entry(
-        &self,
-        state: &mut ExportState<'_>,
-        item_id: dir::LocalNodeId<dir::DependencyItem>,
-        target: Option<ModuleId>,
-    ) -> ExportResult<Option<dir::IndirectGlobalEntry>> {
-        let item = state.view.get(item_id);
-
-        match item {
-            // skip parser recovery items
-            dir::DependencyItem::Error => Ok(None),
-
-            // export one imported name into the global table
-            _ => {
-                let key = match item.export_key(state.strings()) {
-                    Some(key) => Ok(key),
-                    None => Err(ExportError::Internal {
-                        anchor: state.anchor_node(item_id.id)?,
-                        module: state.view.tree().module_id,
-                        message: format!("global re-export item {item_id:?} has no export key"),
-                    }),
-                }?;
-
-                let Some(key) = key.named_key() else {
-                    state.report_diagnostic(ExportError::DefaultGlobalExport {
-                        anchor: state.anchor_node(item_id.id)?,
-                    });
-
-                    return Ok(None);
-                };
-
-                let imported = match item.export_selector() {
-                    Some(imported) => Ok(imported),
-                    None => Err(ExportError::Internal {
-                        anchor: state.anchor_node(item_id.id)?,
-                        module: state.view.tree().module_id,
-                        message: format!(
-                            "global re-export item {item_id:?} has no export selector"
-                        ),
-                    }),
-                }?;
-
-                Ok(Some(dir::IndirectGlobalEntry {
-                    key,
-                    item: item_id,
-                    target,
-                    imported,
-                }))
-            }
-        }
     }
 
     /// Export a global re-export clause.
@@ -309,7 +263,7 @@ impl Compiler {
             let item = state.view.get(*item_id);
 
             match item {
-                // skip parser recovery items
+                // skip malformed items
                 dir::DependencyItem::Error => {}
 
                 // reject keyless ambient namespace re-exports
@@ -321,11 +275,23 @@ impl Compiler {
 
                 // add named ambient re-export
                 _ => {
-                    let entry = self.global_reexport_entry(state, *item_id, target)?;
+                    let Some(export) = self.reexport_entry(state, *item_id, target)? else {
+                        continue;
+                    };
+                    let Some(key) = export.key.named_key() else {
+                        state.report_diagnostic(ExportError::DefaultGlobalExport {
+                            anchor: state.anchor_node(item_id.id)?,
+                        });
 
-                    if let Some(entry) = entry {
-                        state.globals.push_indirect(entry);
-                    }
+                        continue;
+                    };
+
+                    state.globals.push(dir::GlobalEntry {
+                        key,
+                        item: export.item,
+                        declaration: export.declaration,
+                        binding: export.binding,
+                    });
                 }
             }
         }
@@ -343,7 +309,7 @@ impl Compiler {
         let item = state.view.get(item_id);
 
         match item {
-            // skip parser recovery items
+            // skip malformed items
             dir::DependencyItem::Error => Ok(None),
 
             // export one imported selector
@@ -366,12 +332,15 @@ impl Compiler {
                     }),
                 }?;
 
-                Ok(Some(dir::NamedExport::Indirect(dir::IndirectExport {
+                Ok(Some(dir::NamedExport {
                     key,
-                    item: item_id,
-                    target,
-                    imported,
-                })))
+                    item: Some(item_id),
+                    declaration: state.export_declaration(item_id)?,
+                    binding: dir::ExportBinding::ReExport {
+                        module: target,
+                        selector: imported,
+                    },
+                }))
             }
         }
     }
@@ -392,7 +361,7 @@ impl Compiler {
             let item = state.view.get(*item_id);
 
             match item {
-                // skip parser recovery items
+                // skip malformed items
                 dir::DependencyItem::Error => {}
 
                 // append star re-export

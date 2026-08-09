@@ -244,13 +244,6 @@ impl PatchSet {
         Self { files }
     }
 
-    /// Create a PatchSet for a single file.
-    pub fn single(file_patch: FilePatch) -> Self {
-        Self {
-            files: vec![file_patch],
-        }
-    }
-
     /// Add a FilePatch.
     pub fn push(&mut self, file_patch: FilePatch) {
         self.files.push(file_patch);
@@ -296,6 +289,30 @@ impl PatchSet {
     /// Iterate over all patches with their file.
     pub fn iter(&self) -> impl Iterator<Item = &Patch> {
         self.files.iter().flat_map(|f| f.patches.iter())
+    }
+}
+
+impl From<Patch> for FilePatch {
+    /// Convert one patch into its single-file collection.
+    fn from(patch: Patch) -> Self {
+        Self {
+            file: patch.file(),
+            patches: vec![patch],
+        }
+    }
+}
+
+impl From<Patch> for PatchSet {
+    /// Convert one patch into its complete patch set.
+    fn from(patch: Patch) -> Self {
+        FilePatch::from(patch).into()
+    }
+}
+
+impl From<FilePatch> for PatchSet {
+    /// Convert one file patch into its complete patch set.
+    fn from(file: FilePatch) -> Self {
+        Self { files: vec![file] }
     }
 }
 

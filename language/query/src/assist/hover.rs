@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::{FileId, Span};
+use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,10 +10,10 @@ use crate::{
 /// Hover content for one declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HoverItem {
-    /// The type or signature in code format.
-    pub signature: String,
+    /// The declaration rendered as Destack source.
+    pub declaration: String,
     /// The distinct type selected at the hovered occurrence.
-    pub type_text: Option<String>,
+    pub selected_type: Option<String>,
     /// The declaration documentation when available.
     pub documentation: Option<String>,
     /// The exact declaration target.
@@ -31,14 +31,14 @@ pub struct Hover {
     pub range: Span,
 }
 
-/// Request hover content at a cursor position.
+/// A hover request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HoverRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for hover queries.
+/// A hover response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HoverResponse {
     /// Hover content, if available.
@@ -49,27 +49,30 @@ impl ModuleQueryContext<'_> {
     /// Return hover content for the symbol at the given position.
     pub fn hover(
         &self,
-        query: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<Hover>> {
+        request: HoverRequest,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<HoverResponse> {
+        // FUGU #Incomplete: DirChecked must retain overload family value selections
         // resolve source documentation and every exact named declaration
-        let documentation = self.documentation_at_offset(file_id, offset)?;
-        let occurrence = self.symbol_at_offset(file_id, offset)?;
+        let position = request.position;
+        let file_id = position.file_id;
+        let offset = position.offset;
+        let documentation = self.documentation_at_offset(program, file_id, offset)?;
+        let occurrence = self.symbol_at_offset(program, file_id, offset)?;
         if occurrence.is_none() && documentation.is_none() {
-            return Ok(None);
+            return Ok(HoverResponse { hover: None });
         }
 
         let mut symbols = Vec::new();
         if let Some(occurrence) = &occurrence {
             for symbol in &occurrence.symbols {
-                symbols.extend(query.canonical_symbols(*symbol)?);
+                symbols.extend(program.symbol_targets(*symbol)?);
             }
         }
         symbols.sort();
         symbols.dedup();
-        let type_text = match &occurrence {
-            Some(occurrence) => self.format_distinct_type(query, occurrence.type_id, &symbols)?,
+        let selected_type = match &occurrence {
+            Some(occurrence) => self.format_distinct_type(program, occurrence.type_id, &symbols)?,
             None => None,
         };
 
@@ -77,10 +80,10 @@ impl ModuleQueryContext<'_> {
         let mut items = Vec::new();
         let mut is_documentation_in_items = false;
         for symbol in symbols {
-            let module = query.module(symbol.module_id)?;
-            let signature = Formatter::new(&module, query).symbol_signature(symbol)?;
-            let item_documentation = query.symbol_documentation(symbol)?;
-            let target = module.symbol_target(symbol)?;
+            let module = program.module(symbol.module_id)?;
+            let declaration = Formatter::new(&module, program).symbol_signature(symbol)?;
+            let item_documentation = program.symbol_documentation(symbol)?;
+            let target = module.declaration_target(program, symbol)?;
 
             // avoid repeating documentation on its declaration occurrence
             if let Some(documentation) = &documentation {
@@ -89,56 +92,59 @@ impl ModuleQueryContext<'_> {
             }
 
             items.push(HoverItem {
-                signature,
-                type_text: type_text.clone(),
+                declaration,
+                selected_type: selected_type.clone(),
                 documentation: item_documentation,
                 target,
             });
         }
         if items.is_empty() && documentation.is_none() {
-            return Ok(None);
+            return Ok(HoverResponse { hover: None });
         }
 
         let range = match (&occurrence, &documentation) {
             (Some(occurrence), _) => occurrence.span,
             (None, Some(documentation)) => documentation.span,
-            (None, None) => return Ok(None),
+            (None, None) => return Ok(HoverResponse { hover: None }),
         };
         let documentation = documentation
             .filter(|_| !is_documentation_in_items)
-            .map(|documentation| documentation.text);
+            .map(|documentation| documentation.markdown);
 
-        Ok(Some(Hover {
+        let hover = Hover {
             items,
             documentation,
             range,
-        }))
+        };
+
+        Ok(HoverResponse { hover: Some(hover) })
     }
 
     /// Format an occurrence type when it differs from every declaration type.
     fn format_distinct_type(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         type_id: Option<dir::GlobalTypeId>,
         symbols: &[dir::GlobalSymbolId],
     ) -> QueryResult<Option<String>> {
         let Some(type_id) = type_id else {
             return Ok(None);
         };
+
         // retain callable parameter names only when every declaration agrees
         let mut parameter_names = match symbols.first() {
-            Some(symbol) => query.symbol_parameter_names(*symbol)?,
+            Some(symbol) => program.symbol_parameter_names(*symbol)?,
             None => None,
         };
         for symbol in symbols.iter().skip(1) {
-            let next_names = query.symbol_parameter_names(*symbol)?;
+            let next_names = program.symbol_parameter_names(*symbol)?;
             if next_names != parameter_names {
                 parameter_names = None;
                 break;
             }
         }
 
-        let formatter = Formatter::new(self, query);
+        let formatter = Formatter::new(self, program);
         let text = match parameter_names {
             Some(parameter_names) => formatter.callable_type(type_id, Some(&parameter_names))?,
             None => formatter.global_type(type_id)?,
@@ -146,8 +152,8 @@ impl ModuleQueryContext<'_> {
 
         // omit a type already represented by a declaration
         for symbol_id in symbols {
-            let module = query.module(symbol_id.module_id)?;
-            let declared_text = Formatter::new(&module, query).symbol_type(*symbol_id)?;
+            let module = program.module(symbol_id.module_id)?;
+            let declared_text = Formatter::new(&module, program).symbol_type(*symbol_id)?;
             if declared_text == text {
                 return Ok(None);
             }

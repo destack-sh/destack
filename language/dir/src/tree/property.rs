@@ -2,8 +2,9 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, FunctionSignature, GenericParameter, Key, Keyword, LocalNodeId, Mutability, Node,
-    NodeType, ScopeKind, StaticKey, StringId, SymbolKind, TypeExpression, Visibility, WhereClause,
+    Expression, FunctionSignature, GenericParameter, Key, Keyword, LocalNodeId, MemberSpace,
+    Mutability, Node, NodeType, ScopeKind, StaticKey, StringId, SymbolKind, TypeExpression,
+    Visibility, WhereClause,
 };
 
 /// Variance annotation for generic parameters.
@@ -43,7 +44,7 @@ pub enum FunctionRole {
     Call,
 }
 
-/// A nominal member slot.
+/// One member slot within a namespace.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MemberSlot {
     /// Property keyed by a static key.
@@ -57,6 +58,16 @@ pub enum MemberSlot {
 }
 
 impl FunctionRole {
+    /// Return the paired accessor role.
+    #[inline]
+    pub const fn accessor_counterpart(self) -> Option<Self> {
+        match self {
+            Self::Getter => Some(Self::Setter),
+            Self::Setter => Some(Self::Getter),
+            Self::Constructor | Self::New | Self::Call => None,
+        }
+    }
+
     /// Get the keyword for the function accessor.
     #[inline]
     pub fn to_keyword(&self) -> Option<Keyword> {
@@ -129,6 +140,26 @@ impl Node for Property {
 }
 
 impl Property {
+    /// Return the member slot occupied by this property.
+    pub fn slot(&self) -> Option<MemberSlot> {
+        match self {
+            Self::Field { key, .. } => key.direct_static_key().map(MemberSlot::Key),
+            Self::Method { key, signature, .. } => signature
+                .role
+                .and_then(MemberSlot::from_function_role)
+                .or_else(|| (*key).and_then(Key::direct_static_key).map(MemberSlot::Key)),
+            Self::Spread { .. } | Self::Error => None,
+        }
+    }
+
+    /// Return the member namespace occupied by this property.
+    pub fn space(&self) -> Option<MemberSpace> {
+        match self {
+            Self::Field { .. } | Self::Method { .. } => Some(MemberSpace::Instance),
+            Self::Spread { .. } | Self::Error => None,
+        }
+    }
+
     /// Get the key of the property when one exists.
     pub fn key(&self) -> Option<&Key> {
         match self {
@@ -239,14 +270,26 @@ impl Member {
                 Some(MemberSlot::Key(StaticKey::Name(*name)))
             }
             Self::Field { key, .. } => key.direct_static_key().map(MemberSlot::Key),
-            Self::Method { key: Some(key), .. } => key.direct_static_key().map(MemberSlot::Key),
-            Self::Method {
-                key: None,
-                signature,
-                ..
-            } => signature.role.and_then(MemberSlot::from_function_role),
+            Self::Method { key, signature, .. } => signature
+                .role
+                .and_then(MemberSlot::from_function_role)
+                .or_else(|| (*key).and_then(Key::direct_static_key).map(MemberSlot::Key)),
             Self::StaticBlock { .. } | Self::ComptimeBlock { .. } | Self::Error => None,
         }
+    }
+
+    /// Return the member namespace.
+    pub fn space(&self) -> Option<MemberSpace> {
+        let space = match self {
+            Self::AssociatedType { .. } | Self::AssociatedConst { .. } => MemberSpace::Static,
+            Self::Field { is_static, .. } | Self::Method { is_static, .. } => match is_static {
+                true => MemberSpace::Static,
+                false => MemberSpace::Instance,
+            },
+            Self::StaticBlock { .. } | Self::ComptimeBlock { .. } | Self::Error => return None,
+        };
+
+        Some(space)
     }
 
     /// Return the symbol key introduced by this member.

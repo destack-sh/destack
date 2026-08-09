@@ -1,7 +1,7 @@
 use std::f64::consts;
 
 use destack_dir as dir;
-use destack_source::{FilePatch, PatchSet};
+use destack_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -11,7 +11,10 @@ declare_lint! {
     pub NO_APPROX_CONSTANT {
         id: "no-approx-constant",
         summary: "Disallow numeric literals that approximate well-known constants",
-        explanation: "Hand-written approximations are usually less precise and less recognizable than the canonical standard-library constant. Use the corresponding `Math` member directly.",
+        explanation: r#"
+Hand-written approximations are usually less precise and less recognizable than the canonical
+standard-library constant. Use the corresponding `Math` member directly.
+"#,
         example: {
             reported: r#"
 declare const radius: number;
@@ -118,7 +121,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect authored floating-point literals
-    for (expression, value) in view.iter_nodes_of_type::<dir::Expression>() {
+    for (expression, value) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::ScalarLiteral(dir::ScalarLiteral::Float(value)) = value else {
             continue;
         };
@@ -144,10 +147,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // suggest the canonical standard-library member
         let replacement = format!("Math.{}", constant.name);
-        let mut file = FilePatch::new(span.file);
-        file.replace(span, replacement.clone());
-        let patches = PatchSet::single(file);
-        let suggestion = lint.suggestion(format!("use `{replacement}`"), patches)?;
+        let patch = Patch::replace(span, replacement.clone());
+        let suggestion = lint.suggestion(format!("use `{replacement}`"), patch)?;
         let diagnostic = lint
             .diagnostic(format!("approximate value of `{replacement}`"), span)
             .suggestion(suggestion);

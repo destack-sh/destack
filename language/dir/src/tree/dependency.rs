@@ -68,6 +68,15 @@ impl Node for DependencyItem {
 }
 
 impl DependencyItem {
+    /// Return the explicit alias declared by this dependency item.
+    pub fn alias(&self) -> Option<StringId> {
+        let Self::Binding { alias, .. } = self else {
+            return None;
+        };
+
+        *alias
+    }
+
     /// Return the binding declared by this dependency item.
     pub fn binding(&self) -> Option<DependencyBinding> {
         let Self::Binding { binding, .. } = self else {

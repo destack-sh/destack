@@ -1,7 +1,7 @@
 use crate::command::run::{RunArgs, run};
 use crate::common::{InputArgs, ProgramArgs, ReportArgs, RuntimeArgs, TargetArgs};
 
-use super::tests::assert_exit;
+use super::tests::{assert_exit, execute};
 
 /// Rejects run without input sources.
 #[test]
@@ -18,7 +18,7 @@ fn test_run_requires_input() {
     };
 
     // run without input
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the command fails
     assert_exit(code, 1);

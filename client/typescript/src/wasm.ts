@@ -1,69 +1,79 @@
-import { EmbeddedTransport, Connection } from "./protocol/connection/index.js";
+import { workspaceService } from "./_generated/workspace/client.js";
+import { Connection, EmbeddedTransport, type EmbeddedSession } from "./rpc/index.js";
 import {
-  RemoteWorkspace,
-  type Workspace,
-  type WorkspaceLocation,
-} from "./protocol/workspace.js";
-import {
-  isMemoryWorkspaceOptions,
-  memoryFiles,
-  memoryRoot,
-  type MemoryWorkspaceOptions,
-  type NativeMemoryFile,
+    memoryFiles,
+    memoryRoot,
+    type MemoryWorkspaceOptions,
+    type NativeMemoryFile,
 } from "./workspace/memory.js";
+import { Workspace } from "./workspace/workspace.js";
 
-/** Options for opening a local WASM workspace. */
-export type PathWorkspaceOptions = WorkspaceLocation;
+/** Options for opening one in-memory WebAssembly workspace. */
+export type WasmWorkspaceOptions = MemoryWorkspaceOptions;
 
-/** Options for opening a local WASM workspace. */
-export type WasmWorkspaceOptions = PathWorkspaceOptions | MemoryWorkspaceOptions;
-
-/** Native WASM module shape consumed by embedded workspace transport. */
+/** WebAssembly module shape consumed by this client. */
 type WasmModule = {
-  readonly default: () => Promise<unknown>;
-  readonly LocalWorkspaceServer: {
-    readonly open: (workspace: string) => LocalWorkspaceServer;
-    readonly memory: (
-      root: string,
-      files: readonly NativeMemoryFile[],
-    ) => LocalWorkspaceServer;
-  };
+    /** Initialize the generated WebAssembly module. */
+    readonly default: () => Promise<unknown>;
+    /** In-process workspace RPC session constructor. */
+    readonly WorkspaceSession: {
+        /** Open one in-memory workspace. */
+        readonly memory: (root: string, files: readonly NativeMemoryFile[]) => NativeSession;
+    };
 };
 
-/** Native local workspace server. */
-type LocalWorkspaceServer = {
-  readonly dispatch: (bytes: Uint8Array) => readonly unknown[];
+/** Native WebAssembly RPC session. */
+type NativeSession = {
+    /** Dispatch one RPC message. */
+    readonly dispatch: (bytes: Uint8Array) => readonly unknown[];
+    /** Poll ready RPC calls. */
+    readonly poll: () => readonly unknown[];
+    /** Return whether a cooperative RPC call requested another poll. */
+    readonly isReady: () => boolean;
+    /** Close this session. */
+    readonly close: () => void;
 };
 
-/** Open a workspace backed by the WebAssembly backend. */
-export async function openWasmWorkspace(
-  options: WasmWorkspaceOptions,
-): Promise<Workspace> {
-  const wasm =
-    (await import("@destack/language-wasm")) as unknown as WasmModule;
-  await wasm.default();
+/** Open an in-memory workspace backed by WebAssembly. */
+export async function openWasmWorkspace(options: WasmWorkspaceOptions): Promise<Workspace> {
+    const wasm = (await import("@destack/language-wasm")) as unknown as WasmModule;
+    await wasm.default();
 
-  const server = isMemoryWorkspaceOptions(options)
-    ? wasm.LocalWorkspaceServer.memory(memoryRoot(options), memoryFiles(options))
-    : wasm.LocalWorkspaceServer.open(options.workspace);
-  const transport = new EmbeddedTransport(new WasmServer(server));
-  const connection = new Connection(transport);
-  const workspace = isMemoryWorkspaceOptions(options) ? memoryRoot(options) : options.workspace;
+    const workspace = memoryRoot(options);
+    const native = wasm.WorkspaceSession.memory(workspace, memoryFiles(options));
+    const transport = new EmbeddedTransport(new WasmSession(native));
+    const connection = new Connection(transport);
+    await connection.handshake([workspaceService]);
 
-  return RemoteWorkspace.open({ ...options, workspace, connection });
+    return Workspace.open(connection, workspace);
 }
 
-/** Embedded server adapter for WASM native objects. */
-class WasmServer {
-  readonly #server: LocalWorkspaceServer;
+/** Adapter between wasm-bindgen and the generic embedded transport. */
+class WasmSession implements EmbeddedSession {
+    readonly #session: NativeSession;
 
-  /** Create one WASM server adapter. */
-  constructor(server: LocalWorkspaceServer) {
-    this.#server = server;
-  }
+    /** Create one WebAssembly session adapter. */
+    constructor(session: NativeSession) {
+        this.#session = session;
+    }
 
-  /** Dispatch one encoded protocol frame. */
-  dispatch(bytes: Uint8Array): readonly unknown[] {
-    return Array.from(this.#server.dispatch(bytes));
-  }
+    /** Dispatch one complete inbound RPC message. */
+    dispatch(bytes: Uint8Array): readonly unknown[] {
+        return this.#session.dispatch(bytes);
+    }
+
+    /** Poll cooperatively ready RPC calls. */
+    poll(): readonly unknown[] {
+        return this.#session.poll();
+    }
+
+    /** Return whether a cooperative RPC call requested another poll. */
+    isReady(): boolean {
+        return this.#session.isReady();
+    }
+
+    /** Close this WebAssembly session. */
+    close(): void {
+        this.#session.close();
+    }
 }

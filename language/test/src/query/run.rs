@@ -2,6 +2,9 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::slice;
 
+use destack_artifact::{
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirParsed,
+};
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, View};
 use destack_query::{
     CallItem, CallItemRequest, CodeActionContext, CodeActionsRequest, CodeLensesRequest,
@@ -671,19 +674,19 @@ impl<'a> QueryRun<'a> {
         let path = self.format_module(module)?;
         let artifacts = ArtifactReader::new(self.workspace.repository(), self.revision);
         let bound = artifacts
-            .dir_bound(symbol_id.module_id, profile_id)
+            .read::<DirBound>((symbol_id.module_id, profile_id))
             .map_err(|error| format!("failed to read bound DIR for query symbol: {error}"))?;
         let expanded = artifacts
-            .dir_expanded(symbol_id.module_id, profile_id)
+            .read::<DirExpanded>((symbol_id.module_id, profile_id))
             .map_err(|error| format!("failed to read expanded DIR for query symbol: {error}"))?;
         let declared = artifacts
-            .dir_declared(symbol_id.module_id, profile_id)
+            .read::<DirDeclared>((symbol_id.module_id, profile_id))
             .map_err(|error| format!("failed to read declared DIR for query symbol: {error}"))?;
         let elaborated = artifacts
-            .dir_elaborated(symbol_id.module_id, profile_id)
+            .read::<DirElaborated>((symbol_id.module_id, profile_id))
             .map_err(|error| format!("failed to read elaborated DIR for query symbol: {error}"))?;
         let checked = artifacts
-            .dir_checked(symbol_id.module_id, profile_id)
+            .read::<DirChecked>((symbol_id.module_id, profile_id))
             .map_err(|error| format!("failed to read checked DIR for query symbol: {error}"))?;
         let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
         let symbol = bindings
@@ -729,10 +732,10 @@ impl<'a> QueryRun<'a> {
         let path = self.format_module(module)?;
         let artifacts = ArtifactReader::new(self.workspace.repository(), self.revision);
         let parsed = artifacts
-            .dir_parsed(node_id.module_id)
+            .read::<DirParsed>(node_id.module_id)
             .map_err(|error| format!("failed to read parsed DIR for query node: {error}"))?;
         let expanded = artifacts
-            .dir_expanded(node_id.module_id, profile_id)
+            .read::<DirExpanded>((node_id.module_id, profile_id))
             .map_err(|error| format!("failed to read expanded DIR for query node: {error}"))?;
         let view = View::with_patches(&parsed.tree, slice::from_ref(&expanded.patch));
         if !view.is_visible(node_id.local_id) {

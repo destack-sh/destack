@@ -42,7 +42,7 @@ export class Worker<T, R> {
 /// Pool of homogeneous workers.
 export local class WorkerPool<T, R> {
     /// The workers in this pool.
-    workers: Worker<T, R>[] = Array.new();
+    workers: Worker<T, R>[] = [];
 
     /// Send one request to an available worker.
     request(message: T): AsyncResult<R, WorkerError> {

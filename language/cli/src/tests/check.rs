@@ -1,7 +1,7 @@
 use crate::command::check::{CheckArgs, Format, Progress, run};
 use crate::common::ReportArgs;
 
-use super::tests::{TestProgram, assert_success, input_args_from_path};
+use super::tests::{TestProgram, assert_success, execute, input_args_from_path};
 
 /// Checks a simple module without linting.
 #[test]
@@ -28,7 +28,7 @@ fn test_check_compiles_single_file() {
     };
 
     // run the check command
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the check succeeded
     assert_success(code);

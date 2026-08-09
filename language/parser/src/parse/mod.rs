@@ -8,6 +8,7 @@ mod cursor;
 mod declaration;
 mod decorator;
 mod dependency;
+mod documentation;
 mod r#enum;
 mod error;
 mod expression;

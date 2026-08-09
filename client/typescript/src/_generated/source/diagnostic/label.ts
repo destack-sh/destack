@@ -8,6 +8,64 @@ import { decodeContentId, encodeContentId, fromJsonContentId, toJsonContentId } 
 import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../file/model/file.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../file/model/span.js";
 
+/** Guidance for fixing or avoiding a diagnostic. */
+export type DiagnosticHelp = {
+    /** The help message. */
+    readonly message: string;
+};
+
+export const DiagnosticHelp = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: DiagnosticHelp): void {
+        encodeDiagnosticHelp(writer, value);
+    },
+
+    /** Decode one DiagnosticHelp. */
+    decode(reader: BinaryReader): DiagnosticHelp {
+        return decodeDiagnosticHelp(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: DiagnosticHelp): Json {
+        return toJsonDiagnosticHelp(value);
+    },
+
+    /** Return one DiagnosticHelp from one JSON value. */
+    fromJson(value: Json): DiagnosticHelp {
+        return fromJsonDiagnosticHelp(value);
+    },
+};
+
+/** Encode one DiagnosticHelp. */
+export function encodeDiagnosticHelp(writer: BinaryWriter, value: DiagnosticHelp): void {
+    writer.writeString(value.message);
+}
+
+/** Decode one DiagnosticHelp. */
+export function decodeDiagnosticHelp(reader: BinaryReader): DiagnosticHelp {
+    const message = reader.readString();
+
+    return {
+        message,
+    };
+}
+
+/** Return one JSON value for one DiagnosticHelp. */
+export function toJsonDiagnosticHelp(value: DiagnosticHelp): Json {
+    return {
+        message: value.message,
+    };
+}
+
+/** Return one DiagnosticHelp from one JSON value. */
+export function fromJsonDiagnosticHelp(value: Json): DiagnosticHelp {
+    const object = jsonObject(value);
+
+    return {
+        message: jsonString(jsonField(object, "message")),
+    };
+}
+
 /** One concrete source label in a diagnostic. */
 export type DiagnosticLabel = {
     /** The exact content the target was recorded against. */
@@ -79,6 +137,64 @@ export function fromJsonDiagnosticLabel(value: Json): DiagnosticLabel {
         content: fromJsonContentId(jsonField(object, "content")),
         target: fromJsonDiagnosticTarget(jsonField(object, "target")),
         message: jsonOptional(object, "message", (value) => jsonString(value)),
+    };
+}
+
+/** Extra context for understanding a diagnostic. */
+export type DiagnosticNote = {
+    /** The note message. */
+    readonly message: string;
+};
+
+export const DiagnosticNote = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: DiagnosticNote): void {
+        encodeDiagnosticNote(writer, value);
+    },
+
+    /** Decode one DiagnosticNote. */
+    decode(reader: BinaryReader): DiagnosticNote {
+        return decodeDiagnosticNote(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: DiagnosticNote): Json {
+        return toJsonDiagnosticNote(value);
+    },
+
+    /** Return one DiagnosticNote from one JSON value. */
+    fromJson(value: Json): DiagnosticNote {
+        return fromJsonDiagnosticNote(value);
+    },
+};
+
+/** Encode one DiagnosticNote. */
+export function encodeDiagnosticNote(writer: BinaryWriter, value: DiagnosticNote): void {
+    writer.writeString(value.message);
+}
+
+/** Decode one DiagnosticNote. */
+export function decodeDiagnosticNote(reader: BinaryReader): DiagnosticNote {
+    const message = reader.readString();
+
+    return {
+        message,
+    };
+}
+
+/** Return one JSON value for one DiagnosticNote. */
+export function toJsonDiagnosticNote(value: DiagnosticNote): Json {
+    return {
+        message: value.message,
+    };
+}
+
+/** Return one DiagnosticNote from one JSON value. */
+export function fromJsonDiagnosticNote(value: Json): DiagnosticNote {
+    const object = jsonObject(value);
+
+    return {
+        message: jsonString(jsonField(object, "message")),
     };
 }
 
@@ -201,120 +317,4 @@ export function fromJsonDiagnosticTarget(value: Json): DiagnosticTarget {
     }
 
     throw new SerdeError(`unknown enum variant: ${kind}`);
-}
-
-/** Extra context for understanding a diagnostic. */
-export type DiagnosticNote = {
-    /** The note message. */
-    readonly message: string;
-};
-
-export const DiagnosticNote = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: DiagnosticNote): void {
-        encodeDiagnosticNote(writer, value);
-    },
-
-    /** Decode one DiagnosticNote. */
-    decode(reader: BinaryReader): DiagnosticNote {
-        return decodeDiagnosticNote(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: DiagnosticNote): Json {
-        return toJsonDiagnosticNote(value);
-    },
-
-    /** Return one DiagnosticNote from one JSON value. */
-    fromJson(value: Json): DiagnosticNote {
-        return fromJsonDiagnosticNote(value);
-    },
-};
-
-/** Encode one DiagnosticNote. */
-export function encodeDiagnosticNote(writer: BinaryWriter, value: DiagnosticNote): void {
-    writer.writeString(value.message);
-}
-
-/** Decode one DiagnosticNote. */
-export function decodeDiagnosticNote(reader: BinaryReader): DiagnosticNote {
-    const message = reader.readString();
-
-    return {
-        message,
-    };
-}
-
-/** Return one JSON value for one DiagnosticNote. */
-export function toJsonDiagnosticNote(value: DiagnosticNote): Json {
-    return {
-        message: value.message,
-    };
-}
-
-/** Return one DiagnosticNote from one JSON value. */
-export function fromJsonDiagnosticNote(value: Json): DiagnosticNote {
-    const object = jsonObject(value);
-
-    return {
-        message: jsonString(jsonField(object, "message")),
-    };
-}
-
-/** Guidance for fixing or avoiding a diagnostic. */
-export type DiagnosticHelp = {
-    /** The help message. */
-    readonly message: string;
-};
-
-export const DiagnosticHelp = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: DiagnosticHelp): void {
-        encodeDiagnosticHelp(writer, value);
-    },
-
-    /** Decode one DiagnosticHelp. */
-    decode(reader: BinaryReader): DiagnosticHelp {
-        return decodeDiagnosticHelp(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: DiagnosticHelp): Json {
-        return toJsonDiagnosticHelp(value);
-    },
-
-    /** Return one DiagnosticHelp from one JSON value. */
-    fromJson(value: Json): DiagnosticHelp {
-        return fromJsonDiagnosticHelp(value);
-    },
-};
-
-/** Encode one DiagnosticHelp. */
-export function encodeDiagnosticHelp(writer: BinaryWriter, value: DiagnosticHelp): void {
-    writer.writeString(value.message);
-}
-
-/** Decode one DiagnosticHelp. */
-export function decodeDiagnosticHelp(reader: BinaryReader): DiagnosticHelp {
-    const message = reader.readString();
-
-    return {
-        message,
-    };
-}
-
-/** Return one JSON value for one DiagnosticHelp. */
-export function toJsonDiagnosticHelp(value: DiagnosticHelp): Json {
-    return {
-        message: value.message,
-    };
-}
-
-/** Return one DiagnosticHelp from one JSON value. */
-export function fromJsonDiagnosticHelp(value: Json): DiagnosticHelp {
-    const object = jsonObject(value);
-
-    return {
-        message: jsonString(jsonField(object, "message")),
-    };
 }

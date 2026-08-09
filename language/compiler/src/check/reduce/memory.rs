@@ -112,6 +112,7 @@ impl CheckState<'_> {
         if !self.ty(source.base())?.is_placeable() {
             return Ok(None);
         }
+
         // explicit borrowed and raw values reborrow through the receiver ladder
         if source.ownership_form().is_some_and(|form| {
             matches!(
@@ -171,9 +172,18 @@ impl CheckState<'_> {
         };
         let mut space = definition.space();
 
-        // inherit the first concrete requirement, as heritage validation rejects disagreement
-        for heritage in definition.heritages() {
+        // inherit the first concrete base, as heritage validation rejects disagreement
+        for heritage in definition.bases() {
             let (_, inherited) = self.nominal_application(heritage.ty)?;
+            let inherited = self.nominal_space_guarded(inherited.symbol, active)?;
+            if space.is_none() {
+                space = inherited;
+            }
+        }
+
+        // inherit the first concrete interface requirement
+        for conformance in definition.implementations() {
+            let (_, inherited) = self.nominal_application(conformance.interface)?;
             let inherited = self.nominal_space_guarded(inherited.symbol, active)?;
             if space.is_none() {
                 space = inherited;
@@ -306,6 +316,27 @@ impl CheckState<'_> {
         self.placed_type(origin, ty, place)
     }
 
+    /// Resolve one type relative to its container's placement.
+    pub(in crate::check) fn resolve_contained_type(
+        &mut self,
+        origin: Origin,
+        container: dir::GlobalTypeId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let chain = self.form_chain(origin, container)?;
+        let Some(place) = chain.place() else {
+            return Ok(ty);
+        };
+
+        // omit implicit local placement
+        let place = self.reduce_type_head(origin, place)?;
+        if self.place_space(place)? == Some(dir::Space::Local) {
+            return Ok(ty);
+        }
+
+        self.resolve_relative_place(origin, ty, place)
+    }
+
     /// Strip every explicit memory form from one type.
     pub(in crate::check) fn strip_form(
         &mut self,
@@ -407,6 +438,7 @@ impl CheckState<'_> {
             let dir::Type::Form(form) = self.ty(id)? else {
                 return Ok(id);
             };
+
             // decide on the reduced payload, return the authored spelling
             let value = self.reduce_type_head(origin, form.value)?;
             let drops = self.is_redundant_form(origin, form.form, value)?;
@@ -923,7 +955,7 @@ impl CheckState<'_> {
                 dir::Form::Readonly | dir::Form::Placed { .. } => {
                     return self.default_ownership(origin, form.value);
                 }
-                // an explicit form, as behind a newtype backing, is its own fact
+                // take an explicit form as the value's own ownership
                 dir::Form::Managed | dir::Form::Owned | dir::Form::Borrowed(_) | dir::Form::Raw => {
                     form.form.ownership()
                 }

@@ -188,7 +188,7 @@ impl<'a> ProgramQueryContext<'a> {
         let environment = self.environment_bound.get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
-            artifacts.environment_bound(self.profile_id())
+            artifacts.read::<EnvironmentBound>(self.profile_id())
         });
 
         match environment {
@@ -214,6 +214,17 @@ impl<'a> ProgramQueryContext<'a> {
             ProgramIndex::Exports(postings) => Ok(postings),
             index => Err(QueryError::invalid(format!(
                 "expected export index, found {:?}",
+                index.kind()
+            ))),
+        }
+    }
+
+    /// Return member postings.
+    pub(crate) fn member_postings(&self) -> QueryResult<&dir::MemberPostings> {
+        match self.program_index(IndexKind::Members)? {
+            ProgramIndex::Members(postings) => Ok(postings),
+            index => Err(QueryError::invalid(format!(
+                "expected member index, found {:?}",
                 index.kind()
             ))),
         }
@@ -292,6 +303,22 @@ impl<'a> ProgramQueryContext<'a> {
         }
     }
 
+    /// Return one module member index.
+    pub(crate) fn member_index(&self, module_id: ModuleId) -> QueryResult<&dir::MemberIndex> {
+        match self.module_index(module_id, IndexKind::Members)? {
+            ModuleIndex::Members(index) => Ok(index),
+            index => Err(Self::unexpected_module_index(IndexKind::Members, index)),
+        }
+    }
+
+    /// Return one module reference index.
+    pub(crate) fn reference_index(&self, module_id: ModuleId) -> QueryResult<&dir::ReferenceIndex> {
+        match self.module_index(module_id, IndexKind::References)? {
+            ModuleIndex::References(index) => Ok(index),
+            index => Err(Self::unexpected_module_index(IndexKind::References, index)),
+        }
+    }
+
     /// Return one module export index selected by a program ordinal.
     pub(crate) fn export_index_at(
         &self,
@@ -300,6 +327,19 @@ impl<'a> ProgramQueryContext<'a> {
         let (module_id, index) = self.module_index_at(ordinal, IndexKind::Exports)?;
         let ModuleIndex::Exports(index) = index else {
             return Err(Self::unexpected_module_index(IndexKind::Exports, index));
+        };
+
+        Ok((module_id, index))
+    }
+
+    /// Return one module member index selected by a program ordinal.
+    pub(crate) fn member_index_at(
+        &self,
+        ordinal: u32,
+    ) -> QueryResult<(ModuleId, &dir::MemberIndex)> {
+        let (module_id, index) = self.module_index_at(ordinal, IndexKind::Members)?;
+        let ModuleIndex::Members(index) = index else {
+            return Err(Self::unexpected_module_index(IndexKind::Members, index));
         };
 
         Ok((module_id, index))
@@ -385,7 +425,7 @@ impl<'a> ProgramQueryContext<'a> {
         let index = self.program_indexes[kind.ordinal()].get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
-            artifacts.program_index(self.profile_id(), kind)
+            artifacts.read::<ProgramIndex>((self.profile_id(), kind))
         });
 
         match index {
@@ -410,7 +450,7 @@ impl<'a> ProgramQueryContext<'a> {
         let index = module_indexes[ordinal][kind_ordinal].get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
-            artifacts.module_index(module_id, self.profile_id(), kind)
+            artifacts.read::<ModuleIndex>((module_id, self.profile_id(), kind))
         });
 
         match index {

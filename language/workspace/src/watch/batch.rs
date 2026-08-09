@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use destack_source::{FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
 
-use crate::protocol::{WatchBatch, WatchEvent, WatchStatus};
+use super::{WatchBatch, WatchEvent, WatchStatus};
 
 /// Pending watch events before a batch is emitted.
 #[derive(Debug, Clone)]
@@ -13,8 +13,6 @@ pub(super) struct PendingWatchBatch {
     status: Vec<WatchStatus>,
     /// When the batch started.
     started_at: Instant,
-    /// When the batch ended.
-    pub(super) ended_at: Instant,
     /// Whether overflow events were observed.
     overflowed: bool,
 }
@@ -26,7 +24,6 @@ impl PendingWatchBatch {
             events: Vec::new(),
             status: Vec::new(),
             started_at,
-            ended_at: started_at,
             overflowed: false,
         }
     }
@@ -61,15 +58,14 @@ impl PendingWatchBatch {
     }
 
     /// Finish the batch.
-    pub(super) fn finish(self) -> WatchBatch {
-        let duration = self.ended_at.saturating_duration_since(self.started_at);
+    pub(super) fn finish(self, ended_at: Instant) -> WatchBatch {
+        let duration = ended_at.saturating_duration_since(self.started_at);
 
         WatchBatch {
             events: self.events,
             status: self.status,
             overflowed: self.overflowed,
-            started_at_ns: 0,
-            ended_at_ns: duration.as_nanos() as u64,
+            duration_nanoseconds: duration.as_nanos() as u64,
         }
     }
 }

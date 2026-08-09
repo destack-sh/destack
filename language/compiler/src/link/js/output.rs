@@ -4,7 +4,7 @@ use crate::emit::js;
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
 use crate::{Compiler, CompilerError, CompilerResult, JsLinker};
 use base64::Engine;
-use destack_artifact::{BundleFile, BundleSection, Script, SourceMap};
+use destack_artifact::{BundleFile, BundleSection, DirParsed, Script, SourceMap};
 use destack_repository::{Module, ProviderContext, SourceMapMode, Target};
 use destack_source::{FileType, ModuleId, Uri};
 
@@ -144,14 +144,14 @@ impl JsLinker<'_> {
         context: &dyn ProviderContext,
     ) -> CompilerResult<js::PrintedJsModule> {
         // source artifacts
-        let parsed =
-            self.artifacts
-                .dir_parsed(module_id)
-                .map_err(|error| CompilerError::Internal {
-                    message: format!(
-                        "missing committed parsed DIR artifact for module {module_id:?}: {error:?}"
-                    ),
-                })?;
+        let parsed = self
+            .artifacts
+            .read::<DirParsed>(module_id)
+            .map_err(|error| CompilerError::Internal {
+                message: format!(
+                    "missing committed parsed DIR artifact for module {module_id:?}: {error:?}"
+                ),
+            })?;
         let source_module = self.compiler.module(context.revision(), module_id)?;
         let source_file = self.compiler.file(context, source_module.file_id)?;
         let options = if target.should_minify_js_output() {

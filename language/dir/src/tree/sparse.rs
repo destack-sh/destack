@@ -48,6 +48,14 @@ where
 }
 
 impl<T> SparseNodeMap<T> {
+    /// Iterate over node IDs and their attached values.
+    #[inline]
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (u32, &T)> {
+        self.entries
+            .iter()
+            .map(|entry| (entry.node_id, &entry.value))
+    }
+
     /// Return one value reference by node id.
     #[inline]
     pub(crate) fn get_ref(&self, node_id: u32) -> Option<&T> {

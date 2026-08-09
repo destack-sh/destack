@@ -142,7 +142,7 @@ class SubDerived extends Derived {}
 
 ## Methods
 
-### [ignored] Find implementations of an interface method
+### Find implementations of an interface method
 
 An interface method resolves to every member that implements it.
 
@@ -246,6 +246,7 @@ Implementations can live in another module.
 export interface Drawable {
                  ^^^^^^^^ target:drawable
     draw(): void;
+    ^^^^ target:draw
 }
 ```
 
@@ -256,6 +257,9 @@ export class Circle implements Drawable {
 ^ declaration:circle:start
              ^^^^^^ implementation:circle
     draw(): void {}
+    ^ declaration:circle_draw:start
+                   ^ declaration:circle_draw:end
+    ^^^^ implementation:circle_draw
 }
 ^ declaration:circle:end
 
@@ -263,6 +267,9 @@ export struct Square implements Drawable {
 ^ declaration:square:start
               ^^^^^^ implementation:square
     draw(): void {}
+    ^ declaration:square_draw:start
+                   ^ declaration:square_draw:end
+    ^^^^ implementation:square_draw
 }
 ^ declaration:square:end
 ```
@@ -270,6 +277,11 @@ export struct Square implements Drawable {
 ```query goto_implementation library.ds#target:drawable
 @goto_implementation.target origin=library.ds#target:drawable location=implementation.ds#declaration:circle selection=implementation.ds#implementation:circle symbol=implementation.ds#Circle@2
 @goto_implementation.target origin=library.ds#target:drawable location=implementation.ds#declaration:square selection=implementation.ds#implementation:square symbol=implementation.ds#Square@5
+```
+
+```query goto_implementation library.ds#target:draw
+@goto_implementation.target origin=library.ds#target:draw location=implementation.ds#declaration:circle_draw selection=implementation.ds#implementation:circle_draw symbol=implementation.ds#draw@3
+@goto_implementation.target origin=library.ds#target:draw location=implementation.ds#declaration:square_draw selection=implementation.ds#implementation:square_draw symbol=implementation.ds#draw@6
 ```
 
 ### Find implementations through a re-exported interface

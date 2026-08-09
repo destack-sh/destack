@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::DirResolved;
+use destack_artifact::{
+    ArtifactProjectionKey, DirBound, DirDeclared, DirElaborated, DirExpanded, DirResolved,
+};
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -76,7 +78,7 @@ impl CheckState<'_> {
         // read the resolve stage directly; it never depends on declared modules
         let resolved = self
             .artifacts
-            .dir_resolved_content(module, self.profile)
+            .read::<DirResolved>((module, self.profile))
             .map_err(CompilerError::from)?;
         self.external_resolved.insert(module, Arc::clone(&resolved));
 
@@ -124,7 +126,10 @@ impl CheckState<'_> {
             };
             let resolution = resolved.imports.symbol_resolution(current.local_id);
             match resolution {
-                Some(dir::ImportResolution::Resolved(dir::ImportTarget::Symbol(target))) => {
+                Some(dir::ImportResolution::Resolved(resolution))
+                    if let dir::ExportTarget::Symbols(symbols) = &resolution.target
+                        && let [target] = symbols.as_slice() =>
+                {
                     current = *target;
                 }
                 Some(resolution) => {
@@ -174,19 +179,23 @@ impl CheckState<'_> {
         } else {
             self.external_resolved(symbol.module_id)?
         };
-        if let Some(dir::ImportResolution::Resolved(dir::ImportTarget::Symbol(target))) =
+        if let Some(dir::ImportResolution::Resolved(resolution)) =
             resolved.imports.symbol_resolution(symbol.local_id)
+            && let dir::ExportTarget::Symbols(symbols) = &resolution.target
+            && let [target] = symbols.as_slice()
         {
             return Ok(Some(*target));
         }
 
         // follow resolved global names by the binder's key
         if let Some(key) = key
-            && let Some([dir::ImportTarget::Symbol(target)]) = resolved
+            && let Some([resolution]) = resolved
                 .imports
-                .global_target_by_key
+                .global_resolution_by_key
                 .get(&key)
                 .map(Vec::as_slice)
+            && let dir::ExportTarget::Symbols(symbols) = &resolution.target
+            && let [target] = symbols.as_slice()
         {
             return Ok(Some(*target));
         }
@@ -251,28 +260,28 @@ impl CheckState<'_> {
     ) -> CompilerResult<CheckExternalModuleState> {
         let bound = self
             .artifacts
-            .dir_bound_content(module, self.profile)
+            .read_content::<DirBound>((module, self.profile))
             .map_err(CompilerError::from)?;
         let expanded = self
             .artifacts
-            .dir_expanded_content(module, self.profile)
+            .read_content::<DirExpanded>((module, self.profile))
             .map_err(CompilerError::from)?;
         let resolved = self
             .artifacts
-            .dir_resolved_content(module, self.profile)
+            .read_content::<DirResolved>((module, self.profile))
             .map_err(CompilerError::from)?;
 
         // read the module's declared artifact
         let declared = self
             .artifacts
-            .dir_declared_projected(module, self.profile)
+            .read_projection::<DirDeclared>((module, self.profile), ArtifactProjectionKey::Declared)
             .map_err(CompilerError::from)?;
 
         // read stored member bindings while checking; elaborate reads none
         let elaborated = match self.pass {
             Pass::Check => Some(
                 self.artifacts
-                    .dir_elaborated(module, self.profile)
+                    .read::<DirElaborated>((module, self.profile))
                     .map_err(CompilerError::from)?,
             ),
             _ => None,

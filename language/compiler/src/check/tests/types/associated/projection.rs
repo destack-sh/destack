@@ -84,6 +84,8 @@ extension<T: Numeric> of Pair<T> implements Doubles {
 /// @definition.implements symbol=<module>#2 source=Doubles target=Doubles
 /// @definition.associated.type symbol=Output source="type Output = Pair<T>" key=Output value=Pair<T#2>
 /// @definition.method symbol=double slot=double type=<double.'a>(this: &double.'a exclusive this) => this.Output
+/// @definition.conformance symbol=<module>#2 member=Output requirement=Doubles.Output
+/// @definition.conformance symbol=<module>#2 member=double requirement=Doubles.double
 /// @type.symbol symbol=T source="T: Numeric" type=T#2
 /// @resolution.name source=Numeric target=math.numeric.Numeric
 /// @resolution.name source=Pair target=Pair

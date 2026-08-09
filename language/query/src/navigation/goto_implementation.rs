@@ -1,7 +1,6 @@
 use destack_dir as dir;
 use destack_dir::HeritageKind;
 use destack_serde::Reflect;
-use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -9,14 +8,14 @@ use crate::{
     QueryResult, sort_and_dedup_navigation_targets,
 };
 
-/// Request goto implementation at a cursor position.
+/// A goto implementation request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoImplementationRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for goto implementation queries.
+/// A goto implementation response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoImplementationResponse {
     /// Implementation targets.
@@ -27,12 +26,15 @@ impl ModuleQueryContext<'_> {
     /// Find implementations of the symbol at the given position.
     pub fn goto_implementation(
         &self,
+        request: GotoImplementationRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Vec<NavigationTarget>> {
-        let Some(symbol) = self.symbol_at_offset(file_id, offset)? else {
-            return Ok(Vec::new());
+    ) -> QueryResult<GotoImplementationResponse> {
+        let position = request.position;
+        let Some(symbol) = self.symbol_at_offset(program, position.file_id, position.offset)?
+        else {
+            return Ok(GotoImplementationResponse {
+                targets: Vec::new(),
+            });
         };
         let origin = QueryRange {
             module: self.module(),
@@ -42,32 +44,18 @@ impl ModuleQueryContext<'_> {
 
         // collect implementations for every exact declaration named by the occurrence
         for symbol_id in symbol.symbols {
-            for canonical_id in program.canonical_symbols(symbol_id)? {
-                let target_module = program.module(canonical_id.module_id)?;
-                let symbols = target_module.bindings()?;
-                let symbol = symbols.get_symbol(canonical_id.local_id);
-
-                // navigate interface members to their implementing declarations
-                if let Some(declaration) = symbol.declaration.filter(|declaration| {
-                    matches!(
-                        declaration.local_id.ty,
-                        dir::NodeType::Member | dir::NodeType::TypeMember
-                    )
-                }) {
-                    let Some(owner) = symbols.symbol_owner(canonical_id.local_id) else {
-                        continue;
-                    };
-                    let owner = owner.into_global(canonical_id.module_id);
-                    self.collect_member_implementations(
-                        program,
-                        origin,
-                        owner,
-                        declaration,
-                        &mut targets,
-                    )?;
-
-                    continue;
+            for target_id in program.symbol_targets(symbol_id)? {
+                // collect exact member implementations
+                for implementation in program.member_implementations(target_id)? {
+                    let module = program.module(implementation.module_id)?;
+                    let target = module.navigation_target(program, implementation, origin)?;
+                    targets.push(target);
                 }
+
+                // collect nominal implementations and subclasses
+                let target_module = program.module(target_id.module_id)?;
+                let symbols = target_module.bindings()?;
+                let symbol = symbols.get_symbol(target_id.local_id);
 
                 let heritage_kind = match symbol.kind {
                     dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface => {
@@ -77,12 +65,15 @@ impl ModuleQueryContext<'_> {
                     _ => continue,
                 };
 
-                // match cached direct edges against this canonical declaration
-                for entry in program.base_heritage(canonical_id)? {
+                // match direct heritage edges against this target declaration
+                for entry in program.base_heritage(target_id)? {
                     if entry.kind == heritage_kind {
                         let declaration_module = program.module(entry.declaration.module_id)?;
-                        let target =
-                            declaration_module.navigation_target(entry.declaration, origin)?;
+                        let target = declaration_module.navigation_target(
+                            program,
+                            entry.declaration,
+                            origin,
+                        )?;
                         targets.push(target);
                     }
                 }
@@ -91,27 +82,6 @@ impl ModuleQueryContext<'_> {
 
         sort_and_dedup_navigation_targets(&mut targets);
 
-        Ok(targets)
-    }
-
-    /// Collect declarations implementing one interface member requirement.
-    fn collect_member_implementations(
-        &self,
-        program: &ProgramQueryContext<'_>,
-        origin: QueryRange,
-        owner: dir::GlobalSymbolId,
-        requirement: dir::GlobalNodeIdAny,
-        targets: &mut Vec<NavigationTarget>,
-    ) -> QueryResult<()> {
-        // build a navigation target for each implementing declaration
-        let mut symbols = Vec::new();
-        self.member_implementation_symbols(program, owner, requirement, &mut symbols)?;
-        for symbol in symbols {
-            let declaration_module = program.module(symbol.module_id)?;
-            let target = declaration_module.navigation_target(symbol, origin)?;
-            targets.push(target);
-        }
-
-        Ok(())
+        Ok(GotoImplementationResponse { targets })
     }
 }

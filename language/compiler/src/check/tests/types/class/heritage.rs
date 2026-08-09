@@ -199,6 +199,7 @@ class Document implements Printable {
 /// @definition.where symbol=Document source=Printable relation=satisfies left=this right=Printable
 /// @definition.implements symbol=Document source=Printable target=Printable
 /// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: this) => void
+/// @definition.conformance symbol=Document member=Document.print requirement=Printable.print
 /// @resolution.name source=Printable target=Printable
 
     print(): void {}

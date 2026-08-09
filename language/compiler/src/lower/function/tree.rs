@@ -19,8 +19,10 @@ impl FunctionLowerer<'_, '_, '_> {
                     });
                 };
                 let tag = self.lower_tree_tag(tag)?;
-                let attributes = self.lower_tree_attributes(attributes.ty, resolution)?;
-                let children = self.lower_tree_children(children.ty, &resolution.children)?;
+                let attributes =
+                    self.lower_tree_attributes(attributes.argument_type, resolution)?;
+                let children =
+                    self.lower_tree_children(children.argument_type, &resolution.children)?;
 
                 self.lower_tree_static_call(&call, vec![tag, attributes, children])
             }
@@ -32,7 +34,8 @@ impl FunctionLowerer<'_, '_, '_> {
                             .to_string(),
                     });
                 };
-                let children = self.lower_tree_children(children.ty, &resolution.children)?;
+                let children =
+                    self.lower_tree_children(children.argument_type, &resolution.children)?;
 
                 self.lower_tree_static_call(&call, vec![children])
             }
@@ -45,7 +48,7 @@ impl FunctionLowerer<'_, '_, '_> {
                                 .to_string(),
                         });
                     };
-                    let props = self.lower_tree_attributes(props.ty, resolution)?;
+                    let props = self.lower_tree_attributes(props.argument_type, resolution)?;
 
                     self.lower_tree_static_call(&call, vec![props])
                 }
@@ -102,7 +105,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Lower one tree tag to its literal constant.
     fn lower_tree_tag(&mut self, tag: &dir::ArgumentBinding) -> CompilerResult<mir::Value> {
-        let reduced = self.lowerer.reduced_type(tag.ty)?;
+        let reduced = self.lowerer.reduced_type(tag.argument_type)?;
         let dir::Type::Literal(literal) = self.lowerer.ty(reduced)? else {
             return Err(CompilerError::Internal {
                 message: "tree tag bound a non-literal parameter".to_string(),
@@ -271,7 +274,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .to_string(),
             });
         };
-        let props = self.lower_tree_attributes(props.ty, resolution)?;
+        let props = self.lower_tree_attributes(props.argument_type, resolution)?;
 
         self.lower_class_instance(
             construct.return_type,

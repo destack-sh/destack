@@ -41,7 +41,7 @@ pub struct TaskArgs {
 }
 
 /// Run workspace tasks.
-pub fn run(args: &TaskArgs) -> i32 {
+pub async fn run(args: &TaskArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("task", &args.program, &args.report) {
         return code;
     }
@@ -66,12 +66,15 @@ pub fn run(args: &TaskArgs) -> i32 {
         ..(CommandRevision::Current, common).into()
     };
 
-    run_workspace_payload_command_or_report::<TaskPayload, _, _>(
+    run_workspace_payload_command_or_report::<TaskPayload, _, _, _>(
         "task",
         &args.report,
         &args.program,
-        |workspace, root, _| {
-            let result = workspace.task(root, request, None).map_err(command_error)?;
+        async |workspace, root, _| {
+            let result = workspace
+                .task(root, request, None)
+                .await
+                .map_err(command_error)?;
 
             CommandResult::from_output(result)
         },
@@ -146,6 +149,7 @@ pub fn run(args: &TaskArgs) -> i32 {
             }
         },
     )
+    .await
 }
 
 /// Build one display detail for one task list entry.

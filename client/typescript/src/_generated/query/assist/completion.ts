@@ -8,281 +8,75 @@ import { decodeQueryPosition, encodeQueryPosition, fromJsonQueryPosition, toJson
 import { decodePatch, encodePatch, fromJsonPatch, toJsonPatch } from "../../source/edit/edit.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../../source/file/model/span.js";
 
-/** Request completion items at a cursor position. */
-export type CompletionRequest = {
-    /** The queried position. */
-    readonly position: QueryPosition;
-    /** The trigger that initiated completion. */
-    readonly trigger: CompletionTrigger;
-    /** Whether to include auto import completions. */
-    readonly includeAutoImports: boolean;
+/** The primary source edit applied by one completion item. */
+export type CompletionEdit = {
+    /** The source range replaced by the completion. */
+    readonly span: Span;
+    /** The inserted text or snippet. */
+    readonly newText: string;
+    /** Whether the inserted text is a snippet. */
+    readonly isSnippet: boolean;
 };
 
-export const CompletionRequest = {
+export const CompletionEdit = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: CompletionRequest): void {
-        encodeCompletionRequest(writer, value);
+    encode(writer: BinaryWriter, value: CompletionEdit): void {
+        encodeCompletionEdit(writer, value);
     },
 
-    /** Decode one CompletionRequest. */
-    decode(reader: BinaryReader): CompletionRequest {
-        return decodeCompletionRequest(reader);
+    /** Decode one CompletionEdit. */
+    decode(reader: BinaryReader): CompletionEdit {
+        return decodeCompletionEdit(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: CompletionRequest): Json {
-        return toJsonCompletionRequest(value);
+    toJson(value: CompletionEdit): Json {
+        return toJsonCompletionEdit(value);
     },
 
-    /** Return one CompletionRequest from one JSON value. */
-    fromJson(value: Json): CompletionRequest {
-        return fromJsonCompletionRequest(value);
+    /** Return one CompletionEdit from one JSON value. */
+    fromJson(value: Json): CompletionEdit {
+        return fromJsonCompletionEdit(value);
     },
 };
 
-/** Encode one CompletionRequest. */
-export function encodeCompletionRequest(writer: BinaryWriter, value: CompletionRequest): void {
-    encodeQueryPosition(writer, value.position);
-    encodeCompletionTrigger(writer, value.trigger);
-    writer.writeBool(value.includeAutoImports);
+/** Encode one CompletionEdit. */
+export function encodeCompletionEdit(writer: BinaryWriter, value: CompletionEdit): void {
+    encodeSpan(writer, value.span);
+    writer.writeString(value.newText);
+    writer.writeBool(value.isSnippet);
 }
 
-/** Decode one CompletionRequest. */
-export function decodeCompletionRequest(reader: BinaryReader): CompletionRequest {
-    const position = decodeQueryPosition(reader);
-    const trigger = decodeCompletionTrigger(reader);
-    const includeAutoImports = reader.readBool();
+/** Decode one CompletionEdit. */
+export function decodeCompletionEdit(reader: BinaryReader): CompletionEdit {
+    const span = decodeSpan(reader);
+    const newText = reader.readString();
+    const isSnippet = reader.readBool();
 
     return {
-        position,
-        trigger,
-        includeAutoImports,
+        span,
+        newText,
+        isSnippet,
     };
 }
 
-/** Return one JSON value for one CompletionRequest. */
-export function toJsonCompletionRequest(value: CompletionRequest): Json {
+/** Return one JSON value for one CompletionEdit. */
+export function toJsonCompletionEdit(value: CompletionEdit): Json {
     return {
-        position: toJsonQueryPosition(value.position),
-        trigger: toJsonCompletionTrigger(value.trigger),
-        includeAutoImports: value.includeAutoImports,
+        span: toJsonSpan(value.span),
+        newText: value.newText,
+        isSnippet: value.isSnippet,
     };
 }
 
-/** Return one CompletionRequest from one JSON value. */
-export function fromJsonCompletionRequest(value: Json): CompletionRequest {
+/** Return one CompletionEdit from one JSON value. */
+export function fromJsonCompletionEdit(value: Json): CompletionEdit {
     const object = jsonObject(value);
 
     return {
-        position: fromJsonQueryPosition(jsonField(object, "position")),
-        trigger: fromJsonCompletionTrigger(jsonField(object, "trigger")),
-        includeAutoImports: jsonBool(jsonField(object, "includeAutoImports")),
-    };
-}
-
-/** Trigger character that caused the completion. */
-export type CompletionTrigger =
-    /** Invoked manually or automatically. */
-    | {
-          readonly kind: "invoked";
-      }
-    /** Triggered by one character, for example `.`. */
-    | {
-          readonly kind: "character";
-          readonly character: string;
-      }
-    /** Retriggered for incomplete results. */
-    | {
-          readonly kind: "incomplete";
-      }
-;
-
-export const CompletionTrigger = {
-    /** Invoked manually or automatically. */
-    invoked(): CompletionTrigger {
-        return { kind: "invoked" };
-    },
-
-    /** Triggered by one character, for example `.`. */
-    character(character: string): CompletionTrigger {
-        return { kind: "character", character };
-    },
-
-    /** Retriggered for incomplete results. */
-    incomplete(): CompletionTrigger {
-        return { kind: "incomplete" };
-    },
-
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: CompletionTrigger): void {
-        encodeCompletionTrigger(writer, value);
-    },
-
-    /** Decode one CompletionTrigger. */
-    decode(reader: BinaryReader): CompletionTrigger {
-        return decodeCompletionTrigger(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: CompletionTrigger): Json {
-        return toJsonCompletionTrigger(value);
-    },
-
-    /** Return one CompletionTrigger from one JSON value. */
-    fromJson(value: Json): CompletionTrigger {
-        return fromJsonCompletionTrigger(value);
-    },
-};
-
-/** Encode one CompletionTrigger. */
-export function encodeCompletionTrigger(writer: BinaryWriter, value: CompletionTrigger): void {
-    switch (value.kind) {
-        case "invoked":
-            writer.writeUnsigned(0);
-            return;
-        case "character":
-            writer.writeUnsigned(1);
-            writer.writeChar(value.character);
-            return;
-        case "incomplete":
-            writer.writeUnsigned(2);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one CompletionTrigger. */
-export function decodeCompletionTrigger(reader: BinaryReader): CompletionTrigger {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0: {
-            return { kind: "invoked" };
-        }
-        case 1: {
-            const character = reader.readChar();
-
-            return { kind: "character", character };
-        }
-        case 2: {
-            return { kind: "incomplete" };
-        }
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one CompletionTrigger. */
-export function toJsonCompletionTrigger(value: CompletionTrigger): Json {
-    switch (value.kind) {
-        case "invoked":
-            return {
-                kind: "invoked",
-            };
-        case "character":
-            return {
-                kind: "character",
-                character: value.character,
-            };
-        case "incomplete":
-            return {
-                kind: "incomplete",
-            };
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Return one CompletionTrigger from one JSON value. */
-export function fromJsonCompletionTrigger(value: Json): CompletionTrigger {
-    const object = jsonObject(value);
-    const kind = jsonString(jsonField(object, "kind"));
-
-    switch (kind) {
-        case "invoked":
-            return {
-                kind,
-            };
-        case "character":
-            return {
-                kind,
-                character: jsonString(jsonField(object, "character")),
-            };
-        case "incomplete":
-            return {
-                kind,
-            };
-    }
-
-    throw new SerdeError(`unknown enum variant: ${kind}`);
-}
-
-/** Response payload for completion queries. */
-export type CompletionResponse = {
-    /** Completion items. */
-    readonly items: ReadonlyArray<CompletionItem>;
-    /** Whether another request may produce more items. */
-    readonly isIncomplete: boolean;
-};
-
-export const CompletionResponse = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: CompletionResponse): void {
-        encodeCompletionResponse(writer, value);
-    },
-
-    /** Decode one CompletionResponse. */
-    decode(reader: BinaryReader): CompletionResponse {
-        return decodeCompletionResponse(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: CompletionResponse): Json {
-        return toJsonCompletionResponse(value);
-    },
-
-    /** Return one CompletionResponse from one JSON value. */
-    fromJson(value: Json): CompletionResponse {
-        return fromJsonCompletionResponse(value);
-    },
-};
-
-/** Encode one CompletionResponse. */
-export function encodeCompletionResponse(writer: BinaryWriter, value: CompletionResponse): void {
-    writer.writeUnsigned(value.items.length);
-    for (const item0 of value.items) {
-        encodeCompletionItem(writer, item0);
-    }
-    writer.writeBool(value.isIncomplete);
-}
-
-/** Decode one CompletionResponse. */
-export function decodeCompletionResponse(reader: BinaryReader): CompletionResponse {
-    const items = (() => { const length0 = reader.readNumber(); const items0: Array<CompletionItem> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeCompletionItem(reader)); } return items0; })();
-    const isIncomplete = reader.readBool();
-
-    return {
-        items,
-        isIncomplete,
-    };
-}
-
-/** Return one JSON value for one CompletionResponse. */
-export function toJsonCompletionResponse(value: CompletionResponse): Json {
-    return {
-        items: value.items.map((item0) => toJsonCompletionItem(item0)),
-        isIncomplete: value.isIncomplete,
-    };
-}
-
-/** Return one CompletionResponse from one JSON value. */
-export function fromJsonCompletionResponse(value: Json): CompletionResponse {
-    const object = jsonObject(value);
-
-    return {
-        items: jsonArray(jsonField(object, "items")).map((item0) => fromJsonCompletionItem(item0)),
-        isIncomplete: jsonBool(jsonField(object, "isIncomplete")),
+        span: fromJsonSpan(jsonField(object, "span")),
+        newText: jsonString(jsonField(object, "newText")),
+        isSnippet: jsonBool(jsonField(object, "isSnippet")),
     };
 }
 
@@ -671,74 +465,280 @@ export function fromJsonCompletionItemKind(value: Json): CompletionItemKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** The primary source edit applied by one completion item. */
-export type CompletionEdit = {
-    /** The source range replaced by the completion. */
-    readonly span: Span;
-    /** The inserted text or snippet. */
-    readonly newText: string;
-    /** Whether the inserted text is a snippet. */
-    readonly isSnippet: boolean;
+/** Request completion items at a cursor position. */
+export type CompletionRequest = {
+    /** The queried position. */
+    readonly position: QueryPosition;
+    /** The trigger that initiated completion. */
+    readonly trigger: CompletionTrigger;
+    /** Whether to include auto import completions. */
+    readonly includeAutoImports: boolean;
 };
 
-export const CompletionEdit = {
+export const CompletionRequest = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: CompletionEdit): void {
-        encodeCompletionEdit(writer, value);
+    encode(writer: BinaryWriter, value: CompletionRequest): void {
+        encodeCompletionRequest(writer, value);
     },
 
-    /** Decode one CompletionEdit. */
-    decode(reader: BinaryReader): CompletionEdit {
-        return decodeCompletionEdit(reader);
+    /** Decode one CompletionRequest. */
+    decode(reader: BinaryReader): CompletionRequest {
+        return decodeCompletionRequest(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: CompletionEdit): Json {
-        return toJsonCompletionEdit(value);
+    toJson(value: CompletionRequest): Json {
+        return toJsonCompletionRequest(value);
     },
 
-    /** Return one CompletionEdit from one JSON value. */
-    fromJson(value: Json): CompletionEdit {
-        return fromJsonCompletionEdit(value);
+    /** Return one CompletionRequest from one JSON value. */
+    fromJson(value: Json): CompletionRequest {
+        return fromJsonCompletionRequest(value);
     },
 };
 
-/** Encode one CompletionEdit. */
-export function encodeCompletionEdit(writer: BinaryWriter, value: CompletionEdit): void {
-    encodeSpan(writer, value.span);
-    writer.writeString(value.newText);
-    writer.writeBool(value.isSnippet);
+/** Encode one CompletionRequest. */
+export function encodeCompletionRequest(writer: BinaryWriter, value: CompletionRequest): void {
+    encodeQueryPosition(writer, value.position);
+    encodeCompletionTrigger(writer, value.trigger);
+    writer.writeBool(value.includeAutoImports);
 }
 
-/** Decode one CompletionEdit. */
-export function decodeCompletionEdit(reader: BinaryReader): CompletionEdit {
-    const span = decodeSpan(reader);
-    const newText = reader.readString();
-    const isSnippet = reader.readBool();
+/** Decode one CompletionRequest. */
+export function decodeCompletionRequest(reader: BinaryReader): CompletionRequest {
+    const position = decodeQueryPosition(reader);
+    const trigger = decodeCompletionTrigger(reader);
+    const includeAutoImports = reader.readBool();
 
     return {
-        span,
-        newText,
-        isSnippet,
+        position,
+        trigger,
+        includeAutoImports,
     };
 }
 
-/** Return one JSON value for one CompletionEdit. */
-export function toJsonCompletionEdit(value: CompletionEdit): Json {
+/** Return one JSON value for one CompletionRequest. */
+export function toJsonCompletionRequest(value: CompletionRequest): Json {
     return {
-        span: toJsonSpan(value.span),
-        newText: value.newText,
-        isSnippet: value.isSnippet,
+        position: toJsonQueryPosition(value.position),
+        trigger: toJsonCompletionTrigger(value.trigger),
+        includeAutoImports: value.includeAutoImports,
     };
 }
 
-/** Return one CompletionEdit from one JSON value. */
-export function fromJsonCompletionEdit(value: Json): CompletionEdit {
+/** Return one CompletionRequest from one JSON value. */
+export function fromJsonCompletionRequest(value: Json): CompletionRequest {
     const object = jsonObject(value);
 
     return {
-        span: fromJsonSpan(jsonField(object, "span")),
-        newText: jsonString(jsonField(object, "newText")),
-        isSnippet: jsonBool(jsonField(object, "isSnippet")),
+        position: fromJsonQueryPosition(jsonField(object, "position")),
+        trigger: fromJsonCompletionTrigger(jsonField(object, "trigger")),
+        includeAutoImports: jsonBool(jsonField(object, "includeAutoImports")),
     };
+}
+
+/** Response payload for completion queries. */
+export type CompletionResponse = {
+    /** Completion items. */
+    readonly items: ReadonlyArray<CompletionItem>;
+    /** Whether another request may produce more items. */
+    readonly isIncomplete: boolean;
+};
+
+export const CompletionResponse = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: CompletionResponse): void {
+        encodeCompletionResponse(writer, value);
+    },
+
+    /** Decode one CompletionResponse. */
+    decode(reader: BinaryReader): CompletionResponse {
+        return decodeCompletionResponse(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: CompletionResponse): Json {
+        return toJsonCompletionResponse(value);
+    },
+
+    /** Return one CompletionResponse from one JSON value. */
+    fromJson(value: Json): CompletionResponse {
+        return fromJsonCompletionResponse(value);
+    },
+};
+
+/** Encode one CompletionResponse. */
+export function encodeCompletionResponse(writer: BinaryWriter, value: CompletionResponse): void {
+    writer.writeUnsigned(value.items.length);
+    for (const item0 of value.items) {
+        encodeCompletionItem(writer, item0);
+    }
+    writer.writeBool(value.isIncomplete);
+}
+
+/** Decode one CompletionResponse. */
+export function decodeCompletionResponse(reader: BinaryReader): CompletionResponse {
+    const items = (() => { const length0 = reader.readNumber(); const items0: Array<CompletionItem> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeCompletionItem(reader)); } return items0; })();
+    const isIncomplete = reader.readBool();
+
+    return {
+        items,
+        isIncomplete,
+    };
+}
+
+/** Return one JSON value for one CompletionResponse. */
+export function toJsonCompletionResponse(value: CompletionResponse): Json {
+    return {
+        items: value.items.map((item0) => toJsonCompletionItem(item0)),
+        isIncomplete: value.isIncomplete,
+    };
+}
+
+/** Return one CompletionResponse from one JSON value. */
+export function fromJsonCompletionResponse(value: Json): CompletionResponse {
+    const object = jsonObject(value);
+
+    return {
+        items: jsonArray(jsonField(object, "items")).map((item0) => fromJsonCompletionItem(item0)),
+        isIncomplete: jsonBool(jsonField(object, "isIncomplete")),
+    };
+}
+
+/** Trigger character that caused the completion. */
+export type CompletionTrigger =
+    /** Invoked manually or automatically. */
+    | {
+          readonly kind: "invoked";
+      }
+    /** Triggered by one character, for example `.`. */
+    | {
+          readonly kind: "character";
+          readonly character: string;
+      }
+    /** Retriggered for incomplete results. */
+    | {
+          readonly kind: "incomplete";
+      }
+;
+
+export const CompletionTrigger = {
+    /** Invoked manually or automatically. */
+    invoked(): CompletionTrigger {
+        return { kind: "invoked" };
+    },
+
+    /** Triggered by one character, for example `.`. */
+    character(character: string): CompletionTrigger {
+        return { kind: "character", character };
+    },
+
+    /** Retriggered for incomplete results. */
+    incomplete(): CompletionTrigger {
+        return { kind: "incomplete" };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: CompletionTrigger): void {
+        encodeCompletionTrigger(writer, value);
+    },
+
+    /** Decode one CompletionTrigger. */
+    decode(reader: BinaryReader): CompletionTrigger {
+        return decodeCompletionTrigger(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: CompletionTrigger): Json {
+        return toJsonCompletionTrigger(value);
+    },
+
+    /** Return one CompletionTrigger from one JSON value. */
+    fromJson(value: Json): CompletionTrigger {
+        return fromJsonCompletionTrigger(value);
+    },
+};
+
+/** Encode one CompletionTrigger. */
+export function encodeCompletionTrigger(writer: BinaryWriter, value: CompletionTrigger): void {
+    switch (value.kind) {
+        case "invoked":
+            writer.writeUnsigned(0);
+            return;
+        case "character":
+            writer.writeUnsigned(1);
+            writer.writeChar(value.character);
+            return;
+        case "incomplete":
+            writer.writeUnsigned(2);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one CompletionTrigger. */
+export function decodeCompletionTrigger(reader: BinaryReader): CompletionTrigger {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            return { kind: "invoked" };
+        }
+        case 1: {
+            const character = reader.readChar();
+
+            return { kind: "character", character };
+        }
+        case 2: {
+            return { kind: "incomplete" };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one CompletionTrigger. */
+export function toJsonCompletionTrigger(value: CompletionTrigger): Json {
+    switch (value.kind) {
+        case "invoked":
+            return {
+                kind: "invoked",
+            };
+        case "character":
+            return {
+                kind: "character",
+                character: value.character,
+            };
+        case "incomplete":
+            return {
+                kind: "incomplete",
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one CompletionTrigger from one JSON value. */
+export function fromJsonCompletionTrigger(value: Json): CompletionTrigger {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "invoked":
+            return {
+                kind,
+            };
+        case "character":
+            return {
+                kind,
+                character: jsonString(jsonField(object, "character")),
+            };
+        case "incomplete":
+            return {
+                kind,
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
 }

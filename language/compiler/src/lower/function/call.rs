@@ -111,11 +111,11 @@ impl FunctionLowerer<'_, '_, '_> {
         let arguments = &resolution.arguments;
         let mut values = Vec::with_capacity(arguments.len());
         for binding in arguments {
-            let source = match binding.argument {
+            let source = match binding.source {
                 dir::ArgumentSource::Provided(source) => source,
                 // pass the undefined slot for omitted optional parameters
                 dir::ArgumentSource::Omitted => {
-                    values.push(self.lower_omitted_argument(binding.ty)?);
+                    values.push(self.lower_omitted_argument(binding.parameter_type)?);
 
                     continue;
                 }

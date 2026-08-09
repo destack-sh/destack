@@ -82,31 +82,41 @@ impl Worker {
                 return;
             };
 
-            // finish tasks whose revision binding is already resolved
-            match self.state.artifact_outcome(task) {
-                Ok(Some(_)) => {
-                    self.scheduler.mark_done(task);
-                }
-                Ok(None) => {
-                    // contain provider panics, an unwound worker would leave the task running forever
-                    let provided = catch_unwind(AssertUnwindSafe(|| {
-                        self.provide_task(run.as_ref(), task, pending_set)
-                    }));
-                    match provided {
-                        Ok(Ok(())) => {}
-                        Ok(Err(error)) => self.scheduler.abort(task, error),
-                        Err(panic) => self.scheduler.abort(task, panic_error(task, panic)),
-                    }
-                }
-                Err(error) => {
-                    self.scheduler.abort(task, error);
-                }
-            }
+            self.run_task(run, task, pending_set);
+        }
+    }
 
-            // finish a cancelled trace after its last active attempt
-            if run.is_abandoned() && !self.scheduler.is_run_executing(run.id()) {
-                run.finish(&self.scheduler, &self.state);
+    /// Execute one claimed artifact task.
+    pub(super) fn run_task(
+        &self,
+        run: Arc<ArtifactRunState>,
+        task: Task,
+        pending_set: Option<PendingSet>,
+    ) {
+        // finish tasks whose revision binding is already resolved
+        match self.state.artifact_outcome(task) {
+            Ok(Some(_)) => {
+                self.scheduler.mark_done(task);
             }
+            Ok(None) => {
+                // contain provider panics so the scheduler never retains an abandoned task
+                let provided = catch_unwind(AssertUnwindSafe(|| {
+                    self.provide_task(run.as_ref(), task, pending_set)
+                }));
+                match provided {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => self.scheduler.abort(task, error),
+                    Err(panic) => self.scheduler.abort(task, panic_error(task, panic)),
+                }
+            }
+            Err(error) => {
+                self.scheduler.abort(task, error);
+            }
+        }
+
+        // finish a cancelled trace after its last active attempt
+        if run.is_abandoned() && !self.scheduler.is_run_executing(run.id()) {
+            run.finish(&self.scheduler, &self.state);
         }
     }
 

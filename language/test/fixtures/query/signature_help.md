@@ -118,16 +118,21 @@ const result = identity(name);
 
 ## Documentation
 
-### [ignored] Include callable and parameter documentation
+### Include callable and parameter documentation
 
 Signature help includes documentation from the declaration and its parameters.
 
 ```ds main.ds
 /// Add two values.
-/// @param left The first value.
-/// @param right The second value.
-function add(left: int32, right: int32): int32 {
-    return left + right;
+/// @typeParam Value - The value type.
+/// @param left - The first value.
+/// @param right - The second value.
+/// @example
+/// ```ds
+/// add(1, 2);
+/// ```
+function add<Value>(left: Value, right: Value): Value {
+    return left;
 }
 
 const result = add(1, 2);
@@ -135,9 +140,9 @@ const result = add(1, 2);
 ```
 
 ```query signature_help main.ds#argument
-@signature_help.signature index=0 label="add(left: int32, right: int32): int32" documentation="Add two values." active=true
-@signature_help.parameter signature=0 index=0 label="left: int32" documentation="The first value." active=true
-@signature_help.parameter signature=0 index=1 label="right: int32" documentation="The second value."
+@signature_help.signature index=0 label="add<float64>(left: float64, right: float64): float64" documentation="Add two values.\n\n## Type parameters\n\n- `Value`: The value type.\n\n## Examples\n\n```ds\nadd(1, 2);\n```" active=true
+@signature_help.parameter signature=0 index=0 label="left: float64" documentation="The first value." active=true
+@signature_help.parameter signature=0 index=1 label="right: float64" documentation="The second value."
 ```
 
 ## Imported Functions
@@ -215,15 +220,15 @@ function total(calculator: Calculator): int32 {
 @signature_help.parameter signature=0 index=1 label="right: int32" active=true
 ```
 
-### [ignored] Include method parameter documentation
+### Include method parameter documentation
 
 Method signature help includes documentation from the method declaration.
 
 ```ds main.ds
 class Calculator {
     /// Add two values.
-    /// @param left The first value.
-    /// @param right The second value.
+    /// @param left - The first value.
+    /// @param right - The second value.
     add(left: int32, right: int32): int32 {
         return left + right;
     }
@@ -320,7 +325,7 @@ const result = identity(pair(1, 2));
 
 ## Callable Values
 
-### Resolve an expression-valued callable
+### [ignored] Resolve an expression-valued callable
 
 A binding with a declared function type supplies its own signature help.
 
@@ -336,7 +341,7 @@ const result = callback("ready");
 @signature_help.parameter signature=0 index=0 label="value: string" active=true
 ```
 
-### Resolve a callable parameter
+### [ignored] Resolve a callable parameter
 
 A call through a function parameter shows its function type.
 

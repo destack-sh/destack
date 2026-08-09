@@ -16,14 +16,14 @@ pub struct IncomingCall {
     pub from_ranges: Vec<Span>,
 }
 
-/// Request incoming calls.
+/// An incoming calls request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct IncomingCallsRequest {
     /// The call item to expand.
     pub item: CallItem,
 }
 
-/// Response payload for incoming call queries.
+/// An incoming calls response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct IncomingCallsResponse {
     /// Incoming calls.
@@ -32,24 +32,28 @@ pub struct IncomingCallsResponse {
 
 impl ProgramQueryContext<'_> {
     /// Return incoming calls to one call item.
-    pub fn incoming_calls(&self, item: &CallItem) -> QueryResult<Vec<IncomingCall>> {
+    pub fn incoming_calls(
+        &self,
+        request: IncomingCallsRequest,
+    ) -> QueryResult<IncomingCallsResponse> {
+        let item = request.item;
         let symbol_id = item.symbol_id;
-        let canonical_id = self
-            .canonical_symbol(symbol_id)?
+        let target_id = self
+            .symbol_target(symbol_id)?
             .ok_or(QueryError::invalid(format!(
                 "call hierarchy symbol: {symbol_id:?}"
             )))?;
         let mut spans_by_caller: FxHashMap<dir::GlobalSymbolId, Vec<Span>> = FxHashMap::default();
 
         // collect call sites grouped by their exact caller
-        for entry in self.callee_calls(canonical_id)? {
+        for entry in self.callee_calls(target_id)? {
             let Some(caller) = entry.caller else {
                 continue;
             };
             spans_by_caller.entry(caller).or_default().push(entry.span);
         }
 
-        // transcribe exact indexed callers
+        // collect indexed callers
         let mut calls = Vec::new();
         for (caller, mut ranges) in spans_by_caller {
             sort_and_dedup_spans(&mut ranges);
@@ -64,6 +68,6 @@ impl ProgramQueryContext<'_> {
 
         calls.sort_by(|left, right| left.from.order().cmp(&right.from.order()));
 
-        Ok(calls)
+        Ok(IncomingCallsResponse { calls })
     }
 }

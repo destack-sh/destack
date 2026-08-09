@@ -533,6 +533,7 @@ class User {}
 type Transform = (value: User) => User;
 /// @type.symbol symbol=Transform source="type Transform = (value: User) => User" type=Function<(User,), User>
 /// @definition.type symbol=Transform source="type Transform = (value: User) => User" value=Function<(User,), User>
+/// @type.symbol symbol=Transform.value source="value: User" type=User
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 

@@ -8,7 +8,7 @@ use crate::{CompilerError, CompilerResult};
 impl BodyState<'_, '_> {
     /// Return runtime argument bindings for parameters.
     ///
-    /// A rest binding carries the element type each packed source satisfies;
+    /// A rest binding accepts the element type from each packed source;
     /// the packed collection type stays on the signature parameter.
     pub(in crate::check) fn argument_bindings(
         &mut self,
@@ -20,9 +20,9 @@ impl BodyState<'_, '_> {
         let mut argument_index = 0usize;
         let mut bindings = Vec::with_capacity(parameters.len());
 
-        for (parameter, parameter_type) in parameters.iter().enumerate() {
-            let mut ty = parameter_type.ty;
-            let argument = if parameter_type.is_rest {
+        for parameter_type in parameters.iter() {
+            let mut accepted = parameter_type.ty;
+            let source = if parameter_type.is_rest {
                 let rest = arguments[argument_index..]
                     .iter()
                     .map(|argument| argument.into_global_any(module))
@@ -31,7 +31,7 @@ impl BodyState<'_, '_> {
 
                 // selected signatures are settled, the element must project
                 let element = self.rest_element_type(origin, parameter_type.ty)?;
-                ty = element.unwrap_or(ty);
+                accepted = element.unwrap_or(accepted);
 
                 dir::ArgumentSource::Rest(rest)
             } else if let Some(argument) = arguments.get(argument_index).copied() {
@@ -43,38 +43,14 @@ impl BodyState<'_, '_> {
             };
 
             bindings.push(dir::ArgumentBinding {
-                parameter,
-                ty,
-                argument,
+                parameter_type: parameter_type.ty,
+                argument_type: accepted,
+                source,
             });
         }
 
         Ok(bindings)
     }
-
-    /// Return argument bindings from already selected argument sources.
-    pub(in crate::check) fn source_argument_bindings(
-        arguments: &[dir::ArgumentSource],
-        parameters: &[dir::FunctionParameterType],
-    ) -> Vec<dir::ArgumentBinding> {
-        parameters
-            .iter()
-            .enumerate()
-            .map(|(parameter, parameter_type)| {
-                let argument = arguments
-                    .get(parameter)
-                    .cloned()
-                    .unwrap_or(dir::ArgumentSource::Omitted);
-
-                dir::ArgumentBinding {
-                    parameter,
-                    ty: parameter_type.ty,
-                    argument,
-                }
-            })
-            .collect()
-    }
-
     /// Infer the type supplied by one runtime argument.
     pub(in crate::check) fn infer_argument_type(
         &mut self,

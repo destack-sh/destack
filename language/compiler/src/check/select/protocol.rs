@@ -471,7 +471,11 @@ impl BodyState<'_, '_> {
             }
 
             let target_type = extension.target.r#type();
-            let implements = extension.implements.clone();
+            let interfaces = extension
+                .implements
+                .iter()
+                .map(|conformance| conformance.interface)
+                .collect::<SmallVec<[_; 2]>>();
             let definition_members = extension.members.clone();
             let members = self.matching_extension_members(&definition_members, space, key)?;
             if members.is_empty() {
@@ -487,7 +491,7 @@ impl BodyState<'_, '_> {
                     lookup_receiver,
                     extension_symbol,
                     target_type,
-                    &implements,
+                    &interfaces,
                     &members,
                     &classified,
                 )?;
@@ -514,7 +518,7 @@ impl BodyState<'_, '_> {
         lookup_receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         target_type: dir::GlobalTypeId,
-        implementations: &[dir::NominalHeritage],
+        interfaces: &[dir::GlobalTypeId],
         members: &[DeclaredMember],
         protocol: &Protocol,
     ) -> CompilerResult<Option<(dir::GlobalTypeId, Vec<MemberCandidate>)>> {
@@ -525,7 +529,7 @@ impl BodyState<'_, '_> {
             lookup_receiver,
             extension_symbol,
             target_type,
-            implementations,
+            interfaces,
             protocol,
         )?;
         let Some((substitution, implementation)) = matched else {
@@ -567,7 +571,7 @@ impl BodyState<'_, '_> {
         lookup_receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         target_type: dir::GlobalTypeId,
-        implementations: &[dir::NominalHeritage],
+        interfaces: &[dir::GlobalTypeId],
         protocol: &Protocol,
     ) -> CompilerResult<Option<(TypeSubstitution, dir::GlobalTypeId)>> {
         let template = self.symbol_template(extension_symbol)?;
@@ -582,7 +586,7 @@ impl BodyState<'_, '_> {
             &interface,
             template,
             target_type,
-            implementations,
+            interfaces,
         )
     }
 
@@ -888,8 +892,12 @@ impl BodyState<'_, '_> {
             if matches!(definition, dir::Definition::Interface(_)) {
                 continue;
             }
-            let implementations = definition.implementations().to_vec();
-            if implementations.is_empty() {
+            let interfaces = definition
+                .implementations()
+                .iter()
+                .map(|conformance| conformance.interface)
+                .collect::<SmallVec<[_; 2]>>();
+            if interfaces.is_empty() {
                 continue;
             }
 
@@ -912,7 +920,7 @@ impl BodyState<'_, '_> {
                 module,
                 &[],
                 &mut substitution,
-                &implementations,
+                &interfaces,
                 &interface,
             )?;
             if matched.is_some() {
@@ -1010,7 +1018,7 @@ impl BodyState<'_, '_> {
             | SignatureMatch::Inapplicable(_) => return Ok(None),
         };
 
-        let arguments = Self::source_argument_bindings(argument_sources, &signature.parameters);
+        let arguments = self.bind_argument_sources(origin, &signature, argument_sources)?;
         let call = signature.member_call(resolution, candidate.owner, symbol, arguments);
         let resolution = dir::OperationResolution::One(call);
 

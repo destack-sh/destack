@@ -1,9 +1,9 @@
-use crate::{CommentRetention, TestParser};
+use crate::TestParser;
 use destack_dir::{
-    Argument, Catch, Declaration, Declarator, DependencyItem, EnumField, Expression,
-    GenericArgument, GenericParameter, MatchArm, Member, Parameter, Pattern, PatternField,
-    Property, SwitchCase, TupleElement, TypeDeclaration, TypeExpression, TypeMappedParameter,
-    TypeMember, WhereClause,
+    Argument, Catch, Declaration, Declarator, DependencyItem, DocumentationTag, EnumField,
+    Expression, GenericArgument, GenericParameter, MatchArm, Member, Parameter, Pattern,
+    PatternField, Property, SwitchCase, TupleElement, TypeDeclaration, TypeExpression,
+    TypeMappedParameter, TypeMember, WhereClause,
 };
 
 /// Attach documentation and decorators to the declaration rather than its expression wrapper.
@@ -42,6 +42,135 @@ function run(): string {}
     let decorators = parser.tree.get_decorators(declaration.id);
     assert_eq!(decorators.len(), 1);
     assert_eq!(test.documentation(&parser, decorators[0]), None);
+}
+
+/// Bind callable documentation tags to their exact declared parameters.
+#[test]
+fn test_parse_callable_documentation() {
+    let test = TestParser::new(
+        r#"
+/// Return the provided value.
+///
+/// # Errors
+///
+/// Returns `InvalidValue` when validation fails.
+///
+/// @typeParam Value - The returned value type.
+/// @param value - The value to return.
+/// @example
+/// ```ds
+/// identity<string>("value");
+/// ```
+function identity<Value>(value: Value): Value {
+    return value;
+}
+"#,
+    );
+    let (parser, roots) = test.parse();
+
+    let root = roots[0];
+    let declaration = match parser.tree.get(root) {
+        Expression::Declaration(declaration) => *declaration,
+        expression => panic!("expected declaration expression, got {expression:?}"),
+    };
+    let function = match parser.tree.get(declaration) {
+        Declaration::Function(function) => function,
+        declaration => panic!("expected function declaration, got {declaration:?}"),
+    };
+    let documentation = parser
+        .tree
+        .get_documentation(declaration.id)
+        .expect("function declaration should have documentation");
+
+    assert_eq!(
+        parser.strings.get(documentation.markdown),
+        "Return the provided value.\n\n# Errors\n\nReturns `InvalidValue` when validation fails."
+    );
+    assert_eq!(documentation.tags.len(), 3);
+    let DocumentationTag::TypeParameter {
+        parameter,
+        markdown,
+    } = documentation.tags[0]
+    else {
+        panic!("expected type parameter documentation");
+    };
+    assert_eq!(parameter, function.signature.generic_parameters[0]);
+    assert_eq!(parser.strings.get(markdown), "The returned value type.");
+    let DocumentationTag::Parameter {
+        parameter,
+        markdown,
+    } = documentation.tags[1]
+    else {
+        panic!("expected parameter documentation");
+    };
+    assert_eq!(parameter, function.signature.parameters[0]);
+    assert_eq!(parser.strings.get(markdown), "The value to return.");
+    let DocumentationTag::Example { markdown } = documentation.tags[2] else {
+        panic!("expected example documentation");
+    };
+    assert_eq!(
+        parser.strings.get(markdown),
+        "```ds\nidentity<string>(\"value\");\n```"
+    );
+}
+
+/// Accept common parameter separators while retaining exact parameter bindings.
+#[test]
+fn test_parse_documentation_parameter_separators() {
+    let test = TestParser::new(
+        r#"
+/// Select one value.
+/// @param plain Plain documentation.
+/// @param dash - Dash documentation.
+/// @param colon: Colon documentation.
+function select<Value>(plain: Value, dash: Value, colon: Value): Value {
+    return plain;
+}
+"#,
+    );
+    let (parser, roots) = test.parse();
+
+    let root = roots[0];
+    let declaration = match parser.tree.get(root) {
+        Expression::Declaration(declaration) => *declaration,
+        expression => panic!("expected declaration expression, got {expression:?}"),
+    };
+    let function = match parser.tree.get(declaration) {
+        Declaration::Function(function) => function,
+        declaration => panic!("expected function declaration, got {declaration:?}"),
+    };
+    let documentation = parser
+        .tree
+        .get_documentation(declaration.id)
+        .expect("function declaration should have documentation");
+    let targets = documentation
+        .tags
+        .iter()
+        .map(|tag| tag.target())
+        .collect::<Vec<_>>();
+    let markdown = documentation
+        .tags
+        .iter()
+        .map(|tag| parser.strings.get(tag.markdown()))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        targets,
+        function
+            .signature
+            .parameters
+            .iter()
+            .map(|parameter| Some(parameter.into_any()))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        markdown,
+        vec![
+            "Plain documentation.",
+            "Dash documentation.",
+            "Colon documentation."
+        ]
+    );
 }
 
 /// Attach documentation to complete value expressions and nested operand expressions.
@@ -180,7 +309,10 @@ class Box {
 "#,
     );
     let (parser, _) = test.parse();
-    let members = parser.tree.iter_nodes::<Member>().collect::<Vec<_>>();
+    let members = parser
+        .tree
+        .iter_node_ids_of_type::<Member>()
+        .collect::<Vec<_>>();
     assert_eq!(members.len(), 1);
     assert_eq!(
         test.documentation(&parser, members[0]),
@@ -196,7 +328,10 @@ type Shape = {
 "#,
     );
     let (parser, _) = test.parse();
-    let members = parser.tree.iter_nodes::<TypeMember>().collect::<Vec<_>>();
+    let members = parser
+        .tree
+        .iter_node_ids_of_type::<TypeMember>()
+        .collect::<Vec<_>>();
     assert_eq!(members.len(), 1);
     assert_eq!(
         test.documentation(&parser, members[0]),
@@ -212,7 +347,10 @@ enum Color {
 "#,
     );
     let (parser, _) = test.parse();
-    let fields = parser.tree.iter_nodes::<EnumField>().collect::<Vec<_>>();
+    let fields = parser
+        .tree
+        .iter_node_ids_of_type::<EnumField>()
+        .collect::<Vec<_>>();
     assert_eq!(fields.len(), 1);
     assert_eq!(test.documentation(&parser, fields[0]), Some("Red channel."));
 
@@ -227,7 +365,7 @@ import {
     let (parser, _) = test.parse();
     let items = parser
         .tree
-        .iter_nodes::<DependencyItem>()
+        .iter_node_ids_of_type::<DependencyItem>()
         .collect::<Vec<_>>();
     assert_eq!(items.len(), 1);
     assert_eq!(
@@ -244,7 +382,10 @@ match (value) {
 "#,
     );
     let (parser, _) = test.parse();
-    let arms = parser.tree.iter_nodes::<MatchArm>().collect::<Vec<_>>();
+    let arms = parser
+        .tree
+        .iter_node_ids_of_type::<MatchArm>()
+        .collect::<Vec<_>>();
     assert_eq!(arms.len(), 1);
     assert_eq!(
         test.documentation(&parser, arms[0]),
@@ -260,7 +401,10 @@ switch (value) {
 "#,
     );
     let (parser, _) = test.parse();
-    let cases = parser.tree.iter_nodes::<SwitchCase>().collect::<Vec<_>>();
+    let cases = parser
+        .tree
+        .iter_node_ids_of_type::<SwitchCase>()
+        .collect::<Vec<_>>();
     assert_eq!(cases.len(), 1);
     assert_eq!(
         test.documentation(&parser, cases[0]),
@@ -275,7 +419,10 @@ const first = 1,
 "#,
     );
     let (parser, _) = test.parse();
-    let declarators = parser.tree.iter_nodes::<Declarator>().collect::<Vec<_>>();
+    let declarators = parser
+        .tree
+        .iter_node_ids_of_type::<Declarator>()
+        .collect::<Vec<_>>();
     assert_eq!(declarators.len(), 2);
     assert_eq!(test.documentation(&parser, declarators[0]), None);
     assert_eq!(
@@ -298,7 +445,7 @@ function run<
     let (parser, _) = test.parse();
     let parameters = parser
         .tree
-        .iter_nodes::<GenericParameter>()
+        .iter_node_ids_of_type::<GenericParameter>()
         .collect::<Vec<_>>();
     assert_eq!(parameters.len(), 1);
     assert_eq!(
@@ -317,7 +464,7 @@ run<
     let (parser, _) = test.parse();
     let arguments = parser
         .tree
-        .iter_nodes::<GenericArgument>()
+        .iter_node_ids_of_type::<GenericArgument>()
         .collect::<Vec<_>>();
     assert_eq!(arguments.len(), 1);
     assert_eq!(
@@ -336,7 +483,7 @@ type Fields<T> = {
     let (parser, _) = test.parse();
     let parameters = parser
         .tree
-        .iter_nodes::<TypeMappedParameter>()
+        .iter_node_ids_of_type::<TypeMappedParameter>()
         .collect::<Vec<_>>();
     assert_eq!(parameters.len(), 1);
     assert_eq!(
@@ -357,7 +504,10 @@ function run<T>(): void where (
 "#,
     );
     let (parser, _) = test.parse();
-    let clauses = parser.tree.iter_nodes::<WhereClause>().collect::<Vec<_>>();
+    let clauses = parser
+        .tree
+        .iter_node_ids_of_type::<WhereClause>()
+        .collect::<Vec<_>>();
     assert_eq!(clauses.len(), 1);
     assert_eq!(
         test.documentation(&parser, clauses[0]),
@@ -372,7 +522,10 @@ catch (error) {}
 "#,
     );
     let (parser, _) = test.parse();
-    let catches = parser.tree.iter_nodes::<Catch>().collect::<Vec<_>>();
+    let catches = parser
+        .tree
+        .iter_node_ids_of_type::<Catch>()
+        .collect::<Vec<_>>();
     assert_eq!(catches.len(), 1);
     assert_eq!(
         test.documentation(&parser, catches[0]),
@@ -392,7 +545,10 @@ const value = {
 "#,
     );
     let (parser, _) = test.parse();
-    let properties = parser.tree.iter_nodes::<Property>().collect::<Vec<_>>();
+    let properties = parser
+        .tree
+        .iter_node_ids_of_type::<Property>()
+        .collect::<Vec<_>>();
     assert_eq!(properties.len(), 1);
     assert_eq!(
         test.documentation(&parser, properties[0]),
@@ -412,90 +568,17 @@ match (value) {
 "#,
     );
     let (parser, _) = test.parse();
-    let fields = parser.tree.iter_nodes::<PatternField>().collect::<Vec<_>>();
+    let fields = parser
+        .tree
+        .iter_node_ids_of_type::<PatternField>()
+        .collect::<Vec<_>>();
     assert_eq!(fields.len(), 1);
     assert_eq!(test.documentation(&parser, fields[0]), Some("Item field."));
 
     let documented_patterns = parser
         .tree
-        .iter_nodes::<Pattern>()
+        .iter_node_ids_of_type::<Pattern>()
         .filter_map(|pattern| test.documentation(&parser, pattern))
         .collect::<Vec<_>>();
     assert_eq!(documented_patterns, vec!["Bound value."]);
-}
-
-/// Leave documentation between decorators and their owner unattached.
-#[test]
-fn test_leave_documentation_after_decorator_unattached() {
-    let test = TestParser::new(
-        r#"
-@memo
-/// Not attached.
-function run(): void {}
-"#,
-    );
-    let (parser, roots) = test.parse();
-
-    let root = roots[0];
-    let declaration = match parser.tree.get(root) {
-        Expression::Declaration(declaration) => *declaration,
-        expression => panic!("expected declaration expression, got {expression:?}"),
-    };
-    assert_eq!(test.documentation(&parser, root), None);
-    assert_eq!(test.documentation(&parser, declaration), None);
-    assert_eq!(parser.comments().len(), 1);
-}
-
-/// Do not attach detached, interrupted, or trailing documentation to later expressions.
-#[test]
-fn test_leave_unowned_documentation_unattached() {
-    let test = TestParser::new(
-        r#"
-/// Attached.
-first
-
-/// Detached.
-
-second
-
-/// Interrupted.
-// ordinary
-third
-
-fourth /// trailing
-fifth
-"#,
-    );
-    let (parser, roots) = test.parse();
-
-    assert_eq!(roots.len(), 5);
-    assert_eq!(test.documentation(&parser, roots[0]), Some("Attached."));
-    assert_eq!(test.documentation(&parser, roots[1]), None);
-    assert_eq!(test.documentation(&parser, roots[2]), None);
-    assert_eq!(test.documentation(&parser, roots[3]), None);
-    assert_eq!(test.documentation(&parser, roots[4]), None);
-    assert_eq!(parser.comments().len(), 5);
-}
-
-/// Preserve ordinary comment barriers when only documentation comments are retained.
-#[test]
-fn test_keep_ordinary_comments_from_extending_documentation() {
-    let test = TestParser::new(
-        r#"
-/// Detached.
-// ordinary
-first
-
-// ordinary
-/// Attached.
-second
-"#,
-    );
-    let mut parser = test.prepare_with_comment_retention(CommentRetention::Documentation);
-    let roots = parser.parse();
-
-    test.assert_no_errors(&parser);
-    assert_eq!(roots.len(), 2);
-    assert_eq!(test.documentation(&parser, roots[0]), None);
-    assert_eq!(test.documentation(&parser, roots[1]), Some("Attached."));
 }

@@ -297,6 +297,7 @@ declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void;
 /// @resolution.name source=T target=on.T
 /// @type.symbol symbol=on.callback source="callback: NoInfer<(value: T) => void>" type=NoInfer<Function<(T#1,), void>>
 /// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @type.symbol symbol=on.value source="value: T" type=T#1
 /// @resolution.name source=T target=on.T
 
 declare function make<T>(): T[];

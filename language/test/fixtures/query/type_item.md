@@ -106,7 +106,7 @@ newtype UserId = string;
 
 ## Generics
 
-### Include generic parameters in item details
+### Include generic parameters
 
 Generic parameters distinguish the declaration without changing its symbol identity.
 
@@ -117,7 +117,7 @@ struct Box<Value> {}
 ```
 
 ```query type_item main.ds#name
-@type_item.item name=Box kind=struct detail="<Value>" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Box@1
+@type_item.item name=Box kind=struct generics="<Value>" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Box@1
 ```
 
 ### Return the generic declaration from an applied type
@@ -134,7 +134,7 @@ declare const value: Box<string>;
 ```
 
 ```query type_item main.ds#type_use
-@type_item.item name=Box kind=struct detail="<Value>" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Box@1
+@type_item.item name=Box kind=struct generics="<Value>" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Box@1
 ```
 
 ## Imports

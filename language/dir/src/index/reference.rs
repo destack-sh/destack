@@ -132,8 +132,8 @@ pub struct ReferenceEntry {
     pub source: GlobalNodeIdAny,
     /// The source range.
     pub span: Span,
-    /// Whether the occurrence names an explicit local import alias.
-    pub is_import_alias: bool,
+    /// Whether the authored occurrence names an alias instead of the target.
+    pub is_alias: bool,
 }
 
 impl ReferenceEntry {
@@ -145,7 +145,7 @@ impl ReferenceEntry {
             self.span.start,
             self.span.end,
             self.source,
-            self.is_import_alias,
+            self.is_alias,
         );
         let right = (
             other.symbol,
@@ -153,7 +153,7 @@ impl ReferenceEntry {
             other.span.start,
             other.span.end,
             other.source,
-            other.is_import_alias,
+            other.is_alias,
         );
 
         left.cmp(&right)

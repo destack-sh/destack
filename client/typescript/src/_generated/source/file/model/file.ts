@@ -2,96 +2,6 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, bytesFromJson, bytesToJson, jsonBigint, jsonField, jsonObject, jsonString } from "../../../../protocol/serde.js";
 
-/** The id of a File. */
-export type FileId = bigint;
-
-export const FileId = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: FileId): void {
-        encodeFileId(writer, value);
-    },
-
-    /** Decode one FileId. */
-    decode(reader: BinaryReader): FileId {
-        return decodeFileId(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: FileId): Json {
-        return toJsonFileId(value);
-    },
-
-    /** Return one FileId from one JSON value. */
-    fromJson(value: Json): FileId {
-        return fromJsonFileId(value);
-    },
-};
-
-/** Encode one FileId. */
-export function encodeFileId(writer: BinaryWriter, value: FileId): void {
-    writer.writeUnsigned(value);
-}
-
-/** Decode one FileId. */
-export function decodeFileId(reader: BinaryReader): FileId {
-    return reader.readUnsigned();
-}
-
-/** Return one JSON value for one FileId. */
-export function toJsonFileId(value: FileId): Json {
-    return value.toString();
-}
-
-/** Return one FileId from one JSON value. */
-export function fromJsonFileId(value: Json): FileId {
-    return jsonBigint(value);
-}
-
-/** The exact identity of one content payload. */
-export type ContentId = bigint;
-
-export const ContentId = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: ContentId): void {
-        encodeContentId(writer, value);
-    },
-
-    /** Decode one ContentId. */
-    decode(reader: BinaryReader): ContentId {
-        return decodeContentId(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: ContentId): Json {
-        return toJsonContentId(value);
-    },
-
-    /** Return one ContentId from one JSON value. */
-    fromJson(value: Json): ContentId {
-        return fromJsonContentId(value);
-    },
-};
-
-/** Encode one ContentId. */
-export function encodeContentId(writer: BinaryWriter, value: ContentId): void {
-    writer.writeUnsigned(value);
-}
-
-/** Decode one ContentId. */
-export function decodeContentId(reader: BinaryReader): ContentId {
-    return reader.readUnsigned();
-}
-
-/** Return one JSON value for one ContentId. */
-export function toJsonContentId(value: ContentId): Json {
-    return value.toString();
-}
-
-/** Return one ContentId from one JSON value. */
-export function fromJsonContentId(value: Json): ContentId {
-    return jsonBigint(value);
-}
-
 /** One exact content payload. */
 export type Content =
     /** Text content. */
@@ -217,4 +127,94 @@ export function fromJsonContent(value: Json): Content {
     }
 
     throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
+/** The exact identity of one content payload. */
+export type ContentId = bigint;
+
+export const ContentId = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ContentId): void {
+        encodeContentId(writer, value);
+    },
+
+    /** Decode one ContentId. */
+    decode(reader: BinaryReader): ContentId {
+        return decodeContentId(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ContentId): Json {
+        return toJsonContentId(value);
+    },
+
+    /** Return one ContentId from one JSON value. */
+    fromJson(value: Json): ContentId {
+        return fromJsonContentId(value);
+    },
+};
+
+/** Encode one ContentId. */
+export function encodeContentId(writer: BinaryWriter, value: ContentId): void {
+    writer.writeUnsigned(value);
+}
+
+/** Decode one ContentId. */
+export function decodeContentId(reader: BinaryReader): ContentId {
+    return reader.readUnsigned();
+}
+
+/** Return one JSON value for one ContentId. */
+export function toJsonContentId(value: ContentId): Json {
+    return value.toString();
+}
+
+/** Return one ContentId from one JSON value. */
+export function fromJsonContentId(value: Json): ContentId {
+    return jsonBigint(value);
+}
+
+/** The id of a File. */
+export type FileId = bigint;
+
+export const FileId = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: FileId): void {
+        encodeFileId(writer, value);
+    },
+
+    /** Decode one FileId. */
+    decode(reader: BinaryReader): FileId {
+        return decodeFileId(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: FileId): Json {
+        return toJsonFileId(value);
+    },
+
+    /** Return one FileId from one JSON value. */
+    fromJson(value: Json): FileId {
+        return fromJsonFileId(value);
+    },
+};
+
+/** Encode one FileId. */
+export function encodeFileId(writer: BinaryWriter, value: FileId): void {
+    writer.writeUnsigned(value);
+}
+
+/** Decode one FileId. */
+export function decodeFileId(reader: BinaryReader): FileId {
+    return reader.readUnsigned();
+}
+
+/** Return one JSON value for one FileId. */
+export function toJsonFileId(value: FileId): Json {
+    return value.toString();
+}
+
+/** Return one FileId from one JSON value. */
+export function fromJsonFileId(value: Json): FileId {
+    return jsonBigint(value);
 }

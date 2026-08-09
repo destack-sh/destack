@@ -678,7 +678,7 @@ impl WalkState<'_, '_> {
         template: Option<GenericTemplateId>,
         induction: InducedParameterOwner,
         implements_types: &[dir::LocalNodeId<dir::TypeExpression>],
-    ) -> CompilerResult<Vec<dir::NominalHeritage>> {
+    ) -> CompilerResult<Vec<dir::NominalConformance>> {
         let mut implements = Vec::new();
         for implemented_type in implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
@@ -712,7 +712,11 @@ impl WalkState<'_, '_> {
             if let Some(template) = template {
                 self.push_this_heritage_predicate(source, template, ty)?;
             }
-            implements.push(dir::NominalHeritage { source, ty });
+            implements.push(dir::NominalConformance {
+                source,
+                interface: ty,
+                members: Vec::new(),
+            });
         }
 
         Ok(implements)
@@ -1037,7 +1041,11 @@ impl WalkState<'_, '_> {
                     .symbol_kind_maybe(instance.symbol)?
                     .is_none_or(|kind| kind.is_interface())
                 {
-                    implements.push(dir::NominalHeritage { source, ty });
+                    implements.push(dir::NominalConformance {
+                        source,
+                        interface: ty,
+                        members: Vec::new(),
+                    });
                 } else {
                     self.check
                         .report_implementation_target_not_interface_symbol(
@@ -1675,7 +1683,7 @@ impl WalkState<'_, '_> {
         let dir::Type::Application(instance) = self.check.ty(constraint)? else {
             return Ok(dir::BlanketCoverage::Deferred);
         };
-        let interface = self.check.resolve_symbol_alias(instance.symbol)?;
+        let interface = instance.symbol;
         if !self.check.symbol_kind(interface)?.is_interface() {
             return Ok(dir::BlanketCoverage::Deferred);
         }

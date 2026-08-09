@@ -1,15 +1,16 @@
+use std::collections::hash_map::Entry;
+
 use destack_artifact::PackageDependency;
 use destack_dir as dir;
 use destack_repository::RepositoryError;
 use destack_source::{FileId, ModuleId, Span};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::source::{ImportBinding, extract_string_literal_prefix};
+use crate::source::extract_string_literal_prefix;
 use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
-    ExportDeclaration, ImportCandidate, ImportOrder, MatchOrder, MatchQuality, ModuleQueryContext,
-    ProgramQueryContext, QueryError, QueryResult, SORT_BUILTIN, SORT_DEFAULT, SORT_LOCAL_SYMBOL,
-    SymbolUse, match_quality,
+    ExportCandidate, ExportDeclaration, ImportOrder, ImportPathOrder, MatchOrder,
+    ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult, SymbolUse, match_quality,
 };
 
 use super::builtin::length_ordering_text;
@@ -18,6 +19,18 @@ use super::{CompletionCollector, CompletionContext};
 // auto import completion thresholds
 const AUTO_IMPORT_MIN_PREFIX: usize = 2;
 const AUTO_IMPORT_SHORT_PREFIX_LIMIT: usize = 50;
+
+/// One unresolved export and import path considered for auto import.
+struct AutoImportCandidate {
+    /// The indexed program export.
+    export: ExportCandidate,
+    /// The lexical match order.
+    lexical: MatchOrder,
+    /// The import path inserted into the current module.
+    specifier: String,
+    /// The structural order of the import path.
+    path_order: ImportPathOrder,
+}
 
 impl ExportDeclaration {
     /// Return the exact completion kind for this exported declaration.
@@ -225,11 +238,10 @@ impl CompletionCollector<'_, '_, '_> {
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let mut results = Vec::new();
 
-        // transcribe each exact module export as a member candidate
+        // collect each module export as a member candidate
         for (name, declaration) in self.program.module_exports(module_id)? {
             let kind = declaration.completion_kind(self.program)?;
-            let mut completion =
-                CompletionCandidate::new(name, kind, CompletionOrigin::Local, SORT_LOCAL_SYMBOL);
+            let mut completion = CompletionCandidate::new(name, kind, CompletionOrigin::Local);
 
             if let ExportDeclaration::Symbol { symbol, .. } = declaration {
                 if kind.is_callable() {
@@ -245,86 +257,132 @@ impl CompletionCollector<'_, '_, '_> {
     }
 
     /// Collect auto imports for one prefix and scope.
-    pub(super) fn collect_auto_imports_with_visibility(
+    pub(super) fn collect_auto_imports(
         &self,
         prefix: &str,
-        use_filter: Option<SymbolUse>,
+        symbol_use: SymbolUse,
         scope: dir::LocalScope,
         allow_short_prefix: bool,
+        is_constructable_only: bool,
     ) -> QueryResult<CompletionCandidates> {
-        let mut completions = self.collect_auto_imports(prefix, use_filter, allow_short_prefix)?;
-
-        let visible_names = self.collect_visible_names(scope, use_filter)?;
-        completions.retain(|item| !visible_names.contains(item.label.as_str()));
-
-        let is_incomplete =
-            ShortPrefixImportOrder::apply_limit(&mut completions, prefix, allow_short_prefix);
-
-        Ok(CompletionCandidates {
-            items: completions,
-            is_incomplete,
-        })
-    }
-
-    /// Collect auto imports for one prefix.
-    fn collect_auto_imports(
-        &self,
-        prefix: &str,
-        use_filter: Option<SymbolUse>,
-        allow_short_prefix: bool,
-    ) -> QueryResult<Vec<CompletionCandidate>> {
         if prefix.is_empty() {
-            return Ok(Vec::new());
+            return Ok(CompletionCandidates {
+                items: Vec::new(),
+                is_incomplete: false,
+            });
         }
 
         if prefix.len() < AUTO_IMPORT_MIN_PREFIX && !allow_short_prefix {
-            return Ok(Vec::new());
+            return Ok(CompletionCandidates {
+                items: Vec::new(),
+                is_incomplete: false,
+            });
         }
 
-        // search every other indexed module for matching exported declarations
+        // collect unresolved exports and import paths before reading declaration DIR
         let current_module_id = self.module.module_id();
-        let mut results = Vec::new();
-        let mut seen: FxHashSet<(ModuleId, ImportBinding)> = FxHashSet::default();
+        let visible_names = self.collect_visible_names(scope, symbol_use)?;
+        let mut candidates = Vec::new();
+        let mut import_paths = FxHashMap::default();
         let exports = self
             .program
             .search_export_candidates(prefix, Some(current_module_id))?;
 
         for export in exports {
-            if !use_filter.is_none_or(|symbol_use| symbol_use.accepts_export(export.declaration)) {
+            if visible_names.contains(export.binding.name()) {
                 continue;
             }
 
+            let lexical = match_quality(export.binding.name(), prefix)
+                .ok_or(QueryError::invalid(format!(
+                    "auto import candidate does not match: name={}, prefix={prefix}",
+                    export.binding.name()
+                )))?
+                .order();
             let module_id = export.module;
-            let key = (module_id, export.binding.clone());
-            if !seen.insert(key) {
-                continue;
+            if let Entry::Vacant(entry) = import_paths.entry(module_id) {
+                let path_order = ImportPathOrder::between(
+                    self.module.repository(),
+                    self.module.revision(),
+                    current_module_id,
+                    module_id,
+                )?;
+                let specifiers = self
+                    .program
+                    .import_specifiers(current_module_id, module_id)?;
+                entry.insert((path_order, specifiers));
             }
+            let (path_order, specifiers) = &import_paths[&module_id];
 
-            self.push_auto_import_completions(
-                current_module_id,
-                module_id,
-                &export.binding,
-                export.declaration,
-                use_filter,
-                &mut results,
-            )?;
+            for specifier in specifiers {
+                candidates.push(AutoImportCandidate {
+                    export: export.clone(),
+                    lexical,
+                    specifier: specifier.clone(),
+                    path_order: path_order.clone(),
+                });
+            }
         }
 
-        Ok(results)
+        // shortlist by the same lexical and path order used by final items
+        candidates.sort_by(AutoImportCandidate::compare);
+        let limit = (allow_short_prefix && prefix.len() < AUTO_IMPORT_MIN_PREFIX)
+            .then_some(AUTO_IMPORT_SHORT_PREFIX_LIMIT);
+        let mut items = Vec::new();
+        let mut selected = FxHashSet::default();
+        let mut is_incomplete = false;
+
+        // resolve declarations until the result limit is filled
+        'candidate: for candidate in candidates {
+            for declaration in candidate.export.resolve_declarations(self.program)? {
+                if !symbol_use.accepts_export(declaration) {
+                    continue;
+                }
+
+                let kind = declaration.completion_kind(self.program)?;
+                if is_constructable_only && !kind.is_constructable() {
+                    continue;
+                }
+
+                let key = (
+                    candidate.export.module,
+                    candidate.export.binding.clone(),
+                    candidate.specifier.clone(),
+                );
+                if !selected.insert(key) {
+                    continue 'candidate;
+                }
+                if limit.is_some_and(|limit| items.len() == limit) {
+                    is_incomplete = true;
+
+                    break 'candidate;
+                }
+
+                items.push(self.resolve_auto_import(candidate, declaration, kind)?);
+
+                continue 'candidate;
+            }
+        }
+
+        Ok(CompletionCandidates {
+            items,
+            is_incomplete,
+        })
     }
 
     /// Collect visible symbol names for a scope and use.
     fn collect_visible_names(
         &self,
         scope: dir::LocalScope,
-        use_filter: Option<SymbolUse>,
+        symbol_use: SymbolUse,
     ) -> QueryResult<FxHashSet<String>> {
         let symbols = self.module.bindings()?;
 
         let mut names = FxHashSet::default();
-        for visible in symbols.visible_bindings(scope).filter(|binding| {
-            use_filter.is_none_or(|symbol_use| symbol_use.accepts_symbol_kind(binding.symbol.kind))
-        }) {
+        for visible in symbols
+            .visible_bindings(scope)
+            .filter(|binding| symbol_use.accepts_symbol_kind(binding.symbol.kind))
+        {
             let dir::StaticKey::Name(name_id) = visible.key else {
                 continue;
             };
@@ -335,56 +393,33 @@ impl CompletionCollector<'_, '_, '_> {
         Ok(names)
     }
 
-    /// Push every valid auto import completion into the results list.
-    fn push_auto_import_completions(
+    /// Resolve one shortlisted auto import candidate.
+    fn resolve_auto_import(
         &self,
-        current_module_id: ModuleId,
-        module_id: ModuleId,
-        binding: &ImportBinding,
+        candidate: AutoImportCandidate,
         declaration: ExportDeclaration,
-        expected_use: Option<SymbolUse>,
-        results: &mut Vec<CompletionCandidate>,
-    ) -> QueryResult<()> {
-        let import_specifiers = self
-            .program
-            .import_specifiers(current_module_id, module_id)?;
-        let name = binding.name();
+        kind: CompletionItemKind,
+    ) -> QueryResult<CompletionCandidate> {
+        let name = candidate.export.binding.name();
+        let import_order = ImportOrder::new(candidate.path_order, &candidate.specifier, name);
+        let description = format!("from {}", candidate.specifier);
+        let completion = CompletionCandidate::new(name, kind, CompletionOrigin::AutoImport)
+            .with_description(description)
+            .with_import_order(import_order)
+            .with_auto_import(candidate.export.binding, candidate.specifier);
 
-        // build one completion for each exact importable package export
-        for import_specifier in import_specifiers {
-            let candidate = ImportCandidate {
-                repository: self.module.repository(),
-                revision: self.module.revision(),
-                current_module_id,
-                export_name: name,
-                expected_use,
-                declaration,
-                module_id,
-            };
-            let import_order = candidate.order(&import_specifier)?;
-            let kind = declaration.completion_kind(self.program)?;
-            let description = format!("from {import_specifier}");
-            let completion =
-                CompletionCandidate::new(name, kind, CompletionOrigin::AutoImport, SORT_DEFAULT)
-                    .with_description(description)
-                    .with_import_order(import_order)
-                    .with_auto_import(binding.clone(), import_specifier);
-            let completion = match declaration {
-                ExportDeclaration::Symbol { symbol, .. } => {
-                    let completion = if kind.is_callable() {
-                        completion.with_call()
-                    } else {
-                        completion
-                    };
-                    self.collect_symbol(completion, symbol)?
-                }
-                ExportDeclaration::Namespace { .. } => completion,
-            };
+        match declaration {
+            ExportDeclaration::Symbol { symbol, .. } => {
+                let completion = if kind.is_callable() {
+                    completion.with_call()
+                } else {
+                    completion
+                };
 
-            results.push(completion);
+                self.collect_symbol(completion, symbol)
+            }
+            ExportDeclaration::Namespace { .. } => Ok(completion),
         }
-
-        Ok(())
     }
 
     /// Collect imports from one module.
@@ -411,12 +446,7 @@ impl CompletionCollector<'_, '_, '_> {
             }
 
             let kind = declaration.completion_kind(self.program)?;
-            let completion = CompletionCandidate::new(
-                name,
-                kind,
-                CompletionOrigin::Contextual,
-                SORT_LOCAL_SYMBOL,
-            );
+            let completion = CompletionCandidate::new(name, kind, CompletionOrigin::Contextual);
             let completion = match declaration {
                 ExportDeclaration::Symbol { symbol, .. } => {
                     self.collect_symbol(completion, symbol)?
@@ -445,18 +475,16 @@ impl CompletionCollector<'_, '_, '_> {
                     "./",
                     CompletionItemKind::Folder,
                     CompletionOrigin::Contextual,
-                    5,
                 )
-                .with_detail("relative"),
+                .with_description("relative"),
             );
             results.push(
                 CompletionCandidate::new(
                     "../",
                     CompletionItemKind::Folder,
                     CompletionOrigin::Contextual,
-                    6,
                 )
-                .with_detail("parent"),
+                .with_description("parent"),
             );
             results.extend(self.collect_package_names()?);
         } else {
@@ -487,7 +515,6 @@ impl CompletionCollector<'_, '_, '_> {
                 name.clone(),
                 CompletionItemKind::Module,
                 CompletionOrigin::Builtin,
-                SORT_BUILTIN,
             )
             .with_ordering_text(length_ordering_text(name));
             results.push(completion);
@@ -497,49 +524,21 @@ impl CompletionCollector<'_, '_, '_> {
     }
 }
 
-/// Stable auto-import ordering for short-prefix completion pruning.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct ShortPrefixImportOrder {
-    /// The lexical match bucket.
-    lexical: Option<MatchOrder>,
-    /// The import-source order.
-    import: Option<ImportOrder>,
-    /// The rendered completion label.
-    label: String,
-}
-
-impl ShortPrefixImportOrder {
-    /// Apply short-prefix pruning after visibility filtering.
-    fn apply_limit(
-        completions: &mut Vec<CompletionCandidate>,
-        prefix: &str,
-        allow_short_prefix: bool,
-    ) -> bool {
-        if !allow_short_prefix || prefix.len() >= AUTO_IMPORT_MIN_PREFIX {
-            return false;
-        }
-
-        let previous_length = completions.len();
-        Self::sort(completions, prefix);
-        completions.truncate(AUTO_IMPORT_SHORT_PREFIX_LIMIT);
-
-        completions.len() != previous_length
-    }
-
-    /// Sort auto import completions for short prefixes.
-    fn sort(completions: &mut [CompletionCandidate], prefix: &str) {
-        completions.sort_by(|left, right| Self::new(left, prefix).cmp(&Self::new(right, prefix)));
-    }
-
-    /// Build the ordering for one completion candidate.
-    fn new(completion: &CompletionCandidate, prefix: &str) -> Self {
-        Self {
-            lexical: match_quality(&completion.label, prefix)
-                .as_ref()
-                .map(MatchQuality::order),
-            import: completion.import_order.clone(),
-            label: completion.label.clone(),
-        }
+impl AutoImportCandidate {
+    /// Compare unresolved candidates by final lexical and import-path order.
+    fn compare(&self, other: &Self) -> std::cmp::Ordering {
+        self.lexical
+            .cmp(&other.lexical)
+            .then(self.path_order.cmp(&other.path_order))
+            .then(
+                self.specifier
+                    .chars()
+                    .count()
+                    .cmp(&other.specifier.chars().count()),
+            )
+            .then(self.specifier.cmp(&other.specifier))
+            .then(self.export.binding.name().cmp(other.export.binding.name()))
+            .then(self.export.target.cmp(&other.export.target))
     }
 }
 
@@ -578,7 +577,6 @@ impl CompletionCollector<'_, '_, '_> {
                     name,
                     kind,
                     CompletionOrigin::Contextual,
-                    SORT_LOCAL_SYMBOL,
                 ));
             }
         }

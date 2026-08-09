@@ -1,9 +1,7 @@
 use destack_dir as dir;
 use rustc_hash::FxHashSet;
 
-use crate::{
-    CompletionCandidate, CompletionItemKind, CompletionOrigin, SORT_BUILTIN, SORT_KEYWORD,
-};
+use crate::{CompletionCandidate, CompletionItemKind, CompletionOrigin};
 
 /// Primitive type completions.
 pub(super) fn primitive_type_completions() -> Vec<CompletionCandidate> {
@@ -45,7 +43,6 @@ pub(super) fn primitive_type_completions() -> Vec<CompletionCandidate> {
                 &name,
                 CompletionItemKind::BuiltinType,
                 CompletionOrigin::Builtin,
-                SORT_BUILTIN,
             )
             .with_ordering_text(length_ordering_text(&name)),
         );
@@ -69,7 +66,6 @@ pub(super) fn keyword_completions() -> Vec<CompletionCandidate> {
             label,
             CompletionItemKind::Keyword,
             CompletionOrigin::Keyword,
-            SORT_KEYWORD,
         )
         .with_ordering_text(length_ordering_text(label));
         if let Some(snippet) = keyword_snippet(keyword) {
@@ -89,7 +85,6 @@ pub(super) fn keyword_completions() -> Vec<CompletionCandidate> {
                 literal,
                 CompletionItemKind::Keyword,
                 CompletionOrigin::Keyword,
-                SORT_KEYWORD,
             )
             .with_ordering_text(length_ordering_text(literal)),
         );

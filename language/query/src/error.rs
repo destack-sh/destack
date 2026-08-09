@@ -4,7 +4,7 @@ use std::io;
 
 use destack_repository::{ProviderError, RepositoryError};
 
-/// A semantic query failure.
+/// A query failure.
 #[derive(Debug)]
 pub enum QueryError {
     /// Artifact access failed.
@@ -94,5 +94,5 @@ impl From<io::Error> for QueryError {
     }
 }
 
-/// A semantic query result.
+/// A query result.
 pub type QueryResult<T> = Result<T, QueryError>;

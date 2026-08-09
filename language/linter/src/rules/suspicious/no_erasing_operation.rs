@@ -8,7 +8,11 @@ declare_lint! {
     pub NO_ERASING_OPERATION {
         id: "no-erasing-operation",
         summary: "Disallow operations that erase their operand into a constant",
-        explanation: "An integral operation with an erasing operand produces a constant regardless of the other value, apart from operations that may trap. Such expressions usually use the wrong operator or operand and should be corrected explicitly.",
+        explanation: r#"
+An integral operation with an erasing operand produces a constant regardless of the other value,
+apart from operations that may trap. Such expressions usually use the wrong operator or operand and
+should be corrected explicitly.
+"#,
         example: {
             reported: r#"
 function erase(value: int32): int32 {
@@ -30,55 +34,51 @@ function retain(value: int32): int32 {
 
 /// Report builtin integral operations whose constant operand erases another value.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    let view = module.view();
     let mut output = LintOutput::default();
 
     // inspect builtin binary operations over integral values
-    for expression in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::Binary {
-            left,
-            operator,
-            right,
-        } = view.get(expression)
-        else {
-            continue;
-        };
-
-        // select exact constants in erasing operand positions
-        let left_constant = module.scalar_constant(*left)?;
-        let right_constant = module.scalar_constant(*right)?;
-        let is_left_zero = left_constant.is_some_and(|value| value.as_integral() == Some(0));
-        let is_right_zero = right_constant.is_some_and(|value| value.as_integral() == Some(0));
-        let is_right_one = right_constant.is_some_and(|value| value.as_integral() == Some(1));
-        let is_left_negative_one =
-            left_constant.is_some_and(|value| value.as_integral() == Some(-1));
-        let is_right_negative_one =
-            right_constant.is_some_and(|value| value.as_integral() == Some(-1));
-        let is_erasing = match operator {
-            dir::BinaryOperator::Multiply | dir::BinaryOperator::ElementwiseAnd => {
-                is_left_zero || is_right_zero
-            }
-            dir::BinaryOperator::Divide
-            | dir::BinaryOperator::ShiftLeft
-            | dir::BinaryOperator::ShiftRight
-            | dir::BinaryOperator::UnsignedShiftRight => is_left_zero,
-            dir::BinaryOperator::Remainder => is_left_zero || is_right_one,
-            dir::BinaryOperator::Exponent => is_right_zero,
-            dir::BinaryOperator::ElementwiseOr => is_left_negative_one || is_right_negative_one,
-            _ => false,
-        };
-        if !is_erasing {
-            continue;
-        }
-
-        // require compiler-defined integral behavior
-        let Some(operands) = module.builtin_operands(expression.into_any())? else {
+    for expression in module.operator_expressions() {
+        let expression = expression?;
+        let Some((operator, operands @ [left, right])) = module.builtin_binary(expression)? else {
             continue;
         };
         if !operands.iter().all(dir::BuiltinOperand::is_integral) {
             continue;
         }
 
+        // select exact constants in erasing operand positions
+        let left_constant = module.scalar_constant(left.source.local_id)?;
+        let right_constant = module.scalar_constant(right.source.local_id)?;
+        let left_constant = left_constant.and_then(|value| value.as_integral());
+        let right_constant = right_constant.and_then(|value| value.as_integral());
+        let is_erasing = matches!(
+            (operator, left_constant, right_constant),
+            (
+                dir::BinaryOperator::Multiply | dir::BinaryOperator::ElementwiseAnd,
+                Some(0),
+                _,
+            ) | (
+                dir::BinaryOperator::Multiply | dir::BinaryOperator::ElementwiseAnd,
+                _,
+                Some(0),
+            ) | (
+                dir::BinaryOperator::Divide
+                    | dir::BinaryOperator::ShiftLeft
+                    | dir::BinaryOperator::ShiftRight
+                    | dir::BinaryOperator::UnsignedShiftRight
+                    | dir::BinaryOperator::Remainder,
+                Some(0),
+                _,
+            ) | (dir::BinaryOperator::Remainder, _, Some(1))
+                | (dir::BinaryOperator::Exponent, _, Some(0))
+                | (dir::BinaryOperator::ElementwiseOr, Some(-1), _)
+                | (dir::BinaryOperator::ElementwiseOr, _, Some(-1))
+        );
+        if !is_erasing {
+            continue;
+        }
+
+        // report the complete constant operation
         let span = module.source_extent(expression.into_any())?;
         let diagnostic = lint
             .diagnostic("constant operand erases the other value", span)

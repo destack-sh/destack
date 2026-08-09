@@ -8,7 +8,10 @@ declare_lint_stub! {
     pub REQUIRE_DIAGNOSTIC_REASON {
         id: "require-diagnostic-reason",
         summary: "Require reasons for diagnostic suppressions",
-        explanation: "Every `@allow` and `@expect` must explain why the diagnostic is intentionally suppressed. A reason preserves the local design decision and makes obsolete controls recognizable during review.",
+        explanation: r#"
+Every `@allow` and `@expect` must explain why the diagnostic is intentionally suppressed. A reason
+preserves the local design decision and makes obsolete controls recognizable during review.
+"#,
         example: {
             reported: r#"
 @allow("constant-condition")

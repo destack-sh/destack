@@ -344,6 +344,29 @@ pub enum MemberRole {
     VariantConstructor,
 }
 
+impl From<Option<FunctionRole>> for MemberRole {
+    /// Convert one function role into its member use-site role.
+    fn from(role: Option<FunctionRole>) -> Self {
+        match role {
+            Some(FunctionRole::Getter) => Self::Getter,
+            Some(FunctionRole::Setter) => Self::Setter,
+            Some(FunctionRole::Constructor)
+            | Some(FunctionRole::New)
+            | Some(FunctionRole::Call)
+            | None => Self::Method,
+        }
+    }
+}
+
+impl TryFrom<&DefinitionMember> for MemberRole {
+    type Error = ();
+
+    /// Convert one definition member into its use-site role.
+    fn try_from(member: &DefinitionMember) -> Result<Self, Self::Error> {
+        Self::from_definition(member).ok_or(())
+    }
+}
+
 impl MemberRole {
     /// Return whether this role selects a callable declaration.
     pub fn is_callable(self) -> bool {

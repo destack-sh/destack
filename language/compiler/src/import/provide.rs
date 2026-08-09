@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar,
-    SourceDependency,
+    DirBound, DirParsed, SourceDependency,
 };
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
@@ -36,9 +36,11 @@ impl Compiler {
         // load provider inputs
         let profile_state = self.profile(context.revision(), profile)?;
         let artifacts = self.artifact_reader(context);
-        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
+        let parsed = artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
         let bound = artifacts
-            .dir_bound(module, profile)
+            .read::<DirBound>((module, profile))
             .map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module)?;
         let package = self.package(context.revision(), module.package_id)?;

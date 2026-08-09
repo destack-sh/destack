@@ -1,9 +1,8 @@
 use destack_fir::format::FormatOptions;
 use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
 use destack_repository::{
-    ArrowParentheses, FormatterOptions, ImportSortOrder, JsdocCommentLineStrategy,
-    JsdocLineWrappingStyle, JsdocOptions, OrganizeImports, QuoteProperty, QuoteStyle,
-    TrailingComma,
+    ArrowParentheses, FormatterOptions, ImportSortOrder, OrganizeImports, QuoteProperty,
+    QuoteStyle, TrailingComma,
 };
 use destack_source::{IndentStyle, LanguageType, LineEnding};
 
@@ -50,19 +49,6 @@ pub struct DestackFormatOptions {
     /// Respect file-level formatter ignore directives.
     pub respect_file_ignore: bool = true,
 
-    /// Jsdoc comment body formatting options.
-    pub jsdoc: JsdocOptions = JsdocOptions {
-        capitalize_descriptions: true,
-        comment_line_strategy: JsdocCommentLineStrategy::SingleLine,
-        separate_tag_groups: false,
-        separate_returns_from_param: false,
-        description_with_dot: false,
-        add_default_to_description: true,
-        prefer_code_fences: false,
-        line_wrapping_style: JsdocLineWrappingStyle::Greedy,
-        description_tag: false,
-        keep_unparsable_example_indent: false,
-    },
 }
 
 impl DestackFormatOptions {

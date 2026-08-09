@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -10,7 +10,10 @@ declare_lint! {
     pub OPERATOR_ASSIGNMENT {
         id: "operator-assignment",
         summary: "Require compound assignment where equivalent",
-        explanation: "Repeating one stable place on both sides of an assignment obscures that the existing value is being updated. Use the corresponding compound assignment to name that update directly.",
+        explanation: r#"
+Repeating one stable place on both sides of an assignment obscures that the existing value is being
+updated. Use the corresponding compound assignment to name that update directly.
+"#,
         example: {
             reported: r#"
 function advance(value: int32): int32 {
@@ -40,12 +43,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect plain assignments whose value is a compound operation
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::Assign {
             left,
             operator: dir::AssignOperator::Assign,
             right,
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };
@@ -110,10 +113,8 @@ fn suggestion(
         module.source(target)?,
         module.source(value)?
     );
-    let mut file = FilePatch::new(extent.file);
-    file.replace(extent, replacement);
-    let patches = PatchSet::single(file);
-    let suggestion = lint.fix("use compound assignment", patches)?;
+    let patch = Patch::replace(extent, replacement);
+    let suggestion = lint.fix("use compound assignment", patch)?;
 
     Ok(Some(suggestion))
 }

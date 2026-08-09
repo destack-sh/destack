@@ -93,7 +93,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         operand: &dir::BuiltinOperand,
     ) -> CompilerResult<LoweredOperand> {
-        let source = expression.into_global_any(self.source);
+        let source = expression.into_global(self.source);
         if source != operand.source {
             return Err(CompilerError::Internal {
                 message: format!(

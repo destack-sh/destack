@@ -1,23 +1,3 @@
-
-## Expression
-
-### [ignored] Inline an immutable expression
-
-Inlining replaces every reference and removes the declaration.
-
-```ds main.ds
-const base = 1 + 2;
-      ^^^^ target
-const total = base + base;
-```
-
-```query inline main.ds#target
-```
-
-```ds main.ds after
-const total = 1 + 2 + (1 + 2);
-```
-
 ## Literal
 
 ### Inline a literal

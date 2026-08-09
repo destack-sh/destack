@@ -95,11 +95,11 @@ type Integer = bigint;
 ```
 
 ```query goto_type_definition main.ds#reference:string
-@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:28:1-31:2 selection=destack://string/string:28:14-28:20 symbol=destack://string/string#String@24
+@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:28:1-31:2 selection=destack://string/string:28:14-28:20 symbol=destack://string/string#String@25
 ```
 
 ```query goto_type_definition main.ds#reference:bigint
-@goto_type_definition.target origin=main.ds#reference:bigint location=destack://math/bigint:27:1-39:2 selection=destack://math/bigint:27:14-27:20 symbol=destack://math/bigint#BigInt@23
+@goto_type_definition.target origin=main.ds#reference:bigint location=destack://math/bigint:27:1-36:2 selection=destack://math/bigint:27:14-27:20 symbol=destack://math/bigint#BigInt@23
 ```
 
 ### Resolve a direct type reference
@@ -488,34 +488,6 @@ declare const box: Box<int32>;
 
 ```query goto_type_definition main.ds#reference:box
 @goto_type_definition.target origin=main.ds#reference:box location=main.ds#declaration:box selection=main.ds#definition:box symbol=main.ds#Box@1
-```
-
-## Type and Value Names
-
-### [ignored] Resolve a type hidden by a value binding
-
-A value binding with the same name does not replace an imported type.
-
-```ds model.ds
-export struct Config {
-^ declaration:config:start
-              ^^^^^^ definition:config
-    enabled: boolean;
-}
-^ declaration:config:end
-```
-
-```ds main.ds
-import { Config as SharedConfig } from "./model.ds";
-
-const SharedConfig = 1;
-
-declare const config: SharedConfig;
-                      ^^^^^^^^^^^^ reference:config
-```
-
-```query goto_type_definition main.ds#reference:config
-@goto_type_definition.target origin=main.ds#reference:config location=model.ds#declaration:config selection=model.ds#definition:config symbol=model.ds#Config@1
 ```
 
 ## Missing Symbols

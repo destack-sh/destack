@@ -28,16 +28,14 @@ impl<'context, 'index> DecoratorIndexer<'context, 'index> {
 
     /// Collect checked decorator applications.
     fn collect_decorators(&mut self) {
-        for (application_id, application) in self.module.decorators().iter_applications() {
+        for (_, application) in self.module.decorators().iter_applications() {
             // resolve decorator display name
             let name = self.module.decorator_name(application.source.local_id);
 
             // emit decorator application row
             self.entries.push(dir::DecoratorEntry {
                 name,
-                application: application_id,
                 decorator: application.source,
-                expression: application.expression,
                 owner: application.owner,
                 target: application.resolution.target,
             });

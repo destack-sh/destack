@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     BodyState, Cause, CauseKind, CheckFailure, CheckOutcome, FlowSite, InferMode, Origin, PlaceUse,
-    Relation, ValueCheck, ValueUse,
+    Relation, ValueCheck, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -53,13 +53,38 @@ impl BodyState<'_, '_> {
                         source: value.into_global_any(module),
                     });
                 }
-                dir::Property::Method { key, .. } => {
+                dir::Property::Method { key, signature, .. } => {
+                    // reject accessors that cannot initialize struct storage
+                    if matches!(
+                        signature.role,
+                        Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
+                    ) {
+                        self.check
+                            .report_invalid_struct_accessor(property.into_global_any(module));
+                    }
+
+                    // retain ordinary method shorthand and diagnosed accessors for checking
                     let Some(key) = (match key {
                         Some(key) => self.select_property_key(site, key)?,
                         None => None,
                     }) else {
                         continue;
                     };
+
+                    // walk methods inference discovers before their walk
+                    if let Some(symbol) =
+                        self.module(module).declaration_symbol(property.into_any())
+                        && self.symbol_type_maybe(symbol).is_none()
+                    {
+                        let (parsed, expanded) = self.patched_inputs(module);
+                        let tree = dir::View::with_patches(
+                            &parsed.tree,
+                            std::slice::from_ref(&expanded.patch),
+                        );
+                        let mut walk = WalkState::new(module, tree, self.check);
+                        walk.walk_property(*property, &tree.get(*property).clone())?;
+                        walk.flush_flows()?;
+                    }
 
                     entries.push(MergeEntry::Field {
                         key,

@@ -1,13 +1,31 @@
+use destack_dir as dir;
 use destack_repository::ProviderError;
+use destack_source::{DiagnosticSuggestion, Patch};
 
-use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
 
-declare_lint_stub! {
-    /// Prefer array literals over the Array constructor.
+declare_lint! {
+    /// Prefer an empty array literal over the canonical Array constructor.
     pub PREFER_ARRAY_LITERAL {
         id: "prefer-array-literal",
-        summary: "Prefer array literals over the Array constructor",
+        summary: "Prefer an empty array literal over the canonical Array constructor",
+        explanation: r#"
+The canonical zero-argument `Array.new` factory constructs the same empty array as an array literal,
+but hides that value behind a call. Use `[]` so the constructed value is visible directly.
+"#,
+        example: {
+            reported: r#"
+function values(): int32[] {
+    return Array.new();
+}
+"#,
+            accepted: r#"
+function values(): int32[] {
+    return [];
+}
+"#,
+        },
         category: Style,
         level: Warning,
         fixable: Automatic,
@@ -15,10 +33,144 @@ declare_lint_stub! {
     }
 }
 
-/// Check prefer-array-literal.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
+/// Report inferred empty Array constructions.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+
+    // inspect canonical zero-argument Array.new calls
+    for expression in module.call_expressions() {
+        let expression = expression?;
+        let node = view.get(expression);
+        let dir::Expression::Call {
+            left,
+            generic_arguments,
+            arguments,
+            ..
+        } = node
+        else {
+            continue;
+        };
+
+        // require the canonical array factory
+        if module.language_member(expression)? != Some(dir::LanguageItem::Array.member("new")) {
+            continue;
+        }
+
+        // require an inferred empty construction
+        if !generic_arguments.is_empty() || !arguments.is_empty() {
+            continue;
+        }
+        let dir::Expression::Member { left: receiver, .. } = view.get(*left) else {
+            continue;
+        };
+        if matches!(view.get(*receiver), dir::Expression::Instantiation { .. }) {
+            continue;
+        }
+
+        // replace the contextually typed factory call
+        let span = module.source_extent(expression.into_any())?;
+        let mut diagnostic = lint.diagnostic("empty array uses the Array.new factory", span);
+        if let Some(suggestion) = suggestion(module, lint, span)? {
+            diagnostic = diagnostic.suggestion(suggestion);
+        }
+
+        output.report(diagnostic);
+    }
+
+    Ok(output)
+}
+
+/// Replace one inferred empty factory call with an empty literal.
+fn suggestion(
+    module: &DirModule<'_>,
+    lint: &Lint,
+    extent: destack_source::Span,
+) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
+    if module.has_unretained_comment(extent, &[])? {
+        return Ok(None);
+    }
+
+    let patch = Patch::replace(extent, "[]");
+    let suggestion = lint.fix("use an empty array literal", patch)?;
+
+    Ok(Some(suggestion))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestSession;
+
+    /// Accept a capacity-preserving Array factory.
+    #[test]
+    fn test_accepts_array_with_capacity() {
+        let session = TestSession::dir(
+            &PREFER_ARRAY_LITERAL,
+            r#"
+function values(capacity: usize): int32[] {
+    return Array.withCapacity(capacity);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept an Array factory call with an explicit element type.
+    #[test]
+    fn test_accepts_explicit_array_element_type() {
+        let session = TestSession::dir(
+            &PREFER_ARRAY_LITERAL,
+            r#"
+function values(): int32[] {
+    return Array<int32>.new();
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Report without a fix when replacing the factory would discard a comment.
+    #[test]
+    fn test_reports_commented_array_factory_without_fix() {
+        let session = TestSession::dir(
+            &PREFER_ARRAY_LITERAL,
+            r#"
+function values(): int32[] {
+    return Array.new(/* empty */);
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[prefer-array-literal]: empty array uses the Array.new factory
+ ──▶ main.ds:2:12
+  │
+1 │ function values(): int32[] {
+2 │     return Array.new(/* empty */);
+  │            ^^^^^^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+"#,
+        );
+    }
+
+    /// Ignore call-shaped decorator data.
+    #[test]
+    fn test_accepts_decorator_application() {
+        let session = TestSession::dir(
+            &PREFER_ARRAY_LITERAL,
+            r#"
+@derive(Tagged)
+newtype Status =
+    | { kind: "ready" }
+    | { kind: "pending" };
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
 }

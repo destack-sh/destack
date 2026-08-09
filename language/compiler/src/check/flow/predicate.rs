@@ -168,7 +168,7 @@ impl CheckState<'_> {
         for (operand, compared) in pairs {
             let access = self
                 .decisions(operand.source.module_id)
-                .access_resolution(operand.source)
+                .access_resolution(operand.source.into_any())
                 .cloned();
             let Some(access) = access.filter(|access| access.path() == tested) else {
                 continue;
@@ -253,7 +253,7 @@ impl CheckState<'_> {
         site: FlowSite,
         path: &dir::AccessPath,
         source: dir::GlobalTypeId,
-        operand: dir::GlobalNodeIdAny,
+        operand: dir::GlobalNodeId<dir::Expression>,
         access: &dir::AccessResolution,
         mut target: dir::GlobalTypeId,
         is_equal: bool,
@@ -275,15 +275,16 @@ impl CheckState<'_> {
             return Err(CompilerError::Internal {
                 message: format!(
                     "equality operand {} has no projection below {path:?}",
-                    self.node_label(operand),
+                    self.node_label(operand.into_any()),
                 ),
             });
         }
         let mut relative = relative;
 
         // map a discriminant back to its variant through a tag projection
-        if let Some(dir::OperationResolution::One(access)) =
-            self.decisions(operand.module_id).member_decision(operand)
+        if let Some(dir::OperationResolution::One(access)) = self
+            .decisions(operand.module_id)
+            .member_decision(operand.into_any())
             && let dir::MemberTarget::Projection {
                 projection: dir::Projection::VariantTag { carrier, .. },
                 ..
@@ -308,17 +309,9 @@ impl CheckState<'_> {
     fn equality_predicate_target(
         &mut self,
         origin: Origin,
-        value: dir::GlobalNodeIdAny,
+        value: dir::GlobalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        if value.local_id.ty != dir::NodeType::Expression {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "equality operand is not an expression: {}",
-                    self.node_label(value),
-                ),
-            });
-        }
-        let ty = self.require_node_type(value)?;
+        let ty = self.require_node_type(value.into_any())?;
         let ty = self.reduce_type_head(origin, ty)?;
         if self.is_singleton_type(ty)? {
             return Ok(Some(ty));

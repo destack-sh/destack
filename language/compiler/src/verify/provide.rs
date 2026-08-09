@@ -1,4 +1,6 @@
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirVerified};
+use destack_artifact::{
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirLowered, MirVerified,
+};
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
 use std::sync::Arc;
@@ -31,7 +33,7 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context);
         let lowered = artifacts
-            .mir_lowered(module, profile, target)
+            .read::<MirLowered>((module, profile, target))
             .map_err(CompilerError::from)?;
         let mut state = VerifyState::new(module, profile, target, context, &lowered);
 

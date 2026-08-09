@@ -9,19 +9,19 @@ use super::{Dir, DirModule};
 
 /// Checked DIR for one target program.
 #[derive(Debug)]
-pub struct DirProgram {
+pub struct DirProgram<'a> {
     /// The program.
     pub program: Arc<LintProgram>,
     /// The checked DIR.
-    pub dir: Dir,
+    pub dir: Dir<'a>,
 }
 
-impl DirProgram {
+impl<'a> DirProgram<'a> {
     /// Load checked DIR for one target program.
     pub(crate) fn load(
-        repository: &Repository,
+        repository: &'a Repository,
         revision: Revision,
-        artifacts: &ArtifactReader<'_>,
+        artifacts: &ArtifactReader<'a>,
         program: Arc<LintProgram>,
         environment: Arc<EnvironmentBound>,
         modules: &[ModuleId],

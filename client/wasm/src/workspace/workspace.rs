@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
+use destack_rpc::{ConnectionOptions, Registry, Session};
 use destack_source::Edit;
-use destack_workspace::Server;
+use destack_workspace::{LocalWorkspace, SharedWorkspace, Workspace, WorkspaceServer};
 use js_sys::{Array, Reflect, Uint8Array};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
@@ -7,51 +10,71 @@ use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 use crate::core::js_error;
 use crate::panic::install_panic_hook;
 
-/// In-process workspace protocol server exposed to WebAssembly.
+/// In-process workspace RPC session exposed to WebAssembly.
 #[derive(Debug)]
 #[wasm_bindgen]
-pub struct LocalWorkspaceServer {
-    /// Local Rust server.
-    server: Server,
+pub struct WorkspaceSession {
+    /// Generic RPC session hosting the workspace service.
+    session: Session,
 }
 
 #[wasm_bindgen]
-impl LocalWorkspaceServer {
-    /// Open an in-process workspace protocol server.
-    #[wasm_bindgen(js_name = open)]
-    pub fn open(home: String) -> Result<LocalWorkspaceServer, JsValue> {
-        install_panic_hook();
-
-        let server = Server::open(home).map_err(js_error)?;
-
-        Ok(Self { server })
-    }
-
-    /// Open an in-process workspace protocol server from in-memory files.
+impl WorkspaceSession {
+    /// Open one in-memory workspace RPC session.
     #[wasm_bindgen(js_name = memory)]
-    pub fn memory(root: String, files: Array) -> Result<LocalWorkspaceServer, JsValue> {
+    pub fn memory(root: String, files: Array) -> Result<WorkspaceSession, JsValue> {
         install_panic_hook();
 
         let files = memory_files(files)?;
-        let server = Server::memory(root, files).map_err(js_error)?;
+        let workspace = LocalWorkspace::memory(root, files, 1).map_err(js_error)?;
+        let workspace: Arc<dyn Workspace> = Arc::new(workspace);
+        let service = WorkspaceServer::new(SharedWorkspace::new(workspace)).map_err(js_error)?;
+        let mut services = Registry::new();
+        services.insert(service).map_err(js_error)?;
+        let options = ConnectionOptions::new("destack-wasm");
+        let session = Session::new(services, options).map_err(js_error)?;
 
-        Ok(Self { server })
+        Ok(Self { session })
     }
 
-    /// Dispatch one encoded protocol message payload.
+    /// Dispatch one complete inbound RPC message.
     #[wasm_bindgen]
-    pub fn dispatch(&self, payload: Vec<u8>) -> Result<Array, JsValue> {
-        let frames = self.server.dispatch(&payload).map_err(js_error)?;
-        let frames = frames
-            .into_iter()
-            .map(|frame| JsValue::from(Uint8Array::from(frame.as_slice())))
-            .collect();
+    pub fn dispatch(&self, bytes: Vec<u8>) -> Result<Array, JsValue> {
+        let messages = self.session.dispatch(&bytes).map_err(js_error)?;
 
-        Ok(frames)
+        Ok(message_array(messages))
+    }
+
+    /// Poll ready RPC calls.
+    #[wasm_bindgen]
+    pub fn poll(&self) -> Result<Array, JsValue> {
+        let messages = self.session.poll().map_err(js_error)?;
+
+        Ok(message_array(messages))
+    }
+
+    /// Return whether cooperative workspace calls requested another poll.
+    #[wasm_bindgen(js_name = isReady)]
+    pub fn is_ready(&self) -> Result<bool, JsValue> {
+        self.session.is_ready().map_err(js_error)
+    }
+
+    /// Close this RPC session.
+    #[wasm_bindgen]
+    pub fn close(&self) -> Result<(), JsValue> {
+        self.session.close().map_err(js_error)
     }
 }
 
-/// Convert JavaScript memory files into Rust memory files.
+/// Convert complete RPC messages into JavaScript byte arrays.
+fn message_array(messages: Vec<Vec<u8>>) -> Array {
+    messages
+        .into_iter()
+        .map(|message| JsValue::from(Uint8Array::from(message.as_slice())))
+        .collect()
+}
+
+/// Convert JavaScript memory files into source edits.
 fn memory_files(files: Array) -> Result<Vec<Edit>, JsValue> {
     let mut output = Vec::with_capacity(files.length() as usize);
 
@@ -62,7 +85,7 @@ fn memory_files(files: Array) -> Result<Vec<Edit>, JsValue> {
     Ok(output)
 }
 
-/// Convert one JavaScript memory file into one Rust memory file.
+/// Convert one JavaScript memory file into one source edit.
 fn memory_file(file: JsValue) -> Result<Edit, JsValue> {
     let path = Reflect::get(&file, &JsValue::from_str("path"))?
         .as_string()
@@ -82,7 +105,6 @@ fn memory_file(file: JsValue) -> Result<Edit, JsValue> {
             text,
         });
     }
-
     if !bytes.is_undefined() {
         let bytes = bytes
             .dyn_into::<Uint8Array>()

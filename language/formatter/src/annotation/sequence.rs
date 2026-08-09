@@ -429,18 +429,26 @@ fn prefix_sequence_item_span(context: &DestackFormatContext<'_>, item: PrefixSeq
     }
 }
 
-/// Write one prefix item.
+/// Write one prefix item unless it was already printed.
 fn write_prefix_sequence_item<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     item: PrefixSequenceItem,
-) -> FormatResult<()> {
+) -> FormatResult<bool> {
     match item {
-        PrefixSequenceItem::Comment(comment) => format_comment(f, comment),
+        PrefixSequenceItem::Comment(comment) => {
+            if f.context().comments().is_printed(comment) {
+                return Ok(false);
+            }
+
+            format_comment(f, comment)?;
+        }
         PrefixSequenceItem::Decorator(annotation_id) => {
             let annotation = f.context().annotation(annotation_id).clone();
-            annotation.format_node(annotation_id, f)
+            annotation.format_node(annotation_id, f)?;
         }
     }
+
+    Ok(true)
 }
 
 /// Write one plain prefix item sequence.
@@ -466,7 +474,9 @@ fn write_prefix_sequence_items_with_policy<'ast>(
     should_break_after_decorator: bool,
 ) -> FormatResult<()> {
     for item in items.iter().copied() {
-        write_prefix_sequence_item(f, item)?;
+        if !write_prefix_sequence_item(f, item)? {
+            continue;
+        }
 
         if should_break_after_decorator && matches!(item, PrefixSequenceItem::Decorator(_)) {
             write!(f, [hard_line_break()])?;
@@ -505,7 +515,9 @@ fn write_decorator_prefix_sequence_items<'ast>(
     }
 
     for item in items.iter().copied() {
-        write_prefix_sequence_item(f, item)?;
+        if !write_prefix_sequence_item(f, item)? {
+            continue;
+        }
         write!(f, [hard_line_break()])?;
     }
 

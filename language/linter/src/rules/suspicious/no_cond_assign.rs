@@ -9,7 +9,11 @@ declare_lint! {
     pub NO_COND_ASSIGN {
         id: "no-cond-assign",
         summary: "Disallow assignment in conditions",
-        explanation: "An assignment used as a condition is easily mistaken for a comparison and hides mutation inside control flow. Move the assignment before the condition, or use a binding condition when the assigned value is intentionally tested.",
+        explanation: r#"
+An assignment used as a condition is easily mistaken for a comparison and hides mutation inside
+control flow. Move the assignment before the condition, or use a binding condition when the assigned
+value is intentionally tested.
+"#,
         example: {
             reported: r#"
 function select(next: boolean): boolean {
@@ -44,8 +48,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // collect every authored expression condition
-    for expression in view.iter_nodes::<dir::Expression>() {
-        match view.get(expression) {
+    for (_, expression) in view.iter_nodes::<dir::Expression>() {
+        match expression {
             dir::Expression::If { condition, .. } => {
                 for operand in &condition.operands {
                     if let dir::ConditionOperand::Expression { condition } = operand {
@@ -65,15 +69,15 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             _ => {}
         }
     }
-    for arm in view.iter_nodes::<dir::MatchArm>() {
-        if let Some(guard) = view.get(arm).guard() {
+    for (_, arm) in view.iter_nodes::<dir::MatchArm>() {
+        if let Some(guard) = arm.guard() {
             conditions.insert(guard.into_any());
         }
     }
 
     // inspect assignments evaluated inside those conditions
-    for expression in view.iter_nodes::<dir::Expression>() {
-        if !matches!(view.get(expression), dir::Expression::Assign { .. })
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
+        if !matches!(node, dir::Expression::Assign { .. })
             || !is_condition_assignment(view, expression.into_any(), &conditions)
         {
             continue;

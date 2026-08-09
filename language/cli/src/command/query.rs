@@ -301,7 +301,7 @@ impl QueryArgs {
 }
 
 /// Query source files with a structural pattern.
-pub fn run(args: &QueryArgs) -> i32 {
+pub async fn run(args: &QueryArgs) -> i32 {
     let mut args = args.clone();
     if let Err(error) = args.validate_output() {
         return report_error("query", &args.report, &error);
@@ -353,14 +353,17 @@ pub fn run(args: &QueryArgs) -> i32 {
         "query",
         &args.report,
         &args.program,
-        |workspace, root, progress| {
+        async |workspace, root, progress| {
             let output = workspace
                 .query(root, request, progress)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(output)
         },
-    ) {
+    )
+    .await
+    {
         Ok(result) => result,
         Err(code) => return code,
     };

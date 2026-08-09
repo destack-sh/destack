@@ -4,139 +4,6 @@ import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBool, json
 import type { QueryRange } from "../protocol/target.js";
 import { decodeQueryRange, encodeQueryRange, fromJsonQueryRange, toJsonQueryRange } from "../protocol/target.js";
 
-/** Request inlay hints for a range in a document. */
-export type InlayHintsRequest = {
-    /** The queried range. */
-    readonly range: QueryRange;
-    /** Whether to return inferred type hints. */
-    readonly typeHints: boolean;
-    /** Whether to return parameter name hints. */
-    readonly parameterHints: boolean;
-};
-
-export const InlayHintsRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: InlayHintsRequest): void {
-        encodeInlayHintsRequest(writer, value);
-    },
-
-    /** Decode one InlayHintsRequest. */
-    decode(reader: BinaryReader): InlayHintsRequest {
-        return decodeInlayHintsRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: InlayHintsRequest): Json {
-        return toJsonInlayHintsRequest(value);
-    },
-
-    /** Return one InlayHintsRequest from one JSON value. */
-    fromJson(value: Json): InlayHintsRequest {
-        return fromJsonInlayHintsRequest(value);
-    },
-};
-
-/** Encode one InlayHintsRequest. */
-export function encodeInlayHintsRequest(writer: BinaryWriter, value: InlayHintsRequest): void {
-    encodeQueryRange(writer, value.range);
-    writer.writeBool(value.typeHints);
-    writer.writeBool(value.parameterHints);
-}
-
-/** Decode one InlayHintsRequest. */
-export function decodeInlayHintsRequest(reader: BinaryReader): InlayHintsRequest {
-    const range = decodeQueryRange(reader);
-    const typeHints = reader.readBool();
-    const parameterHints = reader.readBool();
-
-    return {
-        range,
-        typeHints,
-        parameterHints,
-    };
-}
-
-/** Return one JSON value for one InlayHintsRequest. */
-export function toJsonInlayHintsRequest(value: InlayHintsRequest): Json {
-    return {
-        range: toJsonQueryRange(value.range),
-        typeHints: value.typeHints,
-        parameterHints: value.parameterHints,
-    };
-}
-
-/** Return one InlayHintsRequest from one JSON value. */
-export function fromJsonInlayHintsRequest(value: Json): InlayHintsRequest {
-    const object = jsonObject(value);
-
-    return {
-        range: fromJsonQueryRange(jsonField(object, "range")),
-        typeHints: jsonBool(jsonField(object, "typeHints")),
-        parameterHints: jsonBool(jsonField(object, "parameterHints")),
-    };
-}
-
-/** Response payload for inlay hints queries. */
-export type InlayHintsResponse = {
-    /** Inlay hints. */
-    readonly hints: ReadonlyArray<InlayHint>;
-};
-
-export const InlayHintsResponse = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: InlayHintsResponse): void {
-        encodeInlayHintsResponse(writer, value);
-    },
-
-    /** Decode one InlayHintsResponse. */
-    decode(reader: BinaryReader): InlayHintsResponse {
-        return decodeInlayHintsResponse(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: InlayHintsResponse): Json {
-        return toJsonInlayHintsResponse(value);
-    },
-
-    /** Return one InlayHintsResponse from one JSON value. */
-    fromJson(value: Json): InlayHintsResponse {
-        return fromJsonInlayHintsResponse(value);
-    },
-};
-
-/** Encode one InlayHintsResponse. */
-export function encodeInlayHintsResponse(writer: BinaryWriter, value: InlayHintsResponse): void {
-    writer.writeUnsigned(value.hints.length);
-    for (const item0 of value.hints) {
-        encodeInlayHint(writer, item0);
-    }
-}
-
-/** Decode one InlayHintsResponse. */
-export function decodeInlayHintsResponse(reader: BinaryReader): InlayHintsResponse {
-    const hints = (() => { const length0 = reader.readNumber(); const items0: Array<InlayHint> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeInlayHint(reader)); } return items0; })();
-
-    return {
-        hints,
-    };
-}
-
-/** Return one JSON value for one InlayHintsResponse. */
-export function toJsonInlayHintsResponse(value: InlayHintsResponse): Json {
-    return {
-        hints: value.hints.map((item0) => toJsonInlayHint(item0)),
-    };
-}
-
-/** Return one InlayHintsResponse from one JSON value. */
-export function fromJsonInlayHintsResponse(value: Json): InlayHintsResponse {
-    const object = jsonObject(value);
-
-    return {
-        hints: jsonArray(jsonField(object, "hints")).map((item0) => fromJsonInlayHint(item0)),
-    };
-}
-
 /** An inlay hint. */
 export type InlayHint = {
     /** The byte offset where the hint is displayed. */
@@ -293,4 +160,137 @@ export function fromJsonInlayHintKind(value: Json): InlayHintKind {
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
+/** Request inlay hints for a range in a document. */
+export type InlayHintsRequest = {
+    /** The queried range. */
+    readonly range: QueryRange;
+    /** Whether to return inferred type hints. */
+    readonly typeHints: boolean;
+    /** Whether to return parameter name hints. */
+    readonly parameterHints: boolean;
+};
+
+export const InlayHintsRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: InlayHintsRequest): void {
+        encodeInlayHintsRequest(writer, value);
+    },
+
+    /** Decode one InlayHintsRequest. */
+    decode(reader: BinaryReader): InlayHintsRequest {
+        return decodeInlayHintsRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: InlayHintsRequest): Json {
+        return toJsonInlayHintsRequest(value);
+    },
+
+    /** Return one InlayHintsRequest from one JSON value. */
+    fromJson(value: Json): InlayHintsRequest {
+        return fromJsonInlayHintsRequest(value);
+    },
+};
+
+/** Encode one InlayHintsRequest. */
+export function encodeInlayHintsRequest(writer: BinaryWriter, value: InlayHintsRequest): void {
+    encodeQueryRange(writer, value.range);
+    writer.writeBool(value.typeHints);
+    writer.writeBool(value.parameterHints);
+}
+
+/** Decode one InlayHintsRequest. */
+export function decodeInlayHintsRequest(reader: BinaryReader): InlayHintsRequest {
+    const range = decodeQueryRange(reader);
+    const typeHints = reader.readBool();
+    const parameterHints = reader.readBool();
+
+    return {
+        range,
+        typeHints,
+        parameterHints,
+    };
+}
+
+/** Return one JSON value for one InlayHintsRequest. */
+export function toJsonInlayHintsRequest(value: InlayHintsRequest): Json {
+    return {
+        range: toJsonQueryRange(value.range),
+        typeHints: value.typeHints,
+        parameterHints: value.parameterHints,
+    };
+}
+
+/** Return one InlayHintsRequest from one JSON value. */
+export function fromJsonInlayHintsRequest(value: Json): InlayHintsRequest {
+    const object = jsonObject(value);
+
+    return {
+        range: fromJsonQueryRange(jsonField(object, "range")),
+        typeHints: jsonBool(jsonField(object, "typeHints")),
+        parameterHints: jsonBool(jsonField(object, "parameterHints")),
+    };
+}
+
+/** Response payload for inlay hints queries. */
+export type InlayHintsResponse = {
+    /** Inlay hints. */
+    readonly hints: ReadonlyArray<InlayHint>;
+};
+
+export const InlayHintsResponse = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: InlayHintsResponse): void {
+        encodeInlayHintsResponse(writer, value);
+    },
+
+    /** Decode one InlayHintsResponse. */
+    decode(reader: BinaryReader): InlayHintsResponse {
+        return decodeInlayHintsResponse(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: InlayHintsResponse): Json {
+        return toJsonInlayHintsResponse(value);
+    },
+
+    /** Return one InlayHintsResponse from one JSON value. */
+    fromJson(value: Json): InlayHintsResponse {
+        return fromJsonInlayHintsResponse(value);
+    },
+};
+
+/** Encode one InlayHintsResponse. */
+export function encodeInlayHintsResponse(writer: BinaryWriter, value: InlayHintsResponse): void {
+    writer.writeUnsigned(value.hints.length);
+    for (const item0 of value.hints) {
+        encodeInlayHint(writer, item0);
+    }
+}
+
+/** Decode one InlayHintsResponse. */
+export function decodeInlayHintsResponse(reader: BinaryReader): InlayHintsResponse {
+    const hints = (() => { const length0 = reader.readNumber(); const items0: Array<InlayHint> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeInlayHint(reader)); } return items0; })();
+
+    return {
+        hints,
+    };
+}
+
+/** Return one JSON value for one InlayHintsResponse. */
+export function toJsonInlayHintsResponse(value: InlayHintsResponse): Json {
+    return {
+        hints: value.hints.map((item0) => toJsonInlayHint(item0)),
+    };
+}
+
+/** Return one InlayHintsResponse from one JSON value. */
+export function fromJsonInlayHintsResponse(value: Json): InlayHintsResponse {
+    const object = jsonObject(value);
+
+    return {
+        hints: jsonArray(jsonField(object, "hints")).map((item0) => fromJsonInlayHint(item0)),
+    };
 }

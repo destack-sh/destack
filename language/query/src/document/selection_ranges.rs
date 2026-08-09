@@ -33,7 +33,7 @@ impl From<Span> for SelectionRange {
     }
 }
 
-/// Request selection ranges for positions in a document.
+/// A selection ranges request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SelectionRangesRequest {
     /// The queried module profile.
@@ -44,7 +44,7 @@ pub struct SelectionRangesRequest {
     pub offsets: Vec<u32>,
 }
 
-/// Response payload for selection ranges queries.
+/// A selection ranges response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SelectionRangesResponse {
     /// Selection ranges.
@@ -55,18 +55,17 @@ impl ModuleQueryContext<'_> {
     /// Return nested selection ranges from the narrowest source owner outward.
     pub fn selection_ranges(
         &self,
-        file_id: FileId,
-        offsets: &[u32],
-    ) -> QueryResult<Vec<SelectionRange>> {
-        let mut ranges = Vec::with_capacity(offsets.len());
+        request: SelectionRangesRequest,
+    ) -> QueryResult<SelectionRangesResponse> {
+        let mut ranges = Vec::with_capacity(request.offsets.len());
 
         // build one selection chain per requested position
-        for &offset in offsets {
-            let range = self.selection_range_at_offset(file_id, offset)?;
+        for offset in request.offsets {
+            let range = self.selection_range_at_offset(request.file_id, offset)?;
             ranges.push(range);
         }
 
-        Ok(ranges)
+        Ok(SelectionRangesResponse { ranges })
     }
 
     /// Return one selection range at an offset.

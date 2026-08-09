@@ -5,9 +5,10 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    BodyState, Cause, CauseKind, ConditionBranch, Constraint, ControlTargetForm, Expectation,
-    ExpectedType, FlowSite, GeneratorTargets, InferMode, Obligation, Origin, PatternCoverage,
-    PatternCoverageObligation, PlaceUse, Relation, ValueUse, VariableRole, WalkState, Widening,
+    BodyState, Cause, CauseKind, ConditionBranch, Constraint, ControlLabel, ControlTargetForm,
+    Expectation, ExpectedType, FlowSite, GeneratorTargets, InferMode, Obligation, Origin,
+    PatternCoverage, PatternCoverageObligation, PlaceUse, Relation, ValueUse, VariableRole,
+    WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -301,6 +302,7 @@ impl BodyState<'_, '_> {
         self.check_condition(module, condition)?;
 
         // check the body under true condition flow inside the loop target
+        let label = label.map(|name| ControlLabel { name, source: node });
         self.check
             .enter_control_target(label, ControlTargetForm::Iteration);
         let before_body = self.check.fork_flow();
@@ -341,6 +343,7 @@ impl BodyState<'_, '_> {
             .check
             .allocate_variable(origin, Widening::Never, VariableRole::Regular);
         let result = self.check.variable_type(variable)?;
+        let label = label.map(|name| ControlLabel { name, source: node });
         self.check
             .enter_control_target(label, ControlTargetForm::Loop { result });
 
@@ -398,6 +401,7 @@ impl BodyState<'_, '_> {
         }
 
         // check the body under true condition flow inside the loop target
+        let label = label.map(|name| ControlLabel { name, source: node });
         self.check
             .enter_control_target(label, ControlTargetForm::Iteration);
         let before_body = self.check.fork_flow();
@@ -459,6 +463,11 @@ impl BodyState<'_, '_> {
         match self.check.flow.break_target_index(label) {
             // bind the carried value to the resolved target
             Some(index) => {
+                // record the selected label target
+                if label.is_some() {
+                    self.check.commit_label_target(node.local_id, index)?;
+                }
+
                 let form = self.check.flow.control_target_form(index);
                 match (value, form) {
                     // valued breaks check against the target output
@@ -526,7 +535,8 @@ impl BodyState<'_, '_> {
         label: Option<dir::StringId>,
     ) -> CompilerResult<()> {
         let node = site.node;
-        self.check.continue_to_control_target(node.local_id, label);
+        self.check
+            .continue_to_control_target(node.local_id, label)?;
 
         // continues complete with never
         let never = self.check.intern_type(dir::Type::Never)?;
@@ -803,7 +813,10 @@ impl BodyState<'_, '_> {
 
 impl BodyState<'_, '_> {
     /// Return the parsed and expanded inputs one patched module view reads.
-    fn patched_inputs(&self, module: ModuleId) -> (Arc<DirParsed>, Arc<DirExpanded>) {
+    pub(in crate::check) fn patched_inputs(
+        &self,
+        module: ModuleId,
+    ) -> (Arc<DirParsed>, Arc<DirExpanded>) {
         let state = self.module(module);
 
         (state.parsed.clone(), state.expanded.clone())

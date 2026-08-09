@@ -8,64 +8,6 @@ import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJ
 import { decodeTarget, encodeTarget, fromJsonTarget, toJsonTarget } from "../protocol/target.js";
 import { decodeQueryPosition, encodeQueryPosition, fromJsonQueryPosition, toJsonQueryPosition } from "../protocol/target.js";
 
-/** Request the call item at a cursor position. */
-export type CallItemRequest = {
-    /** The queried position. */
-    readonly position: QueryPosition;
-};
-
-export const CallItemRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: CallItemRequest): void {
-        encodeCallItemRequest(writer, value);
-    },
-
-    /** Decode one CallItemRequest. */
-    decode(reader: BinaryReader): CallItemRequest {
-        return decodeCallItemRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: CallItemRequest): Json {
-        return toJsonCallItemRequest(value);
-    },
-
-    /** Return one CallItemRequest from one JSON value. */
-    fromJson(value: Json): CallItemRequest {
-        return fromJsonCallItemRequest(value);
-    },
-};
-
-/** Encode one CallItemRequest. */
-export function encodeCallItemRequest(writer: BinaryWriter, value: CallItemRequest): void {
-    encodeQueryPosition(writer, value.position);
-}
-
-/** Decode one CallItemRequest. */
-export function decodeCallItemRequest(reader: BinaryReader): CallItemRequest {
-    const position = decodeQueryPosition(reader);
-
-    return {
-        position,
-    };
-}
-
-/** Return one JSON value for one CallItemRequest. */
-export function toJsonCallItemRequest(value: CallItemRequest): Json {
-    return {
-        position: toJsonQueryPosition(value.position),
-    };
-}
-
-/** Return one CallItemRequest from one JSON value. */
-export function fromJsonCallItemRequest(value: Json): CallItemRequest {
-    const object = jsonObject(value);
-
-    return {
-        position: fromJsonQueryPosition(jsonField(object, "position")),
-    };
-}
-
 /** One callable item. */
 export type CallItem = {
     /** The item name. */
@@ -231,6 +173,64 @@ export function fromJsonCallItemKind(value: Json): CallItemKind {
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
+/** Request the call item at a cursor position. */
+export type CallItemRequest = {
+    /** The queried position. */
+    readonly position: QueryPosition;
+};
+
+export const CallItemRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: CallItemRequest): void {
+        encodeCallItemRequest(writer, value);
+    },
+
+    /** Decode one CallItemRequest. */
+    decode(reader: BinaryReader): CallItemRequest {
+        return decodeCallItemRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: CallItemRequest): Json {
+        return toJsonCallItemRequest(value);
+    },
+
+    /** Return one CallItemRequest from one JSON value. */
+    fromJson(value: Json): CallItemRequest {
+        return fromJsonCallItemRequest(value);
+    },
+};
+
+/** Encode one CallItemRequest. */
+export function encodeCallItemRequest(writer: BinaryWriter, value: CallItemRequest): void {
+    encodeQueryPosition(writer, value.position);
+}
+
+/** Decode one CallItemRequest. */
+export function decodeCallItemRequest(reader: BinaryReader): CallItemRequest {
+    const position = decodeQueryPosition(reader);
+
+    return {
+        position,
+    };
+}
+
+/** Return one JSON value for one CallItemRequest. */
+export function toJsonCallItemRequest(value: CallItemRequest): Json {
+    return {
+        position: toJsonQueryPosition(value.position),
+    };
+}
+
+/** Return one CallItemRequest from one JSON value. */
+export function fromJsonCallItemRequest(value: Json): CallItemRequest {
+    const object = jsonObject(value);
+
+    return {
+        position: fromJsonQueryPosition(jsonField(object, "position")),
+    };
 }
 
 /** Response payload for call item queries. */

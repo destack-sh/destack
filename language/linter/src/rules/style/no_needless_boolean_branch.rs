@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -10,7 +10,10 @@ declare_lint! {
     pub NO_NEEDLESS_BOOLEAN_BRANCH {
         id: "no-needless-boolean-branch",
         summary: "Disallow branches that only return boolean literals",
-        explanation: "An if statement whose two branches return opposite boolean literals only restates its condition. Return the condition directly, or negate it when the branches reverse the condition.",
+        explanation: r#"
+An if statement whose two branches return opposite boolean literals only restates its condition.
+Return the condition directly, or negate it when the branches reverse the condition.
+"#,
         example: {
             reported: r#"
 function active(condition: boolean): boolean {
@@ -40,13 +43,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect regular if statements with one expression condition
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::If {
             form: dir::IfForm::If,
             condition,
             then_expression,
             else_expression: Some(else_expression),
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };
@@ -120,10 +123,8 @@ fn suggestion(
         module.negated_source(condition)?
     };
     let replacement = format!("return {condition};");
-    let mut file = FilePatch::new(extent.file);
-    file.replace(extent, replacement);
-    let patches = PatchSet::single(file);
-    let suggestion = lint.fix("return the boolean condition directly", patches)?;
+    let patch = Patch::replace(extent, replacement);
+    let suggestion = lint.fix("return the boolean condition directly", patch)?;
 
     Ok(Some(suggestion))
 }

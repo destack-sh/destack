@@ -1,7 +1,7 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet, Span};
+use destack_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -11,7 +11,10 @@ declare_lint! {
     pub PREFER_CONST {
         id: "prefer-const",
         summary: "Require const for bindings never reassigned after initialization",
-        explanation: "A binding that is initialized once and never reassigned should be declared with `const`. This documents the binding cell without restricting mutation performed through the stored value's API.",
+        explanation: r#"
+A binding that is initialized once and never reassigned should be declared with `const`. This
+documents the binding cell without restricting mutation performed through the stored value's API.
+"#,
         example: {
             reported: r#"
 function identity(value: int32): int32 {
@@ -52,12 +55,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect mutable binding declarations
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::Let {
             kind: dir::LetKind::Let,
             declarators,
             ..
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };
@@ -104,7 +107,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             && bindings.iter().all(|binding| binding.is_initialized);
         if can_replace {
             let span = module.main_span(expression.into_any())?;
-            let suggestion = replace_let(span, lint)?;
+            let patch = Patch::replace(span, "const");
+            let suggestion = lint.fix("declare the binding with const", patch)?;
             let diagnostic = lint
                 .diagnostic("binding is never reassigned", span)
                 .suggestion(suggestion);
@@ -172,7 +176,7 @@ fn mutable_binding_uses(
 
     // collect explicit mutable and exclusive borrows of root binding storage
     let view = module.view();
-    for (expression, value) in view.iter_nodes_of_type::<dir::Expression>() {
+    for (expression, value) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::BorrowOf { right, .. } = value else {
             continue;
         };
@@ -249,15 +253,6 @@ fn has_mutable_borrow(
     }
 
     Ok(false)
-}
-
-/// Replace one let keyword with const.
-fn replace_let(span: Span, lint: &Lint) -> Result<DiagnosticSuggestion, ProviderError> {
-    let mut file = FilePatch::new(span.file);
-    file.replace(span, "const");
-    let patches = PatchSet::single(file);
-
-    lint.fix("declare the binding with const", patches)
 }
 
 #[cfg(test)]

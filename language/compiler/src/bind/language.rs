@@ -1,4 +1,4 @@
-use destack_artifact::LanguageEnvironment;
+use destack_artifact::{DirBound, DirParsed, LanguageEnvironment};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProfileId};
 use destack_source::ModuleId;
@@ -18,10 +18,10 @@ impl Compiler {
         // scan builtin modules for language item declarations
         for module_id in modules {
             let parsed = artifacts
-                .dir_parsed(*module_id)
+                .read::<DirParsed>(*module_id)
                 .map_err(CompilerError::from)?;
             let bound = artifacts
-                .dir_bound(*module_id, profile)
+                .read::<DirBound>((*module_id, profile))
                 .map_err(CompilerError::from)?;
             let bindings = bound.binding_table();
 

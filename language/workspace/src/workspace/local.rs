@@ -1,13 +1,12 @@
 use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, mpsc};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::diagnostic::{DiagnosticsRequest, Error, FileDiagnostics};
 use crate::file::{Commit, FileOperation, OpenFile, SourceUpdate};
-use crate::protocol::WatchPolicy;
-use crate::watch::{Watch, WatchUpdate};
+use crate::watch::{WatchId, WatchSubscription, WatchUpdate};
 use crate::{
     BenchInput, BenchOptions, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOptions,
     CacheOutput, CheckInput, CheckOutput, CleanInput, CleanOptions, CleanOutput, CommandContext,
@@ -16,7 +15,8 @@ use crate::{
     FormatOutput, InfoInput, InfoOptions, InfoOutput, Output, OutputBuffer, ProgressEvent,
     QueryInput, QueryOutput, RewriteInput, RewriteOutput, RunInput, RunOutput, SettingsInput,
     SettingsOptions, SettingsOutput, TargetsInput, TargetsOptions, TargetsOutput, TaskInput,
-    TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput, Workspace, source_watch_options,
+    TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput, WatchPolicy, Workspace,
+    source_watch_options,
 };
 use dashmap::DashMap;
 use destack_artifact::{
@@ -28,11 +28,12 @@ use destack_source::{
     Content, ContentId, DiagnosticCollection, Edit, File, FileId, FileWatcher, OverlayFileSystem,
     TextRange,
 };
+use futures::future::BoxFuture;
 use parking_lot::Mutex;
 
 use super::root::WorkspaceRoot;
-use super::{ReloadRequest, RunQueryRequest, RunQueryResponse, SessionPin, UpdateBatch};
-use crate::{ExportRequest, ExportResult, ExportedFile, FileEdit, FileImage, QueryFile};
+use super::{ReloadRequest, RunQueryInput, RunQueryResponse, SessionPin, UpdateBatch};
+use crate::{ExportInput, ExportResult, ExportedFile, FileEdit, FileImage, QueryFile};
 
 /// Local workspace used by tooling integrations.
 pub struct LocalWorkspace {
@@ -47,8 +48,10 @@ pub struct LocalWorkspace {
 
     /// File watcher used for local watch mode.
     pub(crate) file_watcher: Option<Arc<dyn FileWatcher>>,
-    /// Active workspace watches keyed by primary root path.
-    pub(crate) watches: DashMap<PathBuf, Arc<Watch>>,
+    /// Active workspace watches keyed by subscription identifier.
+    pub(crate) watches: DashMap<WatchId, Arc<WatchSubscription>>,
+    /// Next workspace watch identifier.
+    pub(crate) next_watch_id: AtomicU64,
     /// Number of workers for each opened session.
     pub(crate) worker_limit: usize,
 
@@ -69,6 +72,7 @@ impl std::fmt::Debug for LocalWorkspace {
             .field("overlay_file_system", &self.overlay_file_system.is_some())
             .field("file_watcher", &self.file_watcher.is_some())
             .field("watches", &self.watches.len())
+            .field("next_watch_id", &self.next_watch_id)
             .field("worker_limit", &self.worker_limit)
             .field("event_handler", &self.event_handler.is_some())
             .field("next_command_session_id", &self.next_command_session_id)
@@ -98,6 +102,7 @@ impl LocalWorkspace {
             overlay_file_system,
             file_watcher,
             watches: dashmap::DashMap::new(),
+            next_watch_id: AtomicU64::new(1),
             worker_limit,
             event_handler,
             next_command_session_id: AtomicU64::new(1),
@@ -145,47 +150,24 @@ impl LocalWorkspace {
     }
 
     /// Execute one command operation for the given root.
-    pub(crate) fn run_command<T, O>(
+    pub(crate) async fn run_command<'a, T, O>(
         &self,
-        root: &Path,
-        common: &CommandOptions,
+        root: &'a Path,
+        common: &'a CommandOptions,
         revision: CommandRevision,
-        progress: Option<CommandProgress<'_>>,
-        execute: impl FnOnce(&mut CommandContext<'_>) -> CommandResult<CommandOutcome<T>>,
-    ) -> CommandResult<O>
-    where
-        O: From<Output<T>>,
-    {
-        std::thread::scope(|scope| {
-            // forward throttled session progress to the connection
-            let event_handler = progress.map(|progress| {
-                let (sender, receiver) = mpsc::channel::<ProgressEvent>();
-                scope.spawn(move || {
-                    while let Ok(event) = receiver.recv() {
-                        progress.emit(event);
-                    }
-                });
-
-                session_progress_handler(sender, progress.interval())
-            });
-
-            self.run_command_inner(root, common, revision, event_handler, execute)
-        })
-    }
-
-    /// Execute one command operation against one forked command session.
-    fn run_command_inner<T, O>(
-        &self,
-        root: &Path,
-        common: &CommandOptions,
-        revision: CommandRevision,
-        event_handler: Option<SessionEventHandler>,
-        execute: impl FnOnce(&mut CommandContext<'_>) -> CommandResult<CommandOutcome<T>>,
+        progress: Option<CommandProgress>,
+        execute: impl for<'context> FnOnce(
+            &'context mut CommandContext<'_>,
+        )
+            -> BoxFuture<'context, CommandResult<CommandOutcome<T>>>,
     ) -> CommandResult<O>
     where
         O: From<Output<T>>,
     {
         let repository = Arc::clone(&self.repository);
+
+        let event_handler = progress.map(session_progress_handler);
+
         // gather shared context
         let mut output = OutputBuffer::default();
         let mut context = CommandContext::new(
@@ -199,7 +181,7 @@ impl LocalWorkspace {
         )?;
 
         // execute the requested operation
-        let result = execute(&mut context)?;
+        let result = execute(&mut context).await?;
 
         // finalize command output
         let CommandOutcome {
@@ -244,10 +226,8 @@ impl LocalWorkspace {
 ///
 /// Counting stays exact; emission throttles to one event per interval
 /// so slow transports never stall the workers.
-fn session_progress_handler(
-    sender: mpsc::Sender<ProgressEvent>,
-    interval: Duration,
-) -> SessionEventHandler {
+fn session_progress_handler(progress: CommandProgress) -> SessionEventHandler {
+    let interval = progress.interval();
     let throttle = Mutex::new((None::<Instant>, 0usize));
 
     Arc::new(move |event| match event {
@@ -258,21 +238,12 @@ fn session_progress_handler(
             let due = throttle.0.is_none_or(|last| last.elapsed() >= interval);
             if due {
                 throttle.0 = Some(Instant::now());
-                let _ = sender.send(ProgressEvent {
+                let _is_queued = progress.try_emit(ProgressEvent {
                     task: artifact_key.stage().name().to_string(),
                     message: Some(format!("{} artifacts", throttle.1)),
                     percent: None,
-                    done: false,
                 });
             }
-        }
-        SessionEvent::RunFinished { .. } => {
-            let _ = sender.send(ProgressEvent {
-                task: String::new(),
-                message: None,
-                percent: None,
-                done: true,
-            });
         }
         _ => {}
     })
@@ -383,224 +354,284 @@ impl Workspace for LocalWorkspace {
         }
     }
 
-    fn check(
-        &self,
-        root: &Path,
+    fn check<'a>(
+        &'a self,
+        root: &'a Path,
         request: CheckInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<CheckOutput, CommandError> {
-        let common = request.command_options();
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<CheckOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
 
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_check_command(&request)
-        })
-    }
-
-    fn format(
-        &self,
-        root: &Path,
-        request: FormatInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<FormatOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_format_command(root, &request.source, request.mode)
-        })
-    }
-
-    fn query(
-        &self,
-        root: &Path,
-        request: QueryInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<QueryOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_query_command(&request)
-        })
-    }
-
-    fn rewrite(
-        &self,
-        root: &Path,
-        request: RewriteInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<RewriteOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_rewrite_command(&request)
-        })
-    }
-
-    fn build(
-        &self,
-        root: &Path,
-        request: BuildInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<BuildOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_build_command(&request)
-        })
-    }
-
-    fn run(
-        &self,
-        root: &Path,
-        request: RunInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<RunOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.execute_run_command(&request)
-        })
-    }
-
-    fn test(
-        &self,
-        root: &Path,
-        request: TestInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<TestOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_test_command(&TestOptions::default())
-        })
-    }
-
-    fn doc(
-        &self,
-        root: &Path,
-        request: DocInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<DocOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_doc_command(&DocOptions::default())
-        })
-    }
-
-    fn bench(
-        &self,
-        root: &Path,
-        request: BenchInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<BenchOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_bench_command(&BenchOptions::default())
-        })
-    }
-
-    fn info(
-        &self,
-        root: &Path,
-        request: InfoInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<InfoOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_info_command(&InfoOptions { all: request.all })
-        })
-    }
-
-    fn targets(
-        &self,
-        root: &Path,
-        request: TargetsInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<TargetsOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_targets_command(&TargetsOptions { all: request.all })
-        })
-    }
-
-    fn cache(
-        &self,
-        root: &Path,
-        request: CacheInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<CacheOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_cache_command(&CacheOptions)
-        })
-    }
-
-    fn settings(
-        &self,
-        root: &Path,
-        request: SettingsInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<SettingsOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_settings_command(&SettingsOptions)
-        })
-    }
-
-    fn doctor(
-        &self,
-        root: &Path,
-        request: DoctorInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<DoctorOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_doctor_command(&DoctorOptions { full: request.full })
-        })
-    }
-
-    fn task(
-        &self,
-        root: &Path,
-        request: TaskInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<TaskOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_task_command(&TaskOptions {
-                action: request.action.clone(),
-                projects: request.projects.clone(),
-                groups: request.groups.clone(),
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_check_command(&request).await })
             })
+            .await
         })
     }
 
-    fn clean(
-        &self,
-        root: &Path,
-        request: CleanInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<CleanOutput, CommandError> {
-        let common = request.command_options();
+    fn format<'a>(
+        &'a self,
+        root: &'a Path,
+        request: FormatInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<FormatOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
 
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_clean_command(
-                root,
-                &CleanOptions {
-                    dir: request.dir.clone(),
-                    dist: request.dist,
-                    cache: request.cache,
-                    all: request.all,
-                    all_packages: request.all_packages,
-                },
-            )
+            let command_root = root.to_path_buf();
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move {
+                    context.run_format_command(&command_root, &request.source, request.mode)
+                })
+            })
+            .await
+        })
+    }
+
+    fn query<'a>(
+        &'a self,
+        root: &'a Path,
+        request: QueryInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<QueryOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_query_command(&request).await })
+            })
+            .await
+        })
+    }
+
+    fn rewrite<'a>(
+        &'a self,
+        root: &'a Path,
+        request: RewriteInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<RewriteOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_rewrite_command(&request).await })
+            })
+            .await
+        })
+    }
+
+    fn build<'a>(
+        &'a self,
+        root: &'a Path,
+        request: BuildInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<BuildOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_build_command(&request).await })
+            })
+            .await
+        })
+    }
+
+    fn run<'a>(
+        &'a self,
+        root: &'a Path,
+        request: RunInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<RunOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move { context.execute_run_command(&request).await })
+            })
+            .await
+        })
+    }
+
+    fn test<'a>(
+        &'a self,
+        root: &'a Path,
+        request: TestInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<TestOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_test_command(&TestOptions::default()) })
+            })
+            .await
+        })
+    }
+
+    fn doc<'a>(
+        &'a self,
+        root: &'a Path,
+        request: DocInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<DocOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_doc_command(&DocOptions::default()) })
+            })
+            .await
+        })
+    }
+
+    fn bench<'a>(
+        &'a self,
+        root: &'a Path,
+        request: BenchInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<BenchOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_bench_command(&BenchOptions::default()) })
+            })
+            .await
+        })
+    }
+
+    fn info<'a>(
+        &'a self,
+        root: &'a Path,
+        request: InfoInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<InfoOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_info_command(&InfoOptions { all: request.all }) })
+            })
+            .await
+        })
+    }
+
+    fn targets<'a>(
+        &'a self,
+        root: &'a Path,
+        request: TargetsInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<TargetsOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move {
+                    context.run_targets_command(&TargetsOptions { all: request.all })
+                })
+            })
+            .await
+        })
+    }
+
+    fn cache<'a>(
+        &'a self,
+        root: &'a Path,
+        request: CacheInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<CacheOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_cache_command(&CacheOptions) })
+            })
+            .await
+        })
+    }
+
+    fn settings<'a>(
+        &'a self,
+        root: &'a Path,
+        request: SettingsInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<SettingsOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_settings_command(&SettingsOptions) })
+            })
+            .await
+        })
+    }
+
+    fn doctor<'a>(
+        &'a self,
+        root: &'a Path,
+        request: DoctorInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<DoctorOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move {
+                    context.run_doctor_command(&DoctorOptions { full: request.full })
+                })
+            })
+            .await
+        })
+    }
+
+    fn task<'a>(
+        &'a self,
+        root: &'a Path,
+        request: TaskInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<TaskOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move {
+                    context.run_task_command(&TaskOptions {
+                        action: request.action.clone(),
+                        projects: request.projects.clone(),
+                        groups: request.groups.clone(),
+                    })
+                })
+            })
+            .await
+        })
+    }
+
+    fn clean<'a>(
+        &'a self,
+        root: &'a Path,
+        request: CleanInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<CleanOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            let command_root = root.to_path_buf();
+            self.run_command(root, &common, request.revision, progress, move |context| {
+                Box::pin(async move {
+                    context.run_clean_command(
+                        &command_root,
+                        &CleanOptions {
+                            dir: request.dir.clone(),
+                            dist: request.dist,
+                            cache: request.cache,
+                            all: request.all,
+                            all_packages: request.all_packages,
+                        },
+                    )
+                })
+            })
+            .await
         })
     }
 
@@ -634,30 +665,23 @@ impl Workspace for LocalWorkspace {
         Ok(files)
     }
 
-    fn run_query(&self, root: &Path, request: RunQueryRequest) -> Result<RunQueryResponse, Error> {
-        LocalWorkspace::run_query(self, root, request)
+    fn run_query<'a>(
+        &'a self,
+        root: &'a Path,
+        request: RunQueryInput,
+    ) -> BoxFuture<'a, Result<RunQueryResponse, Error>> {
+        Box::pin(LocalWorkspace::run_query(self, root, request))
     }
 
     fn resolve_query_file(&self, root: &Path, path: PathBuf) -> Result<Option<QueryFile>, Error> {
         LocalWorkspace::resolve_query_file(self, root, path)
     }
 
-    fn diagnose(&self, request: DiagnosticsRequest) -> Result<Vec<FileDiagnostics>, Error> {
-        let outcome = self.start_diagnostics(request)?.wait();
-        let mut failures = outcome.failures.into_iter();
-        let Some(first) = failures.next() else {
-            return Ok(outcome.diagnostics);
-        };
-        let Some(second) = failures.next() else {
-            return Err(first);
-        };
-
-        // retain multiple diagnostic failures in the returned error
-        let mut messages = vec![first.to_string(), second.to_string()];
-        messages.extend(failures.map(|failure| failure.to_string()));
-        let detail = messages.join("; ");
-
-        Err(Error::Internal { detail })
+    fn diagnose(
+        &self,
+        request: DiagnosticsRequest,
+    ) -> BoxFuture<'_, Result<Vec<FileDiagnostics>, Error>> {
+        Box::pin(LocalWorkspace::diagnose(self, request))
     }
 
     fn artifact(&self, root: &Path, artifact: ArtifactReference) -> Result<ArtifactPayload, Error> {
@@ -677,7 +701,7 @@ impl Workspace for LocalWorkspace {
         Ok(entry.payload().clone())
     }
 
-    fn export(&self, root: &Path, request: ExportRequest) -> Result<ExportResult, Error> {
+    fn export(&self, root: &Path, request: ExportInput) -> Result<ExportResult, Error> {
         let revision = LocalWorkspace::revision(self, root)?;
         let payload = self.artifact(root, request.artifact)?;
 
@@ -695,53 +719,63 @@ impl Workspace for LocalWorkspace {
         }
     }
 
-    fn watch(&self, roots: Vec<PathBuf>, policy: WatchPolicy) -> Result<(), Error> {
-        let Some(root) = roots.first().cloned() else {
-            return Err(Error::InvalidEdit {
+    fn watch(&self, roots: Vec<PathBuf>, policy: WatchPolicy) -> Result<WatchId, Error> {
+        // validate the complete batching request
+        if roots.is_empty() {
+            return Err(Error::InvalidWatch {
                 detail: "watch requires at least one root".to_string(),
             });
-        };
-        let Some(file_watcher) = self.file_watcher.as_ref() else {
-            return Err(Error::InvalidEdit {
-                detail: "workspace does not have a file watcher".to_string(),
+        }
+        if policy.max_batch_size == 0 {
+            return Err(Error::InvalidWatch {
+                detail: "watch batch size must be positive".to_string(),
             });
+        }
+
+        // require a watcher from this workspace host
+        let Some(file_watcher) = self.file_watcher.as_ref() else {
+            return Err(Error::WatchUnavailable);
         };
 
-        let watch = Arc::new(Watch::new(
+        // start and register one independent subscription
+        let watch = Arc::new(WatchSubscription::new(
             file_watcher.clone(),
             roots,
             source_watch_options(),
-            policy.clone(),
+            policy,
         ));
-        if let Some((_, previous)) = self.watches.remove(&root) {
-            previous.stop();
-        }
-        self.watches.insert(root, watch);
+        let id = self.next_watch_id.fetch_add(1, Ordering::Relaxed);
+        let id = WatchId::new(id);
+        self.watches.insert(id, watch);
 
-        Ok(())
+        Ok(id)
     }
 
-    fn next_watch(&self, root: &Path) -> Result<Option<WatchUpdate>, Error> {
-        let Some(watch) = self.watches.get(root).map(|watch| watch.clone()) else {
-            return Err(Error::InvalidEdit {
-                detail: format!("watch is not active for {}", root.display()),
-            });
-        };
+    fn next_watch(&self, id: WatchId) -> BoxFuture<'_, Result<Option<WatchUpdate>, Error>> {
+        Box::pin(async move {
+            // retain the subscription while waiting for its next batch
+            let Some(watch) = self.watches.get(&id).map(|watch| watch.clone()) else {
+                return Err(Error::InvalidWatch {
+                    detail: format!("watch {id} is not active"),
+                });
+            };
 
-        let Some(batch) = watch.next_batch() else {
-            return Ok(None);
-        };
-        let updates = self.apply_watch_batch(&batch)?;
+            let Some(batch) = watch.next_batch().await else {
+                return Ok(None);
+            };
 
-        Ok(Some(WatchUpdate { batch, updates }))
+            // apply source changes before publishing the batch
+            let updates = self.apply_watch_batch(&batch)?;
+
+            Ok(Some(WatchUpdate { batch, updates }))
+        })
     }
 
-    fn unwatch(&self, root: &Path) -> Result<(), Error> {
-        if let Some((_, watch)) = self.watches.remove(root) {
+    fn unwatch(&self, id: WatchId) {
+        // stop and remove this exact subscription
+        if let Some((_, watch)) = self.watches.remove(&id) {
             watch.stop();
         }
-
-        Ok(())
     }
 }
 
@@ -802,7 +836,7 @@ impl LocalWorkspace {
         &self,
         root: &Path,
         bundle: &Bundle,
-        request: &ExportRequest,
+        request: &ExportInput,
     ) -> Result<ExportResult, Error> {
         let mut files = Vec::new();
 
@@ -821,7 +855,7 @@ impl LocalWorkspace {
         root: &Path,
         revision: Revision,
         product: &Product,
-        request: &ExportRequest,
+        request: &ExportInput,
     ) -> Result<ExportResult, Error> {
         let mut files = Vec::new();
 
@@ -850,7 +884,7 @@ impl LocalWorkspace {
         &self,
         root: &Path,
         file: &BundleFile,
-        request: &ExportRequest,
+        request: &ExportInput,
     ) -> Result<ExportedFile, Error> {
         let path = self.export_file_path(root, file, request)?;
         let content = self.repository.content(file.content)?.payload().clone();
@@ -921,7 +955,7 @@ impl LocalWorkspace {
         &self,
         root: &Path,
         file: &BundleFile,
-        request: &ExportRequest,
+        request: &ExportInput,
     ) -> Result<PathBuf, Error> {
         let Some(source_path) = file.uri.to_path_buf() else {
             return Err(Error::InvalidEdit {

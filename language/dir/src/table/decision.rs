@@ -21,6 +21,8 @@ pub enum Decision {
     Receiver(ReceiverDecision),
     /// Resolved member access.
     Member(MemberDecision),
+    /// Resolved control transfer target.
+    Label(GlobalNodeIdAny),
     /// Resolved operator application.
     Operator(OperatorDecision),
     /// Resolved call.
@@ -112,6 +114,24 @@ impl<'a> DecisionTable<'a> {
             Some(Decision::Instantiation(decision)) => Some(decision),
             _ => None,
         }
+    }
+
+    /// Get the label target decided for a node.
+    pub fn label_decision(&self, node_id: GlobalNodeIdAny) -> Option<GlobalNodeIdAny> {
+        match self.decision(node_id) {
+            Some(Decision::Label(target)) => Some(*target),
+            _ => None,
+        }
+    }
+
+    /// Iterate all label target decisions.
+    pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalNodeIdAny)> + '_ {
+        self.segments.iter().flat_map(|segment| {
+            segment.decision_entries().filter_map(|(node_id, decision)| match decision {
+                Decision::Label(target) => Some((node_id, *target)),
+                _ => None,
+            })
+        })
     }
 
     /// Get the receiver decision for a node.

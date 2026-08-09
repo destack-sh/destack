@@ -303,7 +303,7 @@ impl ModuleContext {
             return Ok(false);
         };
         let target_symbols = self.resolve_path(candidate, target_path, program)?;
-        let source_symbols = program.canonical_symbols(&[source.symbol])?;
+        let source_symbols = program.symbol_targets(&[source.symbol])?;
         if source_symbols != target_symbols {
             return Ok(false);
         }
@@ -341,7 +341,7 @@ impl ModuleContext {
             return Ok(false);
         };
         let source_symbols = self.resolve_path(candidate, source_path, program)?;
-        let target_symbols = program.canonical_symbols(&[target.symbol])?;
+        let target_symbols = program.symbol_targets(&[target.symbol])?;
         if source_symbols != target_symbols {
             return Ok(false);
         }

@@ -430,6 +430,10 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 /// @definition.associated.type symbol=Output source="type Output = int32 | undefined" key=Output value="int32 | undefined"
 /// @definition.method symbol=index slot=index type=<index.'a>(this: &index.'a exclusive this, string) => this.Output
 /// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32) => void
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.subscript.Index.Output
+/// @definition.conformance symbol=<module>#2 member=index requirement=ops.subscript.Index.index
+/// @definition.conformance symbol=<module>#2 member=indexSet requirement=ops.subscript.IndexSet.indexSet
+/// @definition.conformance symbol=<module>#2 member=ops.subscript.Index.Missing requirement=ops.subscript.Index.Missing
 /// @resolution.name source=Store target=Store
 /// @resolution.name source=Index target=ops.subscript.Index
 /// @resolution.name source=IndexSet target=ops.subscript.IndexSet
@@ -996,6 +1000,10 @@ extension of Counter implements Index<string>, IndexSet<string, int32 | float64>
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=index slot=index type=<comptime L>(this: Borrowed<this, L, "readonly">, string) => Borrowed<this.Output, L, "readonly">
 /// @definition.method symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32 | float64) => void
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.subscript.Index.Output
+/// @definition.conformance symbol=<module>#2 member=index requirement=ops.subscript.Index.index
+/// @definition.conformance symbol=<module>#2 member=indexSet requirement=ops.subscript.IndexSet.indexSet
+/// @definition.conformance symbol=<module>#2 member=ops.subscript.Index.Missing requirement=ops.subscript.Index.Missing
 /// @resolution.name source=Counter target=Counter
 /// @resolution.name source=Index target=ops.subscript.Index
 /// @resolution.name source=IndexSet target=ops.subscript.IndexSet

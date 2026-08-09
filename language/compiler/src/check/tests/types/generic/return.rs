@@ -335,8 +335,8 @@ newtype Result<T, E> = Ok<T> | Err<E>;
 /// @type.symbol symbol=Result.Err type=<T#5, E#2>({ error: E#2 }) => Result.Err<T#5, E#2>
 /// @type.symbol symbol=Result.Ok type=<T#5, E#2>({ value: T#5 }) => Result.Ok<T#5, E#2>
 /// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#5, out E#2) discriminator=kind backing=Ok<T#5> | Err<E#2>
-/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err discriminant=Err backing=Err<E#2> argument={ error: E#2 }
-/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok discriminant=Ok backing=Ok<T#5> argument={ value: T#5 }
+/// @definition.variant symbol=Result.Err source=Err<E> key=Err discriminant=Err backing=Err<E#2> argument={ error: E#2 }
+/// @definition.variant symbol=Result.Ok source=Ok<T> key=Ok discriminant=Ok backing=Ok<T#5> argument={ value: T#5 }
 /// @type.symbol symbol=Result.T source=T type=T#5
 /// @type.symbol symbol=Result.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -548,8 +548,8 @@ newtype Result<T, E> = Ok<T> | Err<E>;
 /// @type.symbol symbol=Result.Err type=<T#2, E#2>({ error: E#2 }) => Result.Err<T#2, E#2>
 /// @type.symbol symbol=Result.Ok type=<T#2, E#2>({ value: T#2 }) => Result.Ok<T#2, E#2>
 /// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) discriminator=kind backing=Ok<T#2> | Err<E#2>
-/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err discriminant=Err backing=Err<E#2> argument={ error: E#2 }
-/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok discriminant=Ok backing=Ok<T#2> argument={ value: T#2 }
+/// @definition.variant symbol=Result.Err source=Err<E> key=Err discriminant=Err backing=Err<E#2> argument={ error: E#2 }
+/// @definition.variant symbol=Result.Ok source=Ok<T> key=Ok discriminant=Ok backing=Ok<T#2> argument={ value: T#2 }
 /// @type.symbol symbol=Result.T source=T type=T#2
 /// @type.symbol symbol=Result.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok

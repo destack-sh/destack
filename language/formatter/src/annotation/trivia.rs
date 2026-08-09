@@ -1,8 +1,8 @@
 use crate::context::FormatNodeWithoutTrailingComments;
-use crate::jsdoc::format_jsdoc_comment;
+use crate::documentation::format_documentation_comment;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{Comment, LocalNodeId, Node, Tree, TreeStore};
-use destack_fir::format::{Format, FormatResult, Formatter, hard_line_break};
+use destack_fir::format::{Format, FormatError, FormatResult, Formatter, hard_line_break};
 use destack_fir::prelude::{
     block_indent, copied_text, empty_line, expand_parent, format_with, group, line_suffix,
     soft_block_indent, soft_line_break_or_space, space, text,
@@ -10,8 +10,8 @@ use destack_fir::prelude::{
 use destack_fir::write;
 use destack_source::Span;
 
-/// Return whether adjacent jsdoc comments should stay nestled together.
-fn should_nestle_adjacent_doc_comments(current: Comment, next: Comment) -> bool {
+/// Return whether adjacent block documentation should stay together.
+fn should_nestle_adjacent_documentation(current: Comment, next: Comment) -> bool {
     current.is_documentation()
         && next.is_documentation()
         && current.is_multiline_block()
@@ -24,11 +24,31 @@ pub(crate) fn format_comment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comment: Comment,
 ) -> FormatResult<()> {
-    f.context_mut().comments_mut().mark_comment_printed(comment);
+    format_comment_group(f, comment)?;
 
-    if format_jsdoc_comment(f, comment)? {
-        return Ok(());
+    Ok(())
+}
+
+/// Format one comment or its complete documentation group.
+fn format_comment_group<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    comment: Comment,
+) -> FormatResult<Span> {
+    if let Some(span) = format_documentation_comment(f, comment)? {
+        let is_marked = f
+            .context_mut()
+            .comments_mut()
+            .mark_comments_printed_through(span.end);
+        if !is_marked {
+            return Err(FormatError::SyntaxError {
+                message: "documentation span has no source comments",
+            });
+        }
+
+        return Ok(span);
     }
+
+    f.context_mut().comments_mut().mark_comment_printed(comment);
 
     let comment_source = f.context().span_str(comment.span);
 
@@ -37,7 +57,7 @@ pub(crate) fn format_comment<'ast>(
         if block_comment_is_alignable(comment_source) {
             let mut lines = comment_source.lines();
             let Some(first_line) = lines.next() else {
-                return Ok(());
+                return Ok(comment.span);
             };
 
             write!(f, [text(first_line.trim_end())])?;
@@ -53,13 +73,13 @@ pub(crate) fn format_comment<'ast>(
                 )?;
             }
 
-            return Ok(());
+            return Ok(comment.span);
         }
 
         let mut normalized_comment = String::with_capacity(comment_source.len());
         let mut lines = comment_source.lines();
         let Some(first_line) = lines.next() else {
-            return Ok(());
+            return Ok(comment.span);
         };
 
         normalized_comment.push_str(first_line.trim_end());
@@ -70,10 +90,29 @@ pub(crate) fn format_comment<'ast>(
         }
 
         write!(f, [copied_text(&normalized_comment)])?;
-        return Ok(());
+        return Ok(comment.span);
     }
 
-    write!(f, [text(comment_source.trim_end())])
+    write!(f, [text(comment_source.trim_end())])?;
+
+    Ok(comment.span)
+}
+
+/// Return the number of source comments covered by one formatted span.
+fn comment_group_count(comments: &[Comment], span: Span) -> FormatResult<usize> {
+    let count = comments.partition_point(|comment| comment.span.end <= span.end);
+    let Some(last) = count.checked_sub(1).and_then(|index| comments.get(index)) else {
+        return Err(FormatError::SyntaxError {
+            message: "formatted comment span contains no source comments",
+        });
+    };
+    if last.span.end != span.end {
+        return Err(FormatError::SyntaxError {
+            message: "formatted comment span ends between source comments",
+        });
+    }
+
+    Ok(count)
 }
 
 /// Return one leading comment formatter for one node span.
@@ -98,16 +137,20 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for FormatLeadingComments<'_> {
             f: &mut DestackFormatter<'ast, '_>,
         ) -> FormatResult<()> {
             let source = f.context().source_text();
-            let mut comments = comments.iter().copied().peekable();
+            let mut index = 0;
 
-            while let Some(comment) = comments.next() {
-                format_comment(f, comment)?;
+            while let Some(first) = comments.get(index).copied() {
+                // render one documentation group or ordinary comment
+                let span = format_comment_group(f, first)?;
+                let count = comment_group_count(&comments[index..], span)?;
+                let next_index = index + count;
+                let comment = comments[next_index - 1];
 
                 if comment.is_block() {
                     match source.lines_after(comment.span.end) {
                         0 => {
-                            let should_nestle = comments.peek().is_some_and(|next_comment| {
-                                should_nestle_adjacent_doc_comments(comment, *next_comment)
+                            let should_nestle = comments.get(next_index).is_some_and(|next| {
+                                should_nestle_adjacent_documentation(comment, *next)
                             });
 
                             if !should_nestle {
@@ -140,6 +183,8 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for FormatLeadingComments<'_> {
                         }
                     }
                 }
+
+                index = next_index;
             }
 
             Ok(())
@@ -193,7 +238,7 @@ fn write_trailing_comments_with_options<'ast>(
         };
         total_lines_before += lines_before;
         let should_nestle = previous_comment.is_some_and(|previous_comment| {
-            should_nestle_adjacent_doc_comments(previous_comment, comment)
+            should_nestle_adjacent_documentation(previous_comment, comment)
         });
 
         if total_lines_before > 0 || previous_comment.is_some_and(Comment::is_line) {
@@ -218,7 +263,9 @@ fn write_trailing_comments_with_options<'ast>(
                             }
                         }
 
-                        format_comment(f, comment)
+                        format_comment(f, comment)?;
+
+                        Ok(())
                     }
                 ))]
             )?;
@@ -228,7 +275,9 @@ fn write_trailing_comments_with_options<'ast>(
                     write!(f, [space()])?;
                 }
 
-                format_comment(f, comment)
+                format_comment(f, comment)?;
+
+                Ok(())
             });
 
             if comment.is_line() {
@@ -255,14 +304,15 @@ pub(crate) fn write_comment_slice<'ast>(
 ) -> FormatResult<()> {
     let source = f.context().source_text();
     let mut previous_comment = None;
+    let mut index = 0;
 
-    for comment in comments.iter().copied() {
+    while let Some(comment) = comments.get(index).copied() {
         let lines_before = {
             let comment_cursor = f.context().comments();
             source.get_lines_before(comment.span, comment_cursor)
         };
         let should_nestle = previous_comment.is_some_and(|previous_comment| {
-            should_nestle_adjacent_doc_comments(previous_comment, comment)
+            should_nestle_adjacent_documentation(previous_comment, comment)
         });
 
         match lines_before {
@@ -282,8 +332,10 @@ pub(crate) fn write_comment_slice<'ast>(
             }
         }
 
-        format_comment(f, comment)?;
-        previous_comment = Some(comment);
+        let span = format_comment_group(f, comment)?;
+        let count = comment_group_count(&comments[index..], span)?;
+        index += count;
+        previous_comment = Some(comments[index - 1]);
     }
 
     Ok(())
@@ -294,12 +346,14 @@ pub(crate) fn write_comment_sequence<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comments: &[Comment],
 ) -> FormatResult<()> {
-    let Some((first_comment, remaining_comments)) = comments.split_first() else {
+    let Some(first_comment) = comments.first().copied() else {
         return Ok(());
     };
 
-    format_comment(f, *first_comment)?;
-    write_comment_slice(f, remaining_comments)
+    let span = format_comment_group(f, first_comment)?;
+    let count = comment_group_count(comments, span)?;
+
+    write_comment_slice(f, &comments[count..])
 }
 
 /// Return one dangling comment formatter for one enclosing span.
@@ -378,7 +432,7 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for FormatDanglingComments<'_> {
                 for comment in comments.iter().copied() {
                     if previous_comment.is_some() {
                         let should_nestle = previous_comment.is_some_and(|previous_comment| {
-                            should_nestle_adjacent_doc_comments(previous_comment, comment)
+                            should_nestle_adjacent_documentation(previous_comment, comment)
                         });
 
                         if !should_nestle {

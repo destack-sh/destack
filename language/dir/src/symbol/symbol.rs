@@ -200,6 +200,8 @@ pub enum SymbolKind {
     Parameter,
     /// Imported dependency binding before target resolution.
     Import,
+    /// Explicit public export alias.
+    ExportAlias,
     /// Class symbol.
     Class,
     /// Struct symbol.
@@ -298,6 +300,7 @@ impl SymbolKind {
                 | Self::Enum
                 | Self::Variant
                 | Self::Extension
+                | Self::ExportAlias
                 | Self::Import
                 | Self::Interface
                 | Self::Newtype
@@ -315,6 +318,7 @@ impl SymbolKind {
             Self::AssociatedConst
                 | Self::Class
                 | Self::Enum
+                | Self::ExportAlias
                 | Self::Variant
                 | Self::Function
                 | Self::Import

@@ -8,7 +8,11 @@ declare_lint_stub! {
     pub PANIC_IN_PUBLIC_API {
         id: "panic-in-public-api",
         summary: "Disallow reachable panics in public APIs",
-        explanation: "An exported function should represent expected failure in its return type rather than terminate its caller. Report explicit and implicit panic operations reachable from the public call graph, including force unwraps, out-of-bounds access, and overflowing operations.",
+        explanation: r#"
+An exported function should represent expected failure in its return type rather than terminate its
+caller. Report explicit and implicit panic operations reachable from the public call graph,
+including force unwraps, out-of-bounds access, and overflowing operations.
+"#,
         example: {
             reported: r#"
 export function divide(value: int32, divisor: int32): int32 {

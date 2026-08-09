@@ -8,7 +8,11 @@ declare_lint! {
     pub NO_SELF_COMPARE {
         id: "no-self-compare",
         summary: "Disallow comparisons of a repeatable value with itself",
-        explanation: "Comparing a repeatable value with itself has a fixed or misleading result. Compare it with the intended second value, or use an explicit predicate when testing exceptional values such as floating-point NaN.",
+        explanation: r#"
+Comparing a repeatable value with itself has a fixed or misleading result. Compare it with the
+intended second value, or use an explicit predicate when testing exceptional values such as
+floating-point NaN.
+"#,
         example: {
             reported: r#"
 function changed(value: int32): boolean {
@@ -30,16 +34,13 @@ function changed(left: int32, right: int32): boolean {
 
 /// Report comparisons whose operands repeat the same checked value.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect checked comparison expressions
-    for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
-        let dir::Expression::Binary {
-            left,
-            operator,
-            right,
-        } = expression
+    // inspect compiler-defined comparisons
+    for expression_id in module.operator_expressions() {
+        let expression_id = expression_id?;
+        let Some((operator, [left_operand, right_operand])) =
+            module.builtin_binary(expression_id)?
         else {
             continue;
         };
@@ -56,23 +57,25 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
 
         // require both operands to repeat one checked value
-        if !module.is_repeated_operand(*left, left_operand, *right, right_operand)? {
+        if !module.is_repeated_operand(left_operand, right_operand)? {
             continue;
         }
 
         // report the complete comparison
         let span = module.span(expression_id.into_any())?;
         let mut diagnostic = lint.diagnostic("comparison has identical operands", span);
+
+        // explain self-comparison when a float operand may be NaN
         if operator.is_equality() {
-            let Some(operand) = module.builtin_operand(expression_id.into_any(), *left)? else {
-                continue;
-            };
-            let has_float_family = operand.scalar_families.as_ref().is_some_and(|families| {
-                families.contains(dir::ScalarFamily::Domain(dir::ScalarDomain::Float))
-            });
+            let has_float_family = left_operand
+                .scalar_families
+                .as_ref()
+                .is_some_and(|families| {
+                    families.contains(dir::ScalarFamily::Domain(dir::ScalarDomain::Float))
+                });
             let can_be_nan = has_float_family
                 && module
-                    .scalar_constant(*left)?
+                    .scalar_constant(left_operand.source.local_id)?
                     .is_none_or(|constant| constant.is_nan());
             if can_be_nan {
                 let help = if operator.is_negative_equality() {
@@ -83,6 +86,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 diagnostic = diagnostic.help(help);
             }
         }
+
         output.report(diagnostic);
     }
 

@@ -69,14 +69,15 @@ impl EmbeddedBuiltinPackage {
         // read declared build targets from the embedded manifest
         let manifest = BUILTIN_MANIFEST_FILE.file();
         let source = parse_jsonc_file(&manifest).expect("embedded builtin manifest should parse");
-        let config = DestackFile::from_file(
+        let configuration = DestackFile::from_file(
             BUILTIN_MANIFEST_FILE.file_id(),
             vec![BUILTIN_MANIFEST_FILE.file_id()],
             PathBuf::from(BUILTIN_MANIFEST_FILE.path),
             source,
         )
         .expect("embedded builtin manifest should build");
-        let targets = config
+        let configuration = Arc::new(configuration);
+        let targets = configuration
             .destack
             .targets
             .iter()
@@ -84,7 +85,8 @@ impl EmbeddedBuiltinPackage {
             .collect();
         let package = Package {
             id,
-            kind: PackageKind::Builtin,
+            kind: PackageKind::Embedded,
+            is_builtin: true,
             uri: Uri::from_string(BUILTIN_PACKAGE_URI),
             path: None,
             name: Some(BUILTIN_PACKAGE_NAME.to_string()),
@@ -94,8 +96,8 @@ impl EmbeddedBuiltinPackage {
             vendor: Default::default(),
             exports,
             topology: Default::default(),
-            destack_file_id: Some(BUILTIN_MANIFEST_FILE.file_id()),
             targets,
+            configuration: Some(configuration),
         };
 
         let package = Arc::new(package);
@@ -674,7 +676,8 @@ mod tests {
         );
 
         assert_eq!(package.id, test.repository.embedded_builtin().package_id());
-        assert_eq!(package.kind, PackageKind::Builtin);
+        assert_eq!(package.kind, PackageKind::Declared);
+        assert!(package.is_builtin);
         assert_eq!(package.uri, Uri::from_string("destack://"));
         assert_eq!(package.path, Some(PathBuf::new()));
         assert_eq!(

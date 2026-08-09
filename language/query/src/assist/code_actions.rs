@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use destack_artifact::ArtifactKey;
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{
@@ -11,8 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::ImportBinding;
 use crate::{
-    ImportCandidate, ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange,
-    QueryResult, SymbolUse,
+    ExtractVariableRequest, ImportOrder, ImportPathOrder, InlineRequest, ModuleQueryContext,
+    ProgramQueryContext, QueryError, QueryPosition, QueryRange, QueryResult, SymbolUse,
 };
 
 /// Kind of code action.
@@ -117,7 +118,7 @@ impl CodeActionContext {
     }
 }
 
-/// Request code actions for a range in a document.
+/// A code actions request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CodeActionsRequest {
     /// The queried range.
@@ -126,23 +127,11 @@ pub struct CodeActionsRequest {
     pub context: CodeActionContext,
 }
 
-/// Response payload for code actions queries.
+/// A code actions response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CodeActionsResponse {
     /// Code actions.
     pub actions: Vec<CodeAction>,
-}
-
-/// One exact import action before response construction.
-struct ImportAction {
-    /// The shared import candidate order.
-    order: ImportOrder,
-    /// The binding introduced by the import.
-    binding: ImportBinding,
-    /// The import specifier emitted in source.
-    specifier: String,
-    /// The source patches that add the import.
-    patches: Vec<Patch>,
 }
 
 impl ModuleQueryContext<'_> {
@@ -151,17 +140,38 @@ impl ModuleQueryContext<'_> {
     /// Includes quick fixes from diagnostics and available refactorings.
     pub fn code_actions(
         &self,
+        request: CodeActionsRequest,
         program: &ProgramQueryContext<'_>,
-        range: Span,
-        diagnostics: &[Diagnostic],
-        context: &CodeActionContext,
-    ) -> QueryResult<Vec<CodeAction>> {
+    ) -> QueryResult<CodeActionsResponse> {
+        let range = request.range.span;
+        let context = &request.context;
+
+        // read diagnostics only for quick fixes
+        let diagnostics = if context.includes(CodeActionKind::QuickFix) {
+            let artifact = ArtifactKey::dir_checked(self.module_id(), self.profile_id());
+            let diagnostics = self
+                .repository()
+                .diagnostics_for_keys(self.revision(), &[artifact])?;
+            let mut diagnostics = diagnostics.group_by_file();
+            let mut file_diagnostics = Vec::new();
+
+            // retain diagnostics emitted for the requested source file
+            if let Some(diagnostics) = diagnostics.remove(&range.file) {
+                file_diagnostics = diagnostics;
+            }
+
+            file_diagnostics
+        }
+        // skip diagnostic reads for refactor-only requests
+        else {
+            Vec::new()
+        };
         let mut actions = Vec::new();
 
         // collect diagnostic actions only when requested
         if context.includes(CodeActionKind::QuickFix) {
-            self.collect_diagnostic_fixes(diagnostics, range, context, &mut actions)?;
-            self.collect_import_actions(program, diagnostics, range, context, &mut actions)?;
+            self.collect_diagnostic_fixes(&diagnostics, range, context, &mut actions)?;
+            self.collect_import_actions(program, &diagnostics, range, context, &mut actions)?;
         }
 
         // collect refactor actions only when requested
@@ -173,7 +183,7 @@ impl ModuleQueryContext<'_> {
         // deduplicate identical actions after sorting
         actions.dedup_by(|left, right| left.protocol_order(right).is_eq());
 
-        Ok(actions)
+        Ok(CodeActionsResponse { actions })
     }
 
     /// Collect refactor actions for a range.
@@ -185,28 +195,47 @@ impl ModuleQueryContext<'_> {
         actions: &mut Vec<CodeAction>,
     ) -> QueryResult<()> {
         // inline at the cursor start
-        if context.includes(CodeActionKind::RefactorInline)
-            && let Some(edit) = self.inline(program, range.file, range.start)?
-            && !edit.is_empty()
-        {
-            actions.push(CodeAction::refactor(
-                "Inline symbol",
-                CodeActionKind::RefactorInline,
-                edit,
-            ));
+        if context.includes(CodeActionKind::RefactorInline) {
+            let request = InlineRequest {
+                position: QueryPosition {
+                    module: self.module(),
+                    file_id: range.file,
+                    offset: range.start,
+                },
+            };
+
+            // retain one non empty inline edit
+            if let Some(edit) = self.inline(request, program)?.edit
+                && !edit.is_empty()
+            {
+                actions.push(CodeAction::refactor(
+                    "Inline symbol",
+                    CodeActionKind::RefactorInline,
+                    edit,
+                ));
+            }
         }
 
         // extract constant for non empty selections
-        if context.includes(CodeActionKind::RefactorExtract)
-            && range.start < range.end
-            && let Some(edit) = self.extract_variable(program, range, "extracted")?
-            && !edit.is_empty()
-        {
-            actions.push(CodeAction::refactor(
-                "Extract constant",
-                CodeActionKind::RefactorExtract,
-                edit,
-            ));
+        if context.includes(CodeActionKind::RefactorExtract) && range.start < range.end {
+            let request = ExtractVariableRequest {
+                range: QueryRange {
+                    module: self.module(),
+                    span: range,
+                },
+                new_name: "extracted".to_string(),
+            };
+
+            // retain one non empty extraction edit
+            if let Some(edit) = self.extract_variable(request, program)?.edit
+                && !edit.is_empty()
+            {
+                actions.push(CodeAction::refactor(
+                    "Extract constant",
+                    CodeActionKind::RefactorExtract,
+                    edit,
+                ));
+            }
         }
 
         Ok(())
@@ -343,28 +372,43 @@ impl ModuleQueryContext<'_> {
 
         // retain exact matching exports and their importable specifiers
         for candidate in candidates {
-            if candidate.binding.name() != name
-                || !symbol_use.accepts_export(candidate.declaration)
-                || !seen.insert((candidate.module, candidate.binding.clone()))
+            if candidate.binding.name() != name {
+                continue;
+            }
+
+            // require one declaration in the unresolved name's symbol space
+            let declarations = candidate.resolve_declarations(program)?;
+            if !declarations
+                .into_iter()
+                .any(|declaration| symbol_use.accepts_export(declaration))
             {
                 continue;
             }
+
+            // rank every specifier from the same module path
+            let path = ImportPathOrder::between(
+                self.repository(),
+                self.revision(),
+                self.module_id(),
+                candidate.module,
+            )?;
             let specifiers = program.import_specifiers(self.module_id(), candidate.module)?;
             for specifier in specifiers {
+                let key = (
+                    candidate.module,
+                    candidate.binding.clone(),
+                    specifier.clone(),
+                );
+                if !seen.insert(key) {
+                    continue;
+                }
+
+                // build one action for this exact import
                 let patches = self.build_import_edits(file, &candidate.binding, &specifier)?;
                 if patches.is_empty() {
                     continue;
                 }
-                let order = ImportCandidate {
-                    repository: self.repository(),
-                    revision: self.revision(),
-                    current_module_id: self.module_id(),
-                    export_name: name,
-                    expected_use: Some(symbol_use),
-                    declaration: candidate.declaration,
-                    module_id: candidate.module,
-                }
-                .order(&specifier)?;
+                let order = ImportOrder::new(path.clone(), &specifier, name);
                 imports.push(ImportAction {
                     order,
                     binding: candidate.binding.clone(),
@@ -383,6 +427,18 @@ impl ModuleQueryContext<'_> {
 
         Ok(imports)
     }
+}
+
+/// One exact import action before response construction.
+struct ImportAction {
+    /// The shared import candidate order.
+    order: ImportOrder,
+    /// The binding introduced by the import.
+    binding: ImportBinding,
+    /// The import specifier emitted in source.
+    specifier: String,
+    /// The source patches that add the import.
+    patches: Vec<Patch>,
 }
 
 impl CodeAction {
