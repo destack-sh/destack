@@ -19,7 +19,7 @@ fn test_parse_type_union_line_comment_on_rhs_separator_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let _right_element_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
@@ -61,7 +61,7 @@ fn test_parse_type_intersection_line_comment_on_rhs_separator_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Intersection { elements } => {
@@ -88,7 +88,7 @@ fn test_parse_type_reference_prefix_decorator_on_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { target_type, .. } => {
@@ -114,7 +114,7 @@ fn test_parse_type_union_line_comment_on_leading_separator_owner() {
     assert_eq!(expressions.len(), 1);
 
     // `type Value = | ...`, grab the union node
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let _first_element_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
@@ -178,7 +178,7 @@ fn test_parse_type_union_block_comment_on_leading_separator_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let first_element_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
@@ -222,7 +222,7 @@ fn test_parse_type_union_doc_comment_on_leading_separator_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let first_element_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
@@ -266,7 +266,7 @@ fn test_parse_type_union_multiline_doc_comment_on_leading_separator_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let first_element_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
@@ -303,7 +303,7 @@ fn test_parse_type_union_multiline_doc_comment_before_first_arm_line() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let first_element_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
@@ -344,7 +344,7 @@ fn test_parse_type_union_doc_comment_before_leading_separator_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let union_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => *value,
@@ -384,7 +384,7 @@ fn test_parse_type_union_single_arm_with_leading_separator() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
@@ -403,7 +403,7 @@ fn test_parse_type_comment_after_open_parenthesis_attaches_to_inner_leading() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let inner_type_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => *value,
@@ -431,7 +431,7 @@ fn test_parse_type_alias_doc_comment_before_leading_separator_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let union_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => *value,
@@ -469,7 +469,7 @@ fn test_parse_type_union_line_comment_before_operator_on_left_arm_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let _left_element_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
@@ -508,7 +508,7 @@ fn test_parse_declarator_type_comment_on_declared_type_leading_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let declared_type_id = match parser.tree.get(expression_id) {
         Expression::Let { declarators, .. } => {
             assert_eq!(declarators.len(), 1);
@@ -541,7 +541,7 @@ fn test_parse_type_argument_comment_on_argument_leading_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let argument_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
@@ -575,7 +575,7 @@ fn test_parse_type_argument_line_comment_on_argument_leading_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     let argument_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
             Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
@@ -609,7 +609,7 @@ fn test_parse_type_union_line_comment_between_members_after_leading_separator() 
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
@@ -629,7 +629,7 @@ fn test_parse_type_intersection_line_comment_before_operator_on_left_arm_owner()
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Intersection { elements } => {
@@ -654,7 +654,7 @@ fn test_parse_type_union_object_arm_trailing_comments_stay_on_each_arm_owner() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
@@ -701,7 +701,7 @@ fn test_parse_type_union_last_arm_span_stops_before_trailing_line_comment() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
@@ -729,7 +729,7 @@ fn test_parse_type_union_last_arm_span_stops_before_trailing_line_comment_withou
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
@@ -762,7 +762,7 @@ fn test_parse_type_union_trims_last_arm_span() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
@@ -793,7 +793,7 @@ fn test_parse_parenthesized_type_keeps_inner_span() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             let value_span = parser.tree.get_span(*value);
@@ -824,7 +824,7 @@ fn test_parse_leading_union_keeps_parenthesized_chain_head() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
@@ -869,7 +869,7 @@ fn test_parse_union_doc_block_comment_attaches_to_first_union_arm() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { export, value, .. }) => {
             assert!(export.is_some());
@@ -1053,7 +1053,7 @@ fn test_parse_mapped_union_trims_last_arm_span() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { value: mapped_value, .. } => {

@@ -43,20 +43,6 @@ impl BlockItem {
 }
 
 impl Parser {
-    /// Unwrap label expressions in parser tests.
-    #[cfg(test)]
-    pub(crate) fn unwrap_label_expression(
-        &self,
-        expression: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Expression> {
-        let mut expression = expression;
-        while let Expression::Label { body, .. } = self.tree.get(expression) {
-            expression = *body;
-        }
-
-        expression
-    }
-
     /// Return whether the current colon can continue one consumed label.
     pub(crate) fn peek_label_body(&self, context: ExpressionContext) -> bool {
         if context.stops.contains(ExpressionStops::SWITCH_COLON)
@@ -73,23 +59,13 @@ impl Parser {
 
     /// Return whether one token can begin a label body.
     fn is_valid_label_target(target: Token, context: ExpressionContext) -> bool {
-        let is_control = matches!(
-            target.keyword(),
-            Some(
-                Keyword::While
-                    | Keyword::Do
-                    | Keyword::For
-                    | Keyword::Loop
-                    | Keyword::If
-                    | Keyword::Switch
-                    | Keyword::Try
-                    | Keyword::With
-            )
-        );
-        let is_statement_block =
-            target.is(TokenType::OpenBrace) && context.statement == StatementPosition::Direct;
+        // labels apply to loops only
+        let _ = context;
 
-        is_control || is_statement_block
+        matches!(
+            target.keyword(),
+            Some(Keyword::While | Keyword::Do | Keyword::For | Keyword::Loop)
+        )
     }
 
     /// Parse a label body after its identifier has been consumed.

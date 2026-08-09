@@ -113,7 +113,7 @@ fn test_parse_if_extends_type_reference() {
             assert_node!(parser.tree, *block_id, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
-                let body_statement_id = parser.unwrap_label_expression(expressions[0]);
+                let body_statement_id = expressions[0];
                 assert_expression_path!(parser, parser.tree.get(body_statement_id), "body");
             });
         });
@@ -170,7 +170,7 @@ fn test_parse_if_instanceof_type_reference() {
             assert_node!(parser.tree, *block_id, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
-                let value_statement_id = parser.unwrap_label_expression(expressions[0]);
+                let value_statement_id = expressions[0];
                 assert_expression_path!(parser, parser.tree.get(value_statement_id), "value");
             });
         });
@@ -209,7 +209,7 @@ if (value is string) {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
 
-                let value_statement_id = parser.unwrap_label_expression(expressions[0]);
+                let value_statement_id = expressions[0];
                 assert_expression_path!(parser, parser.tree.get(value_statement_id), "value");
             });
         });

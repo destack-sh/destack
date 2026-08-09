@@ -345,7 +345,7 @@ enum Value {
     );
     assert_eq!(parser.range_str(parser.errors[0].range()), "}");
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert!(
             parser.tree.get_decorators(declaration_id.id).is_empty(),
@@ -385,7 +385,7 @@ Entry
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { fields, .. }) => {
             assert_eq!(fields.len(), 1);
@@ -433,7 +433,7 @@ B
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { fields, .. }) => {
             assert_eq!(fields.len(), 2);
@@ -462,7 +462,7 @@ fn test_parse_enum_body_boundary_comment_on_declaration_owner() {
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(_declaration_id) => {
         let annotations = parser.tree.get_decorators(expression_id.id);
         assert!(annotations.is_empty());

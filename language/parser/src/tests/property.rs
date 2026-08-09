@@ -884,7 +884,7 @@ fn test_parse_decorated_computed_class_field() {
         parser.errors
     );
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
             assert_eq!(members.len(), 1);
@@ -919,7 +919,7 @@ fn test_parse_member_decorator_argument_this_member_expression() {
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
             assert_eq!(members.len(), 1);
@@ -965,7 +965,7 @@ fn test_parse_member_decorator_argument_import_meta_expression() {
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
             assert_eq!(members.len(), 1);
@@ -1267,7 +1267,7 @@ fn test_parse_class_member_trailing_comments_stay_on_member_owner() {
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
             assert_eq!(members.len(), 2);

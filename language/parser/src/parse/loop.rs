@@ -28,8 +28,13 @@ impl Parser {
         let body_id = self.parse_block(BlockContext::Statement, function)?;
 
         // retain the complete loop
-        let loop_id =
-            self.insert_node(Expression::Loop { body: body_id }, self.range_since(&start));
+        let loop_id = self.insert_node(
+            Expression::Loop {
+                label: None,
+                body: body_id,
+            },
+            self.range_since(&start),
+        );
         Ok(loop_id)
     }
 
@@ -112,6 +117,7 @@ impl Parser {
             // retain the complete condition loop
             let for_id = self.insert_node(
                 Expression::For {
+                    label: None,
                     initialization: initialization_id,
                     condition: condition_id,
                     increment: increment_id,
@@ -157,6 +163,7 @@ impl Parser {
             // retain the complete iteration loop
             let for_id = self.insert_node(
                 Expression::ForEach {
+                    label: None,
                     asynchrony,
                     operator,
                     binding,
@@ -302,6 +309,7 @@ impl Parser {
             // retain the complete do-while loop
             let while_id = self.insert_node(
                 Expression::While {
+                    label: None,
                     form: WhileForm::DoWhile,
                     condition: condition_id,
                     body: body_id,
@@ -328,6 +336,7 @@ impl Parser {
             // retain the complete while loop
             let while_id = self.insert_node(
                 Expression::While {
+                    label: None,
                     form: WhileForm::While,
                     condition: condition_id,
                     body: body_id,

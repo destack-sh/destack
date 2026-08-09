@@ -14,9 +14,8 @@ fn test_parse_labeled_statement_with_newline_before_target() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::Label { label, body } => {
-        assert_string!(parser, *label, "outer");
-        assert_node!(parser.tree, *body, Expression::While { .. });
+    assert_node!(parser.tree, expr_id, Expression::While { label, .. } => {
+        assert_string!(parser, label.unwrap(), "outer");
     });
 }
 
@@ -425,13 +424,7 @@ fn test_parse_labeled_statement_span() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::Label { label, .. } => {
-        assert_string!(parser, *label, "label");
+    assert_node!(parser.tree, expr_id, Expression::Loop { label, .. } => {
+        assert_string!(parser, label.unwrap(), "label");
     });
-
-    let main_span = parser
-        .tree
-        .get_main_span(expr_id)
-        .expect("expected label main span");
-    assert_eq!(parser.span_str(main_span), "label");
 }

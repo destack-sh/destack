@@ -19,7 +19,7 @@ function run(): string {}
     );
     let (parser, roots) = test.parse();
 
-    let root = parser.unwrap_label_expression(roots[0]);
+    let root = roots[0];
     let declaration = match parser.tree.get(root) {
         Expression::Declaration(declaration) => *declaration,
         expression => panic!("expected declaration expression, got {expression:?}"),
@@ -57,7 +57,7 @@ right()
     );
     let (parser, roots) = test.parse();
 
-    let expression = parser.unwrap_label_expression(roots[0]);
+    let expression = roots[0];
     let (left, right) = match parser.tree.get(expression) {
         Expression::Binary { left, right, .. } => (*left, *right),
         expression => panic!("expected binary expression, got {expression:?}"),
@@ -130,7 +130,7 @@ type Pair = [
     );
     let (parser, roots) = test.parse();
 
-    let root = parser.unwrap_label_expression(roots[0]);
+    let root = roots[0];
     let declaration = match parser.tree.get(root) {
         Expression::Declaration(declaration) => *declaration,
         expression => panic!("expected declaration expression, got {expression:?}"),
@@ -436,7 +436,7 @@ function run(): void {}
     );
     let (parser, roots) = test.parse();
 
-    let root = parser.unwrap_label_expression(roots[0]);
+    let root = roots[0];
     let declaration = match parser.tree.get(root) {
         Expression::Declaration(declaration) => *declaration,
         expression => panic!("expected declaration expression, got {expression:?}"),

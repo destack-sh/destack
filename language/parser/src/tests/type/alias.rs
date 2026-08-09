@@ -49,7 +49,7 @@ fn test_parse_declare_type_alias_kind() {
     let test = TestParser::declaration("declare type T = string");
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, is_ambient, value, .. }) => {

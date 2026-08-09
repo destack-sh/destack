@@ -2600,7 +2600,7 @@ fn test_parse_object_property_trailing_comments_on_property_owners() {
     );
     assert_eq!(expressions.len(), 1);
 
-    let statement_id = parser.unwrap_label_expression(expressions[0]);
+    let statement_id = expressions[0];
     assert_node!(parser.tree, statement_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         let value = parser

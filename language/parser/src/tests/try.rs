@@ -38,7 +38,7 @@ try {
             assert_node!(parser.tree, *block_id, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
-                let call_id = parser.unwrap_label_expression(expressions[0]);
+                let call_id = expressions[0];
                 assert_node!(parser.tree, call_id, Expression::Call { left, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "foo");
                 });
@@ -87,7 +87,7 @@ try {
             assert_node!(parser.tree, *block_id, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
-                let try_call_id = parser.unwrap_label_expression(expressions[0]);
+                let try_call_id = expressions[0];
                 assert_node!(parser.tree, try_call_id, Expression::Call { left, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "foo");
                 });
@@ -102,7 +102,7 @@ try {
                 assert_node!(parser.tree, *block_id, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
-                    let catch_call_id = parser.unwrap_label_expression(expressions[0]);
+                    let catch_call_id = expressions[0];
                     assert_node!(parser.tree, catch_call_id, Expression::Call { left, .. } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "bar");
                     });
@@ -114,7 +114,7 @@ try {
             assert_node!(parser.tree, *block_id, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
-                let finally_call_id = parser.unwrap_label_expression(expressions[0]);
+                let finally_call_id = expressions[0];
                 assert_node!(parser.tree, finally_call_id, Expression::Call { left, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "baz");
                 });

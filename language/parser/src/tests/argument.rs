@@ -811,7 +811,7 @@ interface Reader {
     test.assert_no_errors(&parser);
 
     // class Test { ... }
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
             assert_eq!(members.len(), 2);
@@ -890,7 +890,7 @@ interface Reader {
     });
 
     // interface Reader { read(@tracked value: string): string; }
-    let expression = parser.unwrap_label_expression(expressions[1]);
+    let expression = expressions[1];
     assert_node!(parser.tree, expression, Expression::Declaration(declaration) => {
         assert_node!(parser.tree, *declaration, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
             assert_node!(parser.tree, members[0], TypeMember::Method { signature, .. } => {
@@ -927,7 +927,7 @@ class Test {
     assert_eq!(expressions.len(), 1);
     test.assert_no_errors(&parser);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
             assert_eq!(members.len(), 1);
@@ -1277,7 +1277,7 @@ fn test_parse_malformed_call_statement_missing_close_keeps_call_shape() {
 
     // foo(a,b;
     assert_eq!(expressions.len(), 1);
-    let call_id = parser.unwrap_label_expression(expressions[0]);
+    let call_id = expressions[0];
     assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 2);
     });
@@ -1310,7 +1310,7 @@ fn test_parse_malformed_call_statement_before_const_keeps_call_shape() {
 
     // foo(a,b const;
     assert_eq!(expressions.len(), 2);
-    let call_id = parser.unwrap_label_expression(expressions[0]);
+    let call_id = expressions[0];
     assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 2);
     });
@@ -1334,7 +1334,7 @@ fn test_parse_malformed_call_statement_with_leading_empty_slots_keeps_call_shape
 
     // foo (,,b);
     assert_eq!(expressions.len(), 1);
-    let call_id = parser.unwrap_label_expression(expressions[0]);
+    let call_id = expressions[0];
     assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 3);
         assert_node!(parser.tree, arguments[0], Argument::Error);
@@ -1356,7 +1356,7 @@ fn test_parse_malformed_call_statement_with_trailing_spread_keeps_call_shape() {
 
     // foo (a, ...);
     assert_eq!(expressions.len(), 1);
-    let call_id = parser.unwrap_label_expression(expressions[0]);
+    let call_id = expressions[0];
     assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 2);
         assert_node!(parser.tree, arguments[1], Argument::Error);
@@ -1399,14 +1399,14 @@ foo (,,b);
     // foo (,,b);
     assert_eq!(expressions.len(), 3);
 
-    let first_call_id = parser.unwrap_label_expression(expressions[0]);
+    let first_call_id = expressions[0];
     assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 2);
     });
 
     assert_node!(parser.tree, expressions[1], Expression::Error);
 
-    let second_call_id = parser.unwrap_label_expression(expressions[2]);
+    let second_call_id = expressions[2];
     assert_node!(parser.tree, second_call_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 3);
     });
@@ -1445,7 +1445,7 @@ foo (a, ...);
     assert_eq!(expressions.len(), 3);
 
     // foo(a,b const;
-    let first_call_id = parser.unwrap_label_expression(expressions[0]);
+    let first_call_id = expressions[0];
     assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 2);
     });
@@ -1454,7 +1454,7 @@ foo (a, ...);
     assert_node!(parser.tree, expressions[1], Expression::Error);
 
     // foo (a, ...);
-    let second_call_id = parser.unwrap_label_expression(expressions[2]);
+    let second_call_id = expressions[2];
     assert_node!(parser.tree, second_call_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 2);
     });
@@ -1487,14 +1487,14 @@ bar();
     assert_eq!(expressions.len(), 2);
 
     // foo(,
-    let first_call_id = parser.unwrap_label_expression(expressions[0]);
+    let first_call_id = expressions[0];
     assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 1);
         assert_node!(parser.tree, arguments[0], Argument::Error);
     });
 
     // bar();
-    let second_call_id = parser.unwrap_label_expression(expressions[1]);
+    let second_call_id = expressions[1];
     assert_node!(parser.tree, second_call_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 0);
     });
@@ -1527,14 +1527,14 @@ const value = 1;
     assert_eq!(expressions.len(), 2);
 
     // foo(,
-    let first_call_id = parser.unwrap_label_expression(expressions[0]);
+    let first_call_id = expressions[0];
     assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 1);
         assert_node!(parser.tree, arguments[0], Argument::Error);
     });
 
     // const value = 1;
-    let second_expression_id = parser.unwrap_label_expression(expressions[1]);
+    let second_expression_id = expressions[1];
     assert_node!(parser.tree, second_expression_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
     });

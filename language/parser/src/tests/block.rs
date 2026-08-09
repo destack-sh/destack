@@ -531,7 +531,7 @@ fn test_parse_if_block_keeps_tail_expression_value() {
 
     // if (x) { foo() }
     assert_eq!(expressions.len(), 1);
-    let if_expression_id = parser.unwrap_label_expression(expressions[0]);
+    let if_expression_id = expressions[0];
     assert_node!(parser.tree, if_expression_id, Expression::If { then_expression, .. } => {
         assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
             let block = parser.tree.get(*block_id);
@@ -553,7 +553,7 @@ fn test_parse_function_body_keeps_tail_expression_value() {
 
     // function run() { foo() }
     assert_eq!(expressions.len(), 1);
-    let function_expression_id = parser.unwrap_label_expression(expressions[0]);
+    let function_expression_id = expressions[0];
     assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
             assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
@@ -585,7 +585,7 @@ function next(value: number): IteratorResult<number> {
 
     // function next(...) { drop(value); { done: true, value } }
     assert_eq!(expressions.len(), 1);
-    let function_expression_id = parser.unwrap_label_expression(expressions[0]);
+    let function_expression_id = expressions[0];
     assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
             assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
@@ -639,7 +639,7 @@ function apply(result: Result): IteratorResult<number> {
 
     // function apply(...) { match (...) { ... } }
     assert_eq!(expressions.len(), 1);
-    let function_expression_id = parser.unwrap_label_expression(expressions[0]);
+    let function_expression_id = expressions[0];
     assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
             assert_node!(parser.tree, *body_id, Expression::Block(function_block_id) => {
@@ -688,7 +688,7 @@ function run() {
 
     // function run() { foo() }
     assert_eq!(expressions.len(), 1);
-    let function_expression_id = parser.unwrap_label_expression(expressions[0]);
+    let function_expression_id = expressions[0];
     assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
             assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
@@ -718,7 +718,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 
     // function choose(...) { if (flag) { a } else { b } }
     assert_eq!(expressions.len(), 1);
-    let function_expression_id = parser.unwrap_label_expression(expressions[0]);
+    let function_expression_id = expressions[0];
     assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
             assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
@@ -767,7 +767,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 1);
-    let function_expression_id = parser.unwrap_label_expression(expressions[0]);
+    let function_expression_id = expressions[0];
     assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
             assert_node!(parser.tree, *body_id, Expression::Block(function_block_id) => {
@@ -806,13 +806,13 @@ fn test_parse_function_declaration_followed_by_call_without_newline() {
     assert_eq!(expressions.len(), 2);
 
     // first expression: function declaration
-    let declaration_id = parser.unwrap_label_expression(expressions[0]);
+    let declaration_id = expressions[0];
     assert_node!(parser.tree, declaration_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { .. }));
     });
 
     // second expression: call expression on `main().catch`
-    let call_id = parser.unwrap_label_expression(expressions[1]);
+    let call_id = expressions[1];
     assert_node!(parser.tree, call_id, Expression::Call { left, .. } => {
         assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
             assert_string!(parser, *name, "catch");
@@ -1011,7 +1011,7 @@ fn test_parse_return_tree_literal_with_close_paren_text_in_ternary_before_tree()
     );
     assert_eq!(expressions.len(), 1);
 
-    let function_expression_id = parser.unwrap_label_expression(expressions[0]);
+    let function_expression_id = expressions[0];
     assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body), .. }) => {
             assert_node!(parser.tree, *body, Expression::Block(block_id) => {
@@ -1019,7 +1019,7 @@ fn test_parse_return_tree_literal_with_close_paren_text_in_ternary_before_tree()
                 assert_eq!(block.leading_expressions.len(), 1);
                 assert!(block.tail_expression.is_none());
                 let return_id =
-                    parser.unwrap_label_expression(block.leading_expressions[0]);
+                    block.leading_expressions[0];
                 assert_node!(parser.tree, return_id, Expression::Return { value: Some(value) } => {
                     crate::assert_parenthesized!(parser.tree, *value, expression => {
                         assert_node!(parser.tree, *expression, Expression::TreeExpression { .. });

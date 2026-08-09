@@ -73,7 +73,7 @@ fn test_parse_for_loop_with_line_comment_after_keyword() {
     let mut parser = test.prepare();
 
     let for_id = parser.parse_for(Default::default()).unwrap();
-    assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body } => {
+    assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body, .. } => {
         assert!(initialization.is_none());
         assert!(condition.is_none());
         assert!(increment.is_none());
@@ -90,7 +90,7 @@ fn test_parse_for_loop_with_block_comment_after_keyword() {
     let mut parser = test.prepare();
 
     let for_id = parser.parse_for(Default::default()).unwrap();
-    assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body } => {
+    assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body, .. } => {
         assert!(initialization.is_none());
         assert!(condition.is_none());
         assert!(increment.is_none());
@@ -167,7 +167,7 @@ for (
 
     let for_id = parser.parse_for(Default::default()).unwrap();
     // for (const { ... } of selectedRelations) {}
-    assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, operator, binding, iterator, body } => {
+    assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, operator, binding, iterator, body, .. } => {
         assert_eq!(*asynchrony, Asynchrony::Sync);
         assert_eq!(*operator, ForEachOperator::Of);
 
@@ -201,7 +201,7 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
     let mut parser = test.prepare();
 
     let for_id = parser.parse_for(Default::default()).unwrap();
-    assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, operator, binding, iterator, body } => {
+    assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, operator, binding, iterator, body, .. } => {
         assert_eq!(*asynchrony, Asynchrony::Sync);
         assert_eq!(*operator, ForEachOperator::Of);
 
@@ -714,7 +714,7 @@ fn test_parse_do_while_block_with_semicolons() {
 
     let roots = parser.parse();
     assert_eq!(roots.len(), 1);
-    assert_node!(parser.tree, roots[0], Expression::While { form, condition, body } => {
+    assert_node!(parser.tree, roots[0], Expression::While { form, condition, body, .. } => {
         assert_eq!(*form, WhileForm::DoWhile);
         assert_node!(parser.tree, *condition, Expression::Binary { .. });
         assert_node!(parser.tree, *body, Block { .. });
@@ -748,7 +748,7 @@ fn test_parse_do_while_single_statement() {
     let mut parser = test.prepare();
 
     let do_while_id = parser.parse_while(Default::default()).unwrap();
-    assert_node!(parser.tree, do_while_id, Expression::While { form, condition, body } => {
+    assert_node!(parser.tree, do_while_id, Expression::While { form, condition, body, .. } => {
         assert_eq!(*form, WhileForm::DoWhile);
         assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
         // body should be a block with single expression
@@ -766,7 +766,7 @@ fn test_parse_do_while_continue_statement() {
     let mut parser = test.prepare();
 
     let do_while_id = parser.parse_while(Default::default()).unwrap();
-    assert_node!(parser.tree, do_while_id, Expression::While { form, condition, body } => {
+    assert_node!(parser.tree, do_while_id, Expression::While { form, condition, body, .. } => {
         assert_eq!(*form, WhileForm::DoWhile);
         assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
         // body should be a block with continue statement

@@ -97,7 +97,7 @@ fn test_parse_if_else_parenthesized_with_trivial_blocks() {
             assert_node!(parser.tree, *block_id, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
-                let then_statement_id = parser.unwrap_label_expression(expressions[0]);
+                let then_statement_id = expressions[0];
                 assert_expression_path!(parser, parser.tree.get(then_statement_id), "a");
             });
         });
@@ -106,7 +106,7 @@ fn test_parse_if_else_parenthesized_with_trivial_blocks() {
             assert_node!(parser.tree, *block_id, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
-                let else_statement_id = parser.unwrap_label_expression(expressions[0]);
+                let else_statement_id = expressions[0];
                 assert_expression_path!(parser, parser.tree.get(else_statement_id), "b");
             });
         });
@@ -158,7 +158,7 @@ if (cond) {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
                 // if (cond) { a } else { b }
-                let inner_if_id = parser.unwrap_label_expression(expressions[0]);
+                let inner_if_id = expressions[0];
                 assert_node!(parser.tree, inner_if_id, Expression::If { condition: inner_condition, then_expression: inner_then, else_expression: inner_else, .. } => {
                     // cond
                     let inner_condition_id = inner_condition.as_expression().expect("expected expression condition");
@@ -168,7 +168,7 @@ if (cond) {
                         assert_node!(parser.tree, *inner_block_id, Block { .. } => {
                             let expressions = block_expression_ids(parser.tree.get(*inner_block_id));
                             assert_eq!(expressions.len(), 1);
-                            let inner_then_statement_id = parser.unwrap_label_expression(expressions[0]);
+                            let inner_then_statement_id = expressions[0];
                             assert_expression_path!(parser, parser.tree.get(inner_then_statement_id), "a");
                         });
                     });
@@ -177,7 +177,7 @@ if (cond) {
                         assert_node!(parser.tree, *inner_block_id, Block { .. } => {
                             let expressions = block_expression_ids(parser.tree.get(*inner_block_id));
                             assert_eq!(expressions.len(), 1);
-                            let inner_else_statement_id = parser.unwrap_label_expression(expressions[0]);
+                            let inner_else_statement_id = expressions[0];
                             assert_expression_path!(parser, parser.tree.get(inner_else_statement_id), "b");
                         });
                     });
@@ -662,7 +662,7 @@ fn test_parse_if_head_trailing_comment_on_condition_owner() {
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::If { condition, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
 
@@ -698,7 +698,7 @@ fn test_parse_if_else_boundary_comment_on_else_owner() {
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
         let else_expression_id = else_expression.expect("expected else expression");
         let annotations = parser.tree.get_decorators(else_expression_id.id);
@@ -718,7 +718,7 @@ fn test_parse_if_else_after_then_semicolon_with_leading_boundary_comment() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
         assert!(else_expression.is_some());
     });
@@ -733,7 +733,7 @@ fn test_parse_if_else_after_then_semicolon_with_trailing_boundary_comment() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
         assert!(else_expression.is_some());
     });

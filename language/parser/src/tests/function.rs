@@ -170,7 +170,7 @@ export function stableLater(): void {}
     assert_eq!(expressions.len(), 2);
 
     // export function broken( {}
-    let first_declaration_id = parser.unwrap_label_expression(expressions[0]);
+    let first_declaration_id = expressions[0];
     assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, .. }) => {
             assert_name!(parser, name.unwrap(), "broken");
@@ -178,7 +178,7 @@ export function stableLater(): void {}
     });
 
     // export function stableLater(): void {}
-    let second_declaration_id = parser.unwrap_label_expression(expressions[1]);
+    let second_declaration_id = expressions[1];
     assert_node!(parser.tree, second_declaration_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, .. }) => {
             assert_name!(parser, name.unwrap(), "stableLater");
@@ -231,7 +231,7 @@ function stableLater(): void {}
     assert_eq!(expressions.len(), 2);
 
     // function broken(
-    let first_declaration_id = parser.unwrap_label_expression(expressions[0]);
+    let first_declaration_id = expressions[0];
     assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, .. }) => {
             assert_name!(parser, name.unwrap(), "broken");
@@ -239,7 +239,7 @@ function stableLater(): void {}
     });
 
     // function stableLater(): void {}
-    let second_declaration_id = parser.unwrap_label_expression(expressions[1]);
+    let second_declaration_id = expressions[1];
     assert_node!(parser.tree, second_declaration_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, .. }) => {
             assert_name!(parser, name.unwrap(), "stableLater");
@@ -268,7 +268,7 @@ const value = 1
     assert_eq!(expressions.len(), 2);
 
     // function broken(
-    let first_declaration_id = parser.unwrap_label_expression(expressions[0]);
+    let first_declaration_id = expressions[0];
     assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, .. }) => {
             assert_name!(parser, name.unwrap(), "broken");
@@ -276,7 +276,7 @@ const value = 1
     });
 
     // const value = 1
-    let second_expression_id = parser.unwrap_label_expression(expressions[1]);
+    let second_expression_id = expressions[1];
     assert_node!(parser.tree, second_expression_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, .. } => {

@@ -338,7 +338,7 @@ fn test_parse_class_superclass_boundary_comment_on_super_type() {
 
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_type: Some(extends_type), members, .. }) => {
             assert_eq!(members.len(), 1);
@@ -374,7 +374,7 @@ Second // impl-second
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, members, .. }) => {
             assert_eq!(implements_types.len(), 2);
@@ -413,7 +413,7 @@ fn test_parse_declare_class_head_comment_before_generics_on_declaration_owner() 
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         let first_static_parameter_id = assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { generic_parameters, .. }) => {
             assert_eq!(generic_parameters.len(), 1);

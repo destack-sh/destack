@@ -569,8 +569,8 @@ switch (tag) {
                 let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 3);
                 assert_node!(parser.tree, expressions[0], Expression::If { .. });
-                let first_assign_id = parser.unwrap_label_expression(expressions[1]);
-                let second_assign_id = parser.unwrap_label_expression(expressions[2]);
+                let first_assign_id = expressions[1];
+                let second_assign_id = expressions[2];
                 assert_node!(parser.tree, first_assign_id, Expression::Assign { .. });
                 assert_node!(parser.tree, second_assign_id, Expression::Assign { .. });
             });
@@ -586,7 +586,7 @@ switch (tag) {
             };
             let expressions = block_expression_ids(parser.tree.get(*body));
             assert_eq!(expressions.len(), 1);
-            let return_id = parser.unwrap_label_expression(expressions[0]);
+            let return_id = expressions[0];
             assert_node!(parser.tree, return_id, Expression::Return { .. });
         });
     });
@@ -713,7 +713,7 @@ fn test_parse_switch_case_boundary_comment_ownership() {
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 2);
 

@@ -217,13 +217,17 @@ impl Parser {
             }
             TokenType::Colon if self.peek_label_body(context) => {
                 let body = self.parse_label_body(context)?;
-                let expression = self.insert_node(
-                    Expression::Label { label: name, body },
-                    self.range_since(start),
-                );
-                self.tree.set_main_range(expression, name_range);
 
-                Ok(expression)
+                // attach the label to its loop, the only valid target
+                if let Expression::While { label, .. }
+                | Expression::ForEach { label, .. }
+                | Expression::For { label, .. }
+                | Expression::Loop { label, .. } = self.tree.get_mut(body)
+                {
+                    *label = Some(name);
+                }
+
+                Ok(body)
             }
             TokenType::OpenBrace => {
                 self.parse_identifier_object_primary(start, name, name_range, context)

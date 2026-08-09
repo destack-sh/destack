@@ -1032,7 +1032,7 @@ fn test_parse_interface_head_comment_before_body_on_declaration_owner() {
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { .. }) => {});
 
@@ -1062,7 +1062,7 @@ export newtype interface Add<T, R = this> {
     );
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { name, export, is_nominal, generic_parameters, members, .. }) => {
             assert!(export.is_some());
@@ -1105,7 +1105,7 @@ newtype interface Error {
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { is_nominal, members, .. }) => {
             assert!(*is_nominal);
