@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{CompilerRestrictions, Derive};
@@ -110,7 +112,7 @@ pub enum CheckPolicy {
     Never,
 }
 
-impl std::str::FromStr for CheckPolicy {
+impl FromStr for CheckPolicy {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -142,7 +144,7 @@ pub enum CheckFailurePolicy {
     Abort,
 }
 
-impl std::str::FromStr for CheckFailurePolicy {
+impl FromStr for CheckFailurePolicy {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

@@ -85,7 +85,7 @@ impl Repository {
             Arc::from(files.into_boxed_slice())
         });
 
-        Ok(Arc::clone(files))
+        Ok(files.clone())
     }
 
     /// Normalize one logical path for one workspace file path.
@@ -142,9 +142,7 @@ impl Repository {
     }
 
     /// Register one named dependency mount.
-    pub fn add_mount(&self, name: &str, base: PathBuf) -> Result<(), RepositoryError> {
-        let file_system = self.file_system();
-        let base = file_system.canonicalize(&base).unwrap_or(base);
+    pub(crate) fn add_mount(&self, name: &str, base: PathBuf) -> Result<(), RepositoryError> {
         if let Some(existing) = self.mounts.get(name) {
             if *existing != base {
                 return Err(RepositoryError::MountConflict {
@@ -210,7 +208,7 @@ impl Repository {
     ) -> Result<Option<Arc<File>>, RepositoryError> {
         // resolve embedded Builtin FileIds from their immutable table
         if let Some(builtin) = self.embedded_builtin.file(file_id) {
-            return Ok(Some(Arc::clone(builtin)));
+            return Ok(Some(builtin.clone()));
         }
 
         // read editable revision files

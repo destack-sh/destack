@@ -78,13 +78,6 @@ impl Module {
     pub fn is_code(&self) -> bool {
         self.loader.is_code()
     }
-
-    /// Return the code language type for this module.
-    pub fn code_language_type(&self) -> LanguageType {
-        self.language_type.unwrap_or_else(|| {
-            panic!("module has no code language type: {:?}", self.id);
-        })
-    }
 }
 
 /// One source file that contributes to a module.

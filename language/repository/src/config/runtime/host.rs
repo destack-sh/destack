@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
@@ -32,7 +33,7 @@ pub enum PollerBackend {
     Windows,
 }
 
-impl std::str::FromStr for PollerBackend {
+impl FromStr for PollerBackend {
     type Err = ();
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {

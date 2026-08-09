@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::env;
 use std::path::PathBuf;
 
 use destack_artifact::EnvironmentKey;
@@ -103,9 +104,9 @@ pub struct Environment {
 impl Environment {
     /// Capture ambient values from the current process.
     pub fn capture_process() -> Self {
-        let cwd = std::env::current_dir().ok();
-        let args = std::env::args().collect();
-        let env = std::env::vars().collect();
+        let cwd = env::current_dir().ok();
+        let args = env::args().collect();
+        let env = env::vars().collect();
         let selection = ConditionSelection::from_env(&env);
 
         Self {

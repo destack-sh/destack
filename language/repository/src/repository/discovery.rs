@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{ModuleId, PackageId, TargetId, matches as glob_matches};
+use destack_source::{ModuleId, PackageId, TargetId, matches};
 
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{DestackFile, Package, Target, TargetRoot};
@@ -205,6 +205,6 @@ impl Repository {
         let path = path.to_string_lossy();
         let path = path.as_bytes();
 
-        glob_matches(pattern, 0, path, 0)
+        matches(pattern, 0, path, 0)
     }
 }

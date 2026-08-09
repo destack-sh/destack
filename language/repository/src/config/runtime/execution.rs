@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 
 /// Execution mode for runtime scheduling and replay.
@@ -16,7 +18,7 @@ pub enum ExecutionMode {
     Replay,
 }
 
-impl std::str::FromStr for ExecutionMode {
+impl FromStr for ExecutionMode {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -49,7 +51,7 @@ pub enum ReplayPayloadMode {
     ArgumentsAndResults,
 }
 
-impl std::str::FromStr for ReplayPayloadMode {
+impl FromStr for ReplayPayloadMode {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

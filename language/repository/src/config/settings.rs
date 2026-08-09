@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use destack_source::FileSystem;
@@ -29,7 +32,7 @@ impl Settings {
         let path = home.join(SETTINGS_FILE_NAME);
         let text = match fs.read_to_string(&path) {
             Ok(text) => text,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Err(error) if error.kind() == ErrorKind::NotFound => {
                 return Ok(Self::default());
             }
             Err(error) => {
@@ -152,8 +155,8 @@ pub enum SettingsError {
     },
 }
 
-impl std::fmt::Display for SettingsError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for SettingsError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
             SettingsError::Read { path, message } => {
                 write!(formatter, "failed to read {}: {message}", path.display())
@@ -165,7 +168,7 @@ impl std::fmt::Display for SettingsError {
     }
 }
 
-impl std::error::Error for SettingsError {}
+impl Error for SettingsError {}
 
 #[cfg(test)]
 mod tests {

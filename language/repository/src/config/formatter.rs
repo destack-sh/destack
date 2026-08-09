@@ -1,3 +1,5 @@
+use std::fmt::{self, Display, Formatter};
+
 use serde::{Deserialize, Serialize};
 
 use destack_source::{IndentStyle, LineEnding};
@@ -61,9 +63,9 @@ impl QuoteStyle {
     }
 }
 
-impl std::fmt::Display for QuoteStyle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+impl Display for QuoteStyle {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
     }
 }
 
@@ -110,9 +112,9 @@ impl TrailingComma {
     }
 }
 
-impl std::fmt::Display for TrailingComma {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+impl Display for TrailingComma {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
     }
 }
 
@@ -145,9 +147,9 @@ impl ArrowParentheses {
     }
 }
 
-impl std::fmt::Display for ArrowParentheses {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+impl Display for ArrowParentheses {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
     }
 }
 
@@ -184,9 +186,9 @@ impl QuoteProperty {
     }
 }
 
-impl std::fmt::Display for QuoteProperty {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+impl Display for QuoteProperty {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
     }
 }
 
@@ -224,9 +226,9 @@ impl OrganizeImports {
     }
 }
 
-impl std::fmt::Display for OrganizeImports {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+impl Display for OrganizeImports {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
     }
 }
 
@@ -259,9 +261,9 @@ impl ImportSortOrder {
     }
 }
 
-impl std::fmt::Display for ImportSortOrder {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+impl Display for ImportSortOrder {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
     }
 }
 

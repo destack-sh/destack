@@ -1,12 +1,15 @@
 use std::io::{Error, ErrorKind};
-use std::path::PathBuf;
+use std::mem;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{File, FileId};
+use destack_source::{File, FileId, FileSystem, FileType, Uri, matches};
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::RepositoryError;
 use crate::config::{
     CompilerOptions, ConditionCatalog, ConditionalDependencies, Dependency, DiagnosticPolicy,
     Export, FormatterOptions, LinterOptions, PackagePatch, Policy, Product, ProfileOptions,
@@ -15,10 +18,10 @@ use crate::config::{
 };
 
 /// Default package source include patterns.
-pub const DEFAULT_SOURCE_INCLUDE: &[&str] = &["src/**"];
+const DEFAULT_SOURCE_INCLUDE: &[&str] = &["src/**"];
 
 /// Default package source exclude patterns.
-pub const DEFAULT_SOURCE_EXCLUDE: &[&str] = &[
+const DEFAULT_SOURCE_EXCLUDE: &[&str] = &[
     ".destack/**",
     ".git/**",
     "node_modules/**",
@@ -109,6 +112,19 @@ impl Destack {
 
     /// Complete derived config fields after deserialization.
     pub(crate) fn finish(&mut self) {
+        // canonicalize package source paths and patterns once
+        let patterns = self
+            .files
+            .iter_mut()
+            .chain(self.include.iter_mut())
+            .chain(self.exclude.iter_mut());
+        for pattern in patterns {
+            *pattern = pattern
+                .replace('\\', "/")
+                .trim_start_matches("./")
+                .to_string();
+        }
+
         // canonicalize unordered code selections
         for target in self.targets.values_mut() {
             target.code.sort_unstable();
@@ -117,11 +133,11 @@ impl Destack {
 
         // install builtin conditions before user declarations
         let mut modes = builtin_modes();
-        modes.extend(std::mem::take(&mut self.conditions.modes));
+        modes.extend(mem::take(&mut self.conditions.modes));
         self.conditions.modes = modes;
 
         let mut roles = builtin_roles();
-        roles.extend(std::mem::take(&mut self.conditions.roles));
+        roles.extend(mem::take(&mut self.conditions.roles));
         self.conditions.roles = roles;
     }
 }
@@ -160,18 +176,7 @@ pub struct DestackFile {
     source: Value,
 }
 
-/// Package source path patterns derived from one `destack.json`.
-#[derive(Debug, Clone)]
-pub struct SourcePatterns {
-    /// Package-relative exact file paths.
-    pub files: Vec<String>,
-    /// Package-relative include patterns.
-    pub include: Vec<String>,
-    /// Package-relative exclude patterns.
-    pub exclude: Vec<String>,
-}
-
-impl std::ops::Deref for DestackFile {
+impl Deref for DestackFile {
     type Target = Destack;
 
     fn deref(&self) -> &Self::Target {
@@ -180,6 +185,51 @@ impl std::ops::Deref for DestackFile {
 }
 
 impl DestackFile {
+    /// Read one `destack.json` from a physical directory when present.
+    pub(crate) fn read(
+        file_system: &dyn FileSystem,
+        root: &Path,
+    ) -> Result<Option<Self>, RepositoryError> {
+        let path = root.join("destack.json");
+
+        // read config when present
+        let content = match file_system.read_to_string(&path) {
+            Ok(content) => content,
+            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(RepositoryError::FileSystem {
+                    operation: "read_to_string",
+                    path,
+                    message: error.to_string(),
+                });
+            }
+        };
+
+        // reject content outside source coordinates
+        let length = content.len();
+        if length > File::MAX_BYTES {
+            return Err(RepositoryError::ContentTooLarge { length });
+        }
+
+        // parse through normal repository config logic
+        let file = File::from_text(
+            FileId::from_logical_str("destack.json"),
+            "destack.json".to_string(),
+            Uri::from_path(&path),
+            Some(path.clone()),
+            FileType::Json,
+            content,
+        );
+        let file = Arc::new(file);
+
+        Self::parse(&file)
+            .map(Some)
+            .map_err(|error| RepositoryError::InvalidConfigFile {
+                path,
+                message: error.to_string(),
+            })
+    }
+
     /// Parse one `destack.json` configuration from one file.
     pub fn parse(file: &Arc<File>) -> Result<Self, serde_json::Error> {
         let path = file
@@ -218,30 +268,49 @@ impl DestackFile {
             .and_then(|workspace| workspace.groups.as_ref())
     }
 
-    /// Return package source patterns with conventional defaults applied.
-    pub fn source_patterns(&self) -> SourcePatterns {
-        let mut include = self.include.clone();
-        let mut exclude = self.exclude.clone();
-
-        if self.files.is_empty() && include.is_empty() {
-            include.extend(
-                DEFAULT_SOURCE_INCLUDE
-                    .iter()
-                    .map(|pattern| pattern.to_string()),
-            );
+    /// Return whether one package-relative path belongs to this package's source set.
+    pub fn includes_source(&self, path: &str) -> bool {
+        if self.excludes_source(path) {
+            return false;
         }
 
-        exclude.extend(
-            DEFAULT_SOURCE_EXCLUDE
+        // accept exact declared files first
+        let is_listed = self.files.iter().any(|file| file == path);
+        if is_listed {
+            return true;
+        }
+
+        // use conventional source roots only without an explicit selection
+        if self.include.is_empty() && self.files.is_empty() {
+            return DEFAULT_SOURCE_INCLUDE
                 .iter()
-                .map(|pattern| pattern.to_string()),
-        );
-
-        SourcePatterns {
-            files: self.files.clone(),
-            include,
-            exclude,
+                .any(|pattern| Self::matches_source_pattern(pattern, path));
         }
+
+        self.include
+            .iter()
+            .any(|pattern| Self::matches_source_pattern(pattern, path))
+    }
+
+    /// Return whether one package-relative path is excluded from package source.
+    pub fn excludes_source(&self, path: &str) -> bool {
+        self.exclude
+            .iter()
+            .map(String::as_str)
+            .chain(DEFAULT_SOURCE_EXCLUDE.iter().copied())
+            .any(|pattern| Self::matches_source_pattern(pattern, path))
+    }
+
+    /// Return whether one source pattern contains one package-relative path.
+    fn matches_source_pattern(pattern: &str, path: &str) -> bool {
+        let directory_pattern = pattern.strip_suffix("/**");
+
+        matches(pattern.as_bytes(), 0, path.as_bytes(), 0)
+            || path == pattern
+            || directory_pattern.is_some_and(|pattern| path == pattern)
+            || path
+                .strip_prefix(pattern)
+                .is_some_and(|suffix| suffix.starts_with('/'))
     }
 
     /// Inherit settings from one parent configuration.

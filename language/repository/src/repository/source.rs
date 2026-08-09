@@ -4,9 +4,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::{BlobStore, BuildId, MemoryBlobStore};
+use destack_source as source;
 use destack_source::{
     Content, ContentId, File, FileId, FileMetadata, FilePatch, FileSystem, FileType,
-    MemoryFileSystem, Patch, Span, TextPatch, Uri, apply_file_patch, matches as glob_matches,
+    MemoryFileSystem, Patch, Span, TextPatch, Uri, apply_file_patch, matches,
 };
 
 use crate::{
@@ -34,13 +35,13 @@ pub fn open_repository_from_fs(
 /// Open one repository from one in-memory source.
 pub fn open_repository_from_memory(
     root: PathBuf,
-    edits: Vec<destack_source::Edit>,
+    edits: Vec<source::Edit>,
     environment: Environment,
     settings: Settings,
     layout_override: DestackLayoutOverride,
 ) -> Result<Repository, RepositoryError> {
     let file_system = Arc::new(MemoryFileSystem::new());
-    apply_source_edits(file_system.as_ref(), &root, edits)?;
+    apply_edits(file_system.as_ref(), &root, edits)?;
 
     // keep memory repositories fully in memory
     let blob_store: Arc<dyn BlobStore> = Arc::new(MemoryBlobStore::new());
@@ -70,8 +71,7 @@ pub fn open_repository(
     let base_revision = repository.current(&root_ref)?;
 
     // read the complete source tree
-    let source = FileSystemSource::new(&repository, &root, base_revision);
-    let edits = source.edits()?;
+    let edits = repository.scan(&root, base_revision)?;
     let revision = repository.commit_edits(base_revision, edits)?;
 
     repository.set_ref(&root_ref, revision)?;
@@ -91,12 +91,13 @@ pub enum SourceRoot {
 impl SourceRoot {
     /// Discover the nearest source root for one filesystem path.
     pub fn discover(file_system: &dyn FileSystem, path: &Path) -> Result<Self, RepositoryError> {
-        let metadata = file_system.metadata(path).map_err(|error| {
-            RepositoryError::WorkspaceRootDiscovery {
+        let metadata = file_system
+            .metadata(path)
+            .map_err(|error| RepositoryError::FileSystem {
+                operation: "metadata",
                 path: path.to_path_buf(),
                 message: error.to_string(),
-            }
-        })?;
+            })?;
 
         // normalize file inputs to their containing directory
         let directory = if metadata.is_file {
@@ -110,7 +111,7 @@ impl SourceRoot {
 
         // walk up directories looking for a declared source root
         loop {
-            if FileSystemSource::read_destack_config(file_system, &current)?.is_some() {
+            if DestackFile::read(file_system, &current)?.is_some() {
                 return Ok(Self::Declared(current));
             }
 
@@ -133,18 +134,45 @@ impl From<SourceRoot> for PathBuf {
     }
 }
 
-/// Filesystem-backed source.
+impl Repository {
+    /// Return edits needed to import one physical file and its package state.
+    pub fn scan_file(
+        &self,
+        root: &Path,
+        base: Revision,
+        logical_path: PathBuf,
+    ) -> Result<Vec<Edit>, RepositoryError> {
+        Scan::new(self, root, base).load(logical_path)
+    }
+
+    /// Return exact edits for physical paths that may have changed.
+    pub fn scan_paths(
+        &self,
+        root: &Path,
+        base: Revision,
+        logical_paths: Vec<PathBuf>,
+    ) -> Result<Vec<Edit>, RepositoryError> {
+        Scan::new(self, root, base).reconcile(logical_paths)
+    }
+
+    /// Return edits needed to match one complete physical source tree.
+    pub fn scan(&self, root: &Path, base: Revision) -> Result<Vec<Edit>, RepositoryError> {
+        Scan::new(self, root, base).scan()
+    }
+}
+
+/// One physical repository scan.
 #[derive(Debug)]
-pub struct FileSystemSource<'a> {
-    /// The repository receiving filesystem truth.
+struct Scan<'a> {
+    /// The repository compared with physical state.
     repository: &'a Repository,
     /// The base repository revision.
     base: Revision,
-    /// The physical source root.
+    /// The physical repository root.
     root: &'a Path,
-    /// Repository edits built by this source.
+    /// Repository edits built by this scan.
     edits: Vec<Edit>,
-    /// File ids seen during this source scan.
+    /// File ids seen during this scan.
     seen_file_ids: HashSet<FileId>,
     /// Package roots still to scan.
     pending_packages: Vec<(PathBuf, DestackFile)>,
@@ -152,9 +180,9 @@ pub struct FileSystemSource<'a> {
     queued_package_roots: HashSet<PathBuf>,
 }
 
-impl<'a> FileSystemSource<'a> {
-    /// Create one filesystem source.
-    pub fn new(repository: &'a Repository, root: &'a Path, base: Revision) -> Self {
+impl<'a> Scan<'a> {
+    /// Create one physical repository scan.
+    fn new(repository: &'a Repository, root: &'a Path, base: Revision) -> Self {
         Self {
             repository,
             base,
@@ -166,8 +194,8 @@ impl<'a> FileSystemSource<'a> {
         }
     }
 
-    /// Return whether filesystem source imports one path.
-    pub fn tracks_path(path: &Path) -> bool {
+    /// Return whether a repository scan imports one path.
+    fn tracks_path(path: &Path) -> bool {
         // import source manifests directly
         if Self::is_destack_config_path(path) {
             return true;
@@ -181,32 +209,6 @@ impl<'a> FileSystemSource<'a> {
         file_type.is_code() || file_type.is_data() || file_type.is_text() || file_type.is_binary()
     }
 
-    /// Return one filesystem path as a source edit.
-    pub fn read_edit(
-        repository: &Repository,
-        path: &Path,
-    ) -> std::io::Result<destack_source::Edit> {
-        // preserve bytes for binary formats
-        if FileType::from_path(path).is_some_and(|file_type| file_type.is_binary()) {
-            let content = repository.file_system().read(path)?;
-            let path = path.to_path_buf();
-
-            return Ok(destack_source::Edit::SetBytes {
-                path,
-                bytes: content,
-            });
-        }
-
-        // use text for source readable files
-        let content = repository.file_system().read_to_string(path)?;
-        let path = path.to_path_buf();
-
-        Ok(destack_source::Edit::SetText {
-            path,
-            text: content,
-        })
-    }
-
     /// Return whether one path is a destack manifest.
     fn is_destack_config_path(path: &Path) -> bool {
         path.file_name()
@@ -215,108 +217,20 @@ impl<'a> FileSystemSource<'a> {
     }
 
     /// Read one `destack.json` from a physical directory when present.
-    pub fn read_destack_config(
-        file_system: &dyn FileSystem,
-        root: &Path,
-    ) -> Result<Option<DestackFile>, RepositoryError> {
-        let path = root.join("destack.json");
+    fn read_config(&self, root: &Path) -> Result<Option<DestackFile>, RepositoryError> {
+        let file_system = self.repository.file_system();
 
-        // read config when present
-        let content = match file_system.read_to_string(&path) {
-            Ok(content) => content,
-            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
-            Err(error) => {
-                return Err(RepositoryError::WorkspaceRootDiscovery {
-                    path,
-                    message: error.to_string(),
-                });
-            }
-        };
-
-        // reject content outside source coordinates
-        let length = content.len();
-        if length > File::MAX_BYTES {
-            return Err(RepositoryError::ContentTooLarge { length });
-        }
-
-        // parse through normal workspace config logic
-        let file = File::from_text(
-            FileId::from_logical_str("destack.json"),
-            "destack.json".to_string(),
-            Uri::from_path(&path),
-            Some(path.clone()),
-            FileType::Json,
-            content,
-        );
-        let file = Arc::new(file);
-
-        DestackFile::parse(&file).map(Some).map_err(|error| {
-            RepositoryError::WorkspaceRootDiscovery {
-                path,
-                message: error.to_string(),
-            }
-        })
+        DestackFile::read(file_system.as_ref(), root)
     }
 
-    /// Return edits for one logical source file when it exists.
-    pub fn edits_for_path(
-        mut self,
-        logical_path: &Path,
-    ) -> Result<Option<Vec<Edit>>, RepositoryError> {
-        if logical_path.is_absolute() {
-            return Ok(None);
-        }
-        let path = self.root.join(logical_path);
-
-        // read metadata before loading content
-        let metadata = match self.repository.file_system().metadata(&path) {
-            Ok(metadata) => metadata,
-            Err(error) if error.kind() == ErrorKind::NotFound => {
-                return Ok(None);
-            }
-            Err(error) => {
-                let error = RepositoryError::FileSystem {
-                    operation: "metadata",
-                    path,
-                    message: error.to_string(),
-                };
-
-                return Err(error);
-            }
-        };
-        if !metadata.is_file {
-            return Ok(None);
-        }
-
-        // add the requested file
-        self.import_file_with_logical_path(&path, logical_path)?;
-
-        // relative imports resolve against the file's package: scan the
-        // nearest manifest's package, or the file's own directory when
-        // no manifest exists
-        let directory = path.parent().map(Path::to_path_buf);
-        if let Some(directory) = directory {
-            match self.find_enclosing_package(&directory)? {
-                Some((package_root, config)) => {
-                    self.queue_package(package_root, config);
-                    self.scan_queued_packages()?;
-                }
-                None => self.import_sibling_files(&directory, &path)?,
-            }
-        }
-
-        Ok(Some(self.edits))
-    }
-
-    /// Return the nearest enclosing package manifest within the root.
-    fn find_enclosing_package(
-        &self,
-        directory: &Path,
-    ) -> Result<Option<(PathBuf, DestackFile)>, RepositoryError> {
+    /// Return the nearest enclosing package within this source root.
+    fn package(&self, directory: &Path) -> Result<Option<DestackFile>, RepositoryError> {
         let mut current = Some(directory);
+
+        // walk toward the source root until a package manifest is found
         while let Some(candidate) = current {
-            if let Some(config) = self.read_source_config(candidate)? {
-                return Ok(Some((candidate.to_path_buf(), config)));
+            if let Some(config) = self.read_config(candidate)? {
+                return Ok(Some(config));
             }
             if candidate == self.root {
                 break;
@@ -329,32 +243,26 @@ impl<'a> FileSystemSource<'a> {
         Ok(None)
     }
 
-    /// Import the trackable files beside one directly loaded file.
-    fn import_sibling_files(
-        &mut self,
-        directory: &Path,
-        loaded: &Path,
-    ) -> Result<(), RepositoryError> {
-        let entries = self.read_directory(directory)?;
+    /// Return whether one physical path belongs to its effective package source set.
+    fn includes(&self, path: &Path) -> Result<bool, RepositoryError> {
+        let directory = path.parent().unwrap_or(self.root);
+        let Some(config) = self.package(directory)? else {
+            return Ok(Self::tracks_path(path));
+        };
+        let package_path = self.package_path(&config.directory, path)?;
 
-        for entry in entries {
-            if entry == loaded || !Self::tracks_path(&entry) {
-                continue;
-            }
-            let metadata = self.metadata(&entry)?;
-            if metadata.is_file {
-                self.import_file(&entry)?;
-            }
-        }
-
-        Ok(())
+        Ok(config.includes_source(&package_path))
     }
 
-    /// Read one `destack.json` from a physical directory when present.
-    fn read_source_config(&self, root: &Path) -> Result<Option<DestackFile>, RepositoryError> {
-        let file_system = self.repository.file_system();
+    /// Return whether effective package configuration excludes one physical path.
+    fn excludes(&self, path: &Path) -> Result<bool, RepositoryError> {
+        let directory = path.parent().unwrap_or(self.root);
+        let Some(config) = self.package(directory)? else {
+            return Ok(false);
+        };
+        let package_path = self.package_path(&config.directory, path)?;
 
-        Self::read_destack_config(file_system.as_ref(), root)
+        Ok(config.excludes_source(&package_path))
     }
 
     /// Queue package roots selected by one workspace manifest.
@@ -370,17 +278,25 @@ impl<'a> FileSystemSource<'a> {
         }
         // queue declared workspace packages
         else if let Some(patterns) = workspace_package_patterns.as_deref() {
-            let source_patterns = config.source_patterns();
-            for config_path in self.find_destack_config_paths(&source_patterns.exclude)? {
-                let package_root = config_path.parent().unwrap_or(self.root).to_path_buf();
-                let is_workspace_package = patterns
-                    .iter()
-                    .any(|pattern| self.matches_workspace_pattern(&package_root, pattern));
+            for config_path in self.find_destack_config_paths(&config)? {
+                let Some(package_root) = config_path.parent().map(Path::to_path_buf) else {
+                    return Err(RepositoryError::InvalidConfigFile {
+                        path: config_path,
+                        message: "destack.json must have a parent directory".to_string(),
+                    });
+                };
+                let mut is_workspace_package = false;
+                for pattern in patterns {
+                    if self.matches_workspace_pattern(&package_root, pattern)? {
+                        is_workspace_package = true;
+                        break;
+                    }
+                }
                 if !is_workspace_package {
                     continue;
                 }
 
-                let Some(config) = self.read_source_config(&package_root)? else {
+                let Some(config) = self.read_config(&package_root)? else {
                     continue;
                 };
                 self.queue_package(package_root, config);
@@ -400,7 +316,7 @@ impl<'a> FileSystemSource<'a> {
     /// Find `destack.json` files below the source root.
     fn find_destack_config_paths(
         &self,
-        exclude: &[String],
+        config: &DestackFile,
     ) -> Result<Vec<PathBuf>, RepositoryError> {
         let mut configs = Vec::new();
         let mut pending = vec![self.root.to_path_buf()];
@@ -421,8 +337,8 @@ impl<'a> FileSystemSource<'a> {
                 }
                 // descend into source directories
                 else if metadata.is_directory {
-                    let package_path = self.package_path(self.root, &path);
-                    if !self.patterns_match(exclude, &package_path) {
+                    let package_path = self.package_path(self.root, &path)?;
+                    if !config.excludes_source(&package_path) {
                         pending.push(path);
                     }
                 }
@@ -441,16 +357,14 @@ impl<'a> FileSystemSource<'a> {
         package_root: &Path,
         config: &DestackFile,
     ) -> Result<(), RepositoryError> {
-        let patterns = config.source_patterns();
-
         // import the package manifest
         self.import_file(&config.path)?;
 
         // add listed files
-        for file in patterns.files {
-            let path = package_root.join(self.normalize_pattern(&file));
-            let package_path = self.package_path(package_root, &path);
-            if self.patterns_match(&patterns.exclude, &package_path) {
+        for file in &config.files {
+            let path = package_root.join(file);
+            let package_path = self.package_path(package_root, &path)?;
+            if config.excludes_source(&package_path) {
                 continue;
             }
 
@@ -460,15 +374,14 @@ impl<'a> FileSystemSource<'a> {
             }
         }
 
-        self.scan_include_paths(package_root, &patterns.include, &patterns.exclude)
+        self.scan_include_paths(package_root, config)
     }
 
     /// Scan included source files under one package root.
     fn scan_include_paths(
         &mut self,
         package_root: &Path,
-        include: &[String],
-        exclude: &[String],
+        config: &DestackFile,
     ) -> Result<(), RepositoryError> {
         let mut pending = vec![package_root.to_path_buf()];
         let mut visited = HashSet::new();
@@ -484,21 +397,33 @@ impl<'a> FileSystemSource<'a> {
 
                 // descend into directories that remain inside the source set
                 if metadata.is_directory {
-                    let package_path = self.package_path(package_root, &path);
-                    let is_excluded = self.patterns_match(exclude, &package_path);
-                    if !is_excluded {
+                    let package_path = self.package_path(package_root, &path)?;
+                    if !config.excludes_source(&package_path) {
                         pending.push(path);
                     }
                     continue;
                 }
 
                 // collect matching files
-                let package_path = self.package_path(package_root, &path);
-                let is_included = self.patterns_match(include, &package_path);
-                let is_excluded = self.patterns_match(exclude, &package_path);
-                if metadata.is_file && is_included && !is_excluded {
+                let package_path = self.package_path(package_root, &path)?;
+                if metadata.is_file && config.includes_source(&package_path) {
                     self.import_file(&path)?;
                 }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Scan trackable files directly within one implicit source directory.
+    fn scan_directory(&mut self, directory: &Path) -> Result<(), RepositoryError> {
+        for path in self.read_directory(directory)? {
+            if !Self::tracks_path(&path) {
+                continue;
+            }
+            let metadata = self.metadata(&path)?;
+            if metadata.is_file {
+                self.import_file(&path)?;
             }
         }
 
@@ -523,8 +448,17 @@ impl<'a> FileSystemSource<'a> {
             let Dependency::Path { path } = dependency else {
                 continue;
             };
-            let dependency_root = self.normalize_path(package_root.join(path));
-            let Some(config) = self.read_source_config(&dependency_root)? else {
+            let dependency_root = package_root.join(path);
+            let dependency_root = self
+                .repository
+                .file_system()
+                .canonicalize(&dependency_root)
+                .map_err(|error| RepositoryError::FileSystem {
+                    operation: "canonicalize",
+                    path: dependency_root,
+                    message: error.to_string(),
+                })?;
+            let Some(config) = self.read_config(&dependency_root)? else {
                 continue;
             };
 
@@ -539,20 +473,20 @@ impl<'a> FileSystemSource<'a> {
         Ok(())
     }
 
-    /// Import one physical file path into the source scan.
+    /// Import one physical file path into this scan.
     fn import_file(&mut self, path: &Path) -> Result<(), RepositoryError> {
         let logical_path = self.repository.logical_path(path);
 
         self.import_file_with_logical_path(path, Path::new(&logical_path))
     }
 
-    /// Import one physical file with one logical path into the source scan.
+    /// Import one physical file with one logical path into this scan.
     fn import_file_with_logical_path(
         &mut self,
         path: &Path,
         logical_path: &Path,
     ) -> Result<(), RepositoryError> {
-        let logical_path = self.source_path_text(logical_path);
+        let logical_path = self.path_text(logical_path);
         let file_id = FileId::from_logical_str(&logical_path);
         let content = self.read_content(path)?;
 
@@ -572,10 +506,17 @@ impl<'a> FileSystemSource<'a> {
     }
 
     /// Return true when one workspace package pattern matches one root.
-    fn matches_workspace_pattern(&self, package_root: &Path, pattern: &str) -> bool {
+    fn matches_workspace_pattern(
+        &self,
+        package_root: &Path,
+        pattern: &str,
+    ) -> Result<bool, RepositoryError> {
         let package_path = package_root
             .strip_prefix(self.root)
-            .unwrap_or(package_root)
+            .map_err(|_| RepositoryError::PathOutsideRoot {
+                path: package_root.to_path_buf(),
+                root: self.root.to_path_buf(),
+            })?
             .to_string_lossy()
             .replace('\\', "/");
         let package_path = if package_path.is_empty() {
@@ -591,69 +532,25 @@ impl<'a> FileSystemSource<'a> {
             format!("{package_path}/destack.json")
         };
 
-        glob_matches(pattern.as_bytes(), 0, package_path.as_bytes(), 0)
-            || glob_matches(pattern.as_bytes(), 0, config_path.as_bytes(), 0)
+        Ok(matches(pattern.as_bytes(), 0, package_path.as_bytes(), 0)
+            || matches(pattern.as_bytes(), 0, config_path.as_bytes(), 0))
     }
 
     /// Return one package-relative path as normalized text.
-    fn package_path(&self, package_root: &Path, path: &Path) -> String {
-        let package_path = path.strip_prefix(package_root).unwrap_or(path);
+    fn package_path(&self, package_root: &Path, path: &Path) -> Result<String, RepositoryError> {
+        let package_path =
+            path.strip_prefix(package_root)
+                .map_err(|_| RepositoryError::PathOutsideRoot {
+                    path: path.to_path_buf(),
+                    root: package_root.to_path_buf(),
+                })?;
 
-        self.source_path_text(package_path)
+        Ok(self.path_text(package_path))
     }
 
-    /// Return whether any source pattern matches one package-relative path.
-    fn patterns_match(&self, patterns: &[String], package_path: &str) -> bool {
-        patterns
-            .iter()
-            .any(|pattern| self.pattern_matches(pattern, package_path))
-    }
-
-    /// Normalize one package-relative source pattern.
-    fn normalize_pattern(&self, pattern: &str) -> String {
-        pattern
-            .replace('\\', "/")
-            .trim_start_matches("./")
-            .to_string()
-    }
-
-    /// Return whether one source pattern matches one package-relative path.
-    fn pattern_matches(&self, pattern: &str, package_path: &str) -> bool {
-        let pattern = self.normalize_pattern(pattern);
-        let directory_pattern = pattern.strip_suffix("/**");
-
-        glob_matches(pattern.as_bytes(), 0, package_path.as_bytes(), 0)
-            || package_path == pattern
-            || directory_pattern.is_some_and(|pattern| package_path == pattern)
-            || package_path
-                .strip_prefix(pattern.as_str())
-                .is_some_and(|suffix| suffix.starts_with('/'))
-    }
-
-    /// Return one path as normalized source text.
-    fn source_path_text(&self, path: impl AsRef<Path>) -> String {
+    /// Return one path as normalized logical text.
+    fn path_text(&self, path: impl AsRef<Path>) -> String {
         path.as_ref().to_string_lossy().replace('\\', "/")
-    }
-
-    /// Normalize one lexical path.
-    fn normalize_path(&self, path: PathBuf) -> PathBuf {
-        let mut normalized = PathBuf::new();
-
-        // rebuild without current or parent components
-        for component in path.components() {
-            match component {
-                std::path::Component::CurDir => {}
-                std::path::Component::ParentDir => {
-                    normalized.pop();
-                }
-                std::path::Component::Normal(component) => normalized.push(component),
-                std::path::Component::RootDir | std::path::Component::Prefix(_) => {
-                    normalized.push(component.as_os_str());
-                }
-            }
-        }
-
-        normalized
     }
 
     /// Read child paths for one directory.
@@ -717,25 +614,129 @@ impl<'a> FileSystemSource<'a> {
     }
 }
 
-impl FileSystemSource<'_> {
-    /// Return the repository edits for the complete source state.
-    pub fn edits(mut self) -> Result<Vec<Edit>, RepositoryError> {
-        self.scan()?;
+impl Scan<'_> {
+    /// Return repository edits needed to load one explicit logical source path.
+    fn load(mut self, logical_path: PathBuf) -> Result<Vec<Edit>, RepositoryError> {
+        if logical_path.is_absolute() {
+            return Err(RepositoryError::InvalidEditPath {
+                path: self.path_text(&logical_path),
+                message: "repository scan paths must be relative".to_string(),
+            });
+        }
+        let path = self.root.join(&logical_path);
+
+        // return an empty edit batch when the requested file does not exist
+        let metadata = match self.repository.file_system().metadata(&path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => {
+                return Err(RepositoryError::FileSystem {
+                    operation: "metadata",
+                    path,
+                    message: error.to_string(),
+                });
+            }
+        };
+        if !metadata.is_file {
+            return Ok(Vec::new());
+        }
+
+        // import the explicit file and the package state needed to resolve it
+        self.import_file_with_logical_path(&path, &logical_path)?;
+        let directory = path.parent().unwrap_or(self.root);
+        if let Some(config) = self.package(directory)? {
+            let package_root = config.directory.clone();
+            self.queue_package(package_root, config);
+            self.scan_queued_packages()?;
+        } else {
+            self.scan_directory(directory)?;
+        }
+
+        Ok(self.edits)
+    }
+
+    /// Return exact repository edits for changed logical paths.
+    fn reconcile(mut self, mut logical_paths: Vec<PathBuf>) -> Result<Vec<Edit>, RepositoryError> {
+        // reconcile each logical path once in stable order
+        logical_paths.sort();
+        logical_paths.dedup();
+
+        // classify paths before mutating the pending edit batch
+        let mut paths = Vec::with_capacity(logical_paths.len());
+        for logical_path in logical_paths {
+            if logical_path.is_absolute() {
+                return Err(RepositoryError::InvalidEditPath {
+                    path: self.path_text(&logical_path),
+                    message: "repository scan paths must be relative".to_string(),
+                });
+            }
+            let path = self.root.join(&logical_path);
+
+            // manifests can change every package source binding
+            if Self::is_destack_config_path(&logical_path) {
+                return self.scan();
+            }
+            match self.repository.file_system().metadata(&path) {
+                Ok(metadata) if metadata.is_file => {
+                    let file_id = FileId::from_logical_path(&logical_path);
+                    let content_id = self.repository.file_content_id(self.base, file_id)?;
+                    if content_id.is_some() || self.includes(&path)? {
+                        paths.push((logical_path, path, true));
+                    }
+                }
+                Ok(metadata) if metadata.is_directory => {
+                    if !self.excludes(&path)? {
+                        return self.scan();
+                    }
+                }
+                Ok(_) => {}
+                Err(error) if error.kind() == ErrorKind::NotFound => {
+                    paths.push((logical_path, path, false));
+                }
+                Err(error) => {
+                    return Err(RepositoryError::FileSystem {
+                        operation: "metadata",
+                        path,
+                        message: error.to_string(),
+                    });
+                }
+            }
+        }
+
+        // reconcile current filesystem truth against the immutable base
+        for (logical_path, path, is_file) in paths {
+            if is_file {
+                self.import_file_with_logical_path(&path, &logical_path)?;
+            } else {
+                self.remove_path(&logical_path)?;
+            }
+        }
+
+        Ok(self.edits)
+    }
+
+    /// Return repository edits for the complete source state.
+    fn scan(mut self) -> Result<Vec<Edit>, RepositoryError> {
+        self.scan_root()?;
         self.remove_missing_files()?;
 
         Ok(self.edits)
     }
 
-    /// Scan the complete source state visible from this filesystem source.
-    fn scan(&mut self) -> Result<(), RepositoryError> {
-        let Some(workspace_config) = self.read_source_config(self.root)? else {
-            return Ok(());
-        };
+    /// Scan the complete source state beneath this physical root.
+    fn scan_root(&mut self) -> Result<(), RepositoryError> {
+        // scan declared package membership
+        if let Some(workspace_config) = self.read_config(self.root)? {
+            self.queue_workspace_packages(workspace_config)?;
 
-        // queue packages from the workspace manifest
-        self.queue_workspace_packages(workspace_config)?;
+            self.scan_queued_packages()
+        }
+        // scan trackable siblings in one implicit source root
+        else {
+            let root = self.root.to_path_buf();
 
-        self.scan_queued_packages()
+            self.scan_directory(&root)
+        }
     }
 
     /// Expand queued package sources and their local dependencies.
@@ -763,13 +764,31 @@ impl FileSystemSource<'_> {
 
         Ok(())
     }
+
+    /// Remove one missing logical path and its tracked descendants.
+    fn remove_path(&mut self, logical_path: &Path) -> Result<(), RepositoryError> {
+        let logical_path = self.path_text(logical_path);
+        let descendant_prefix = format!("{logical_path}/");
+
+        // remove exact files and files beneath a missing directory
+        for (file_id, stored_path) in self.repository.editable_file_logical_paths(self.base)? {
+            let stored_path = self.repository.string_pool().get(stored_path);
+            let is_affected =
+                stored_path == logical_path || stored_path.starts_with(&descendant_prefix);
+            if is_affected && self.seen_file_ids.insert(file_id) {
+                self.edits.push(Edit::remove_file(stored_path));
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// Apply source edits to one filesystem root.
-fn apply_source_edits(
+fn apply_edits(
     file_system: &dyn FileSystem,
     root: &Path,
-    edits: Vec<destack_source::Edit>,
+    edits: Vec<source::Edit>,
 ) -> Result<(), RepositoryError> {
     file_system
         .create_dir_all(root)
@@ -781,40 +800,40 @@ fn apply_source_edits(
 
     // apply edits in input order
     for edit in edits {
-        apply_source_edit(file_system, root, edit)?;
+        apply_edit(file_system, root, edit)?;
     }
 
     Ok(())
 }
 
 /// Apply one source edit to one filesystem root.
-fn apply_source_edit(
+fn apply_edit(
     file_system: &dyn FileSystem,
     root: &Path,
-    edit: destack_source::Edit,
+    edit: source::Edit,
 ) -> Result<(), RepositoryError> {
     match edit {
-        destack_source::Edit::SetText { path, text } => {
+        source::Edit::SetText { path, text } => {
             let path = root.join(path);
 
             write_text(file_system, &path, &text)
         }
-        destack_source::Edit::SetBytes { path, bytes } => {
+        source::Edit::SetBytes { path, bytes } => {
             let path = root.join(path);
 
             write_bytes(file_system, &path, &bytes)
         }
-        destack_source::Edit::EditText { path, patches } => {
+        source::Edit::EditText { path, patches } => {
             let full_path = root.join(&path);
 
             patch_text(file_system, &full_path, &path, patches)
         }
-        destack_source::Edit::Remove { path } => {
+        source::Edit::Remove { path } => {
             let path = root.join(path);
 
             remove_path(file_system, &path)
         }
-        destack_source::Edit::Move { from, to } => {
+        source::Edit::Move { from, to } => {
             let from = root.join(from);
             let to = root.join(to);
 
@@ -884,11 +903,13 @@ fn patch_text(
 
     // build the source file for patch application
     let file_id = FileId::from_logical_path(logical_path);
-    let name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default()
-        .to_string();
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return Err(RepositoryError::InvalidEditPath {
+            path: logical_path.to_string_lossy().into_owned(),
+            message: "text edit path must name a UTF-8 file".to_string(),
+        });
+    };
+    let name = name.to_string();
     let file = File::from_text(
         file_id,
         name,

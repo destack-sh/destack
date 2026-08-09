@@ -13,7 +13,7 @@ pub enum RepositoryError {
     /// One narrowed module id collided across two distinct modules.
     ModuleIdCollision {
         /// The colliding module id.
-        id: destack_source::ModuleId,
+        id: ModuleId,
         /// The module already registered under the id.
         left: String,
         /// The module that collided with it.
@@ -24,9 +24,9 @@ pub enum RepositoryError {
         /// The conflicting mount name.
         name: String,
         /// The base already registered.
-        existing: std::path::PathBuf,
+        existing: PathBuf,
         /// The base that failed to register.
-        base: std::path::PathBuf,
+        base: PathBuf,
     },
 
     /// The requested ref does not exist.
@@ -111,6 +111,13 @@ pub enum RepositoryError {
         /// The parse error message.
         message: String,
     },
+    /// One physical `destack.json` file is invalid.
+    InvalidConfigFile {
+        /// The invalid config path.
+        path: PathBuf,
+        /// The parse error message.
+        message: String,
+    },
     /// A `destack.json` inheritance chain is cyclic.
     ConfigCycle {
         /// The config path that repeated.
@@ -129,8 +136,13 @@ pub enum RepositoryError {
         path: PathBuf,
         message: String,
     },
-    /// Root root discovery or parsing failed.
-    WorkspaceRootDiscovery { path: PathBuf, message: String },
+    /// One physical path lies outside its required root.
+    PathOutsideRoot {
+        /// The path outside the root.
+        path: PathBuf,
+        /// The required containing root.
+        root: PathBuf,
+    },
 }
 
 impl fmt::Display for RepositoryError {
@@ -287,6 +299,13 @@ impl fmt::Display for RepositoryError {
                     "invalid repository config for '{file}': {message}"
                 )
             }
+            Self::InvalidConfigFile { path, message } => {
+                write!(
+                    formatter,
+                    "invalid repository config file '{}': {message}",
+                    path.display()
+                )
+            }
             Self::ConfigCycle { path } => {
                 write!(
                     formatter,
@@ -311,11 +330,12 @@ impl fmt::Display for RepositoryError {
                     path.display()
                 )
             }
-            Self::WorkspaceRootDiscovery { path, message } => {
+            Self::PathOutsideRoot { path, root } => {
                 write!(
                     formatter,
-                    "workspace root discovery failed for '{}': {message}",
-                    path.display()
+                    "repository path '{}' lies outside root '{}'",
+                    path.display(),
+                    root.display()
                 )
             }
         }

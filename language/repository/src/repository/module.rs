@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
@@ -350,7 +351,7 @@ impl Repository {
         let revision_cache = revision_state.cache();
 
         if let Some(modules) = revision_cache.modules.get() {
-            return Ok(Arc::clone(modules));
+            return Ok(modules.clone());
         }
 
         let packages = self.package_index(revision)?;
@@ -358,7 +359,7 @@ impl Repository {
         let modules = self.module_index_for_files(revision, files.as_ref(), packages.as_ref())?;
         let modules = revision_cache.modules.get_or_init(|| Arc::new(modules));
 
-        Ok(Arc::clone(modules))
+        Ok(modules.clone())
     }
 
     /// Build the module index over one file listing and package index.
@@ -519,13 +520,13 @@ struct ConditionFileAlias {
 }
 
 impl PartialOrd for ConditionFileAlias {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for ConditionFileAlias {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         self.rank
             .cmp(&other.rank)
             .then_with(|| self.name.cmp(&other.name))

@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt;
 
 pub use destack_artifact::ConditionSet;
-use destack_source::matches as glob_matches;
+use destack_source::matches;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
@@ -858,7 +858,7 @@ impl From<ConditionSelectorValue> for ConditionSelector {
 
 /// Return true when one glob-like pattern matches text.
 fn glob_match(pattern: &str, text: &str) -> bool {
-    glob_matches(pattern.as_bytes(), 0, text.as_bytes(), 0)
+    matches(pattern.as_bytes(), 0, text.as_bytes(), 0)
 }
 
 #[cfg(test)]

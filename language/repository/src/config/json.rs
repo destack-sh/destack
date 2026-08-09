@@ -1,12 +1,11 @@
+use std::io::{Error, ErrorKind};
+
 use destack_source::{Content, File, strip_json};
-use serde_json::Value;
+use serde_json::{self, Value};
 
 /// Build one file content error.
 fn json_content_error(message: &str) -> serde_json::Error {
-    serde_json::Error::io(std::io::Error::new(
-        std::io::ErrorKind::InvalidData,
-        message,
-    ))
+    serde_json::Error::io(Error::new(ErrorKind::InvalidData, message))
 }
 
 /// Parse one strict file text payload.

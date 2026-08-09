@@ -1,12 +1,12 @@
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::{
     ConditionSet, ExportPattern, ExportTarget, PackageDependency, PackageExports, PackageNode,
 };
 use destack_core::{TreapRoot, stable_hash_value_128};
-use destack_source::{PackageId, TargetId, Uri, matches as glob_matches};
+use destack_source::{PackageId, TargetId, Uri, matches};
 use im::OrdMap;
 use indexmap::IndexMap;
 
@@ -247,13 +247,13 @@ impl Repository {
         let revision_cache = revision_state.cache();
 
         if let Some(packages) = revision_cache.packages.get() {
-            return Ok(Arc::clone(packages));
+            return Ok(packages.clone());
         }
 
         let packages = Arc::new(self.package_index_for_files(revision, revision_state.files())?);
         let packages = revision_cache.packages.get_or_init(|| packages);
 
-        Ok(Arc::clone(packages))
+        Ok(packages.clone())
     }
 
     /// Return the nearest package for one workspace path.
@@ -594,8 +594,8 @@ impl Repository {
             config_path.as_str()
         };
 
-        glob_matches(pattern.as_bytes(), 0, relative_root.as_bytes(), 0)
-            || glob_matches(pattern.as_bytes(), 0, config_path.as_bytes(), 0)
+        matches(pattern.as_bytes(), 0, relative_root.as_bytes(), 0)
+            || matches(pattern.as_bytes(), 0, config_path.as_bytes(), 0)
     }
 
     /// Build the active import-resolution node of one package.
@@ -669,14 +669,14 @@ fn normalize_logical_package_path(path: PathBuf) -> Option<PathBuf> {
 
     for component in path.components() {
         match component {
-            std::path::Component::CurDir => {}
-            std::path::Component::ParentDir => {
+            Component::CurDir => {}
+            Component::ParentDir => {
                 if !normalized.pop() {
                     return None;
                 }
             }
-            std::path::Component::Normal(component) => normalized.push(component),
-            std::path::Component::RootDir | std::path::Component::Prefix(_) => return None,
+            Component::Normal(component) => normalized.push(component),
+            Component::RootDir | Component::Prefix(_) => return None,
         }
     }
 
