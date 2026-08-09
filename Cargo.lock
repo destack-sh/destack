@@ -976,9 +976,9 @@ name = "destack_daemon"
 version = "0.55.4"
 dependencies = [
  "base64",
+ "crossbeam-channel",
  "destack_artifact",
  "destack_core",
- "destack_query",
  "destack_repository",
  "destack_rpc",
  "destack_serde",
@@ -986,6 +986,7 @@ dependencies = [
  "destack_source",
  "destack_workspace",
  "fs2",
+ "futures",
  "getrandom 0.4.2",
  "parking_lot",
  "serde",

@@ -2,187 +2,531 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::ArtifactPayload;
 use destack_repository::{
-    DestackLayoutOverride, Environment, Repository, Settings, open_repository_from_fs,
+    Commit, DestackLayoutOverride, Host, Revision, Settings, open_repository,
 };
-use destack_session::SessionEventHandler;
-use destack_source::{FileSystem, FileWatcher};
-use destack_workspace::LocalWorkspace;
-use parking_lot::Mutex;
+use destack_rpc::{Code, Request, Response, ResponseSender, Status};
+use destack_session::Executor;
+use destack_source::{Content, ContentId, OverlayFileSystem};
+use destack_workspace as workspace;
+use parking_lot::RwLock;
+use workspace::{ProgressEvent, WatchEvent, Workspace, WorkspaceService};
 
-use crate::DaemonError;
+use super::{DaemonError, WorkspaceWatch};
 
-/// One workspace opened inside a daemon process.
-#[derive(Debug)]
-pub struct OpenedWorkspace {
-    /// Live workspace facade.
-    pub(super) workspace: Arc<LocalWorkspace>,
-}
-
-impl OpenedWorkspace {
-    /// Open one daemon workspace for a repository.
-    pub fn new(
-        repository: Arc<Repository>,
-        roots: Vec<PathBuf>,
-        worker_limit: usize,
-        session_event_handler: Option<SessionEventHandler>,
-        file_watcher: Arc<dyn FileWatcher>,
-    ) -> Result<Self, DaemonError> {
-        let workspace = LocalWorkspace::new(
-            repository,
-            None,
-            Some(file_watcher),
-            roots,
-            worker_limit,
-            session_event_handler,
-        )?;
-
-        Ok(Self {
-            workspace: Arc::new(workspace),
-        })
-    }
-
-    /// Return the local workspace.
-    pub fn workspace(&self) -> Arc<LocalWorkspace> {
-        self.workspace.clone()
-    }
-}
-
-/// Workspaces opened inside one daemon.
-pub struct WorkspaceTable {
-    /// File system used to load new workspaces.
-    file_system: Arc<dyn FileSystem>,
-    /// Settings used to load new workspaces.
+/// Root-bound workspaces hosted by one daemon process.
+#[derive(Clone)]
+pub(crate) struct WorkspaceRegistry {
+    /// Process artifact executor shared by every workspace session.
+    executor: Arc<Executor>,
+    /// Host capabilities shared by workspace repositories.
+    host: Host,
+    /// Machine settings shared by workspace repositories.
     settings: Settings,
-    /// Layout override used to load new workspaces.
-    layout_override: DestackLayoutOverride,
-    /// Workspaces keyed by workspace root.
-    workspaces: Mutex<HashMap<PathBuf, Arc<OpenedWorkspace>>>,
-    /// Number of workers for each opened workspace.
-    worker_limit: usize,
-    /// Optional session event handler for opened workspaces.
-    session_event_handler: Option<SessionEventHandler>,
-    /// File watcher used by opened local workspaces.
-    file_watcher: Arc<dyn FileWatcher>,
+    /// Machine layout shared while workspace-local paths remain root-relative.
+    layout: DestackLayoutOverride,
+    /// Editor overlay shared by workspace repositories.
+    overlay_file_system: Option<Arc<OverlayFileSystem>>,
+    /// Live workspaces keyed by canonical root.
+    registration_by_root: Arc<RwLock<HashMap<PathBuf, Registration>>>,
 }
 
-impl std::fmt::Debug for WorkspaceTable {
-    /// Format the visible workspace table state.
+impl std::fmt::Debug for WorkspaceRegistry {
+    /// Format the visible daemon workspace state.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("WorkspaceTable")
-            .field("file_system", &"<file_system>")
+            .debug_struct("WorkspaceRegistry")
+            .field("executor", &self.executor)
+            .field("host", &self.host)
             .field("settings", &self.settings)
-            .field("layout_override", &self.layout_override)
-            .field("workspaces", &self.workspaces)
-            .field("worker_limit", &self.worker_limit)
-            .field(
-                "session_event_handler",
-                &self.session_event_handler.is_some(),
-            )
-            .field("file_watcher", &"<file_watcher>")
+            .field("layout", &self.layout)
+            .field("overlay_file_system", &self.overlay_file_system.is_some())
+            .field("registration_by_root", &self.registration_by_root)
             .finish()
     }
 }
 
-impl WorkspaceTable {
-    /// Create a workspace table from an initial repository.
-    pub fn new(
-        repository: Arc<Repository>,
-        worker_limit: usize,
-        session_event_handler: Option<SessionEventHandler>,
-        file_watcher: Arc<dyn FileWatcher>,
-    ) -> Result<Self, DaemonError> {
-        let file_system = repository.file_system().clone();
+impl WorkspaceRegistry {
+    /// Create one registry containing an initial workspace.
+    pub(crate) fn new(workspace: Workspace) -> Result<Self, DaemonError> {
+        let executor = workspace.session().executor();
+        let repository = workspace.session().repository();
+        let host = repository.host().clone();
         let settings = repository.settings().clone();
-        let layout_override = DestackLayoutOverride {
+        let layout = DestackLayoutOverride {
             home: Some(repository.layout().home.clone()),
             packages: Some(repository.layout().packages.clone()),
             workspace_cache: None,
         };
-        let workspace_root = repository.path().to_path_buf();
-        let roots = vec![workspace_root.clone()];
-        let workspace = Arc::new(OpenedWorkspace::new(
-            repository.clone(),
-            roots,
-            worker_limit,
-            session_event_handler.clone(),
-            file_watcher.clone(),
-        )?);
-        let mut workspaces = HashMap::new();
-        workspaces.insert(workspace_root, workspace);
+        let overlay_file_system = workspace.overlay_file_system();
+        let root = workspace.root().to_path_buf();
+        let registration = Registration::new(Arc::new(workspace))?;
+        let registration_by_root = HashMap::from([(root, registration)]);
 
         Ok(Self {
-            file_system,
+            executor,
+            host,
             settings,
-            layout_override,
-            workspaces: Mutex::new(workspaces),
-            worker_limit,
-            session_event_handler,
-            file_watcher,
+            layout,
+            overlay_file_system,
+            registration_by_root: Arc::new(RwLock::new(registration_by_root)),
         })
     }
 
-    /// Return an opened workspace or load it from the filesystem.
-    pub fn open(&self, workspace_root: &Path) -> Result<Arc<OpenedWorkspace>, DaemonError> {
-        // reuse an already opened workspace
-        if let Some(workspace) = self.workspaces.lock().get(workspace_root).cloned() {
+    /// Open one physical workspace and return its shared instance.
+    pub(crate) fn open(&self, root: &Path) -> Result<Arc<Workspace>, DaemonError> {
+        let root = Self::canonicalize(root)?;
+        if let Some(workspace) = self.get(&root) {
             return Ok(workspace);
         }
 
-        // load the requested workspace from the shared file system
-        let repository = self.load_repository(workspace_root)?;
-        let workspace_root = repository.path().to_path_buf();
-        let roots = vec![workspace_root.clone()];
-        let workspace = Arc::new(OpenedWorkspace::new(
-            Arc::new(repository),
-            roots,
-            self.worker_limit,
-            self.session_event_handler.clone(),
-            self.file_watcher.clone(),
-        )?);
-
-        // publish the workspace unless another client raced us
-        let mut workspaces = self.workspaces.lock();
-        if let Some(existing) = workspaces.get(&workspace_root).cloned() {
-            return Ok(existing);
+        // serialize construction so one root always has one workspace and watch
+        let mut registrations = self.registration_by_root.write();
+        if let Some(registration) = registrations.get(&root) {
+            return Ok(registration.workspace.clone());
         }
-        workspaces.insert(workspace_root, workspace.clone());
+        let repository = open_repository(
+            root.clone(),
+            self.host.clone(),
+            self.settings.clone(),
+            self.layout.clone(),
+        )
+        .map_err(workspace::Error::from)?;
+        let repository = Arc::new(repository);
+        let workspace = Workspace::new(
+            repository,
+            self.overlay_file_system.clone(),
+            self.executor.clone(),
+        )?;
+        let workspace = Arc::new(workspace);
+        let registration = Registration::new(workspace.clone())?;
+        registrations.insert(root, registration);
 
         Ok(workspace)
     }
 
-    /// Return one opened workspace.
-    pub fn get(&self, workspace_root: &Path) -> Option<Arc<OpenedWorkspace>> {
-        self.workspaces.lock().get(workspace_root).cloned()
+    /// Close one physical workspace.
+    pub(crate) fn close(&self, root: &Path) -> Result<(), DaemonError> {
+        let registration = self.registration_by_root.write().remove(root);
+        let Some(registration) = registration else {
+            return Ok(());
+        };
+
+        registration.close()?;
+
+        Ok(())
     }
 
-    /// Return opened workspace roots.
-    pub fn roots(&self) -> Vec<PathBuf> {
-        self.workspaces.lock().keys().cloned().collect()
+    /// Close every registered workspace and physical watch.
+    pub(crate) fn close_all(&self) -> Result<(), DaemonError> {
+        let registrations = self
+            .registration_by_root
+            .write()
+            .drain()
+            .map(|(_, registration)| registration)
+            .collect::<Vec<_>>();
+        let failures = registrations
+            .into_iter()
+            .filter_map(|registration| registration.close().err())
+            .collect();
+
+        match DaemonError::combine(failures) {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 
-    /// Return the number of opened workspaces.
-    pub(crate) fn len(&self) -> usize {
-        self.workspaces.lock().len()
+    /// Return one open workspace by canonical root.
+    pub(crate) fn workspace(&self, root: &Path) -> Result<Arc<Workspace>, Status> {
+        self.get(root).ok_or_else(|| {
+            Status::new(
+                Code::NotFound,
+                format!("workspace is not open: {}", root.display()),
+            )
+        })
     }
 
-    /// Load a repository using the daemon's shared machine settings.
-    fn load_repository(&self, workspace_root: &Path) -> Result<Repository, DaemonError> {
-        let mut environment = Environment::capture_process();
-        environment.cwd = Some(workspace_root.to_path_buf());
-        let repository = open_repository_from_fs(
-            workspace_root.to_path_buf(),
-            self.file_system.clone(),
-            environment,
-            self.settings.clone(),
-            self.layout_override.clone(),
-        )
-        .map_err(|error| DaemonError::WorkspaceOpen {
-            root: workspace_root.to_path_buf(),
-            detail: error.to_string(),
-        })?;
+    /// Return one registered workspace without resolving its root.
+    fn get(&self, root: &Path) -> Option<Arc<Workspace>> {
+        self.registration_by_root
+            .read()
+            .get(root)
+            .map(|registration| registration.workspace.clone())
+    }
 
-        Ok(repository)
+    /// Return one canonical physical workspace root.
+    fn canonicalize(root: &Path) -> Result<PathBuf, DaemonError> {
+        std::fs::canonicalize(root)
+            .map_err(|source| workspace::Error::Io {
+                path: root.to_path_buf(),
+                source,
+            })
+            .map_err(DaemonError::from)
+    }
+}
+
+/// One registered workspace and its physical observation.
+struct Registration {
+    /// Root-bound semantic workspace.
+    workspace: Arc<Workspace>,
+    /// Physical changes feeding the workspace.
+    watch: WorkspaceWatch,
+}
+
+impl std::fmt::Debug for Registration {
+    /// Format the visible workspace registration.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Registration")
+            .field("workspace", &self.workspace)
+            .field("watch", &self.watch)
+            .finish()
+    }
+}
+
+impl Registration {
+    /// Register one workspace under physical observation.
+    fn new(workspace: Arc<Workspace>) -> Result<Self, DaemonError> {
+        let watch = WorkspaceWatch::start(workspace.clone())?;
+
+        Ok(Self { workspace, watch })
+    }
+
+    /// Close the physical watch and semantic workspace.
+    fn close(mut self) -> Result<(), DaemonError> {
+        let result = self.watch.stop();
+        self.workspace.close();
+
+        result
+    }
+}
+
+impl WorkspaceService for WorkspaceRegistry {
+    /// Reload one workspace from its host.
+    async fn reload(
+        &self,
+        request: Request<workspace::ReloadRequest>,
+    ) -> Result<Response<Option<Commit>>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::reload(&workspace, request).await
+    }
+
+    /// Read one workspace revision.
+    async fn read_revision(
+        &self,
+        request: Request<workspace::ReadRevisionRequest>,
+    ) -> Result<Response<Revision>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::read_revision(&workspace, request).await
+    }
+
+    /// Apply one editor file operation.
+    async fn apply_file_operation(
+        &self,
+        request: Request<workspace::ApplyFileOperationRequest>,
+    ) -> Result<Response<Option<Commit>>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::apply_file_operation(&workspace, request).await
+    }
+
+    /// Apply one atomic source update.
+    async fn apply_source_update(
+        &self,
+        request: Request<workspace::ApplySourceUpdateRequest>,
+    ) -> Result<Response<Commit>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::apply_source_update(&workspace, request).await
+    }
+
+    /// Return whether one source file is open.
+    async fn is_file_open(
+        &self,
+        request: Request<workspace::IsFileOpenRequest>,
+    ) -> Result<Response<bool>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::is_file_open(&workspace, request).await
+    }
+
+    /// Format one source file or selected range.
+    async fn format_file(
+        &self,
+        request: Request<workspace::FormatFileRequest>,
+    ) -> Result<Response<Option<workspace::FileEditResponse>>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::format_file(&workspace, request).await
+    }
+
+    /// Read source files from one exact revision.
+    async fn read_files(
+        &self,
+        request: Request<workspace::ReadFilesRequest>,
+    ) -> Result<Response<Vec<workspace::FileImage>>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::read_files(&workspace, request).await
+    }
+
+    /// Check source state.
+    async fn check(
+        &self,
+        request: Request<workspace::CheckRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::CheckOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::check(&workspace, request, responses).await
+    }
+
+    /// Format source files or content.
+    async fn format(
+        &self,
+        request: Request<workspace::FormatRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::FormatOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::format(&workspace, request, responses).await
+    }
+
+    /// Query source files with one structural pattern.
+    async fn query(
+        &self,
+        request: Request<workspace::QueryRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::QueryOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::query(&workspace, request, responses).await
+    }
+
+    /// Rewrite source files with one structural pattern.
+    async fn rewrite(
+        &self,
+        request: Request<workspace::RewriteRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::RewriteOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::rewrite(&workspace, request, responses).await
+    }
+
+    /// Build target artifacts.
+    async fn build(
+        &self,
+        request: Request<workspace::BuildRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::BuildOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::build(&workspace, request, responses).await
+    }
+
+    /// Run one workspace target.
+    async fn run(
+        &self,
+        request: Request<workspace::RunRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::RunOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::run(&workspace, request, responses).await
+    }
+
+    /// Run workspace tests.
+    async fn test(
+        &self,
+        request: Request<workspace::TestRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::TestOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::test(&workspace, request, responses).await
+    }
+
+    /// Generate workspace documentation.
+    async fn doc(
+        &self,
+        request: Request<workspace::DocRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::DocOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::doc(&workspace, request, responses).await
+    }
+
+    /// Run workspace benchmarks.
+    async fn bench(
+        &self,
+        request: Request<workspace::BenchRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::BenchOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::bench(&workspace, request, responses).await
+    }
+
+    /// Return workspace information.
+    async fn info(
+        &self,
+        request: Request<workspace::InfoRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::InfoOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::info(&workspace, request, responses).await
+    }
+
+    /// Return configured targets.
+    async fn targets(
+        &self,
+        request: Request<workspace::TargetsRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::TargetsOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::targets(&workspace, request, responses).await
+    }
+
+    /// Return cache locations.
+    async fn cache(
+        &self,
+        request: Request<workspace::CacheRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::CacheOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::cache(&workspace, request, responses).await
+    }
+
+    /// Return resolved settings.
+    async fn settings(
+        &self,
+        request: Request<workspace::SettingsRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::SettingsOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::settings(&workspace, request, responses).await
+    }
+
+    /// Diagnose workspace configuration and state.
+    async fn doctor(
+        &self,
+        request: Request<workspace::DoctorRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::DoctorOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::doctor(&workspace, request, responses).await
+    }
+
+    /// Execute configured workspace tasks.
+    async fn task(
+        &self,
+        request: Request<workspace::TaskRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::TaskOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::task(&workspace, request, responses).await
+    }
+
+    /// Clean generated workspace state.
+    async fn clean(
+        &self,
+        request: Request<workspace::CleanRequest>,
+        responses: ResponseSender<ProgressEvent>,
+    ) -> Result<Response<workspace::CleanOutput>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::clean(&workspace, request, responses).await
+    }
+
+    /// Read one exact artifact payload.
+    async fn artifact(
+        &self,
+        request: Request<workspace::ArtifactRequest>,
+    ) -> Result<Response<ArtifactPayload>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::artifact(&workspace, request).await
+    }
+
+    /// Store one content value.
+    async fn store(
+        &self,
+        request: Request<workspace::StoreRequest>,
+    ) -> Result<Response<ContentId>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::store(&workspace, request).await
+    }
+
+    /// Load one content value.
+    async fn load(
+        &self,
+        request: Request<workspace::LoadRequest>,
+    ) -> Result<Response<Content>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::load(&workspace, request).await
+    }
+
+    /// Materialize one artifact on the workspace host.
+    async fn export(
+        &self,
+        request: Request<workspace::ExportRequest>,
+    ) -> Result<Response<workspace::ExportResult>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::export(&workspace, request).await
+    }
+
+    /// Read exact diagnostics.
+    async fn diagnose(
+        &self,
+        request: Request<workspace::DiagnoseRequest>,
+    ) -> Result<Response<Vec<workspace::FileDiagnosticsResponse>>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::diagnose(&workspace, request).await
+    }
+
+    /// Resolve one source file for semantic queries.
+    async fn resolve_query_file(
+        &self,
+        request: Request<workspace::ResolveQueryFileRequest>,
+    ) -> Result<Response<Option<workspace::QueryFileResponse>>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::resolve_query_file(&workspace, request).await
+    }
+
+    /// Execute one semantic query.
+    async fn run_query(
+        &self,
+        request: Request<workspace::RunQueryRequest>,
+    ) -> Result<Response<workspace::RunQueryResponse>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::run_query(&workspace, request).await
+    }
+
+    /// Watch one workspace until cancellation.
+    async fn watch(
+        &self,
+        request: Request<workspace::WatchRequest>,
+        responses: ResponseSender<WatchEvent>,
+    ) -> Result<Response<()>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::watch(&workspace, request, responses).await
     }
 }

@@ -1,5 +1,4 @@
-/// Default idle shutdown timeout for the daemon.
-pub(crate) const DEFAULT_IDLE_SHUTDOWN_MS: u64 = 600_000;
+use std::time::Duration;
 
-/// Idle shutdown monitor poll interval.
-pub(crate) const IDLE_SHUTDOWN_POLL_MS: u64 = 250;
+/// Default time before an idle daemon shuts down.
+pub(crate) const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(600);

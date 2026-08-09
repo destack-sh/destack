@@ -1,0 +1,53 @@
+use destack_rpc::{Request, Response, Status};
+
+use crate::{
+    CloseWorkspaceRequest, ConnectionId, Daemon, DaemonService, OpenWorkspaceRequest,
+    OpenWorkspaceResponse,
+};
+
+/// Daemon operations bound to one RPC peer.
+#[derive(Debug, Clone)]
+pub(crate) struct DaemonPeer {
+    /// Shared daemon process.
+    daemon: Daemon,
+    /// Calling connection.
+    connection: ConnectionId,
+}
+
+impl DaemonPeer {
+    /// Bind daemon operations to one connection.
+    pub(crate) const fn new(daemon: Daemon, connection: ConnectionId) -> Self {
+        Self { daemon, connection }
+    }
+}
+
+impl DaemonService for DaemonPeer {
+    /// Open one workspace in this daemon.
+    async fn open_workspace(
+        &self,
+        request: Request<OpenWorkspaceRequest>,
+    ) -> Result<Response<OpenWorkspaceResponse>, Status> {
+        let workspace = self.daemon.workspaces().open(&request.value.root)?;
+        let root = workspace.root().to_path_buf();
+        let revision = workspace.revision()?;
+
+        Ok(Response::new(OpenWorkspaceResponse { root, revision }))
+    }
+
+    /// Close one workspace in this daemon.
+    async fn close_workspace(
+        &self,
+        request: Request<CloseWorkspaceRequest>,
+    ) -> Result<Response<()>, Status> {
+        self.daemon.workspaces().close(&request.value.root)?;
+
+        Ok(Response::new(()))
+    }
+
+    /// Request orderly daemon shutdown.
+    async fn shutdown(&self, _request: Request<()>) -> Result<Response<()>, Status> {
+        self.daemon.lifecycle().shutdown_after(self.connection);
+
+        Ok(Response::new(()))
+    }
+}

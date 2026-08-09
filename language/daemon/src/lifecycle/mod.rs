@@ -1,5 +1,3 @@
-mod activity;
 mod lifecycle;
 
-pub use activity::*;
-pub use lifecycle::*;
+pub(crate) use lifecycle::*;

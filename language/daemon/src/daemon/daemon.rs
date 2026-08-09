@@ -1,87 +1,384 @@
-use std::path::Path;
 use std::sync::Arc;
+use std::thread::{self, JoinHandle};
+use std::time::Instant;
 
-use destack_repository::Repository;
-use destack_session::SessionEventHandler;
-use destack_source::{FileWatcher, PhysicalFileWatcher};
+use crossbeam_channel::{Receiver, Sender, select, unbounded};
+use destack_rpc::{
+    IpcListener, Listener, Registry, Server, ServerError, Transport, TransportError,
+    WebSocketListener,
+};
+use destack_workspace::{Workspace, WorkspaceServer};
 
-use crate::DaemonError;
+use crate::{
+    ConnectionActivity, ConnectionId, DaemonEndpoint, DaemonError, DaemonLifecycle, DaemonMetadata,
+    DaemonOptions, DaemonPeer, DaemonServer, WorkspaceRegistry,
+};
 
-use super::{OpenedWorkspace, WorkspaceTable};
-
-/// Persistent state for workspace server clients.
-#[derive(Clone)]
+/// Persistent process serving Destack RPC services.
+#[derive(Debug, Clone)]
 pub struct Daemon {
-    /// Number of workers for each opened session.
-    pub worker_limit: usize,
-    /// Watcher implementation used by server-owned watches.
-    pub file_watcher: Arc<dyn FileWatcher>,
-    /// Opened workspaces keyed by workspace root.
-    workspaces: Arc<WorkspaceTable>,
-}
-
-impl std::fmt::Debug for Daemon {
-    /// Format the visible daemon state.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("Daemon")
-            .field("worker_limit", &self.worker_limit)
-            .field("file_watcher", &"<file_watcher>")
-            .field("workspaces", &self.workspaces)
-            .finish()
-    }
+    /// Discovery and transport addresses.
+    endpoint: DaemonEndpoint,
+    /// Root-bound workspaces exposed by this daemon.
+    workspaces: WorkspaceRegistry,
+    /// Daemon options.
+    options: DaemonOptions,
+    /// Shared process lifecycle.
+    lifecycle: DaemonLifecycle,
 }
 
 impl Daemon {
-    /// Create a daemon.
-    pub fn new(
-        repository: Arc<Repository>,
-        worker_limit: usize,
-        session_event_handler: Option<SessionEventHandler>,
-    ) -> Result<Self, DaemonError> {
-        let file_watcher = Arc::new(PhysicalFileWatcher::new());
-
-        Self::new_with_watcher(
-            repository,
-            worker_limit,
-            session_event_handler,
-            file_watcher,
-        )
+    /// Create a daemon with default options.
+    pub fn new(workspace: Workspace, endpoint: DaemonEndpoint) -> Result<Self, DaemonError> {
+        Self::with_options(workspace, endpoint, DaemonOptions::default())
     }
 
-    /// Create a daemon with an explicit watcher implementation.
-    pub fn new_with_watcher(
-        repository: Arc<Repository>,
-        worker_limit: usize,
-        session_event_handler: Option<SessionEventHandler>,
-        file_watcher: Arc<dyn FileWatcher>,
+    /// Create a daemon with explicit options.
+    pub fn with_options(
+        workspace: Workspace,
+        endpoint: DaemonEndpoint,
+        options: DaemonOptions,
     ) -> Result<Self, DaemonError> {
-        let workspaces = WorkspaceTable::new(
-            repository,
-            worker_limit,
-            session_event_handler,
-            file_watcher.clone(),
-        )?;
+        // host shared workspace state and physical changes
+        let workspaces = WorkspaceRegistry::new(workspace)?;
+
+        // create process lifecycle state
+        let lifecycle = DaemonLifecycle::new(options.idle_timeout);
 
         Ok(Self {
-            worker_limit,
-            file_watcher,
-            workspaces: Arc::new(workspaces),
+            endpoint,
+            workspaces,
+            options,
+            lifecycle,
         })
     }
 
-    /// Open or return one workspace.
-    pub(crate) fn open(&self, workspace_root: &Path) -> Result<Arc<OpenedWorkspace>, DaemonError> {
-        self.workspaces.open(workspace_root)
+    /// Serve daemon connections until shutdown.
+    pub fn serve(&self) -> Result<(), DaemonError> {
+        // acquire the endpoint and remove stale local state
+        let _lock = self.endpoint.lock()?;
+        self.endpoint.remove_metadata()?;
+        self.endpoint.clear_socket()?;
+
+        // remove published endpoint state after every listening outcome
+        let result = self.listen();
+        let workspace_result = self.workspaces.close_all();
+        let metadata_result = self.endpoint.remove_metadata();
+        let socket_result = self.endpoint.clear_socket();
+
+        // preserve serving and endpoint cleanup failures together
+        let failures = [
+            result,
+            workspace_result,
+            metadata_result.map_err(DaemonError::from),
+            socket_result.map_err(DaemonError::from),
+        ]
+        .into_iter()
+        .filter_map(Result::err)
+        .collect();
+
+        match DaemonError::combine(failures) {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 
-    /// Return all opened workspace roots.
-    pub fn workspace_roots(&self) -> Vec<std::path::PathBuf> {
-        self.workspaces.roots()
+    /// Bind transports, publish the endpoint, and serve connections.
+    fn listen(&self) -> Result<(), DaemonError> {
+        // bind local and browser transports
+        let websocket_token = self.endpoint.websocket_token()?;
+        let max_message_bytes = self.options.rpc.limits.max_message_bytes as usize;
+        let ipc = IpcListener::bind(&self.endpoint.socket_path, max_message_bytes)?;
+        let websocket = WebSocketListener::bind(
+            self.endpoint.websocket_address,
+            max_message_bytes,
+            self.endpoint.websocket_path.clone(),
+            websocket_token.clone(),
+        )?;
+
+        // publish the live endpoint
+        let websocket_address = websocket.local_address();
+        let metadata = DaemonMetadata::new(&self.endpoint, websocket_address, &websocket_token)?;
+        self.endpoint.write_metadata(&metadata)?;
+
+        self.serve_connections(ipc, websocket)
     }
 
-    /// Return the number of opened workspaces.
-    pub fn workspace_count(&self) -> usize {
-        self.workspaces.len()
+    /// Accept and serve both local and browser transports.
+    fn serve_connections(
+        &self,
+        ipc: IpcListener,
+        websocket: WebSocketListener,
+    ) -> Result<(), DaemonError> {
+        let ipc = Arc::new(ipc);
+        let websocket = Arc::new(websocket);
+        let (sender, events) = unbounded();
+
+        // block independently on both RPC listeners
+        let ipc_thread = Self::spawn_listener(ipc.clone(), sender.clone());
+        let websocket_thread = Self::spawn_listener(websocket.clone(), sender.clone());
+        drop(sender);
+
+        // serve accepted connections until shutdown or failure
+        let mut connections = Vec::new();
+        let serve_result = self.accept_connections(&events, &mut connections);
+        self.lifecycle.shutdown();
+
+        // interrupt and join both RPC listeners
+        let mut failures = Vec::new();
+        failures.extend(ipc.close().err().map(DaemonError::from));
+        failures.extend(websocket.close().err().map(DaemonError::from));
+        failures.extend(Self::join_listener(ipc_thread).err());
+        failures.extend(Self::join_listener(websocket_thread).err());
+        failures.extend(events.try_iter().filter_map(|event| event.finish().err()));
+
+        // let the shutdown caller receive its terminal response and disconnect
+        let completion_result = if serve_result.is_ok() {
+            self.wait_for_shutdown_connection(&mut connections)
+        } else {
+            Ok(())
+        };
+
+        // interrupt and join every remaining connection
+        let reap_result = Connection::reap(&mut connections);
+        failures.extend(
+            connections
+                .iter()
+                .filter_map(|connection| connection.close().err().map(DaemonError::from)),
+        );
+        failures.extend(
+            connections
+                .into_iter()
+                .filter_map(|connection| connection.join().err()),
+        );
+
+        // preserve every independently observed serving and cleanup failure
+        failures.extend(serve_result.err());
+        failures.extend(completion_result.err());
+        failures.extend(reap_result.err());
+
+        match DaemonError::combine(failures) {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
+    }
+
+    /// Accept connections until lifecycle shutdown or one serving failure.
+    fn accept_connections(
+        &self,
+        events: &Receiver<Event>,
+        connections: &mut Vec<Connection>,
+    ) -> Result<(), DaemonError> {
+        while !self.lifecycle.is_shutdown() {
+            match self.next_event(events)? {
+                Some(Event::Accepted(transport)) => {
+                    let activity = self.lifecycle.connect();
+                    let server = self.rpc_server(activity.identifier())?;
+                    connections.push(Connection::spawn(server, transport, activity));
+                }
+                Some(Event::Failed(error)) => return Err(error),
+                None => {}
+            }
+
+            // apply current lifecycle state and completed connection results
+            self.lifecycle.shutdown_if_idle();
+            Connection::reap(connections)?;
+        }
+
+        Ok(())
+    }
+
+    /// Wait for one daemon or listener transition.
+    fn next_event(&self, events: &Receiver<Event>) -> Result<Option<Event>, DaemonError> {
+        let notifications = self.lifecycle.notifications();
+        let Some(deadline) = self.lifecycle.idle_deadline() else {
+            return select! {
+                recv(events) -> event => Event::receive(event),
+                recv(notifications) -> notification => {
+                    notification.map_err(|_| DaemonError::Thread)?;
+
+                    Ok(None)
+                }
+            };
+        };
+        let timeout = deadline.saturating_duration_since(Instant::now());
+
+        select! {
+            recv(events) -> event => Event::receive(event),
+            recv(notifications) -> notification => {
+                notification.map_err(|_| DaemonError::Thread)?;
+
+                Ok(None)
+            }
+            default(timeout) => Ok(None),
+        }
+    }
+
+    /// Spawn one blocking RPC listener.
+    fn spawn_listener<L>(
+        listener: Arc<L>,
+        sender: Sender<Event>,
+    ) -> JoinHandle<Result<(), DaemonError>>
+    where
+        L: Listener,
+        DaemonError: From<L::Error>,
+    {
+        thread::spawn(move || {
+            loop {
+                match listener.accept() {
+                    Ok(Some(transport)) => {
+                        let sent = sender.send(Event::Accepted(transport));
+                        if let Err(error) = sent {
+                            let Event::Accepted(transport) = error.0 else {
+                                return Err(DaemonError::Thread);
+                            };
+
+                            transport.close()?;
+
+                            return Ok(());
+                        }
+                    }
+                    Ok(None) => return Ok(()),
+                    Err(error) => {
+                        let sent = sender.send(Event::Failed(error.into()));
+                        if let Err(error) = sent {
+                            let Event::Failed(error) = error.0 else {
+                                return Err(DaemonError::Thread);
+                            };
+
+                            return Err(error);
+                        }
+
+                        return Ok(());
+                    }
+                }
+            }
+        })
+    }
+
+    /// Build connection-scoped RPC services.
+    fn rpc_server(&self, connection: ConnectionId) -> Result<Server, DaemonError> {
+        // bind typed services to shared daemon state
+        let workspace = WorkspaceServer::new(self.workspaces.clone())?;
+        let daemon = DaemonServer::new(DaemonPeer::new(self.clone(), connection))?;
+
+        // register each independently versioned service
+        let mut services = Registry::new();
+        services.insert(workspace)?;
+        services.insert(daemon)?;
+
+        Ok(Server::new(services, self.options.rpc.clone()))
+    }
+
+    /// Wait until the connection that requested shutdown has completed.
+    fn wait_for_shutdown_connection(
+        &self,
+        connections: &mut Vec<Connection>,
+    ) -> Result<(), DaemonError> {
+        while self.lifecycle.is_shutdown_connection_active() {
+            self.lifecycle
+                .notifications()
+                .recv()
+                .map_err(|_| DaemonError::Thread)?;
+            Connection::reap(connections)?;
+        }
+
+        Ok(())
+    }
+
+    /// Join one RPC listener thread.
+    fn join_listener(listener: JoinHandle<Result<(), DaemonError>>) -> Result<(), DaemonError> {
+        listener.join().map_err(|_| DaemonError::Thread)?
+    }
+
+    /// Return the root-bound workspace registry.
+    pub(crate) const fn workspaces(&self) -> &WorkspaceRegistry {
+        &self.workspaces
+    }
+
+    /// Return the shared process lifecycle.
+    pub(crate) const fn lifecycle(&self) -> &DaemonLifecycle {
+        &self.lifecycle
+    }
+}
+
+/// One event from an RPC listener.
+#[derive(Debug)]
+enum Event {
+    /// One accepted RPC transport.
+    Accepted(Arc<dyn Transport>),
+    /// One terminal listener failure.
+    Failed(DaemonError),
+}
+
+impl Event {
+    /// Receive one event from its listener.
+    fn receive(
+        event: Result<Self, crossbeam_channel::RecvError>,
+    ) -> Result<Option<Self>, DaemonError> {
+        let event = event.map_err(|_| DaemonError::Thread)?;
+
+        Ok(Some(event))
+    }
+
+    /// Finish one event left by a stopped listener.
+    fn finish(self) -> Result<(), DaemonError> {
+        match self {
+            Self::Accepted(transport) => transport.close().map_err(DaemonError::from),
+            Self::Failed(error) => Err(error),
+        }
+    }
+}
+
+/// One live server-side RPC connection.
+#[derive(Debug)]
+struct Connection {
+    /// Transport used to interrupt the connection during shutdown.
+    transport: Arc<dyn Transport>,
+    /// Server thread.
+    thread: JoinHandle<Result<(), ServerError>>,
+}
+
+impl Connection {
+    /// Spawn one server-side RPC connection.
+    fn spawn(server: Server, transport: Arc<dyn Transport>, activity: ConnectionActivity) -> Self {
+        let connection_transport = transport.clone();
+        let thread = thread::spawn(move || {
+            let result = server.serve(connection_transport);
+            drop(activity);
+
+            result
+        });
+
+        Self { transport, thread }
+    }
+
+    /// Join and remove completed connections.
+    fn reap(connections: &mut Vec<Self>) -> Result<(), DaemonError> {
+        let mut index = 0;
+
+        // remove finished threads without shifting the remaining entries
+        while index < connections.len() {
+            if connections[index].thread.is_finished() {
+                let connection = connections.swap_remove(index);
+                connection.join()?;
+            } else {
+                index += 1;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Close this connection transport and interrupt pending input.
+    fn close(&self) -> Result<(), TransportError> {
+        self.transport.close()
+    }
+
+    /// Join this connection and propagate its failure.
+    fn join(self) -> Result<(), DaemonError> {
+        self.thread.join().map_err(|_| DaemonError::Thread)??;
+
+        Ok(())
     }
 }

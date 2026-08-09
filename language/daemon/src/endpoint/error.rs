@@ -1,4 +1,7 @@
-use destack_rpc::{CallError, ConnectError as RpcConnectError, IpcError};
+use std::time::SystemTimeError;
+use std::{fmt, io};
+
+use destack_rpc::{CallError, ConnectError, IpcError};
 
 /// Failure to discover or change one daemon endpoint.
 #[derive(Debug)]
@@ -6,24 +9,24 @@ pub enum DaemonEndpointError {
     /// Another process owns this endpoint.
     AlreadyRunning,
     /// Underlying filesystem failure.
-    Io(std::io::Error),
+    Io(io::Error),
     /// Endpoint metadata serialization failure.
     Serde(serde_json::Error),
     /// System clock failure.
-    Time(std::time::SystemTimeError),
+    Time(SystemTimeError),
     /// Secure randomness failure.
     Random(getrandom::Error),
     /// Local transport failure.
     Ipc(IpcError),
     /// RPC connection failure.
-    Connect(RpcConnectError),
+    Connect(ConnectError),
     /// RPC invocation failure.
     Call(CallError),
 }
 
-impl std::fmt::Display for DaemonEndpointError {
+impl fmt::Display for DaemonEndpointError {
     /// Format this daemon endpoint failure.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::AlreadyRunning => write!(formatter, "daemon is already running"),
             Self::Io(error) => write!(formatter, "daemon endpoint I/O failed: {error}"),
@@ -53,9 +56,9 @@ impl std::error::Error for DaemonEndpointError {
     }
 }
 
-impl From<std::io::Error> for DaemonEndpointError {
+impl From<io::Error> for DaemonEndpointError {
     /// Convert one filesystem failure.
-    fn from(error: std::io::Error) -> Self {
+    fn from(error: io::Error) -> Self {
         Self::Io(error)
     }
 }
@@ -74,9 +77,9 @@ impl From<IpcError> for DaemonEndpointError {
     }
 }
 
-impl From<RpcConnectError> for DaemonEndpointError {
+impl From<ConnectError> for DaemonEndpointError {
     /// Convert one RPC connection failure.
-    fn from(error: RpcConnectError) -> Self {
+    fn from(error: ConnectError) -> Self {
         Self::Connect(error)
     }
 }

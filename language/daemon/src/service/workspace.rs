@@ -1,0 +1,28 @@
+use std::path::PathBuf;
+
+use destack_repository::Revision;
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
+
+/// Request to open one daemon workspace.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct OpenWorkspaceRequest {
+    /// Requested workspace root.
+    pub root: PathBuf,
+}
+
+/// One opened daemon workspace.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct OpenWorkspaceResponse {
+    /// Canonical workspace root.
+    pub root: PathBuf,
+    /// Current semantic revision.
+    pub revision: Revision,
+}
+
+/// Request to close one daemon workspace.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct CloseWorkspaceRequest {
+    /// Workspace root to close.
+    pub root: PathBuf,
+}

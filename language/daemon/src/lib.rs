@@ -1,14 +1,13 @@
-mod control;
 mod daemon;
-mod diagnostic;
 mod endpoint;
 mod lifecycle;
+mod service;
 
 #[cfg(test)]
 pub mod tests;
 
-pub use control::*;
 pub use daemon::*;
-pub use diagnostic::*;
 pub use endpoint::*;
-pub use lifecycle::*;
+pub use service::*;
+
+pub(crate) use lifecycle::*;

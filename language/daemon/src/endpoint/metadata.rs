@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_artifact::BuildId;
@@ -52,7 +53,7 @@ impl DaemonMetadata {
             instance_id: endpoint.instance_id.clone(),
             socket_path: endpoint.socket_path.clone(),
             websocket_url: endpoint.websocket_url(websocket_address, websocket_token),
-            process_id: std::process::id(),
+            process_id: process::id(),
             rpc_version: ProtocolVersion::CURRENT.0,
             build_id,
             version: env!("CARGO_PKG_VERSION").to_string(),

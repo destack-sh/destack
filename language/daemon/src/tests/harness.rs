@@ -1,16 +1,20 @@
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::thread::JoinHandle;
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use destack_artifact::{BuildId, DiskBlobStore};
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, Host, Repository, Settings,
+    DestackLayoutOverride, Environment, Execution, Host, Settings, open_repository,
 };
-use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
+use destack_session::Executor;
+use destack_source::{
+    FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem,
+};
+use destack_workspace::Workspace;
 
 use crate::{
-    DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonServer, DaemonServerError,
-    DaemonServerOptions,
+    Daemon, DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonError, DaemonOptions,
 };
 
 /// Isolated running daemon for RPC tests.
@@ -20,23 +24,25 @@ pub(super) struct TestDaemon {
     /// Daemon discovery endpoint.
     pub endpoint: DaemonEndpoint,
     /// Running daemon thread.
-    handle: Option<JoinHandle<Result<(), DaemonServerError>>>,
+    handle: Option<JoinHandle<Result<(), DaemonError>>>,
 }
 
 impl TestDaemon {
     /// Start one isolated daemon.
     pub(super) fn start(name: &str) -> Self {
         let root = TemporaryPhysicalFileSystem::new_with_prefix(name);
-        let repository = repository(&root);
+        root.write_text("destack.json", "{ \"name\": \"test\" }\n")
+            .expect("test manifest should write");
+        let workspace = Self::workspace(&root);
+        let repository = workspace.session().repository();
         let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
-        let options = DaemonServerOptions {
-            worker_limit: 1,
-            idle_shutdown: None,
-            ..DaemonServerOptions::default()
+        let options = DaemonOptions {
+            idle_timeout: None,
+            ..DaemonOptions::default()
         };
-        let server = DaemonServer::with_options(repository, endpoint.clone(), options)
-            .expect("daemon server should initialize");
-        let handle = std::thread::spawn(move || server.serve());
+        let daemon = Daemon::with_options(workspace, endpoint.clone(), options)
+            .expect("test daemon should initialize");
+        let handle = thread::spawn(move || daemon.serve());
 
         Self {
             root,
@@ -46,8 +52,15 @@ impl TestDaemon {
     }
 
     /// Return the repository root.
-    pub(super) fn root(&self) -> &std::path::Path {
+    pub(super) fn root(&self) -> &Path {
         self.root.root()
+    }
+
+    /// Write one physical source file beneath the repository root.
+    pub(super) fn write_text(&self, path: &str, content: &str) -> PathBuf {
+        self.root
+            .write_text(path, content)
+            .expect("physical source should write")
     }
 
     /// Connect after the daemon has bound its socket.
@@ -60,16 +73,41 @@ impl TestDaemon {
                 Ok(connection) => return connection,
                 Err(error) => last_error = Some(error),
             }
-            std::thread::sleep(Duration::from_millis(10));
+            thread::sleep(Duration::from_millis(10));
         }
 
         panic!("daemon did not accept RPC connections: {last_error:?}")
     }
 
+    /// Build one daemon workspace over a temporary physical root.
+    fn workspace(root: &TemporaryPhysicalFileSystem) -> Workspace {
+        let mut environment = Environment::capture_process();
+        environment.cwd = Some(root.root().to_path_buf());
+        let settings = Settings::default();
+        let layout = DestackLayoutOverride {
+            home: Some(root.root().join("home")),
+            ..DestackLayoutOverride::default()
+        };
+        let physical: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let file_system = Arc::new(OverlayFileSystem::with_inner(physical));
+        let host = Host::new(
+            BuildId::test(),
+            environment,
+            file_system.clone(),
+            Arc::new(DiskBlobStore::new()),
+        );
+        let repository = open_repository(root.root().to_path_buf(), host, settings, layout)
+            .expect("test repository should open");
+        let repository = Arc::new(repository);
+        let executor = Executor::new(Execution::Threaded, 1).expect("create executor");
+
+        Workspace::new(repository, Some(file_system), executor).expect("test workspace should open")
+    }
+
     /// Request shutdown and join the daemon.
     pub(super) fn shutdown(mut self, connection: DaemonConnection) {
         connection
-            .control()
+            .daemon()
             .shutdown(())
             .expect("daemon shutdown should complete");
         connection.close().expect("connection should close");
@@ -88,36 +126,9 @@ impl Drop for TestDaemon {
             return;
         };
         if let Ok(connection) = self.endpoint.connect(DaemonConnectOptions::default(), None) {
-            let _shutdown = connection.control().shutdown(());
+            let _shutdown = connection.daemon().shutdown(());
             let _closed = connection.close();
         }
         let _joined = handle.join();
     }
-}
-
-/// Build one repository over a temporary physical root.
-fn repository(root: &TemporaryPhysicalFileSystem) -> Arc<Repository> {
-    let environment = Environment::capture_process();
-    let settings = Settings::default();
-    let layout = DestackLayout::resolve(
-        root.root(),
-        root.root(),
-        &environment,
-        &settings,
-        &DestackLayoutOverride {
-            home: Some(root.root().join("home")),
-            ..DestackLayoutOverride::default()
-        },
-        None,
-    );
-    let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
-    let host = Host::new(
-        BuildId::test(),
-        environment,
-        file_system,
-        Arc::new(DiskBlobStore::new()),
-    );
-    let repository = Repository::new(root.root().to_path_buf(), host, settings, layout);
-
-    Arc::new(repository)
 }
