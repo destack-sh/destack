@@ -1,4 +1,3 @@
-use std::io;
 use std::path::Path;
 #[cfg(windows)]
 use std::path::PathBuf;
@@ -8,7 +7,7 @@ use std::time::Duration;
 use interprocess::TryClone;
 #[cfg(windows)]
 use interprocess::local_socket::{
-    ListenerNonblockingMode, LocalSocketListener, LocalSocketStream,
+    LocalSocketListener, LocalSocketStream,
     traits::{Listener as _, Stream as _},
 };
 #[cfg(unix)]
@@ -35,46 +34,28 @@ pub(super) type IpcStream = LocalSocketStream;
 /// Bind one local listener.
 #[cfg(unix)]
 pub(super) fn bind_listener(path: &Path) -> Result<PlatformIpcListener, IpcError> {
-    let listener = UnixListener::bind(path)?;
-    listener.set_nonblocking(true)?;
-
-    Ok(listener)
+    UnixListener::bind(path).map_err(Into::into)
 }
 
 /// Bind one local listener.
 #[cfg(windows)]
 pub(super) fn bind_listener(path: &Path) -> Result<PlatformIpcListener, IpcError> {
     let name = path_to_pipe_name(path)?;
-    let listener = LocalSocketListener::bind(name).map_err(IpcError::Io)?;
-    listener
-        .set_nonblocking(ListenerNonblockingMode::Accept)
-        .map_err(IpcError::Io)?;
-
-    Ok(listener)
+    LocalSocketListener::bind(name).map_err(IpcError::Io)
 }
 
-/// Accept one local stream when ready.
+/// Accept one local stream.
 #[cfg(unix)]
-pub(super) fn accept_stream(listener: &PlatformIpcListener) -> Result<Option<IpcStream>, IpcError> {
-    match listener.accept() {
-        Ok((stream, _)) => {
-            stream.set_nonblocking(false)?;
+pub(super) fn accept_stream(listener: &PlatformIpcListener) -> Result<IpcStream, IpcError> {
+    let (stream, _) = listener.accept()?;
 
-            Ok(Some(stream))
-        }
-        Err(error) if error.kind() == io::ErrorKind::WouldBlock => Ok(None),
-        Err(error) => Err(error.into()),
-    }
+    Ok(stream)
 }
 
-/// Accept one local stream when ready.
+/// Accept one local stream.
 #[cfg(windows)]
-pub(super) fn accept_stream(listener: &PlatformIpcListener) -> Result<Option<IpcStream>, IpcError> {
-    match listener.accept() {
-        Ok(stream) => Ok(Some(stream)),
-        Err(error) if error.kind() == io::ErrorKind::WouldBlock => Ok(None),
-        Err(error) => Err(IpcError::Io(error)),
-    }
+pub(super) fn accept_stream(listener: &PlatformIpcListener) -> Result<IpcStream, IpcError> {
+    listener.accept().map_err(IpcError::Io)
 }
 
 /// Connect one local stream.
@@ -118,7 +99,11 @@ pub(super) fn configure_stream(stream: &IpcStream, timeout: Duration) -> Result<
 /// Interrupt all pending input and output.
 #[cfg(unix)]
 pub(super) fn interrupt_stream(stream: &IpcStream) -> Result<(), IpcError> {
-    stream.shutdown(Shutdown::Both).map_err(Into::into)
+    match stream.shutdown(Shutdown::Both) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotConnected => Ok(()),
+        Err(error) => Err(error.into()),
+    }
 }
 
 /// Let the configured receive timeout observe connection closure.

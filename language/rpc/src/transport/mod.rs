@@ -1,8 +1,10 @@
 mod error;
+mod listener;
 mod loopback;
 mod transport;
 
 pub use error::*;
+pub use listener::*;
 pub use loopback::*;
 pub use transport::*;
 

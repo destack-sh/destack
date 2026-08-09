@@ -1,21 +1,26 @@
-use std::net::{SocketAddr, TcpListener};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::WebSocketError;
 use super::transport::WebSocketTransport;
-use crate::Transport;
+use crate::{Listener, Transport};
 
 /// Listener for authenticated WebSocket RPC connections.
 #[derive(Debug)]
 pub struct WebSocketListener {
     /// TCP listener.
     listener: TcpListener,
+    /// Bound TCP address.
+    address: SocketAddr,
     /// Largest accepted transport message.
     max_message_bytes: usize,
     /// Required HTTP request path.
     path: String,
     /// Required request bearer token.
     token: String,
+    /// Whether closure was requested.
+    is_closed: AtomicBool,
 }
 
 impl WebSocketListener {
@@ -27,29 +32,39 @@ impl WebSocketListener {
         token: String,
     ) -> Result<Self, WebSocketError> {
         let listener = TcpListener::bind(address)?;
-        listener.set_nonblocking(true)?;
+        let address = listener.local_addr()?;
 
         Ok(Self {
             listener,
+            address,
             max_message_bytes,
             path,
             token,
+            is_closed: AtomicBool::new(false),
         })
     }
 
     /// Return the bound socket address.
-    pub fn local_address(&self) -> Result<SocketAddr, WebSocketError> {
-        self.listener.local_addr().map_err(Into::into)
+    pub fn local_address(&self) -> SocketAddr {
+        self.address
     }
+}
 
-    /// Accept one upgraded connection when ready.
-    pub fn try_accept(&self) -> Result<Option<Arc<dyn Transport>>, WebSocketError> {
-        let (stream, _) = match self.listener.accept() {
-            Ok(accepted) => accepted,
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => return Ok(None),
-            Err(error) => return Err(error.into()),
-        };
-        stream.set_nonblocking(false)?;
+impl Listener for WebSocketListener {
+    type Error = WebSocketError;
+
+    /// Accept one WebSocket connection, or return `None` after closure.
+    fn accept(&self) -> Result<Option<Arc<dyn Transport>>, Self::Error> {
+        if self.is_closed.load(Ordering::Acquire) {
+            return Ok(None);
+        }
+
+        let (stream, _) = self.listener.accept()?;
+        if self.is_closed.load(Ordering::Acquire) {
+            drop(stream);
+
+            return Ok(None);
+        }
         let transport: Arc<dyn Transport> = WebSocketTransport::new(
             stream,
             self.max_message_bytes,
@@ -59,6 +74,18 @@ impl WebSocketListener {
 
         Ok(Some(transport))
     }
+
+    /// Close this listener and interrupt a pending accept.
+    fn close(&self) -> Result<(), Self::Error> {
+        if self.is_closed.swap(true, Ordering::AcqRel) {
+            return Ok(());
+        }
+
+        let stream = TcpStream::connect(self.address)?;
+        drop(stream);
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -67,6 +94,7 @@ mod tests {
     use std::net::TcpStream;
 
     use super::WebSocketListener;
+    use crate::Listener;
 
     /// Upgrade and exchange one complete binary transport message.
     #[test]
@@ -78,15 +106,11 @@ mod tests {
             "secret".to_string(),
         )
         .expect("bind listener");
-        let mut client = TcpStream::connect(listener.local_address().expect("read address"))
-            .expect("connect client");
-        let transport = loop {
-            if let Some(transport) = listener.try_accept().expect("accept transport") {
-                break transport;
-            }
-
-            std::thread::yield_now();
-        };
+        let mut client = TcpStream::connect(listener.local_address()).expect("connect client");
+        let transport = listener
+            .accept()
+            .expect("accept transport")
+            .expect("listener should remain open");
         let receiver = transport.clone();
         let receive = std::thread::spawn(move || receiver.receive());
 
