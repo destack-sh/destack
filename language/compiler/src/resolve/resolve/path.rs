@@ -84,7 +84,7 @@ impl ResolveState<'_> {
         root: dir::StringId,
     ) -> CompilerResult<(dir::Reference, SmallVec<[dir::GlobalSymbolId; 2]>)> {
         let key = dir::StaticKey::Name(root);
-        let symbols = self.visible_symbols(source, key, dir::SymbolSpace::Declaration);
+        let symbols = self.visible_symbols(source, key);
         if !symbols.is_empty() {
             let target = self.reference_from_symbols(&symbols)?;
             let has_import = symbols.iter().any(|symbol| {

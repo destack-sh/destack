@@ -135,11 +135,7 @@ impl<'a> ResolveState<'a> {
         if let Some(root) = root {
             self.stats.local_binding_lookups += 1;
             let key = dir::StaticKey::Name(root);
-            let local_symbols = self.visible_symbols(
-                reference.source.local_id,
-                key,
-                dir::SymbolSpace::Declaration,
-            );
+            let local_symbols = self.visible_symbols(reference.source.local_id, key);
             if local_symbols.is_empty() && self.global_keys.insert(key) {
                 self.stats.required_globals += 1;
             }
@@ -148,16 +144,13 @@ impl<'a> ResolveState<'a> {
         self.path_references.push(reference);
     }
 
-    /// Return symbols visible at one source node in one symbol space.
+    /// Return symbols visible at one source node.
     pub(in crate::resolve) fn visible_symbols(
         &self,
         source: dir::LocalNodeIdAny,
         key: dir::StaticKey,
-        space: dir::SymbolSpace,
     ) -> SmallVec<[dir::GlobalSymbolId; 2]> {
-        let lookup = self
-            .bindings
-            .lookup_symbol_at(&self.view, source, key, space);
+        let lookup = self.bindings.lookup_symbol_at(&self.view, source, key);
 
         self.symbols_from_lookup(lookup)
     }

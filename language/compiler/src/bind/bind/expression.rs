@@ -15,25 +15,6 @@ impl Compiler {
         expression: &dir::Expression,
     ) {
         match expression {
-            dir::Expression::Label { label, body } => {
-                // bind label body scope
-                state.bind_node(id.into_any());
-                let key = dir::StaticKey::Name(*label);
-                let (symbol_id, scope_id) = state.insert_symbol_with_scope(
-                    dir::SymbolRole::Local,
-                    dir::SymbolKind::Label,
-                    Some(key),
-                    None,
-                    dir::ScopeKind::Label,
-                    dir::SymbolVisibility::Forward,
-                );
-                state.declare_symbol(symbol_id, id);
-                state.bind_node_to_scope(id.into_any(), scope_id);
-
-                state.push_scope(scope_id);
-                self.visit_expression_by_id(state, tree, *body);
-                state.pop_scope();
-            }
             dir::Expression::Import { items, .. } => {
                 // bind import edge
                 state.bind_node(id.into_any());
@@ -117,6 +98,7 @@ impl Compiler {
                 condition,
                 increment,
                 body,
+                ..
             } => self.bind_for_expression(
                 state,
                 tree,
