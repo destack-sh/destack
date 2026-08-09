@@ -1,7 +1,10 @@
 mod builtin;
 mod cache;
+mod change;
+mod commit;
 mod config;
 mod content;
+mod delta;
 mod discovery;
 mod edit;
 mod error;
@@ -19,7 +22,10 @@ mod target;
 
 pub use builtin::*;
 pub(crate) use cache::*;
+pub use change::*;
+pub use commit::*;
 pub(crate) use content::*;
+pub(crate) use delta::*;
 pub use edit::*;
 pub use error::*;
 pub(crate) use file::*;

@@ -31,6 +31,15 @@ pub enum RepositoryError {
 
     /// The requested ref does not exist.
     MissingRef { reference: Ref },
+    /// One ref moved away from the revision expected by its writer.
+    RefChanged {
+        /// The ref that moved.
+        reference: Ref,
+        /// The revision expected by the writer.
+        expected: Revision,
+        /// The current ref revision.
+        current: Revision,
+    },
     /// The requested revision does not exist.
     MissingRevision { revision: Revision },
     /// The requested content payload does not exist.
@@ -166,6 +175,16 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingRef { reference } => {
                 write!(formatter, "missing repository ref '{reference}'")
+            }
+            Self::RefChanged {
+                reference,
+                expected,
+                current,
+            } => {
+                write!(
+                    formatter,
+                    "repository ref '{reference}' changed from {expected} to {current}"
+                )
             }
             Self::MissingRevision { revision } => {
                 write!(formatter, "missing repository revision '{revision}'")

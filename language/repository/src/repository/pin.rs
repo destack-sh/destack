@@ -326,11 +326,12 @@ mod tests {
             .current(&reference)
             .expect("root ref should exist");
         let anonymous_revision = repository
-            .fork_with_edits(
+            .edit(
                 base_revision,
                 [Edit::add_text("src/example.ts", "export const value = 1")],
             )
-            .expect("anonymous revision should publish");
+            .expect("anonymous revision should publish")
+            .after;
         let revision_pin = repository
             .pin(anonymous_revision)
             .expect("anonymous revision should pin");
@@ -985,8 +986,9 @@ mod tests {
             .current(reference)
             .expect("repository ref should have a current revision");
         let revision = repository
-            .fork_with_edits(revision, edits)
-            .expect("repository edits should fork");
+            .edit(revision, edits)
+            .expect("repository edits should apply")
+            .after;
 
         repository
             .set_ref(reference, revision)

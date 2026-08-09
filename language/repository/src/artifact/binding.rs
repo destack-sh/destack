@@ -5,7 +5,7 @@ use parking_lot::{RwLock, RwLockReadGuard};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 
-use crate::{RepositoryError, SourceDelta};
+use crate::{Delta, RepositoryError};
 
 /// Artifact bindings retained by one repository revision.
 #[derive(Debug, Default)]
@@ -23,12 +23,12 @@ impl ArtifactBindingTable {
     /// Fork these bindings and dirty artifacts reachable from one source delta.
     pub(crate) fn fork(
         &self,
-        delta: &SourceDelta,
+        delta: &Delta,
         artifacts: &ArtifactTable,
     ) -> Result<Self, RepositoryError> {
         let mut bindings = self.bindings.read().clone();
         let mut pending = delta
-            .sources()
+            .invalidated()
             .iter()
             .copied()
             .map(ArtifactDependencyOwner::Source)

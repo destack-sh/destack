@@ -3,7 +3,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_artifact::SourceDependency;
 use destack_core::{TreapRoot, stable_hash_value_256};
 use destack_serde::Reflect;
 use parking_lot::{RwLock, RwLockWriteGuard};
@@ -187,60 +186,6 @@ impl RevisionState {
     /// Hash this revision state into its deterministic revision identity.
     pub(crate) fn revision(&self) -> Revision {
         Revision::new(stable_hash_value_256(&(&self.files(), &self.environment)))
-    }
-}
-
-/// Source changes applied while forking one revision.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct SourceDelta {
-    /// The exact source observations invalidated by the edits.
-    sources: Arc<[SourceDependency]>,
-    /// Whether package or module discovery inputs changed.
-    is_discovery_changed: bool,
-    /// Whether a package config file changed.
-    is_config_changed: bool,
-}
-
-impl SourceDelta {
-    /// Build a source delta from invalidated observations.
-    pub(crate) fn new(
-        sources: impl IntoIterator<Item = SourceDependency>,
-        is_discovery_changed: bool,
-        is_config_changed: bool,
-    ) -> Self {
-        let mut sources = sources.into_iter().collect::<Vec<_>>();
-        sources.sort_unstable();
-        sources.dedup();
-
-        Self {
-            sources: sources.into(),
-            is_discovery_changed,
-            is_config_changed,
-        }
-    }
-
-    /// Add invalidated source observations.
-    pub(crate) fn extend(&mut self, invalidated: impl IntoIterator<Item = SourceDependency>) {
-        let mut sources = self.sources.to_vec();
-        sources.extend(invalidated);
-        sources.sort_unstable();
-        sources.dedup();
-        self.sources = sources.into();
-    }
-
-    /// Return the invalidated source observations.
-    pub(crate) fn sources(&self) -> &[SourceDependency] {
-        &self.sources
-    }
-
-    /// Return whether package or module discovery inputs changed.
-    pub(crate) fn is_discovery_changed(&self) -> bool {
-        self.is_discovery_changed
-    }
-
-    /// Return whether a package config file changed.
-    pub(crate) fn is_config_changed(&self) -> bool {
-        self.is_config_changed
     }
 }
 

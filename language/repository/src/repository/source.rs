@@ -72,7 +72,7 @@ pub fn open_repository(
 
     // read the complete source tree
     let edits = repository.scan(&root, base_revision)?;
-    let revision = repository.commit_edits(base_revision, edits)?;
+    let revision = repository.edit(base_revision, edits)?.after;
 
     repository.set_ref(&root_ref, revision)?;
 
