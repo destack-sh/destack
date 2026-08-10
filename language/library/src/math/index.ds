@@ -4,7 +4,7 @@ export * from "./math.ds";
 
 export { Float, FloatDomain } from "./float.ds";
 export { One, Zero } from "./identity.ds";
-export { Integer, IntegerDomain } from "./integer.ds";
+export { Integer, IntegerDomain, Unsigned } from "./integer.ds";
 export { Numeric, NumericDomain } from "./numeric.ds";
 export { Arithmetic } from "./arithmetic.ds";
 export { Cast } from "./cast.ds";

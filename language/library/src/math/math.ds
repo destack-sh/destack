@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { Iterable } from "destack:iter";
 
 /// Floating point math functions and constants.
 @languageItem("math.Math")
@@ -167,7 +168,7 @@ export class Math {
         todo("Math.random")
     }
 
-    /// Return `value` rounded to the nearest integer.
+    /// Return `value` rounded to the nearest integer, breaking ties toward positive infinity.
     static round(value: number): number {
         todo("Math.round")
     }
@@ -190,6 +191,11 @@ export class Math {
     /// Return the square root of `value`.
     static sqrt(value: number): number {
         todo("Math.sqrt")
+    }
+
+    /// Return the sum of `values` without intermediate rounding.
+    static sumPrecise(values: Iterable<number>): number {
+        todo("Math.sumPrecise")
     }
 
     /// Return the tangent of `value`.

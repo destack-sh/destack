@@ -1,12 +1,18 @@
 import { Slice } from "destack:collections";
 import { As, ToOwned } from "destack:convert";
 import { todo } from "destack:error";
+import { Equal, Hash, Hasher } from "destack:ops";
 
 /// Borrowed UTF-8 string slice.
 @languageItem("string.StringSlice")
 export newtype StringSlice = [uint8];
 
-export extension of StringSlice implements ToOwned, As<[uint8], "readonly"> {
+export extension of StringSlice
+    implements
+        ToOwned,
+        As<[uint8], "readonly">,
+        Equal<StringSlice>,
+        Hash {
     /// The owned value type.
     type Owned = ^string;
 
@@ -23,5 +29,15 @@ export extension of StringSlice implements ToOwned, As<[uint8], "readonly"> {
     /// Borrow this string slice as readonly bytes.
     asBytes(&readonly this): &readonly [uint8] {
         this.as()
+    }
+
+    /// Return whether this string slice equals `other`.
+    equal(&readonly this, other: &readonly StringSlice): boolean {
+        todo("StringSlice.equal")
+    }
+
+    /// Add this string slice to `state`.
+    hash(&readonly this, state: &Hasher): void {
+        todo("StringSlice.hash");
     }
 }

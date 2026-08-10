@@ -12,7 +12,7 @@ import {
     Unique,
     WithAccess,
 } from "destack:memory";
-import { Compare, Equal, Index, IndexSet, Ordering } from "destack:ops";
+import { Compare, Index, IndexSet, Ordering, PartialEqual } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
 import { Sequence } from "./sequence.ds";
@@ -575,19 +575,19 @@ export extension<T> of Array<T>
 
     /// Return whether `value` exists.
     includes<Q>(&readonly this, value: &readonly Q, fromIndex?: isize): boolean
-        where T: Borrow<Q>, Q: Equal<Q> {
+        where T: Borrow<Q>, Q: PartialEqual<Q> {
         todo("Array.includes")
     }
 
     /// Return the first index of `value`.
     indexOf<Q>(&readonly this, value: &readonly Q, fromIndex?: isize): usize | undefined
-        where T: Borrow<Q>, Q: Equal<Q> {
+        where T: Borrow<Q>, Q: PartialEqual<Q> {
         todo("Array.indexOf")
     }
 
     /// Return the last index of `value`.
     lastIndexOf<Q>(&readonly this, value: &readonly Q, fromIndex?: isize): usize | undefined
-        where T: Borrow<Q>, Q: Equal<Q> {
+        where T: Borrow<Q>, Q: PartialEqual<Q> {
         todo("Array.lastIndexOf")
     }
 

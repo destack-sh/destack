@@ -2,7 +2,7 @@ import { Error, panic, todo } from "destack:error";
 import { Iterable } from "destack:iter";
 import { Json } from "destack:json";
 import { MaybeOwned } from "destack:memory";
-import { Equal } from "destack:ops";
+import { PartialEqual } from "destack:ops";
 
 /// Structured details attached to one assertion event.
 export type Details = { readonly [key: string]: Json };
@@ -44,12 +44,13 @@ export function ok(condition: boolean, message?: string): void {
 }
 
 /// Assert that `actual` equals `expected`.
-export function equal<T>(actual: T, expected: T, message?: string): void where T: Equal<T> {
+export function equal<T>(actual: T, expected: T, message?: string): void where T: PartialEqual<T> {
     assert(actual.equal(expected), message ?? "expected values to be equal");
 }
 
 /// Assert that `actual` does not equal `expected`.
-export function notEqual<T>(actual: T, expected: T, message?: string): void where T: Equal<T> {
+export function notEqual<T>(actual: T, expected: T, message?: string): void
+    where T: PartialEqual<T> {
     assert(!actual.equal(expected), message ?? "expected values to be different");
 }
 
@@ -75,13 +76,13 @@ export function notDeepEqual<T, U>(actual: T, expected: U, message?: string): vo
 
 /// Assert that `values` contains `expected`.
 export function contains<T>(values: readonly Iterable<T>, expected: T, message?: string): void
-    where T: Equal<T> {
+    where T: PartialEqual<T> {
     todo("assert.contains");
 }
 
 /// Assert that `values` does not contain `expected`.
 export function notContains<T>(values: readonly Iterable<T>, expected: T, message?: string): void
-    where T: Equal<T> {
+    where T: PartialEqual<T> {
     todo("assert.notContains");
 }
 

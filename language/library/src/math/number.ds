@@ -2,6 +2,7 @@ import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
 
 /// The positive float infinity.
+@languageItem("math.Infinity")
 export const Infinity: number = 1.0 / 0.0;
 
 /// The float not-a-number value.
@@ -117,9 +118,11 @@ export class Number {
     static readonly MIN_SAFE_INTEGER: number = -9007199254740991;
 
     /// Positive infinity.
+    @languageItem("math.Number.POSITIVE_INFINITY")
     static readonly POSITIVE_INFINITY: number = Infinity;
 
     /// Negative infinity.
+    @languageItem("math.Number.NEGATIVE_INFINITY")
     static readonly NEGATIVE_INFINITY: number = -Infinity;
 
     /// Not-a-number.

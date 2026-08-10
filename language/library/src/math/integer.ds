@@ -12,8 +12,50 @@ export newtype interface IntegerDomain {}
 @languageItem("math.Integer")
 export newtype interface Integer extends Concrete, IntegerDomain, Zero, One {}
 
+/// The unsigned builtin integer type with the same width as `T`.
+@languageItem("math.Unsigned")
+export type Unsigned<T: Integer> = intrinsic;
+
 /// Methods shared by every builtin integer type.
 export extension<T: Integer> of T {
+    /// Return the midpoint rounded toward zero without intermediate overflow.
+    midpoint(other: T): T {
+        midpoint(this, other)
+    }
+
+    /// Clamp this value between ordered bounds.
+    ///
+    /// Traps when `minimum` exceeds `maximum`.
+    clamp(minimum: T, maximum: T): T {
+        clamp(this, minimum, maximum)
+    }
+
+    /// Divide and round the quotient toward positive infinity.
+    ///
+    /// Traps on division by zero or signed division overflow.
+    divideCeil(other: T): T {
+        divideCeil(this, other)
+    }
+
+    /// Return the least nonnegative remainder.
+    ///
+    /// Traps on division by zero or signed division overflow.
+    remainderEuclidean(other: T): T {
+        remainderEuclidean(this, other)
+    }
+
+    /// Return whether this value is a multiple of `other`.
+    ///
+    /// A zero divisor produces `true` exactly when this value is also zero.
+    isMultipleOf(other: T): boolean {
+        isMultipleOf(this, other)
+    }
+
+    /// Return the absolute difference between this value and `other`.
+    absDiff(other: T): Unsigned<T> {
+        absDiff(this, other)
+    }
+
     /// Count the leading zero bits.
     countLeadingZeros(): uint32 {
         countLeadingZeros(this)
@@ -74,6 +116,13 @@ export extension<T: Integer> of T {
         reverseBits(this)
     }
 
+    /// Return this value with only its least-significant one bit set.
+    ///
+    /// Returns zero when this value is zero.
+    isolateLowestOne(): T {
+        isolateLowestOne(this)
+    }
+
     /// Rotate bits left.
     rotateLeft(amount: uint32): T {
         rotateLeft(this, amount)
@@ -95,6 +144,38 @@ export extension<T: Integer> of T {
     }
 }
 
+/// Compute an integer midpoint rounded toward zero without intermediate overflow.
+@intrinsic("math.arithmetic.midpoint")
+declare function midpoint<T: Integer>(left: T, right: T): T;
+
+/// Clamp one integer between ordered bounds.
+///
+/// Traps when `minimum` exceeds `maximum`.
+@intrinsic("math.arithmetic.clamp")
+declare function clamp<T: Integer>(value: T, minimum: T, maximum: T): T;
+
+/// Divide integers and round the quotient toward positive infinity.
+///
+/// Traps on division by zero or signed division overflow.
+@intrinsic("math.arithmetic.divideCeil")
+declare function divideCeil<T: Integer>(left: T, right: T): T;
+
+/// Compute the least nonnegative integer remainder.
+///
+/// Traps on division by zero or signed division overflow.
+@intrinsic("math.arithmetic.remainderEuclidean")
+declare function remainderEuclidean<T: Integer>(left: T, right: T): T;
+
+/// Test whether one integer is a multiple of another.
+///
+/// A zero divisor produces `true` exactly when `left` is also zero.
+@intrinsic("math.arithmetic.isMultipleOf")
+declare function isMultipleOf<T: Integer>(left: T, right: T): boolean;
+
+/// Compute the absolute difference between two integers.
+@intrinsic("math.arithmetic.absDiff")
+declare function absDiff<T: Integer>(left: T, right: T): Unsigned<T>;
+
 /// Count leading zero bits.
 @intrinsic("math.bits.leadingZeroCount")
 declare function countLeadingZeros<T: Integer>(value: T): uint32;
@@ -114,6 +195,12 @@ declare function swapBytes<T: Integer>(value: T): T;
 /// Reverse every bit.
 @intrinsic("math.bits.bitReverse")
 declare function reverseBits<T: Integer>(value: T): T;
+
+/// Isolate the least-significant one bit.
+///
+/// Returns zero when `value` is zero.
+@intrinsic("math.bits.isolateLowestOne")
+declare function isolateLowestOne<T: Integer>(value: T): T;
 
 /// Rotate bits left.
 @intrinsic("math.bits.rotateLeft")

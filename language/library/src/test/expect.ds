@@ -1,7 +1,7 @@
 import * as assert from "destack:assert";
 import { Iterable } from "destack:iter";
 import { Numeric } from "destack:math";
-import { Equal } from "destack:ops";
+import { PartialEqual } from "destack:ops";
 
 /// A value assertion chain.
 export struct Expect<T> {
@@ -55,7 +55,7 @@ export struct Expect<T> {
     }
 
     /// Assert that the value contains `expected`.
-    toContain<U>(this: &readonly Expect<Iterable<U>>, expected: U): void where U: Equal<U> {
+    toContain<U>(this: &readonly Expect<Iterable<U>>, expected: U): void where U: PartialEqual<U> {
         if (this.isNegated) {
             assert.notContains(this.value, expected)
         } else {

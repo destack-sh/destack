@@ -13,9 +13,23 @@ export newtype interface Float extends Concrete, FloatDomain, Zero, One {}
 
 /// Methods shared by every builtin float format.
 export extension<T: Float> of T {
+    /// Return the midpoint without avoidable overflow or underflow.
+    ///
+    /// Returns NaN when either value is NaN or the values are opposite infinities.
+    midpoint(other: T): T {
+        midpoint(this, other)
+    }
+
+    /// Clamp this value between ordered bounds.
+    ///
+    /// Traps when the bounds are inverted or either bound is NaN.
+    clamp(minimum: T, maximum: T): T {
+        clamp(this, minimum, maximum)
+    }
+
     /// Return whether this value is finite.
     isFinite(): boolean {
-        todo("Float.isFinite")
+        isFinite(this)
     }
 
     /// Return whether this value is NaN.
@@ -25,7 +39,7 @@ export extension<T: Float> of T {
 
     /// Return whether this value is infinite.
     isInfinite(): boolean {
-        todo("Float.isInfinite")
+        isInfinite(this)
     }
 
     /// Return whether this value is subnormal.
@@ -168,9 +182,19 @@ export extension<T: Float> of T {
         trunc(this)
     }
 
-    /// Round to the nearest integer, ties to even.
+    /// Round to the nearest integer, breaking ties toward positive infinity.
     round(): T {
         round(this)
+    }
+
+    /// Round to the nearest integer, breaking ties toward even integers.
+    roundTiesEven(): T {
+        roundTiesEven(this)
+    }
+
+    /// Round to the nearest integer, breaking ties away from zero.
+    roundTiesAway(): T {
+        roundTiesAway(this)
     }
 
     /// Return the angle from the positive x-axis to this y-coordinate and `x`.
@@ -188,12 +212,12 @@ export extension<T: Float> of T {
         copySign(this, sign)
     }
 
-    /// Return the smaller value.
+    /// Return the smaller value, propagating NaN and preferring negative zero.
     min(other: T): T {
         min(this, other)
     }
 
-    /// Return the larger value.
+    /// Return the larger value, propagating NaN and preferring positive zero.
     max(other: T): T {
         max(this, other)
     }
@@ -203,6 +227,26 @@ export extension<T: Float> of T {
         fma(this, multiplier, addend)
     }
 }
+
+/// Compute a floating-point midpoint without avoidable overflow or underflow.
+///
+/// Returns NaN when either value is NaN or the values are opposite infinities.
+@intrinsic("math.arithmetic.midpoint")
+declare function midpoint<T: Float>(left: T, right: T): T;
+
+/// Clamp one floating-point value between ordered bounds.
+///
+/// Traps when the bounds are inverted or either bound is NaN.
+@intrinsic("math.arithmetic.clamp")
+declare function clamp<T: Float>(value: T, minimum: T, maximum: T): T;
+
+/// Test whether a floating-point value is finite.
+@intrinsic("math.float.isFinite")
+declare function isFinite<T: Float>(value: T): boolean;
+
+/// Test whether a floating-point value is infinite.
+@intrinsic("math.float.isInfinite")
+declare function isInfinite<T: Float>(value: T): boolean;
 
 /// Compute a floating-point square root.
 @intrinsic("math.float.sqrt")
@@ -268,9 +312,17 @@ declare function ceil<T: Float>(value: T): T;
 @intrinsic("math.float.trunc")
 declare function trunc<T: Float>(value: T): T;
 
-/// Round a floating-point value to the nearest integer, ties to even.
+/// Round a floating-point value to the nearest integer, breaking ties toward positive infinity.
 @intrinsic("math.float.round")
 declare function round<T: Float>(value: T): T;
+
+/// Round a floating-point value to the nearest integer, breaking ties toward even integers.
+@intrinsic("math.float.roundTiesEven")
+declare function roundTiesEven<T: Float>(value: T): T;
+
+/// Round a floating-point value to the nearest integer, breaking ties away from zero.
+@intrinsic("math.float.roundTiesAway")
+declare function roundTiesAway<T: Float>(value: T): T;
 
 /// Compute a floating-point arc tangent from `y` and `x`.
 @intrinsic("math.float.atan2")
@@ -284,11 +336,11 @@ declare function pow<T: Float>(base: T, exponent: T): T;
 @intrinsic("math.float.copySign")
 declare function copySign<T: Float>(magnitude: T, sign: T): T;
 
-/// Return the smaller floating-point value.
+/// Return the smaller floating-point value, propagating NaN and preferring negative zero.
 @intrinsic("math.float.min")
 declare function min<T: Float>(left: T, right: T): T;
 
-/// Return the larger floating-point value.
+/// Return the larger floating-point value, propagating NaN and preferring positive zero.
 @intrinsic("math.float.max")
 declare function max<T: Float>(left: T, right: T): T;
 

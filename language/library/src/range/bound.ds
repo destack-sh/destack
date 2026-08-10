@@ -1,3 +1,5 @@
+import { PartialCompare } from "destack:ops";
+
 /// One endpoint of a range.
 @languageItem("range.Bound")
 @derive(Tagged)
@@ -14,4 +16,24 @@ export newtype interface RangeBounds<T> {
 
     /// Return the end bound.
     endBound(&readonly this): Bound<&readonly T>;
+
+    /// Return whether this range contains `value`.
+    contains<U: PartialCompare<T>>(
+        &readonly this,
+        value: &readonly U,
+    ): boolean where T: PartialCompare<U> {
+        let isAfterStart = match (this.startBound()) {
+            Bound.Included { value: bound } => *bound <= *value
+            Bound.Excluded { value: bound } => *bound < *value
+            Bound.Unbounded => true
+        };
+
+        // inspect the end only when the start admits the value
+        isAfterStart &&
+            (match (this.endBound()) {
+                Bound.Included { value: bound } => *value <= *bound
+                Bound.Excluded { value: bound } => *value < *bound
+                Bound.Unbounded => true
+            })
+    }
 }
