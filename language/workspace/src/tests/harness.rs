@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use destack_core::Blob;
 use destack_dir as dir;
 use destack_repository::{
     Change, Commit, DestackLayoutOverride, Environment, Execution, Revision, Settings,
@@ -9,7 +10,7 @@ use destack_repository::{
 };
 use destack_session::Executor;
 use destack_source::{
-    ContentId, Edit, FileId, FileMetadata, FileSystem, OverlayFileSystem, PhysicalFileSystem,
+    Edit, FileId, FileMetadata, FileSystem, OverlayFileSystem, PhysicalFileSystem,
     TemporaryPhysicalFileSystem, Uri,
 };
 use futures::executor::block_on;
@@ -94,8 +95,8 @@ impl TestWorkspace {
         Change {
             file: FileId::from_logical_str(path),
             path: path.to_string(),
-            before: before.map(ContentId::for_text),
-            after: after.map(ContentId::for_text),
+            before: before.map(|text| Blob::for_bytes(text.as_bytes())),
+            after: after.map(|text| Blob::for_bytes(text.as_bytes())),
         }
     }
 
@@ -364,6 +365,11 @@ impl FileSystem for FailingFileSystem {
     /// Canonicalize one path.
     fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
         self.physical.canonicalize(path)
+    }
+
+    /// Open one file as a byte stream.
+    fn open(&self, path: &Path) -> std::io::Result<Box<dyn std::io::Read + Send>> {
+        self.physical.open(path)
     }
 
     /// Read one file.

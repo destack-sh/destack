@@ -7,7 +7,7 @@ use destack_artifact::{
 };
 use destack_repository::{Commit, Ref, Repository, Revision, Trace, TraceSnapshot, TraceView};
 use destack_session::{ArtifactRun, Executor, Session};
-use destack_source::{Content, ContentId, File, FileId, OverlayFileSystem};
+use destack_source::{File, FileId, OverlayFileSystem};
 use futures::future::BoxFuture;
 use parking_lot::Mutex;
 
@@ -522,18 +522,6 @@ impl Workspace {
         Ok(payload)
     }
 
-    /// Store one content payload.
-    pub fn store(&self, content: Content) -> Result<ContentId, Error> {
-        self.repository.intern_content(content).map_err(Error::from)
-    }
-
-    /// Load one content payload.
-    pub fn load(&self, content: ContentId) -> Result<Content, Error> {
-        let entry = self.repository.content(content)?;
-
-        Ok(entry.payload().clone())
-    }
-
     /// Materialize one artifact on the workspace host.
     pub fn export(&self, request: ExportInput) -> Result<ExportResult, Error> {
         let revision = self.revision()?;
@@ -664,7 +652,13 @@ impl Workspace {
         request: &ExportInput,
     ) -> Result<ExportedFile, Error> {
         let path = self.export_file_path(root, file, request)?;
-        let content = self.repository.content(file.content)?.payload().clone();
+        let memory = self
+            .repository
+            .blob_store()
+            .open(file.blob)
+            .map_err(|error| Error::Internal {
+                detail: error.to_string(),
+            })?;
 
         // refuse to overwrite existing output unless explicitly allowed
         let exists = self
@@ -692,38 +686,18 @@ impl Workspace {
                 })?;
         }
 
-        // write the payload in its native content representation
-        let size_bytes = match content {
-            Content::Text { content } => {
-                let size_bytes = content.len() as u64;
-                self.repository
-                    .file_system()
-                    .write_string(&path, &content)
-                    .map_err(|source| Error::Io {
-                        path: path.clone(),
-                        source,
-                    })?;
-
-                size_bytes
-            }
-            Content::Binary { content } => {
-                let size_bytes = content.len() as u64;
-                self.repository
-                    .file_system()
-                    .write(&path, &content)
-                    .map_err(|source| Error::Io {
-                        path: path.clone(),
-                        source,
-                    })?;
-
-                size_bytes
-            }
-        };
+        // materialize the exact Blob bytes
+        self.repository
+            .file_system()
+            .write(&path, memory.bytes())
+            .map_err(|source| Error::Io {
+                path: path.clone(),
+                source,
+            })?;
 
         Ok(ExportedFile {
             path,
-            content: file.content,
-            size_bytes,
+            blob: file.blob,
         })
     }
 

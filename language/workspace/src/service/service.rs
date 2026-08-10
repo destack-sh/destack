@@ -1,6 +1,5 @@
 use destack_artifact::ArtifactPayload;
 use destack_repository::{Commit, Revision};
-use destack_source::{Content, ContentId};
 
 use super::*;
 use crate::{
@@ -131,14 +130,6 @@ pub trait WorkspaceService {
     /// Read one exact artifact payload.
     #[rpc(name = "Artifact", idempotency = "no_side_effects")]
     fn artifact(request: ArtifactRequest) -> ArtifactPayload;
-
-    /// Store one content value.
-    #[rpc(name = "Store", idempotency = "idempotent")]
-    fn store(request: StoreRequest) -> ContentId;
-
-    /// Load one content value.
-    #[rpc(name = "Load", idempotency = "no_side_effects")]
-    fn load(request: LoadRequest) -> Content;
 
     /// Materialize one artifact on the workspace host.
     #[rpc(name = "Export")]

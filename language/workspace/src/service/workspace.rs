@@ -1,9 +1,6 @@
-use std::sync::Arc;
-
 use destack_artifact::ArtifactPayload;
 use destack_repository::{Commit, Revision};
 use destack_rpc::{Request, Response, ResponseSender, Status};
-use destack_source::{Content, ContentId};
 use futures::{FutureExt, pin_mut, select_biased};
 
 use super::*;
@@ -14,14 +11,14 @@ use crate::{
     WatchEvent, Workspace,
 };
 
-impl WorkspaceService for Arc<Workspace> {
+impl WorkspaceService for Workspace {
     /// Reload one workspace root from its host.
     async fn reload(
         &self,
         request: Request<ReloadRequest>,
     ) -> Result<Response<Option<Commit>>, Status> {
         self.resolve_root(&request.value.root)?;
-        let commit = Workspace::reload(self.as_ref())?;
+        let commit = Workspace::reload(self)?;
 
         Ok(Response::new(commit))
     }
@@ -32,7 +29,7 @@ impl WorkspaceService for Arc<Workspace> {
         request: Request<ReadRevisionRequest>,
     ) -> Result<Response<Revision>, Status> {
         self.resolve_root(&request.value.root)?;
-        let revision = Workspace::revision(self.as_ref())?;
+        let revision = Workspace::revision(self)?;
 
         Ok(Response::new(revision))
     }
@@ -44,7 +41,7 @@ impl WorkspaceService for Arc<Workspace> {
     ) -> Result<Response<Option<Commit>>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let commit = Workspace::apply_file_operation(self.as_ref(), request.operation)?;
+        let commit = Workspace::apply_file_operation(self, request.operation)?;
 
         Ok(Response::new(commit))
     }
@@ -56,7 +53,7 @@ impl WorkspaceService for Arc<Workspace> {
     ) -> Result<Response<Commit>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let commit = Workspace::edit(self.as_ref(), request.update)?;
+        let commit = Workspace::edit(self, request.update)?;
 
         Ok(Response::new(commit))
     }
@@ -68,7 +65,7 @@ impl WorkspaceService for Arc<Workspace> {
     ) -> Result<Response<bool>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let is_open = Workspace::is_file_open(self.as_ref(), &request.path)?;
+        let is_open = Workspace::is_file_open(self, &request.path)?;
 
         Ok(Response::new(is_open))
     }
@@ -80,7 +77,7 @@ impl WorkspaceService for Arc<Workspace> {
     ) -> Result<Response<Option<FileEditResponse>>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let edit = Workspace::format_file(self.as_ref(), request.path, request.range)?;
+        let edit = Workspace::format_file(self, request.path, request.range)?;
         let edit = edit.as_ref().map(FileEditResponse::from);
 
         Ok(Response::new(edit))
@@ -93,7 +90,7 @@ impl WorkspaceService for Arc<Workspace> {
     ) -> Result<Response<Vec<FileImage>>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let files = Workspace::read_files(self.as_ref(), request.revision, request.file_ids)?;
+        let files = Workspace::read_files(self, request.revision, request.file_ids)?;
         let files = files
             .iter()
             .map(|file| FileImage::from(file.as_ref()))
@@ -111,7 +108,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::check(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::check(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -125,7 +122,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::format(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::format(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -139,7 +136,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::query(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::query(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -153,7 +150,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::rewrite(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::rewrite(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -167,7 +164,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::build(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::build(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -181,7 +178,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::test(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::test(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -195,7 +192,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::doc(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::doc(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -209,7 +206,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::bench(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::bench(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -223,7 +220,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::info(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::info(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -237,7 +234,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::targets(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::targets(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -251,7 +248,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::cache(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::cache(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -265,7 +262,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::settings(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::settings(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -279,7 +276,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::doctor(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::doctor(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -293,7 +290,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::task(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::task(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -307,7 +304,7 @@ impl WorkspaceService for Arc<Workspace> {
         let request = request.value;
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = Workspace::clean(self.as_ref(), request.input, Some(progress));
+        let command = Workspace::clean(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }
@@ -319,27 +316,9 @@ impl WorkspaceService for Arc<Workspace> {
     ) -> Result<Response<ArtifactPayload>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let artifact = Workspace::artifact(self.as_ref(), request.artifact)?;
+        let artifact = Workspace::artifact(self, request.artifact)?;
 
         Ok(Response::new(artifact))
-    }
-
-    /// Store one content value.
-    async fn store(&self, request: Request<StoreRequest>) -> Result<Response<ContentId>, Status> {
-        let request = request.value;
-        self.resolve_root(&request.root)?;
-        let content = Workspace::store(self.as_ref(), request.content)?;
-
-        Ok(Response::new(content))
-    }
-
-    /// Load one content value.
-    async fn load(&self, request: Request<LoadRequest>) -> Result<Response<Content>, Status> {
-        let request = request.value;
-        self.resolve_root(&request.root)?;
-        let content = Workspace::load(self.as_ref(), request.content)?;
-
-        Ok(Response::new(content))
     }
 
     /// Materialize one artifact on the workspace host.
@@ -349,7 +328,7 @@ impl WorkspaceService for Arc<Workspace> {
     ) -> Result<Response<ExportResult>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let result = Workspace::export(self.as_ref(), request.input)?;
+        let result = Workspace::export(self, request.input)?;
 
         Ok(Response::new(result))
     }
@@ -361,7 +340,7 @@ impl WorkspaceService for Arc<Workspace> {
     ) -> Result<Response<Vec<FileDiagnosticsResponse>>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let diagnostics = Workspace::diagnose(self.as_ref(), request.request).await?;
+        let diagnostics = Workspace::diagnose(self, request.request).await?;
         let diagnostics = diagnostics
             .iter()
             .map(FileDiagnosticsResponse::from)
@@ -377,7 +356,7 @@ impl WorkspaceService for Arc<Workspace> {
     ) -> Result<Response<Option<QueryFileResponse>>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let file = Workspace::resolve_query_file(self.as_ref(), request.path)?;
+        let file = Workspace::resolve_query_file(self, request.path)?;
         let file = file.as_ref().map(QueryFileResponse::from);
 
         Ok(Response::new(file))
@@ -390,7 +369,7 @@ impl WorkspaceService for Arc<Workspace> {
     ) -> Result<Response<RunQueryResponse>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let response = Workspace::run_query(self.as_ref(), request.input).await?;
+        let response = Workspace::run_query(self, request.input).await?;
 
         Ok(Response::new(response))
     }
@@ -402,7 +381,7 @@ impl WorkspaceService for Arc<Workspace> {
         mut responses: ResponseSender<WatchEvent>,
     ) -> Result<Response<()>, Status> {
         self.resolve_root(&request.value.root)?;
-        let mut watch = Workspace::watch(self.as_ref())?;
+        let mut watch = Workspace::watch(self)?;
 
         loop {
             // wait for cancellation or the next committed change

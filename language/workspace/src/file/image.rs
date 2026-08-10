@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use destack_serde::Reflect;
-use destack_source::{Content, File, FileId, FileType, TextChange, Uri};
+use destack_source::{File, FileId, FileType, TextChange, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::Error;
@@ -26,10 +26,7 @@ pub struct FileImage {
 impl From<&File> for FileImage {
     /// Build a file image from one source file.
     fn from(file: &File) -> Self {
-        let content = match file.content.payload() {
-            Content::Text { content } => Some(content.clone()),
-            Content::Binary { .. } => None,
-        };
+        let content = (!file.ty.is_binary()).then(|| file.text().to_string());
 
         Self {
             id: file.id,
@@ -51,14 +48,17 @@ impl FileImage {
             });
         };
 
-        Ok(File::from_text(
+        File::from_text(
             self.id,
             self.name,
             self.uri,
             self.path,
             self.file_type,
             content,
-        ))
+        )
+        .map_err(|error| Error::Internal {
+            detail: error.to_string(),
+        })
     }
 }
 

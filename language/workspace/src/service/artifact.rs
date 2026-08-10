@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use destack_artifact::ArtifactReference;
 use destack_serde::Reflect;
-use destack_source::{Content, ContentId};
 use serde::{Deserialize, Serialize};
 
 use crate::ExportInput;
@@ -14,24 +13,6 @@ pub struct ArtifactRequest {
     pub root: PathBuf,
     /// Exact artifact reference.
     pub artifact: ArtifactReference,
-}
-
-/// Request to store one content value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct StoreRequest {
-    /// Owning workspace root.
-    pub root: PathBuf,
-    /// Content value to store.
-    pub content: Content,
-}
-
-/// Request to load one content value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct LoadRequest {
-    /// Owning workspace root.
-    pub root: PathBuf,
-    /// Content identifier to load.
-    pub content: ContentId,
 }
 
 /// Request to materialize one artifact.

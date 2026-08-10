@@ -4,8 +4,7 @@ use std::sync::Arc;
 use destack_repository as repository;
 use destack_repository::{Commit, RepositoryError, Revision, RevisionPin};
 use destack_source::{
-    Content, ContentEntry, Edit, FileId, FilePatch, ModuleId, Patch, Span, TextPatch,
-    apply_file_patch,
+    Edit, File, FileId, FilePatch, ModuleId, Patch, Span, TextPatch, apply_file_patch,
 };
 
 use crate::Error;
@@ -39,21 +38,17 @@ impl Workspace {
         Ok(FileId::from_logical_str(&path))
     }
 
-    /// Return the shared content for one path in one revision.
-    pub(crate) fn content(
-        &self,
-        revision: Revision,
-        path: &Path,
-    ) -> Result<Arc<ContentEntry>, Error> {
+    /// Return the shared file for one path in one revision.
+    pub(crate) fn file(&self, revision: Revision, path: &Path) -> Result<Arc<File>, Error> {
         let file_id = self.file_id(path)?;
         let file = self
             .repository
             .file(revision, file_id)?
             .ok_or_else(|| Error::Internal {
-                detail: format!("file has no content in revision: {}", path.display()),
+                detail: format!("file is missing from revision: {}", path.display()),
             })?;
 
-        Ok(file.content.clone())
+        Ok(file)
     }
 
     /// Load one filesystem module into a private revision.
@@ -130,22 +125,22 @@ impl Workspace {
         let edit = match edit {
             Edit::SetText { path, text } => {
                 let path = self.logical_path(&path)?;
+                let blob = self.repository.put_blob(text.as_bytes())?;
 
-                repository::Edit::set_text(path, text)
+                repository::Edit::set_file(path, blob)
             }
             Edit::EditText { path, patches } => {
                 let logical_path = self.logical_path(&path)?;
                 let text = self.apply_text_patches(revision, &path, &logical_path, patches)?;
+                let blob = self.repository.put_blob(text.as_bytes())?;
 
-                repository::Edit::set_text(logical_path, text)
+                repository::Edit::set_file(logical_path, blob)
             }
             Edit::SetBytes { path, bytes } => {
                 let logical_path = self.logical_path(&path)?;
+                let blob = self.repository.put_blob(&bytes)?;
 
-                repository::Edit::SetFile {
-                    logical_path,
-                    content: Content::Binary { content: bytes },
-                }
+                repository::Edit::set_file(logical_path, blob)
             }
             Edit::Remove { path } => {
                 let path = self.logical_path(&path)?;

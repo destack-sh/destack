@@ -8,8 +8,8 @@ use destack_parser::{colorize_source, source_colorizer};
 use destack_repository::{FormatterOptions, Repository, Revision, TraceView};
 use destack_serde::Reflect;
 use destack_source::{
-    Content, ContentId, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileSystem,
-    FileType, IgnoreSet, PrintOptions, Uri, print_diagnostics,
+    DiagnosticCollection, DiagnosticSeverity, File, FileId, FileSystem, FileType, IgnoreSet,
+    PrintOptions, Uri, print_diagnostics,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -94,14 +94,14 @@ pub enum FormatSource {
     Files(Vec<PathBuf>),
     /// Format one open file.
     OpenFile(PathBuf),
-    /// Format explicit content.
-    Content {
+    /// Format explicit text.
+    Text {
         /// Input label.
         name: String,
         /// Input file type.
         file_type: FileType,
-        /// Content to format.
-        content: ContentId,
+        /// Text to format.
+        text: String,
     },
 }
 
@@ -135,22 +135,14 @@ impl CommandContext<'_> {
         let mut report = FormatReport::new(check);
         let default_formatting = workspace_formatting_options(&self.repository, revision)?;
 
-        // format stored content when provided
-        if let FormatSource::Content {
+        // format explicit text when provided
+        if let FormatSource::Text {
             name,
             file_type,
-            content,
+            text,
         } = source
         {
             report.files_total = 1;
-            let content = self.repository.content(*content).map_err(|error| {
-                CommandError::internal(format!("failed to load format content: {error}"))
-            })?;
-            let Content::Text { content } = content.payload() else {
-                return Err(CommandError::invalid_input(
-                    "format content input must be text",
-                ));
-            };
             let file_id = FileId::from_logical_str(name);
             let file = File::from_text(
                 file_id,
@@ -158,8 +150,9 @@ impl CommandContext<'_> {
                 Uri::from_string(name),
                 None,
                 *file_type,
-                content.clone(),
-            );
+                text.clone(),
+            )
+            .map_err(|error| CommandError::invalid_input(error.to_string()))?;
             let file = Arc::new(file);
             let file_for_id = |current_file_id| {
                 if current_file_id == file_id {
@@ -198,7 +191,7 @@ impl CommandContext<'_> {
             report.formatted_output = Some(formatted.text.clone());
             if !check {
                 self.output
-                    .push_stdout(colorize_formatted_output(&formatted.text).into_bytes());
+                    .push_stdout(colorize_formatted_output(&formatted.text)?.into_bytes());
             }
             let payload = report.payload();
             let exit_code = if check && report.files_changed > 0 {
@@ -231,7 +224,7 @@ impl CommandContext<'_> {
             FormatSource::OpenFile(path) => {
                 paths.push(path.clone());
             }
-            FormatSource::Content { .. } => {}
+            FormatSource::Text { .. } => {}
         }
 
         // format each path or directory
@@ -529,32 +522,16 @@ fn format_single_file(
 
     // read file
     let content = match fs.read_to_string(path) {
-        Ok(c) => c,
-        Err(e) => {
+        Ok(content) => content,
+        Err(error) => {
             if !suppress_output {
-                output
-                    .push_stderr(format!("error reading '{}': {e}\n", path.display()).into_bytes());
+                output.push_stderr(
+                    format!("error reading '{}': {error}\n", path.display()).into_bytes(),
+                );
             }
             return Ok(FormatResult::Error);
         }
     };
-
-    // reject content outside source coordinates
-    let length = content.len();
-    if length > File::MAX_BYTES {
-        if !suppress_output {
-            output.push_stderr(
-                format!(
-                    "error formatting '{}': content is {length} bytes, maximum is {}\n",
-                    path.display(),
-                    File::MAX_BYTES,
-                )
-                .into_bytes(),
-            );
-        }
-
-        return Ok(FormatResult::Error);
-    }
 
     let formatted = match file_type {
         FileType::Json => match format_json_content(&content, formatting_options) {
@@ -579,6 +556,19 @@ fn format_single_file(
                 file_type,
                 content.clone(),
             );
+            let file = match file {
+                Ok(file) => file,
+                Err(error) => {
+                    if !suppress_output {
+                        output.push_stderr(
+                            format!("error formatting '{}': {error}\n", path.display())
+                                .into_bytes(),
+                        );
+                    }
+
+                    return Ok(FormatResult::Error);
+                }
+            };
             let file = Arc::new(file);
             let file_for_id = |current_file_id| {
                 if current_file_id == file_id {
@@ -636,7 +626,7 @@ fn format_single_file(
 
     if mode == FormatMode::Preview {
         if !suppress_output {
-            output.push_stdout(colorize_formatted_output(&formatted).into_bytes());
+            output.push_stdout(colorize_formatted_output(&formatted)?.into_bytes());
         }
 
         return if content == formatted {
@@ -673,7 +663,7 @@ fn format_json_content(content: &str, formatter: FormatterOptions) -> CommandRes
 }
 
 /// Render formatted output for eval mode.
-fn colorize_formatted_output(formatted: &str) -> String {
+fn colorize_formatted_output(formatted: &str) -> CommandResult<String> {
     let formatted_file = File::from_text(
         FileId::from_logical_str("<eval:formatted>"),
         "<eval>".to_string(),
@@ -681,8 +671,10 @@ fn colorize_formatted_output(formatted: &str) -> String {
         None,
         FileType::Destack,
         formatted.to_string(),
-    );
-    colorize_source(&formatted_file)
+    )
+    .map_err(|error| CommandError::internal(error.to_string()))?;
+
+    Ok(colorize_source(&formatted_file))
 }
 
 /// Result of formatting a single file.

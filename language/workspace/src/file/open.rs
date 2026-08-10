@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_repository::{Repository, Revision};
-use destack_source::{Content, ContentEntry, FileId, Uri};
+use destack_source::{File, FileId, Uri};
 
 use crate::Error;
 use crate::workspace::Workspace;
@@ -14,23 +14,23 @@ pub(crate) struct OpenFile {
     pub uri: Uri,
     /// Client-provided file version.
     pub version: i32,
-    /// Current repository content.
-    pub content: Arc<ContentEntry>,
+    /// Current repository file.
+    pub file: Arc<File>,
 }
 
 impl OpenFile {
-    /// Return the client version when one revision contains this open content.
+    /// Return the client version when one revision contains this open Blob.
     pub(crate) fn version_at(
         &self,
         repository: &Repository,
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<i32>, Error> {
-        let Some(content_id) = repository.file_content_id(revision, file_id)? else {
+        let Some(blob) = repository.file_blob(revision, file_id)? else {
             return Ok(None);
         };
 
-        Ok((content_id == self.content.content_id()).then_some(self.version))
+        Ok((blob == self.file.blob).then_some(self.version))
     }
 }
 
@@ -51,13 +51,10 @@ impl Workspace {
 
         // mirror open content into the shared filesystem overlay
         if let Some(overlay_file_system) = self.overlay_file_system.as_ref() {
-            match file.content.payload() {
-                Content::Text { content } => {
-                    overlay_file_system.set_overlay(path.as_path(), content.clone());
-                }
-                Content::Binary { content } => {
-                    overlay_file_system.set_overlay_bytes(path.as_path(), content.clone());
-                }
+            if file.file.ty.is_binary() {
+                overlay_file_system.set_overlay_bytes(path.as_path(), file.file.bytes().to_vec());
+            } else {
+                overlay_file_system.set_overlay(path.as_path(), file.file.text().to_string());
             }
         }
 

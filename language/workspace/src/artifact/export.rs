@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use destack_artifact::ArtifactReference;
+use destack_core::Blob;
 use destack_serde::Reflect;
-use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 /// Request to materialize derived outputs on the workspace host.
@@ -28,8 +28,6 @@ pub struct ExportResult {
 pub struct ExportedFile {
     /// Path written on the workspace host.
     pub path: PathBuf,
-    /// Content written to the path.
-    pub content: ContentId,
-    /// Number of bytes written.
-    pub size_bytes: u64,
+    /// Blob written to the path.
+    pub blob: Blob,
 }

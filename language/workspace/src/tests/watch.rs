@@ -1,7 +1,8 @@
 use futures::executor::block_on;
 
+use destack_core::Blob;
 use destack_repository::Change;
-use destack_source::{ContentId, Edit, FileId, FileSystem};
+use destack_source::{Edit, FileId, FileSystem};
 
 use crate::tests::harness::TestWorkspace;
 use crate::{Error, FileOperation, WatchEvent};
@@ -407,8 +408,8 @@ fn test_reload_preserves_open_binary_file() {
         [Change {
             file: FileId::from_logical_str("src/image.png"),
             path: "src/image.png".to_string(),
-            before: Some(ContentId::for_binary(&[2])),
-            after: Some(ContentId::for_binary(&[3])),
+            before: Some(Blob::for_bytes(&[2])),
+            after: Some(Blob::for_bytes(&[3])),
         }]
     );
 }

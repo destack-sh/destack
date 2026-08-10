@@ -251,8 +251,11 @@ impl<'a> CommandContext<'a> {
             })?;
             let content = format!("{content}\n");
             let logical_path = repository.logical_path(&path);
+            let blob = repository.put_blob(content.as_bytes()).map_err(|error| {
+                CommandError::internal(format!("failed to store {}: {error}", path.display()))
+            })?;
 
-            edits.push(repository::Edit::set_text(logical_path, content));
+            edits.push(repository::Edit::set_file(logical_path, blob));
         }
 
         let after = repository
@@ -417,7 +420,11 @@ impl<'a> CommandContext<'a> {
         let path = PathBuf::from(command_input_logical_path(kind, name, file_type));
         let before = self.revision.revision();
         let logical_path = path.to_string_lossy();
-        let edit = repository::Edit::set_text(logical_path, content);
+        let blob = self
+            .repository
+            .put_blob(content.as_bytes())
+            .map_err(|error| format!("failed to store command input {name}: {error}"))?;
+        let edit = repository::Edit::set_file(logical_path, blob);
         let after = self
             .repository
             .edit(before, vec![edit])
@@ -467,14 +474,16 @@ impl<'a> CommandContext<'a> {
             })?
             .to_string_lossy()
             .into_owned();
-        let file = Arc::new(File::from_text(
+        let file = File::from_text(
             file_id,
             name,
             uri,
             None,
             FileType::from_path_or_unknown(path),
             content.to_string(),
-        ));
+        )
+        .map_err(|error| CommandError::internal(error.to_string()))?;
+        let file = Arc::new(file);
         self.files.insert(file_id, file.clone());
 
         Ok(file)

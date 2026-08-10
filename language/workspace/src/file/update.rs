@@ -2,7 +2,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use destack_repository::{Commit, Revision};
-use destack_source::{Content, Edit, FileType, TextChange, Uri, apply_text_changes};
+use destack_source::{Edit, FileType, TextChange, Uri, apply_text_changes};
 
 use crate::Error;
 use crate::file::{FileOperation, OpenFile};
@@ -68,12 +68,8 @@ impl Workspace {
         }
 
         // resolve and publish editor identity before notifying semantic watches
-        let content = self.content(commit.after, path.as_path())?;
-        let file = OpenFile {
-            uri,
-            version,
-            content,
-        };
+        let file = self.file(commit.after, path.as_path())?;
+        let file = OpenFile { uri, version, file };
         self.upsert_open_file(path.as_path(), file);
 
         self.publish(commit)
@@ -101,25 +97,28 @@ impl Workspace {
             });
         }
 
-        // apply the patch to the current open text
+        // require current open text
         let Some(file) = self.find_open_file(&path) else {
             return Err(Error::InvalidTextChange {
                 path,
                 detail: "open file text is not available".to_string(),
             });
         };
-        let Content::Text { content: text } = file.content.payload() else {
+        if file.file.ty.is_binary() {
             return Err(Error::InvalidTextChange {
                 path,
                 detail: "open file text is not available".to_string(),
             });
-        };
-        let content = apply_text_changes(text.clone(), &changes).map_err(|error| {
-            Error::InvalidTextChange {
-                path: path.clone(),
-                detail: error.to_string(),
-            }
-        })?;
+        }
+
+        // apply the incremental changes
+        let content =
+            apply_text_changes(file.file.text().to_string(), &changes).map_err(|error| {
+                Error::InvalidTextChange {
+                    path: path.clone(),
+                    detail: error.to_string(),
+                }
+            })?;
 
         let edit = Edit::SetText {
             path: path.clone(),
@@ -164,8 +163,11 @@ impl Workspace {
             }
 
             // resolve and publish editor identity before notifying semantic watches
-            let content = self.content(commit.after, path.as_path())?;
-            let file = OpenFile { content, ..file };
+            let updated_file = self.file(commit.after, path.as_path())?;
+            let file = OpenFile {
+                file: updated_file,
+                ..file
+            };
             self.upsert_open_file(path.as_path(), file);
 
             return self.publish(commit);
