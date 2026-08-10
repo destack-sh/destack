@@ -11,9 +11,8 @@ declare_lint! {
         id: "missing-spin-loop",
         summary: "Require a processor hint in atomic busy-wait loops",
         explanation: r#"
-An atomic polling loop without observable work continuously consumes execution resources. Use
-`spinLoop` for bounded optimistic spinning, or replace longer waits with a blocking synchronization
-operation.
+An atomic polling loop that performs no other work repeatedly reloads the atomic value without informing the processor that it is spinning.
+Instead, you SHOULD call `spinLoop` during bounded optimistic spinning or use a blocking synchronization operation for longer waits.
 "#,
         example: {
             reported: r#"

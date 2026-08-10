@@ -11,9 +11,10 @@ declare_lint! {
         id: "prefer-find",
         summary: "Prefer find when consuming the first filtered element",
         explanation: r#"
-Filtering an array before optionally reading its first element allocates and examines every input.
-Use `find` to stop at the first match. This changes how often an effectful predicate runs, so the
-correction requires review.
+Filtering an array before reading the first result allocates an intermediate array and evaluates the predicate for every input.
+Instead, you SHOULD call `find` to stop at the first matching element.
+
+An effectful predicate can run fewer times after this replacement.
 "#,
         example: {
             reported: r#"
@@ -287,7 +288,9 @@ function firstPositive(values: int32[]): int32 | undefined {
             &PREFER_FIND,
             r#"
 function firstPositive(values: int32[]): int32 | undefined {
-    return values.filter((value) => value > 0) /* retain */.first();
+    return values
+        .filter((value) => value > 0) /* retain */
+        .first();
 }
 "#,
         );
@@ -298,9 +301,13 @@ warning[prefer-find]: filtered array is only used for its first element
  ──▶ main.ds:2:12
   │
 1 │ function firstPositive(values: int32[]): int32 | undefined {
-2 │     return values.filter((value) => value > 0) /* retain */.first();
-  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-3 │ }
+2 │     return values
+  │            ^^^^^^
+3 │         .filter((value) => value > 0) /* retain */
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+4 │         .first();
+  │ ^^^^^^^^^^^^^^^^
+5 │ }
   │
 "#,
         );
@@ -313,9 +320,7 @@ warning[prefer-find]: filtered array is only used for its first element
             &PREFER_FIND,
             r#"
 @derive(Tagged)
-newtype Status =
-    | { kind: "ready"; value: int32 }
-    | { kind: "pending" };
+newtype Status = { kind: "ready"; value: int32 } | { kind: "pending" };
 
 function ready(value: int32): Status {
     return Status.Ready({ value });

@@ -33,16 +33,16 @@ impl DirModule<'_> {
             .decision_entries()
             .filter(|(_, decision)| matches!(decision, dir::Decision::Call(_)))
             .map(|(node, _)| {
-            if node.module_id != self.id {
-                return Err(ProviderError::internal(format!(
-                    "call resolution {node:?} belongs to another module"
-                )));
-            }
+                if node.module_id != self.id {
+                    return Err(ProviderError::internal(format!(
+                        "call resolution {node:?} belongs to another module"
+                    )));
+                }
 
-            node.local_id
-                .try_into_typed::<dir::Expression>()
-                .map_err(ProviderError::internal)
-        })
+                node.local_id
+                    .try_into_typed::<dir::Expression>()
+                    .map_err(ProviderError::internal)
+            })
     }
 
     /// Iterate expressions with a checked operator resolution.
@@ -360,6 +360,10 @@ impl DirModule<'_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<(dir::UnaryOperator, &dir::BuiltinOperand)>, ProviderError> {
+        if !matches!(self.view().get(expression), dir::Expression::Unary { .. }) {
+            return Ok(None);
+        }
+
         let resolution = self.operator_decision(expression.into_any())?;
         let operation = resolution.and_then(dir::OperatorDecision::builtin_unary);
 
@@ -371,6 +375,10 @@ impl DirModule<'_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<(dir::BinaryOperator, &[dir::BuiltinOperand; 2])>, ProviderError> {
+        if !matches!(self.view().get(expression), dir::Expression::Binary { .. }) {
+            return Ok(None);
+        }
+
         let resolution = self.operator_decision(expression.into_any())?;
         let operation = resolution.and_then(dir::OperatorDecision::builtin_binary);
 

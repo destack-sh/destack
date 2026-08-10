@@ -9,8 +9,8 @@ declare_lint! {
         id: "no-multi-assign",
         summary: "Disallow chained assignment",
         explanation: r#"
-A chained assignment mutates several places through one right-associative expression. Use separate
-assignments so each mutation and its order are explicit.
+A chained assignment is right-associative, so `left = right = value` writes `right` before assigning that result to `left`.
+Instead, you SHOULD use separate assignments in the same order.
 "#,
         example: {
             reported: r#"

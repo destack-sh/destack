@@ -11,8 +11,8 @@ declare_lint! {
         id: "no-needless-boolean-branch",
         summary: "Disallow branches that only return boolean literals",
         explanation: r#"
-An if statement whose two branches return opposite boolean literals only restates its condition.
-Return the condition directly, or negate it when the branches reverse the condition.
+An `if` whose two branches return opposite boolean literals has the same result as its condition or its negation.
+Instead, you SHOULD return the condition directly or negate it when the branches reverse the result.
 "#,
         example: {
             reported: r#"

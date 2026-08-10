@@ -10,18 +10,23 @@ declare_lint! {
         id: "no-empty-static-block",
         summary: "Disallow empty static and compile-time initialization blocks",
         explanation: r#"
-An empty static or compile-time block performs no initialization and usually remains after
-incomplete editing. Remove it. A block containing a comment is retained because the comment may
-document an intentionally empty initializer.
+An uncommented empty static or compile-time block performs no initialization.
+Instead, you SHOULD remove the block or explain why it is intentionally empty with a comment.
 "#,
         example: {
             reported: r#"
 class Registry {
     static {}
+    value(): int32 {
+        return 1;
+    }
 }
 "#,
             accepted: r#"
 class Registry {
+    value(): int32 {
+        return 1;
+    }
 }
 "#,
         },

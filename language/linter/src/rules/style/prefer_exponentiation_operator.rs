@@ -11,9 +11,8 @@ declare_lint! {
         id: "prefer-exponentiation-operator",
         summary: "Prefer the exponentiation operator to a well-known power function",
         explanation: r#"
-A call to the canonical `Math.pow` function states an infix numeric operation as a function call.
-Use the exponentiation operator so the expression follows the language's ordinary operator
-precedence.
+The canonical `Math.pow(base, exponent)` call performs the same operation as `base ** exponent`.
+Instead, you SHOULD use the exponentiation operator.
 "#,
         example: {
             reported: r#"

@@ -11,9 +11,8 @@ declare_lint! {
         id: "prefer-template",
         summary: "Prefer template literals for string concatenation",
         explanation: r#"
-Concatenating dynamic text with an authored string literal obscures the resulting sentence across
-separate operands. Use one template literal so the static and dynamic parts read in their final
-order.
+String concatenation separates authored text from interpolated values with binary operators.
+Instead, you SHOULD use one template literal containing the static and dynamic segments in their final order.
 "#,
         example: {
             reported: r#"

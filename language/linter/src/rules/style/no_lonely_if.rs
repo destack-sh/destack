@@ -11,8 +11,8 @@ declare_lint! {
         id: "no-lonely-if",
         summary: "Disallow an if statement as the only statement in an else block",
         explanation: r#"
-An else block containing only another if adds nesting without defining a distinct scope. Write
-`else if` so the alternatives form one visible chain.
+`else { if (condition) ... }` has the same control flow as `else if (condition) ...` when the block contains no other statements.
+Instead, you SHOULD flatten the nested `if` into the existing conditional chain.
 "#,
         example: {
             reported: r#"

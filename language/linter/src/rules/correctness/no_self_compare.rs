@@ -4,14 +4,13 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow comparisons of a repeatable value with itself.
+    /// Disallow comparisons with identical deterministic operands.
     pub NO_SELF_COMPARE {
         id: "no-self-compare",
-        summary: "Disallow comparisons of a repeatable value with itself",
+        summary: "Disallow comparisons with identical deterministic operands",
         explanation: r#"
-Comparing a repeatable value with itself has a fixed or misleading result. Compare it with the
-intended second value, or use an explicit predicate when testing exceptional values such as
-floating-point NaN.
+Repeating the same deterministic operand on both sides usually indicates that one of the intended values was duplicated.
+Instead, you SHOULD compare the two intended values or call `.isNaN()` when testing floating-point NaN.
 "#,
         example: {
             reported: r#"
@@ -61,18 +60,20 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
+        // retain the canonical NaN predicate definition
+        let is_nan = dir::LanguageItem::Float.member("isNaN");
+        if module.is_within_language_member(expression_id.into_any(), is_nan)? {
+            continue;
+        }
+
         // report the complete comparison
         let span = module.span(expression_id.into_any())?;
         let mut diagnostic = lint.diagnostic("comparison has identical operands", span);
 
         // explain self-comparison when a float operand may be NaN
         if operator.is_equality() {
-            let has_float_family = left_operand
-                .scalar_families
-                .as_ref()
-                .is_some_and(|families| {
-                    families.contains(dir::ScalarFamily::Domain(dir::ScalarDomain::Float))
-                });
+            let float = dir::ScalarFamily::Domain(dir::ScalarDomain::Float);
+            let has_float_family = left_operand.has_scalar_family(float);
             let can_be_nan = has_float_family
                 && module
                     .scalar_constant(left_operand.source.local_id)?

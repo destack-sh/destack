@@ -12,8 +12,8 @@ declare_lint! {
         id: "grouped-accessor-pairs",
         summary: "Require getter and setter pairs to be adjacent",
         explanation: r#"
-A getter and setter define one property. Keep the pair adjacent so its readable and writable
-behavior can be inspected together.
+A separated getter and setter split one property's readable and writable behavior across a declaration.
+Instead, you SHOULD keep each getter adjacent to its corresponding setter.
 "#,
         example: {
             reported: r#"
@@ -253,7 +253,9 @@ declare class Store {
             &GROUPED_ACCESSOR_PAIRS,
             r#"
 const store = {
-    get value(): string { return ""; },
+    get value(): string {
+        return "";
+    },
     clear(): void {},
     set value(next: string): void {},
 };
@@ -263,13 +265,13 @@ const store = {
         session.assert_diagnostics(
             r#"
 warning[grouped-accessor-pairs]: accessor is separated from its pair
- ──▶ main.ds:4:9
+ ──▶ main.ds:6:9
   │
-2 │     get value(): string { return ""; },
-3 │     clear(): void {},
-4 │     set value(next: string): void {},
+4 │     },
+5 │     clear(): void {},
+6 │     set value(next: string): void {},
   │         ^^^^^
-5 │ };
+7 │ };
   │
 "#,
         );
@@ -282,7 +284,9 @@ warning[grouped-accessor-pairs]: accessor is separated from its pair
             &GROUPED_ACCESSOR_PAIRS,
             r#"
 const store = {
-    get value(): string { return ""; },
+    get value(): string {
+        return "";
+    },
     set value(next: string): void {},
 };
 "#,

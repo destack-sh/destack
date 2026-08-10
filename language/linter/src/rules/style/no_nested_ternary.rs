@@ -9,9 +9,8 @@ declare_lint! {
         id: "no-nested-ternary",
         summary: "Disallow nested ternary expressions",
         explanation: r#"
-A ternary nested directly inside another ternary compresses multiple decisions into one expression
-whose grouping is easy to misread. Use explicit control flow so each condition and result remains
-visible.
+A ternary nested directly inside another ternary forces multiple conditions and results into a grouping determined by operator associativity.
+Instead, you SHOULD use explicit control flow for each condition and result.
 "#,
         example: {
             reported: r#"
@@ -107,7 +106,7 @@ function second(value: boolean): int32 {
             &NO_NESTED_TERNARY,
             r#"
 function select(first: boolean, second: boolean): int32 {
-    return first ? second ? 1 : 2 : 3;
+    return first ? (second ? 1 : 2) : 3;
 }
 "#,
         );
@@ -118,8 +117,8 @@ warning[no-nested-ternary]: ternary is nested inside another ternary
  ──▶ main.ds:2:20
   │
 1 │ function select(first: boolean, second: boolean): int32 {
-2 │     return first ? second ? 1 : 2 : 3;
-  │                    ^^^^^^^^^^^^^^
+2 │     return first ? (second ? 1 : 2) : 3;
+  │                    ^^^^^^^^^^^^^^^^
 3 │ }
   │
 "#,

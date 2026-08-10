@@ -11,9 +11,8 @@ declare_lint! {
         id: "no-identity-operation",
         summary: "Disallow arithmetic with an operand that cannot change the result",
         explanation: r#"
-An integer operation with an identity operand returns the other operand unchanged and usually
-remains after an incomplete simplification. Remove the operation so the value being produced is
-explicit.
+An integral identity operation such as `value + 0` returns the other operand unchanged.
+Instead, you SHOULD remove the operation.
 "#,
         example: {
             reported: r#"

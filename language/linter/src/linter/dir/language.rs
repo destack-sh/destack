@@ -35,6 +35,15 @@ impl Dir<'_> {
                     target: dir::ExtensionTarget::Rooted { root, .. },
                     ..
                 }) if extension_symbol.module_id == root.module_id => *root,
+                Some(dir::ExtensionDefinition {
+                    symbol: extension_symbol,
+                    target:
+                        dir::ExtensionTarget::Blanket {
+                            coverage: dir::BlanketCoverage::Interface(interface),
+                            ..
+                        },
+                    ..
+                }) if extension_symbol.module_id == interface.module_id => *interface,
                 Some(_) => return Ok(None),
                 None => owner,
             };
@@ -48,26 +57,46 @@ impl Dir<'_> {
 }
 
 impl DirModule<'_> {
-    /// Return the canonical language member containing one node.
-    pub fn enclosing_language_member(
+    /// Return whether one node is within a declaration or implementation of a language member.
+    pub fn is_within_language_member(
         &self,
         node: dir::LocalNodeIdAny,
-    ) -> Result<Option<dir::LanguageMember>, ProviderError> {
+        language_member: dir::LanguageMember,
+    ) -> Result<bool, ProviderError> {
         // select the member that contains the node
-        let Some(member) = self.view().ancestor::<dir::Member>(node) else {
-            return Ok(None);
+        let Some(declaration) = self.view().ancestor::<dir::Member>(node) else {
+            return Ok(false);
         };
 
         // resolve the member's canonical language identity
-        let member = member.into_global_any(self.id);
-        let symbol = self.bindings.declaration_symbol(member).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "checked member {member:?} has no declaration symbol"
-            ))
-        })?;
+        let declaration = declaration.into_global_any(self.id);
+        let symbol = self
+            .bindings
+            .declaration_symbol(declaration)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "checked member {declaration:?} has no declaration symbol"
+                ))
+            })?;
         let symbol = symbol.into_global(self.id);
 
-        self.dir.language_member(symbol)
+        // recognize a directly declared canonical member
+        if self.dir.language_member(symbol)? == Some(language_member) {
+            return Ok(true);
+        }
+
+        // recognize a canonical requirement implemented by this member
+        for conformance in self
+            .definitions
+            .member_conformances()
+            .filter(|conformance| conformance.member == symbol)
+        {
+            if self.dir.language_member(conformance.requirement)? == Some(language_member) {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Return the canonical language item selected directly by one expression.

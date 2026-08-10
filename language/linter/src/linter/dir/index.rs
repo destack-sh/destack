@@ -183,7 +183,9 @@ impl<'a> Dir<'a> {
         let bound = self.artifacts.read::<DirBound>((module, self.profile))?;
         let expanded = self.artifacts.read::<DirExpanded>((module, self.profile))?;
         let declared = self.artifacts.read::<DirDeclared>((module, self.profile))?;
-        let elaborated = self.artifacts.read::<DirElaborated>((module, self.profile))?;
+        let elaborated = self
+            .artifacts
+            .read::<DirElaborated>((module, self.profile))?;
         let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
         let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
 
@@ -205,7 +207,9 @@ impl<'a> Dir<'a> {
         let bound = self.artifacts.read::<DirBound>((module, self.profile))?;
         let expanded = self.artifacts.read::<DirExpanded>((module, self.profile))?;
         let declared = self.artifacts.read::<DirDeclared>((module, self.profile))?;
-        let elaborated = self.artifacts.read::<DirElaborated>((module, self.profile))?;
+        let elaborated = self
+            .artifacts
+            .read::<DirElaborated>((module, self.profile))?;
         let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
         let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
 
@@ -227,7 +231,9 @@ impl<'a> Dir<'a> {
         let bound = self.artifacts.read::<DirBound>((module, self.profile))?;
         let expanded = self.artifacts.read::<DirExpanded>((module, self.profile))?;
         let declared = self.artifacts.read::<DirDeclared>((module, self.profile))?;
-        let elaborated = self.artifacts.read::<DirElaborated>((module, self.profile))?;
+        let elaborated = self
+            .artifacts
+            .read::<DirElaborated>((module, self.profile))?;
         let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
         let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
         let definitions = dir::DefinitionTable::from_segment(elaborated.definitions.clone());

@@ -11,8 +11,8 @@ declare_lint! {
         id: "no-template-curly-in-string",
         summary: "Disallow template interpolation in regular strings",
         explanation: r#"
-`${...}` inside a regular string is literal text rather than interpolation and commonly indicates
-the wrong delimiter. Use a template literal when interpolation is intended.
+`${...}` inside a regular string produces literal text because regular strings do not interpolate placeholders.
+Instead, you SHOULD use a template literal when interpolation is intended.
 "#,
         example: {
             reported: r#"

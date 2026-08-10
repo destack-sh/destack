@@ -11,8 +11,8 @@ declare_lint! {
         id: "prefer-array-literal",
         summary: "Prefer an empty array literal over the canonical Array constructor",
         explanation: r#"
-The canonical zero-argument `Array.new` factory constructs the same empty array as an array literal,
-but hides that value behind a call. Use `[]` so the constructed value is visible directly.
+The canonical zero-argument `Array.new` call constructs the same empty array as `[]`.
+Instead, you SHOULD use the array literal.
 "#,
         example: {
             reported: r#"
@@ -165,9 +165,7 @@ warning[prefer-array-literal]: empty array uses the Array.new factory
             &PREFER_ARRAY_LITERAL,
             r#"
 @derive(Tagged)
-newtype Status =
-    | { kind: "ready" }
-    | { kind: "pending" };
+newtype Status = { kind: "ready" } | { kind: "pending" };
 "#,
         );
 

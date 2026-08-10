@@ -3,7 +3,29 @@ use destack_repository::ProviderError;
 
 use super::DirModule;
 
+/// One builtin integral expression offset by exactly one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum IntegerStep {
+    /// One value incremented by one.
+    Increment(dir::LocalNodeId<dir::Expression>),
+    /// One value decremented by one.
+    Decrement(dir::LocalNodeId<dir::Expression>),
+}
+
 impl DirModule<'_> {
+    /// Return the concrete primitive type selected for one checked node.
+    pub fn primitive_type(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Result<Option<dir::PrimitiveType>, ProviderError> {
+        let primitive = match self.node_type(node)? {
+            dir::Type::Primitive(primitive) => Some(primitive),
+            _ => None,
+        };
+
+        Ok(primitive)
+    }
+
     /// Return the exact scalar constant selected by one checked expression.
     pub fn scalar_constant(
         &self,
@@ -31,6 +53,108 @@ impl DirModule<'_> {
         Ok(value)
     }
 
+    /// Return the exact integral constant selected by one checked expression.
+    pub fn integral_constant(
+        &self,
+        node: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<i64>, ProviderError> {
+        let value = self
+            .scalar_constant(node)?
+            .and_then(|value| value.as_integral());
+
+        Ok(value)
+    }
+
+    /// Select one builtin or standard-library bigint binary operation.
+    pub(crate) fn integral_binary(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<(dir::BinaryOperator, [dir::LocalNodeId<dir::Expression>; 2])>, ProviderError>
+    {
+        let dir::Expression::Binary {
+            left,
+            operator,
+            right,
+        } = self.view().get(expression)
+        else {
+            return Ok(None);
+        };
+
+        // recognize compiler-defined machine-integer operations
+        if let Some((operator, operands)) = self.builtin_binary(expression)?
+            && operands.iter().all(dir::BuiltinOperand::is_integral)
+        {
+            let operands = [operands[0].source.local_id, operands[1].source.local_id];
+
+            return Ok(Some((operator, operands)));
+        }
+
+        // require canonical bigint operands and their standard-library operation
+        let left_domain = self.node_type(left.into_any())?.scalar_domain();
+        let right_domain = self.node_type(right.into_any())?.scalar_domain();
+        if left_domain != Some(dir::ScalarDomain::Bigint)
+            || right_domain != Some(dir::ScalarDomain::Bigint)
+        {
+            return Ok(None);
+        }
+        let member = match operator {
+            dir::BinaryOperator::Exponent => "power",
+            dir::BinaryOperator::Multiply => "multiply",
+            dir::BinaryOperator::Divide => "divide",
+            dir::BinaryOperator::Remainder => "remainder",
+            dir::BinaryOperator::Add => "add",
+            dir::BinaryOperator::Subtract => "subtract",
+            dir::BinaryOperator::ShiftLeft => "shiftLeft",
+            dir::BinaryOperator::ShiftRight => "shiftRight",
+            dir::BinaryOperator::ElementwiseAnd => "and",
+            dir::BinaryOperator::ElementwiseXor => "xor",
+            dir::BinaryOperator::ElementwiseOr => "or",
+            dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual => "equal",
+            dir::BinaryOperator::LessThan
+            | dir::BinaryOperator::LessThanOrEqual
+            | dir::BinaryOperator::GreaterThan
+            | dir::BinaryOperator::GreaterThanOrEqual => "compare",
+            dir::BinaryOperator::UnsignedShiftRight
+            | dir::BinaryOperator::EqualStrict
+            | dir::BinaryOperator::NotEqualStrict
+            | dir::BinaryOperator::And
+            | dir::BinaryOperator::Or
+            | dir::BinaryOperator::Coalesce
+            | dir::BinaryOperator::In => return Ok(None),
+        };
+        let member = dir::LanguageItem::BigInt.member(member);
+        if self.operator_language_member(expression)? != Some(member) {
+            return Ok(None);
+        }
+
+        Ok(Some((*operator, [*left, *right])))
+    }
+
+    /// Select a builtin integral expression offset by exactly one.
+    pub(crate) fn integer_step(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<IntegerStep>, ProviderError> {
+        let Some((operator, [left, right])) = self.integral_binary(expression)? else {
+            return Ok(None);
+        };
+
+        // classify exact additive unit constants on either side
+        let left_constant = self.integral_constant(left)?;
+        let right_constant = self.integral_constant(right)?;
+        let step = match (operator, left_constant, right_constant) {
+            (dir::BinaryOperator::Add, Some(1), _) => IntegerStep::Increment(right),
+            (dir::BinaryOperator::Add, _, Some(1)) => IntegerStep::Increment(left),
+            (dir::BinaryOperator::Add, Some(-1), _) => IntegerStep::Decrement(right),
+            (dir::BinaryOperator::Add, _, Some(-1)) => IntegerStep::Decrement(left),
+            (dir::BinaryOperator::Subtract, _, Some(1)) => IntegerStep::Decrement(left),
+            (dir::BinaryOperator::Subtract, _, Some(-1)) => IntegerStep::Increment(left),
+            _ => return Ok(None),
+        };
+
+        Ok(Some(step))
+    }
+
     /// Return whether one expression is an exact negative-zero constant.
     pub fn is_negative_zero(
         &self,
@@ -41,6 +165,55 @@ impl DirModule<'_> {
             .is_some_and(|value| value.is_negative_zero());
 
         Ok(is_negative_zero)
+    }
+
+    /// Return whether one checked expression denotes positive or negative infinity.
+    pub fn is_infinite(
+        &self,
+        node: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<bool, ProviderError> {
+        Ok(self.infinity(node)?.is_some())
+    }
+
+    /// Return the exact infinite value denoted by one checked expression.
+    pub fn infinity(
+        &self,
+        node: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<f64>, ProviderError> {
+        // recognize exact checked scalar constants
+        if let Some(dir::ScalarLiteral::Float(value)) = self.scalar_constant(node)?
+            && value.is_infinite()
+        {
+            return Ok(Some(value));
+        }
+
+        // recognize the canonical standard-library constants by selected symbol
+        let item = self.language_item(node)?;
+        let value = match item {
+            Some(dir::LanguageItem::Infinity | dir::LanguageItem::NumberPositiveInfinity) => {
+                Some(f64::INFINITY)
+            }
+            Some(dir::LanguageItem::NumberNegativeInfinity) => Some(f64::NEG_INFINITY),
+            _ => None,
+        };
+        if value.is_some() {
+            return Ok(value);
+        }
+
+        // preserve infinity through compiler-defined unary signs
+        let dir::Expression::Unary { right, .. } = self.view().get(node) else {
+            return Ok(None);
+        };
+        let Some((operator, _)) = self.builtin_unary(node)? else {
+            return Ok(None);
+        };
+        let value = match operator {
+            dir::UnaryOperator::Plus => self.infinity(*right)?,
+            dir::UnaryOperator::Negate => self.infinity(*right)?.map(|value| -value),
+            _ => None,
+        };
+
+        Ok(value)
     }
 
     /// Return whether one checked expression denotes NaN.

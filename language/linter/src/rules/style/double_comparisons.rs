@@ -11,9 +11,8 @@ declare_lint! {
         id: "double-comparisons",
         summary: "Prefer one comparison over an equivalent pair of comparisons",
         explanation: r#"
-Two comparisons over the same repeatable operands can often be expressed by one inclusive or strict
-comparison. Use the single operator so the relationship is visible without combining overlapping
-conditions.
+Two comparisons over the same repeatable operands can encode the same relation as one comparison.
+Instead, you SHOULD use the equivalent single operator.
 "#,
         example: {
             reported: r#"

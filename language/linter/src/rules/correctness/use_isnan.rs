@@ -10,11 +10,14 @@ declare_lint! {
     pub USE_ISNAN {
         id: "use-isnan",
         summary: "Require the NaN predicate instead of equality comparisons with NaN",
-        explanation: "Floating-point NaN is unequal to every value, including itself, so equality cannot test for it. Call `.isNaN()` on the checked float value to state the operation directly.",
+        explanation: r#"
+Equality comparisons with NaN have a fixed result because NaN is unequal to every value, including itself.
+Instead, you MUST call `.isNaN()` on the value being tested.
+"#,
         example: {
             reported: r#"
 function isMissing(value: float64): boolean {
-    return value === (0.0 / 0.0);
+    return value === 0.0 / 0.0;
 }
 "#,
             accepted: r#"
@@ -210,7 +213,7 @@ mod tests {
             &USE_ISNAN,
             r#"
 function isPresent(value: float64): boolean {
-    return value !== (0.0 / 0.0);
+    return value !== 0.0 / 0.0;
 }
 "#,
         );
@@ -221,8 +224,8 @@ warning[use-isnan]: equality cannot test for NaN
  ──▶ main.ds:2:22
   │
 1 │ function isPresent(value: float64): boolean {
-2 │     return value !== (0.0 / 0.0);
-  │                      ^^^^^^^^^^^
+2 │     return value !== 0.0 / 0.0;
+  │                      ^^^^^^^^^
 3 │ }
   │
 
@@ -232,7 +235,7 @@ warning[use-isnan]: equality cannot test for NaN
 +++ b/main.ds
 
     1│ function isPresent(value: float64): boolean {
--   2│     return value !== (0.0 / 0.0);
+-   2│     return value !== 0.0 / 0.0;
 +   2│     return !value.isNaN();
 "#,
         );

@@ -11,9 +11,11 @@ declare_lint! {
         id: "identifier-case",
         summary: "Require canonical casing for declared identifiers",
         explanation: r#"
-Types, variants, extensions, and type parameters use PascalCase. Values, functions, labels, and
-value parameters use camelCase. Acronyms are cased as words. Imports, string-named members, foreign
-declarations, protocol implementations, and generated declarations retain their imposed names.
+Identifier casing communicates whether a declaration introduces a type or a value.
+Instead, you SHOULD use PascalCase for types, variants, extensions, and type parameters, and camelCase for values, functions, labels, and value parameters.
+
+Acronyms are cased as words.
+Imports, string-named members, foreign declarations, protocol implementations, and generated declarations retain their imposed names.
 "#,
         example: {
             reported: r#"

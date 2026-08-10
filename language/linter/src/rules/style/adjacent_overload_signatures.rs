@@ -14,8 +14,8 @@ declare_lint! {
         id: "adjacent-overload-signatures",
         summary: "Require overload signatures for one declaration to be adjacent",
         explanation: r#"
-Separated overload signatures hide the complete declaration and make its order difficult to inspect.
-Keep every overload for one function or member in one uninterrupted group.
+Separated overload signatures allow call forms to be missed when inspecting a declaration.
+Instead, you SHOULD keep every overload for one function or member in one uninterrupted group.
 "#,
         example: {
             reported: r#"

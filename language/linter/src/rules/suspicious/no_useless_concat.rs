@@ -9,8 +9,8 @@ declare_lint! {
         id: "no-useless-concat",
         summary: "Disallow concatenating adjacent string literals",
         explanation: r#"
-Concatenating two authored string literals represents constant text as an operation without adding
-any dynamic value. Write one string or template literal so the text is represented directly.
+Concatenating adjacent string literals produces a value that is already known in the source.
+Instead, you SHOULD write the value as one string or template literal.
 "#,
         example: {
             reported: r#"

@@ -8,7 +8,10 @@ declare_lint! {
     pub NO_COMPARE_NEG_ZERO {
         id: "no-compare-neg-zero",
         summary: "Disallow comparisons with negative zero",
-        explanation: "Equality and ordering comparisons treat negative zero like positive zero and cannot inspect its sign bit. Compare with zero and use an explicit sign-bit predicate when the distinction matters.",
+        explanation: r#"
+Equality and ordering comparisons produce the same result for negative and positive zero, so a comparison against negative zero cannot test its sign.
+Instead, you SHOULD compare with zero and call `.isSignNegative()` when the sign matters.
+"#,
         example: {
             reported: r#"
 function isNegativeZero(value: float64): boolean {

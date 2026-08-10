@@ -8,11 +8,16 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow for loops whose counter moves away from the stop condition.
+    /// Disallow for loops whose counter moves away from its bound.
     pub FOR_DIRECTION {
         id: "for-direction",
-        summary: "Disallow for loops whose counter moves away from the stop condition",
-        explanation: "A for-loop counter that moves away from its relational stop condition cannot make that condition false. Reverse either the update or the comparison direction, or use an unconditional loop when nontermination is intentional.",
+        summary: "Disallow for loops whose counter moves away from its bound",
+        explanation: r#"
+A counter that moves away from its relational bound cannot make a true loop condition false.
+Instead, you MUST reverse the counter update or comparison direction.
+
+An unconditional loop expresses intentional nontermination directly.
+"#,
         example: {
             reported: r#"
 for (let index: int32 = 0; index < 10; index--) {}
@@ -409,7 +414,7 @@ for (let index: int32 = 0; remaining > 0; index--) {}
         let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
-import { PartialCompare, Ordering } from "destack:ops";
+import { Ordering, PartialCompare } from "destack:ops";
 
 struct Counter {
     value: int32;

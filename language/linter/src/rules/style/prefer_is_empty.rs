@@ -11,8 +11,8 @@ declare_lint! {
         id: "prefer-is-empty",
         summary: "Prefer isEmpty over comparisons with zero length",
         explanation: r#"
-Comparing a canonical collection or string length with zero expresses the empty-state query
-indirectly. Use `isEmpty`, negating it when the comparison asks whether elements exist.
+Comparing a canonical collection or string measurement with zero performs the same empty-state query as `isEmpty` or its negation.
+Instead, you SHOULD use `isEmpty`, negating it when the comparison asks whether elements exist.
 "#,
         example: {
             reported: r#"
@@ -76,8 +76,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // retain the canonical property's defining comparison
         let is_this = matches!(view.get(receiver), dir::Expression::This { .. });
-        let is_implementation = module.enclosing_language_member(expression.into_any())?
-            == Some(language_member.owner.member("isEmpty"));
+        let is_implementation = module.is_within_language_member(
+            expression.into_any(),
+            language_member.owner.member("isEmpty"),
+        )?;
         if is_this && is_implementation {
             continue;
         }

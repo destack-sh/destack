@@ -9,14 +9,14 @@ declare_lint! {
         id: "no-return-assign",
         summary: "Disallow assignment within an explicit or implicit return value",
         explanation: r#"
-Returning an assignment combines mutation with the function result and can be mistaken for an
-equality test. Perform the assignment as a statement, then return the resulting value explicitly.
+A returned assignment makes the assigned value the function result after mutating its target, and a single `=` can be mistaken for an equality operator.
+Instead, you SHOULD perform the assignment as a statement and return the resulting value separately.
 "#,
         example: {
             reported: r#"
 function reset(value: int32): int32 {
     let current = value;
-    return current = 0;
+    return (current = 0);
 }
 "#,
             accepted: r#"
@@ -138,7 +138,7 @@ function reset(value: int32): int32 {
             &NO_RETURN_ASSIGN,
             r#"
 let current = 1;
-const reset: () => int32 = (): int32 => current = 0;
+const reset: () => int32 = (): int32 => (current = 0);
 "#,
         );
 
@@ -148,8 +148,8 @@ warning[no-return-assign]: return value is an assignment
  ──▶ main.ds:2:41
   │
 1 │ let current = 1;
-2 │ const reset: () => int32 = (): int32 => current = 0;
-  │                                         ^^^^^^^^^^^
+2 │ const reset: () => int32 = (): int32 => (current = 0);
+  │                                         ^^^^^^^^^^^^^
   │
 "#,
         );
@@ -163,7 +163,7 @@ warning[no-return-assign]: return value is an assignment
             r#"
 function reset(isActive: boolean): int32 {
     let current: int32 = 1;
-    return isActive ? current = 0 : current;
+    return isActive ? (current = 0) : current;
 }
 "#,
         );
@@ -175,8 +175,8 @@ warning[no-return-assign]: return value is an assignment
   │
 1 │ function reset(isActive: boolean): int32 {
 2 │     let current: int32 = 1;
-3 │     return isActive ? current = 0 : current;
-  │                       ^^^^^^^^^^^
+3 │     return isActive ? (current = 0) : current;
+  │                       ^^^^^^^^^^^^^
 4 │ }
   │
 "#,

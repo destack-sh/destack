@@ -48,8 +48,8 @@ declare_lint! {
         id: "no-negated-condition",
         summary: "Prefer positive conditions when both branches are present",
         explanation: r#"
-A negated condition with both outcomes present makes the first branch describe the exceptional case.
-Remove the negation and exchange the branches so the condition states the first outcome positively.
+A negated condition assigns the positive case to the second of two explicit branches.
+Instead, you SHOULD remove the negation and exchange the branches.
 "#,
         example: {
             reported: r#"

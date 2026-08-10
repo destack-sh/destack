@@ -11,14 +11,13 @@ declare_lint! {
         id: "needless-borrow",
         summary: "Disallow direct borrows that are immediately dereferenced",
         explanation: r#"
-Directly dereferencing a borrow created by the same expression returns to the original value place.
-Use that value directly; protocol-backed dereferences and independently stored borrows are
-unaffected.
+Dereferencing a borrow created by the same expression returns the original value place.
+Instead, you SHOULD use that value directly.
 "#,
         example: {
             reported: r#"
 function identity(value: int32): int32 {
-    return *(&value);
+    return *&value;
 }
 "#,
             accepted: r#"

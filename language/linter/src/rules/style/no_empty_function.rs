@@ -10,8 +10,8 @@ declare_lint! {
         id: "no-empty-function",
         summary: "Disallow empty functions",
         explanation: r#"
-A concrete function with an empty body silently does nothing and commonly remains after incomplete
-implementation. Remove it, implement it, or document the intentional empty body with a comment.
+An uncommented empty concrete function and an accidentally unfinished function have the same source shape.
+Instead, you SHOULD remove the function, implement it, or explain the intentional empty body with a comment.
 "#,
         example: {
             reported: r#"

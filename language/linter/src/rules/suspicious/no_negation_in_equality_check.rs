@@ -9,7 +9,10 @@ declare_lint! {
     pub NO_NEGATION_IN_EQUALITY_CHECK {
         id: "no-negation-in-equality-check",
         summary: "Disallow negation in equality checks",
-        explanation: "A negated left operand is easy to confuse with negation of the complete equality check. Move the negation outside the comparison or choose the opposite equality operator to state the intended condition explicitly.",
+        explanation: r#"
+`!left === right` negates only the left operand, although its visual shape can be read as negating the complete equality check.
+Instead, you SHOULD parenthesize the intended grouping or use the opposite equality operator.
+"#,
         example: {
             reported: r#"
 function differs(left: boolean, right: boolean): boolean {
@@ -108,7 +111,7 @@ mod tests {
             &NO_NEGATION_IN_EQUALITY_CHECK,
             r#"
 function differs(left: boolean, right: boolean): boolean {
-    return !/* left */ left === /* right */ right;
+    return !(/* left */ left) === /* right */ right;
 }
 "#,
         );
@@ -119,7 +122,7 @@ warning[no-negation-in-equality-check]: left equality operand is negated
  ──▶ main.ds:2:12
   │
 1 │ function differs(left: boolean, right: boolean): boolean {
-2 │     return !/* left */ left === /* right */ right;
+2 │     return !(/* left */ left) === /* right */ right;
   │            ^
 3 │ }
   │
@@ -129,14 +132,14 @@ warning[no-negation-in-equality-check]: left equality operand is negated
 +++ b/main.ds
 
     1│ function differs(left: boolean, right: boolean): boolean {
--   2│     return !/* left */ left === /* right */ right;
-+   2│     return !(/* left */ left === /* right */ right);
+-   2│     return !(/* left */ left) === /* right */ right;
++   2│     return !((/* left */ left) === /* right */ right);
 "#,
         );
         session.assert_suggestions(
             r#"
 function differs(left: boolean, right: boolean): boolean {
-    return !(/* left */ left === /* right */ right);
+    return !((/* left */ left) === /* right */ right);
 }
 "#,
         );

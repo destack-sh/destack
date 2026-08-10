@@ -11,10 +11,8 @@ declare_lint! {
         id: "undocumented-unsafe",
         summary: "Require a safety rationale for every unsafe declaration and expression",
         explanation: r#"
-Unsafe APIs must state the obligations their callers must uphold, and local unsafe regions must
-explain why those obligations hold at the use site. Document every unsafe declaration with a
-`# Safety` section and local regions with an immediately preceding `SAFETY:` comment or a nonempty
-`@unsafe` reason.
+Unsafe declarations impose obligations on their callers, and local unsafe regions rely on invariants the checker cannot verify.
+Instead, you SHOULD document caller obligations under `# Safety` and justify local regions with an immediately preceding `SAFETY:` comment or a nonempty `@unsafe` reason.
 "#,
         example: {
             reported: r#"

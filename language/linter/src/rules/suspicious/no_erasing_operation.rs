@@ -9,9 +9,8 @@ declare_lint! {
         id: "no-erasing-operation",
         summary: "Disallow operations that erase their operand into a constant",
         explanation: r#"
-An integral operation with an erasing operand produces a constant regardless of the other value,
-apart from operations that may trap. Such expressions usually use the wrong operator or operand and
-should be corrected explicitly.
+An integral operation with an erasing operand produces a constant whenever the operation completes.
+Instead, you SHOULD correct the operator or constant operand that caused the value to be discarded.
 "#,
         example: {
             reported: r#"

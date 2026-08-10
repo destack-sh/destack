@@ -11,8 +11,8 @@ declare_lint! {
         id: "no-unneeded-ternary",
         summary: "Disallow unnecessary ternary expressions",
         explanation: r#"
-A ternary that chooses opposite boolean literals only restates its boolean condition. Use the
-condition directly, or negate it when the branches reverse the condition.
+A ternary that selects opposite boolean literals has the same result as its condition or its negation.
+Instead, you SHOULD use the condition directly or negate it when the branches reverse the result.
 "#,
         example: {
             reported: r#"

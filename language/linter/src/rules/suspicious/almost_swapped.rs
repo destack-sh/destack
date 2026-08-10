@@ -9,9 +9,8 @@ declare_lint! {
         id: "almost-swapped",
         summary: "Disallow assignments that overwrite a value before swapping it",
         explanation: r#"
-Two assignments of `left = right; right = left` do not exchange their values because the first
-assignment destroys the original left value. Preserve one value temporarily or use a checked swap
-operation.
+`left = right; right = left` assigns the original right value to both places because the first assignment overwrites the original left value.
+Instead, you SHOULD preserve one value before the first assignment.
 "#,
         example: {
             reported: r#"

@@ -10,8 +10,8 @@ declare_lint! {
         id: "default-param-last",
         summary: "Require optional and defaulted parameters after required parameters",
         explanation: r#"
-A required parameter after an optional or defaulted parameter cannot be omitted positionally. Put
-every required parameter first so callers can use defaults without passing placeholder arguments.
+A required parameter after an optional or defaulted parameter prevents callers from omitting the earlier argument position.
+Instead, you SHOULD place every required parameter before optional and defaulted parameters.
 "#,
         example: {
             reported: r#"

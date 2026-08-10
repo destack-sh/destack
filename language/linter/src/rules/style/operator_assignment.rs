@@ -11,8 +11,8 @@ declare_lint! {
         id: "operator-assignment",
         summary: "Require compound assignment where equivalent",
         explanation: r#"
-Repeating one stable place on both sides of an assignment obscures that the existing value is being
-updated. Use the corresponding compound assignment to name that update directly.
+`place = place + value` reads and writes the same stable place and is equivalent to `place += value`.
+Instead, you SHOULD use the corresponding compound assignment.
 "#,
         example: {
             reported: r#"

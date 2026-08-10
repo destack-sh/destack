@@ -10,15 +10,14 @@ declare_lint! {
         id: "no-cond-assign",
         summary: "Disallow assignment in conditions",
         explanation: r#"
-An assignment used as a condition is easily mistaken for a comparison and hides mutation inside
-control flow. Move the assignment before the condition, or use a binding condition when the assigned
-value is intentionally tested.
+An assignment expression used as a condition tests the assigned value after mutating its target, which can be mistaken for an equality comparison.
+Instead, you SHOULD move the assignment before the condition or use a binding condition when the assigned value is intentionally tested.
 "#,
         example: {
             reported: r#"
 function select(next: boolean): boolean {
     let active = false;
-    if (active = next) {
+    if ((active = next)) {
         return active;
     }
     return false;
@@ -162,7 +161,7 @@ warning[no-cond-assign]: assignment is evaluated as a condition
             r#"
 function repeat(next: boolean): void {
     let active = false;
-    for (; active = next;) {}
+    for (; (active = next); ) {}
 }
 "#,
         );
@@ -174,8 +173,8 @@ warning[no-cond-assign]: assignment is evaluated as a condition
   │
 1 │ function repeat(next: boolean): void {
 2 │     let active = false;
-3 │     for (; active = next;) {}
-  │            ^^^^^^^^^^^^^
+3 │     for (; (active = next); ) {}
+  │            ^^^^^^^^^^^^^^^
 4 │ }
   │
 
@@ -193,7 +192,7 @@ warning[no-cond-assign]: assignment is evaluated as a condition
 function select(value: int32, next: boolean): boolean {
     let active = false;
     return match (value) {
-        _ if (active = next) => active
+        _ if ((active = next)) => active
         _ => false
     };
 }
@@ -207,8 +206,8 @@ warning[no-cond-assign]: assignment is evaluated as a condition
   │
 2 │     let active = false;
 3 │     return match (value) {
-4 │         _ if (active = next) => active
-  │               ^^^^^^^^^^^^^
+4 │         _ if ((active = next)) => active
+  │               ^^^^^^^^^^^^^^^
 5 │         _ => false
 6 │     };
   │

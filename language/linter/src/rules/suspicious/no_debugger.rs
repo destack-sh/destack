@@ -11,18 +11,22 @@ declare_lint! {
         id: "no-debugger",
         summary: "Disallow debugger statements",
         explanation: r#"
-The `debugger` statement interrupts execution only when an attached debugger honors it and otherwise
-has no useful runtime effect. It is normally an accidental development artifact and should not
-remain in checked source.
+The `debugger` statement pauses execution when an attached debugger reaches it.
+Instead, you SHOULD remove the statement and set a breakpoint through the debugger when needed.
 "#,
         example: {
             reported: r#"
 declare const active: boolean;
-if (active) debugger;
+if (active) {
+    const resumed = true;
+    debugger;
+}
 "#,
             accepted: r#"
 declare const active: boolean;
-if (active) {}
+if (active) {
+    const resumed = true;
+}
 "#,
         },
         category: Suspicious,
@@ -139,7 +143,8 @@ mod tests {
     fn test_allows_debugger_by_id() {
         let session = TestSession::dir(
             &NO_DEBUGGER,
-            r#"@allow("no-debugger")
+            r#"
+@allow("no-debugger")
 debugger;
 "#,
         );
@@ -152,7 +157,8 @@ debugger;
     fn test_removes_debugger_statement() {
         let session = TestSession::dir(
             &NO_DEBUGGER,
-            r#"const before = 1;
+            r#"
+const before = 1;
 debugger;
 const after = 2;
 "#,
@@ -171,7 +177,8 @@ const after = 2;
     fn test_removes_debugger_from_block() {
         let session = TestSession::dir(
             &NO_DEBUGGER,
-            r#"declare const active: boolean;
+            r#"
+declare const active: boolean;
 if (active) {
     debugger;
 }
@@ -191,29 +198,34 @@ if (active) {
     fn test_replaces_catch_body() {
         let session = TestSession::dir(
             &NO_DEBUGGER,
-            r#"try {} catch (error) debugger;
+            r#"
+try {
+} catch (error) debugger
 "#,
         );
 
         session.assert_diagnostics(
             r#"
 warning[no-debugger]: `debugger` statement is not allowed
- ──▶ main.ds:1:22
+ ──▶ main.ds:2:17
   │
-1 │ try {} catch (error) debugger;
-  │                      ^^^^^^^^
+1 │ try {
+2 │ } catch (error) debugger
+  │                 ^^^^^^^^
   │
 
  = fix: remove the debugger statement
 --- a/main.ds
 +++ b/main.ds
 
--   1│ try {} catch (error) debugger;
-+   1│ try {} catch (error) {}
+    1│ try {
+-   2│ } catch (error) debugger
++   2│ } catch (error) {}
 "#,
         );
         session.assert_fixes(
-            r#"try {} catch (error) {}
+            r#"try {
+} catch (error) {}
 "#,
         );
     }
@@ -223,12 +235,15 @@ warning[no-debugger]: `debugger` statement is not allowed
     fn test_replaces_finally_body() {
         let session = TestSession::dir(
             &NO_DEBUGGER,
-            r#"try {} finally debugger;
+            r#"
+try {
+} finally debugger
 "#,
         );
 
         session.assert_fixes(
-            r#"try {} finally {}
+            r#"try {
+} finally {}
 "#,
         );
     }
@@ -238,8 +253,10 @@ warning[no-debugger]: `debugger` statement is not allowed
     fn test_removes_switch_case_statement() {
         let session = TestSession::dir(
             &NO_DEBUGGER,
-            r#"switch (1) {
-    case 1: debugger;
+            r#"
+switch (1) {
+    case 1:
+        debugger;
 }
 "#,
         );
@@ -257,7 +274,8 @@ warning[no-debugger]: `debugger` statement is not allowed
     fn test_replaces_match_arm() {
         let session = TestSession::dir(
             &NO_DEBUGGER,
-            r#"match (undefined) {
+            r#"
+match (undefined) {
     _ => debugger
 }
 "#,
@@ -276,7 +294,8 @@ warning[no-debugger]: `debugger` statement is not allowed
     fn test_ignores_debugger_property() {
         let session = TestSession::dir(
             &NO_DEBUGGER,
-            r#"const value = { debugger: true };
+            r#"
+const value = { debugger: true };
 value.debugger;
 "#,
         );

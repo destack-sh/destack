@@ -11,8 +11,8 @@ declare_lint! {
         id: "dot-notation",
         summary: "Prefer dot notation for statically named member access",
         explanation: r#"
-Bracket access implies a computed key. Use dot notation when checking selects one statically named
-member and the name is a valid identifier.
+A string-literal key is static, so bracket notation presents it as computed member access.
+Instead, you SHOULD use dot notation for that member access.
 "#,
         example: {
             reported: r#"

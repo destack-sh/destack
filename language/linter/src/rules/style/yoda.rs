@@ -11,8 +11,8 @@ declare_lint! {
         id: "yoda",
         summary: "Disallow literal-first comparisons",
         explanation: r#"
-Putting a literal before the value being tested reverses the usual subject-first reading order. Put
-the checked value first and reverse relational operators so the comparison retains its meaning.
+A literal-first comparison reverses the subject-first order used by other comparisons.
+Instead, you SHOULD put the checked value first and reverse a relational operator when required.
 "#,
         example: {
             reported: r#"

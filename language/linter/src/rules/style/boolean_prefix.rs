@@ -12,10 +12,10 @@ declare_lint! {
         id: "boolean-prefix",
         summary: "Require predicate prefixes for boolean values",
         explanation: r#"
-Boolean bindings, parameters, fields, and constants begin with `is`, `has`, `can`, `should`, `did`,
-or `will` so their truth condition reads directly at use sites. Functions and methods are exempt
-because predicate verbs such as `contains`, `matches`, and `startsWith` already express a boolean
-result.
+A boolean value represents a predicate, but an unprefixed name does not identify it as one at use sites.
+Instead, you SHOULD begin boolean bindings, parameters, fields, and constants with `is`, `has`, `can`, `should`, `did`, or `will`.
+
+Functions and methods are exempt because verbs such as `contains`, `matches`, and `startsWith` already express a predicate.
 "#,
         example: {
             reported: r#"

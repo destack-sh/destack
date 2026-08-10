@@ -11,3 +11,4 @@ pub use comment::*;
 pub use index::*;
 pub use module::*;
 pub use program::*;
+pub(crate) use scalar::*;

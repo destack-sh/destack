@@ -9,8 +9,8 @@ declare_lint! {
         id: "no-self-assignment",
         summary: "Disallow assigning a stable place to itself",
         explanation: r#"
-Assigning a stable storage place to itself has no effect and usually remains after an incomplete
-edit. Remove the assignment or replace either side with the intended place.
+Assigning a stable storage place to itself leaves its value unchanged and performs a useless write.
+Instead, you SHOULD remove the assignment or correct the unintended operand.
 "#,
         example: {
             reported: r#"

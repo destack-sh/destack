@@ -9,9 +9,8 @@ declare_lint! {
         id: "no-this-alias",
         summary: "Disallow aliasing the receiver into a binding",
         explanation: r#"
-Binding `this` to another name obscures the method receiver and carries an obsolete callback pattern
-into code with lexical lambdas. Use `this` directly. Destructuring properties from the receiver
-remains valid.
+Binding `this` introduces a second name for the current receiver even though lexical lambdas retain that receiver directly.
+Instead, you SHOULD use `this` directly or replace a receiver-capturing function with a lexical lambda.
 "#,
         example: {
             reported: r#"

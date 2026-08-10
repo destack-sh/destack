@@ -12,8 +12,10 @@ declare_lint! {
         id: "prefer-const",
         summary: "Require const for bindings never reassigned after initialization",
         explanation: r#"
-A binding that is initialized once and never reassigned should be declared with `const`. This
-documents the binding cell without restricting mutation performed through the stored value's API.
+A `let` binding that is never reassigned permits a write the function does not perform.
+Instead, you SHOULD declare the binding with `const`.
+
+`const` prevents reassignment of the binding and still permits mutation through the stored value's API.
 "#,
         example: {
             reported: r#"
@@ -495,7 +497,7 @@ function increment(counter: Counter): Counter {
         let session = TestSession::dir(
             &PREFER_CONST,
             r#"
-function sum(point: { x: int32, y: int32 }): int32 {
+function sum(point: { x: int32; y: int32 }): int32 {
     let { x, y } = point;
     return x + y;
 }
@@ -504,7 +506,7 @@ function sum(point: { x: int32, y: int32 }): int32 {
 
         session.assert_fixes(
             r#"
-function sum(point: { x: int32, y: int32 }): int32 {
+function sum(point: { x: int32; y: int32 }): int32 {
     const { x, y } = point;
     return x + y;
 }
@@ -518,7 +520,7 @@ function sum(point: { x: int32, y: int32 }): int32 {
         let session = TestSession::dir(
             &PREFER_CONST,
             r#"
-function sum(point: { x: int32, y: int32 }): int32 {
+function sum(point: { x: int32; y: int32 }): int32 {
     let { x, y } = point;
     x += 1;
     return x + y;
@@ -531,7 +533,7 @@ function sum(point: { x: int32, y: int32 }): int32 {
 warning[prefer-const]: binding is never reassigned
  ──▶ main.ds:2:14
   │
-1 │ function sum(point: { x: int32, y: int32 }): int32 {
+1 │ function sum(point: { x: int32; y: int32 }): int32 {
 2 │     let { x, y } = point;
   │              ^
 3 │     x += 1;

@@ -12,8 +12,8 @@ declare_lint! {
         id: "no-approx-constant",
         summary: "Disallow numeric literals that approximate well-known constants",
         explanation: r#"
-Hand-written approximations are usually less precise and less recognizable than the canonical
-standard-library constant. Use the corresponding `Math` member directly.
+A decimal approximation can contain fewer significant digits than the corresponding standard-library constant.
+Instead, you SHOULD use the corresponding `Math` member.
 "#,
         example: {
             reported: r#"

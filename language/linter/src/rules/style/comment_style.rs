@@ -11,21 +11,26 @@ declare_lint! {
         id: "comment-style",
         summary: "Require canonical style for comments and documentation",
         explanation: r#"
-Documentation uses uppercase sentence starts, terminal punctuation, and a one-sentence summary
-paragraph. Ordinary comments begin with a lowercase action or label and omit the final period when
-they contain one sentence. Every sentence begins on its own physical line, while ordinary sentence
-continuations use one additional space. Comment prose ends at or before visual column 100.
-Initialisms, marked source, legal comments, Markdown, code blocks, and unbreakable tokens retain
-their authored form.
+Varying comment casing, punctuation, sentence layout, and width gives equivalent prose inconsistent source forms.
+Instead, you SHOULD use the canonical comment form.
+
+Documentation sentences begin with uppercase prose, use terminal punctuation, and separate a one-sentence summary paragraph from further prose.
+Ordinary comments begin with a lowercase action or label and omit the final period when they contain one sentence.
+Every sentence begins on its own physical line, ordinary sentence continuations use one additional space, and prose ends by visual column 100.
+Initialisms, marked source, legal comments, Markdown, code blocks, and unbreakable tokens retain their authored form.
 "#,
         example: {
             reported: r#"
 /// return the active session.
-function session(): int32 { return 1; }
+function session(): int32 {
+    return 1;
+}
 "#,
             accepted: r#"
 /// Return the active session.
-function session(): int32 { return 1; }
+function session(): int32 {
+    return 1;
+}
 "#,
         },
         category: Style,
@@ -327,7 +332,9 @@ const colorSpace = 1;
             &COMMENT_STYLE,
             r#"
 /// `session` returns the active session.
-function session(): int32 { return 1; }
+function session(): int32 {
+    return 1;
+}
 "#,
         );
 
@@ -394,7 +401,9 @@ const sessions = 1;
             &COMMENT_STYLE,
             r#"
 ///# Sessions
-function sessions(): int32 { return 1; }
+function sessions(): int32 {
+    return 1;
+}
 "#,
         );
 
@@ -405,7 +414,8 @@ warning[comment-style]: comment uses non-canonical delimiter spacing
   │
 1 │ ///# Sessions
   │ ^^^^^^^^^^^^^
-2 │ function sessions(): int32 { return 1; }
+2 │ function sessions(): int32 {
+3 │     return 1;
   │
 
  = help: separate comment prose from its delimiter with one space
@@ -420,7 +430,9 @@ warning[comment-style]: comment uses non-canonical delimiter spacing
         session.assert_fixes(
             r#"
 /// # Sessions
-function sessions(): int32 { return 1; }
+function sessions(): int32 {
+    return 1;
+}
 "#,
         );
     }
@@ -690,7 +702,9 @@ const sessions = 1;
             r#"
 /// Return the active session.
 /// The caller owns the returned value.
-function session(): int32 { return 1; }
+function session(): int32 {
+    return 1;
+}
 "#,
         );
 
@@ -702,7 +716,8 @@ warning[comment-style]: documentation summary is not separated from following pr
 1 │ /// Return the active session.
 2 │ /// The caller owns the returned value.
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-3 │ function session(): int32 { return 1; }
+3 │ function session(): int32 {
+4 │     return 1;
   │
 
  = help: begin further documentation after an empty comment line
@@ -719,7 +734,9 @@ warning[comment-style]: documentation summary is not separated from following pr
 /// Return the active session.
 ///
 /// The caller owns the returned value.
-function session(): int32 { return 1; }
+function session(): int32 {
+    return 1;
+}
 "#,
         );
     }
@@ -731,7 +748,9 @@ function session(): int32 { return 1; }
             &COMMENT_STYLE,
             r#"
 /// Return the active session. The caller owns the returned value.
-function session(): int32 { return 1; }
+function session(): int32 {
+    return 1;
+}
 "#,
         );
 
@@ -742,7 +761,8 @@ warning[comment-style]: documentation summary is not separated from following pr
   │
 1 │ /// Return the active session. The caller owns the returned value.
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-2 │ function session(): int32 { return 1; }
+2 │ function session(): int32 {
+3 │     return 1;
   │
 
  = help: begin further documentation after an empty comment line
@@ -761,7 +781,9 @@ warning[comment-style]: documentation summary is not separated from following pr
 /// Return the active session.
 ///
 /// The caller owns the returned value.
-function session(): int32 { return 1; }
+function session(): int32 {
+    return 1;
+}
 "#,
         );
     }
@@ -776,7 +798,9 @@ function session(): int32 { return 1; }
 ///
 /// - The active session.
 /// - A session error.
-function session(): int32 { return 1; }
+function session(): int32 {
+    return 1;
+}
 "#,
         );
 
@@ -790,7 +814,9 @@ function session(): int32 { return 1; }
             &COMMENT_STYLE,
             r#"
 /** Accept regional date notation from the U.S. */
-function parseDate(): int32 { return 1; }
+function parseDate(): int32 {
+    return 1;
+}
 "#,
         );
 
@@ -806,7 +832,9 @@ function parseDate(): int32 { return 1; }
 /// Return the active session:
 ///
 /// The caller owns the result.
-function session(): int32 { return 1; }
+function session(): int32 {
+    return 1;
+}
 "#,
         );
 
@@ -835,7 +863,9 @@ warning[comment-style]: comment uses non-canonical punctuation
 /// Return the active session.
 ///
 /// The caller owns the result.
-function session(): int32 { return 1; }
+function session(): int32 {
+    return 1;
+}
 "#,
         );
     }
@@ -847,7 +877,9 @@ function session(): int32 { return 1; }
             &COMMENT_STYLE,
             r#"
 /// Return the authenticated `Session<T>` after validating every configured policy for the current incoming request.
-function authenticate(): int32 { return 1; }
+function authenticate(): int32 {
+    return 1;
+}
 "#,
         );
 
@@ -858,7 +890,8 @@ warning[comment-style]: comment line exceeds 100 columns
   │
 1 │ ··uthenticated `Session<T>` after validating every configured policy for the current incoming request.
   │   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-2 │ function authenticate(): int32 { return 1; }
+2 │ function authenticate(): int32 {
+3 │     return 1;
   │
 
  = help: wrap comment prose before visual column 100
@@ -875,7 +908,9 @@ warning[comment-style]: comment line exceeds 100 columns
             r#"
 /// Return the authenticated `Session<T>` after validating every configured policy for the current
 /// incoming request.
-function authenticate(): int32 { return 1; }
+function authenticate(): int32 {
+    return 1;
+}
 "#,
         );
     }
@@ -887,7 +922,9 @@ function authenticate(): int32 { return 1; }
             &COMMENT_STYLE,
             r#"
 /// Return [the authenticated session](https://example.com/session) after validating every configured policy for the current request.
-function authenticate(): int32 { return 1; }
+function authenticate(): int32 {
+    return 1;
+}
 "#,
         );
 
@@ -898,7 +935,8 @@ warning[comment-style]: comment line exceeds 100 columns
   │
 1 │ ··sion](https://example.com/session) after validating every configured policy for the current request.
   │   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-2 │ function authenticate(): int32 { return 1; }
+2 │ function authenticate(): int32 {
+3 │     return 1;
   │
 
  = help: wrap comment prose before visual column 100
@@ -915,7 +953,9 @@ warning[comment-style]: comment line exceeds 100 columns
             r#"
 /// Return [the authenticated session](https://example.com/session) after validating every
 /// configured policy for the current request.
-function authenticate(): int32 { return 1; }
+function authenticate(): int32 {
+    return 1;
+}
 "#,
         );
     }
@@ -1039,7 +1079,9 @@ const value = 1;
             &COMMENT_STYLE,
             r#"
 /// ### Authentication policy selection for incoming requests with delegated service credentials and session delegation
-function authenticate(): int32 { return 1; }
+function authenticate(): int32 {
+    return 1;
+}
 "#,
         );
 

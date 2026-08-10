@@ -2,8 +2,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
-    ArtifactKey, BuildId, DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirParsed,
-    DirResolved, MemoryBlobStore, DirElaborated,
+    ArtifactKey, BuildId, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded,
+    DirExported, DirParsed, DirResolved, MemoryBlobStore,
 };
 use destack_core::StringPool;
 use destack_repository::{

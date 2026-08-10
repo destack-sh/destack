@@ -11,9 +11,10 @@ declare_lint! {
         id: "prefer-first-last",
         summary: "Prefer first and last accessors over equivalent indexing",
         explanation: r#"
-An optional lookup at index zero or negative one asks for a collection endpoint indirectly. Use
-`first` or `last` to state that intent. Trapping subscript access is not equivalent and remains
-unchanged.
+`array.at(0)`, `array.at(-1)`, and `array.at(array.length - 1)` perform the same optional endpoint lookups as `first` and `last`.
+Instead, you SHOULD use the corresponding endpoint accessor.
+
+Trapping subscript access has different empty-array behavior and remains unchanged.
 "#,
         example: {
             reported: r#"

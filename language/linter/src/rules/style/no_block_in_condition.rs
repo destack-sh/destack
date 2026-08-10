@@ -11,9 +11,8 @@ declare_lint! {
         id: "no-block-in-condition",
         summary: "Disallow block expressions in conditions and scrutinees",
         explanation: r#"
-A block used directly as a condition or selected value hides the computation that controls the
-surrounding construct. Name a multi-step computation before the construct. A single-expression block
-can be replaced by that expression directly.
+A block expression in a condition or scrutinee interleaves statement execution with control selection.
+Instead, you SHOULD use a single expression directly or compute a multi-step value before the construct.
 "#,
         example: {
             reported: r#"
@@ -196,7 +195,12 @@ function wait(isReady: boolean): void {
             &NO_BLOCK_IN_CONDITION,
             r#"
 function choose(isReady: boolean): string {
-    return do { isReady; isReady } ? "ready" : "waiting";
+    return do {
+        isReady;
+        isReady
+    }
+        ? "ready"
+        : "waiting";
 }
 "#,
         );
@@ -207,9 +211,16 @@ warning[no-block-in-condition]: control-flow input is a block expression
  ──▶ main.ds:2:12
   │
 1 │ function choose(isReady: boolean): string {
-2 │     return do { isReady; isReady } ? "ready" : "waiting";
-  │            ^^^^^^^^^^^^^^^^^^^^^^^
-3 │ }
+2 │     return do {
+  │            ^^^^
+3 │         isReady;
+  │ ^^^^^^^^^^^^^^^^
+4 │         isReady
+  │ ^^^^^^^^^^^^^^^
+5 │     }
+  │ ^^^^^
+6 │         ? "ready"
+7 │         : "waiting";
   │
 "#,
         );

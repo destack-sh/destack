@@ -10,7 +10,10 @@ declare_lint! {
     pub NO_BOOLEAN_LITERAL_COMPARE {
         id: "no-boolean-literal-compare",
         summary: "Disallow comparing boolean values to boolean literals",
-        explanation: "Comparing a boolean value to `true` or `false` repeats information already carried by the value. Use the value directly or negate it to state the condition without an unnecessary equality operation.",
+        explanation: r#"
+For a boolean operand, comparison with `true` returns the operand and comparison with `false` returns its negation.
+Instead, you SHOULD use the boolean value directly or negate it.
+"#,
         example: {
             reported: r#"
 function active(value: boolean): boolean {
@@ -672,9 +675,11 @@ function inactive(value: boolean): boolean {
     fn test_preserves_comparison_comment() {
         let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
-            r#"function active(value: boolean): boolean {
+            r#"
+function active(value: boolean): boolean {
     return value /* comparison */ === true;
-}"#,
+}
+"#,
         );
 
         session.assert_diagnostics(

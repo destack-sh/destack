@@ -10,8 +10,8 @@ declare_lint! {
         id: "no-else-return",
         summary: "Disallow else branches after an unconditional control transfer",
         explanation: r#"
-An else branch is redundant when the preceding branch cannot continue. End the transferring branch,
-then place the remaining path after the if so the main flow stays unnested.
+An `else` branch is redundant when the preceding branch transfers control unconditionally.
+Instead, you SHOULD end the transferring branch and place the remaining path after the `if`.
 "#,
         example: {
             reported: r#"

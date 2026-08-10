@@ -10,8 +10,8 @@ declare_lint! {
         id: "no-literal-unwrap",
         summary: "Disallow immediately unwrapping a known successful result variant",
         explanation: r#"
-Unwrapping a result immediately after constructing the variant that succeeds for that operation is
-redundant. Use the constructed value directly; statically failing unwraps are reported separately.
+Unwrapping a newly constructed successful result returns the payload supplied to its constructor.
+Instead, you SHOULD use that payload directly.
 "#,
         example: {
             reported: r#"

@@ -11,8 +11,8 @@ declare_lint! {
         id: "object-shorthand",
         summary: "Require object property shorthand where equivalent",
         explanation: r#"
-An object field whose key repeats the referenced binding adds no information. Use property shorthand
-to state that the binding supplies the equally named field.
+`{ value: value }` repeats one name for the object key and its referenced binding and is equivalent to `{ value }`.
+Instead, you SHOULD use property shorthand.
 "#,
         example: {
             reported: r#"

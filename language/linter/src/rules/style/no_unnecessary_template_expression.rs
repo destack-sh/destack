@@ -11,8 +11,8 @@ declare_lint! {
         id: "no-unnecessary-template-expression",
         summary: "Disallow template expressions without text or conversion",
         explanation: r#"
-A template containing only one interpolation adds no text and performs no conversion when the
-interpolated value already has the template's checked type. Use the value directly.
+A template containing only one interpolation returns that value unchanged when checking proves no conversion is required.
+Instead, you SHOULD use the interpolated value directly.
 "#,
         example: {
             reported: r#"

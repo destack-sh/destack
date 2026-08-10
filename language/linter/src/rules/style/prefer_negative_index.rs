@@ -11,14 +11,13 @@ declare_lint! {
         id: "prefer-negative-index",
         summary: "Prefer negative indices in equivalent at calls",
         explanation: r#"
-Subtracting a positive offset from an array's length before calling `at` restates the method's
-negative-index behavior. Pass the negative offset directly. Calls on user-defined methods and
-trapping subscripts are unaffected.
+`array.at(array.length as isize - offset)` performs the same lookup as `array.at(-offset)` for a positive constant offset.
+Instead, you SHOULD pass the negative offset directly.
 "#,
         example: {
             reported: r#"
 function penultimate(values: int32[]): int32 | undefined {
-    return values.at(values.length as isize - 2);
+    return values.at((values.length as isize) - 2);
 }
 "#,
             accepted: r#"
@@ -150,7 +149,7 @@ mod tests {
             &PREFER_NEGATIVE_INDEX,
             r#"
 function read(values: int32[], other: int32[]): int32 | undefined {
-    return values.at(other.length as isize - 2);
+    return values.at((other.length as isize) - 2);
 }
 "#,
         );
@@ -186,7 +185,7 @@ function read(values: Values): int32 | undefined {
             &PREFER_NEGATIVE_INDEX,
             r#"
 function last(values: int32[]): int32 | undefined {
-    return values.at(values.length as isize - 1);
+    return values.at((values.length as isize) - 1);
 }
 "#,
         );
@@ -201,7 +200,7 @@ function last(values: int32[]): int32 | undefined {
             &PREFER_NEGATIVE_INDEX,
             r#"
 function read(values: int32[], offset: isize): int32 | undefined {
-    return values.at(values.length as isize - offset);
+    return values.at((values.length as isize) - offset);
 }
 "#,
         );
@@ -216,7 +215,7 @@ function read(values: int32[], offset: isize): int32 | undefined {
             &PREFER_NEGATIVE_INDEX,
             r#"
 function read(values: int32[]): int32 | undefined {
-    return values.at(values.length as isize - (1 + 1));
+    return values.at((values.length as isize) - (1 + 1));
 }
 "#,
         );
@@ -227,8 +226,8 @@ warning[prefer-negative-index]: at index is expressed relative to array length
  ──▶ main.ds:2:22
   │
 1 │ function read(values: int32[]): int32 | undefined {
-2 │     return values.at(values.length as isize - (1 + 1));
-  │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2 │     return values.at((values.length as isize) - (1 + 1));
+  │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │ }
   │
 
@@ -237,7 +236,7 @@ warning[prefer-negative-index]: at index is expressed relative to array length
 +++ b/main.ds
 
     1│ function read(values: int32[]): int32 | undefined {
--   2│     return values.at(values.length as isize - (1 + 1));
+-   2│     return values.at((values.length as isize) - (1 + 1));
 +   2│     return values.at(-(1 + 1));
 "#,
         );
@@ -257,7 +256,7 @@ function read(values: int32[]): int32 | undefined {
             &PREFER_NEGATIVE_INDEX,
             r#"
 function read(values: int32[]): int32 | undefined {
-    return values.at(values.length as isize - /* retain */ 2);
+    return values.at((values.length as isize) - /* retain */ 2);
 }
 "#,
         );
@@ -268,8 +267,8 @@ warning[prefer-negative-index]: at index is expressed relative to array length
  ──▶ main.ds:2:22
   │
 1 │ function read(values: int32[]): int32 | undefined {
-2 │     return values.at(values.length as isize - /* retain */ 2);
-  │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2 │     return values.at((values.length as isize) - /* retain */ 2);
+  │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │ }
   │
 "#,
