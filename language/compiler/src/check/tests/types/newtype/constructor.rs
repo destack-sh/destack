@@ -450,8 +450,8 @@ newtype Wrap<T> =
 /// @type.symbol symbol=Wrap.None type=Wrap.None<T>
 /// @type.symbol symbol=Wrap.Some type=<T>({ value: T }) => Wrap.Some<T>
 /// @definition.newtype symbol=Wrap template=(in out T) discriminator=kind backing={ kind: "some"; value: T } | { kind: "none" }
-/// @definition.variant symbol=Wrap.None key=None discriminant=none backing={ kind: "none" }
-/// @definition.variant symbol=Wrap.Some key=Some discriminant=some backing={ kind: "some"; value: T } argument={ value: T }
+/// @definition.variant symbol=Wrap.None source={ kind: "none" } key=None discriminant=none backing={ kind: "none" }
+/// @definition.variant symbol=Wrap.Some source={ kind: "some"; value: T } key=Some discriminant=some backing={ kind: "some"; value: T } argument={ value: T }
 /// @type.symbol symbol=Wrap.T source=T type=T
 
     | { kind: "some"; value: T }

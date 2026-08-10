@@ -324,6 +324,7 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        self.counters.reduces += 1;
         // an open head reduces to itself: the variable is its own value form
         Ok(match self.head_reduction(origin, id)? {
             HeadReduction::Closed(reduced) => reduced,
@@ -734,7 +735,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        let substitution = self.instance_substitution(module, &instance)?;
+        let substitution = self.instance_substitution(module, instance)?;
         let arguments = substitution
             .bindings
             .iter()

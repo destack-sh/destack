@@ -178,9 +178,7 @@ impl<'a> ExportIndexer<'a> {
             // resolve local declarations directly
             dir::ExportBinding::Local { symbols } => {
                 let target = dir::ExportTarget::symbols(
-                    symbols
-                        .iter()
-                        .map(|symbol| symbol.into_global(module_id)),
+                    symbols.iter().map(|symbol| symbol.into_global(module_id)),
                 )
                 .ok_or_else(|| {
                     ProviderError::internal(format!(
@@ -226,14 +224,11 @@ impl<'a> ExportIndexer<'a> {
                     )),
                     None => {
                         let declaration =
-                            resolved
-                                .references
-                                .declaration(source)
-                                .ok_or_else(|| {
-                                    ProviderError::internal(format!(
-                                        "indirect export {item:?} has no resolved declaration"
-                                    ))
-                                })?;
+                            resolved.references.declaration(source).ok_or_else(|| {
+                                ProviderError::internal(format!(
+                                    "indirect export {item:?} has no resolved declaration"
+                                ))
+                            })?;
 
                         self.resolve_reference(declaration, item)?
                     }

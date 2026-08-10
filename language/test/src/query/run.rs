@@ -2,9 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::slice;
 
-use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirParsed,
-};
+use destack_artifact::{DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirParsed};
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, View};
 use destack_query::{
     CallItem, CallItemRequest, CodeActionContext, CodeActionsRequest, CodeLensesRequest,

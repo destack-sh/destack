@@ -1333,6 +1333,27 @@ extension of Channel implements Emits<int32>, Emits<string> {}
     );
 }
 
+/// Infer a call parameter before proving a blanket implementation bound.
+#[test]
+fn test_generic_call_resolves_blanket_implementation_arguments() {
+    let session = TestSession::single(
+        r#"
+newtype interface Mine<out T, out U = string> {}
+
+extension<T, U = string> of T implements Mine<T, U> {}
+
+declare function requireMine<T: Mine<T>>(value: T): void;
+
+struct Badge {}
+
+declare const badge: Badge;
+requireMine(badge);
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics("main.ds", "");
+}
+
 #[test]
 fn test_generic_member_binds_its_parameter_to_satisfy_the_interface() {
     let session = TestSession::single(

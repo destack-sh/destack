@@ -2,8 +2,8 @@ use std::mem;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirParsed,
-    DirResolved, EnvironmentBound, DirElaborated,
+    ArtifactKey, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
+    DirParsed, DirResolved, EnvironmentBound,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;

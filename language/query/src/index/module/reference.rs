@@ -78,14 +78,15 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 }
                 // record the exact variant selected by nominal patterns
                 dir::Decision::Pattern(dir::PatternDecision::Variant(resolution)) => {
-                    let pattern = source
-                        .local_id
-                        .try_into_typed::<dir::Pattern>()
-                        .map_err(|_| {
-                            ProviderError::internal(format!(
-                                "pattern decision source is not a pattern: {source:?}"
-                            ))
-                        })?;
+                    let pattern =
+                        source
+                            .local_id
+                            .try_into_typed::<dir::Pattern>()
+                            .map_err(|_| {
+                                ProviderError::internal(format!(
+                                    "pattern decision source is not a pattern: {source:?}"
+                                ))
+                            })?;
                     let source = match self.module.view().get(pattern) {
                         dir::Pattern::NominalTuple { ty, .. }
                         | dir::Pattern::NominalObject { ty, .. } => {

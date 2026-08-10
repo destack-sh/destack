@@ -218,14 +218,13 @@ impl ResolutionSegment {
         self.names
             .retain(|node, name| sealed.names.get(node) != Some(name));
         self.paths
-            .retain(|key, resolution| sealed.paths.get(key) != Some(resolution));        self.unresolved
+            .retain(|key, resolution| sealed.paths.get(key) != Some(resolution));
+        self.unresolved
             .retain(|node, path| sealed.unresolved.get(node) != Some(path));
     }
 
     /// Return whether this segment has no resolutions.
     pub fn is_empty(&self) -> bool {
-        self.names.is_empty()
-            && self.paths.is_empty()
-            && self.unresolved.is_empty()
+        self.names.is_empty() && self.paths.is_empty() && self.unresolved.is_empty()
     }
 }

@@ -541,6 +541,7 @@ impl WalkState<'_, '_> {
                 for symbol in symbols.iter().copied() {
                     self.capture_symbol_reference(symbol);
                 }
+
                 self.check
                     .commit_name(source, dir::NameResolution::from_symbols(symbols.to_vec()))?;
 
@@ -566,7 +567,7 @@ impl WalkState<'_, '_> {
                 Ok(true)
             }
 
-            // namespaces alone are not values
+            // a namespace alone fails at the type query site
             Some(dir::Reference::Namespace(_)) => {
                 self.check
                     .report_invalid_type_query(self.module, id.into_any());
@@ -583,6 +584,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         self.check.visit_site(id.into_global_any(self.module))?;
 
+        // an inferred hole names no construct target
         if matches!(
             self.tree.get(id),
             dir::TypeExpression::Infer {
@@ -621,6 +623,7 @@ impl WalkState<'_, '_> {
         path: &dir::Path,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> CompilerResult<()> {
+        // read the resolver output for this construct head
         let source = id.into_global_any(self.module);
         let reference = self.resolved_type_reference(id);
 
@@ -823,7 +826,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
-        // extensions have no application, so they project by reference
+        // extensions project by their declaration reference
         if matches!(
             self.check.symbol_kind(declaration)?,
             dir::SymbolKind::Extension
@@ -991,10 +994,12 @@ impl WalkState<'_, '_> {
                     .normalize_memory_component(origin, argument, kind)?,
                 None => argument,
             };
+
             substitution
                 .bindings
                 .push(dir::GenericArgumentBinding::new(parameter, argument));
         }
+
         let arguments = substitution.arguments().collect::<Vec<_>>();
 
         // build the application before attaching its argument checks
@@ -1014,12 +1019,14 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
         applied: &[GenericArgument],
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // sort by key, so equal refinement sets intern identically
         let mut refinements = applied
             .iter()
             .filter_map(|argument| argument.name.map(|name| (name, argument.ty)))
             .collect::<SmallVec<[_; 2]>>();
         refinements.sort_by_key(|(name, _)| *name);
 
+        // wrap the application once per named refinement
         let mut ty = ty;
         for (name, value) in refinements {
             ty = self.intern_refined(dir::RefinedType {
@@ -1058,6 +1065,7 @@ impl WalkState<'_, '_> {
             } else {
                 Vec::new()
             };
+
             let arguments = self.intern_type_ids(&arguments)?;
 
             // record the lookup subject for this path segment
@@ -1071,6 +1079,7 @@ impl WalkState<'_, '_> {
                 node: source,
                 segment: path_segment,
             };
+
             let subject = dir::MemberSubject::new(ty, ty, dir::MemberSpace::Static)
                 .with_scope(self.flow().template_scope());
             self.check
@@ -1095,6 +1104,7 @@ impl WalkState<'_, '_> {
         _id: dir::LocalNodeId<dir::TypeExpression>,
         members: &[dir::LocalNodeId<dir::TypeMember>],
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // collect the shape rows the written members declare
         let mut properties = Vec::new();
         let mut call_signatures = Vec::new();
         let mut construct_signatures = Vec::new();
@@ -1128,6 +1138,7 @@ impl WalkState<'_, '_> {
                             write: ty,
                         }
                     };
+
                     push_shape_property(
                         &mut properties,
                         dir::TypeProperty {
@@ -1324,6 +1335,8 @@ impl WalkState<'_, '_> {
 
             return self.intern_type(dir::Type::Error);
         };
+
+        // both bounds must share one domain
         if start_domain != end_domain {
             self.check
                 .report_invalid_interval_domain(self.module, id.into_any());
@@ -1368,9 +1381,9 @@ impl WalkState<'_, '_> {
         optional: dir::MappedTypeModifier,
         value: Option<dir::LocalNodeId<dir::TypeExpression>>,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the written binder and its source constraint
         let mapped = self.tree.get(parameter);
         let (name, source_type, key_remap) = (mapped.name, mapped.source_type, mapped.key_remap);
-
         let Some(symbol) = self
             .check
             .module(self.module)
@@ -1378,6 +1391,7 @@ impl WalkState<'_, '_> {
         else {
             return self.intern_type(dir::Type::Error);
         };
+
         let constraint = self.walk_type_expression(source_type)?;
 
         // create a local generic parameter for the mapped key
@@ -1402,9 +1416,12 @@ impl WalkState<'_, '_> {
                 )?
             }
         };
+
+        // bind the key symbol to its parameter type
         let ty = self.check.generic_parameter_type(binder)?;
         self.bind_symbol_type(symbol, ty)?;
 
+        // walk the remap and value under that binder
         let key_remap = match key_remap {
             Some(key_remap) => Some(self.walk_type_expression(key_remap)?),
             None => None,

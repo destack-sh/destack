@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{AssignedPlace, PlaceUse, WalkState};
+use crate::check::{AssignedPlace, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -13,25 +13,25 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn walk_assigned_place(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
-        access: PlaceUse,
     ) -> CompilerResult<Option<AssignedPlace>> {
         if !self.walk_decorators(id.into_any())? {
             return Ok(None);
         }
+
+        // enter the target and read its expression form
         self.enter_node(id)?;
         let expression = self.tree.get(id).clone();
 
         match expression {
             // x
-            dir::Expression::Identifier { .. } => {
-                self.walk_named_assigned_place(id.into_any(), access)
-            }
+            dir::Expression::Identifier { .. } => self.walk_named_assigned_place(id.into_any()),
             // value.member
             dir::Expression::Member { left, name, .. } => {
                 if self.has_name_reference(id) {
-                    return self.walk_name_path_assigned_place(id, access);
+                    return self.walk_name_path_assigned_place(id);
                 }
 
+                // walk the receiver and keep direct fields of this as places
                 self.walk_expression(left, self.tree.get(left))?;
                 let place = match (self.tree.get(left), name, self.assigned_receiver_type()) {
                     (dir::Expression::This, Some(name), Some(receiver)) => {
@@ -72,7 +72,7 @@ impl WalkState<'_, '_> {
                     self.walk_type_expression(target_type)?;
                 }
 
-                self.walk_assigned_place(expression, access)
+                self.walk_assigned_place(expression)
             }
             // (place satisfies T)
             dir::Expression::Satisfies {
@@ -81,10 +81,10 @@ impl WalkState<'_, '_> {
             } => {
                 self.walk_frame_type_expression(target_type)?;
 
-                self.walk_assigned_place(expression, access)
+                self.walk_assigned_place(expression)
             }
             // place!
-            dir::Expression::Must { left, .. } => self.walk_assigned_place(left, access),
+            dir::Expression::Must { left, .. } => self.walk_assigned_place(left),
             other => Err(CompilerError::Internal {
                 message: format!("assignment place {id:?} has invalid expression {other:?}"),
             }),
@@ -114,7 +114,6 @@ impl WalkState<'_, '_> {
     fn walk_name_path_assigned_place(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
-        access: PlaceUse,
     ) -> CompilerResult<Option<AssignedPlace>> {
         let source = id.into_global_any(self.module);
         let Some(symbol) = self.check.reference_symbol(source) else {
@@ -122,7 +121,6 @@ impl WalkState<'_, '_> {
         };
 
         self.capture_symbol_reference(symbol);
-        if access != PlaceUse::Write {}
 
         Ok(self.assigned_symbol_place(symbol))
     }
@@ -131,7 +129,6 @@ impl WalkState<'_, '_> {
     fn walk_named_assigned_place(
         &mut self,
         source: dir::LocalNodeIdAny,
-        access: PlaceUse,
     ) -> CompilerResult<Option<AssignedPlace>> {
         let global = source.into_global(self.module);
         let Some(symbol) = self.check.reference_symbol(global) else {
@@ -141,7 +138,6 @@ impl WalkState<'_, '_> {
         self.capture_symbol_reference(symbol);
         self.check
             .commit_name(global, dir::NameResolution::new(symbol))?;
-        if access != PlaceUse::Write {}
 
         Ok(self.assigned_symbol_place(symbol))
     }
@@ -162,12 +158,14 @@ impl WalkState<'_, '_> {
 
     /// Return the receiver type whose direct fields count for definite assignment.
     fn assigned_receiver_type(&self) -> Option<dir::GlobalTypeId> {
+        // a lexical receiver counts inside the function that captured it
         if let Some((index, receiver)) = self.flow().lexical_receiver()
             && self.flow().is_current_function(index)
         {
             return Some(receiver.receiver.ty);
         }
 
+        // outside any function body the current receiver counts
         if self.flow().current_function().is_none() {
             return self.flow().current_receiver().map(|receiver| receiver.ty);
         }

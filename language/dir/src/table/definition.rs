@@ -416,16 +416,6 @@ impl Definition {
     }
 }
 
-/// Apply one type id mapping to a conformance list.
-fn map_conformances(
-    conformances: &mut [NominalConformance],
-    map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId,
-) {
-    for conformance in conformances {
-        conformance.interface = map(conformance.interface);
-    }
-}
-
 /// Checked declaration data for one transparent type alias.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TypeAliasDefinition {

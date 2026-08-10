@@ -316,27 +316,6 @@ impl CheckState<'_> {
         self.placed_type(origin, ty, place)
     }
 
-    /// Resolve one type relative to its container's placement.
-    pub(in crate::check) fn resolve_contained_type(
-        &mut self,
-        origin: Origin,
-        container: dir::GlobalTypeId,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let chain = self.form_chain(origin, container)?;
-        let Some(place) = chain.place() else {
-            return Ok(ty);
-        };
-
-        // omit implicit local placement
-        let place = self.reduce_type_head(origin, place)?;
-        if self.place_space(place)? == Some(dir::Space::Local) {
-            return Ok(ty);
-        }
-
-        self.resolve_relative_place(origin, ty, place)
-    }
-
     /// Strip every explicit memory form from one type.
     pub(in crate::check) fn strip_form(
         &mut self,

@@ -1,5 +1,127 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Keep static parameters independent from a shared declaration receiver.
+#[test]
+fn test_static_shared_receiver_does_not_place_parameters() {
+    let session = TestSession::single(
+        r#"
+shared class Pack<out T> {}
+
+export extension<T> of Pack<T> {
+    static from(values: Iterable<T>): ^Pack<T> {
+        todo("Pack.from")
+    }
+}
+
+export extension<T> of ^Pack<T> implements From<Iterable<T>> {
+    static from(values: Iterable<T>): ^Pack<T> {
+        Pack.from(values)
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics("main.ds", "");
+}
+
+/// Place a static `this` result according to its shared declaration.
+#[test]
+fn test_static_this_uses_shared_declaration_placement() {
+    let session = TestSession::single(
+        r#"
+shared class Channel {}
+
+export extension of Channel {
+    static new(): this {
+        todo("Channel.new")
+    }
+}
+
+const channel: Channel = Channel.new();
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics("main.ds", "");
+}
+
+/// Apply inferred extension arguments to a static `this` result.
+#[test]
+fn test_static_this_uses_inferred_extension_arguments() {
+    let session = TestSession::single(
+        r#"
+shared class Pack<out T> {}
+
+export extension<T> of Pack<T> {
+    static from(value: T): this {
+        todo("Pack.from")
+    }
+}
+
+declare const value: int32;
+const pack: Pack<int32> = Pack.from(value);
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics("main.ds", "");
+}
+
+/// Preserve explicitly shared static parameters.
+#[test]
+fn test_static_shared_parameter_requires_shared_argument() {
+    let session = TestSession::single(
+        r#"
+struct Message {}
+shared class Channel {}
+
+export extension of Channel {
+    static send(message: shared &readonly Message): void { /* intentionally empty */ }
+}
+
+declare const message: local Message;
+Channel.send(message);
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local Message' is not assignable to parameter of type 'shared &readonly Message'"
+/// @diagnostic.label line=10 column=14 span="message" line_source="Channel.send(message);"
+/// @diagnostic.related line=10 column=1 span="Channel.send(message)" line_source="Channel.send(message);" message="in this call"
+/// @diagnostic.note message="expected '&readonly Message', found 'Message'"
+"#,
+    );
+}
+
+/// Keep instance parameters relative to a shared value receiver.
+#[test]
+fn test_instance_shared_receiver_places_parameters() {
+    let session = TestSession::single(
+        r#"
+struct Message {}
+shared class Channel {}
+
+export extension of Channel {
+    send(&this, message: &readonly Message): void { /* intentionally empty */ }
+}
+
+declare const channel: Channel;
+declare const message: local Message;
+channel.send(message);
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local Message' is not assignable to parameter of type 'shared &readonly Message'"
+/// @diagnostic.label line=11 column=14 span="message" line_source="channel.send(message);"
+/// @diagnostic.related line=11 column=1 span="channel.send(message)" line_source="channel.send(message);" message="in this call"
+/// @diagnostic.note message="expected '&readonly Message', found 'Message'"
+"#,
+    );
+}
+
 #[test]
 fn test_sibling_static_call_with_interface_params_selects_without_cycling() {
     let session = TestSession::single(
@@ -70,7 +192,7 @@ export extension<T: Compare<T>> of Pack<T> {
     static from(values: Iterable<T>): ^Pack<T> {
     /// @type.symbol symbol=from#1 type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> reduced=(Dynamic<Iterable<T#2, void>>) => Pack<T#2>
     /// @type.symbol symbol=from#1 type=(Iterable<T#2>) => Owned<Pack<T#2>>
-    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2>>
+    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2>> reduced=Dynamic<Iterable<T#2, void>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#1
     /// @resolution.name source=Pack target=Pack
@@ -196,6 +318,7 @@ export type ReadPort = Port<Mode.Write>;
 /// @definition.type symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" value=Port<Mode.Write>
 /// @resolution.name source=Port target=Port
 /// @resolution.name source=Mode.Write target=Mode
+/// @resolution.path source=Mode.Write index=1 target=Mode.Write
 
 /// @generic.instance id=Port<Mode.Write> template=Port arguments=(Mode.Write)
 "#,

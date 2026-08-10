@@ -4,8 +4,7 @@ use std::sync::Arc;
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactVersion,
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirParsed,
-    DirResolved, IndexKind,
-    ModuleIndex, ProgramIndex, SourceDependencyKey,
+    DirResolved, IndexKind, ModuleIndex, ProgramIndex, SourceDependencyKey,
 };
 use destack_core::FxIndexMap;
 use destack_repository::{

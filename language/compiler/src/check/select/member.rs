@@ -37,7 +37,7 @@ pub(in crate::check) enum FieldLookup {
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub(in crate::check) enum MemberLookup {
-    /// No member exists.
+    /// The receiver has no such member.
     Missing,
     /// One structural field exists.
     Field(FieldLookup),
@@ -81,6 +81,7 @@ impl FieldLookup {
             return Ok(Some(read));
         }
 
+        // an optional property reads as its type or undefined
         let undefined = body.intern_type(dir::Type::Undefined)?;
         let read = body.normalized_union_type([read, undefined])?;
 
@@ -113,6 +114,7 @@ impl FieldLookup {
         let Some(ty) = self.read_type(body)? else {
             return Ok(None);
         };
+
         let target = match self {
             Self::Structural {
                 receiver, owner, ..
@@ -139,6 +141,7 @@ impl FieldLookup {
         let Some(ty) = self.read_type(body)? else {
             return Ok(None);
         };
+
         let projection = match self {
             Self::Structural {
                 receiver, owner, ..
@@ -168,6 +171,7 @@ impl FieldLookup {
             } => (receiver, owner, access.write()?),
             Self::Projection(_) => return None,
         };
+
         let target = dir::MemberTarget::Field(dir::FieldResolution {
             receiver: field_receiver.clone(),
             target: dir::FieldTarget::Structural { owner: *owner, key },
@@ -434,6 +438,7 @@ impl DeclaredMember {
         if self.role.is_callable() {
             return Ok(Some(ty));
         }
+
         if self.role != MemberRole::VariantValue {
             return Ok(None);
         }
@@ -449,6 +454,7 @@ impl DeclaredMember {
             return Ok(None);
         }
 
+        // intern the nullary signature the explicit form calls
         let parameters = body.intern_parameters(&[])?;
         let callable = body.intern_signature(dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
@@ -566,9 +572,12 @@ impl MemberCandidate {
         if !self.role.is_readable() {
             return Ok(None);
         }
+
         if !self.is_optional {
             return Ok(Some(self.access_type));
         }
+
+        // an optional member reads as its type or undefined
         let undefined = body.intern_type(dir::Type::Undefined)?;
         let ty = body.normalized_union_type([self.access_type, undefined])?;
 
@@ -665,12 +674,11 @@ impl BodyState<'_, '_> {
             .cloned();
         if let Some(resolution) = resolution
             && let [symbol] = resolution.symbols()
+            && self.symbol_kind(*symbol)?.is_type_alias()
         {
-            if self.symbol_kind(*symbol)?.is_type_alias() {
-                space = dir::MemberSpace::Static;
-                subject =
-                    self.intern_type(dir::Type::Reference(dir::TypeReference { symbol: *symbol }))?;
-            }
+            space = dir::MemberSpace::Static;
+            subject =
+                self.intern_type(dir::Type::Reference(dir::TypeReference { symbol: *symbol }))?;
         }
 
         let subject = dir::MemberSubject::new(receiver, subject, space)
@@ -697,10 +705,12 @@ impl BodyState<'_, '_> {
                     Some(first) => vec![candidates[first]],
                     None => candidates,
                 };
+
                 let mut types = Vec::with_capacity(candidates.len());
                 for candidate in candidates {
                     types.extend(candidate.read_type(origin.module(), self)?);
                 }
+
                 if types.is_empty() {
                     return Ok(None);
                 }
@@ -723,6 +733,7 @@ impl BodyState<'_, '_> {
                 for lookup in lookups {
                     types.extend(self.member_read_type(origin, lookup)?);
                 }
+
                 if types.is_empty() {
                     return Ok(None);
                 }
@@ -783,6 +794,7 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         lookup: &MemberLookup,
     ) -> CompilerResult<Option<dir::MemberBinding>> {
+        // compose the operations this lookup exposes
         let read = self.member_read_type(origin, lookup)?;
         let write = self.member_write_type(lookup)?;
         let access = match (read, write) {
@@ -801,6 +813,7 @@ impl BodyState<'_, '_> {
             {
                 continue;
             }
+
             declarations.push(dir::MemberDeclaration {
                 symbol: candidate.symbol,
                 owner: candidate.owner,
@@ -820,17 +833,19 @@ impl BodyState<'_, '_> {
     }
 
     /// Resolve every member binding exposed by one subject.
-    pub(in crate::check) fn resolve_member_bindings(
+    pub(in crate::check) fn subject_member_bindings(
         &mut self,
         origin: Origin,
         module: ModuleId,
         subject: dir::MemberSubject,
     ) -> CompilerResult<Vec<dir::MemberBinding>> {
-        // nominal subjects resolve their members from one derived table
+        // nominal subjects compose the owner's memoized surface with extensions
         let reduced = self.reduce_type_head(origin, subject.target)?;
         if let Some(instance) = self.apparent_instance(reduced)? {
-            let inherent =
-                self.inherent_member_table(origin, subject.receiver, &instance, subject.space)?;
+            let inherent = self
+                .member_bindings(origin, instance.symbol, subject.space)?
+                .map(|bindings| bindings.to_vec())
+                .unwrap_or_default();
             let extensions = self.subject_extension_members(
                 origin,
                 module,
@@ -839,18 +854,14 @@ impl BodyState<'_, '_> {
                 instance.symbol,
                 subject.space,
             )?;
-            let mut bindings = Vec::with_capacity(inherent.len() + extensions.len());
-            for (key, lookup) in inherent.iter() {
-                if let Some(binding) = self.member_binding(origin, *key, lookup)? {
-                    bindings.push(binding);
-                }
-            }
 
             // extensions serve the keys the inherent members left open
+            let mut bindings = inherent;
             for (key, candidates) in extensions.iter() {
-                if inherent.contains_key(key) {
+                if bindings.iter().any(|binding| binding.key == *key) {
                     continue;
                 }
+
                 let lookup = MemberLookup::Found(candidates.clone());
                 if let Some(binding) = self.member_binding(origin, *key, &lookup)? {
                     bindings.push(binding);
@@ -886,6 +897,7 @@ impl BodyState<'_, '_> {
                 message: format!("keyed definition member {member:?} has no symbol"),
             });
         };
+
         let ty = self.definition_member_type(member)?;
 
         Ok(Some(DeclaredMember {
@@ -930,12 +942,14 @@ impl BodyState<'_, '_> {
                     None => candidates,
                 };
 
+                // build one access per surviving candidate
                 let mut targets = Vec::new();
                 let mut types = Vec::new();
                 for candidate in candidates {
                     let Some(ty) = candidate.read_type(origin.module(), self)? else {
                         continue;
                     };
+
                     let access = if candidate.role == MemberRole::Getter {
                         // rejecting receivers skip to the next declared candidate
                         let Some(call) = self.select_getter_call(origin, receiver, candidate)?
@@ -955,13 +969,14 @@ impl BodyState<'_, '_> {
                     targets.push(access.target);
                     types.push(access.ty);
                 }
+
+                // several accesses on one key read as their intersection
                 let target = match targets.as_slice() {
                     [] => return Ok(None),
                     [target] => target.clone(),
                     _ => dir::MemberTarget::Existential(targets),
                 };
                 let ty = self.normalized_intersection_type(types)?;
-
                 let access = dir::MemberAccess::new(receiver.ty, target, ty);
 
                 Ok(Some(dir::OperationResolution::One(access)))
@@ -989,6 +1004,7 @@ impl BodyState<'_, '_> {
                     types.push(access.ty);
                     accesses.push(access);
                 }
+
                 let ty = self.normalized_union_type(types)?;
 
                 Ok(Some(dir::OperationResolution::Union { arms: accesses, ty }))
@@ -1001,8 +1017,10 @@ impl BodyState<'_, '_> {
                     else {
                         return Ok(None);
                     };
+
                     resolutions.push(resolution);
                 }
+
                 let resolution = self.intersect_member_decisions(origin, resolutions)?;
 
                 Ok(Some(resolution))
@@ -1026,6 +1044,7 @@ impl BodyState<'_, '_> {
                 dir::OperationResolution::One(access) => slice::from_ref(access),
                 dir::OperationResolution::Union { arms, .. } => arms.as_slice(),
             };
+
             let mut next = Vec::with_capacity(combinations.len() * accesses.len());
             for combination in combinations {
                 for access in accesses {
@@ -1034,6 +1053,7 @@ impl BodyState<'_, '_> {
                     next.push(combined);
                 }
             }
+
             combinations = next;
         }
 
@@ -1042,6 +1062,7 @@ impl BodyState<'_, '_> {
         for accesses in combinations {
             arms.push(self.intersect_member_accesses(origin, accesses)?);
         }
+
         if !has_union && arms.len() == 1 {
             return Ok(dir::OperationResolution::One(arms.remove(0)));
         }
@@ -1078,6 +1099,7 @@ impl BodyState<'_, '_> {
                 target => targets.push(target),
             }
         }
+
         let receiver = self.normalized_intersection_type(receivers)?;
         let ty = self.normalized_intersection_type(types)?;
         let target = dir::MemberTarget::Intersection(targets);
@@ -1092,6 +1114,7 @@ impl BodyState<'_, '_> {
         receiver: Value,
         candidate: &MemberCandidate,
     ) -> CompilerResult<Option<dir::Call>> {
+        // select against the adjusted receiver the lookup settled on
         let symbol = candidate.symbol;
         let resolution = candidate.receiver.resolve(receiver.ty);
         let selection_type = match &resolution {
@@ -1102,6 +1125,8 @@ impl BodyState<'_, '_> {
             ty: selection_type,
             ..receiver
         };
+
+        // a getter takes no arguments
         let arguments = SmallVec::<[CallableArgument; 4]>::new();
         let callable = candidate.callable.ok_or_else(|| CompilerError::Internal {
             message: format!("getter {symbol:?} has no callable type"),
@@ -1121,6 +1146,7 @@ impl BodyState<'_, '_> {
         let SignatureMatch::Selected(signature) = selected else {
             return Ok(None);
         };
+
         let arguments = self.bind_argument_sources(origin, &signature, &[])?;
         let resolution = signature.member_call(resolution, candidate.owner, symbol, arguments);
 
@@ -1134,6 +1160,7 @@ impl BodyState<'_, '_> {
         receiver: Value,
         candidate: &MemberCandidate,
     ) -> CompilerResult<dir::Call> {
+        // select against the adjusted receiver the lookup settled on
         let symbol = candidate.symbol;
         let resolution = candidate.receiver.resolve(receiver.ty);
         let selection_type = match &resolution {
@@ -1144,6 +1171,8 @@ impl BodyState<'_, '_> {
             ty: selection_type,
             ..receiver
         };
+
+        // a setter takes the written value as its sole argument
         let sources = [dir::ArgumentSource::Write];
         let source = self
             .origin_source_node(origin)?
@@ -1171,6 +1200,7 @@ impl BodyState<'_, '_> {
                 message: format!("selected setter {symbol:?} rejects its declared value type"),
             });
         };
+
         let arguments = self.bind_argument_sources(origin, &signature, &sources)?;
         let resolution = signature.member_call(resolution, candidate.owner, symbol, arguments);
 
@@ -1185,6 +1215,7 @@ impl BodyState<'_, '_> {
         name: Option<dir::StringId>,
         is_optional: bool,
     ) -> CompilerResult<()> {
+        // read the access node and its typing origin
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
@@ -1196,12 +1227,11 @@ impl BodyState<'_, '_> {
         let written_receiver = self.infer_node_type(receiver_site, PlaceUse::Read)?;
 
         // unknown receivers defer selection until their value settles
-        if !self.check.infer.forcing
-            && let Some(stalled_on) = self.check.root_variable(written_receiver)?
-        {
+        if let Some(stalled_on) = self.check.root_variable(written_receiver)? {
             return self.defer_member_selection(site, stalled_on);
         }
 
+        // strip the nullish arms the access reads through
         let (subject, rejected) =
             self.resolve_member_subject(origin, receiver_node, written_receiver)?;
         if let Some(rejected) = rejected
@@ -1222,8 +1252,9 @@ impl BodyState<'_, '_> {
 
             return Ok(());
         };
-        let key = dir::StaticKey::Name(name);
 
+        // look the written key up and commit whatever it finds
+        let key = dir::StaticKey::Name(name);
         let lookup = self.lookup_member(origin, module, subject, key)?;
 
         match lookup {
@@ -1255,6 +1286,7 @@ impl BodyState<'_, '_> {
         name: dir::StringId,
         lookup: MemberLookup,
     ) -> CompilerResult<()> {
+        // select the readable resolution, or report why the read fails
         let receiver_site = self.visit_site(receiver_node)?;
         let receiver = self.expression_value(receiver_site, receiver)?;
         let Some(resolution) = self.select_member_read(origin, receiver, key, &lookup)? else {
@@ -1279,6 +1311,8 @@ impl BodyState<'_, '_> {
         if let Some(key) = stored_key {
             self.commit_projected_access(node, receiver_node, key)?;
         }
+
+        // narrow the read through the flow state at this site
         let site = self.visit_site(node)?;
         let ty = self.flow_type_at(site, ty)?;
         self.commit_node_type(node, ty)?;
@@ -1286,15 +1320,16 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Defer one member access whose receiver value has not settled yet.
+    /// Defer one member access until its receiver value settles.
     ///
-    /// The node commits an open hole so enclosing checks proceed; the
-    /// deferred re-selection solves the hole once the receiver closes.
+    /// The node commits an open hole so enclosing checks proceed.
+    /// The deferred re-selection solves the hole once the receiver closes.
     fn defer_member_selection(
         &mut self,
         site: FlowSite,
         stalled_on: dir::TypeVariableId,
     ) -> CompilerResult<()> {
+        // commit an open hole so enclosing checks proceed
         let node = site.node;
         if self.committed_node_type(node).is_none() {
             let variable =
@@ -1302,6 +1337,8 @@ impl BodyState<'_, '_> {
             let hole = self.variable_type(variable)?;
             self.commit_node_type(node, hole)?;
         }
+
+        // re-select once the receiver's variable solves
         self.check.register_check(DeferredCheck::Infer {
             site,
             use_: PlaceUse::Read,
@@ -1319,13 +1356,14 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         key: String,
     ) -> CompilerResult<()> {
-        // poison instead of reporting again when the receiver already reported an error
+        // poison when the receiver already reported an error
         if self.any_error_operand(&[receiver])? {
             self.poison_node(node)?;
 
             return Ok(());
         }
 
+        // report the missing member at the written key
         let key_span = self.module(node.module_id).diagnostic_span(node.local_id);
         self.report_missing_member(origin, receiver, key, key_span)?;
         self.commit_decision(node, dir::Decision::Rejected)?;
@@ -1347,19 +1385,24 @@ impl BodyState<'_, '_> {
         if role != MemberRole::Field {
             return Ok(ty);
         }
+
         let Some(receiver) = receiver else {
             return Ok(ty);
         };
+
+        // resolve the field in the receiver's place
         let ty = self.project_member_place(origin, receiver, ty)?;
 
         // readonly receivers project deep readonly views onto stored fields
         if !self.receiver_projects_readonly(origin, receiver)? {
             return Ok(ty);
         }
+
         let ty = self.reduce_type_head(origin, ty)?;
         if matches!(self.ty(ty)?, dir::Type::Form(form) if form.form == dir::Form::Readonly) {
             return Ok(ty);
         }
+
         if !self.type_projects_readonly(origin, ty)? {
             return Ok(ty);
         }
@@ -1483,6 +1526,7 @@ impl BodyState<'_, '_> {
             else {
                 continue;
             };
+
             if !extension.is_visible_from(module) {
                 continue;
             }
@@ -1516,6 +1560,7 @@ impl BodyState<'_, '_> {
                     None => CandidateOutcome::Rejected(()),
                 })
             })?;
+
             if !matches!(verdict, CandidateVerdict::Viable) {
                 continue;
             }
@@ -1557,6 +1602,7 @@ impl BodyState<'_, '_> {
                 .map(|conformance| conformance.interface)
                 .collect::<SmallVec<[_; 2]>>();
             let members = definition.members().to_vec();
+
             if !interfaces.is_empty() {
                 let mut substitution =
                     self.instance_substitution(application_module, &application)?;
@@ -1642,6 +1688,8 @@ impl BodyState<'_, '_> {
             }
             _ => None,
         });
+
+        // apply the implementation's arguments to the declared value
         if let Some((declared, value)) = declared {
             let value = self.project_associated_value(
                 origin.module(),
@@ -1670,6 +1718,7 @@ impl BodyState<'_, '_> {
         let Some(definition) = self.definition(scope)? else {
             return Ok(None);
         };
+
         let members = definition.members().to_vec();
         let substitution =
             self.qualified_instance_substitution(interface_module, &interface, member.owner)?;
@@ -1717,12 +1766,15 @@ impl BodyState<'_, '_> {
 
                         return Ok(Some(written));
                     }
+
+                    // static values project as their own singleton
                     if let Some(value) = candidate.value {
                         let ty = self.intern_type(dir::Type::Static(value))?;
 
                         return Ok(Some(ty));
                     }
 
+                    // a member projecting back onto itself stays symbolic
                     if let Some(projected) = self.member_head(candidate.access_type)?
                         && projected.owner == member.owner
                         && projected.key == member.key
@@ -1769,6 +1821,8 @@ impl BodyState<'_, '_> {
         if self.is_rigid_projection_owner(member.owner)? {
             return Ok(None);
         }
+
+        // only a qualified projection names the interface holding the default
         let Some(qualifier) = member.qualifier else {
             return Ok(None);
         };
@@ -1796,6 +1850,8 @@ impl BodyState<'_, '_> {
         let Some((symbol, value)) = associated else {
             return Ok(None);
         };
+
+        // apply the interface's arguments to the default
         let substitution =
             self.qualified_instance_substitution(interface_module, &interface, member.owner)?;
         let value =
@@ -1864,7 +1920,7 @@ impl BodyState<'_, '_> {
                     .map(|application| application.ty),
             );
         }
-        // other owners cannot expose associated declarations
+        // other owners select no qualifier
         else {
             return Ok(None);
         }
@@ -1880,6 +1936,7 @@ impl BodyState<'_, '_> {
             else {
                 continue;
             };
+
             let declares = definition.members.iter().any(|member| {
                 matches!(
                     member,
@@ -1890,12 +1947,15 @@ impl BodyState<'_, '_> {
             if !declares || qualifier == Some(interface) {
                 continue;
             }
+
+            // two declaring interfaces leave the projection ambiguous
             if qualifier.is_some() {
                 let key = self.format_static_key(&key);
                 self.report_ambiguous_member(origin, key)?;
 
                 return Ok(None);
             }
+
             qualifier = Some(interface);
         }
 
@@ -1932,9 +1992,11 @@ impl BodyState<'_, '_> {
                 if associated.key != member.key {
                     continue;
                 }
+
                 let Some(constraint) = associated.constraint else {
                     continue;
                 };
+
                 let substitution = self
                     .instance_substitution(bound.module_id, &instance)?
                     .with_receiver(owner);
@@ -1957,6 +2019,7 @@ impl BodyState<'_, '_> {
         let Some(place) = self.receiver_projected_place(origin, receiver)? else {
             return Ok(ty);
         };
+
         let ty = self.place_relative_type(origin, place, ty)?;
 
         self.reduce_type_head(origin, ty)

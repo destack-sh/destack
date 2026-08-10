@@ -522,10 +522,8 @@ impl<'a> DocumentationTagHeader<'a> {
         // select one named tag keyword
         let (body, is_parameter) = if let Some(body) = line.strip_prefix("@param ") {
             (body, true)
-        } else if let Some(body) = line.strip_prefix("@typeParam ") {
-            (body, false)
         } else {
-            return None;
+            (line.strip_prefix("@typeParam ")?, false)
         };
 
         // split the declared name from its Markdown

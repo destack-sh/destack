@@ -255,6 +255,7 @@ type Made<F: Producing> = F.Output;
 /// @type.symbol symbol=Made.F source="F: Producing" type=F
 /// @resolution.name source=Producing target=Producing
 /// @resolution.name source=F.Output target=Made.F
+/// @resolution.path source=F.Output index=1 target=Producing.Output
 
 declare const made: Made<Factory>;
 /// @type.symbol symbol=made source=made type=Made<Factory> reduced=int32
@@ -380,6 +381,8 @@ declare const value: Grid.Cell.Value;
 /// @type.symbol symbol=value source=value type=geometry.Grid.Cell.Value reduced=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Grid.Cell.Value target=geometry.Grid
+/// @resolution.path source=Grid.Cell.Value index=1 target=geometry.Grid.Cell
+/// @resolution.path source=Grid.Cell.Value index=2 target=geometry.Slot.Value
 "#,
     );
 }
@@ -443,6 +446,7 @@ class Message<T extends string> implements Envelope<T> {}
 type EventLabel = Message<"orders">.Label<"created">;
 /// @type.symbol symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" type=Message<"orders">.Label<"created"> reduced="orders:created"
 /// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value=Message<"orders">.Label<"created"> reduced="orders:created"
+/// @resolution.name source="Message<\"orders\">.Label<\"created\">" target=Envelope.Label
 /// @resolution.name source=Message target=Message
 
 /// @generic.instance id="Message<\"orders\">" template=Message arguments=("orders")
@@ -501,6 +505,7 @@ class Message<T extends string> implements Envelope<T> {}
 type EventLabel = Message<"orders">.Label<"created">;
 /// @type.symbol symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" type=Message<"orders">.Label<"created"> reduced="orders:created"
 /// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value=Message<"orders">.Label<"created"> reduced="orders:created"
+/// @resolution.name source="Message<\"orders\">.Label<\"created\">" target=envelope.Envelope.Label
 /// @resolution.name source=Message target=Message
 
 /// @generic.instance id="Message<\"orders\">" template=Message arguments=("orders")

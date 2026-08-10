@@ -738,6 +738,7 @@ function square<T: Multiply<T>>(value: T): T.Output {
 /// @type.symbol symbol=square.value source="value: T" type=T
 /// @resolution.name source=T target=square.T
 /// @resolution.name source=T.Output target=square.T
+/// @resolution.path source=T.Output index=1 target=ops.multiply.Multiply.Output
 
     return value * value;
     /// @resolution.name source=value target=square.value

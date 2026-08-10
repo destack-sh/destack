@@ -24,8 +24,8 @@ impl CheckState<'_> {
 
         // reject unsettled constraints outside declarations
         if !self.is_declaration() {
-            for (id, constraint) in self.infer.constraints.iter() {
-                if !self.infer.constraints.is_complete(id) {
+            for (id, constraint) in self.fulfill.constraints.iter() {
+                if !self.fulfill.constraints.is_complete(id) {
                     return Err(CompilerError::Internal {
                         message: format!(
                             "checked write found the unsettled constraint {:?} at {:?}",

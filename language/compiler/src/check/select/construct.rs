@@ -1177,7 +1177,7 @@ impl BodyState<'_, '_> {
         // bind the arguments and commit the selection
         let resolution = dir::ConstructDecision::new(
             target,
-            self.selected_argument_bindings(node, module, argument_nodes, &signature)?,
+            self.selected_argument_bindings(node, module, argument_nodes, signature)?,
             produced,
         );
         self.commit_decision(node, dir::Decision::Construct(resolution))?;

@@ -9,23 +9,6 @@ use crate::{QueryError, QueryResult};
 use super::Formatter;
 
 impl Formatter<'_, '_, '_> {
-    /// Format one symbol type as a user facing detail, or nothing for an error type.
-    pub(crate) fn symbol_type_detail(
-        &self,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> QueryResult<Option<String>> {
-        let module = self.program.module(symbol_id.module_id)?;
-        let type_id = module
-            .types()?
-            .get_symbol_type_id(symbol_id)
-            .ok_or(QueryError::missing(format!("symbol type: {symbol_id:?}")))?;
-        if matches!(module.types()?.get_type(type_id.local_id), dir::Type::Error) {
-            return Ok(None);
-        }
-
-        Ok(Some(self.symbol_type_text(symbol_id, type_id, &module)?))
-    }
-
     /// Format one symbol type.
     pub(crate) fn symbol_type(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
         let module = self.program.module(symbol_id.module_id)?;

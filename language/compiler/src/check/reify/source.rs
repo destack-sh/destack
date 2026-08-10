@@ -96,7 +96,6 @@ impl CheckState<'_> {
             let state = self.module(module_id);
             let view = dir::View::new(state.source_tree());
             view.iter_nodes::<dir::Declarator>()
-                .into_iter()
                 .filter(|(_, declarator)| declarator.ty.is_none())
                 .filter_map(|(_, declarator)| {
                     state

@@ -7,7 +7,7 @@ use destack_source::{
 
 use crate::check::{
     BoundSide, CauseId, CauseKind, CheckFailure, CheckState, ObligationFailure, OperatorOperands,
-    Origin, Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse, Variance, Verdict,
+    Origin, Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse, Variance,
 };
 use crate::{CheckError, CheckWarning, CompilerError, CompilerResult, DiagnosticAnchor};
 
@@ -1256,21 +1256,18 @@ impl CheckState<'_> {
                 self.report_wrong_argument_count(origin, expected, supplied)?;
             }
 
-            // report the selected mismatch at its authored cause; an
-            //  ambiguous mismatch retries once its variables solve, so
-            //  only the final round records it
+            // report the selected mismatch at its authored cause, the
+            //  provisional classification holds it while operands stay open
             SignatureRejection::Mismatch {
-                verdict,
                 cause,
                 relation,
                 use_,
                 source,
                 target,
                 failure,
+                ..
             } => {
-                if verdict != Verdict::Ambiguous || self.is_final_round() {
-                    self.record_failure(cause, relation, use_, source, target, failure)?;
-                }
+                self.record_failure(cause, relation, use_, source, target, failure)?;
             }
 
             // report receiver mismatch on the call itself

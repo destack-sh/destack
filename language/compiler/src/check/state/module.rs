@@ -8,12 +8,13 @@ use destack_artifact::{
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_repository::{Module, Package};
+
 use destack_source::{ModuleId, Span};
 use smallvec::SmallVec;
 
 use crate::check::{
-    ApparentInstance, Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, Constraint,
-    FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticPresence, VariableRole, Widening,
+    Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, Constraint, FlowPoint,
+    FlowPointId, FlowSite, Origin, Relation, StaticPresence, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -1124,7 +1125,7 @@ impl CheckState<'_> {
             }
         }
 
-        // flatten each owner's bindings in both member spaces
+        // encode each owner's memoized bindings in both member spaces
         for symbol in owners {
             let origin = Origin::Symbol(symbol);
 
@@ -1135,12 +1136,6 @@ impl CheckState<'_> {
                     let _ = self.parameter_variance(parameter, form)?;
                 }
             }
-            let application = self.declaration_instance(symbol)?;
-            let arguments = self.type_ids(module, application.arguments)?.to_vec();
-            let instance = ApparentInstance {
-                symbol: application.symbol,
-                arguments: arguments.iter().copied().collect(),
-            };
             let Some(canonical) = self
                 .module(module)
                 .types
@@ -1151,16 +1146,14 @@ impl CheckState<'_> {
             };
 
             for space in [dir::MemberSpace::Instance, dir::MemberSpace::Static] {
-                let bindings = self
-                    .body()
-                    .canonical_member_bindings(origin, &instance, space)?;
+                let bindings = self.body().member_bindings(origin, symbol, space)?;
                 let Some(bindings) = bindings else {
                     continue;
                 };
                 let subject = dir::MemberSubject::new(canonical, canonical, space);
                 self.module_mut(module)
                     .members
-                    .set_bindings(subject, bindings);
+                    .set_bindings(subject, bindings.to_vec());
             }
         }
 

@@ -379,7 +379,7 @@ impl WalkState<'_, '_> {
             } => {
                 let right = *right;
 
-                if let Some(place) = self.walk_assigned_place(right, PlaceUse::Update)? {
+                if let Some(place) = self.walk_assigned_place(right)? {
                     self.mark_place_assigned(place);
                 }
 
@@ -753,7 +753,7 @@ impl WalkState<'_, '_> {
             // x = value, obj.x = value
             dir::AssignPattern::Place { expression: target } => {
                 let target = *target;
-                self.walk_assigned_place(target, access)?
+                self.walk_assigned_place(target)?
                     .map(|place| vec![(target, place)])
                     .unwrap_or_default()
             }

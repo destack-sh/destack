@@ -44,6 +44,7 @@ type Selected = Mode.Read;
 /// @type.symbol symbol=Selected source="type Selected = Mode.Read" type=Mode.Read
 /// @definition.type symbol=Selected source="type Selected = Mode.Read" value=Mode.Read
 /// @resolution.name source=Mode.Read target=Mode
+/// @resolution.path source=Mode.Read index=1 target=Mode.Read
 "#,
     );
 }
