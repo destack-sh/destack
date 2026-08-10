@@ -2471,6 +2471,8 @@ pub struct FunctionSignatureType {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct FunctionParameterType {
+    /// The authored parameter name, when the parameter declares one.
+    pub name: Option<StringId>,
     /// The parameter type.
     pub ty: GlobalTypeId,
     /// Whether the parameter may be omitted at the call site.
