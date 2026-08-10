@@ -1305,14 +1305,19 @@ impl TestSession {
     ) -> Result<(), SessionError> {
         // record one detailed trace around the whole run
         let keys = keys.into_iter().collect::<Vec<_>>();
-        self.session.set_tracing(true);
-        let trace = self.session.start_trace();
-        let result = block_on(self.session.provide_traced(
-            self.revision,
+        let trace = self.session.start_trace(true);
+        let run = self.session.provide_traced(
+            self.revision(),
             &keys,
-            Arc::clone(&trace),
-        ));
-        self.session.finish_trace(trace);
+            ArtifactPriority::Foreground,
+            trace.clone(),
+            None,
+        );
+        let result = block_on(run.wait());
+        trace.finish();
+
+        self.merge_profile(&trace);
+        *self.last_trace.lock().expect("test trace should lock") = Some(trace);
 
         result
     }
@@ -1712,7 +1717,7 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
         // anchor the anonymous workspace package so its profile exists
         //  while the warmup checks under it
         let revision = repository
-            .fork_with_edits(
+            .edit(
                 revision,
                 [Edit::SetFile {
                     logical_path: WARM_ANCHOR_PATH.to_string(),
@@ -1721,7 +1726,8 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
                     },
                 }],
             )
-            .expect("warmup anchor should publish");
+            .expect("warmup anchor should publish")
+            .after;
 
         // start one warmup session on the shared base
         let session = Session::new(repository.clone(), test_executor())
@@ -1767,13 +1773,14 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
         //  nothing the warm artifacts depend on, so tests inherit them
         //  by ancestry without the anchor in their file tree
         let base = repository
-            .fork_with_edits(
+            .edit(
                 revision,
                 [Edit::RemoveFile {
                     logical_path: WARM_ANCHOR_PATH.to_string(),
                 }],
             )
-            .expect("warmup anchor should retire");
+            .expect("warmup anchor should retire")
+            .after;
 
         (repository, base)
     })
@@ -1840,19 +1847,21 @@ fn test_worker_count() -> usize {
         .unwrap_or(1)
 }
 
-/// Return the shared artifact executor for compiler tests.
+/// Return the artifact executor for one compiler test session.
 fn test_executor() -> Arc<Executor> {
+    let worker_count = test_worker_count();
+
+    // cooperative hosts execute inline, so each session schedules alone
+    if worker_count == 1 {
+        return Executor::new(Execution::Cooperative, 1)
+            .expect("compiler test artifact executor should start");
+    }
+
     static EXECUTOR: OnceLock<Arc<Executor>> = OnceLock::new();
 
     EXECUTOR
         .get_or_init(|| {
-            let worker_count = test_worker_count();
-            let execution = match worker_count {
-                1 => Execution::Cooperative,
-                _ => Execution::Threaded,
-            };
-
-            Executor::new(execution, worker_count)
+            Executor::new(Execution::Threaded, worker_count)
                 .expect("compiler test artifact executor should start")
         })
         .clone()
