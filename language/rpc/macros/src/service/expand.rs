@@ -30,6 +30,9 @@ fn expand_service(service: Service) -> Tokens {
         methods,
     } = service;
     let trait_methods = methods.iter().map(expand_trait_method);
+    let arc_methods = methods
+        .iter()
+        .map(|method| expand_arc_method(&trait_name, method));
     let schema_methods = methods
         .iter()
         .map(|method| expand_schema_method(&name, method));
@@ -42,6 +45,10 @@ fn expand_service(service: Service) -> Tokens {
         #(#attributes)*
         #visibility trait #trait_name: ::std::fmt::Debug + Send + Sync + 'static {
             #(#trait_methods)*
+        }
+
+        impl<T: #trait_name + ?Sized> #trait_name for ::std::sync::Arc<T> {
+            #(#arc_methods)*
         }
 
         /// Exact typed method descriptors for the declared RPC service.
@@ -196,8 +203,32 @@ fn expand_service(service: Service) -> Tokens {
     }
 }
 
-/// Generate one implemented service trait method.
+/// Generate one service method forwarded through Arc ownership.
+fn expand_arc_method(trait_name: &syn::Ident, method: &Method) -> Tokens {
+    let name = &method.rust_name;
+    let request_argument = method.request_stream.as_ref().map(|_| quote!(, requests));
+    let response_argument = method.response_stream.as_ref().map(|_| quote!(, responses));
+    let implementation = quote! {
+        {
+            <T as #trait_name>::#name(
+                self.as_ref(),
+                request
+                #request_argument
+                #response_argument
+            )
+        }
+    };
+
+    expand_method(method, implementation)
+}
+
+/// Generate one declared service trait method.
 fn expand_trait_method(method: &Method) -> Tokens {
+    expand_method(method, quote!(;))
+}
+
+/// Generate one service method with the given implementation.
+fn expand_method(method: &Method, implementation: Tokens) -> Tokens {
     let attributes = &method.attributes;
     let name = &method.rust_name;
     let request = &method.request;
@@ -220,7 +251,8 @@ fn expand_trait_method(method: &Method) -> Tokens {
             #response_stream
         ) -> impl ::std::future::Future<
             Output = Result<::destack_rpc::Response<#response>, ::destack_rpc::Status>
-        > + Send;
+        > + Send
+        #implementation
     }
 }
 

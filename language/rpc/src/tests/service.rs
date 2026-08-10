@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::arithmetic::{NumberRequest, NumberResponse};
 use super::server::TestServer;
 use crate::{Idempotency, MethodId, Request, RequestStream, Response, ResponseSender, Status};
@@ -58,7 +60,8 @@ impl GeneratedArithmeticService for GeneratedArithmetic {
 /// Generate and execute one typed service client and server.
 #[test]
 fn test_generate_service() {
-    let service = GeneratedArithmeticServer::new(GeneratedArithmetic).expect("build server");
+    let service =
+        GeneratedArithmeticServer::new(Arc::new(GeneratedArithmetic)).expect("build shared server");
     let server = TestServer::new(service);
     let client =
         GeneratedArithmeticClient::new(server.connection().clone()).expect("create client");
