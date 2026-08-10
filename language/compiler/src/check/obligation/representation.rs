@@ -120,7 +120,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<ObligationCheck> {
         let ty = self.reduce_type_head(origin, ty)?;
         if let Some(key) = self.storage_key(origin, ty)?
-            && self.proven_storage.contains(&key)
+            && self.storable.contains(&key)
         {
             return Ok(ObligationCheck::holds());
         }
@@ -231,7 +231,7 @@ impl CheckState<'_> {
     /// Record one proven storable representation.
     fn prove_storage(&mut self, origin: Origin, ty: dir::GlobalTypeId) -> CompilerResult<()> {
         if let Some(key) = self.storage_key(origin, ty)? {
-            self.proven_storage.insert(key);
+            self.storable.insert(key);
         }
 
         Ok(())
@@ -327,7 +327,7 @@ impl CheckState<'_> {
             }
             RepresentationCheck::Finite => {
                 if let Some(key) = self.storage_key(origin, ty)?
-                    && self.proven_storage.contains(&key)
+                    && self.storable.contains(&key)
                 {
                     return Ok(None);
                 }
@@ -403,6 +403,10 @@ impl CheckState<'_> {
             }
             // follow direct forms, which shared checking already stripped
             dir::Type::Form(form) => match form.form {
+                // bound inline layout at owned indirection, like a managed handle
+                dir::Form::Owned if matches!(check, RepresentationCheck::Finite) => {
+                    return Ok(None);
+                }
                 dir::Form::Owned | dir::Form::Placed { .. } | dir::Form::Readonly => {
                     SmallVec::from_slice(&[(form.value, source)])
                 }
