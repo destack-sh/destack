@@ -854,7 +854,6 @@ dependencies = [
  "destack_program",
  "destack_serde",
  "destack_source",
- "fs2",
  "indexmap",
  "libc",
  "parking_lot",

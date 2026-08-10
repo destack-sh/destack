@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use destack_core::Blob;
 use destack_serde::Reflect;
-use destack_source::Content;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -113,8 +113,8 @@ pub struct ArtifactSidecar {
     pub name: String,
     /// The stable labels describing this sidecar.
     pub labels: BTreeMap<String, String>,
-    /// The sidecar content.
-    pub content: Content,
+    /// The exact sidecar bytes.
+    pub blob: Blob,
 }
 
 impl ArtifactSidecar {
@@ -122,7 +122,7 @@ impl ArtifactSidecar {
     pub fn new(
         name: impl Into<String>,
         labels: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
-        content: Content,
+        blob: Blob,
     ) -> Self {
         let labels = labels
             .into_iter()
@@ -132,7 +132,7 @@ impl ArtifactSidecar {
         Self {
             name: name.into(),
             labels,
-            content,
+            blob,
         }
     }
 

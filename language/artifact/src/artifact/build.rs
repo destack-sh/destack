@@ -1,5 +1,5 @@
+use destack_core::Blob;
 use destack_serde::Reflect;
-use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use crate::{BuildLinkage, BuildProfile};
@@ -11,22 +11,22 @@ pub struct Build {
     pub profile: BuildProfile,
     /// The build linkage.
     pub linkage: BuildLinkage,
-    /// The encoded build content.
-    pub content: ContentId,
+    /// The encoded build bytes.
+    pub blob: Blob,
 }
 
 impl Build {
     /// Create one build payload.
-    pub fn new(profile: BuildProfile, linkage: BuildLinkage, content: ContentId) -> Self {
+    pub fn new(profile: BuildProfile, linkage: BuildLinkage, blob: Blob) -> Self {
         Self {
             profile,
             linkage,
-            content,
+            blob,
         }
     }
 
-    /// Return all content ids referenced by this build payload.
-    pub fn content_ids(&self) -> Vec<ContentId> {
-        vec![self.content]
+    /// Return every Blob referenced by this build payload.
+    pub fn blobs(&self) -> Vec<Blob> {
+        vec![self.blob]
     }
 }

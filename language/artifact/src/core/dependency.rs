@@ -1,12 +1,15 @@
-use std::hash::Hash;
+use std::fmt;
+use std::hash::{Hash, Hasher};
 
-use destack_core::StableHasher;
+use destack_core::{BlobId, StableHasher};
+use destack_serde as serde;
 use destack_serde::Reflect;
-use destack_source::{ContentId, FileId, ModuleId, PackageId};
-use serde::{Deserialize, Serialize};
+use destack_source::{FileId, ModuleId, PackageId};
 use siphasher::sip128::Hasher128;
 
 use crate::{ArtifactKey, ArtifactVersion};
+
+use ::serde::{Deserialize, Serialize};
 
 /// Stable fingerprint of one repository module set.
 #[repr(transparent)]
@@ -56,11 +59,15 @@ impl PackageSetFingerprint {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
-pub struct SourceDependency {
-    /// The observed repository source.
-    pub key: SourceDependencyKey,
-    /// The stable stamp of the observed value.
-    pub stamp: u128,
+pub enum SourceDependency {
+    /// One source file and its exact bytes.
+    File { file: FileId, blob: BlobId },
+    /// The complete repository package set.
+    Packages { fingerprint: PackageSetFingerprint },
+    /// The complete repository module set.
+    Modules { fingerprint: ModuleSetFingerprint },
+    /// The module resolution of one probed path.
+    ModulePath { file: FileId, fingerprint: u128 },
 }
 
 /// One repository source selected by a source dependency.
@@ -85,8 +92,8 @@ pub enum SourceDependencyKey {
 )]
 pub struct ArtifactProjectionFingerprint(pub u128);
 
-impl std::fmt::Debug for ArtifactProjectionFingerprint {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for ArtifactProjectionFingerprint {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "p{:032x}", self.0)
     }
 }
@@ -103,11 +110,11 @@ impl ArtifactProjectionFingerprint {
     }
 
     /// Build one artifact projection fingerprint from a serialized artifact payload value.
-    pub fn from_serialized_payload<T: Serialize>(value: &T) -> Result<Self, destack_serde::Error> {
+    pub fn from_serialized_payload<T: Serialize>(value: &T) -> Result<Self, serde::Error> {
         // stream the canonical encoding straight into the hasher
         let mut hasher = siphasher::sip128::SipHasher13::new();
-        std::hash::Hasher::write(&mut hasher, b"destack.artifact.projection.payload.v2");
-        destack_serde::hash_into(value, &mut hasher)?;
+        Hasher::write(&mut hasher, b"destack.artifact.projection.payload.v2");
+        serde::hash_into(value, &mut hasher)?;
         let hash = hasher.finish128();
 
         Ok(Self(hash.as_u128()))
@@ -228,27 +235,22 @@ impl ArtifactRequirement {
 }
 
 impl SourceDependency {
-    /// Build one file content dependency.
-    pub fn file_content(file: FileId, content: ContentId) -> Self {
-        Self {
-            key: SourceDependencyKey::File(file),
-            stamp: content.0,
-        }
+    /// Build one file dependency.
+    pub const fn file(file: FileId, blob: BlobId) -> Self {
+        Self::File { file, blob }
     }
 
     /// Build one complete package set dependency.
     pub fn packages(packages: &[PackageId]) -> Self {
-        Self {
-            key: SourceDependencyKey::Packages,
-            stamp: PackageSetFingerprint::new(packages).0,
+        Self::Packages {
+            fingerprint: PackageSetFingerprint::new(packages),
         }
     }
 
     /// Build one complete module set dependency.
     pub fn modules(modules: &[ModuleId]) -> Self {
-        Self {
-            key: SourceDependencyKey::Modules,
-            stamp: ModuleSetFingerprint::new(modules).0,
+        Self::Modules {
+            fingerprint: ModuleSetFingerprint::new(modules),
         }
     }
 
@@ -258,9 +260,19 @@ impl SourceDependency {
         hasher.update_len_prefixed(b"destack.artifact.module-path.v1");
         module.hash(&mut hasher);
 
-        Self {
-            key: SourceDependencyKey::ModulePath(file),
-            stamp: hasher.finish_u128(),
+        Self::ModulePath {
+            file,
+            fingerprint: hasher.finish_u128(),
+        }
+    }
+
+    /// Return the repository source selected by this observation.
+    pub const fn key(self) -> SourceDependencyKey {
+        match self {
+            Self::File { file, .. } => SourceDependencyKey::File(file),
+            Self::Packages { .. } => SourceDependencyKey::Packages,
+            Self::Modules { .. } => SourceDependencyKey::Modules,
+            Self::ModulePath { file, .. } => SourceDependencyKey::ModulePath(file),
         }
     }
 }
@@ -296,8 +308,8 @@ impl ArtifactDependencySet {
     }
 
     /// Declare one observed regular source file.
-    pub fn observe_file(&mut self, file: FileId, content: ContentId) {
-        self.observe(SourceDependency::file_content(file, content));
+    pub fn observe_file(&mut self, file: FileId, blob: BlobId) {
+        self.observe(SourceDependency::file(file, blob));
     }
 
     /// Declare the complete repository package identity set.
@@ -343,7 +355,7 @@ impl ArtifactDependencySet {
             .iter()
             .zip(sources)
             .all(|(source, dependency)| match dependency {
-                ArtifactDependency::Source(dependency) => source.key == dependency.key,
+                ArtifactDependency::Source(dependency) => source.key() == dependency.key(),
                 ArtifactDependency::Artifact(_) | ArtifactDependency::Projection(_) => false,
             });
 

@@ -1,5 +1,6 @@
+use destack_core::Blob;
 use destack_serde::Reflect;
-use destack_source::{ContentId, FileType, Uri};
+use destack_source::{FileType, Uri};
 use serde::{Deserialize, Serialize};
 
 /// One section of a linked bundle.
@@ -67,8 +68,8 @@ pub struct BundleFile {
     pub uri: Uri,
     /// The emitted file type.
     pub file_type: FileType,
-    /// The output content identity.
-    pub content: ContentId,
+    /// The exact output bytes.
+    pub blob: Blob,
     /// The related source URI when one exists.
     pub source: Option<Uri>,
 }
@@ -79,14 +80,14 @@ impl BundleFile {
         section: BundleSection,
         uri: Uri,
         file_type: FileType,
-        content: ContentId,
+        blob: Blob,
         source: Option<Uri>,
     ) -> Self {
         Self {
             section,
             uri,
             file_type,
-            content,
+            blob,
             source,
         }
     }
@@ -112,8 +113,8 @@ impl Bundle {
         self.files.iter()
     }
 
-    /// Return all content ids referenced by this bundle.
-    pub fn content_ids(&self) -> Vec<ContentId> {
-        self.files().map(|file| file.content).collect()
+    /// Return every Blob referenced by this bundle.
+    pub fn blobs(&self) -> Vec<Blob> {
+        self.files().map(|file| file.blob).collect()
     }
 }

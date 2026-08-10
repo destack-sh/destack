@@ -4,8 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
-use destack_core::StringPool;
-use destack_source::ContentId;
+use destack_core::{Blob, StringPool};
 
 use crate::DiagnosticRecord;
 use parking_lot::RwLock;
@@ -202,6 +201,7 @@ impl ArtifactTable {
     pub fn record(
         &self,
         version: ArtifactVersion,
+        blob: Blob,
         dependencies: &[ArtifactDependency],
         strings: &StringPool,
     ) -> Result<ArtifactRecord, ArtifactError> {
@@ -221,6 +221,7 @@ impl ArtifactTable {
         let sidecars = entry.sidecars.iter().cloned().collect();
         let record = ArtifactRecord::new(
             version,
+            blob,
             payload.as_ref(),
             strings,
             dependencies,
@@ -370,6 +371,31 @@ impl ArtifactTable {
         bindings.last().copied()
     }
 
+    /// Return every Blob retained by one exact artifact result.
+    pub fn blobs(&self, version: &ArtifactVersion) -> Option<Vec<Blob>> {
+        // collect payload Blobs when this artifact succeeded
+        let entry = self.entries.get(version)?;
+        let mut blobs = match entry.result.payload() {
+            Some(payload) => payload.blobs(),
+            None => Vec::new(),
+        };
+
+        // include diagnostics and sidecars for every terminal result
+        blobs.extend(
+            entry
+                .diagnostics
+                .iter()
+                .flat_map(|record| record.diagnostic.blobs()),
+        );
+        blobs.extend(entry.sidecars.iter().map(|sidecar| sidecar.blob));
+
+        // canonicalize the retained closure
+        blobs.sort_unstable();
+        blobs.dedup();
+
+        Some(blobs)
+    }
+
     /// Intern one exact artifact binding.
     fn intern_binding(
         &self,
@@ -433,16 +459,5 @@ impl ArtifactTable {
             }));
             first = last;
         }
-    }
-
-    /// Return content ids referenced by one exact artifact payload.
-    pub fn content_ids(&self, version: &ArtifactVersion) -> Option<Vec<ContentId>> {
-        let entry = self.entries.get(version)?;
-        let contents = match entry.result.payload() {
-            Some(payload) => payload.content_ids(),
-            None => Vec::new(),
-        };
-
-        Some(contents)
     }
 }

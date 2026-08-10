@@ -1,10 +1,10 @@
-use std::fmt;
+use std::{error, fmt, io};
 
 use destack_core::StringId;
 use destack_program::ProgramLoadError;
-use serde::ser;
+use destack_serde as serde;
 
-use crate::BlobStoreError;
+use ::serde::ser;
 
 /// An artifact record or publication error.
 #[derive(Debug)]
@@ -12,7 +12,7 @@ pub enum ArtifactError {
     /// Artifact state is malformed or internally inconsistent.
     Invalid(&'static str),
     /// The record failed to encode or decode.
-    Codec(Box<destack_serde::Error>),
+    Codec(Box<serde::Error>),
     /// The program payload failed to load or store.
     Program(Box<ProgramLoadError>),
     /// The record references an interned string missing from the pool.
@@ -20,15 +20,11 @@ pub enum ArtifactError {
         /// The missing string id.
         string: StringId,
     },
-    /// The record exceeded the configured size limit.
-    Size {
-        /// The configured size limit.
-        limit: u64,
-        /// The actual encoded byte length.
-        actual: u64,
+    /// Artifact persistence failed.
+    Store {
+        /// The storage failure.
+        message: String,
     },
-    /// The artifact store failed to read or write.
-    Store(Box<BlobStoreError>),
 }
 
 impl fmt::Display for ArtifactError {
@@ -49,30 +45,27 @@ impl fmt::Display for ArtifactError {
                     "artifact record references missing string {string}"
                 )
             }
-            ArtifactError::Size { limit, actual } => {
-                write!(
-                    formatter,
-                    "artifact record exceeded size limit, limit {limit}, actual {actual}"
-                )
-            }
-            ArtifactError::Store(error) => {
-                write!(formatter, "artifact store error: {error}")
+            ArtifactError::Store { message } => {
+                write!(formatter, "artifact store error: {message}")
             }
         }
     }
 }
 
-impl std::error::Error for ArtifactError {}
+impl error::Error for ArtifactError {}
+
+impl ArtifactError {
+    /// Build one artifact persistence failure.
+    pub fn store(message: impl Into<String>) -> Self {
+        Self::Store {
+            message: message.into(),
+        }
+    }
+}
 
 impl ser::Error for ArtifactError {
     fn custom<T: fmt::Display>(_message: T) -> Self {
         Self::Invalid("artifact string id collection failed")
-    }
-}
-
-impl From<std::io::Error> for ArtifactError {
-    fn from(error: std::io::Error) -> Self {
-        Self::Store(Box::new(BlobStoreError::from(error)))
     }
 }
 
@@ -82,8 +75,8 @@ impl From<ProgramLoadError> for ArtifactError {
     }
 }
 
-impl From<BlobStoreError> for ArtifactError {
-    fn from(error: BlobStoreError) -> Self {
-        Self::Store(Box::new(error))
+impl From<io::Error> for ArtifactError {
+    fn from(error: io::Error) -> Self {
+        Self::store(error.to_string())
     }
 }

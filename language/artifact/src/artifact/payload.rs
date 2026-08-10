@@ -1,9 +1,11 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 
-use destack_core::SectionStorage;
+use destack_core::{Blob, BlobMemory, SectionStorage};
 use destack_program::{Object, Program};
+use destack_serde as serde;
 use destack_serde::Reflect;
-use destack_source::{ContentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
+use destack_source::{ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
 use crate::{
     ArtifactError, ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build,
@@ -12,7 +14,8 @@ use crate::{
     IndexKind, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph,
     ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
-use serde::{Deserialize, Serialize};
+
+use ::serde::{Deserialize, Serialize};
 
 /// One typed artifact payload.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -41,9 +44,9 @@ pub enum ArtifactPayload {
     DirDeclared(Arc<DirDeclared>),
     /// One declared environment payload.
     EnvironmentDeclared(Arc<EnvironmentDeclared>),
-    /// Checked DIR module.
     /// Elaborated DIR module.
     DirElaborated(Arc<DirElaborated>),
+    /// Checked DIR module.
     DirChecked(Arc<DirChecked>),
     /// Materialized DIR.
     DirMaterialized(Arc<DirMaterialized>),
@@ -81,7 +84,7 @@ pub enum ArtifactPayload {
     Product(Arc<Product>),
 }
 
-/// Borrowed artifact payload used for transport serialization.
+/// One borrowed typed artifact payload.
 #[derive(Debug, Clone, Copy, Serialize)]
 pub enum ArtifactPayloadRef<'a> {
     /// Target-built toolchain payload.
@@ -108,8 +111,9 @@ pub enum ArtifactPayloadRef<'a> {
     DirDeclared(&'a DirDeclared),
     /// One declared environment payload.
     EnvironmentDeclared(&'a EnvironmentDeclared),
-    /// Checked DIR module.
+    /// Elaborated DIR module.
     DirElaborated(&'a DirElaborated),
+    /// Checked DIR module.
     DirChecked(&'a DirChecked),
     /// Materialized DIR.
     DirMaterialized(&'a DirMaterialized),
@@ -161,15 +165,18 @@ pub trait Artifact: Sized {
 
 impl ArtifactPayload {
     /// Decode one payload from its artifact storage representation.
-    pub(crate) fn decode(key: &ArtifactKey, bytes: &[u8]) -> Result<Self, ArtifactError> {
+    pub(crate) fn decode(
+        key: &ArtifactKey,
+        memory: Arc<BlobMemory>,
+    ) -> Result<Self, ArtifactError> {
         if matches!(key, ArtifactKey::Program { .. }) {
-            let storage = SectionStorage::from_bytes(bytes);
+            let storage = SectionStorage::from_memory(memory);
             let program = Program::load(storage)?;
 
             return Ok(Self::Program(Arc::new(program)));
         }
 
-        destack_serde::from_slice(bytes).map_err(|error| ArtifactError::Codec(Box::new(error)))
+        serde::from_slice(memory.bytes()).map_err(|error| ArtifactError::Codec(Box::new(error)))
     }
 
     /// Return whether this payload belongs to one artifact key.
@@ -347,23 +354,29 @@ impl ArtifactPayload {
         }
     }
 
-    /// Return all content ids referenced by this payload.
-    pub fn content_ids(&self) -> Vec<ContentId> {
-        match self {
-            Self::Asset(payload) => payload.content_ids(),
-            Self::Build(payload) => payload.content_ids(),
-            Self::Bundle(payload) => payload.content_ids(),
-            _ => Vec::new(),
-        }
+    /// Return every Blob referenced by this payload.
+    pub fn blobs(&self) -> Vec<Blob> {
+        self.as_ref().blobs()
     }
 }
 
-impl ArtifactPayloadRef<'_> {
-    /// Encode this payload for artifact storage.
-    pub(crate) fn encode(self) -> Result<Vec<u8>, ArtifactError> {
+impl<'a> ArtifactPayloadRef<'a> {
+    /// Return every Blob referenced by this payload.
+    pub fn blobs(self) -> Vec<Blob> {
         match self {
-            Self::Program(program) => Ok(program.bytes().to_vec()),
-            payload => destack_serde::to_vec(&payload)
+            Self::Asset(payload) => payload.blobs(),
+            Self::Build(payload) => payload.blobs(),
+            Self::Bundle(payload) => payload.blobs(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Encode this payload for artifact storage.
+    pub fn encode(self) -> Result<Cow<'a, [u8]>, ArtifactError> {
+        match self {
+            Self::Program(program) => Ok(Cow::Borrowed(program.bytes())),
+            payload => serde::to_vec(&payload)
+                .map(Cow::Owned)
                 .map_err(|error| ArtifactError::Codec(Box::new(error))),
         }
     }

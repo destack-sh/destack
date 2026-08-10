@@ -1,5 +1,6 @@
+use destack_core::Blob;
 use destack_serde::Reflect;
-use destack_source::{ContentId, FileType, Uri};
+use destack_source::{FileType, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::SourceMap;
@@ -9,8 +10,8 @@ use crate::SourceMap;
 pub struct Asset {
     /// The asset file type.
     pub file_type: FileType,
-    /// The asset content identity.
-    pub content: ContentId,
+    /// The exact asset bytes.
+    pub blob: Blob,
     /// The source module URI when one exists.
     pub source: Option<Uri>,
     /// The source map when one exists.
@@ -21,20 +22,20 @@ impl Asset {
     /// Create one asset.
     pub fn new(
         file_type: FileType,
-        content: ContentId,
+        blob: Blob,
         source: Option<Uri>,
         map: Option<SourceMap>,
     ) -> Self {
         Self {
             file_type,
-            content,
+            blob,
             source,
             map,
         }
     }
 
-    /// Return all content ids referenced by this asset.
-    pub fn content_ids(&self) -> Vec<ContentId> {
-        vec![self.content]
+    /// Return every Blob referenced by this asset.
+    pub fn blobs(&self) -> Vec<Blob> {
+        vec![self.blob]
     }
 }
