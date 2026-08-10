@@ -164,14 +164,17 @@ impl TestSource {
 pub(crate) fn test_file(name: &str, text: impl Into<String>) -> Arc<File> {
     let uri_name = name.trim_matches(['<', '>']);
 
-    Arc::new(File::from_text(
-        FileId::from_logical_str(name),
-        name.to_string(),
-        Uri::from_string(format!("destack:{uri_name}")),
-        None,
-        FileType::Destack,
-        text.into(),
-    ))
+    Arc::new(
+        File::from_text(
+            FileId::from_logical_str(name),
+            name.to_string(),
+            Uri::from_string(format!("destack:{uri_name}")),
+            None,
+            FileType::Destack,
+            text.into(),
+        )
+        .expect("test source should load"),
+    )
 }
 
 /// Render complete source diagnostics for authored test files.

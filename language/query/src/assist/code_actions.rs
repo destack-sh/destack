@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use destack_artifact::ArtifactKey;
+use destack_core::Blob;
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{
@@ -479,7 +480,7 @@ fn applicability_key(applicability: Option<Applicability>) -> u8 {
 /// Return the stable order key for one diagnostic occurrence.
 fn diagnostic_key(
     diagnostic: &DiagnosticReference,
-) -> (&str, u128, bool, u64, u32, u32, Option<&str>) {
+) -> (&str, Blob, bool, u64, u32, u32, Option<&str>) {
     let (is_file, file, start, end) = match diagnostic.primary.target {
         DiagnosticTarget::Span(span) => (false, span.file.0, span.start, span.end),
         DiagnosticTarget::File(file) => (true, file.0, 0, 0),
@@ -487,7 +488,7 @@ fn diagnostic_key(
 
     (
         &diagnostic.id,
-        diagnostic.primary.content.0,
+        diagnostic.primary.blob,
         is_file,
         file,
         start,

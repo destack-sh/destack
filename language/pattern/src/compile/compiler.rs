@@ -308,7 +308,7 @@ impl Compiler {
                     message: message.clone(),
                 };
                 let primary = DiagnosticLabel::message(
-                    file.content_id(),
+                    file.blob(),
                     DiagnosticTarget::File(file.id),
                     error.to_string(),
                 );
@@ -492,7 +492,7 @@ impl DiagnosticContext for Compiler {
             })?;
 
         Ok(DiagnosticLabel {
-            content: file.content_id(),
+            blob: file.blob(),
             target,
             message,
         })

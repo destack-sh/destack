@@ -123,7 +123,7 @@ impl RewriteError {
             anchor: file.id.into(),
             message: message.clone(),
         };
-        let primary = DiagnosticLabel::new(file.content_id(), DiagnosticTarget::File(file.id));
+        let primary = DiagnosticLabel::new(file.blob(), DiagnosticTarget::File(file.id));
         let diagnostic =
             Diagnostic::error(error.id(), format!("internal error: {message}"), primary);
 
@@ -139,14 +139,14 @@ impl RewriteError {
         let error = Self::Overlapping {
             anchor: overlapping.into(),
         };
-        let content = file.content_id();
+        let blob = file.blob();
         let primary = DiagnosticLabel::message(
-            content,
+            blob,
             DiagnosticTarget::Span(overlapping),
             "this rewrite overlaps another selected rewrite",
         );
         let selected = DiagnosticLabel::message(
-            content,
+            blob,
             DiagnosticTarget::Span(selected),
             "the other rewrite was selected here",
         );

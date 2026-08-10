@@ -2,11 +2,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 
-use destack_artifact::{ArtifactKey, ArtifactVersion, BuildId, MemoryBlobStore};
+use destack_artifact::{ArtifactKey, ArtifactVersion, BuildId};
 use destack_repository as repository;
 use destack_repository::{
-    DestackLayoutOverride, Environment, Execution, Host, Ref, Repository, Revision, Settings,
-    Trace, TraceSnapshot, TraceView, open_repository,
+    DestackLayoutOverride, Environment, Execution, Host, MemoryBlobStore, Ref, Repository,
+    Revision, Settings, Trace, TraceSnapshot, TraceView, open_repository,
 };
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 use futures::executor::block_on;
@@ -82,13 +82,9 @@ impl TestSession {
                 .expect("test file should write");
         }
 
-        let host = Host::new(
-            BuildId::test(),
-            Environment::default(),
-            fs.clone(),
-            Arc::new(MemoryBlobStore::new()),
-        )
-        .with_execution(execution);
+        let host = Host::new(BuildId::test(), Environment::default(), fs.clone())
+            .with_blob_store(Arc::new(MemoryBlobStore::new()))
+            .with_execution(execution);
         let repository = open_repository(
             root.clone(),
             host,
@@ -109,7 +105,11 @@ impl TestSession {
     /// Replace one source file in the repository backing this session.
     pub(crate) fn edit_text(&self, path: &str, text: &str) {
         let before = self.revision();
-        let edit = repository::Edit::set_text(path, text);
+        let blob = self
+            .repository
+            .put_blob(text.as_bytes())
+            .expect("test source Blob should store");
+        let edit = repository::Edit::set_file(path, blob);
         let after = self
             .repository
             .edit(before, vec![edit])

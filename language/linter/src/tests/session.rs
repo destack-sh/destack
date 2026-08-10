@@ -3,19 +3,18 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use destack_artifact::{
     ArtifactKey, BuildId, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
-    MemoryBlobStore, MirLowered, NullArtifactStore, ToDiagnostic,
+    MirLowered, NullArtifactStore, ToDiagnostic,
 };
 use destack_mir as mir;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
-    Revision, Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore, Ref,
+    Repository, Revision, Settings,
 };
 use destack_session::{Executor, Session};
 use destack_source::{
-    Applicability, Content, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity,
-    DiagnosticTarget, DiffOptions, File, FileId, FilePatch, FileType, MemoryFileSystem, ModuleId,
-    PackageId, PrintOptions, ProfileId, TargetId, Uri, apply_file_patch, format_diff,
-    print_diagnostics,
+    Applicability, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiagnosticTarget,
+    DiffOptions, File, FileId, FilePatch, FileType, MemoryFileSystem, ModuleId, PackageId,
+    PrintOptions, ProfileId, TargetId, Uri, apply_file_patch, format_diff, print_diagnostics,
 };
 use futures::executor::block_on;
 use serde_json::{Map, Value, json};
@@ -117,19 +116,15 @@ impl TestSession {
     ) -> Self {
         let (repository, base) = shared_repository();
         let configuration = lint_configuration(lint);
+        let configuration = repository
+            .put_blob(configuration.as_bytes())
+            .expect("lint configuration Blob should store");
+        let source = repository
+            .put_blob(trim_source_frame(source).as_bytes())
+            .expect("lint source Blob should store");
         let edits = [
-            Edit::AddFile {
-                logical_path: "destack.json".to_string(),
-                content: Content::Text {
-                    content: configuration,
-                },
-            },
-            Edit::AddFile {
-                logical_path: SOURCE_PATH.to_string(),
-                content: Content::Text {
-                    content: trim_source_frame(source).to_string(),
-                },
-            },
+            Edit::add_file("destack.json", configuration),
+            Edit::add_file(SOURCE_PATH, source),
         ];
         let revision = repository
             .edit(*base, edits)
@@ -184,14 +179,17 @@ impl TestSession {
 
     /// Run one isolated MIR module lint fixture.
     pub(crate) fn mir(lint: &'static Lint, source: &str) -> Self {
-        let file = Arc::new(File::from_text(
-            FileId::new(0),
-            "main.mir".to_string(),
-            Uri::from_string("main.mir"),
-            None,
-            FileType::Text,
-            trim_source_frame(source).to_string(),
-        ));
+        let file = Arc::new(
+            File::from_text(
+                FileId::new(0),
+                "main.mir".to_string(),
+                Uri::from_string("main.mir"),
+                None,
+                FileType::Text,
+                trim_source_frame(source).to_string(),
+            )
+            .expect("lint MIR should load"),
+        );
         let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
             .expect("lint MIR should be text");
         if parsed
@@ -356,7 +354,7 @@ impl DiagnosticContext for MirDiagnosticContext {
         };
 
         Ok(DiagnosticLabel {
-            content: self.file.content_id(),
+            blob: self.file.blob(),
             target: DiagnosticTarget::Span(*span),
             message,
         })
@@ -449,8 +447,8 @@ pub(super) fn shared_repository() -> &'static (Arc<Repository>, Revision) {
             BuildId::test(),
             environment,
             Arc::new(MemoryFileSystem::new()),
-            Arc::new(MemoryBlobStore::new()),
         )
+        .with_blob_store(Arc::new(MemoryBlobStore::new()))
         .with_execution(Execution::Cooperative);
         let repository = Repository::new(root, host, settings, layout)
             .with_artifact_store(Arc::new(NullArtifactStore::new()));

@@ -356,7 +356,7 @@ impl Indexer {
             let version = match dependency {
                 ArtifactDependency::Artifact(version) => version,
                 ArtifactDependency::Source(source)
-                    if source.key == SourceDependencyKey::Modules =>
+                    if source.key() == SourceDependencyKey::Modules =>
                 {
                     continue;
                 }

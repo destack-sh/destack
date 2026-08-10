@@ -4,12 +4,11 @@ use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext,
     DiagnosticDisplay, DiagnosticError, DiagnosticLike, DiagnosticRecord,
 };
+use destack_core::Blob;
 use destack_repository::{
     ArtifactAttemptRecorder, ArtifactBase, ProviderContext, Repository, Revision,
 };
-use destack_source::{
-    ContentId, DiagnosticLabel, DiagnosticTarget, FileId, ModuleId, PackageId, Span,
-};
+use destack_source::{DiagnosticLabel, DiagnosticTarget, FileId, ModuleId, PackageId, Span};
 use parking_lot::Mutex;
 
 /// One artifact provider attempt owned by an executor worker.
@@ -119,10 +118,10 @@ impl ProviderAttempt {
         message: Option<String>,
     ) -> Result<DiagnosticLabel, DiagnosticError> {
         let target = self.anchor_target(anchor)?;
-        let content = self.file_content_id(target.file())?;
+        let blob = self.file_blob(target.file())?;
 
         Ok(DiagnosticLabel {
-            content,
+            blob,
             target,
             message,
         })
@@ -175,23 +174,21 @@ impl ProviderAttempt {
         Ok(Span::empty(configuration.file_id))
     }
 
-    /// Return one file content id in this revision.
-    fn file_content_id(&self, file: FileId) -> Result<ContentId, DiagnosticError> {
-        let content = self
+    /// Return one File's Blob in this revision.
+    fn file_blob(&self, file: FileId) -> Result<Blob, DiagnosticError> {
+        let blob = self
             .repository
-            .file_content_id(self.revision, file)
+            .file_blob(self.revision, file)
             .map_err(|error| {
-                Self::invalid_anchor(format!(
-                    "failed to read diagnostic file content id: {error}"
-                ))
+                Self::invalid_anchor(format!("failed to read diagnostic File Blob: {error}"))
             })?;
-        let Some(content) = content else {
+        let Some(blob) = blob else {
             return Err(Self::invalid_anchor(format!(
                 "diagnostic file is not tracked in revision: {file:?}"
             )));
         };
 
-        Ok(content)
+        Ok(blob)
     }
 
     /// Return one module file id.

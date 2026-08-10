@@ -138,18 +138,18 @@ impl Linter {
             return Ok(());
         };
 
-        // observe configuration contents
+        // observe exact configuration Blobs
         for file in &config.file_ids {
-            let content = self
+            let blob = self
                 .repository
-                .file_content_id(revision, *file)
+                .file_blob(revision, *file)
                 .map_err(|error| ProviderError::internal(error.to_string()))?
                 .ok_or_else(|| {
                     ProviderError::internal(format!(
-                        "missing linter configuration content for file {file:?}"
+                        "missing linter configuration Blob for File {file:?}"
                     ))
                 })?;
-            dependencies.observe_file(*file, content);
+            dependencies.observe_file(*file, blob.id);
         }
 
         Ok(())

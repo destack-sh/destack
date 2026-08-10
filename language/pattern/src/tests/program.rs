@@ -3,12 +3,12 @@ use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
     ArtifactKey, BuildId, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded,
-    DirExported, DirParsed, DirResolved, MemoryBlobStore,
+    DirExported, DirParsed, DirResolved,
 };
 use destack_core::StringPool;
 use destack_repository::{
-    ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref,
-    Repository, Revision, Settings,
+    ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host,
+    MemoryBlobStore, Ref, Repository, Revision, Settings,
 };
 use destack_session::{ArtifactPriority, Executor, Session};
 use destack_source::{File, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
@@ -127,12 +127,8 @@ impl TestProgram {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(
-            BuildId::test(),
-            environment,
-            files,
-            Arc::new(MemoryBlobStore::new()),
-        );
+        let host = Host::new(BuildId::test(), environment, files)
+            .with_blob_store(Arc::new(MemoryBlobStore::new()));
         let repository = Arc::new(Repository::new(
             root.clone(),
             host,
@@ -149,15 +145,25 @@ impl TestProgram {
             .repository
             .current(&head)
             .expect("read checked test revision");
+        let manifest = self
+            .repository
+            .put_blob(TEST_MANIFEST.as_bytes())
+            .expect("test manifest Blob should store");
+        let source = self
+            .repository
+            .put_blob(source.as_bytes())
+            .expect("test source Blob should store");
         let mut edits = vec![
-            Edit::set_text("destack.json", TEST_MANIFEST),
-            Edit::set_text("main.ds", source),
+            Edit::set_file("destack.json", manifest),
+            Edit::set_file("main.ds", source),
         ];
-        edits.extend(
-            dependencies
-                .iter()
-                .map(|(path, source)| Edit::set_text(path, source)),
-        );
+        for (path, source) in dependencies {
+            let blob = self
+                .repository
+                .put_blob(source.as_bytes())
+                .expect("test dependency Blob should store");
+            edits.push(Edit::set_file(path, blob));
+        }
         let revision = self
             .repository
             .edit(revision, edits)

@@ -3,8 +3,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-#[cfg(test)]
-use destack_artifact::MemoryBlobStore;
 use destack_lsp_server::{Client, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
@@ -193,8 +191,6 @@ impl Project {
             DestackLayoutOverride::default(),
         )
         .map_err(internal_error)?;
-        #[cfg(test)]
-        let repository = repository.with_blob_store(Arc::new(MemoryBlobStore::new()));
         let workspace = Workspace::new(Arc::new(repository), Some(file_system), executor)
             .map_err(internal_error)?;
 

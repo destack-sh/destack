@@ -276,7 +276,7 @@ impl DocumentSet {
 impl Document {
     /// Return whether one diagnostic label addresses this exact document.
     fn contains_label(&self, label: &DiagnosticLabel) -> bool {
-        label.target.file() == self.id() && label.content == self.file().content_id()
+        label.target.file() == self.id() && label.blob == self.file().blob()
     }
 
     /// Build the LSP range for one diagnostic label.

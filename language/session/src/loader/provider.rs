@@ -42,12 +42,12 @@ impl SessionState {
         file_id: FileId,
         dependencies: &mut ArtifactDependencySet,
     ) -> Result<(), SessionError> {
-        let content_id = self
+        let blob = self
             .repository()
-            .file_content_id(revision, file_id)?
+            .file_blob(revision, file_id)?
             .ok_or(SessionError::FileNotTracked { file_id })?;
 
-        dependencies.observe_file(file_id, content_id);
+        dependencies.observe_file(file_id, blob.id);
 
         Ok(())
     }
