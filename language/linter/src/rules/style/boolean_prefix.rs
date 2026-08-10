@@ -76,9 +76,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 continue;
             };
 
-            module.types.get_reduced_type_id(constraint)
+            constraint
         } else {
-            let Some(type_id) = module.types.get_reduced_symbol_type_id(symbol_id) else {
+            let Some(type_id) = module.types.get_symbol_type_id(symbol_id) else {
                 return Err(ProviderError::internal(format!(
                     "checked value symbol `{name}` ({symbol_id:?}) has no reduced type"
                 )));

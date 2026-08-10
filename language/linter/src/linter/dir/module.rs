@@ -148,7 +148,7 @@ impl<'a> DirModule<'a> {
         node: dir::LocalNodeIdAny,
     ) -> Result<dir::GlobalTypeId, ProviderError> {
         let node = node.into_global(self.id);
-        self.types.get_reduced_node_type_id(node).ok_or_else(|| {
+        self.types.get_node_type_id(node).ok_or_else(|| {
             ProviderError::internal(format!("checked DIR node {node:?} has no reduced type"))
         })
     }
