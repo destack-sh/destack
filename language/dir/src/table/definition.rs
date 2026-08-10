@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::{
-    EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny, GlobalStaticId,
-    GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind, MemberSlot,
-    MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey,
+    AutoInterface, EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny,
+    GlobalStaticId, GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind,
+    MemberSlot, MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -436,6 +436,8 @@ pub struct StructDefinition {
     pub representation: Representation,
     /// The implemented interfaces.
     pub implements: Vec<NominalConformance>,
+    /// The written derive list replacing the auto set, if any.
+    pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
@@ -457,6 +459,8 @@ pub struct ClassDefinition {
     pub extends: Option<NominalHeritage>,
     /// The implemented interfaces.
     pub implements: Vec<NominalConformance>,
+    /// The written derive list replacing the auto set, if any.
+    pub derives: Option<Vec<AutoInterface>>,
     /// The class's direct construct candidates.
     pub constructors: Vec<ClassConstructorDefinition>,
     /// The members in declaration order.
@@ -594,6 +598,8 @@ pub struct EnumDefinition {
     pub backing: EnumBackingType,
     /// The implemented interfaces.
     pub implements: Vec<NominalConformance>,
+    /// The written derive list replacing the auto set, if any.
+    pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
@@ -617,6 +623,8 @@ pub struct NewtypeDefinition {
     pub constructors: Vec<NewtypeConstructor>,
     /// The property discriminating derived Tagged variants, filled while checking.
     pub discriminator: Option<StaticKey>,
+    /// The written derive list replacing the auto set, if any.
+    pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
@@ -1238,6 +1246,17 @@ impl Definition {
     }
 
     /// Return the interfaces implemented by this definition.
+    pub fn derives(&self) -> Option<&[AutoInterface]> {
+        match self {
+            Self::Struct(definition) => definition.derives.as_deref(),
+            Self::Class(definition) => definition.derives.as_deref(),
+            Self::Enum(definition) => definition.derives.as_deref(),
+            Self::Newtype(definition) => definition.derives.as_deref(),
+            Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_) => None,
+        }
+    }
+
+    /// Return the implemented interfaces.
     pub fn implementations(&self) -> &[NominalConformance] {
         match self {
             Self::Struct(definition) => &definition.implements,

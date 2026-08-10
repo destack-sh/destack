@@ -21,6 +21,8 @@ pub enum AutoInterface {
     Clone,
     /// Debug formatting interface.
     Debug,
+    /// User-facing display formatting interface.
+    Display,
     /// Conventional default-value interface.
     Default,
     /// Structured deserialization interface.
@@ -77,6 +79,7 @@ impl AutoInterface {
             LanguageItem::Debug => Some(Self::Debug),
             LanguageItem::Default => Some(Self::Default),
             LanguageItem::Deserialize => Some(Self::Deserialize),
+            LanguageItem::Display => Some(Self::Display),
             LanguageItem::DynamicSafe => Some(Self::DynamicSafe),
             LanguageItem::Equal => Some(Self::Equal),
             LanguageItem::Float => Some(Self::Float),
@@ -106,6 +109,7 @@ impl AutoInterface {
             Self::Debug => "Debug",
             Self::Default => "Default",
             Self::Deserialize => "Deserialize",
+            Self::Display => "Display",
             Self::DynamicSafe => "DynamicSafe",
             Self::Equal => "Equal",
             Self::Float => "Float",
@@ -143,6 +147,7 @@ impl AutoInterface {
             | Self::Debug
             | Self::Default
             | Self::Deserialize
+            | Self::Display
             | Self::Equal
             | Self::Hash
             | Self::PartialCompare
@@ -159,6 +164,7 @@ impl AutoInterface {
             | Self::Debug
             | Self::Default
             | Self::Deserialize
+            | Self::Display
             | Self::Equal
             | Self::Hash
             | Self::PartialCompare
@@ -186,6 +192,26 @@ impl AutoInterface {
             Self::OverwriteStable | Self::SharedSafe | Self::Unpin | Self::Zeroable
         )
     }
+
+    /// Return whether the compiler derives this interface field-wise without annotation.
+    pub fn is_auto_derivable(self) -> bool {
+        matches!(
+            self,
+            Self::Copy
+                | Self::Clone
+                | Self::Debug
+                | Self::Display
+                | Self::Equal
+                | Self::PartialEqual
+                | Self::Hash
+                | Self::SharedSafe
+        )
+    }
+
+    /// Return whether the compiler decides this interface without declarations.
+    pub fn is_compiler_decided(self) -> bool {
+        self.is_marker() || self.is_auto_derivable()
+    }
 }
 
 impl From<AutoInterface> for LanguageItem {
@@ -199,6 +225,7 @@ impl From<AutoInterface> for LanguageItem {
             AutoInterface::Debug => Self::Debug,
             AutoInterface::Default => Self::Default,
             AutoInterface::Deserialize => Self::Deserialize,
+            AutoInterface::Display => Self::Display,
             AutoInterface::DynamicSafe => Self::DynamicSafe,
             AutoInterface::Equal => Self::Equal,
             AutoInterface::Float => Self::Float,
