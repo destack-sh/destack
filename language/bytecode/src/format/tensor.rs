@@ -109,7 +109,8 @@ impl InstructionFormatter<'_, '_, '_> {
     fn tensor_operator(&self, operation: TensorOperation, code: u16) -> FormatResult<String> {
         let name = match operation {
             TensorOperation::Element | TensorOperation::Compare => {
-                let operation = ElementOperation::from_code(code);
+                let operation =
+                    ElementOperation::from_code(code).filter(|element| operation.accepts(*element));
                 if let Some(operation) = operation.and_then(ElementOperation::integer_operation) {
                     Some(format!("int.{}", operation.name()))
                 } else {

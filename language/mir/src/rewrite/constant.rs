@@ -484,7 +484,9 @@ pub fn fold_intrinsic(
         mir::Intrinsic::Floor => fold_float_unary(first, |value| value.floor()),
         mir::Intrinsic::Ceil => fold_float_unary(first, |value| value.ceil()),
         mir::Intrinsic::Trunc => fold_float_unary(first, |value| value.trunc()),
-        mir::Intrinsic::Round => fold_float_unary(first, |value| value.round()),
+        mir::Intrinsic::Round => fold_float_unary(first, round_ties_positive_infinity),
+        mir::Intrinsic::RoundTiesEven => fold_float_unary(first, |value| value.round_ties_even()),
+        mir::Intrinsic::RoundTiesAway => fold_float_unary(first, |value| value.round()),
         _ => None,
     };
     if folded_float_unary.is_some() {
@@ -501,6 +503,15 @@ pub fn fold_intrinsic(
         mir::Intrinsic::Fma => fold_float_ternary(arguments, |a, b, c| a.mul_add(b, c)),
         _ => None,
     }
+}
+
+/// Round one binary64 value to the nearest integer with ties toward positive infinity.
+fn round_ties_positive_infinity(value: f64) -> f64 {
+    let lower = value.floor();
+    let distance = value - lower;
+    let rounded = if distance < 0.5 { lower } else { lower + 1.0 };
+
+    rounded.copysign(value)
 }
 
 /// Fold an integer unary intrinsic when possible.

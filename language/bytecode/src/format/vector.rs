@@ -225,11 +225,23 @@ impl InstructionFormatter<'_, '_, '_> {
     ) -> FormatResult<String> {
         let name = if vector.scalar.is_float() {
             FloatOperation::from_code(code as u8)
-                .filter(|operation| !is_comparison || operation.is_comparison())
+                .filter(|operation| {
+                    if is_comparison {
+                        operation.returns_boolean() && operation.input_count() == 2
+                    } else {
+                        !operation.returns_boolean()
+                    }
+                })
                 .map(FloatOperation::name)
         } else {
             IntegerOperation::from_code(code as u8)
-                .filter(|operation| !is_comparison || operation.is_comparison())
+                .filter(|operation| {
+                    if is_comparison {
+                        operation.returns_boolean() && operation.input_count() == 2
+                    } else {
+                        !operation.returns_boolean() && !operation.is_overflowing()
+                    }
+                })
                 .map(IntegerOperation::name)
         };
 

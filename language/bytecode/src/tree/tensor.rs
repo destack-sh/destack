@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{FloatOperation, IntegerOperation, LayoutId, RegisterSpan};
+use crate::{FloatOperation, IntegerOperation, LayoutId, RegisterSpan, Scalar};
 
 const ELEMENT_OPERATOR_FLOAT: u16 = 1 << 8;
 
@@ -84,6 +84,39 @@ impl ElementOperation {
             None
         }
     }
+
+    /// Return the number of scalar inputs consumed by this operation.
+    pub const fn input_count(self) -> Option<usize> {
+        if let Some(operation) = self.integer_operation() {
+            Some(operation.input_count())
+        } else if let Some(operation) = self.float_operation() {
+            Some(operation.input_count())
+        } else {
+            None
+        }
+    }
+
+    /// Return whether this operation produces boolean elements.
+    pub const fn returns_boolean(self) -> Option<bool> {
+        if let Some(operation) = self.integer_operation() {
+            Some(operation.returns_boolean())
+        } else if let Some(operation) = self.float_operation() {
+            Some(operation.returns_boolean())
+        } else {
+            None
+        }
+    }
+
+    /// Return the scalar representation produced for one input representation.
+    pub const fn result_scalar(self, input: Scalar) -> Option<Scalar> {
+        if let Some(operation) = self.integer_operation() {
+            operation.result_scalar(input)
+        } else if let Some(operation) = self.float_operation() {
+            operation.result_scalar(input)
+        } else {
+            None
+        }
+    }
 }
 
 /// One tensor operation.
@@ -141,6 +174,20 @@ pub enum TensorOperation {
 }
 
 impl TensorOperation {
+    /// Return whether this tensor operation accepts one element operation.
+    pub const fn accepts(self, element: ElementOperation) -> bool {
+        let is_overflowing = match element.integer_operation() {
+            Some(operation) => operation.is_overflowing(),
+            None => false,
+        };
+
+        match (self, element.returns_boolean(), element.input_count()) {
+            (Self::Element, Some(false), Some(_)) => !is_overflowing,
+            (Self::Compare, Some(true), Some(2)) => true,
+            _ => false,
+        }
+    }
+
     /// Return the tensor operation with one canonical name.
     pub fn from_name(name: &str) -> Option<Self> {
         match name {

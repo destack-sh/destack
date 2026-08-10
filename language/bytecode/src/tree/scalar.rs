@@ -134,6 +134,17 @@ impl Scalar {
         )
     }
 
+    /// Return the unsigned integer representation with the same width.
+    pub const fn unsigned(self) -> Option<Self> {
+        match self {
+            Self::Int8 | Self::Uint8 => Some(Self::Uint8),
+            Self::Int16 | Self::Uint16 => Some(Self::Uint16),
+            Self::Int32 | Self::Uint32 => Some(Self::Uint32),
+            Self::Int64 | Self::Uint64 => Some(Self::Uint64),
+            _ => None,
+        }
+    }
+
     /// Return the dense floating-point representation index.
     pub const fn float_index(self) -> Option<u16> {
         match self.code() {
@@ -354,6 +365,20 @@ pub enum IntegerOperation {
     AddSaturating = 28,
     /// Subtract with saturation.
     SubtractSaturating = 29,
+    /// Compute the midpoint without intermediate overflow.
+    Midpoint = 30,
+    /// Clamp one value between ordered bounds.
+    Clamp = 31,
+    /// Divide and round the quotient toward positive infinity.
+    DivideCeil = 32,
+    /// Compute the least nonnegative remainder.
+    RemainderEuclidean = 33,
+    /// Test whether one integer is a multiple of another.
+    IsMultipleOf = 34,
+    /// Isolate the least-significant one bit.
+    IsolateLowestOne = 35,
+    /// Compute the absolute difference.
+    AbsDiff = 36,
 }
 
 impl IntegerOperation {
@@ -390,6 +415,13 @@ impl IntegerOperation {
             "mul.overflowing" => Some(Self::MultiplyOverflow),
             "add.saturating" => Some(Self::AddSaturating),
             "sub.saturating" => Some(Self::SubtractSaturating),
+            "midpoint" => Some(Self::Midpoint),
+            "clamp" => Some(Self::Clamp),
+            "divideCeil" => Some(Self::DivideCeil),
+            "remainderEuclidean" => Some(Self::RemainderEuclidean),
+            "isMultipleOf" => Some(Self::IsMultipleOf),
+            "isolateLowestOne" => Some(Self::IsolateLowestOne),
+            "absDiff" => Some(Self::AbsDiff),
             _ => None,
         }
     }
@@ -427,12 +459,19 @@ impl IntegerOperation {
             Self::MultiplyOverflow => "mul.overflowing",
             Self::AddSaturating => "add.saturating",
             Self::SubtractSaturating => "sub.saturating",
+            Self::Midpoint => "midpoint",
+            Self::Clamp => "clamp",
+            Self::DivideCeil => "divideCeil",
+            Self::RemainderEuclidean => "remainderEuclidean",
+            Self::IsMultipleOf => "isMultipleOf",
+            Self::IsolateLowestOne => "isolateLowestOne",
+            Self::AbsDiff => "absDiff",
         }
     }
 
     /// Decode one stable integer operation code.
     pub const fn from_code(code: u8) -> Option<Self> {
-        if code <= Self::SubtractSaturating as u8 {
+        if code <= Self::AbsDiff as u8 {
             // SAFETY: every code through the final variant is assigned contiguously.
             Some(unsafe { std::mem::transmute::<u8, Self>(code) })
         } else {
@@ -440,8 +479,8 @@ impl IntegerOperation {
         }
     }
 
-    /// Return whether this operation compares two values.
-    pub const fn is_comparison(self) -> bool {
+    /// Return whether this operation produces a boolean.
+    pub const fn returns_boolean(self) -> bool {
         matches!(
             self,
             Self::Equal
@@ -450,7 +489,23 @@ impl IntegerOperation {
                 | Self::LessEqual
                 | Self::GreaterThan
                 | Self::GreaterEqual
+                | Self::IsMultipleOf
         )
+    }
+
+    /// Return the scalar representation produced for one input representation.
+    pub const fn result_scalar(self, input: Scalar) -> Option<Scalar> {
+        if !input.is_integer() {
+            None
+        } else if self.returns_boolean() {
+            Some(Scalar::Boolean)
+        } else if self.is_count() {
+            Some(Scalar::Uint32)
+        } else if matches!(self, Self::AbsDiff) {
+            input.unsigned()
+        } else {
+            Some(input)
+        }
     }
 
     /// Return whether this operation returns an overflow flag.
@@ -488,8 +543,11 @@ impl IntegerOperation {
                 | Self::PopulationCount
                 | Self::ByteSwap
                 | Self::BitReverse
+                | Self::IsolateLowestOne
         ) {
             1
+        } else if matches!(self, Self::Clamp) {
+            3
         } else {
             2
         }
@@ -570,6 +628,18 @@ pub enum FloatOperation {
     Truncate = 33,
     /// Round to the nearest integral value, breaking ties toward even.
     RoundTiesEven = 34,
+    /// Compute the midpoint without avoidable overflow or underflow.
+    Midpoint = 35,
+    /// Clamp one value between ordered bounds.
+    Clamp = 36,
+    /// Test whether one value is finite.
+    IsFinite = 37,
+    /// Test whether one value is infinite.
+    IsInfinite = 38,
+    /// Round to the nearest integral value, breaking ties toward positive infinity.
+    Round = 39,
+    /// Round to the nearest integral value, breaking ties away from zero.
+    RoundTiesAway = 40,
 }
 
 impl FloatOperation {
@@ -611,6 +681,12 @@ impl FloatOperation {
             "ceil" => Some(Self::Ceil),
             "truncate" => Some(Self::Truncate),
             "roundTiesEven" => Some(Self::RoundTiesEven),
+            "midpoint" => Some(Self::Midpoint),
+            "clamp" => Some(Self::Clamp),
+            "isFinite" => Some(Self::IsFinite),
+            "isInfinite" => Some(Self::IsInfinite),
+            "round" => Some(Self::Round),
+            "roundTiesAway" => Some(Self::RoundTiesAway),
             _ => None,
         }
     }
@@ -653,12 +729,18 @@ impl FloatOperation {
             Self::Ceil => "ceil",
             Self::Truncate => "truncate",
             Self::RoundTiesEven => "roundTiesEven",
+            Self::Midpoint => "midpoint",
+            Self::Clamp => "clamp",
+            Self::IsFinite => "isFinite",
+            Self::IsInfinite => "isInfinite",
+            Self::Round => "round",
+            Self::RoundTiesAway => "roundTiesAway",
         }
     }
 
     /// Decode one stable floating-point operation code.
     pub const fn from_code(code: u8) -> Option<Self> {
-        if code <= Self::RoundTiesEven as u8 {
+        if code <= Self::RoundTiesAway as u8 {
             // SAFETY: every code through the final variant is assigned contiguously.
             Some(unsafe { std::mem::transmute::<u8, Self>(code) })
         } else {
@@ -666,8 +748,8 @@ impl FloatOperation {
         }
     }
 
-    /// Return whether this operation compares two values.
-    pub const fn is_comparison(self) -> bool {
+    /// Return whether this operation produces a boolean.
+    pub const fn returns_boolean(self) -> bool {
         matches!(
             self,
             Self::Equal
@@ -676,7 +758,20 @@ impl FloatOperation {
                 | Self::LessEqual
                 | Self::GreaterThan
                 | Self::GreaterEqual
+                | Self::IsFinite
+                | Self::IsInfinite
         )
+    }
+
+    /// Return the scalar representation produced for one input representation.
+    pub const fn result_scalar(self, input: Scalar) -> Option<Scalar> {
+        if !input.is_float() {
+            None
+        } else if self.returns_boolean() {
+            Some(Scalar::Boolean)
+        } else {
+            Some(input)
+        }
     }
 
     /// Return the number of input values consumed by this operation.
@@ -701,9 +796,13 @@ impl FloatOperation {
                 | Self::Ceil
                 | Self::Truncate
                 | Self::RoundTiesEven
+                | Self::Round
+                | Self::RoundTiesAway
+                | Self::IsFinite
+                | Self::IsInfinite
         ) {
             1
-        } else if matches!(self, Self::FusedMultiplyAdd) {
+        } else if matches!(self, Self::FusedMultiplyAdd | Self::Clamp) {
             3
         } else {
             2

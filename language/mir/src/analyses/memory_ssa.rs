@@ -1548,7 +1548,16 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Intrinsic::ByteSwap
             | mir::Intrinsic::BitReverse
             | mir::Intrinsic::RotateLeft
-            | mir::Intrinsic::RotateRight => SmallVec::new(),
+            | mir::Intrinsic::RotateRight
+            | mir::Intrinsic::IsolateLowestOne => SmallVec::new(),
+
+            // numeric operations
+            mir::Intrinsic::Midpoint
+            | mir::Intrinsic::Clamp
+            | mir::Intrinsic::DivideCeil
+            | mir::Intrinsic::RemainderEuclidean
+            | mir::Intrinsic::IsMultipleOf
+            | mir::Intrinsic::AbsDiff => SmallVec::new(),
 
             // overflowing arithmetic
             mir::Intrinsic::AddOverflow
@@ -1796,6 +1805,8 @@ impl<'a> MemoryAccessCollector<'a> {
             // float math
             mir::Intrinsic::Sqrt
             | mir::Intrinsic::Abs
+            | mir::Intrinsic::IsFinite
+            | mir::Intrinsic::IsInfinite
             | mir::Intrinsic::Fma
             | mir::Intrinsic::CopySign
             | mir::Intrinsic::Min
@@ -1816,7 +1827,9 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Intrinsic::Floor
             | mir::Intrinsic::Ceil
             | mir::Intrinsic::Trunc
-            | mir::Intrinsic::Round => SmallVec::new(),
+            | mir::Intrinsic::Round
+            | mir::Intrinsic::RoundTiesEven
+            | mir::Intrinsic::RoundTiesAway => SmallVec::new(),
 
             // compiler hints
             mir::Intrinsic::SpinLoop | mir::Intrinsic::Expect | mir::Intrinsic::BlackBox => {

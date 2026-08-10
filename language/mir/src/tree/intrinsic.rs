@@ -31,6 +31,29 @@ pub enum Intrinsic {
     /// Rotate bits right.
     /// `(T, T) => T`
     RotateRight,
+    /// Isolate the least-significant one bit.
+    /// `(T) => T`
+    IsolateLowestOne,
+
+    // numeric operations
+    /// Compute the midpoint.
+    /// `(T, T) => T`
+    Midpoint,
+    /// Clamp one value between ordered bounds.
+    /// `(T, T, T) => T`
+    Clamp,
+    /// Divide and round the quotient toward positive infinity.
+    /// `(T, T) => T`
+    DivideCeil,
+    /// Compute the least nonnegative remainder.
+    /// `(T, T) => T`
+    RemainderEuclidean,
+    /// Test whether one integer is a multiple of another.
+    /// `(T, T) => bool`
+    IsMultipleOf,
+    /// Compute the absolute difference as the same-width unsigned integer.
+    /// `(T, T) => unsigned T`
+    AbsDiff,
 
     // overflowing arithmetic
     /// Add with overflow detection.
@@ -121,16 +144,22 @@ pub enum Intrinsic {
     /// Absolute value.
     /// `(T) => T`
     Abs,
+    /// Test whether a float is finite.
+    /// `(T) => bool`
+    IsFinite,
+    /// Test whether a float is infinite.
+    /// `(T) => bool`
+    IsInfinite,
     /// Fused multiply-add: (a * b) + c with single rounding.
     /// `(T, T, T) => T`
     Fma,
     /// Copy sign from one float to another.
     /// `(T, T) => T`
     CopySign,
-    /// Minimum of two floats (IEEE 754 minNum).
+    /// Select the minimum float, propagating NaN and preferring negative zero.
     /// `(T, T) => T`
     Min,
-    /// Maximum of two floats (IEEE 754 maxNum).
+    /// Select the maximum float, propagating NaN and preferring positive zero.
     /// `(T, T) => T`
     Max,
     /// Sine.
@@ -181,9 +210,15 @@ pub enum Intrinsic {
     /// Round toward zero (truncate).
     /// `(T) => T`
     Trunc,
-    /// Round to nearest integer, ties to even.
+    /// Round to the nearest integer, breaking ties toward positive infinity.
     /// `(T) => T`
     Round,
+    /// Round to the nearest integer, breaking ties toward even integers.
+    /// `(T) => T`
+    RoundTiesEven,
+    /// Round to the nearest integer, breaking ties away from zero.
+    /// `(T) => T`
+    RoundTiesAway,
 
     // compiler hints
     /// Hint that execution is inside a busy-wait loop.
@@ -209,6 +244,15 @@ impl Intrinsic {
             Intrinsic::BitReverse => "math.bits.bitReverse",
             Intrinsic::RotateLeft => "math.bits.rotateLeft",
             Intrinsic::RotateRight => "math.bits.rotateRight",
+            Intrinsic::IsolateLowestOne => "math.bits.isolateLowestOne",
+
+            // numeric operations
+            Intrinsic::Midpoint => "math.arithmetic.midpoint",
+            Intrinsic::Clamp => "math.arithmetic.clamp",
+            Intrinsic::DivideCeil => "math.arithmetic.divideCeil",
+            Intrinsic::RemainderEuclidean => "math.arithmetic.remainderEuclidean",
+            Intrinsic::IsMultipleOf => "math.arithmetic.isMultipleOf",
+            Intrinsic::AbsDiff => "math.arithmetic.absDiff",
 
             // overflowing arithmetic
             Intrinsic::AddOverflow => "math.arithmetic.overflowing.add",
@@ -247,6 +291,8 @@ impl Intrinsic {
             // float
             Intrinsic::Sqrt => "math.float.sqrt",
             Intrinsic::Abs => "math.float.abs",
+            Intrinsic::IsFinite => "math.float.isFinite",
+            Intrinsic::IsInfinite => "math.float.isInfinite",
             Intrinsic::Fma => "math.float.fma",
             Intrinsic::CopySign => "math.float.copySign",
             Intrinsic::Min => "math.float.min",
@@ -268,6 +314,8 @@ impl Intrinsic {
             Intrinsic::Ceil => "math.float.ceil",
             Intrinsic::Trunc => "math.float.trunc",
             Intrinsic::Round => "math.float.round",
+            Intrinsic::RoundTiesEven => "math.float.roundTiesEven",
+            Intrinsic::RoundTiesAway => "math.float.roundTiesAway",
 
             // compiler hints
             Intrinsic::SpinLoop => "hint.spinLoop",
@@ -287,6 +335,10 @@ impl Intrinsic {
                 | Intrinsic::BitReverse
                 | Intrinsic::RotateLeft
                 | Intrinsic::RotateRight
+                | Intrinsic::IsolateLowestOne
+                | Intrinsic::Midpoint
+                | Intrinsic::IsMultipleOf
+                | Intrinsic::AbsDiff
                 | Intrinsic::AddOverflow
                 | Intrinsic::SubOverflow
                 | Intrinsic::MulOverflow
@@ -305,6 +357,8 @@ impl Intrinsic {
                 | Intrinsic::RawEq
                 | Intrinsic::Sqrt
                 | Intrinsic::Abs
+                | Intrinsic::IsFinite
+                | Intrinsic::IsInfinite
                 | Intrinsic::Fma
                 | Intrinsic::CopySign
                 | Intrinsic::Min
@@ -326,23 +380,10 @@ impl Intrinsic {
                 | Intrinsic::Ceil
                 | Intrinsic::Trunc
                 | Intrinsic::Round
+                | Intrinsic::RoundTiesEven
+                | Intrinsic::RoundTiesAway
                 | Intrinsic::Expect
                 | Intrinsic::BlackBox
-        )
-    }
-
-    /// Whether this intrinsic has memory side effects.
-    pub fn has_memory_effects(self) -> bool {
-        matches!(
-            self,
-            Intrinsic::Memcpy
-                | Intrinsic::Memmove
-                | Intrinsic::Memset
-                | Intrinsic::Memcmp
-                | Intrinsic::PrefetchRead
-                | Intrinsic::PrefetchWrite
-                | Intrinsic::VolatileLoad
-                | Intrinsic::VolatileStore
         )
     }
 }
@@ -365,6 +406,13 @@ impl FromStr for Intrinsic {
             "math.bits.bitReverse" => Ok(Intrinsic::BitReverse),
             "math.bits.rotateLeft" => Ok(Intrinsic::RotateLeft),
             "math.bits.rotateRight" => Ok(Intrinsic::RotateRight),
+            "math.bits.isolateLowestOne" => Ok(Intrinsic::IsolateLowestOne),
+            "math.arithmetic.midpoint" => Ok(Intrinsic::Midpoint),
+            "math.arithmetic.clamp" => Ok(Intrinsic::Clamp),
+            "math.arithmetic.divideCeil" => Ok(Intrinsic::DivideCeil),
+            "math.arithmetic.remainderEuclidean" => Ok(Intrinsic::RemainderEuclidean),
+            "math.arithmetic.isMultipleOf" => Ok(Intrinsic::IsMultipleOf),
+            "math.arithmetic.absDiff" => Ok(Intrinsic::AbsDiff),
             "math.arithmetic.overflowing.add" => Ok(Intrinsic::AddOverflow),
             "math.arithmetic.overflowing.subtract" => Ok(Intrinsic::SubOverflow),
             "math.arithmetic.overflowing.multiply" => Ok(Intrinsic::MulOverflow),
@@ -409,6 +457,8 @@ impl FromStr for Intrinsic {
             "memory.raw.eq" => Ok(Intrinsic::RawEq),
             "math.float.sqrt" => Ok(Intrinsic::Sqrt),
             "math.float.abs" => Ok(Intrinsic::Abs),
+            "math.float.isFinite" => Ok(Intrinsic::IsFinite),
+            "math.float.isInfinite" => Ok(Intrinsic::IsInfinite),
             "math.float.fma" => Ok(Intrinsic::Fma),
             "math.float.copySign" => Ok(Intrinsic::CopySign),
             "math.float.min" => Ok(Intrinsic::Min),
@@ -430,6 +480,8 @@ impl FromStr for Intrinsic {
             "math.float.ceil" => Ok(Intrinsic::Ceil),
             "math.float.trunc" => Ok(Intrinsic::Trunc),
             "math.float.round" => Ok(Intrinsic::Round),
+            "math.float.roundTiesEven" => Ok(Intrinsic::RoundTiesEven),
+            "math.float.roundTiesAway" => Ok(Intrinsic::RoundTiesAway),
             "hint.spinLoop" => Ok(Intrinsic::SpinLoop),
             "expect" => Ok(Intrinsic::Expect),
             "hint.blackBox" => Ok(Intrinsic::BlackBox),
@@ -438,107 +490,26 @@ impl FromStr for Intrinsic {
     }
 }
 
-/// Describes the type signature pattern of an intrinsic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum IntrinsicSignature {
-    /// Nullary operation with no result.
-    Nullary,
-
-    /// Unary operation: (T) => T
-    /// Examples: sqrt, abs, sin, cos, floor, ceil, leadingZeroCount, trailingZeroCount, populationCount
-    Unary,
-
-    /// Binary operation: (T, T) => T
-    /// Examples: min, max, copySign, pow, atan2, rotateLeft, rotateRight
-    Binary,
-
-    /// Ternary operation: (T, T, T) => T
-    /// Examples: fma, select
-    Ternary,
-
-    /// Overflowing arithmetic: (T, T) => (T, bool)
-    /// Examples: overflowingAdd, overflowingSubtract, overflowingMultiply
-    OverflowingBinary,
-
-    /// Transmute or space.cast: (T) => U (reinterpret bits)
-    Transmute,
-
-    /// Comparison: (T, T) => bool
-    /// Examples: rawEq
-    Comparison,
-
-    /// Pointer operation: (ptr, ptr) => isize
-    /// Example: byteOffsetFrom
-    PointerByteOffset,
-
-    /// Memory operations with byte count
-    /// memcpy(dst, src, len), memmove(dst, src, len), memset(dst, val, len)
-    Memory { args: u8 },
-
-    /// Memory comparison: (ptr, ptr, len) => i32
-    MemoryCompare,
-
-    /// Prefetch hint (no result)
-    Prefetch,
-
-    /// Volatile pointer load: (ptr) => pointee
-    VolatileLoad,
-
-    /// Volatile pointer store: (ptr, T) => void
-    VolatileStore,
-
-    /// Branch hint: (bool) => bool or (bool, bool) => bool
-    BranchHint { args: u8 },
-
-    /// Optimization barrier: (T) => T
-    Passthrough,
-}
-
 impl Intrinsic {
-    /// Get the signature pattern for this intrinsic.
-    pub fn signature(self) -> IntrinsicSignature {
+    /// Return the number of value arguments this intrinsic accepts.
+    pub fn expected_arg_count(self) -> u8 {
         match self {
-            // bit manipulation (unary)
+            // nullary operations
+            Intrinsic::SpinLoop => 0,
+
+            // unary operations
             Intrinsic::LeadingZeroCount
             | Intrinsic::TrailingZeroCount
             | Intrinsic::PopulationCount
             | Intrinsic::ByteSwap
-            | Intrinsic::BitReverse => IntrinsicSignature::Unary,
-
-            // bit manipulation (binary)
-            Intrinsic::RotateLeft | Intrinsic::RotateRight => IntrinsicSignature::Binary,
-
-            // overflowing arithmetic
-            Intrinsic::AddOverflow | Intrinsic::SubOverflow | Intrinsic::MulOverflow => {
-                IntrinsicSignature::OverflowingBinary
-            }
-
-            // unchecked arithmetic
-            Intrinsic::AddUnchecked
-            | Intrinsic::SubUnchecked
-            | Intrinsic::MulUnchecked
-            | Intrinsic::DivUnchecked
-            | Intrinsic::RemUnchecked
-            | Intrinsic::ShlUnchecked
-            | Intrinsic::ShrUnchecked => IntrinsicSignature::Binary,
-
-            // saturating arithmetic
-            Intrinsic::SatAdd | Intrinsic::SatSub => IntrinsicSignature::Binary,
-
-            // memory operations
-            Intrinsic::Memcpy | Intrinsic::Memmove => IntrinsicSignature::Memory { args: 3 },
-            Intrinsic::Memset => IntrinsicSignature::Memory { args: 3 },
-            Intrinsic::Memcmp => IntrinsicSignature::MemoryCompare,
-            Intrinsic::PrefetchRead | Intrinsic::PrefetchWrite => IntrinsicSignature::Prefetch,
-
-            // type punning and pointer ops
-            Intrinsic::Transmute | Intrinsic::SpaceCast => IntrinsicSignature::Transmute,
-            Intrinsic::PointerByteOffsetFrom => IntrinsicSignature::PointerByteOffset,
-            Intrinsic::RawEq => IntrinsicSignature::Comparison,
-
-            // float math (unary)
-            Intrinsic::Sqrt
+            | Intrinsic::BitReverse
+            | Intrinsic::IsolateLowestOne
+            | Intrinsic::Transmute
+            | Intrinsic::SpaceCast
+            | Intrinsic::Sqrt
             | Intrinsic::Abs
+            | Intrinsic::IsFinite
+            | Intrinsic::IsInfinite
             | Intrinsic::Sin
             | Intrinsic::Cos
             | Intrinsic::Tan
@@ -553,117 +524,66 @@ impl Intrinsic {
             | Intrinsic::Floor
             | Intrinsic::Ceil
             | Intrinsic::Trunc
-            | Intrinsic::Round => IntrinsicSignature::Unary,
+            | Intrinsic::Round
+            | Intrinsic::RoundTiesEven
+            | Intrinsic::RoundTiesAway
+            | Intrinsic::PrefetchRead
+            | Intrinsic::PrefetchWrite
+            | Intrinsic::VolatileLoad
+            | Intrinsic::BlackBox => 1,
 
-            // float math (binary)
-            Intrinsic::CopySign
+            // binary operations
+            Intrinsic::RotateLeft
+            | Intrinsic::RotateRight
+            | Intrinsic::Midpoint
+            | Intrinsic::DivideCeil
+            | Intrinsic::RemainderEuclidean
+            | Intrinsic::IsMultipleOf
+            | Intrinsic::AbsDiff
+            | Intrinsic::AddOverflow
+            | Intrinsic::SubOverflow
+            | Intrinsic::MulOverflow
+            | Intrinsic::AddUnchecked
+            | Intrinsic::SubUnchecked
+            | Intrinsic::MulUnchecked
+            | Intrinsic::DivUnchecked
+            | Intrinsic::RemUnchecked
+            | Intrinsic::ShlUnchecked
+            | Intrinsic::ShrUnchecked
+            | Intrinsic::SatAdd
+            | Intrinsic::SatSub
+            | Intrinsic::PointerByteOffsetFrom
+            | Intrinsic::RawEq
+            | Intrinsic::CopySign
             | Intrinsic::Min
             | Intrinsic::Max
             | Intrinsic::Atan2
-            | Intrinsic::Pow => IntrinsicSignature::Binary,
+            | Intrinsic::Pow
+            | Intrinsic::VolatileStore
+            | Intrinsic::Expect => 2,
 
-            // float math (ternary)
-            Intrinsic::Fma => IntrinsicSignature::Ternary,
-
-            // volatile pointer access
-            Intrinsic::VolatileLoad => IntrinsicSignature::VolatileLoad,
-            Intrinsic::VolatileStore => IntrinsicSignature::VolatileStore,
-
-            // compiler hints
-            Intrinsic::SpinLoop => IntrinsicSignature::Nullary,
-            Intrinsic::Expect => IntrinsicSignature::BranchHint { args: 2 },
-            Intrinsic::BlackBox => IntrinsicSignature::Passthrough,
-        }
-    }
-
-    /// Whether this intrinsic requires a memory ordering argument.
-    pub fn requires_ordering(self) -> bool {
-        false
-    }
-
-    /// Whether this intrinsic requires memory scopes and flags.
-    pub fn requires_memory_flags(self) -> bool {
-        false
-    }
-
-    /// Get the expected number of value arguments for this intrinsic.
-    pub fn expected_arg_count(self) -> u8 {
-        match self.signature() {
-            IntrinsicSignature::Nullary => 0,
-            IntrinsicSignature::Unary => 1,
-            IntrinsicSignature::Binary => 2,
-            IntrinsicSignature::Ternary => 3,
-            IntrinsicSignature::OverflowingBinary => 2,
-            IntrinsicSignature::Transmute => 1,
-            IntrinsicSignature::Comparison => 2,
-            IntrinsicSignature::PointerByteOffset => 2,
-            IntrinsicSignature::Memory { args } => args,
-            IntrinsicSignature::MemoryCompare => 3,
-            IntrinsicSignature::Prefetch => 1,
-            IntrinsicSignature::VolatileLoad => 1,
-            IntrinsicSignature::VolatileStore => 2,
-            IntrinsicSignature::BranchHint { args } => args,
-            IntrinsicSignature::Passthrough => 1,
+            // ternary operations
+            Intrinsic::Clamp
+            | Intrinsic::Memcpy
+            | Intrinsic::Memmove
+            | Intrinsic::Memset
+            | Intrinsic::Memcmp
+            | Intrinsic::Fma => 3,
         }
     }
 
     /// Whether this intrinsic produces a result value.
     pub fn has_result(self) -> bool {
-        match self.signature() {
-            IntrinsicSignature::Nullary => false,
-            IntrinsicSignature::Unary => true,
-            IntrinsicSignature::Binary => true,
-            IntrinsicSignature::Ternary => true,
-            IntrinsicSignature::OverflowingBinary => true,
-            IntrinsicSignature::Transmute => true,
-            IntrinsicSignature::Comparison => true,
-            IntrinsicSignature::PointerByteOffset => true,
-            IntrinsicSignature::Memory { .. } => false,
-            IntrinsicSignature::MemoryCompare => true,
-            IntrinsicSignature::Prefetch => false,
-            IntrinsicSignature::VolatileLoad => true,
-            IntrinsicSignature::VolatileStore => false,
-            IntrinsicSignature::BranchHint { .. } => true,
-            IntrinsicSignature::Passthrough => true,
-        }
-    }
-
-    /// Get the result type for this intrinsic.
-    ///
-    /// Describes how to compute the result type from argument types.
-    /// Consumers resolve this against actual argument types.
-    pub fn result_type(self) -> IntrinsicResultType {
-        if !self.has_result() {
-            return IntrinsicResultType::Void;
-        }
-
-        match self {
-            // comparisons: bool
-            Intrinsic::RawEq => IntrinsicResultType::Boolean,
-
-            // overflowing arithmetic: (T, bool) tuple
-            Intrinsic::AddOverflow | Intrinsic::SubOverflow | Intrinsic::MulOverflow => {
-                IntrinsicResultType::OverflowingArithmetic
-            }
-
-            // memory comparison: i32
-            Intrinsic::Memcmp => IntrinsicResultType::I32,
-
-            // pointer diff: isize
-            Intrinsic::PointerByteOffsetFrom => IntrinsicResultType::Isize,
-
-            // volatile load: the pointee of the accessed pointer
-            Intrinsic::VolatileLoad => IntrinsicResultType::Pointee(0),
-
-            // branch hints: bool (input and output)
-            Intrinsic::Expect => IntrinsicResultType::Boolean,
-
-            // transmute and space cast: explicit target type
-            Intrinsic::Transmute | Intrinsic::SpaceCast => IntrinsicResultType::Explicit,
-
-            // everything else: result type = first argument type
-            _ => IntrinsicResultType::SameAsArgument(0),
-        }
+        !matches!(
+            self,
+            Intrinsic::SpinLoop
+                | Intrinsic::Memcpy
+                | Intrinsic::Memmove
+                | Intrinsic::Memset
+                | Intrinsic::PrefetchRead
+                | Intrinsic::PrefetchWrite
+                | Intrinsic::VolatileStore
+        )
     }
 
     /// Returns indices of arguments that are consumed (moved) by this intrinsic.
@@ -674,81 +594,6 @@ impl Intrinsic {
         match self {
             Intrinsic::Transmute | Intrinsic::SpaceCast => &[0],
             _ => &[],
-        }
-    }
-}
-
-/// Describes how to compute an intrinsic's result type from its argument types.
-///
-/// Most intrinsics return the same type as their first argument.
-/// Some return fixed types (bool, usize) or derived types (pointee, tuple).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum IntrinsicResultType {
-    /// No result (void intrinsic).
-    Void,
-
-    /// Result type equals the type of argument N.
-    SameAsArgument(u8),
-
-    /// Result type is the pointee of pointer argument N.
-    /// Used for atomic_load, volatile_load, etc.
-    Pointee(u8),
-
-    /// Result type is a tuple (T, bool) where T is the first argument type.
-    /// Used for overflowing arithmetic.
-    OverflowingArithmetic,
-
-    /// Result type is a tuple (T, bool) where T is the pointee of pointer argument N.
-    /// Used for atomic compare-and-swap.
-    PointeeAndBool(u8),
-
-    /// Result type is boolean.
-    Boolean,
-
-    /// Result type is i32.
-    I32,
-
-    /// Result type is isize.
-    Isize,
-
-    /// Result type must be explicitly provided (can't be inferred).
-    /// Used for transmute where the target type comes from context.
-    Explicit,
-}
-
-impl IntrinsicResultType {
-    /// Whether this can be resolved without external type information.
-    pub fn is_inferable(self) -> bool {
-        !matches!(
-            self,
-            IntrinsicResultType::Explicit | IntrinsicResultType::Void
-        )
-    }
-
-    /// Whether this requires looking up the pointee of a pointer type.
-    pub fn needs_pointee(self) -> bool {
-        matches!(
-            self,
-            IntrinsicResultType::Pointee(_) | IntrinsicResultType::PointeeAndBool(_)
-        )
-    }
-
-    /// Whether this requires creating or finding a tuple type.
-    pub fn needs_tuple(self) -> bool {
-        matches!(
-            self,
-            IntrinsicResultType::OverflowingArithmetic | IntrinsicResultType::PointeeAndBool(_)
-        )
-    }
-
-    /// Get the argument index this references, if any.
-    pub fn referenced_arg(self) -> Option<u8> {
-        match self {
-            IntrinsicResultType::SameAsArgument(n)
-            | IntrinsicResultType::Pointee(n)
-            | IntrinsicResultType::PointeeAndBool(n) => Some(n),
-            IntrinsicResultType::OverflowingArithmetic => Some(0),
-            _ => None,
         }
     }
 }

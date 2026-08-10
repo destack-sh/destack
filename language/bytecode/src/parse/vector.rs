@@ -268,9 +268,11 @@ impl Parser<'_> {
         let vector = self.parse_vector_representation()?;
         let operator = if vector.scalar.is_float() {
             FloatOperation::from_name(name)
+                .filter(|operation| !operation.returns_boolean())
                 .map(|operation| (operation as u16, operation.input_count()))
         } else {
             IntegerOperation::from_name(name)
+                .filter(|operation| !operation.returns_boolean() && !operation.is_overflowing())
                 .map(|operation| (operation as u16, operation.input_count()))
         }
         .ok_or_else(|| ParseError::new("expected vector operation", token.span))?;
@@ -328,11 +330,11 @@ impl Parser<'_> {
     fn vector_operator(&self, text: &str, scalar: Scalar, token: Token) -> ParseResult<u16> {
         let operation = if scalar.is_float() {
             FloatOperation::from_name(text)
-                .filter(|operation| operation.is_comparison())
+                .filter(|operation| operation.returns_boolean() && operation.input_count() == 2)
                 .map(|operation| operation as u16)
         } else {
             IntegerOperation::from_name(text)
-                .filter(|operation| operation.is_comparison())
+                .filter(|operation| operation.returns_boolean() && operation.input_count() == 2)
                 .map(|operation| operation as u16)
         };
 

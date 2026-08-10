@@ -1499,6 +1499,13 @@ impl Opcode {
                 Operand::Result,
                 Operand::Register,
             ]))
+        } else if operation.input_count() == 3 {
+            Some(InstructionLayout::new(&[
+                Operand::Result,
+                Operand::Register,
+                Operand::Register,
+                Operand::Register,
+            ]))
         } else if operation.is_overflowing() {
             Some(InstructionLayout::new(&[
                 Operand::Result,
@@ -1524,7 +1531,7 @@ impl Opcode {
                 Operand::Result,
                 Operand::RegisterSpan,
             ]))
-        } else if operation.is_comparison() {
+        } else if operation.returns_boolean() {
             Some(InstructionLayout::new(&[
                 Operand::Result,
                 Operand::RegisterSpan,
@@ -1547,6 +1554,13 @@ impl Opcode {
                 Operand::ResultRange,
                 Operand::RegisterSpan,
                 Operand::Register,
+            ]))
+        } else if operation.input_count() == 3 {
+            Some(InstructionLayout::new(&[
+                Operand::ResultRange,
+                Operand::RegisterSpan,
+                Operand::RegisterSpan,
+                Operand::RegisterSpan,
             ]))
         } else {
             Some(InstructionLayout::new(&[

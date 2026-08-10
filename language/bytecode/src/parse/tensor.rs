@@ -182,7 +182,9 @@ impl Parser<'_> {
         let name = self.text(value);
         let code = match operation {
             TensorOperation::Element | TensorOperation::Compare => {
-                ElementOperation::from_name(name).map(ElementOperation::code)
+                ElementOperation::from_name(name)
+                    .filter(|element| operation.accepts(*element))
+                    .map(ElementOperation::code)
             }
             TensorOperation::Convert => {
                 ConvertMode::from_name(name).map(|operation| operation as u16)
