@@ -561,8 +561,8 @@ impl CheckState<'_> {
         &self,
     ) -> CompilerResult<FxIndexSet<dir::GlobalTypeId>> {
         let mut applications = FxIndexSet::default();
-        for id in self.infer.constraints.failures_from(0) {
-            let constraint = self.infer.constraints.get(id)?;
+        for id in self.fulfill.constraints.failures_from(0) {
+            let constraint = self.fulfill.constraints.get(id)?;
             if let Some(application) = constraint.application {
                 applications.insert(application);
             }

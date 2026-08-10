@@ -1,5 +1,5 @@
 use crate::CompilerResult;
-use crate::check::{CheckState, DeferredCheck, InferenceScope, Pass, PendingWork, WalkState};
+use crate::check::{CheckState, FallbackStage, InferenceScope, Pass, WalkState};
 
 /// How far one fulfillment settles the scope's owned variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8,6 +8,8 @@ pub(in crate::check) enum Settle {
     Bounded,
     /// Complete remaining roots from defaults and literal widening.
     Complete,
+    /// Complete every component from its bounds as they stand.
+    Final,
 }
 
 impl WalkState<'_, '_> {
@@ -54,8 +56,8 @@ impl CheckState<'_> {
 
         ScopeMark {
             scope: InferenceScope::open(self.infer.variable_count(), self.infer.trail.len()),
-            constraints: self.infer.constraint_count(),
-            failures: self.infer.failures.len(),
+            constraints: self.fulfill.constraint_count(),
+            failures: self.fulfill.failures.len(),
         }
     }
 
@@ -65,24 +67,34 @@ impl CheckState<'_> {
         scope: InferenceScope,
         settle: Settle,
     ) -> CompilerResult<()> {
+        // resolve components at the stage the settle point allows
+        let stage = match settle {
+            Settle::Bounded | Settle::Complete => FallbackStage::Bounded,
+            Settle::Final => FallbackStage::Final,
+        };
+
+        // give parked and stalled work its decisive chance at the final settle
+        if settle == Settle::Final {
+            self.fulfill.requeue_parked();
+            self.fulfill.requeue_stalled();
+        }
+
         loop {
-            // propagate constraints and judge unblocked pending work
-            if self.solve_where_possible()? {
+            // propagate constraints and step unblocked pending work
+            if self.solve_where_possible(settle)? {
+                self.fulfill.requeue_parked();
                 continue;
             }
 
             // resolve components the accumulated bounds already determine
-            if self.resolve_scope(scope)? {
-                continue;
-            }
-
-            // force the work this scope alone blocks
-            if self.settle_owned_pending(scope)? {
+            if self.resolve_scope(scope, stage)? {
+                self.fulfill.requeue_parked();
                 continue;
             }
 
             // complete remaining roots from declared defaults and widening
-            if settle == Settle::Complete && self.default_scope(scope)? {
+            if settle != Settle::Bounded && self.default_scope(scope)? {
+                self.fulfill.requeue_parked();
                 continue;
             }
 
@@ -111,15 +123,15 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // force every remainder to a verdict as it stands
-        self.infer.forcing = true;
-        let forced = self.fulfill_scope(mark.scope, Settle::Complete);
-        self.infer.forcing = false;
-        forced?;
+        // complete the final components from their bounds as they stand
+        self.fulfill_scope(mark.scope, Settle::Final)?;
 
         // report the pass's failures, then poison what stayed open
         let explained = self.report_failures(mark.constraints, mark.failures)?;
         self.report_unresolved(mark.scope, &explained)?;
+
+        // step the remainder over the poisoned holes
+        self.fulfill_scope(mark.scope, Settle::Final)?;
         self.infer.scope_depth -= 1;
 
         Ok(())
@@ -131,47 +143,10 @@ impl CheckState<'_> {
         scope: InferenceScope,
     ) -> CompilerResult<()> {
         // skip statements that opened no inference
-        if self.infer.variable_count() == scope.first_variable() && self.infer.pending.is_empty() {
+        if self.infer.variable_count() == scope.first_variable() && self.fulfill.open_work == 0 {
             return Ok(());
         }
 
         self.fulfill_scope(scope, Settle::Complete)
-    }
-
-    /// Settle the pending work blocked only on owned variables.
-    fn settle_owned_pending(&mut self, scope: InferenceScope) -> CompilerResult<bool> {
-        // split the pending work into the items this scope owns and the rest
-        let pending = std::mem::take(&mut self.infer.pending);
-        let mut owned = Vec::new();
-        let mut foreign = Vec::new();
-        for work in pending {
-            // hold selections and expectations until their variables solve
-            let is_forceable = !matches!(
-                work,
-                PendingWork::Check(DeferredCheck::Infer { .. } | DeferredCheck::Expect { .. })
-            );
-            let blockers = self.pending_blockers(&work)?;
-            let is_owned = is_forceable
-                && !blockers.is_empty()
-                && blockers.iter().all(|variable| scope.owns(*variable));
-            match is_owned {
-                true => owned.push(work),
-                false => foreign.push(work),
-            }
-        }
-        if owned.is_empty() {
-            self.infer.pending = foreign;
-
-            return Ok(false);
-        }
-
-        // force the owned items alone, then restore the foreign ones
-        self.infer.pending = owned;
-        self.infer.forcing = true;
-        let progressed = self.solve_where_possible()?;
-        self.infer.forcing = false;
-        self.infer.pending.extend(foreign);
-
-        Ok(progressed)
     }
 }

@@ -5,13 +5,14 @@ use smallvec::SmallVec;
 use crate::check::{
     BoundSide, CauseId, CheckEvent, CheckState, Constraint, DeferredCheck, InferenceScope, Origin,
     PendingWork, Relation, TypeBound, VariableBounds, VariableRole, VariableState, Widening,
+    WorkState,
 };
 use crate::{CompilerError, CompilerResult};
 
 /// How one bound depends on open variables during component resolution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BoundDependency {
-    /// No open variables.
+    /// The bound is fully closed.
     Closed,
     /// An alias of another component member.
     Alias,
@@ -27,7 +28,7 @@ struct ComponentBounds {
     closed_lower: SmallVec<[TypeBound; 4]>,
     /// The closed upper bounds.
     closed_upper: SmallVec<[TypeBound; 4]>,
-    /// The lower bound types, admitted literal widening applied.
+    /// The lower bound types with the admitted literal widening applied.
     lower_types: SmallVec<[dir::GlobalTypeId; 4]>,
     /// The closed contextual expectations.
     contextual_types: SmallVec<[dir::GlobalTypeId; 4]>,
@@ -48,10 +49,12 @@ struct ComponentBounds {
 pub(in crate::check) enum FallbackStage {
     /// Complete components carrying declared defaults.
     Declared,
-    /// Complete components resolvable without literal widening.
+    /// Complete components resolvable from their bounds alone.
     Bounded,
     /// Complete the remaining components, widening literals.
     Widened,
+    /// Complete every component from its bounds as they stand.
+    Final,
 }
 
 impl CheckState<'_> {
@@ -188,19 +191,20 @@ impl CheckState<'_> {
     pub(in crate::check) fn resolve_scope(
         &mut self,
         scope: InferenceScope,
+        stage: FallbackStage,
     ) -> CompilerResult<bool> {
         // resolve each owned open root
         let roots = self.open_scope_variables(scope)?;
         let mut resolved = false;
         for root in &roots {
-            resolved |= self.resolve_component(&[*root], &[], FallbackStage::Bounded)?;
+            resolved |= self.resolve_component(&[*root], &[], stage)?;
         }
 
         // resolve preexisting variables bounded by this scope
         let adopted = self.infer.adopted_variables(scope)?;
         for variable in &adopted {
             if self.infer.variable(*variable)?.state.is_open() {
-                resolved |= self.resolve_component(&[*variable], &[], FallbackStage::Bounded)?;
+                resolved |= self.resolve_component(&[*variable], &[], stage)?;
             }
         }
 
@@ -238,6 +242,7 @@ impl CheckState<'_> {
                     progress |= self.resolve_component(&[root], &[], FallbackStage::Bounded)?;
                 }
             }
+
             resolved |= progress;
             if !progress {
                 break;
@@ -287,8 +292,9 @@ impl CheckState<'_> {
                     | None => None,
                 },
             };
+
+            // keep a default whose every variable already solved outside the component
             if let Some(default) = default {
-                // require a default without an open or component-own variable
                 let mut open = false;
                 for variable in self.type_variables(default)? {
                     if variables.contains(&variable) || self.infer.solution(variable)?.is_none() {
@@ -296,6 +302,7 @@ impl CheckState<'_> {
                         break;
                     }
                 }
+
                 if !open {
                     defaults.push(default);
                 }
@@ -307,10 +314,16 @@ impl CheckState<'_> {
 
     /// Return whether one pending selection still derives a component member.
     fn has_pending_producer(&self, variables: &[dir::TypeVariableId]) -> CompilerResult<bool> {
-        for work in &self.infer.pending {
-            let PendingWork::Check(DeferredCheck::Infer { site, .. }) = work else {
+        for work in &self.fulfill.work {
+            if work.state == WorkState::Done {
+                continue;
+            }
+
+            let PendingWork::Check(DeferredCheck::Infer { site, .. }) = &work.kind else {
                 continue;
             };
+
+            // the selection derives a member when it shares the variable's node
             for variable in variables {
                 let origin = self.infer.origin(self.infer.variable(*variable)?.origin);
                 if let Origin::Node(node, _) = origin
@@ -331,7 +344,7 @@ impl CheckState<'_> {
         defaults: &[dir::GlobalTypeId],
         stage: FallbackStage,
     ) -> CompilerResult<bool> {
-        if !self.infer.forcing && self.has_pending_producer(variables)? {
+        if stage != FallbackStage::Final && self.has_pending_producer(variables)? {
             return Ok(false);
         }
 
@@ -341,7 +354,8 @@ impl CheckState<'_> {
         };
 
         // choose the solution the bounds and declared defaults admit
-        let Some(solution) = self.choose_component_solution(variables, defaults, &bounds)? else {
+        let Some(solution) = self.choose_component_solution(variables, defaults, &bounds, stage)?
+        else {
             return Ok(false);
         };
 
@@ -490,6 +504,7 @@ impl CheckState<'_> {
         variables: &[dir::TypeVariableId],
         defaults: &[dir::GlobalTypeId],
         bounds: &ComponentBounds,
+        stage: FallbackStage,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // read the component's root state
         let root = variables[0];
@@ -516,7 +531,7 @@ impl CheckState<'_> {
             Some(equation)
         } else if bounds.has_open_equation || is_unconstrained_recursion {
             None
-        } else if bounds.has_open_context && !self.infer.forcing {
+        } else if bounds.has_open_context && stage != FallbackStage::Final {
             // wait for the contextual expectation to close before choosing
             None
         } else if let Some(lower) = lower {
@@ -563,6 +578,8 @@ impl CheckState<'_> {
             // retry an externally blocked component once its variables solve
             None => return Ok(None),
         };
+
+        // expose the chosen solution's named head
         let solution = self.reduce_named_head(origin, solution)?;
 
         // commit canonical memory literals for memory variables
@@ -638,6 +655,7 @@ impl CheckState<'_> {
         let Some(first) = types.first() else {
             return Ok(false);
         };
+
         let first = self.shallow_resolve(*first)?;
 
         // compare each remaining candidate with the first
@@ -666,6 +684,7 @@ impl CheckState<'_> {
             if !visited.insert(id) {
                 continue;
             }
+
             let ty = self.ty(id)?;
 
             // follow solved variables and collect open variables once
@@ -708,9 +727,9 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         solution: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
+        // a committed solution must be closed
         let variable = self.infer.alias_root(variable)?;
         let solution = self.shallow_resolve(solution)?;
-
         if self.root_variable(solution)?.is_some() {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -759,6 +778,7 @@ impl CheckState<'_> {
         if first == second {
             return Ok(());
         }
+
         let (root, aliased) = if first.0 < second.0 {
             (first, second)
         } else {
@@ -780,6 +800,7 @@ impl CheckState<'_> {
 
         // forward the aliased variable onto the root
         self.infer.variable_mut(aliased)?.state = VariableState::Alias(root);
+        self.fulfill.wake_variable(aliased);
 
         // migrate collected bounds and the declared default onto the root
         for bound in lower {
@@ -792,6 +813,7 @@ impl CheckState<'_> {
                 bound.relation,
             )?;
         }
+
         for bound in upper {
             self.push_variable_bound(
                 root,
@@ -802,6 +824,7 @@ impl CheckState<'_> {
                 bound.relation,
             )?;
         }
+
         if let Some(default) = default
             && self.infer.variables.variable_default(root).is_none()
         {
@@ -850,13 +873,16 @@ impl CheckState<'_> {
         if previous == state {
             return Ok(());
         }
+
         if !previous.is_open() {
             return Err(CompilerError::Internal {
                 message: format!("check variable {variable:?} completed twice"),
             });
         }
-        self.infer.variable_mut(variable)?.state = state;
 
+        // complete the variable and wake the work watching it
+        self.infer.variable_mut(variable)?.state = state;
+        self.fulfill.wake_variable(variable);
         self.record_event(CheckEvent::VariableSolved {
             variable,
             bounds: Box::new(bounds.clone()),
@@ -949,6 +975,7 @@ impl CheckState<'_> {
         if !self.infer.push_bound(variable, side, bound)? {
             return Ok(());
         }
+
         self.record_event(match side {
             BoundSide::Lower => CheckEvent::LowerBoundPushed { variable, bound },
             BoundSide::Upper => CheckEvent::UpperBoundPushed { variable, bound },
@@ -972,6 +999,7 @@ impl CheckState<'_> {
             let Some(relation) = lower.relation.transitive_with(upper.relation) else {
                 continue;
             };
+
             self.push_constraint(Constraint::r#type(
                 upper.origin,
                 relation,

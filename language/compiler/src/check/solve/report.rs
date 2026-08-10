@@ -15,13 +15,13 @@ impl CheckState<'_> {
         failures_from: usize,
     ) -> CompilerResult<FxIndexSet<dir::TypeVariableId>> {
         // take the failures retained past the given count
-        let mut failures = self.infer.failures.split_off(failures_from);
+        let mut failures = self.fulfill.failures.split_off(failures_from);
 
         // include completed type constraints in the same cause forest
-        for id in self.infer.constraints.failures_from(constraints_from) {
-            let constraint = *self.infer.constraints.get(id)?;
+        for id in self.fulfill.constraints.failures_from(constraints_from) {
+            let constraint = *self.fulfill.constraints.get(id)?;
             let result =
-                self.infer
+                self.fulfill
                     .constraints
                     .result(id)?
                     .ok_or_else(|| CompilerError::Internal {
@@ -98,31 +98,14 @@ impl CheckState<'_> {
         scope: InferenceScope,
         explained: &FxIndexSet<dir::TypeVariableId>,
     ) -> CompilerResult<()> {
-        // collect every remaining root for poisoning
+        // close every remaining open root, reported or not
         let mut unresolved = Vec::new();
         for index in scope.indices(self.infer.variable_count()) {
             let variable = dir::TypeVariableId(index as u32);
             let state = *self.infer.variable(variable)?;
-            if !state.state.is_open() {
-                continue;
+            if state.state.is_open() {
+                unresolved.push(variable);
             }
-
-            // skip symbols that already committed a type
-            if let Some(symbol) = self.infer.variable_role(variable)?.symbol()
-                && self.symbol_type_maybe(symbol).is_some()
-            {
-                continue;
-            }
-
-            // skip a variable whose origin node already typed
-            let origin = self.infer.origin(state.origin);
-            if let Origin::Node(node, _) = origin
-                && self.node_types.contains(node)
-            {
-                continue;
-            }
-
-            unresolved.push(variable);
         }
 
         // report the failures while their bounds still show as open

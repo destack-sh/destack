@@ -17,5 +17,6 @@ pub(in crate::check) use constraint::*;
 pub(in crate::check) use fulfill::*;
 pub(in crate::check) use probe::*;
 pub(in crate::check) use relation::*;
+pub(in crate::check) use resolve::*;
 pub(in crate::check) use scope::*;
 pub(in crate::check) use variable::*;

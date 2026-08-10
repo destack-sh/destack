@@ -3,9 +3,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    BoundSide, Cause, CauseArena, CauseId, Constraint, ConstraintId, ConstraintResult,
-    ConstraintTable, FailedCheck, GenericParameterId, InferenceScope, ObligationEntry,
-    ObligationId, ObligationTable, Origin, OriginArena, OriginId, PendingWork, RelationStack,
+    BoundSide, Cause, CauseArena, CauseId, ConstraintId, ConstraintResult, ConstraintTable,
+    Fulfillment, GenericParameterId, InferenceScope, Origin, OriginArena, OriginId, RelationStack,
     TypeBound, Variable, VariableRole, VariableState, VariableTable, Widening,
 };
 use crate::{CompilerError, CompilerResult};
@@ -15,25 +14,13 @@ pub(in crate::check) struct InferContext {
     // open inference
     /// Inference variables and their bounds.
     pub(in crate::check) variables: VariableTable,
-    /// Collected constraints and their completed results.
-    pub(in crate::check) constraints: ConstraintTable,
-    /// Collected obligations awaiting the settle points.
-    pub(in crate::check) obligations: ObligationTable,
     /// In-flight relation decisions with their cycle stack.
     pub(in crate::check) relations: RelationStack,
     /// Variables opened for generic parameters, keyed by application.
     pub(in crate::check) instantiations:
         FxIndexMap<(OriginId, GenericParameterId), dir::TypeVariableId>,
 
-    // pending work
-    /// Work registered with fulfillment, awaiting inference progress.
-    pub(in crate::check) pending: Vec<PendingWork>,
-
     // solving rounds
-    /// Whether the outermost close is judging every remainder.
-    pub(in crate::check) forcing: bool,
-    /// Whether the current round left ambiguous work behind.
-    pub(in crate::check) ambiguity: bool,
     /// The open inference scope depth.
     pub(in crate::check) scope_depth: usize,
     /// Open variables standing for uninferred symbol types.
@@ -44,8 +31,6 @@ pub(in crate::check) struct InferContext {
     pub(in crate::check) origins: OriginArena,
     /// Interned constraint causes.
     pub(in crate::check) causes: CauseArena,
-    /// Failed checks retained until their cause trees are complete.
-    pub(in crate::check) failures: Vec<FailedCheck>,
 
     // speculation
     /// Inference mutations recorded while speculation is active.
@@ -97,16 +82,10 @@ impl InferContext {
     pub(in crate::check) fn new() -> Self {
         Self {
             variables: VariableTable::new(),
-            constraints: ConstraintTable::new(),
-            obligations: ObligationTable::new(),
             origins: OriginArena::default(),
             causes: CauseArena::default(),
-            failures: Vec::new(),
             relations: RelationStack::new(),
             instantiations: FxIndexMap::default(),
-            pending: Vec::new(),
-            forcing: false,
-            ambiguity: false,
             scope_depth: 0,
             symbol_variables: FxIndexMap::default(),
             trail: Vec::new(),
@@ -142,38 +121,39 @@ impl TrailMark {
 
 impl InferContext {
     /// Mark the trail before one speculative attempt.
-    pub(in crate::check) fn mark(&mut self) -> TrailMark {
+    pub(in crate::check) fn mark(&mut self, fulfill: &Fulfillment) -> TrailMark {
         self.marks += 1;
 
         TrailMark {
             variables: self.variables.count(),
-            constraints: self.constraints.count(),
-            obligations: self.obligations.count(),
+            constraints: fulfill.constraints.count(),
+            obligations: fulfill.obligations.count(),
             trail: self.trail.len(),
         }
     }
 
     /// Roll inference state back to one trail mark.
     ///
-    /// Allocation is permanent, binding is speculative: interned rows
-    /// may still reference a rolled-back variable, so its slot stays
-    /// allocated and poisons to the error type instead of unwinding.
+    /// Allocation is permanent, binding is speculative: interned rows may still reference a
+    /// rolled-back variable, so its slot stays allocated and poisons to the error type.
     pub(in crate::check) fn rollback(
         &mut self,
         mark: TrailMark,
         poison: dir::GlobalTypeId,
+        fulfill: &mut Fulfillment,
     ) -> CompilerResult<()> {
+        // undo every mutation recorded past the mark
         while self.trail.len() > mark.trail {
             let undo = self.trail.pop().ok_or_else(|| CompilerError::Internal {
                 message: "solver trail ended before its mark".into(),
             })?;
 
-            self.rollback_undo(undo, poison)?;
+            self.rollback_undo(undo, poison, fulfill)?;
         }
 
         // drop the speculative constraints and obligations, then close the mark
-        self.constraints.truncate(mark.constraints);
-        self.obligations.truncate(mark.obligations);
+        fulfill.constraints.truncate(mark.constraints);
+        fulfill.obligations.truncate(mark.obligations);
         self.marks -= 1;
 
         Ok(())
@@ -233,11 +213,14 @@ impl InferContext {
                         self.trail.len(),
                     ),
                 })?;
+
+        // collect every bounded variable the scope opened before its mark
         let mut adopted = SmallVec::new();
         for mutation in mutations {
             let InferUndo::Bound { id, .. } = mutation else {
                 continue;
             };
+
             if !scope.owns(*id) && !adopted.contains(id) {
                 adopted.push(*id);
             }
@@ -308,37 +291,17 @@ impl InferContext {
         self.variables.get_mut(variable)
     }
 
-    /// Allocate one constraint.
-    pub(in crate::check) fn allocate_constraint(&mut self, constraint: Constraint) -> ConstraintId {
-        // one check collects one constraint, however often walks repeat it
-        if let Some(id) = self.constraints.lookup(&constraint) {
-            return id;
-        }
-
-        let id = ConstraintId::at(self.constraints.count());
-        self.constraints.insert(id, constraint);
-
-        id
-    }
-
-    /// Set one constraint result.
+    /// Set one constraint result, recording its prior state on the trail.
     pub(in crate::check) fn set_constraint_result(
         &mut self,
+        constraints: &mut ConstraintTable,
         id: ConstraintId,
         result: ConstraintResult,
     ) -> CompilerResult<()> {
-        self.record_constraint(id)?;
-        self.constraints.set_result(id, Some(result))?;
+        self.record_constraint(constraints, id)?;
+        constraints.set_result(id, Some(result))?;
 
         Ok(())
-    }
-
-    /// Allocate one obligation.
-    pub(in crate::check) fn allocate_obligation(&mut self, entry: ObligationEntry) -> ObligationId {
-        let id = ObligationId::at(self.obligations.count());
-        self.obligations.insert(id, entry);
-
-        id
     }
 
     /// Return the root that one variable forwards to.
@@ -374,19 +337,25 @@ impl InferContext {
         self.variables.iter()
     }
 
+    /// Return whether trail entries past one point solved a variable
+    /// allocated before it.
+    pub(in crate::check) fn solves_variable_before(
+        &self,
+        trail_from: usize,
+        variables: usize,
+    ) -> bool {
+        self.trail[trail_from..].iter().any(|undo| match undo {
+            InferUndo::Variable {
+                id,
+                previous: Some((variable, _)),
+            } => (id.0 as usize) < variables && variable.state.is_open(),
+            _ => false,
+        })
+    }
+
     /// Return the number of allocated variables.
     pub(in crate::check) fn variable_count(&self) -> usize {
         self.variables.count()
-    }
-
-    /// Return the number of collected constraints.
-    pub(in crate::check) fn constraint_count(&self) -> usize {
-        self.constraints.count()
-    }
-
-    /// Return the number of collected obligations.
-    pub(in crate::check) fn obligation_count(&self) -> usize {
-        self.obligations.count()
     }
 
     /// Record one trail entry if speculation is active.
@@ -433,11 +402,15 @@ impl InferContext {
     }
 
     /// Record one constraint entry if speculation is active.
-    fn record_constraint(&mut self, id: ConstraintId) -> CompilerResult<()> {
+    fn record_constraint(
+        &mut self,
+        constraints: &ConstraintTable,
+        id: ConstraintId,
+    ) -> CompilerResult<()> {
         if self.marks > 0 {
             self.trail.push(InferUndo::Constraint {
                 id,
-                previous: self.constraints.result(id)?.cloned(),
+                previous: constraints.result(id)?.cloned(),
             });
         }
 
@@ -445,7 +418,12 @@ impl InferContext {
     }
 
     /// Undo one recorded trail entry.
-    fn rollback_undo(&mut self, undo: InferUndo, poison: dir::GlobalTypeId) -> CompilerResult<()> {
+    fn rollback_undo(
+        &mut self,
+        undo: InferUndo,
+        poison: dir::GlobalTypeId,
+        fulfill: &mut Fulfillment,
+    ) -> CompilerResult<()> {
         match undo {
             InferUndo::Variable { id, previous } => match previous {
                 Some((previous, role)) => {
@@ -462,7 +440,9 @@ impl InferContext {
                 Some(previous) => self.variables.set_default(id, previous),
                 None => self.variables.remove_default(id),
             },
-            InferUndo::Constraint { id, previous } => self.constraints.set_result(id, previous)?,
+            InferUndo::Constraint { id, previous } => {
+                fulfill.constraints.set_result(id, previous)?
+            }
             InferUndo::Instantiation { key } => {
                 self.instantiations.swap_remove(&key);
             }

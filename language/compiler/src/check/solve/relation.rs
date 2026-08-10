@@ -41,7 +41,7 @@ impl Relation {
             (Self::Assignable | Self::Widens, Self::Assignable | Self::Widens) => {
                 Some(Self::Assignable)
             }
-            (Self::Assignable | Self::Widens, Self::Satisfies) => Some(Self::Satisfies),
+            // predicates judge the variable's solution, never inflowing bounds
             _ => None,
         }
     }

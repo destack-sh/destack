@@ -4,6 +4,7 @@ use destack_source::ModuleId;
 
 use crate::check::{
     BodyState, CheckEvent, CheckOutcome, CheckState, ConstraintId, PendingWork, Settle, TrailMark,
+    WorkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -114,18 +115,19 @@ impl BodyState<'_, '_> {
             // re-solve the stalled pending set, not only fresh allocations
             let pending = self
                 .check
-                .infer
-                .pending
+                .fulfill
+                .work
                 .iter()
-                .filter_map(|work| match work {
-                    PendingWork::Constraint(id) => Some(*id),
+                .filter_map(|work| match (work.state, work.kind) {
+                    (WorkState::Done, _) => None,
+                    (_, PendingWork::Constraint(id)) => Some(id),
                     _ => None,
                 })
                 .collect::<Vec<_>>();
-            let fresh = mark.trail.constraint_count()..self.check.infer.constraint_count();
+            let fresh = mark.trail.constraint_count()..self.check.fulfill.constraint_count();
             for id in pending.into_iter().chain(fresh.map(ConstraintId::at)) {
-                self.check.solve_constraint(id)?;
-                if let Some(result) = self.check.infer.constraints.result(id)? {
+                self.check.solve_constraint(id, Settle::Complete)?;
+                if let Some(result) = self.check.fulfill.constraints.result(id)? {
                     has_failed_constraint |= matches!(result.outcome, CheckOutcome::Fails(_));
                 }
             }
@@ -134,12 +136,12 @@ impl BodyState<'_, '_> {
         // reject the attempt when a constraint it solved failed
         let has_failure = self
             .check
-            .infer
+            .fulfill
             .constraints
             .failures_from(mark.trail.constraint_count())
             .next()
             .is_some()
-            || self.check.infer.failures.len() > mark.failures;
+            || self.check.fulfill.failures.len() > mark.failures;
 
         if has_failure || has_failed_constraint {
             Ok(CandidateAttempt::Failed)
@@ -154,6 +156,7 @@ impl BodyState<'_, '_> {
         mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
         describe: impl FnOnce(&mut Self, &R) -> CompilerResult<String>,
     ) -> CompilerResult<(CandidateVerdict, Option<String>)> {
+        self.check.counters.selection_probes += 1;
         let mark = self.check.open_probe();
         let outcome = self.attempt_candidate(&mark, true, &mut attempt);
 
@@ -332,12 +335,12 @@ impl CheckState<'_> {
     fn accepted_verdict(&mut self, mark: &ProbeMark) -> CompilerResult<CandidateVerdict> {
         let scope = mark.trail.inference_scope();
         let has_failure = self
-            .infer
+            .fulfill
             .constraints
             .failures_from(mark.trail.constraint_count())
             .next()
             .is_some()
-            || self.infer.failures.len() > mark.failures;
+            || self.fulfill.failures.len() > mark.failures;
         if has_failure {
             return Ok(CandidateVerdict::Rejected);
         }
@@ -352,6 +355,7 @@ impl CheckState<'_> {
 
     /// Begin one probe, recording its start event.
     fn open_probe(&mut self) -> ProbeMark {
+        self.counters.probes += 1;
         self.record_event(CheckEvent::ProbeStarted {
             variables: self.infer.variable_count(),
         });
@@ -371,7 +375,7 @@ impl CheckState<'_> {
                 )
             })
             .collect();
-        let trail = self.infer.mark();
+        let trail = self.infer.mark(&self.fulfill);
 
         ProbeMark {
             trail,
@@ -384,9 +388,9 @@ impl CheckState<'_> {
             binding_types: self.binding_types.len(),
             symbol_variables: self.infer.symbol_variables.len(),
             expected_types: self.expected_types.open_probe(),
-            pending: self.infer.pending.len(),
+            pending: self.fulfill.work.len(),
             events: self.trace_events().len(),
-            failures: self.infer.failures.len(),
+            failures: self.fulfill.failures.len(),
             modules,
         }
     }
@@ -412,7 +416,7 @@ impl CheckState<'_> {
 
         // roll inference back, poisoning undone allocations
         let poison = self.intern_type(dir::Type::Error)?;
-        self.infer.rollback(trail, poison)?;
+        self.infer.rollback(trail, poison, &mut self.fulfill)?;
 
         // close the probe's type and body tables
         self.node_types.close_probe(node_types);
@@ -431,12 +435,12 @@ impl CheckState<'_> {
         }
         self.expected_types.close_probe(expected_types);
 
-        // drop the probe's pending work, trace events, and failures
-        self.infer.pending.truncate(pending);
+        // cancel the probe's pending work, drop its trace events and failures
+        self.fulfill.cancel_work_from(pending);
         if let Some(trace) = &mut self.trace {
             trace.events.truncate(events);
         }
-        self.infer.failures.truncate(failures);
+        self.fulfill.failures.truncate(failures);
 
         // drop the probe's per module segments
         for (module, mark) in modules {
