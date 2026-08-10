@@ -494,21 +494,21 @@ impl<'a> QueryRun<'a> {
     /// Resolve one exact client diagnostic.
     fn diagnostic(&self, diagnostic: &FixtureDiagnostic) -> Result<DiagnosticReference, String> {
         let span = self.span(&diagnostic.range)?;
-        let content = self
+        let blob = self
             .workspace
             .repository()
-            .file_content_id(self.revision, span.file)
-            .map_err(|error| format!("failed to resolve query diagnostic content: {error}"))?
+            .file_blob(self.revision, span.file)
+            .map_err(|error| format!("failed to resolve query diagnostic Blob: {error}"))?
             .ok_or_else(|| {
                 format!(
-                    "query diagnostic file '{}' has no content",
+                    "query diagnostic file '{}' has no Blob",
                     display_query_path(&diagnostic.range.file)
                 )
             })?;
         let target = DiagnosticTarget::Span(span);
         let primary = match &diagnostic.message {
-            Some(message) => DiagnosticLabel::message(content, target, message),
-            None => DiagnosticLabel::new(content, target),
+            Some(message) => DiagnosticLabel::message(blob, target, message),
+            None => DiagnosticLabel::new(blob, target),
         };
 
         Ok(DiagnosticReference {

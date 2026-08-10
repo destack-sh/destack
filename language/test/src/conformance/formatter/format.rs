@@ -114,14 +114,17 @@ fn format_once(
         .to_string();
     let uri = Uri::from_path(path);
     let file_id = FileId::from_logical_str(logical_path);
-    let file = Arc::new(File::from_text(
-        file_id,
-        name,
-        uri,
-        Some(path.to_path_buf()),
-        file_type,
-        source.to_string(),
-    ));
+    let file = Arc::new(
+        File::from_text(
+            file_id,
+            name,
+            uri,
+            Some(path.to_path_buf()),
+            file_type,
+            source.to_string(),
+        )
+        .expect("conformance source should load"),
+    );
     let file_for_id = |current_file_id| {
         if current_file_id == file_id {
             Some(file.clone())

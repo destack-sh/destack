@@ -64,14 +64,17 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
     // create file
     let uri = Uri::from_string(format!("/test/{}", input_file.path));
     let file_id = FileId::from_logical_str(&input_file.path);
-    let file = Arc::new(File::from_text(
-        file_id,
-        input_file.path.clone(),
-        uri,
-        None,
-        file_type,
-        input_file.content.clone(),
-    ));
+    let file = Arc::new(
+        File::from_text(
+            file_id,
+            input_file.path.clone(),
+            uri,
+            None,
+            file_type,
+            input_file.content.clone(),
+        )
+        .expect("formatter source should load"),
+    );
     let file_for_id = |current_file_id| {
         if current_file_id == file_id {
             Some(file.clone())

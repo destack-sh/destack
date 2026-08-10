@@ -46,14 +46,17 @@ pub(super) fn parse_file(
         .unwrap_or(path.as_os_str())
         .to_string_lossy()
         .into_owned();
-    let file = Arc::new(File::from_text(
-        FileId::new(0),
-        name,
-        uri,
-        Some(path.to_path_buf()),
-        file_type,
-        content.to_string(),
-    ));
+    let file = Arc::new(
+        File::from_text(
+            FileId::new(0),
+            name,
+            uri,
+            Some(path.to_path_buf()),
+            file_type,
+            content.to_string(),
+        )
+        .expect("conformance source should load"),
+    );
 
     // parse and collect diagnostics
     let language = LanguageType::try_from(file_type).expect("file type has no parser language");

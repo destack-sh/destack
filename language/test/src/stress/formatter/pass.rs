@@ -174,12 +174,13 @@ fn stress_file(fixture: &StressFixture, source: &str) -> Result<File, String> {
     let file_name = fixture.file_name()?;
     let file_id = FileId::from_logical_path(&fixture.logical_path());
 
-    Ok(File::from_text(
+    File::from_text(
         file_id,
         file_name.clone(),
         Uri::from_string(&file_name),
         None,
         fixture.file_type,
         source.to_string(),
-    ))
+    )
+    .map_err(|error| error.to_string())
 }

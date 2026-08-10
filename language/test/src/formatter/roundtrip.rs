@@ -43,14 +43,10 @@ pub(super) fn run(test: &Case, options: &RunOptions) -> CaseResult {
         };
     };
     let file_id = FileId::from_logical_path(logical_path);
-    let file = Arc::new(File::from_text(
-        file_id,
-        name,
-        uri,
-        path,
-        file_type,
-        original.clone(),
-    ));
+    let file = Arc::new(
+        File::from_text(file_id, name, uri, path, file_type, original.clone())
+            .expect("roundtrip source should load"),
+    );
     let file_for_id = |current_file_id| {
         if current_file_id == file_id {
             Some(file.clone())

@@ -2,14 +2,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_artifact::{ArtifactKey, BuildId, MemoryBlobStore};
+use destack_artifact::{ArtifactKey, BuildId};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, FormatterOptions, Host,
-    LinterOptions, Ref, Repository, Revision, Settings,
+    LinterOptions, MemoryBlobStore, Ref, Repository, Revision, Settings,
 };
 use destack_session::{ArtifactPriority, Executor, Session};
 use destack_source::{
-    Content, DiagnosticCollection, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
+    DiagnosticCollection, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
 };
 use destack_workspace::Workspace;
 use futures::executor::block_on;
@@ -44,12 +44,8 @@ impl SharedMemoryWorkspace {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(
-            BuildId::test(),
-            environment,
-            fs.clone(),
-            Arc::new(MemoryBlobStore::new()),
-        );
+        let host = Host::new(BuildId::test(), environment, fs.clone())
+            .with_blob_store(Arc::new(MemoryBlobStore::new()));
         let repository = Arc::new(Repository::new(
             root.clone(),
             host,
@@ -108,12 +104,8 @@ pub fn open_repository_with_options(
         &DestackLayoutOverride::default(),
         None,
     );
-    let host = Host::new(
-        BuildId::test(),
-        environment,
-        fs,
-        Arc::new(MemoryBlobStore::new()),
-    );
+    let host = Host::new(BuildId::test(), environment, fs)
+        .with_blob_store(Arc::new(MemoryBlobStore::new()));
     let repository = Arc::new(Repository::new(root, host, Settings::default(), layout));
     materialize_workspace(repository.clone());
     materialize_workspace_options(repository.as_ref(), formatter, linter);
@@ -135,12 +127,15 @@ fn materialize_workspace_options(
     let content =
         serde_json::to_string_pretty(&json).expect("workspace test config should serialize");
     let content = format!("{content}\n");
+    let blob = repository
+        .put_blob(content.as_bytes())
+        .expect("workspace configuration Blob should store");
 
     let revision = repository
         .current(&reference)
         .expect("failed to read workspace test revision");
     let revision = repository
-        .edit(revision, [Edit::set_text("destack.json", content)])
+        .edit(revision, [Edit::set_file("destack.json", blob)])
         .expect("failed to materialize workspace test config")
         .after;
 
@@ -188,14 +183,14 @@ pub fn module_id_for_path(repository: &Repository, revision: Revision, path: &Pa
         .unwrap_or_else(|| panic!("missing module for path {}", path.display()))
 }
 
-/// Apply one full file write to the current workspace revision.
-pub fn write_workspace_file(repository: &Repository, path: &Path, content: Content) -> Revision {
+/// Apply one text file write to the current workspace revision.
+pub fn write_workspace_text_file(repository: &Repository, path: &Path, content: &str) -> Revision {
     let reference = Ref::for_root(repository.path());
     let logical_path = repository.logical_path(path);
-    let edit = Edit::SetFile {
-        logical_path,
-        content,
-    };
+    let blob = repository
+        .put_blob(content.as_bytes())
+        .expect("workspace source Blob should store");
+    let edit = Edit::set_file(logical_path, blob);
 
     let revision = repository
         .current(&reference)
@@ -208,17 +203,6 @@ pub fn write_workspace_file(repository: &Repository, path: &Path, content: Conte
     repository
         .set_ref(&reference, revision)
         .expect("failed to publish workspace file change")
-}
-
-/// Apply one text file write to the current workspace revision.
-pub fn write_workspace_text_file(repository: &Repository, path: &Path, content: &str) -> Revision {
-    write_workspace_file(
-        repository,
-        path,
-        Content::Text {
-            content: content.to_string(),
-        },
-    )
 }
 
 /// Return the explicit built-in default target profile id for one module.

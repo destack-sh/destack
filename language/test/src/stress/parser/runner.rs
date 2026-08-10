@@ -34,7 +34,8 @@ pub(super) fn run_parser_stress(fixture: &StressFixture) -> CaseResult {
         None,
         fixture.file_type,
         source.clone(),
-    );
+    )
+    .expect("stress source should load");
     let file = Arc::new(file);
 
     // parse the stress source

@@ -7,7 +7,6 @@ use destack_repository::{
     Edit, Execution, Ref, Repository, Revision, Trace, TraceSnapshot, TraceView,
 };
 use destack_session::Executor;
-use destack_source::Content;
 use destack_workspace::{RevisionPolicy, RunQueryInput, Workspace};
 use futures::executor::block_on;
 use indexmap::IndexMap;
@@ -106,12 +105,21 @@ impl QueryWorkspace {
 
         // provide a minimal manifest only when the fixture omits one
         if !files.contains_key(Path::new("destack.json")) {
-            edits.push(Edit::set_text("destack.json", QUERY_MANIFEST));
+            let blob = self
+                .repository
+                .put_blob(QUERY_MANIFEST.as_bytes())
+                .map_err(|error| format!("failed to store query manifest: {error}"))?;
+            edits.push(Edit::add_file("destack.json", blob));
         }
 
         // publish every fixture file into the isolated revision
         for file in files.values() {
-            edits.push(Edit::try_from(file)?);
+            let logical_path = query_logical_path(&file.path)?;
+            let blob = self
+                .repository
+                .put_blob(file.source.as_bytes())
+                .map_err(|error| format!("failed to store query file: {error}"))?;
+            edits.push(Edit::add_file(logical_path, blob));
         }
 
         self.repository
@@ -128,7 +136,7 @@ impl QueryWorkspace {
     ) -> Result<Revision, String> {
         let edits = changes
             .iter()
-            .map(Edit::try_from)
+            .map(|change| self.change_edit(change))
             .collect::<Result<Vec<_>, _>>()?;
 
         self.repository
@@ -207,48 +215,34 @@ impl QueryWorkspace {
             },
         )
     }
-}
 
-impl TryFrom<&QueryFile> for Edit {
-    type Error = String;
-
-    /// Convert one complete query file into a repository edit.
-    fn try_from(file: &QueryFile) -> Result<Self, Self::Error> {
-        let logical_path = query_logical_path(&file.path)?;
-
-        Ok(Edit::SetFile {
-            logical_path,
-            content: Content::Text {
-                content: file.source.clone(),
-            },
-        })
-    }
-}
-
-impl TryFrom<&QueryChange> for Edit {
-    type Error = String;
-
-    /// Convert one query fixture change into a repository edit.
-    fn try_from(change: &QueryChange) -> Result<Self, Self::Error> {
-        let edit = match change {
+    /// Build one repository edit for a query fixture change.
+    fn change_edit(&self, change: &QueryChange) -> Result<Edit, String> {
+        match change {
             QueryChange::Add(file) => {
                 let logical_path = query_logical_path(&file.path)?;
+                let blob = self
+                    .repository
+                    .put_blob(file.source.as_bytes())
+                    .map_err(|error| format!("failed to store query file: {error}"))?;
 
-                Edit::AddFile {
-                    logical_path,
-                    content: Content::Text {
-                        content: file.source.clone(),
-                    },
-                }
+                Ok(Edit::add_file(logical_path, blob))
             }
-            QueryChange::Set(file) => Edit::try_from(file)?,
-            QueryChange::Remove(path) => Edit::remove_file(query_logical_path(path)?),
-            QueryChange::Move { from, to } => {
-                Edit::move_file(query_logical_path(from)?, query_logical_path(to)?)
-            }
-        };
+            QueryChange::Set(file) => {
+                let logical_path = query_logical_path(&file.path)?;
+                let blob = self
+                    .repository
+                    .put_blob(file.source.as_bytes())
+                    .map_err(|error| format!("failed to store query file: {error}"))?;
 
-        Ok(edit)
+                Ok(Edit::set_file(logical_path, blob))
+            }
+            QueryChange::Remove(path) => Ok(Edit::remove_file(query_logical_path(path)?)),
+            QueryChange::Move { from, to } => Ok(Edit::move_file(
+                query_logical_path(from)?,
+                query_logical_path(to)?,
+            )),
+        }
     }
 }
 
