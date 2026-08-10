@@ -854,6 +854,7 @@ impl CheckState<'_> {
             .all(|field| field.is_optional);
 
         let parameter = dir::FunctionParameterType {
+            name: None,
             ty: argument,
             is_optional,
             is_rest: false,

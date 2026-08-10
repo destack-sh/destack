@@ -633,6 +633,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let is_optional = parameter.is_optional() || parameter.default_value().is_some();
 
         Ok(Some(dir::FunctionParameterType {
+            name: parameter.name(),
             ty,
             is_optional,
             is_rest,
@@ -654,11 +655,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
             dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. }
         );
         let is_optional = parameter.is_optional();
+        let name = parameter.name();
         let Some(ty) = self.walk_parameter_type(id, false)? else {
             return Ok(None);
         };
 
         Ok(Some(dir::FunctionParameterType {
+            name,
             ty,
             is_optional,
             is_rest,

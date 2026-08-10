@@ -419,8 +419,8 @@ new Box(true);
         r#"
 /// @diagnostic.error id=no-matching-construct message="no constructor matches arguments ('true')"
 /// @diagnostic.label line=14 column=1 span="new Box(true)" line_source="new Box(true);"
-/// @diagnostic.note message="the candidate '(string) => this' rejects argument 0: 'true' is not assignable to 'string'"
-/// @diagnostic.note message="the candidate '(int32) => this' rejects argument 0: 'true' is not assignable to 'int32'"
+/// @diagnostic.note message="the candidate '(value: string) => this' rejects argument 0: 'true' is not assignable to 'string'"
+/// @diagnostic.note message="the candidate '(value: int32) => this' rejects argument 0: 'true' is not assignable to 'int32'"
 "#,
     );
 }

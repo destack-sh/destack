@@ -526,7 +526,7 @@ function adopt<T>(value: T | Deferred<T>): void {
 /// @generic.instance id=Deferred<T#2>.then template=Deferred.then arguments=(T#2)
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '(* | T) => void' is not assignable to parameter of type '(*) => void'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: * | T) => void' is not assignable to parameter of type '(value: *) => void'"
 /// @diagnostic.label line=8 column=20 span="(value) => {}" line_source="value.then((value) => {});"
 /// @diagnostic.related line=8 column=9 span="value.then((value) => {})" line_source="value.then((value) => {});" message="in this call"
 /// @diagnostic.error id=not-assignable message="type '*' is not assignable to type '* | T'"

@@ -477,12 +477,14 @@ impl BodyState<'_, '_> {
                     .tuple_elements(backing.module_id, tuple.elements)?
                     .iter()
                     .map(|element| dir::FunctionParameterType {
+                        name: None,
                         ty: element.ty,
                         is_optional: element.is_optional,
                         is_rest: element.is_rest,
                     })
                     .collect::<SmallVec<[_; 4]>>(),
                 _ => SmallVec::from_slice(&[dir::FunctionParameterType {
+                    name: None,
                     ty: backing,
                     is_optional: false,
                     is_rest: false,

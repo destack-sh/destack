@@ -628,6 +628,7 @@ impl BodyState<'_, '_> {
         let structural = signature.signature;
         let mut parameters = SmallVec::<[dir::FunctionParameterType; 2]>::new();
         parameters.push(dir::FunctionParameterType {
+            name: None,
             ty: structural.key_type,
             is_optional: false,
             is_rest: false,
@@ -640,6 +641,7 @@ impl BodyState<'_, '_> {
             SubscriptProtocol::Index => dir::DynamicFunction::IndexRead(signature.source),
             SubscriptProtocol::IndexSet => {
                 parameters.push(dir::FunctionParameterType {
+                    name: None,
                     ty: structural.value_type,
                     is_optional: false,
                     is_rest: false,

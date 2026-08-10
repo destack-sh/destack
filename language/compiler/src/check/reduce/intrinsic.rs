@@ -346,6 +346,7 @@ impl CheckState<'_> {
                 .tuple_elements(parameters.module_id, tuple.elements)?
                 .iter()
                 .map(|element| dir::FunctionParameterType {
+                    name: None,
                     ty: element.ty,
                     is_optional: element.is_optional,
                     is_rest: element.is_rest,

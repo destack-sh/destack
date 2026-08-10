@@ -656,7 +656,7 @@ const useShape2: (shape: Shape) => void = useCircle2;
 /// @resolution.access source=useCircle2 root=useCircle2
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '(Circle) => void' is not assignable to type '(Shape) => void'"
+/// @diagnostic.error id=not-assignable message="type '(circle: Circle) => void' is not assignable to type '(shape: Shape) => void'"
 /// @diagnostic.label line=9 column=43 span="useCircle2" line_source="const useShape2: (shape: Shape) => void = useCircle2;"
 /// @diagnostic.related line=9 column=18 span="(shape: Shape) => void" line_source="const useShape2: (shape: Shape) => void = useCircle2;" message="expected due to this annotation"
 "#,

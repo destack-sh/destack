@@ -417,6 +417,12 @@ impl CheckState<'_> {
             parameter_type
         };
 
+        // prefix the authored parameter name where the declaration wrote one
+        let parameter_type = match parameter.name {
+            Some(name) => format!("{}: {parameter_type}", self.strings().get(name)),
+            None => parameter_type,
+        };
+
         Ok(parameter_type)
     }
 
