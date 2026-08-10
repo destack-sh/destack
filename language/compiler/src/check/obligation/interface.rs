@@ -140,35 +140,72 @@ impl CheckState<'_> {
         let auto_interface = self
             .language_item(application.symbol)?
             .and_then(dir::AutoInterface::from_language_item)
-            .filter(|interface| {
-                interface.is_marker()
-                    || matches!(
-                        interface,
-                        dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual
-                    )
-            });
+            .filter(|interface| interface.is_intrinsic());
         if let Some(auto_interface) = auto_interface {
-            if is_unsafe_extension && auto_interface.permits_unsafe_implementation() {
-                return Ok(ConformanceSelection::Selected(Vec::new()));
+            // decide markers by their compiler rule alone
+            if auto_interface.is_marker() {
+                if is_unsafe_extension && auto_interface.permits_unsafe_implementation() {
+                    return Ok(ConformanceSelection::Selected(Vec::new()));
+                }
+
+                return self.select_intrinsic_conformance(
+                    origin,
+                    interface,
+                    target,
+                    auto_interface,
+                );
             }
 
-            // derive intrinsic conformance, or select declared members below
-            match self.satisfies_intrinsic_interface(origin, target, interface, auto_interface)? {
-                Verdict::Holds => return Ok(ConformanceSelection::Selected(Vec::new())),
-                // markers have no members to fall through to
-                Verdict::Fails if auto_interface.is_marker() => {
-                    return Ok(ConformanceSelection::Missing);
-                }
-                Verdict::Fails => {}
-                // leave the conformance undecided while its variables stay open
-                Verdict::Ambiguous => {
-                    return Ok(ConformanceSelection::Undecided(
-                        self.open_type_variables([target, interface])?,
-                    ));
-                }
+            // select declared members before intrinsic derivation
+            let declared = self.select_conformance_members(
+                origin,
+                interface,
+                target,
+                members,
+                is_unsafe_extension,
+            )?;
+            if matches!(declared, ConformanceSelection::Missing) {
+                return self.select_intrinsic_conformance(
+                    origin,
+                    interface,
+                    target,
+                    auto_interface,
+                );
             }
+
+            return Ok(declared);
         }
 
+        self.select_conformance_members(origin, interface, target, members, is_unsafe_extension)
+    }
+
+    /// Map one intrinsic conformance verdict onto a member selection.
+    fn select_intrinsic_conformance(
+        &mut self,
+        origin: Origin,
+        interface: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        auto_interface: dir::AutoInterface,
+    ) -> CompilerResult<ConformanceSelection> {
+        match self.satisfies_intrinsic_interface(origin, target, interface, auto_interface)? {
+            Verdict::Holds => Ok(ConformanceSelection::Selected(Vec::new())),
+            Verdict::Fails => Ok(ConformanceSelection::Missing),
+            // leave the conformance undecided while its variables stay open
+            Verdict::Ambiguous => Ok(ConformanceSelection::Undecided(
+                self.open_type_variables([target, interface])?,
+            )),
+        }
+    }
+
+    /// Select the declared members satisfying one applied interface.
+    fn select_conformance_members(
+        &mut self,
+        origin: Origin,
+        interface: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        members: &[dir::DefinitionMember],
+        is_unsafe_extension: bool,
+    ) -> CompilerResult<ConformanceSelection> {
         // resolve associated projections through the declared implementation
         let substitution = TypeSubstitution::default().with_receiver(target);
         let Some(interface) = self.instantiate_interface_implementation(

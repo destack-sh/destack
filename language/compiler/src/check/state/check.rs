@@ -31,7 +31,7 @@ pub(in crate::check) enum Pass {
     Check,
 }
 
-/// Node types stored densely per module column, journaled for probes.
+/// Committed node types in dense module columns, rolled back under open probes.
 #[derive(Debug, Default)]
 pub(in crate::check) struct NodeTable {
     /// One dense column per module, indexed by tree-global node id.
@@ -166,8 +166,12 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) members: FxIndexMap<MemberSubject, MemberTable>,
     /// Decided auto interface conformances of closed types.
     pub(in crate::check) conforms: FxIndexMap<(dir::GlobalTypeId, dir::AutoInterface, Scope), bool>,
+    /// Active derivability goals closed coinductively on re-entry.
+    pub(in crate::check) deriving: FxIndexSet<(dir::GlobalTypeId, dir::AutoInterface)>,
+    /// Active extension member lookups closed coinductively on re-entry.
+    pub(in crate::check) extending: FxIndexSet<(dir::GlobalSymbolId, dir::GlobalTypeId)>,
     /// Storable representations proved this pass, keyed by assuming scope.
-    pub(in crate::check) proven_storage: FxIndexSet<(dir::GlobalTypeId, Scope)>,
+    pub(in crate::check) storable: FxIndexSet<(dir::GlobalTypeId, Scope)>,
     /// Selected and instantiated callables keyed by callee and operand types.
     pub(in crate::check) selections: FxIndexMap<SelectionKey, Selection>,
     /// Derived parameter variances per handle form, with in-flight marks.
@@ -303,7 +307,9 @@ impl<'a> CheckState<'a> {
             reduces: FxIndexMap::default(),
             members: FxIndexMap::default(),
             conforms: FxIndexMap::default(),
-            proven_storage: FxIndexSet::default(),
+            deriving: FxIndexSet::default(),
+            extending: FxIndexSet::default(),
+            storable: FxIndexSet::default(),
             selections: FxIndexMap::default(),
             variances: FxIndexMap::default(),
             imported_types: FxIndexMap::default(),

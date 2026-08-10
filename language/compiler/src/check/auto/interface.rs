@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use destack_source::ModuleId;
 
-use crate::check::{CheckState, Origin, Relation, Verdict};
+use crate::check::{CheckState, Origin, Relation, TypeSubstitution, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -18,30 +18,59 @@ impl CheckState<'_> {
         // require intrinsic binary protocols to use the receiver type on both sides
         if matches!(
             interface,
-            dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual
+            dir::AutoInterface::Equal
+                | dir::AutoInterface::PartialEqual
+                | dir::AutoInterface::Compare
+                | dir::AutoInterface::PartialCompare
         ) {
             let (module, application) = self.nominal_application(target)?;
             let arguments = self.type_ids(module, application.arguments)?;
-            let [other] = arguments else {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "intrinsic {} application has {} arguments",
-                        interface.name(),
-                        arguments.len()
-                    ),
-                });
-            };
-
-            // read argument solutions settled since the bound was queued
-            let other = self.shallow_resolve(*other)?;
-            let receiver_holds = self.decide_relation(origin, Relation::Equal, ty, other)?;
-            if !receiver_holds {
-                // an open argument leaves the receiver rule undecided
-                if !self.open_type_variables([ty, other])?.is_empty() {
-                    return Ok(Verdict::Ambiguous);
+            // read an elided argument as the receiver itself
+            let other = match arguments {
+                [] => None,
+                [other] => Some(*other),
+                _ => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "intrinsic {} application has {} arguments",
+                            interface.name(),
+                            arguments.len()
+                        ),
+                    });
                 }
+            };
+            if let Some(other) = other {
+                // read argument solutions settled since the bound was queued
+                let other = self.shallow_resolve(other)?;
+                let substitution = TypeSubstitution::default().with_receiver(ty);
+                let other = self.substitute_type(other, &substitution)?;
 
-                return Ok(Verdict::Fails);
+                // allow numeric scalars to compare across their exact domains
+                let reduced_ty = self.reduce_type_head(origin, ty)?;
+                let reduced_other = self.reduce_type_head(origin, other)?;
+                let domains = (
+                    self.ty(reduced_ty)?.scalar_domain(),
+                    self.ty(reduced_other)?.scalar_domain(),
+                );
+                let numeric = matches!(
+                    domains,
+                    (
+                        Some(dir::ScalarDomain::Integer | dir::ScalarDomain::Float),
+                        Some(dir::ScalarDomain::Integer | dir::ScalarDomain::Float),
+                    )
+                );
+
+                // require the argument to equal the receiver otherwise
+                let receiver_holds =
+                    numeric || self.decide_relation(origin, Relation::Equal, ty, other)?;
+                if !receiver_holds {
+                    // an open argument leaves the receiver rule undecided
+                    if !self.open_type_variables([ty, other])?.is_empty() {
+                        return Ok(Verdict::Ambiguous);
+                    }
+
+                    return Ok(Verdict::Fails);
+                }
             }
         }
 
@@ -89,6 +118,23 @@ impl CheckState<'_> {
             return Ok(decision);
         }
 
+        // allow a written derive list to replace the auto set of its declaration
+        if interface.is_auto_derivable()
+            && let dir::Type::Application(instance) = self.ty(ty)?
+        {
+            let excluded = self
+                .definition(instance.symbol)?
+                .and_then(dir::Definition::derives)
+                .is_some_and(|derives| !derives.contains(&interface));
+            if excluded {
+                if let Some(key) = key {
+                    self.conforms.insert(key, false);
+                }
+
+                return Ok(false);
+            }
+        }
+
         // dispatch compiler-known conformance rules
         let mut active = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         let holds = match interface {
@@ -114,16 +160,24 @@ impl CheckState<'_> {
             // TODO #Incomplete: the remaining auto interfaces never hold
             dir::AutoInterface::Unpin | dir::AutoInterface::Zeroable => Ok(false),
             dir::AutoInterface::Concrete => self.satisfies_concrete(origin, ty),
-            dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual => {
-                self.satisfies_builtin_equality(origin, ty, interface)
-            }
-            // leave derivable interfaces to their generated extensions
-            dir::AutoInterface::Clone
+            dir::AutoInterface::Equal
+            | dir::AutoInterface::PartialEqual
+            | dir::AutoInterface::Clone
             | dir::AutoInterface::Debug
-            | dir::AutoInterface::Default
-            | dir::AutoInterface::Hash
-            | dir::AutoInterface::Compare
-            | dir::AutoInterface::PartialCompare
+            | dir::AutoInterface::Display
+            | dir::AutoInterface::Hash => self.satisfies_derivable(origin, ty, interface),
+            // order scalars intrinsically
+            dir::AutoInterface::Compare | dir::AutoInterface::PartialCompare => {
+                let reduced = self.reduce_type_head(origin, ty)?;
+
+                Ok(self
+                    .ty(reduced)?
+                    .scalar_domain()
+                    .and_then(|domain| domain.conforms_to(interface))
+                    .unwrap_or(false))
+            }
+            // leave defaults and serialization to written derives
+            dir::AutoInterface::Default
             | dir::AutoInterface::Serialize
             | dir::AutoInterface::Deserialize => Ok(false),
         }?;
@@ -132,40 +186,6 @@ impl CheckState<'_> {
         if let Some(key) = key {
             self.conforms.insert(key, holds);
         }
-
-        Ok(holds)
-    }
-
-    /// Decide intrinsic equality conformance for builtin scalar values.
-    fn satisfies_builtin_equality(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-        interface: dir::AutoInterface,
-    ) -> CompilerResult<bool> {
-        // read the subject's scalar domain
-        let ty = self.reduce_type_head(origin, ty)?;
-        let domain = self.ty(ty)?.scalar_domain();
-
-        // discrete scalar domains compare exactly, floats only partially
-        let holds = matches!(
-            (interface, domain),
-            (
-                dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual,
-                Some(
-                    dir::ScalarDomain::Integer
-                        | dir::ScalarDomain::Bigint
-                        | dir::ScalarDomain::Character
-                        | dir::ScalarDomain::Symbol
-                        | dir::ScalarDomain::Boolean
-                        | dir::ScalarDomain::Null
-                        | dir::ScalarDomain::Undefined,
-                ),
-            ) | (
-                dir::AutoInterface::PartialEqual,
-                Some(dir::ScalarDomain::Float)
-            )
-        );
 
         Ok(holds)
     }
@@ -233,7 +253,7 @@ impl CheckState<'_> {
         Ok(holds)
     }
 
-    /// Record representation marker conformance for each concrete nominal.
+    /// Record marker conformance and seal written derives for each concrete nominal.
     pub(in crate::check) fn derive_module_conformances(
         &mut self,
         module: ModuleId,

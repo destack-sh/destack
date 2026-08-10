@@ -95,17 +95,11 @@ impl CheckState<'_> {
             }
         };
 
-        // classify the markers the compiler decides itself
+        // classify the interfaces the compiler decides itself
         let auto_interface = self
             .language_item(target_instance.symbol)?
             .and_then(dir::AutoInterface::from_language_item)
-            .filter(|interface| {
-                interface.is_marker()
-                    || matches!(
-                        interface,
-                        dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual
-                    )
-            });
+            .filter(|interface| interface.is_intrinsic());
 
         // find the target interface in the source heritage closure
         let application = if let dir::Type::Application(source_instance) = self.ty(source)? {
