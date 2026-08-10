@@ -1,12 +1,13 @@
+use destack_core::Blob;
 use destack_repository::Change;
 use destack_rpc::{CallError, Code};
-use destack_source::{ContentId, Edit, FileId};
+use destack_source::{Edit, FileId};
 use destack_workspace::{
     ApplySourceUpdateRequest, ReadRevisionRequest, SourceUpdate, WatchEvent, WatchRequest,
 };
 
 use super::harness::TestDaemon;
-use crate::OpenWorkspaceRequest;
+use crate::{BLOB_CHUNK_BYTE_LEN, OpenWorkspaceRequest, ReadBlobRequest};
 
 /// Round trip workspace operations and daemon shutdown over IPC RPC.
 #[test]
@@ -44,6 +45,55 @@ fn test_serve_workspace_connection() {
 
     assert_eq!(commit.after, revision);
     assert_ne!(commit.before, commit.after);
+
+    daemon.shutdown(connection);
+}
+
+/// Stream exact Blob bytes through one daemon connection.
+#[test]
+fn test_put_read_blob() {
+    let daemon = TestDaemon::start("daemon_blob_connection");
+    let connection = daemon.connect();
+    let bytes = (0..BLOB_CHUNK_BYTE_LEN * 2 + 17)
+        .map(|index| index as u8)
+        .collect::<Vec<_>>();
+
+    // stream and publish one Blob larger than one protocol chunk
+    let mut put = connection.blob().put(()).expect("Blob put should start");
+    for chunk in bytes.chunks(BLOB_CHUNK_BYTE_LEN) {
+        put.send(&chunk.to_vec()).expect("Blob chunk should send");
+    }
+    put.close_input().expect("Blob input should close");
+    let blob = put.response().expect("Blob put should complete").value;
+
+    // require the exact published identity through the same daemon store
+    let is_present = connection
+        .blob()
+        .contains(blob)
+        .expect("Blob presence should read")
+        .value;
+    assert_eq!(blob, Blob::for_bytes(&bytes));
+    assert!(is_present);
+
+    // stream one exact range back through multiple response items
+    let offset = 11_u64;
+    let byte_len = BLOB_CHUNK_BYTE_LEN as u64 + 23;
+    let mut read = connection
+        .blob()
+        .read(ReadBlobRequest {
+            blob,
+            offset,
+            byte_len: Some(byte_len),
+        })
+        .expect("Blob read should start");
+    let mut actual = Vec::new();
+    while let Some(chunk) = read.receive().expect("Blob chunk should receive") {
+        actual.extend_from_slice(&chunk);
+    }
+    read.response().expect("Blob read should complete");
+
+    let range = offset as usize..(offset + byte_len) as usize;
+    assert_eq!(actual, bytes[range]);
 
     daemon.shutdown(connection);
 }
@@ -129,7 +179,7 @@ fn test_share_physical_workspace_commit_across_connections() {
             file: FileId::from_logical_str("src/main.ds"),
             path: "src/main.ds".to_string(),
             before: None,
-            after: Some(ContentId::for_text("export const answer = 42;\n")),
+            after: Some(Blob::for_bytes(b"export const answer = 42;\n")),
         }]
     );
     let revision = second

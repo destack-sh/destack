@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use destack_artifact::{BuildId, DiskBlobStore};
+use destack_artifact::BuildId;
 use destack_repository::{
     DestackLayoutOverride, Environment, Execution, Host, Settings, open_repository,
 };
@@ -90,12 +90,7 @@ impl TestDaemon {
         };
         let physical: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
         let file_system = Arc::new(OverlayFileSystem::with_inner(physical));
-        let host = Host::new(
-            BuildId::test(),
-            environment,
-            file_system.clone(),
-            Arc::new(DiskBlobStore::new()),
-        );
+        let host = Host::new(BuildId::test(), environment, file_system.clone());
         let repository = open_repository(root.root().to_path_buf(), host, settings, layout)
             .expect("test repository should open");
         let repository = Arc::new(repository);

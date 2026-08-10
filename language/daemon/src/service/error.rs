@@ -1,3 +1,4 @@
+use destack_repository::BlobStoreError;
 use destack_rpc::{Code, Status};
 
 use crate::DaemonError;
@@ -8,6 +9,12 @@ impl From<DaemonError> for Status {
         match error {
             DaemonError::Workspace(error) => error.into(),
             DaemonError::Watch(error) => Status::new(Code::Unavailable, error.to_string()),
+            DaemonError::Blob(error @ BlobStoreError::Missing { .. }) => {
+                Status::new(Code::NotFound, error.to_string())
+            }
+            DaemonError::Blob(
+                error @ (BlobStoreError::Corrupt { .. } | BlobStoreError::Length { .. }),
+            ) => Status::new(Code::DataLoss, error.to_string()),
             error => Status::new(Code::Internal, error.to_string()),
         }
     }

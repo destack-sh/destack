@@ -1,5 +1,6 @@
 use std::{error, fmt};
 
+use destack_repository::BlobStoreError;
 use destack_rpc::{
     ConnectionError, IpcError, RegistryError, ServerError, ServiceSchemaError, TransportError,
     WebSocketError,
@@ -24,6 +25,8 @@ pub enum DaemonError {
     Connection(ServerError),
     /// Physical workspace observation failed.
     Watch(FileWatchError),
+    /// Immutable Blob storage failed.
+    Blob(BlobStoreError),
     /// Workspace initialization failed.
     Workspace(workspace::Error),
     /// A daemon thread panicked.
@@ -56,6 +59,7 @@ impl fmt::Display for DaemonError {
             Self::Registry(error) => write!(formatter, "daemon RPC registry failed: {error}"),
             Self::Connection(error) => write!(formatter, "daemon RPC connection failed: {error}"),
             Self::Watch(error) => write!(formatter, "daemon file watch failed: {error}"),
+            Self::Blob(error) => write!(formatter, "daemon BlobStore failed: {error}"),
             Self::Workspace(error) => write!(formatter, "daemon workspace failed: {error}"),
             Self::Thread => write!(formatter, "daemon thread panicked"),
             Self::Shutdown { failures } => {
@@ -80,6 +84,7 @@ impl error::Error for DaemonError {
             Self::Registry(error) => Some(error),
             Self::Connection(error) => Some(error),
             Self::Watch(error) => Some(error),
+            Self::Blob(error) => Some(error),
             Self::Workspace(error) => Some(error),
             Self::Thread => None,
             Self::Shutdown { failures } => failures
@@ -142,6 +147,13 @@ impl From<FileWatchError> for DaemonError {
     /// Convert one physical file watch failure.
     fn from(error: FileWatchError) -> Self {
         Self::Watch(error)
+    }
+}
+
+impl From<BlobStoreError> for DaemonError {
+    /// Convert one immutable Blob storage failure.
+    fn from(error: BlobStoreError) -> Self {
+        Self::Blob(error)
     }
 }
 

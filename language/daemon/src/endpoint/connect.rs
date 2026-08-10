@@ -7,28 +7,35 @@ use destack_rpc::{ConnectError, Connection, ConnectionError, IpcError, IpcTransp
 use destack_workspace::WorkspaceClient;
 
 use super::{DaemonConnectOptions, DaemonEndpoint, DaemonEndpointError, DaemonLaunch};
-use crate::DaemonClient;
+use crate::{BlobClient, DaemonClient};
 
 /// Typed connection to one daemon endpoint.
 #[derive(Debug)]
 pub struct DaemonConnection {
     /// Shared negotiated RPC connection.
     connection: Arc<Connection>,
-    /// Workspace operations.
-    workspace: WorkspaceClient,
+    /// Immutable Blob operations.
+    blob: BlobClient,
     /// Daemon operations.
     daemon: DaemonClient,
+    /// Workspace operations.
+    workspace: WorkspaceClient,
 }
 
 impl DaemonConnection {
-    /// Return workspace operations.
-    pub const fn workspace(&self) -> &WorkspaceClient {
-        &self.workspace
+    /// Return immutable Blob operations.
+    pub const fn blob(&self) -> &BlobClient {
+        &self.blob
     }
 
     /// Return daemon operations.
     pub const fn daemon(&self) -> &DaemonClient {
         &self.daemon
+    }
+
+    /// Return workspace operations.
+    pub const fn workspace(&self) -> &WorkspaceClient {
+        &self.workspace
     }
 
     /// Close this daemon connection.
@@ -56,18 +63,21 @@ impl DaemonEndpoint {
                 self.wait_for_transport(&options, error)?
             }
         };
-        let workspace = WorkspaceClient::service_schema().map_err(ConnectError::from)?;
+        let blob = BlobClient::service_schema().map_err(ConnectError::from)?;
         let daemon = DaemonClient::service_schema().map_err(ConnectError::from)?;
-        let services = vec![workspace.id(), daemon.id()];
+        let workspace = WorkspaceClient::service_schema().map_err(ConnectError::from)?;
+        let services = vec![blob.id(), daemon.id(), workspace.id()];
         let connection =
             Connection::connect(transport, options.rpc, services).map_err(ConnectError::from)?;
-        let workspace = WorkspaceClient::new(connection.clone())?;
+        let blob = BlobClient::new(connection.clone())?;
         let daemon = DaemonClient::new(connection.clone())?;
+        let workspace = WorkspaceClient::new(connection.clone())?;
 
         Ok(DaemonConnection {
             connection,
-            workspace,
+            blob,
             daemon,
+            workspace,
         })
     }
 

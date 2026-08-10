@@ -3,6 +3,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
 use crossbeam_channel::{Receiver, Sender, select, unbounded};
+use destack_repository::BlobStore;
 use destack_rpc::{
     IpcListener, Listener, Registry, Server, ServerError, Transport, TransportError,
     WebSocketListener,
@@ -10,8 +11,8 @@ use destack_rpc::{
 use destack_workspace::{Workspace, WorkspaceServer};
 
 use crate::{
-    ConnectionActivity, ConnectionId, DaemonEndpoint, DaemonError, DaemonLifecycle, DaemonMetadata,
-    DaemonOptions, DaemonPeer, DaemonServer, WorkspaceRegistry,
+    BlobServer, ConnectionActivity, ConnectionId, DaemonEndpoint, DaemonError, DaemonLifecycle,
+    DaemonMetadata, DaemonOptions, DaemonPeer, DaemonServer, WorkspaceRegistry,
 };
 
 /// Persistent process serving Destack RPC services.
@@ -19,6 +20,8 @@ use crate::{
 pub struct Daemon {
     /// Discovery and transport addresses.
     endpoint: DaemonEndpoint,
+    /// Immutable bytes shared by daemon services.
+    blobs: Arc<dyn BlobStore>,
     /// Root-bound workspaces exposed by this daemon.
     workspaces: WorkspaceRegistry,
     /// Daemon options.
@@ -39,14 +42,18 @@ impl Daemon {
         endpoint: DaemonEndpoint,
         options: DaemonOptions,
     ) -> Result<Self, DaemonError> {
+        // retain one BlobStore across every daemon service and workspace
+        let blobs = workspace.session().repository().blob_store().clone();
+
         // host shared workspace state and physical changes
-        let workspaces = WorkspaceRegistry::new(workspace)?;
+        let workspaces = WorkspaceRegistry::new(workspace, blobs.clone())?;
 
         // create process lifecycle state
         let lifecycle = DaemonLifecycle::new(options.idle_timeout);
 
         Ok(Self {
             endpoint,
+            blobs,
             workspaces,
             options,
             lifecycle,
@@ -259,13 +266,15 @@ impl Daemon {
     /// Build connection-scoped RPC services.
     fn rpc_server(&self, connection: ConnectionId) -> Result<Server, DaemonError> {
         // bind typed services to shared daemon state
-        let workspace = WorkspaceServer::new(self.workspaces.clone())?;
+        let blob = BlobServer::new(self.blobs.clone())?;
         let daemon = DaemonServer::new(DaemonPeer::new(self.clone(), connection))?;
+        let workspace = WorkspaceServer::new(self.workspaces.clone())?;
 
         // register each independently versioned service
         let mut services = Registry::new();
-        services.insert(workspace)?;
+        services.insert(blob)?;
         services.insert(daemon)?;
+        services.insert(workspace)?;
 
         Ok(Server::new(services, self.options.rpc.clone()))
     }

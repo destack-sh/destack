@@ -4,11 +4,11 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactPayload;
 use destack_repository::{
-    Commit, DestackLayoutOverride, Host, Revision, Settings, open_repository,
+    BlobStore, Commit, DestackLayoutOverride, Host, Revision, Settings, open_repository,
 };
 use destack_rpc::{Code, Request, Response, ResponseSender, Status};
 use destack_session::Executor;
-use destack_source::{Content, ContentId, OverlayFileSystem};
+use destack_source::OverlayFileSystem;
 use destack_workspace as workspace;
 use parking_lot::RwLock;
 use workspace::{ProgressEvent, WatchEvent, Workspace, WorkspaceService};
@@ -49,10 +49,13 @@ impl std::fmt::Debug for WorkspaceRegistry {
 
 impl WorkspaceRegistry {
     /// Create one registry containing an initial workspace.
-    pub(crate) fn new(workspace: Workspace) -> Result<Self, DaemonError> {
+    pub(crate) fn new(
+        workspace: Workspace,
+        blob_store: Arc<dyn BlobStore>,
+    ) -> Result<Self, DaemonError> {
         let executor = workspace.session().executor();
         let repository = workspace.session().repository();
-        let host = repository.host().clone();
+        let host = repository.host().clone().with_blob_store(blob_store);
         let settings = repository.settings().clone();
         let layout = DestackLayoutOverride {
             home: Some(repository.layout().home.clone()),
@@ -446,26 +449,6 @@ impl WorkspaceService for WorkspaceRegistry {
         let workspace = self.workspace(&request.value.root)?;
 
         WorkspaceService::artifact(&workspace, request).await
-    }
-
-    /// Store one content value.
-    async fn store(
-        &self,
-        request: Request<workspace::StoreRequest>,
-    ) -> Result<Response<ContentId>, Status> {
-        let workspace = self.workspace(&request.value.root)?;
-
-        WorkspaceService::store(&workspace, request).await
-    }
-
-    /// Load one content value.
-    async fn load(
-        &self,
-        request: Request<workspace::LoadRequest>,
-    ) -> Result<Response<Content>, Status> {
-        let workspace = self.workspace(&request.value.root)?;
-
-        WorkspaceService::load(&workspace, request).await
     }
 
     /// Materialize one artifact on the workspace host.
