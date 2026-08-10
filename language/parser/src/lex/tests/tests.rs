@@ -25,7 +25,8 @@ pub(in crate::lex) fn lex_source(input: &str) -> (Vec<TokenSpan>, Vec<TokenSpan>
         None,
         FileType::Destack,
         input.to_string(),
-    );
+    )
+    .expect("test source should load");
 
     let file = Arc::new(file);
     let (semantic_tokens, eof_token) = Lexer::lex(file.clone());
@@ -169,7 +170,8 @@ pub(in crate::lex) fn lex_source_with_tree_literals(
         None,
         FileType::Destack,
         input.to_string(),
-    );
+    )
+    .expect("test source should load");
     let file = Arc::new(file);
 
     // build the EOF token from the file end

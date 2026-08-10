@@ -13,13 +13,16 @@ fuzz_target!(|data: &[u8]| {
 
     // tokenize the input
     let file_id = FileId::from_logical_str("fuzz.ds");
-    let file = Arc::new(File::from_text(
-        file_id,
-        "fuzz.ds".to_string(),
-        Uri::from_string("fuzz.ds"),
-        None,
-        FileType::Destack,
-        input.to_string(),
-    ));
+    let file = Arc::new(
+        File::from_text(
+            file_id,
+            "fuzz.ds".to_string(),
+            Uri::from_string("fuzz.ds"),
+            None,
+            FileType::Destack,
+            input.to_string(),
+        )
+        .expect("fuzz source should load"),
+    );
     let _ = Lexer::lex(file);
 });

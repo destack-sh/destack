@@ -1,10 +1,10 @@
 use core::fmt;
 use std::error::Error;
 
+use destack_core::Blob;
 use destack_dir::{NodeType, Token, TokenSpan, TokenType};
 use destack_source::{
-    ByteRange, ContentId, Diagnostic, DiagnosticDefinition, DiagnosticLabel, DiagnosticTarget,
-    FileId, Span,
+    ByteRange, Diagnostic, DiagnosticDefinition, DiagnosticLabel, DiagnosticTarget, FileId, Span,
 };
 
 /// All parser diagnostic definitions.
@@ -368,11 +368,11 @@ impl ParserError {
     }
 
     /// Convert this parser error into one source diagnostic.
-    pub fn to_diagnostic(&self, content: ContentId, file_id: FileId) -> Diagnostic {
+    pub fn to_diagnostic(&self, blob: Blob, file_id: FileId) -> Diagnostic {
         let definition = self.diagnostic().definition();
         let (message, label) = self.message();
         let primary =
-            DiagnosticLabel::message(content, DiagnosticTarget::Span(self.span(file_id)), label);
+            DiagnosticLabel::message(blob, DiagnosticTarget::Span(self.span(file_id)), label);
 
         Diagnostic::error(definition.id, message, primary)
     }

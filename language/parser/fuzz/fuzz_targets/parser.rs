@@ -29,14 +29,10 @@ fuzz_target!(|data: &[u8]| {
     // set up minimal context for parsing
     let file_id = FileId::from_logical_str(file_name);
     let uri = Uri::from_string(file_name);
-    let file = Arc::new(File::from_text(
-        file_id,
-        file_name.to_string(),
-        uri,
-        None,
-        file_type,
-        input,
-    ));
+    let file = Arc::new(
+        File::from_text(file_id, file_name.to_string(), uri, None, file_type, input)
+            .expect("fuzz source should load"),
+    );
 
     // parse the input
     let language = LanguageType::try_from(file_type).expect("file type has no parser language");

@@ -49,14 +49,17 @@ fn library_file(path: &Path, logical_path: &Path, source: String) -> Arc<File> {
         .to_string();
     let path_text = path.to_string_lossy();
 
-    Arc::new(File::from_text(
-        FileId::from_logical_path(logical_path),
-        file_name,
-        Uri::from_string(path_text.as_ref()),
-        Some(path.to_path_buf()),
-        FileType::Destack,
-        source,
-    ))
+    Arc::new(
+        File::from_text(
+            FileId::from_logical_path(logical_path),
+            file_name,
+            Uri::from_string(path_text.as_ref()),
+            Some(path.to_path_buf()),
+            FileType::Destack,
+            source,
+        )
+        .expect("test source should load"),
+    )
 }
 
 /// Parse one source file as a checked-in library module.

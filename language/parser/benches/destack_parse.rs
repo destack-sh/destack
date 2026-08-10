@@ -349,7 +349,8 @@ fn load_file_corpus(name: impl Into<String>, paths: &[PathBuf]) -> Option<Corpus
 
         let file_id = FileId::new(files.len() as u64);
         let (file_name, uri) = Uri::from_path_with_name(path);
-        let file = File::from_text(file_id, file_name, uri, None, file_type, content);
+        let file = File::from_text(file_id, file_name, uri, None, file_type, content)
+            .expect("benchmark source should load");
         files.push(Arc::new(file));
     }
 
@@ -391,7 +392,8 @@ fn generated_corpus(
             None,
             file_type,
             content,
-        );
+        )
+        .expect("benchmark source should load");
         files.push(Arc::new(file));
     }
 
@@ -701,7 +703,8 @@ fn load_single_file(path: &Path) -> (Arc<File>, u64) {
     // register file
     let file_id = FileId::new(0);
     let (file_name, uri) = Uri::from_path_with_name(path);
-    let file = File::from_text(file_id, file_name, uri, None, file_type, content);
+    let file = File::from_text(file_id, file_name, uri, None, file_type, content)
+        .expect("benchmark source should load");
 
     (Arc::new(file), line_count)
 }

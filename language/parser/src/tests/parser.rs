@@ -39,7 +39,8 @@ impl TestParser {
             None,
             FileType::from(language),
             input.to_string(),
-        );
+        )
+        .expect("test source should load");
         Self {
             file: Arc::new(file),
             language,

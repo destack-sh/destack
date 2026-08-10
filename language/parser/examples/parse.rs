@@ -144,7 +144,7 @@ fn load_file(path: &Path) -> Result<Arc<File>, Box<dyn Error>> {
     let file_type = FileType::from_path_or_unknown(path);
     let file_id = FileId::new(0);
     let (file_name, uri) = Uri::from_path_with_name(path);
-    let file = File::from_text(file_id, file_name, uri, None, file_type, content);
+    let file = File::from_text(file_id, file_name, uri, None, file_type, content)?;
 
     Ok(Arc::new(file))
 }

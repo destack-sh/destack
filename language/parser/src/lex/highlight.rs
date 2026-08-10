@@ -175,7 +175,8 @@ mod tests {
             None,
             FileType::Destack,
             "let x = 42;".to_string(),
-        );
+        )
+        .expect("test source should load");
         let colorized = colorize_source(&file);
         assert!(colorized.contains("\x1b["));
         assert!(colorized.contains("let"));
@@ -186,19 +187,22 @@ mod tests {
     #[test]
     fn test_highlight_printed_diagnostic_source_rows() {
         let file_id = FileId::new(1);
-        let file = Arc::new(File::from_text(
-            file_id,
-            "<test>".to_string(),
-            Uri::from_string("<test>"),
-            None,
-            FileType::Destack,
-            "const answer: int32 = \"text\";".to_string(),
-        ));
+        let file = Arc::new(
+            File::from_text(
+                file_id,
+                "<test>".to_string(),
+                Uri::from_string("<test>"),
+                None,
+                FileType::Destack,
+                "const answer: int32 = \"text\";".to_string(),
+            )
+            .expect("test source should load"),
+        );
         let span = Span::new(file_id, 22, 28);
         let diagnostic = Diagnostic::error(
             "not-assignable",
             "mismatch",
-            DiagnosticLabel::message(file.content_id(), DiagnosticTarget::Span(span), "mismatch"),
+            DiagnosticLabel::message(file.blob(), DiagnosticTarget::Span(span), "mismatch"),
         );
         let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
 
@@ -243,7 +247,8 @@ mod tests {
             None,
             FileType::Destack,
             "const value = 1; // note".to_string(),
-        );
+        )
+        .expect("test source should load");
         let colorized = colorize_source(&file);
         let expected_comment = Color::BrightBlue.apply("// note");
 

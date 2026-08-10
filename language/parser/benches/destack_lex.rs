@@ -112,7 +112,8 @@ fn bench_lex(criterion: &mut Criterion) {
             Some(path.clone()),
             file_type,
             content,
-        );
+        )
+        .expect("benchmark source should load");
         sources.push(SourceFile {
             file: Arc::new(file),
         });

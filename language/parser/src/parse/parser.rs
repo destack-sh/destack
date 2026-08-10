@@ -575,11 +575,11 @@ impl Parser {
             return DiagnosticCollection::new();
         }
 
-        let content = self.file.content_id();
+        let blob = self.file.blob();
         let diagnostics = self
             .errors
             .iter()
-            .map(|error| error.to_diagnostic(content, self.file_id))
+            .map(|error| error.to_diagnostic(blob, self.file_id))
             .collect();
 
         DiagnosticCollection::from_diagnostics(diagnostics)
@@ -587,9 +587,9 @@ impl Parser {
 
     /// Create one source diagnostic from one parser error.
     pub fn diagnostic(&self, error: &ParserError) -> Diagnostic {
-        let content = self.file.content_id();
+        let blob = self.file.blob();
 
-        error.to_diagnostic(content, self.file_id)
+        error.to_diagnostic(blob, self.file_id)
     }
 
     /// Mark the current token range as the start of a parse operation.
