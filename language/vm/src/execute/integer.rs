@@ -26,14 +26,21 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         };
         let left = operands.register()?;
         let left = self.read(left.0);
-        let right = if operation.input_count() == 2 {
+        let right = if operation.input_count() >= 2 {
             let right = operands.register()?;
 
             Some(self.read(right.0))
         } else {
             None
         };
-        let (value, overflow) = Arithmetic::integer_result(operation, scalar, left, right)?;
+        let third = if operation.input_count() == 3 {
+            let third = operands.register()?;
+
+            Some(self.read(third.0))
+        } else {
+            None
+        };
+        let (value, overflow) = Arithmetic::integer_result(operation, scalar, left, right, third)?;
 
         self.write(target.0, value);
         if let Some(target) = overflow_target {
@@ -51,8 +58,9 @@ impl Arithmetic {
         scalar: Scalar,
         left: Word,
         right: Option<Word>,
+        third: Option<Word>,
     ) -> Result<Word> {
-        let (value, _) = Self::integer_result(operation, scalar, left, right)?;
+        let (value, _) = Self::integer_result(operation, scalar, left, right, third)?;
 
         Ok(value)
     }
@@ -63,6 +71,7 @@ impl Arithmetic {
         scalar: Scalar,
         left: Word,
         right: Option<Word>,
+        third: Option<Word>,
     ) -> Result<(Word, bool)> {
         let left = left.bits();
         let result = match operation {
@@ -76,23 +85,34 @@ impl Arithmetic {
             ),
             IntegerOperation::ByteSwap => (Self::byte_swap(left, scalar), false),
             IntegerOperation::BitReverse => (Self::bit_reverse(left, scalar), false),
+            IntegerOperation::IsolateLowestOne => (left & 0_u64.wrapping_sub(left), false),
             _ => {
                 let right = right.ok_or_else(Error::invalid_instruction)?;
-                Self::integer_binary(operation, scalar, left, right.bits())?
+                Self::integer_operation(
+                    operation,
+                    scalar,
+                    left,
+                    right.bits(),
+                    third.map(Word::bits),
+                )?
             }
         };
-        let value = Word::from_bits(scalar.encode(result.0));
+        let result_scalar = operation
+            .result_scalar(scalar)
+            .ok_or_else(Error::invalid_instruction)?;
+        let value = Word::from_bits(result_scalar.encode(result.0));
 
         Ok((value, result.1))
     }
 
-    /// Execute one binary scalar integer operation.
+    /// Execute one scalar integer operation.
     #[inline(always)]
-    fn integer_binary(
+    fn integer_operation(
         operation: IntegerOperation,
         scalar: Scalar,
         left: u64,
         right: u64,
+        third: Option<u64>,
     ) -> Result<(u64, bool)> {
         let result = match operation {
             IntegerOperation::Add => (left.wrapping_add(right), false),
@@ -107,6 +127,9 @@ impl Arithmetic {
             IntegerOperation::Divide => (Self::divide(scalar, left, right), false),
             IntegerOperation::Remainder if right == 0 => {
                 return Err(Error::trap(Trap::DivisionByZero));
+            }
+            IntegerOperation::Remainder if Self::division_overflows(scalar, left, right) => {
+                return Err(Error::trap(Trap::IntegerOverflow));
             }
             IntegerOperation::Remainder => (Self::remainder(scalar, left, right), false),
             IntegerOperation::And => (left & right, false),
@@ -140,6 +163,19 @@ impl Arithmetic {
             IntegerOperation::AddSaturating | IntegerOperation::SubtractSaturating => {
                 (Self::saturating(operation, scalar, left, right), false)
             }
+            IntegerOperation::Midpoint => (Self::midpoint(scalar, left, right), false),
+            IntegerOperation::Clamp => {
+                let maximum = third.ok_or_else(Error::invalid_instruction)?;
+                (Self::clamp(scalar, left, right, maximum)?, false)
+            }
+            IntegerOperation::DivideCeil => (Self::divide_ceil(scalar, left, right)?, false),
+            IntegerOperation::RemainderEuclidean => {
+                (Self::remainder_euclidean(scalar, left, right)?, false)
+            }
+            IntegerOperation::IsMultipleOf => {
+                (Self::is_multiple_of(scalar, left, right) as u64, false)
+            }
+            IntegerOperation::AbsDiff => (Self::abs_diff(scalar, left, right), false),
             _ => unreachable!("unary integer operations are handled by the caller"),
         };
 
@@ -242,6 +278,105 @@ impl Arithmetic {
                 as u64
         } else {
             left % right
+        }
+    }
+
+    /// Compute one overflow-safe midpoint rounded toward zero.
+    fn midpoint(scalar: Scalar, left: u64, right: u64) -> u64 {
+        let width = scalar.bit_width();
+        if scalar.is_signed_integer() {
+            let left = Self::signed_integer(scalar, left);
+            let right = Self::signed_integer(scalar, right);
+
+            Self::truncate(((left + right) / 2) as u64, width)
+        } else {
+            let left = Self::truncate(left, width) as u128;
+            let right = Self::truncate(right, width) as u128;
+
+            ((left + right) / 2) as u64
+        }
+    }
+
+    /// Clamp one integer between validated ordered bounds.
+    fn clamp(scalar: Scalar, value: u64, minimum: u64, maximum: u64) -> Result<u64> {
+        if Self::compare(scalar, minimum, maximum).is_gt() {
+            return Err(Error::trap(Trap::InvalidArithmetic));
+        }
+
+        let value = if Self::compare(scalar, value, minimum).is_lt() {
+            minimum
+        } else if Self::compare(scalar, value, maximum).is_gt() {
+            maximum
+        } else {
+            value
+        };
+
+        Ok(value)
+    }
+
+    /// Divide one integer and round the quotient toward positive infinity.
+    fn divide_ceil(scalar: Scalar, left: u64, right: u64) -> Result<u64> {
+        if right == 0 {
+            return Err(Error::trap(Trap::DivisionByZero));
+        }
+        if Self::division_overflows(scalar, left, right) {
+            return Err(Error::trap(Trap::IntegerOverflow));
+        }
+
+        let quotient = Self::divide(scalar, left, right);
+        let remainder = Self::remainder(scalar, left, right);
+        let should_increment = remainder != 0
+            && Self::compare(scalar, remainder, 0) == Self::compare(scalar, right, 0);
+        let quotient = quotient.wrapping_add(u64::from(should_increment));
+
+        Ok(quotient)
+    }
+
+    /// Compute one least nonnegative remainder.
+    fn remainder_euclidean(scalar: Scalar, left: u64, right: u64) -> Result<u64> {
+        if right == 0 {
+            return Err(Error::trap(Trap::DivisionByZero));
+        }
+        if Self::division_overflows(scalar, left, right) {
+            return Err(Error::trap(Trap::IntegerOverflow));
+        }
+
+        let remainder = Self::remainder(scalar, left, right);
+        if !scalar.is_signed_integer() || Self::compare(scalar, remainder, 0).is_ge() {
+            return Ok(remainder);
+        }
+        let divisor = Self::signed_integer(scalar, right);
+        let remainder = Self::signed_integer(scalar, remainder);
+        let remainder = remainder + divisor.abs();
+
+        Ok(Self::truncate(remainder as u64, scalar.bit_width()))
+    }
+
+    /// Return whether one integer is a multiple of another.
+    fn is_multiple_of(scalar: Scalar, left: u64, right: u64) -> bool {
+        if right == 0 {
+            return left == 0;
+        }
+        if Self::division_overflows(scalar, left, right) {
+            return true;
+        }
+
+        Self::remainder(scalar, left, right) == 0
+    }
+
+    /// Compute one same-width unsigned absolute integer difference.
+    fn abs_diff(scalar: Scalar, left: u64, right: u64) -> u64 {
+        if scalar.is_signed_integer() {
+            let left = Self::signed_integer(scalar, left);
+            let right = Self::signed_integer(scalar, right);
+
+            left.abs_diff(right) as u64
+        } else {
+            let width = scalar.bit_width();
+            let left = Self::truncate(left, width);
+            let right = Self::truncate(right, width);
+
+            left.abs_diff(right)
         }
     }
 
@@ -355,12 +490,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let mut operands = self.operands(instruction);
 
         // decode destinations before source values
-        let value_target = if operation.is_count() || operation.is_comparison() {
+        let value_target = if operation.is_count() || operation.returns_boolean() {
             None
         } else {
             Some(operands.span()?)
         };
-        let scalar_target = if operation.is_count() || operation.is_comparison() {
+        let scalar_target = if operation.is_count() || operation.returns_boolean() {
             Some(operands.register()?)
         } else {
             None
@@ -382,6 +517,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             IntegerOperation::PopulationCount => (left.count_ones() as u128, false),
             IntegerOperation::ByteSwap => (left.swap_bytes(), false),
             IntegerOperation::BitReverse => (left.reverse_bits(), false),
+            IntegerOperation::IsolateLowestOne => (left & 0_u128.wrapping_sub(left), false),
             _ if operation.uses_count() => {
                 let count = operands.register()?;
                 let count = self.read(count.0).as_u64() as u32;
@@ -394,8 +530,15 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             _ => {
                 let right = operands.span()?;
                 let right = self.read_integer128(right)?;
+                let third = if operation.input_count() == 3 {
+                    let third = operands.span()?;
 
-                Self::integer128_binary(operation, left, right, is_signed)?
+                    Some(self.read_integer128(third)?)
+                } else {
+                    None
+                };
+
+                Self::integer128_operation(operation, left, right, third, is_signed)?
             }
         };
 
@@ -404,7 +547,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             self.write_integer128(target, value)?;
         }
         if let Some(target) = scalar_target {
-            let value = if operation.is_comparison() {
+            let value = if operation.returns_boolean() {
                 Word::boolean(value != 0)
             } else {
                 Word::uint32(value as u32)
@@ -419,11 +562,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         Ok(())
     }
 
-    /// Execute one binary 128-bit integer operation.
-    fn integer128_binary(
+    /// Execute one 128-bit integer operation.
+    fn integer128_operation(
         operation: IntegerOperation,
         left: u128,
         right: u128,
+        third: Option<u128>,
         is_signed: bool,
     ) -> Result<(u128, bool)> {
         let value = match operation {
@@ -444,6 +588,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             IntegerOperation::Divide => (left / right, false),
             IntegerOperation::Remainder if right == 0 => {
                 return Err(Error::trap(Trap::DivisionByZero));
+            }
+            IntegerOperation::Remainder
+                if is_signed && left == i128::MIN as u128 && right == u128::MAX =>
+            {
+                return Err(Error::trap(Trap::IntegerOverflow));
             }
             IntegerOperation::Remainder if is_signed => {
                 ((left as i128).wrapping_rem(right as i128) as u128, false)
@@ -496,10 +645,100 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             }
             IntegerOperation::AddSaturating => (left.saturating_add(right), false),
             IntegerOperation::SubtractSaturating => (left.saturating_sub(right), false),
+            IntegerOperation::Midpoint if is_signed => {
+                ((left as i128).midpoint(right as i128) as u128, false)
+            }
+            IntegerOperation::Midpoint => (left.midpoint(right), false),
+            IntegerOperation::Clamp => {
+                let maximum = third.ok_or_else(Error::invalid_instruction)?;
+                if Self::integer128_compare(right, maximum, is_signed).is_gt() {
+                    return Err(Error::trap(Trap::InvalidArithmetic));
+                }
+                let value = if Self::integer128_compare(left, right, is_signed).is_lt() {
+                    right
+                } else if Self::integer128_compare(left, maximum, is_signed).is_gt() {
+                    maximum
+                } else {
+                    left
+                };
+
+                (value, false)
+            }
+            IntegerOperation::DivideCeil => {
+                let quotient = Self::integer128_divide(left, right, is_signed)?;
+                let remainder = Self::integer128_remainder(left, right, is_signed)?;
+                let same_sign = Self::integer128_compare(remainder, 0, is_signed)
+                    == Self::integer128_compare(right, 0, is_signed);
+                let increment = u128::from(remainder != 0 && same_sign);
+
+                (quotient.wrapping_add(increment), false)
+            }
+            IntegerOperation::RemainderEuclidean => {
+                let remainder = Self::integer128_remainder(left, right, is_signed)?;
+                if !is_signed || (remainder as i128) >= 0 {
+                    (remainder, false)
+                } else {
+                    let divisor = right as i128;
+                    let magnitude = divisor.unsigned_abs();
+                    let remainder = (remainder as i128) as u128;
+
+                    (remainder.wrapping_add(magnitude), false)
+                }
+            }
+            IntegerOperation::IsMultipleOf if right == 0 => ((left == 0) as u128, false),
+            IntegerOperation::IsMultipleOf
+                if is_signed && left == i128::MIN as u128 && right == u128::MAX =>
+            {
+                (1, false)
+            }
+            IntegerOperation::IsMultipleOf if is_signed => {
+                (((left as i128) % (right as i128) == 0) as u128, false)
+            }
+            IntegerOperation::IsMultipleOf => ((left % right == 0) as u128, false),
+            IntegerOperation::AbsDiff if is_signed => {
+                ((left as i128).abs_diff(right as i128), false)
+            }
+            IntegerOperation::AbsDiff => (left.abs_diff(right), false),
             _ => unreachable!("unary and shift operations are handled by the caller"),
         };
 
         Ok(value)
+    }
+
+    /// Divide two 128-bit integers with language traps.
+    fn integer128_divide(left: u128, right: u128, is_signed: bool) -> Result<u128> {
+        if right == 0 {
+            return Err(Error::trap(Trap::DivisionByZero));
+        }
+        if is_signed && left == i128::MIN as u128 && right == u128::MAX {
+            return Err(Error::trap(Trap::IntegerOverflow));
+        }
+
+        let quotient = if is_signed {
+            ((left as i128) / (right as i128)) as u128
+        } else {
+            left / right
+        };
+
+        Ok(quotient)
+    }
+
+    /// Compute one 128-bit remainder with language traps.
+    fn integer128_remainder(left: u128, right: u128, is_signed: bool) -> Result<u128> {
+        if right == 0 {
+            return Err(Error::trap(Trap::DivisionByZero));
+        }
+        if is_signed && left == i128::MIN as u128 && right == u128::MAX {
+            return Err(Error::trap(Trap::IntegerOverflow));
+        }
+
+        let remainder = if is_signed {
+            ((left as i128) % (right as i128)) as u128
+        } else {
+            left % right
+        };
+
+        Ok(remainder)
     }
 
     /// Execute one 128-bit shift or rotation.

@@ -752,7 +752,7 @@ impl Execution<'_, '_, '_, '_> {
         let first_input = inputs[0].ok_or_else(|| self.invalid_instruction())?;
         let first = self.tensor(first_input)?;
         let source_scalar = first.scalar;
-        let (float_operation, integer_operation, expected_input_count, is_comparison) =
+        let (float_operation, integer_operation, expected_input_count, returns_boolean) =
             if let Some(operation) = operator.float_operation() {
                 if !source_scalar.is_float() {
                     return Err(self.invalid_instruction());
@@ -762,7 +762,7 @@ impl Execution<'_, '_, '_, '_> {
                     Some(operation),
                     None,
                     operation.input_count(),
-                    operation.is_comparison(),
+                    operation.returns_boolean(),
                 )
             } else if let Some(operation) = operator.integer_operation() {
                 if !source_scalar.is_integer() || operation.is_overflowing() {
@@ -773,12 +773,12 @@ impl Execution<'_, '_, '_, '_> {
                     None,
                     Some(operation),
                     operation.input_count(),
-                    operation.is_comparison(),
+                    operation.returns_boolean(),
                 )
             } else {
                 return Err(self.invalid_instruction());
             };
-        if input_count != expected_input_count || is_comparison != expects_comparison {
+        if input_count != expected_input_count || returns_boolean != expects_comparison {
             return Err(self.invalid_instruction());
         }
         let mut tensors = [first; 3];
@@ -795,11 +795,10 @@ impl Execution<'_, '_, '_, '_> {
                 return Err(self.invalid_instruction());
             }
         }
-        if expects_comparison {
-            if allocation.scalar != Scalar::Boolean {
-                return Err(self.invalid_instruction());
-            }
-        } else if allocation.scalar != source_scalar {
+        let result_scalar = operator
+            .result_scalar(source_scalar)
+            .ok_or_else(|| self.invalid_instruction())?;
+        if allocation.scalar != result_scalar {
             return Err(self.invalid_instruction());
         }
         let result = self.allocate_tensor(target, allocation, first.dimensions())?;
@@ -815,11 +814,11 @@ impl Execution<'_, '_, '_, '_> {
             }
             let left = values[0].ok_or_else(|| self.invalid_instruction())?;
             let right = values[1];
-            let addend = values[2];
+            let third = values[2];
             let value = if let Some(operation) = float_operation {
-                Arithmetic::float(operation, source_scalar, left, right, addend)?
+                Arithmetic::float(operation, source_scalar, left, right, third)?
             } else if let Some(operation) = integer_operation {
-                Arithmetic::integer(operation, source_scalar, left, right)?
+                Arithmetic::integer(operation, source_scalar, left, right, third)?
             } else {
                 return Err(self.invalid_instruction());
             };

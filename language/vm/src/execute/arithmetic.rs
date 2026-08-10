@@ -25,9 +25,16 @@ impl Arithmetic {
                 Some(accumulator),
             )
         } else if scalar.is_integer() {
-            let product = Self::integer(IntegerOperation::Multiply, scalar, left, Some(right))?;
+            let product =
+                Self::integer(IntegerOperation::Multiply, scalar, left, Some(right), None)?;
 
-            Self::integer(IntegerOperation::Add, scalar, accumulator, Some(product))
+            Self::integer(
+                IntegerOperation::Add,
+                scalar,
+                accumulator,
+                Some(product),
+                None,
+            )
         } else {
             Err(Error::invalid_instruction())
         }

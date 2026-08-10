@@ -38,6 +38,44 @@ function f0 {
     assert_eq!(value, vec![Word::int32(42)]);
 }
 
+/// Execute a ternary integer operation over matching tensors.
+#[test]
+fn test_execute_tensor_clamp() {
+    let value = TestProgram::tensor_allocation(0, 0, Space::Local, 0);
+    let minimum = TestProgram::tensor_allocation(0, 1, Space::Local, 0);
+    let maximum = TestProgram::tensor_allocation(0, 2, Space::Local, 0);
+    let clamped = TestProgram::tensor_allocation(0, 3, Space::Local, 0);
+    let test = TestProgram::words()
+        .tensor(0, 1, ScalarFormat::int(32, true), Space::Local, [2, 2])
+        .allocations([value, minimum, maximum, clamped]);
+    let mut machine = TestMachine::parse(
+        r#"
+function f0 {
+    tensor.splat r5, r0, a0
+    tensor.splat r6, r1, a1
+    tensor.splat r7, r2, a2
+    tensor.element r8, [r5 @ l0, r6 @ l0, r7 @ l0], int.clamp, a3
+    tensor.extract r9, r8 @ l0, [r3, r4]
+    return r9
+}
+"#,
+        test,
+    );
+
+    let value = machine.complete(
+        0,
+        &[
+            Word::int32(20),
+            Word::int32(-5),
+            Word::int32(10),
+            Word::uint64(1),
+            Word::uint64(0),
+        ],
+    );
+
+    assert_eq!(value, vec![Word::int32(10)]);
+}
+
 /// Execute a tensor reshape while preserving logical element order.
 #[test]
 fn test_execute_tensor_reshape() {

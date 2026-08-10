@@ -1,7 +1,7 @@
 use destack_bytecode::{FloatOperation, Instruction, Scalar};
 use destack_program::{Runtime, Word};
 
-use crate::diagnostic::{Error, Result};
+use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
 
 use super::arithmetic::Arithmetic;
@@ -26,15 +26,15 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         } else {
             None
         };
-        let addend = if operation.input_count() == 3 {
-            let addend = operands.register()?;
+        let third = if operation.input_count() == 3 {
+            let third = operands.register()?;
 
-            Some(self.read(addend.0))
+            Some(self.read(third.0))
         } else {
             None
         };
 
-        let value = Arithmetic::float(operation, scalar, left, right, addend)?;
+        let value = Arithmetic::float(operation, scalar, left, right, third)?;
 
         self.write(target.0, value);
 
@@ -49,12 +49,12 @@ impl Arithmetic {
         scalar: Scalar,
         left: Word,
         right: Option<Word>,
-        addend: Option<Word>,
+        third: Option<Word>,
     ) -> Result<Word> {
         if scalar == Scalar::Float64 {
-            Self::float64(operation, left, right, addend)
+            Self::float64(operation, left, right, third)
         } else {
-            Self::float32(operation, scalar, left, right, addend)
+            Self::float32(operation, scalar, left, right, third)
         }
     }
 
@@ -63,16 +63,23 @@ impl Arithmetic {
         operation: FloatOperation,
         left: Word,
         right: Option<Word>,
-        addend: Option<Word>,
+        third: Option<Word>,
     ) -> Result<Word> {
         let left = left.as_f64();
         let right = right.map(Word::as_f64);
-        let addend = addend.map(Word::as_f64);
+        let third = third.map(Word::as_f64);
 
-        // comparisons produce canonical boolean words
-        if operation.is_comparison() {
-            let right = right.ok_or_else(Error::invalid_instruction)?;
-            let value = Self::compare_float(operation, left, right);
+        // predicates produce canonical boolean words
+        if operation.returns_boolean() {
+            let value = match operation {
+                FloatOperation::IsFinite => left.is_finite(),
+                FloatOperation::IsInfinite => left.is_infinite(),
+                _ => Self::compare_float(
+                    operation,
+                    left,
+                    right.ok_or_else(Error::invalid_instruction)?,
+                ),
+            };
 
             return Ok(Word::boolean(value));
         }
@@ -88,7 +95,7 @@ impl Arithmetic {
             FloatOperation::Absolute => left.abs(),
             FloatOperation::FusedMultiplyAdd => left.mul_add(
                 right.ok_or_else(Error::invalid_instruction)?,
-                addend.ok_or_else(Error::invalid_instruction)?,
+                third.ok_or_else(Error::invalid_instruction)?,
             ),
             FloatOperation::CopySign => {
                 left.copysign(right.ok_or_else(Error::invalid_instruction)?)
@@ -116,7 +123,21 @@ impl Arithmetic {
             FloatOperation::Ceil => left.ceil(),
             FloatOperation::Truncate => left.trunc(),
             FloatOperation::RoundTiesEven => left.round_ties_even(),
-            _ => unreachable!("floating-point comparisons return before arithmetic"),
+            FloatOperation::Round => Self::round_ties_positive_infinity64(left),
+            FloatOperation::RoundTiesAway => left.round(),
+            FloatOperation::Midpoint => {
+                left.midpoint(right.ok_or_else(Error::invalid_instruction)?)
+            }
+            FloatOperation::Clamp => {
+                let minimum = right.ok_or_else(Error::invalid_instruction)?;
+                let maximum = third.ok_or_else(Error::invalid_instruction)?;
+                if minimum > maximum || minimum.is_nan() || maximum.is_nan() {
+                    return Err(Error::trap(Trap::InvalidArithmetic));
+                }
+
+                left.clamp(minimum, maximum)
+            }
+            _ => unreachable!("floating-point predicates return before arithmetic"),
         };
 
         Ok(Word::float64(value))
@@ -128,7 +149,7 @@ impl Arithmetic {
         scalar: Scalar,
         left: Word,
         right: Option<Word>,
-        addend: Option<Word>,
+        third: Option<Word>,
     ) -> Result<Word> {
         let left = scalar
             .float(left.bits())
@@ -141,7 +162,7 @@ impl Arithmetic {
             ),
             None => None,
         };
-        let addend = match addend {
+        let third = match third {
             Some(value) => Some(
                 scalar
                     .float(value.bits())
@@ -150,10 +171,17 @@ impl Arithmetic {
             None => None,
         };
 
-        // comparisons produce canonical boolean words
-        if operation.is_comparison() {
-            let right = right.ok_or_else(Error::invalid_instruction)?;
-            let value = Self::compare_float(operation, left, right);
+        // predicates produce canonical boolean words
+        if operation.returns_boolean() {
+            let value = match operation {
+                FloatOperation::IsFinite => left.is_finite(),
+                FloatOperation::IsInfinite => left.is_infinite(),
+                _ => Self::compare_float(
+                    operation,
+                    left,
+                    right.ok_or_else(Error::invalid_instruction)?,
+                ),
+            };
 
             return Ok(Word::boolean(value));
         }
@@ -169,7 +197,7 @@ impl Arithmetic {
             FloatOperation::Absolute => left.abs(),
             FloatOperation::FusedMultiplyAdd => left.mul_add(
                 right.ok_or_else(Error::invalid_instruction)?,
-                addend.ok_or_else(Error::invalid_instruction)?,
+                third.ok_or_else(Error::invalid_instruction)?,
             ),
             FloatOperation::CopySign => {
                 left.copysign(right.ok_or_else(Error::invalid_instruction)?)
@@ -197,7 +225,21 @@ impl Arithmetic {
             FloatOperation::Ceil => left.ceil(),
             FloatOperation::Truncate => left.trunc(),
             FloatOperation::RoundTiesEven => left.round_ties_even(),
-            _ => unreachable!("floating-point comparisons return before arithmetic"),
+            FloatOperation::Round => Self::round_ties_positive_infinity32(left),
+            FloatOperation::RoundTiesAway => left.round(),
+            FloatOperation::Midpoint => {
+                left.midpoint(right.ok_or_else(Error::invalid_instruction)?)
+            }
+            FloatOperation::Clamp => {
+                let minimum = right.ok_or_else(Error::invalid_instruction)?;
+                let maximum = third.ok_or_else(Error::invalid_instruction)?;
+                if minimum > maximum || minimum.is_nan() || maximum.is_nan() {
+                    return Err(Error::trap(Trap::InvalidArithmetic));
+                }
+
+                left.clamp(minimum, maximum)
+            }
+            _ => unreachable!("floating-point predicates return before arithmetic"),
         };
         let bits = scalar
             .float_bits(value as f64)
@@ -221,6 +263,24 @@ impl Arithmetic {
             FloatOperation::GreaterEqual => left >= right,
             _ => unreachable!("floating-point comparison uses one comparison operation"),
         }
+    }
+
+    /// Round one binary32 value to the nearest integer with ties toward positive infinity.
+    fn round_ties_positive_infinity32(value: f32) -> f32 {
+        let lower = value.floor();
+        let distance = value - lower;
+        let rounded = if distance < 0.5 { lower } else { lower + 1.0 };
+
+        rounded.copysign(value)
+    }
+
+    /// Round one binary64 value to the nearest integer with ties toward positive infinity.
+    fn round_ties_positive_infinity64(value: f64) -> f64 {
+        let lower = value.floor();
+        let distance = value - lower;
+        let rounded = if distance < 0.5 { lower } else { lower + 1.0 };
+
+        rounded.copysign(value)
     }
 
     /// Select the IEEE minimum binary32 value.

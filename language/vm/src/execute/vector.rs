@@ -178,7 +178,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if vector.scalar.is_float() {
             let operation =
                 FloatOperation::from_code(operator).ok_or_else(|| self.invalid_instruction())?;
-            if operation.is_comparison() != is_comparison
+            if operation.returns_boolean() != is_comparison
+                || (is_comparison && operation.input_count() != 2)
                 || input_count != operation.input_count() as u16
             {
                 return Err(self.invalid_instruction());
@@ -189,7 +190,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             let operation =
                 IntegerOperation::from_code(operator).ok_or_else(|| self.invalid_instruction())?;
             if operation.is_overflowing()
-                || operation.is_comparison() != is_comparison
+                || operation.returns_boolean() != is_comparison
+                || (is_comparison && operation.input_count() != 2)
                 || input_count != operation.input_count() as u16
             {
                 return Err(self.invalid_instruction());
@@ -208,11 +210,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         vector: VectorType,
         operation: FloatOperation,
     ) -> Result<()> {
-        let result = if operation.is_comparison() {
-            vector.mask()
-        } else {
-            vector
-        };
+        let scalar = operation
+            .result_scalar(vector.scalar)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let result = VectorType::new(scalar, vector.lane_count);
+        if target.word_count != result.word_count() {
+            return Err(self.invalid_instruction());
+        }
         self.clear_vector(target);
 
         // apply the decoded operation to every packed lane
@@ -224,12 +228,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             } else {
                 None
             };
-            let addend = if input_count == 3 {
+            let third = if input_count == 3 {
                 Some(self.vector_input(&mut inputs, vector, lane)?)
             } else {
                 None
             };
-            let value = Arithmetic::float(operation, vector.scalar, left, right, addend)?;
+            let value = Arithmetic::float(operation, vector.scalar, left, right, third)?;
             self.write_vector_lane(target, result, lane, value.bits());
         }
 
@@ -260,23 +264,30 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             return Ok(());
         }
 
-        let result = if operation.is_comparison() {
-            vector.mask()
-        } else {
-            vector
-        };
+        let scalar = operation
+            .result_scalar(vector.scalar)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let result = VectorType::new(scalar, vector.lane_count);
+        if target.word_count != result.word_count() {
+            return Err(self.invalid_instruction());
+        }
         self.clear_vector(target);
 
         // apply the decoded operation to every packed lane
         for lane in 0..vector.lane_count {
             let mut inputs = inputs;
             let left = self.vector_input(&mut inputs, vector, lane)?;
-            let right = if input_count == 2 {
+            let right = if input_count >= 2 {
                 Some(self.vector_input(&mut inputs, vector, lane)?)
             } else {
                 None
             };
-            let value = Arithmetic::integer(operation, vector.scalar, left, right)?;
+            let third = if input_count == 3 {
+                Some(self.vector_input(&mut inputs, vector, lane)?)
+            } else {
+                None
+            };
+            let value = Arithmetic::integer(operation, vector.scalar, left, right, third)?;
             self.write_vector_lane(target, result, lane, value.bits());
         }
 
@@ -435,18 +446,21 @@ impl Arithmetic {
                 ReduceOperation::Add => IntegerOperation::Add,
                 ReduceOperation::Multiply => IntegerOperation::Multiply,
                 ReduceOperation::Minimum => {
-                    let is_less =
-                        Self::integer(IntegerOperation::LessThan, scalar, left, Some(right))?
-                            .bits()
-                            != 0;
+                    let comparison =
+                        Self::integer(IntegerOperation::LessThan, scalar, left, Some(right), None)?;
+                    let is_less = comparison.bits() != 0;
 
                     return Ok(if is_less { left } else { right });
                 }
                 ReduceOperation::Maximum => {
-                    let is_greater =
-                        Self::integer(IntegerOperation::GreaterThan, scalar, left, Some(right))?
-                            .bits()
-                            != 0;
+                    let comparison = Self::integer(
+                        IntegerOperation::GreaterThan,
+                        scalar,
+                        left,
+                        Some(right),
+                        None,
+                    )?;
+                    let is_greater = comparison.bits() != 0;
 
                     return Ok(if is_greater { left } else { right });
                 }
@@ -455,7 +469,7 @@ impl Arithmetic {
                 ReduceOperation::Xor => IntegerOperation::Xor,
             };
 
-            Self::integer(operation, scalar, left, Some(right))
+            Self::integer(operation, scalar, left, Some(right), None)
         }
     }
 }

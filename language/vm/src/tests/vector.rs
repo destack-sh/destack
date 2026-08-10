@@ -24,6 +24,16 @@ function f1 {
     vector.extract r4, r3, r2: vector<int16, 4>
     return r3:r4
 }
+
+function f2 {
+    vector.clamp r6:r7, r0:r1, r2:r3, r4:r5: vector<int32, 4>
+    return r6:r7
+}
+
+function f3 {
+    vector.countOnes r1:r2, r0: vector<int8, 4>
+    return r1:r2
+}
 "#,
         TestProgram::words(),
     );
@@ -56,6 +66,24 @@ function f1 {
         &[pack_f32(1.75, -2.25), pack_f32(3.0, -4.75), Word::uint32(2)],
     );
     assert_eq!(value, vec![pack_i16(1, -3, 3, -5), Word::int16(3)]);
+
+    // clamp every integer lane through the shared ternary operation
+    let value = machine.complete(
+        2,
+        &[
+            pack_i32(-10, 5),
+            pack_i32(20, 40),
+            pack_i32(0, 0),
+            pack_i32(0, 0),
+            pack_i32(10, 30),
+            pack_i32(10, 30),
+        ],
+    );
+    assert_eq!(value, vec![pack_i32(0, 5), pack_i32(10, 30)]);
+
+    // widen integer bit counts into their uint32 result lanes
+    let value = machine.complete(3, &[Word::from_bits(0xff00_0f03)]);
+    assert_eq!(value, vec![pack_u32(2, 4), pack_u32(0, 8)]);
 }
 
 /// Execute vector memory through the observed loop and stop after the write.
