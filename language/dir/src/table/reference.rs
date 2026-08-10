@@ -134,9 +134,10 @@ impl Reference {
     pub fn symbols(&self) -> Option<&[GlobalSymbolId]> {
         match self {
             Self::Bound(symbols) => Some(symbols),
-            Self::Namespace { .. } | Self::Projected { .. } | Self::Ambiguous(_) | Self::Missing => {
-                None
-            }
+            Self::Namespace { .. }
+            | Self::Projected { .. }
+            | Self::Ambiguous(_)
+            | Self::Missing => None,
         }
     }
 

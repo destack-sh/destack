@@ -208,9 +208,12 @@ impl AutoInterface {
         )
     }
 
-    /// Return whether the compiler decides this interface without declarations.
-    pub fn is_compiler_decided(self) -> bool {
-        self.is_marker() || self.is_auto_derivable()
+    /// Return whether the compiler implements this interface without declarations.
+    pub fn is_intrinsic(self) -> bool {
+        // scalar ordering is intrinsic even though ordering never auto-derives
+        self.is_marker()
+            || self.is_auto_derivable()
+            || matches!(self, Self::Compare | Self::PartialCompare)
     }
 
     /// Return whether a written derive decorator may name this interface.

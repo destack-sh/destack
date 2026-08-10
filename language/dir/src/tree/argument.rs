@@ -110,6 +110,14 @@ impl Node for Parameter {
 }
 
 impl Parameter {
+    /// Return the name this parameter declares, if it declares one.
+    pub fn name(&self) -> Option<StringId> {
+        match self {
+            Self::Named { name, .. } | Self::VariadicNamed { name, .. } => Some(*name),
+            Self::Pattern { .. } | Self::VariadicPattern { .. } | Self::Error => None,
+        }
+    }
+
     /// Return the symbol key introduced by this parameter.
     pub fn symbol_key(&self) -> Option<StaticKey> {
         match self {
