@@ -6,9 +6,8 @@ use destack_artifact::{
 use destack_source::TargetId;
 use serde::{Deserialize, Serialize};
 
-use crate::{CompilerOptions, Policy};
+use crate::{CompilerOptions, ExecutionOptions, Policy};
 
-use super::super::runtime::RuntimeOptions;
 use super::compiler::*;
 use super::condition::*;
 use super::destination::Destination;
@@ -61,8 +60,8 @@ pub struct Target {
     pub js: TargetJsOptions,
     /// Native codegen and linking configuration.
     pub native: TargetNativeOptions,
-    /// Runtime execution options.
-    pub execution: RuntimeOptions,
+    /// World and Runtime execution configuration.
+    pub execution: ExecutionOptions,
 }
 
 impl Default for Target {
@@ -94,7 +93,7 @@ impl Target {
             source_map: None,
             js: TargetJsOptions::default(),
             native: TargetNativeOptions::default(),
-            execution: RuntimeOptions::default(),
+            execution: ExecutionOptions::default(),
         }
     }
 

@@ -11,23 +11,11 @@ use serde_json::Value;
 
 use crate::RepositoryError;
 use crate::config::{
-    CompilerOptions, ConditionCatalog, ConditionalDependencies, Dependency, DiagnosticPolicy,
-    Export, FormatterOptions, LinterOptions, PackagePatch, Policy, Product, ProfileOptions,
-    RuntimeOptions, Stage, Target, Task, Topology, Vendor, builtin_modes, builtin_roles,
-    parse_jsonc_file,
+    CompilerOptions, ConditionCatalog, ConditionalDependencies, DEFAULT_SOURCE_EXCLUDE,
+    DEFAULT_SOURCE_INCLUDE, Dependency, DiagnosticPolicy, ExecutionOptions, Export,
+    FormatterOptions, LinterOptions, PackagePatch, Policy, Product, ProfileOptions, Stage, Target,
+    Task, Topology, Vendor, builtin_modes, builtin_roles, parse_jsonc_file,
 };
-
-/// Default package source include patterns.
-const DEFAULT_SOURCE_INCLUDE: &[&str] = &["src/**"];
-
-/// Default package source exclude patterns.
-const DEFAULT_SOURCE_EXCLUDE: &[&str] = &[
-    ".destack/**",
-    ".git/**",
-    "node_modules/**",
-    "target/**",
-    "vendor/**",
-];
 
 /// Destack configuration document.
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -82,8 +70,8 @@ pub struct Destack {
     pub compiler: CompilerOptions,
     /// Package policy declarations and rules.
     pub policy: Policy,
-    /// Runtime configuration.
-    pub runtime: RuntimeOptions,
+    /// World and Runtime execution configuration.
+    pub execution: ExecutionOptions,
     /// Formatter configuration.
     pub formatter: FormatterOptions,
     /// Linter configuration.

@@ -1,9 +1,22 @@
-use std::str::FromStr;
-
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// Execution mode for runtime scheduling and replay.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+use super::{RuntimeOptions, WorldOptions};
+
+/// Complete configuration for one World and its initial Runtime.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutionOptions {
+    /// World configuration.
+    pub world: WorldOptions,
+    /// Initial Runtime configuration.
+    pub runtime: RuntimeOptions,
+}
+
+/// Execution mode for World scheduling and replay.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum ExecutionMode {
@@ -18,29 +31,8 @@ pub enum ExecutionMode {
     Replay,
 }
 
-impl FromStr for ExecutionMode {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "strict" => Ok(Self::Strict),
-            "fast" => Ok(Self::Fast),
-            "record" => Ok(Self::Record),
-            "replay" => Ok(Self::Replay),
-            _ => Err(()),
-        }
-    }
-}
-
-impl ExecutionMode {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
 /// Replay payload selection for record/replay.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum ReplayPayloadMode {
@@ -49,23 +41,4 @@ pub enum ReplayPayloadMode {
     ResultsOnly,
     /// Record arguments and results for verification.
     ArgumentsAndResults,
-}
-
-impl FromStr for ReplayPayloadMode {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "results" | "results_only" => Ok(Self::ResultsOnly),
-            "args" | "args_and_results" => Ok(Self::ArgumentsAndResults),
-            _ => Err(()),
-        }
-    }
-}
-
-impl ReplayPayloadMode {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
 }

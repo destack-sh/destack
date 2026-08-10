@@ -21,6 +21,23 @@ pub(crate) const DEFAULT_VENDOR_DIRECTORY: &str = "vendor";
 /// Default workspace cache directory.
 pub(crate) const DEFAULT_WORKSPACE_CACHE_DIRECTORY: &str = ".destack";
 
+/// Default package source include patterns.
+pub(crate) const DEFAULT_SOURCE_INCLUDE: &[&str] = &["src/**"];
+/// Default package source exclude patterns.
+pub(crate) const DEFAULT_SOURCE_EXCLUDE: &[&str] = &[
+    ".destack/**",
+    ".git/**",
+    "node_modules/**",
+    "target/**",
+    "vendor/**",
+];
+
+/// Settings file name within the Destack home.
+pub(crate) const SETTINGS_FILE_NAME: &str = "settings.json";
+
+/// Default number of Runtime diagnostic entries retained in memory.
+pub(crate) const DEFAULT_RUNTIME_DIAGNOSTIC_CAPACITY: u64 = 1024;
+
 /// Default Destack home directory on Unix hosts.
 pub(crate) const UNIX_DESTACK_HOME_DIRECTORY: &str = ".destack";
 /// Default Destack home directory on Windows hosts.

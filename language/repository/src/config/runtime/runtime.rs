@@ -1,28 +1,13 @@
 use std::collections::BTreeMap;
 
 use destack_artifact::{BuildLinkage, BuildProfile};
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{ExecutionMode, ReplayPayloadMode};
-
-use super::clock::ClockOptions;
-use super::random::RandomOptions;
-use super::{HeapOptions, HostOptions, RuntimeDiagnosticOptions, TraceOptions, WorkerOptions};
-
-/// Runtime identity used for topology and policy selection.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(default)]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeIdentityOptions {
-    /// Stable runtime name for policy selection.
-    pub name: Option<String>,
-    /// Stable runtime labels for topology and policy selection.
-    pub labels: BTreeMap<String, String>,
-}
+use super::{HeapOptions, HostOptions, RuntimeDiagnosticOptions, WorkerOptions};
 
 /// Runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -33,16 +18,8 @@ pub struct RuntimeOptions {
     pub profile: BuildProfile,
     /// Build payload linkage.
     pub linkage: BuildLinkage,
-    /// Execution mode for scheduling and effect handling.
-    pub mode: ExecutionMode,
     /// Runtime worker configuration.
     pub worker: WorkerOptions,
-    /// Runtime clock seed configuration.
-    pub clock: ClockOptions,
-    /// Runtime randomness source configuration.
-    pub random: RandomOptions,
-    /// Runtime trace configuration.
-    pub trace: TraceOptions,
     /// Runtime heap configuration.
     pub heap: HeapOptions,
     /// Runtime diagnostics configuration.
@@ -51,19 +28,14 @@ pub struct RuntimeOptions {
     pub host: HostOptions,
 }
 
-impl RuntimeOptions {
-    /// Return the configured execution mode.
-    pub fn execution_mode(&self) -> ExecutionMode {
-        self.mode
-    }
-
-    /// Return the configured trace payload policy.
-    pub fn replay_payload_mode(&self) -> ReplayPayloadMode {
-        self.trace.payload
-    }
-
-    /// Return the configured trace chunk size in megabytes.
-    pub fn trace_chunk_size_mb(&self) -> Option<u64> {
-        self.trace.chunk_size_mb
-    }
+/// Runtime identity used for topology and policy selection.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeIdentityOptions {
+    /// Stable runtime name for policy selection.
+    pub name: Option<String>,
+    /// Stable runtime labels for topology and policy selection.
+    pub labels: BTreeMap<String, String>,
 }

@@ -1,69 +1,14 @@
 use std::path::PathBuf;
-use std::str::FromStr;
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// Runtime host-poller configuration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(default)]
-#[serde(rename_all = "camelCase")]
-pub struct HostPollerOptions {
-    /// Host poller backend selection.
-    pub backend: PollerBackend,
-}
-
-/// Host poller backend selection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum PollerBackend {
-    /// Choose the best available backend for the platform.
-    #[default]
-    Auto,
-    /// Use io_uring on Linux.
-    IoUring,
-    /// Use epoll on Linux.
-    Epoll,
-    /// Use kqueue on BSD and macOS.
-    Kqueue,
-    /// Use poll on Unix.
-    Poll,
-    /// Use the Windows readiness backend.
-    Windows,
-}
-
-impl FromStr for PollerBackend {
-    type Err = ();
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value.to_lowercase().replace('-', "_").as_str() {
-            "auto" => Ok(Self::Auto),
-            "io_uring" | "uring" => Ok(Self::IoUring),
-            "epoll" => Ok(Self::Epoll),
-            "kqueue" => Ok(Self::Kqueue),
-            "poll" => Ok(Self::Poll),
-            "windows" => Ok(Self::Windows),
-            _ => Err(()),
-        }
-    }
-}
-
-impl PollerBackend {
-    /// Parse a poller backend from a string.
-    pub fn parse(value: &str) -> Option<Self> {
-        value.parse().ok()
-    }
-}
-
 /// Runtime host module defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct HostOptions {
-    /// Host poller defaults.
-    pub poller: HostPollerOptions,
     /// Filesystem host defaults.
     pub fs: HostFsOptions,
     /// Network host defaults.
@@ -85,7 +30,7 @@ pub struct HostOptions {
 }
 
 /// Filesystem host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -97,7 +42,7 @@ pub struct HostFsOptions {
 }
 
 /// Network host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -111,7 +56,7 @@ pub struct HostNetOptions {
 }
 
 /// Process host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -125,7 +70,7 @@ pub struct HostProcessOptions {
 }
 
 /// Audio host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -139,7 +84,7 @@ pub struct HostAudioOptions {
 }
 
 /// Display host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -149,7 +94,7 @@ pub struct HostDisplayOptions {
 }
 
 /// Input host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -159,7 +104,7 @@ pub struct HostInputOptions {
 }
 
 /// GPU host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -171,7 +116,7 @@ pub struct HostGpuOptions {
 }
 
 /// TLS host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -185,7 +130,7 @@ pub struct HostTlsOptions {
 }
 
 /// OS host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

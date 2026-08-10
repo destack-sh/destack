@@ -6,8 +6,8 @@ mod host;
 mod random;
 mod runtime;
 mod selectors;
-mod trace;
 mod worker;
+mod world;
 
 pub use clock::*;
 pub use diagnostic::*;
@@ -17,5 +17,5 @@ pub use host::*;
 pub use random::*;
 pub use runtime::*;
 pub use selectors::*;
-pub use trace::*;
 pub use worker::*;
+pub use world::*;

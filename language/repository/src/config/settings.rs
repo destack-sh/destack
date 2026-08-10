@@ -7,6 +7,8 @@ use destack_source::FileSystem;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
+use super::SETTINGS_FILE_NAME;
+
 /// Machine-local Destack settings.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -132,9 +134,6 @@ pub struct NetworkSettings {
     /// Maximum concurrent network requests.
     pub concurrency: Option<u32>,
 }
-
-/// Settings file name within the Destack home.
-pub const SETTINGS_FILE_NAME: &str = "settings.json";
 
 /// Error raised while loading settings.
 #[derive(Debug, Clone, PartialEq, Eq)]
