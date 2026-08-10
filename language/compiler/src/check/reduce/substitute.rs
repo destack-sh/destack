@@ -203,10 +203,14 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        // the identity substitution rewrites nothing: bodies inside a
-        //  generic declaration apply their own parameters to themselves,
-        //  and a receiver only matters to types that mention `this`
-        if (substitution.receiver.is_none() || !self.type_flags(id)?.has_this())
+        // skip closed types, which hold nothing a substitution rewrites
+        let flags = self.type_flags(id)?;
+        if !flags.has_parameter() && !flags.has_this() {
+            return Ok(id);
+        }
+
+        // skip identity substitutions when no receiver rewrite applies
+        if (substitution.receiver.is_none() || !flags.has_this())
             && self.is_identity_substitution(substitution)?
         {
             return Ok(id);

@@ -240,8 +240,7 @@ impl CheckState<'_> {
         let head = self.reduce_type_head(origin, id)?;
         let reduced = self.reduce_type_graph(origin, head, &mut memo, &mut active)?;
 
-        // record complete reductions as type tail entries; each id reduces
-        //  under its own declaration scope, so entries key by the id alone
+        // record complete reductions as type tail entries
         if !self.type_flags(id)?.has_variable() && !self.type_flags(reduced)?.has_variable() {
             self.module.types_tail.set_type_reduction(id, reduced);
         }
@@ -278,6 +277,7 @@ impl CheckState<'_> {
             .to_vec()
         {
             rebuilt.push(dir::FunctionParameterType {
+                name: None,
                 ty: element.ty,
                 is_optional: element.is_optional,
                 is_rest: false,
@@ -325,6 +325,7 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         self.counters.reduces += 1;
+
         // an open head reduces to itself: the variable is its own value form
         Ok(match self.head_reduction(origin, id)? {
             HeadReduction::Closed(reduced) => reduced,
@@ -339,9 +340,10 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<HeadReduction> {
         let id = self.shallow_resolve(id)?;
+        let flags = self.type_flags(id)?;
 
         // key parameter reductions by their assuming scope
-        let scope = if self.type_flags(id)?.has_parameter() {
+        let scope = if flags.has_parameter() {
             self.assuming_scope(origin)?
         } else {
             None
@@ -352,14 +354,33 @@ impl CheckState<'_> {
             return Ok(HeadReduction::Closed(*reduced));
         }
 
+        // close heads outside the reducible families, which are already normal
+        if !matches!(
+            self.ty(id)?,
+            dir::Type::Variable(_)
+                | dir::Type::Union(_)
+                | dir::Type::FunctionSignature(_)
+                | dir::Type::Application(_)
+                | dir::Type::Member(_)
+                | dir::Type::Operation(_)
+                | dir::Type::Form(_)
+                | dir::Type::Intersection(_)
+        ) {
+            // record the fixed point of a settled head
+            if !flags.has_variable() {
+                self.reduces.insert((id, scope), id);
+            }
+
+            return Ok(HeadReduction::Closed(id));
+        }
+
+        // walk the reduction chain, tracking the heads it expands
         let mut expanding = FxIndexSet::default();
         let reduction = self.reduce_type_chain(origin, id, &mut expanding)?;
 
-        // decide closed reductions once, identity included: loads run
-        //  synchronously inside the chain, so a closed head's reduction
-        //  is final the moment it completes
+        // decide closed reductions once
         if let HeadReduction::Closed(reduced) = reduction
-            && !self.type_flags(id)?.has_variable()
+            && !flags.has_variable()
             && !self.type_flags(reduced)?.has_variable()
         {
             self.reduces.insert((id, scope), reduced);
