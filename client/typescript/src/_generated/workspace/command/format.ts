@@ -2,7 +2,6 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBool, jsonField, jsonInteger, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { TraceView } from "../../repository/provider/trace.js";
-import type { ContentId } from "../../source/file/model/file.js";
 import type { FileType } from "../../source/file/model/type.js";
 import type { CommandEnvVar } from "./common.js";
 import type { CommandInput } from "./common.js";
@@ -10,7 +9,6 @@ import type { CommandRevision } from "./common.js";
 import type { CommandTargetOverrides } from "./common.js";
 import type { ManifestOverride } from "./common.js";
 import { decodeTraceView, encodeTraceView, fromJsonTraceView, toJsonTraceView } from "../../repository/provider/trace.js";
-import { decodeContentId, encodeContentId, fromJsonContentId, toJsonContentId } from "../../source/file/model/file.js";
 import { decodeFileType, encodeFileType, fromJsonFileType, toJsonFileType } from "../../source/file/model/type.js";
 import { decodeCommandEnvVar, encodeCommandEnvVar, fromJsonCommandEnvVar, toJsonCommandEnvVar } from "./common.js";
 import { decodeCommandInput, encodeCommandInput, fromJsonCommandInput, toJsonCommandInput } from "./common.js";
@@ -394,15 +392,15 @@ export type FormatSource =
           readonly kind: "openFile";
           readonly open_file: string;
       }
-    /** Format explicit content. */
+    /** Format explicit text. */
     | {
-          readonly kind: "content";
+          readonly kind: "text";
           /** Input label. */
           readonly name: string;
           /** Input file type. */
           readonly fileType: FileType;
-          /** Content to format. */
-          readonly content: ContentId;
+          /** Text to format. */
+          readonly text: string;
       }
 ;
 
@@ -417,9 +415,9 @@ export const FormatSource = {
         return { kind: "openFile", open_file };
     },
 
-    /** Format explicit content. */
-    content(name: string, fileType: FileType, content: ContentId): FormatSource {
-        return { kind: "content", name, fileType, content };
+    /** Format explicit text. */
+    text(name: string, fileType: FileType, text: string): FormatSource {
+        return { kind: "text", name, fileType, text };
     },
 
     /** Encode this value. */
@@ -457,11 +455,11 @@ export function encodeFormatSource(writer: BinaryWriter, value: FormatSource): v
             writer.writeUnsigned(1);
             writer.writeString(value.open_file);
             return;
-        case "content":
+        case "text":
             writer.writeUnsigned(2);
             writer.writeString(value.name);
             encodeFileType(writer, value.fileType);
-            encodeContentId(writer, value.content);
+            writer.writeString(value.text);
             return;
     }
 
@@ -486,13 +484,13 @@ export function decodeFormatSource(reader: BinaryReader): FormatSource {
         case 2: {
             const name = reader.readString();
             const fileType = decodeFileType(reader);
-            const content = decodeContentId(reader);
+            const text = reader.readString();
 
             return {
-                kind: "content",
+                kind: "text",
                 name,
                 fileType,
-                content,
+                text,
             };
         }
     }
@@ -513,12 +511,12 @@ export function toJsonFormatSource(value: FormatSource): Json {
                 kind: "openFile",
                 open_file: value.open_file,
             };
-        case "content":
+        case "text":
             return {
-                kind: "content",
+                kind: "text",
                 name: value.name,
                 fileType: toJsonFileType(value.fileType),
-                content: toJsonContentId(value.content),
+                text: value.text,
             };
     }
 
@@ -541,12 +539,12 @@ export function fromJsonFormatSource(value: Json): FormatSource {
                 kind,
                 open_file: jsonString(jsonField(object, "open_file")),
             };
-        case "content":
+        case "text":
             return {
                 kind,
                 name: jsonString(jsonField(object, "name")),
                 fileType: fromJsonFileType(jsonField(object, "fileType")),
-                content: fromJsonContentId(jsonField(object, "content")),
+                text: jsonString(jsonField(object, "text")),
             };
     }
 

@@ -2,11 +2,11 @@
 
 import { BinaryReader, BinaryWriter, Json, jsonField, jsonObject, jsonOptional } from "../../protocol/serde.js";
 import type { SourceMap } from "./map.js";
-import type { ContentId } from "../source/file/model/file.js";
+import type { Blob } from "../core/blob.js";
 import type { FileType } from "../source/file/model/type.js";
 import type { Uri } from "../source/file/path/uri.js";
 import { decodeSourceMap, encodeSourceMap, fromJsonSourceMap, toJsonSourceMap } from "./map.js";
-import { decodeContentId, encodeContentId, fromJsonContentId, toJsonContentId } from "../source/file/model/file.js";
+import { decodeBlob, encodeBlob, fromJsonBlob, toJsonBlob } from "../core/blob.js";
 import { decodeFileType, encodeFileType, fromJsonFileType, toJsonFileType } from "../source/file/model/type.js";
 import { decodeUri, encodeUri, fromJsonUri, toJsonUri } from "../source/file/path/uri.js";
 
@@ -14,8 +14,8 @@ import { decodeUri, encodeUri, fromJsonUri, toJsonUri } from "../source/file/pat
 export type Asset = {
     /** The asset file type. */
     readonly fileType: FileType;
-    /** The asset content identity. */
-    readonly content: ContentId;
+    /** The exact asset bytes. */
+    readonly blob: Blob;
     /** The source module URI when one exists. */
     readonly source?: Uri;
     /** The source map when one exists. */
@@ -47,7 +47,7 @@ export const Asset = {
 /** Encode one Asset. */
 export function encodeAsset(writer: BinaryWriter, value: Asset): void {
     encodeFileType(writer, value.fileType);
-    encodeContentId(writer, value.content);
+    encodeBlob(writer, value.blob);
     writer.writeOption(value.source, (value2) => {
         encodeUri(writer, value2);
     });
@@ -59,13 +59,13 @@ export function encodeAsset(writer: BinaryWriter, value: Asset): void {
 /** Decode one Asset. */
 export function decodeAsset(reader: BinaryReader): Asset {
     const fileType = decodeFileType(reader);
-    const content = decodeContentId(reader);
+    const blob = decodeBlob(reader);
     const source = reader.readOption(() => decodeUri(reader));
     const map = reader.readOption(() => decodeSourceMap(reader));
 
     return {
         fileType,
-        content,
+        blob,
         ...(source === undefined ? {} : { source }),
         ...(map === undefined ? {} : { map }),
     };
@@ -75,7 +75,7 @@ export function decodeAsset(reader: BinaryReader): Asset {
 export function toJsonAsset(value: Asset): Json {
     return {
         fileType: toJsonFileType(value.fileType),
-        content: toJsonContentId(value.content),
+        blob: toJsonBlob(value.blob),
         ...(value.source === undefined ? {} : { source: toJsonUri(value.source) }),
         ...(value.map === undefined ? {} : { map: toJsonSourceMap(value.map) }),
     };
@@ -87,7 +87,7 @@ export function fromJsonAsset(value: Json): Asset {
 
     return {
         fileType: fromJsonFileType(jsonField(object, "fileType")),
-        content: fromJsonContentId(jsonField(object, "content")),
+        blob: fromJsonBlob(jsonField(object, "blob")),
         source: jsonOptional(object, "source", (value) => fromJsonUri(value)),
         map: jsonOptional(object, "map", (value) => fromJsonSourceMap(value)),
     };

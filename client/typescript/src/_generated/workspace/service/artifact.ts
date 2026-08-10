@@ -2,12 +2,8 @@
 
 import { BinaryReader, BinaryWriter, Json, jsonField, jsonObject, jsonString } from "../../../protocol/serde.js";
 import type { ArtifactReference } from "../../artifact/reference.js";
-import type { Content } from "../../source/file/model/file.js";
-import type { ContentId } from "../../source/file/model/file.js";
 import type { ExportInput } from "../artifact/export.js";
 import { decodeArtifactReference, encodeArtifactReference, fromJsonArtifactReference, toJsonArtifactReference } from "../../artifact/reference.js";
-import { decodeContent, encodeContent, fromJsonContent, toJsonContent } from "../../source/file/model/file.js";
-import { decodeContentId, encodeContentId, fromJsonContentId, toJsonContentId } from "../../source/file/model/file.js";
 import { decodeExportInput, encodeExportInput, fromJsonExportInput, toJsonExportInput } from "../artifact/export.js";
 
 /** Request to read one workspace artifact. */
@@ -137,135 +133,5 @@ export function fromJsonExportRequest(value: Json): ExportRequest {
     return {
         root: jsonString(jsonField(object, "root")),
         input: fromJsonExportInput(jsonField(object, "input")),
-    };
-}
-
-/** Request to load one content value. */
-export type LoadRequest = {
-    /** Owning workspace root. */
-    readonly root: string;
-    /** Content identifier to load. */
-    readonly content: ContentId;
-};
-
-export const LoadRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: LoadRequest): void {
-        encodeLoadRequest(writer, value);
-    },
-
-    /** Decode one LoadRequest. */
-    decode(reader: BinaryReader): LoadRequest {
-        return decodeLoadRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: LoadRequest): Json {
-        return toJsonLoadRequest(value);
-    },
-
-    /** Return one LoadRequest from one JSON value. */
-    fromJson(value: Json): LoadRequest {
-        return fromJsonLoadRequest(value);
-    },
-};
-
-/** Encode one LoadRequest. */
-export function encodeLoadRequest(writer: BinaryWriter, value: LoadRequest): void {
-    writer.writeString(value.root);
-    encodeContentId(writer, value.content);
-}
-
-/** Decode one LoadRequest. */
-export function decodeLoadRequest(reader: BinaryReader): LoadRequest {
-    const root = reader.readString();
-    const content = decodeContentId(reader);
-
-    return {
-        root,
-        content,
-    };
-}
-
-/** Return one JSON value for one LoadRequest. */
-export function toJsonLoadRequest(value: LoadRequest): Json {
-    return {
-        root: value.root,
-        content: toJsonContentId(value.content),
-    };
-}
-
-/** Return one LoadRequest from one JSON value. */
-export function fromJsonLoadRequest(value: Json): LoadRequest {
-    const object = jsonObject(value);
-
-    return {
-        root: jsonString(jsonField(object, "root")),
-        content: fromJsonContentId(jsonField(object, "content")),
-    };
-}
-
-/** Request to store one content value. */
-export type StoreRequest = {
-    /** Owning workspace root. */
-    readonly root: string;
-    /** Content value to store. */
-    readonly content: Content;
-};
-
-export const StoreRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: StoreRequest): void {
-        encodeStoreRequest(writer, value);
-    },
-
-    /** Decode one StoreRequest. */
-    decode(reader: BinaryReader): StoreRequest {
-        return decodeStoreRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: StoreRequest): Json {
-        return toJsonStoreRequest(value);
-    },
-
-    /** Return one StoreRequest from one JSON value. */
-    fromJson(value: Json): StoreRequest {
-        return fromJsonStoreRequest(value);
-    },
-};
-
-/** Encode one StoreRequest. */
-export function encodeStoreRequest(writer: BinaryWriter, value: StoreRequest): void {
-    writer.writeString(value.root);
-    encodeContent(writer, value.content);
-}
-
-/** Decode one StoreRequest. */
-export function decodeStoreRequest(reader: BinaryReader): StoreRequest {
-    const root = reader.readString();
-    const content = decodeContent(reader);
-
-    return {
-        root,
-        content,
-    };
-}
-
-/** Return one JSON value for one StoreRequest. */
-export function toJsonStoreRequest(value: StoreRequest): Json {
-    return {
-        root: value.root,
-        content: toJsonContent(value.content),
-    };
-}
-
-/** Return one StoreRequest from one JSON value. */
-export function fromJsonStoreRequest(value: Json): StoreRequest {
-    const object = jsonObject(value);
-
-    return {
-        root: jsonString(jsonField(object, "root")),
-        content: fromJsonContent(jsonField(object, "content")),
     };
 }

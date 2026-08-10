@@ -5,7 +5,6 @@ import { Connection } from "../../rpc/index.js";
 import * as artifactPayload from "../artifact/payload.js";
 import * as repositoryCommit from "../repository/commit.js";
 import * as repositoryRevision from "../repository/revision.js";
-import * as sourceFileModelFile from "../source/file/model/file.js";
 import * as workspaceArtifactExport from "./artifact/export.js";
 import * as workspaceCommandCommon from "./command/common.js";
 import * as workspaceCommandOutput from "./command/output.js";
@@ -39,7 +38,7 @@ const applyFileOperationMethodResponse: Decoder<repositoryCommit.Commit | undefi
 const applyFileOperationMethod: Method<workspaceServiceSource.ApplyFileOperationRequest, repositoryCommit.Commit | undefined, never, never> = {
     service: 5221210015570525267n,
     method: 9964270936954625988n,
-    fingerprint: 46570560727906181624820088050340661611n,
+    fingerprint: 284265099079087406813025802281745136953n,
     kind: "unary",
     idempotency: "unknown",
     request: applyFileOperationMethodRequest,
@@ -62,7 +61,7 @@ const applySourceUpdateMethodResponse: Decoder<repositoryCommit.Commit> = {
 const applySourceUpdateMethod: Method<workspaceServiceSource.ApplySourceUpdateRequest, repositoryCommit.Commit, never, never> = {
     service: 5221210015570525267n,
     method: 6820453616253242064n,
-    fingerprint: 40681510724667743487436209911174005280n,
+    fingerprint: 275731911370279672150277093726008291837n,
     kind: "unary",
     idempotency: "unknown",
     request: applySourceUpdateMethodRequest,
@@ -85,7 +84,7 @@ const artifactMethodResponse: Decoder<artifactPayload.ArtifactPayload> = {
 const artifactMethod: Method<workspaceServiceArtifact.ArtifactRequest, artifactPayload.ArtifactPayload, never, never> = {
     service: 5221210015570525267n,
     method: 10319401099963147929n,
-    fingerprint: 135858152832239270078707586686747063352n,
+    fingerprint: 328786122890663887039953912284577023779n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: artifactMethodRequest,
@@ -114,7 +113,7 @@ const benchMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const benchMethod: Method<workspaceServiceCommand.BenchRequest, workspaceCommandOutput.BenchOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 16323609511680098962n,
-    fingerprint: 224798216592797699828935815319225718505n,
+    fingerprint: 136809256837107685004050655693399765075n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: benchMethodRequest,
@@ -144,7 +143,7 @@ const buildMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const buildMethod: Method<workspaceServiceCommand.BuildRequest, workspaceCommandOutput.BuildOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 1211703523183514908n,
-    fingerprint: 143155944968304573303216113657581615468n,
+    fingerprint: 38024594788496877483177959079010838797n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: buildMethodRequest,
@@ -174,7 +173,7 @@ const cacheMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const cacheMethod: Method<workspaceServiceCommand.CacheRequest, workspaceCommandOutput.CacheOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 6134664842353451966n,
-    fingerprint: 323430051429310077745037252260375793975n,
+    fingerprint: 67755263068946991336948163122491873515n,
     kind: "serverStreaming",
     idempotency: "noSideEffects",
     request: cacheMethodRequest,
@@ -204,7 +203,7 @@ const checkMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const checkMethod: Method<workspaceServiceCommand.CheckRequest, workspaceCommandOutput.CheckOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 15001419742258424467n,
-    fingerprint: 122796414940008558465972472980404147270n,
+    fingerprint: 20788701101994378693693653774480253694n,
     kind: "serverStreaming",
     idempotency: "noSideEffects",
     request: checkMethodRequest,
@@ -234,7 +233,7 @@ const cleanMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const cleanMethod: Method<workspaceServiceCommand.CleanRequest, workspaceCommandOutput.CleanOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 14468233596833065246n,
-    fingerprint: 35573805665385994435957295001995289267n,
+    fingerprint: 328612215512581421167559101422644953079n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: cleanMethodRequest,
@@ -258,7 +257,7 @@ const diagnoseMethodResponse: Decoder<ReadonlyArray<workspaceServiceDiagnostic.F
 const diagnoseMethod: Method<workspaceServiceDiagnostic.DiagnoseRequest, ReadonlyArray<workspaceServiceDiagnostic.FileDiagnosticsResponse>, never, never> = {
     service: 5221210015570525267n,
     method: 13419783841159185504n,
-    fingerprint: 334836291688307524739545479584725308883n,
+    fingerprint: 239386752004707621177375786738695228355n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: diagnoseMethodRequest,
@@ -287,7 +286,7 @@ const docMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const docMethod: Method<workspaceServiceCommand.DocRequest, workspaceCommandOutput.DocOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 10422189475993358627n,
-    fingerprint: 90890271501889519834805716562352395688n,
+    fingerprint: 164534817715176923320125856162049366428n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: docMethodRequest,
@@ -317,7 +316,7 @@ const doctorMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const doctorMethod: Method<workspaceServiceCommand.DoctorRequest, workspaceCommandOutput.DoctorOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 5777790815235300089n,
-    fingerprint: 183651084838977103430292183184673641597n,
+    fingerprint: 62399289194390888892487922582236461401n,
     kind: "serverStreaming",
     idempotency: "noSideEffects",
     request: doctorMethodRequest,
@@ -341,7 +340,7 @@ const exportMethodResponse: Decoder<workspaceArtifactExport.ExportResult> = {
 const exportMethod: Method<workspaceServiceArtifact.ExportRequest, workspaceArtifactExport.ExportResult, never, never> = {
     service: 5221210015570525267n,
     method: 3979786105473524246n,
-    fingerprint: 61235052036031421749036749530061707436n,
+    fingerprint: 45509330988487429834289590403027905600n,
     kind: "unary",
     idempotency: "unknown",
     request: exportMethodRequest,
@@ -370,7 +369,7 @@ const formatMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const formatMethod: Method<workspaceServiceCommand.FormatRequest, workspaceCommandOutput.FormatOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 14423415753390415257n,
-    fingerprint: 312516959118044046773182608745235505172n,
+    fingerprint: 113200411378696995580675100519440684713n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: formatMethodRequest,
@@ -423,7 +422,7 @@ const infoMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const infoMethod: Method<workspaceServiceCommand.InfoRequest, workspaceCommandOutput.InfoOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 1708681934132943172n,
-    fingerprint: 180980011010098086737386021587248007604n,
+    fingerprint: 2441547304275928150714105381869513739n,
     kind: "serverStreaming",
     idempotency: "noSideEffects",
     request: infoMethodRequest,
@@ -454,29 +453,6 @@ const isFileOpenMethod: Method<workspaceServiceSource.IsFileOpenRequest, boolean
     response: isFileOpenMethodResponse,
 };
 
-const loadMethodRequest: Encoder<workspaceServiceArtifact.LoadRequest> = {
-    encode(writer, value: workspaceServiceArtifact.LoadRequest): void {
-        workspaceServiceArtifact.encodeLoadRequest(writer, value);
-    },
-};
-
-const loadMethodResponse: Decoder<sourceFileModelFile.Content> = {
-    decode(reader): sourceFileModelFile.Content {
-        return sourceFileModelFile.decodeContent(reader);
-    },
-};
-
-/** Descriptor for the load RPC method. */
-const loadMethod: Method<workspaceServiceArtifact.LoadRequest, sourceFileModelFile.Content, never, never> = {
-    service: 5221210015570525267n,
-    method: 17113127636416677584n,
-    fingerprint: 182720185631518589733978525345687178986n,
-    kind: "unary",
-    idempotency: "noSideEffects",
-    request: loadMethodRequest,
-    response: loadMethodResponse,
-};
-
 const queryMethodRequest: Encoder<workspaceServiceCommand.QueryRequest> = {
     encode(writer, value: workspaceServiceCommand.QueryRequest): void {
         workspaceServiceCommand.encodeQueryRequest(writer, value);
@@ -499,7 +475,7 @@ const queryMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const queryMethod: Method<workspaceServiceCommand.QueryRequest, workspaceCommandOutput.QueryOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 16064438385159633581n,
-    fingerprint: 248188930960376666579338839166092478201n,
+    fingerprint: 203039626841892339500537349433264564902n,
     kind: "serverStreaming",
     idempotency: "noSideEffects",
     request: queryMethodRequest,
@@ -569,7 +545,7 @@ const reloadMethodResponse: Decoder<repositoryCommit.Commit | undefined> = {
 const reloadMethod: Method<workspaceServiceRoot.ReloadRequest, repositoryCommit.Commit | undefined, never, never> = {
     service: 5221210015570525267n,
     method: 9885445168389074513n,
-    fingerprint: 305552566599734356957665835257177973022n,
+    fingerprint: 247823055737789572697609460064573669676n,
     kind: "unary",
     idempotency: "idempotent",
     request: reloadMethodRequest,
@@ -621,7 +597,7 @@ const rewriteMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const rewriteMethod: Method<workspaceServiceCommand.RewriteRequest, workspaceCommandOutput.RewriteOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 10843689805677276623n,
-    fingerprint: 81928274999798429145726273106800867230n,
+    fingerprint: 161251578443816589617861541395793558208n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: rewriteMethodRequest,
@@ -645,7 +621,7 @@ const runQueryMethodResponse: Decoder<workspaceQuery.RunQueryResponse> = {
 const runQueryMethod: Method<workspaceServiceQuery.RunQueryRequest, workspaceQuery.RunQueryResponse, never, never> = {
     service: 5221210015570525267n,
     method: 3642248314147070001n,
-    fingerprint: 141753670090901522033618829330519135502n,
+    fingerprint: 208251320230471650433845378124925482757n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: runQueryMethodRequest,
@@ -674,35 +650,12 @@ const settingsMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const settingsMethod: Method<workspaceServiceCommand.SettingsRequest, workspaceCommandOutput.SettingsOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 15716122537260110462n,
-    fingerprint: 196570464457279775026590708039177538821n,
+    fingerprint: 293389792897037229393928659659787375679n,
     kind: "serverStreaming",
     idempotency: "noSideEffects",
     request: settingsMethodRequest,
     response: settingsMethodResponse,
     output: settingsMethodOutput,
-};
-
-const storeMethodRequest: Encoder<workspaceServiceArtifact.StoreRequest> = {
-    encode(writer, value: workspaceServiceArtifact.StoreRequest): void {
-        workspaceServiceArtifact.encodeStoreRequest(writer, value);
-    },
-};
-
-const storeMethodResponse: Decoder<sourceFileModelFile.ContentId> = {
-    decode(reader): sourceFileModelFile.ContentId {
-        return sourceFileModelFile.decodeContentId(reader);
-    },
-};
-
-/** Descriptor for the store RPC method. */
-const storeMethod: Method<workspaceServiceArtifact.StoreRequest, sourceFileModelFile.ContentId, never, never> = {
-    service: 5221210015570525267n,
-    method: 12103350063422354249n,
-    fingerprint: 281798036894288520868141495776343459582n,
-    kind: "unary",
-    idempotency: "idempotent",
-    request: storeMethodRequest,
-    response: storeMethodResponse,
 };
 
 const targetsMethodRequest: Encoder<workspaceServiceCommand.TargetsRequest> = {
@@ -727,7 +680,7 @@ const targetsMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const targetsMethod: Method<workspaceServiceCommand.TargetsRequest, workspaceCommandOutput.TargetsOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 7181125733442239067n,
-    fingerprint: 162482636513445199159337852226967493067n,
+    fingerprint: 264215246111861327814251783007481390977n,
     kind: "serverStreaming",
     idempotency: "noSideEffects",
     request: targetsMethodRequest,
@@ -757,7 +710,7 @@ const taskMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const taskMethod: Method<workspaceServiceCommand.TaskRequest, workspaceCommandOutput.TaskOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 2143769546875386330n,
-    fingerprint: 201175362762789838153317788085153808455n,
+    fingerprint: 239072098380476677344591791079749937093n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: taskMethodRequest,
@@ -787,7 +740,7 @@ const testMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const testMethod: Method<workspaceServiceCommand.TestRequest, workspaceCommandOutput.TestOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 12720248006254262126n,
-    fingerprint: 293840144901592229736583017872208708718n,
+    fingerprint: 265937537117389115992301535953284094173n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: testMethodRequest,
@@ -817,7 +770,7 @@ const watchMethodOutput: Decoder<workspaceWatchEvent.WatchEvent> = {
 const watchMethod: Method<workspaceServiceWatch.WatchRequest, null, never, workspaceWatchEvent.WatchEvent> = {
     service: 5221210015570525267n,
     method: 15428617339126698985n,
-    fingerprint: 45044957546799701253395862013148079141n,
+    fingerprint: 146301976061167781558265844359898197710n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: watchMethodRequest,
@@ -848,7 +801,6 @@ export class WorkspaceClient {
         connection.bind(formatFileMethod);
         connection.bind(infoMethod);
         connection.bind(isFileOpenMethod);
-        connection.bind(loadMethod);
         connection.bind(queryMethod);
         connection.bind(readFilesMethod);
         connection.bind(readRevisionMethod);
@@ -857,7 +809,6 @@ export class WorkspaceClient {
         connection.bind(rewriteMethod);
         connection.bind(runQueryMethod);
         connection.bind(settingsMethod);
-        connection.bind(storeMethod);
         connection.bind(targetsMethod);
         connection.bind(taskMethod);
         connection.bind(testMethod);
@@ -944,11 +895,6 @@ export class WorkspaceClient {
         return this.#connection.call(isFileOpenMethod, request);
     }
 
-    /** Call the load workspace method. */
-    load(request: RequestValue<workspaceServiceArtifact.LoadRequest>): Promise<RpcResponse<sourceFileModelFile.Content>> {
-        return this.#connection.call(loadMethod, request);
-    }
-
     /** Call the query workspace method. */
     query(request: RequestValue<workspaceServiceCommand.QueryRequest>): Call<workspaceCommandOutput.QueryOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(queryMethod, request);
@@ -987,11 +933,6 @@ export class WorkspaceClient {
     /** Call the settings workspace method. */
     settings(request: RequestValue<workspaceServiceCommand.SettingsRequest>): Call<workspaceCommandOutput.SettingsOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(settingsMethod, request);
-    }
-
-    /** Call the store workspace method. */
-    store(request: RequestValue<workspaceServiceArtifact.StoreRequest>): Promise<RpcResponse<sourceFileModelFile.ContentId>> {
-        return this.#connection.call(storeMethod, request);
     }
 
     /** Call the targets workspace method. */

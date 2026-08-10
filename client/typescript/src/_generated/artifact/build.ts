@@ -3,10 +3,10 @@
 import { BinaryReader, BinaryWriter, Json, jsonField, jsonObject } from "../../protocol/serde.js";
 import type { BuildLinkage } from "./core/target.js";
 import type { BuildProfile } from "./core/target.js";
-import type { ContentId } from "../source/file/model/file.js";
+import type { Blob } from "../core/blob.js";
 import { decodeBuildLinkage, encodeBuildLinkage, fromJsonBuildLinkage, toJsonBuildLinkage } from "./core/target.js";
 import { decodeBuildProfile, encodeBuildProfile, fromJsonBuildProfile, toJsonBuildProfile } from "./core/target.js";
-import { decodeContentId, encodeContentId, fromJsonContentId, toJsonContentId } from "../source/file/model/file.js";
+import { decodeBlob, encodeBlob, fromJsonBlob, toJsonBlob } from "../core/blob.js";
 
 /** One target-built toolchain payload. */
 export type Build = {
@@ -14,8 +14,8 @@ export type Build = {
     readonly profile: BuildProfile;
     /** The build linkage. */
     readonly linkage: BuildLinkage;
-    /** The encoded build content. */
-    readonly content: ContentId;
+    /** The encoded build bytes. */
+    readonly blob: Blob;
 };
 
 export const Build = {
@@ -44,19 +44,19 @@ export const Build = {
 export function encodeBuild(writer: BinaryWriter, value: Build): void {
     encodeBuildProfile(writer, value.profile);
     encodeBuildLinkage(writer, value.linkage);
-    encodeContentId(writer, value.content);
+    encodeBlob(writer, value.blob);
 }
 
 /** Decode one Build. */
 export function decodeBuild(reader: BinaryReader): Build {
     const profile = decodeBuildProfile(reader);
     const linkage = decodeBuildLinkage(reader);
-    const content = decodeContentId(reader);
+    const blob = decodeBlob(reader);
 
     return {
         profile,
         linkage,
-        content,
+        blob,
     };
 }
 
@@ -65,7 +65,7 @@ export function toJsonBuild(value: Build): Json {
     return {
         profile: toJsonBuildProfile(value.profile),
         linkage: toJsonBuildLinkage(value.linkage),
-        content: toJsonContentId(value.content),
+        blob: toJsonBlob(value.blob),
     };
 }
 
@@ -76,6 +76,6 @@ export function fromJsonBuild(value: Json): Build {
     return {
         profile: fromJsonBuildProfile(jsonField(object, "profile")),
         linkage: fromJsonBuildLinkage(jsonField(object, "linkage")),
-        content: fromJsonContentId(jsonField(object, "content")),
+        blob: fromJsonBlob(jsonField(object, "blob")),
     };
 }
