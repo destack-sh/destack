@@ -105,7 +105,7 @@ impl WalkState<'_, '_> {
                 dir::Reference::Bound(_)
                     | dir::Reference::Ambiguous(_)
                     | dir::Reference::Missing
-                    | dir::Reference::Namespace(_)
+                    | dir::Reference::Namespace { .. }
             )
         )
     }

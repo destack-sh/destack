@@ -326,7 +326,7 @@ impl WalkState<'_, '_> {
                         }
                     }
                     Some(dir::Reference::Missing)
-                    | Some(dir::Reference::Namespace(_))
+                    | Some(dir::Reference::Namespace { .. })
                     | Some(dir::Reference::Projected { .. })
                     | Some(dir::Reference::Ambiguous(_))
                     | None => None,
