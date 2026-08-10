@@ -8,6 +8,7 @@ use destack_artifact::{
 };
 use destack_core::{StringPool, TreapRoot};
 use destack_source::{Content, ContentEntry, ContentId, File, FileSystem};
+use rustc_hash::FxBuildHasher;
 
 use crate::repository::{
     ContentPool, EmbeddedBuiltinPackage, Files, Ref, RepositoryError, Revision, RevisionEntry,
@@ -22,9 +23,9 @@ pub struct Repository {
     pub(crate) root: PathBuf,
 
     /// Movable refs pointing at revision identities.
-    pub(crate) refs: DashMap<Ref, Revision>,
+    pub(crate) refs: DashMap<Ref, Revision, FxBuildHasher>,
     /// Immutable source states keyed by revision identity.
-    pub(crate) revisions: DashMap<Revision, Arc<RevisionEntry>>,
+    pub(crate) revisions: DashMap<Revision, Arc<RevisionEntry>, FxBuildHasher>,
 
     /// Host capabilities available to repository tooling.
     pub(crate) host: Host,
@@ -43,9 +44,10 @@ pub struct Repository {
     /// Persistent artifact records.
     pub(crate) artifact_store: Arc<dyn ArtifactStore>,
     /// Dependency observations needed to persist completed artifact versions.
-    pub(crate) pending_artifacts: DashMap<ArtifactVersion, Arc<[ArtifactDependency]>>,
+    pub(crate) pending_artifacts:
+        DashMap<ArtifactVersion, Arc<[ArtifactDependency]>, FxBuildHasher>,
     /// Named physical bases for dependency roots outside the workspace.
-    pub(crate) mounts: DashMap<String, PathBuf>,
+    pub(crate) mounts: DashMap<String, PathBuf, FxBuildHasher>,
     /// Shared interned strings for this repository.
     pub(crate) strings: Arc<StringPool>,
 }
@@ -55,8 +57,8 @@ impl Repository {
     pub fn new(root: PathBuf, host: Host, settings: Settings, layout: DestackLayout) -> Self {
         let content_pool = ContentPool::new();
 
-        let revisions = DashMap::new();
-        let refs = DashMap::new();
+        let revisions = DashMap::default();
+        let refs = DashMap::default();
         let root_reference = Ref::for_root(&root);
 
         let artifact_store = Arc::new(SegmentedArtifactStore::new(
@@ -73,9 +75,9 @@ impl Repository {
             files: Files::new(),
             artifact_table: Arc::new(ArtifactTable::default()),
             artifact_store,
-            pending_artifacts: DashMap::new(),
+            pending_artifacts: DashMap::default(),
             content_pool,
-            mounts: DashMap::new(),
+            mounts: DashMap::default(),
             embedded_builtin: EmbeddedBuiltinPackage::new(),
             strings: Arc::new(StringPool::new()),
             layout,
