@@ -156,7 +156,7 @@ impl WalkState<'_, '_> {
 
                 None
             }
-            dir::Reference::Namespace(_) | dir::Reference::Projected { .. } => {
+            dir::Reference::Namespace { .. } | dir::Reference::Projected { .. } => {
                 self.check
                     .report_invalid_decorator_target(self.module, target.into_any());
 

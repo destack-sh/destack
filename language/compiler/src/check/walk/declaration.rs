@@ -435,6 +435,7 @@ impl WalkState<'_, '_> {
                 space: declaration.place.map(dir::PlaceModifier::space),
                 template: template.map(|template| template.local_id),
                 representation: dir::Representation::default(),
+                derives: self.declared_derives(id)?.0,
                 backing: value,
                 is_tagged: false,
                 tagged_options: None,
@@ -477,6 +478,7 @@ impl WalkState<'_, '_> {
                 space: declaration.place.map(dir::PlaceModifier::space),
                 template: template.map(|template| template.local_id),
                 representation: dir::Representation::default(),
+                derives: None,
                 backing: value,
                 is_tagged: false,
                 tagged_options: None,
@@ -505,6 +507,87 @@ impl WalkState<'_, '_> {
             .report_invalid_intrinsic_type(self.module, declaration.value.into_any());
 
         Ok(())
+    }
+
+    /// Read the derive list and conformance rows one declaration writes.
+    fn declared_derives(
+        &mut self,
+        id: dir::LocalNodeId<dir::Declaration>,
+    ) -> CompilerResult<(
+        Option<Vec<dir::AutoInterface>>,
+        Vec<dir::NominalConformance>,
+    )> {
+        let owner = id.into_any().into_global(self.module);
+
+        // read the declaration's derive application
+        let mut arguments = None;
+        for application in &self.check.decorators {
+            if application.owner != owner {
+                continue;
+            }
+            if self
+                .check
+                .environment_bound
+                .language
+                .item(application.symbol)
+                != Some(dir::LanguageItem::Derive)
+            {
+                continue;
+            }
+            arguments = Some(application.expression.arguments.clone());
+
+            break;
+        }
+        let Some(arguments) = arguments else {
+            return Ok((None, Vec::new()));
+        };
+
+        // name each capability provider as its auto interface
+        let provider_count = arguments.len();
+        let mut interfaces = Vec::new();
+        let mut conformances = Vec::new();
+        for argument in arguments {
+            let Some(expression) = self.tree.get(argument).value() else {
+                continue;
+            };
+            let expression = expression.into_global_any(self.module);
+            let Some(provider) = self.check.reference_symbol(expression) else {
+                continue;
+            };
+            let Some(interface) = self
+                .check
+                .environment_bound
+                .language
+                .item(provider)
+                .and_then(dir::AutoInterface::from_language_item)
+                .filter(|interface| interface.is_derivable())
+            else {
+                continue;
+            };
+
+            // record the conformance against the naming argument
+            let arguments = if interface.has_receiver_argument() {
+                vec![self.check.intern_type(dir::Type::This)?]
+            } else {
+                Vec::new()
+            };
+            let applied = self
+                .check
+                .language_type(dir::LanguageItem::from(interface), &arguments)?;
+            interfaces.push(interface);
+            conformances.push(dir::NominalConformance {
+                source: expression,
+                interface: applied,
+                members: Vec::new(),
+            });
+        }
+
+        // member providers alone leave the capability auto set untouched
+        if interfaces.is_empty() && provider_count > 0 {
+            return Ok((None, Vec::new()));
+        }
+
+        Ok((Some(interfaces), conformances))
     }
 
     /// Walk one struct declaration.
@@ -557,10 +640,14 @@ impl WalkState<'_, '_> {
         }
 
         let template = self.induced_owner_template(induction, template)?;
+        let (derives, conformances) = self.declared_derives(id)?;
+        let mut implements = implements;
+        implements.extend(conformances);
         let definition = dir::Definition::Struct(dir::StructDefinition {
             space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
             representation: dir::Representation::default(),
+            derives,
             implements,
             members,
         });
@@ -655,10 +742,14 @@ impl WalkState<'_, '_> {
             self.class_construct_candidates(receiver.ty, extends.is_some(), &members)?;
 
         let template = self.induced_owner_template(induction, template)?;
+        let (derives, conformances) = self.declared_derives(id)?;
+        let mut implements = implements;
+        implements.extend(conformances);
         let definition = dir::Definition::Class(dir::ClassDefinition {
             space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
             representation: dir::Representation::default(),
+            derives,
             is_abstract: declaration.is_abstract,
             is_final: declaration.is_final,
             extends,
@@ -894,10 +985,14 @@ impl WalkState<'_, '_> {
         }
 
         let template = self.induced_owner_template(induction, template)?;
+        let (derives, conformances) = self.declared_derives(id)?;
+        let mut implements = implements;
+        implements.extend(conformances);
         let definition = dir::Definition::Enum(dir::EnumDefinition {
             space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
             representation: dir::Representation::default(),
+            derives,
             backing: backing.unwrap_or(dir::EnumBackingType::DEFAULT),
             implements,
             members,

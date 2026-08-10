@@ -311,6 +311,30 @@ impl BodyState<'_, '_> {
 
                 return Ok(None);
             };
+
+            // accept capability interfaces as compiler-owned derives
+            let is_capability = self
+                .environment_bound
+                .language
+                .item(symbol)
+                .and_then(dir::AutoInterface::from_language_item)
+                .is_some_and(dir::AutoInterface::is_derivable);
+            if is_capability {
+                let reference = dir::Type::Reference(dir::TypeReference { symbol });
+                let ty = self.intern_type(reference)?;
+                self.commit_node_type(source, ty)?;
+
+                return Ok(Some(SelectedDeriveProvider {
+                    argument: argument.into_global(module),
+                    newtype: dir::NewtypeSelection {
+                        symbol,
+                        backing: ty,
+                        generic_arguments: Vec::new(),
+                    },
+                    ty,
+                }));
+            }
+
             // require a newtype provider
             if self
                 .symbol_kind_maybe(symbol)?

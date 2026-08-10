@@ -80,6 +80,17 @@ impl CheckState<'_> {
             });
         };
 
+        // capability interfaces carry no configuration value
+        let is_capability = self
+            .environment_bound
+            .language
+            .item(provider.newtype.symbol)
+            .and_then(dir::AutoInterface::from_language_item)
+            .is_some_and(dir::AutoInterface::is_derivable);
+        if is_capability {
+            return Ok(Ok(dir::StaticTerm::Type { ty: provider.ty }));
+        }
+
         // evaluate a configured provider through its construction resolution
         if matches!(view.get(expression), dir::Expression::Call { .. }) {
             self.evaluate_static_expression(module, expression)
