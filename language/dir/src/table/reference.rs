@@ -93,7 +93,7 @@ impl ReferenceTable {
                 Reference::Ambiguous(targets) => {
                     modules.extend(targets.iter().map(|target| target.module()));
                 }
-                Reference::Namespace(module) => modules.push(*module),
+                Reference::Namespace { module, .. } => modules.push(*module),
                 Reference::Projected { base, .. } => modules.push(base.module()),
                 Reference::Missing => {}
             }
@@ -110,7 +110,12 @@ pub enum Reference {
     /// A set carries overloads, narrowed by availability and dispatch in check.
     Bound(SmallVec<[GlobalSymbolId; 2]>),
     /// Resolved to a namespace: a prefix awaiting a further segment, or a bare namespace value.
-    Namespace(ModuleId),
+    Namespace {
+        /// The named module.
+        module: ModuleId,
+        /// The alias or clause declaring the namespace name, when one names it.
+        declaration: Option<GlobalNodeIdAny>,
+    },
     /// A flat path named through its first segments; `segments[from..]` project from `base`.
     Projected {
         /// The exact target named by the leading segments.
@@ -129,7 +134,7 @@ impl Reference {
     pub fn symbols(&self) -> Option<&[GlobalSymbolId]> {
         match self {
             Self::Bound(symbols) => Some(symbols),
-            Self::Namespace(_) | Self::Projected { .. } | Self::Ambiguous(_) | Self::Missing => {
+            Self::Namespace { .. } | Self::Projected { .. } | Self::Ambiguous(_) | Self::Missing => {
                 None
             }
         }
@@ -138,7 +143,7 @@ impl Reference {
     /// Return the selected module namespace.
     pub fn namespace(&self) -> Option<ModuleId> {
         match self {
-            Self::Namespace(module) => Some(*module),
+            Self::Namespace { module, .. } => Some(*module),
             Self::Bound(_) | Self::Projected { .. } | Self::Ambiguous(_) | Self::Missing => None,
         }
     }
@@ -179,7 +184,10 @@ impl Reference {
         }
         // retain one namespace target
         else if let [ReferenceTarget::Namespace(module)] = targets.as_slice() {
-            Self::Namespace(*module)
+            Self::Namespace {
+                module: *module,
+                declaration: None,
+            }
         }
         // retain every conflicting target
         else {
@@ -193,7 +201,10 @@ impl From<&ExportTarget> for Reference {
     fn from(target: &ExportTarget) -> Self {
         match target {
             ExportTarget::Symbols(symbols) => Self::Bound(symbols.clone()),
-            ExportTarget::Namespace(module) => Self::Namespace(*module),
+            ExportTarget::Namespace(module) => Self::Namespace {
+                module: *module,
+                declaration: None,
+            },
         }
     }
 }

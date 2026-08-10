@@ -223,7 +223,7 @@ impl DirResolved {
                 dir::Reference::Bound(references) => {
                     symbols.extend(references.iter().copied());
                 }
-                dir::Reference::Namespace(module) => namespaces.push(*module),
+                dir::Reference::Namespace { module, .. } => namespaces.push(*module),
                 dir::Reference::Projected { base, .. } => match base {
                     dir::ReferenceTarget::Symbol(symbol) => symbols.push(*symbol),
                     dir::ReferenceTarget::Namespace(module) => namespaces.push(*module),

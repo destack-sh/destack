@@ -212,6 +212,19 @@ impl AutoInterface {
     pub fn is_compiler_decided(self) -> bool {
         self.is_marker() || self.is_auto_derivable()
     }
+
+    /// Return whether a written derive decorator may name this interface.
+    pub fn is_derivable(self) -> bool {
+        self.is_auto_derivable()
+            || matches!(
+                self,
+                Self::Default
+                    | Self::Compare
+                    | Self::PartialCompare
+                    | Self::Serialize
+                    | Self::Deserialize
+            )
+    }
 }
 
 impl From<AutoInterface> for LanguageItem {

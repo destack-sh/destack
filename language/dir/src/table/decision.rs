@@ -41,6 +41,8 @@ pub enum Decision {
     Pattern(PatternDecision),
     /// Resolved assignment pattern meaning.
     AssignPattern(AssignPatternDecision),
+    /// Rejected node with its retained best-attempt decision.
+    Attempted(Box<Decision>),
     /// Rejected node with reported diagnostics.
     Rejected,
     /// Poisoned node with an already-reported error.
