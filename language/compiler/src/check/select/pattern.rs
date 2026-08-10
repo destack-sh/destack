@@ -167,7 +167,7 @@ impl BodyState<'_, '_> {
             .as_ref()
             .map_or_else(|| resolution.write.ty(), dir::ReadResolution::ty);
         let source = resolution.target;
-        self.commit_decision(source, dir::Decision::Assignment(resolution))?;
+        self.commit_decision(source, dir::Decision::Assignment(Box::new(resolution)))?;
         self.commit_node_type(source, source_type)?;
 
         // require the written place to be writable

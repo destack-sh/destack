@@ -27,8 +27,6 @@ pub(in crate::check) struct SignatureSelection {
     pub(in crate::check) coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
 }
 
-impl SignatureSelection {}
-
 /// One substituted parameter and its accepted argument type.
 #[derive(Debug, Clone, Copy)]
 pub(in crate::check) struct ParameterSelection {
@@ -69,9 +67,9 @@ pub(in crate::check) enum SignatureMatch {
         /// The rejected invocation constraint.
         rejection: SignatureRejection,
     },
-    /// The selected signature accepts the arguments but not the expected result.
+    /// The selected signature accepts the arguments and fails the expected result.
     ReturnMismatch(SignatureSelection),
-    /// No coherent signature can be instantiated for the invocation.
+    /// The invocation has no instantiable signature.
     Inapplicable(SignatureRejection),
 }
 
@@ -106,8 +104,9 @@ impl SignatureSelection {
                 .adjustments
                 .extend(steps.iter().cloned());
         }
-        let generic_arguments = self.generic_arguments.clone();
 
+        // dispatch directly on a value receiver, dynamically on an erased one
+        let generic_arguments = self.generic_arguments.clone();
         let target = match receiver {
             dir::MemberReceiver::Direct(receiver) => dir::CallTarget::Symbol {
                 function: dir::FunctionTarget {
@@ -150,7 +149,7 @@ pub(in crate::check) struct CallableArgument {
 /// Reason one callable signature rejected an invocation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::check) enum SignatureRejection {
-    /// Candidate cannot accept this invocation.
+    /// The candidate rejects the invocation outright.
     Inapplicable,
     /// Argument count outside the accepted range.
     Arity {
@@ -180,7 +179,7 @@ pub(in crate::check) enum SignatureRejection {
         /// The precise reason the relation failed.
         failure: CheckFailure,
     },
-    /// Receiver type not assignable to the declared this parameter.
+    /// The receiver failed the declared this parameter.
     Receiver {
         /// Supplied receiver type.
         source: dir::GlobalTypeId,
@@ -323,6 +322,7 @@ impl BodyState<'_, '_> {
         signature: &SignatureSelection,
         sources: &[dir::ArgumentSource],
     ) -> CompilerResult<Vec<dir::ArgumentBinding>> {
+        // bind each selected parameter to the source recorded at its position
         let mut bindings = Vec::with_capacity(signature.parameters.len());
         for (index, selected) in signature.parameters.iter().enumerate() {
             let parameter = selected.parameter;
@@ -339,6 +339,7 @@ impl BodyState<'_, '_> {
                     .unwrap_or(parameter.ty),
                 false => parameter.ty,
             };
+
             bindings.push(dir::ArgumentBinding {
                 parameter_type: parameter.ty,
                 argument_type,
@@ -364,6 +365,7 @@ impl BodyState<'_, '_> {
             let Some(element) = self.rest_element_type(origin, form.value)? else {
                 return Ok(None);
             };
+
             let element = self.check.resolve_relative_place(origin, element, place)?;
 
             return Ok(Some(element));
@@ -445,6 +447,7 @@ impl BodyState<'_, '_> {
                 ));
             }
         };
+
         let return_type = function.return_type;
 
         self.constrain_signature(
@@ -536,6 +539,8 @@ impl BodyState<'_, '_> {
 
         // preserve generic bindings already selected by the callee
         let substitution = substitution.with_carried(carried)?;
+
+        // comptime arguments pin their parameters exactly, values infer from the shape
         let parameters = self.signature_generic_parameters(function)?;
         let inference = match arguments
             .iter()
@@ -547,6 +552,8 @@ impl BodyState<'_, '_> {
                 return_type: function_return,
             },
         };
+
+        // open the signature's own parameters
         let substitution = self.instantiate_parameters(
             origin,
             &parameters,
@@ -573,9 +580,23 @@ impl BodyState<'_, '_> {
                     SignatureRejection::Inapplicable,
                 ));
             };
+
             substitution = opened;
         }
 
+        // point this at the applied extension target for bare type receivers,
+        //  so static members return the inferred instance
+        if let Some(receiver_value) = receiver
+            && matches!(self.ty(receiver_value.ty)?, dir::Type::Reference(_))
+            && let Some(owner) = owner
+            && let Some(dir::Definition::Extension(extension)) = self.definition(owner)?
+        {
+            let target = extension.target.r#type();
+            let applied = self.substitute_type(target, &substitution)?;
+            substitution = substitution.with_receiver(applied);
+        }
+
+        // collect what the invocation decides about this candidate
         let mut rejection = None;
         let mut is_return_mismatch = false;
         let mut receiver_steps = None;
@@ -640,6 +661,7 @@ impl BodyState<'_, '_> {
                         SignatureRejection::Inapplicable,
                     ));
                 };
+
                 let parameter = self.select_parameter(
                     origin,
                     *parameter,
@@ -658,6 +680,7 @@ impl BodyState<'_, '_> {
                     &substitution,
                 )?);
             }
+
             if let Some(owner) = owner
                 && let Some(template) = self.symbol_template(owner)?
             {
@@ -668,30 +691,32 @@ impl BodyState<'_, '_> {
                 )?);
             }
 
-            // prove obligations before matching arguments
+            // queue obligations, rejecting on decided failures only;
+            //  deferred predicates prove once arguments solve their variables
             for bound in bounds {
-                let outcome = self.check_type_constraint(
-                    bound.origin,
-                    bound.cause,
-                    bound.relation,
-                    bound.source,
-                    bound.target,
-                )?;
-                match outcome {
-                    CheckOutcome::Fails(failure) => {
-                        rejection = Some(SignatureRejection::Mismatch {
-                            verdict: self.check.verdict(false),
-                            cause: bound.cause,
-                            relation: bound.relation,
-                            use_: None,
-                            source: bound.source,
-                            target: bound.target,
-                            failure,
-                        });
+                let id = self.check.push_constraint(bound)?;
+                let Some(result) = self.check.fulfill.constraints.result(id)? else {
+                    continue;
+                };
 
-                        break 'invocation;
-                    }
-                    CheckOutcome::Holds => {}
+                if let CheckOutcome::Fails(failure) = result.outcome {
+                    rejection = Some(SignatureRejection::Mismatch {
+                        verdict: self.check.verdict(
+                            false,
+                            bound.origin,
+                            bound.relation,
+                            bound.source,
+                            bound.target,
+                        )?,
+                        cause: bound.cause,
+                        relation: bound.relation,
+                        use_: None,
+                        source: bound.source,
+                        target: bound.target,
+                        failure,
+                    });
+
+                    break 'invocation;
                 }
             }
 
@@ -719,6 +744,8 @@ impl BodyState<'_, '_> {
                     false => plain.push(entry),
                 }
             }
+
+            // settle the shapes the plain arguments fix before the closures read them
             let fixed = plain
                 .iter()
                 .map(|(_, _, parameter_type)| *parameter_type)
@@ -730,6 +757,7 @@ impl BodyState<'_, '_> {
                         self.check.resolve_variables(&roots)?;
                     }
                 }
+
                 for (index, argument, parameter_type) in entries {
                     let conversion =
                         self.match_signature_argument(origin, index, argument, parameter_type)?;
@@ -755,6 +783,7 @@ impl BodyState<'_, '_> {
             }
         }
 
+        // build the selection from whatever the invocation settled
         let mut selection = self.signature_selection(
             origin,
             signature_module,
@@ -766,6 +795,7 @@ impl BodyState<'_, '_> {
         )?;
         selection.coercions = coercions;
 
+        // classify the candidate by what rejected it, if anything
         let matched = match rejection {
             Some(rejection) => SignatureMatch::Invalid {
                 selection,
@@ -812,6 +842,8 @@ impl BodyState<'_, '_> {
             None => self.intern_type(dir::Type::Void)?,
         };
         let return_type = self.receiver_relative_type(origin, receiver, return_type)?;
+
+        // select each parameter and erase the barriers inference left behind
         let mut parameters = SmallVec::<[_; 4]>::new();
         for parameter in self
             .signature_parameters(signature_module, function.parameters)?
@@ -828,6 +860,8 @@ impl BodyState<'_, '_> {
             };
             parameters.push(parameter);
         }
+
+        // intern the instantiated signature alongside its solved arguments
         let arguments = self.settled_argument_bindings(&substitution.bindings)?;
         let function_type =
             self.instantiate_signature_type(function, substitution, &parameters, return_type)?;
@@ -850,6 +884,7 @@ impl BodyState<'_, '_> {
         argument: CallableArgument,
         parameter_type: dir::GlobalTypeId,
     ) -> CompilerResult<Result<Option<dir::Coercion>, SignatureRejection>> {
+        // root the argument's cause at its position in the call
         let source = argument.source;
         let call = self.origin_source(origin)?;
         let origin = self.origin_at(origin, source)?;
@@ -880,7 +915,9 @@ impl BodyState<'_, '_> {
 
                 if let CheckOutcome::Fails(failure) = check.outcome {
                     let rejection = SignatureRejection::Mismatch {
-                        verdict: self.check.verdict(false),
+                        verdict: self
+                            .check
+                            .verdict(false, origin, relation, ty, check.target)?,
                         cause,
                         relation,
                         use_: Some(argument.use_),
@@ -908,9 +945,12 @@ impl BodyState<'_, '_> {
             argument.use_,
             mode,
         )?;
+
         if let CheckOutcome::Fails(failure) = conversion.outcome {
             let rejection = SignatureRejection::Mismatch {
-                verdict: self.check.verdict(false),
+                verdict: self
+                    .check
+                    .verdict(false, origin, relation, ty, conversion.target)?,
                 cause,
                 relation,
                 use_: Some(argument.use_),

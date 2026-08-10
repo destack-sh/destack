@@ -112,9 +112,6 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let holds = self.constrain_type_pair(origin, cause, relation, source, target)?;
-        if !holds {
-            self.witness_ambiguity(source, target)?;
-        }
 
         Ok(holds)
     }
@@ -129,10 +126,9 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        self.take_ambiguity();
         let holds = self.constrain_type(origin, cause, relation, source, target)?;
 
-        Ok(self.verdict(holds))
+        self.verdict(holds, origin, relation, source, target)
     }
 
     /// Constrain one resolved pair.
@@ -843,8 +839,6 @@ impl CheckState<'_> {
                 .flat_map(|(source, target)| iter::once(*source).chain(iter::once(*target))),
         )?;
         if !open.is_empty() {
-            self.infer.ambiguity = true;
-
             return Ok(false);
         }
 

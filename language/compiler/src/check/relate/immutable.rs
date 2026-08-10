@@ -34,13 +34,8 @@ impl CheckState<'_> {
         let ty = self.reduce_type_head(origin, ty)?;
 
         match self.ty(ty)? {
-            // open variables are ambiguity: the ambiguity witness retries
-            //  the judgment once they solve
-            dir::Type::Variable(_) => {
-                self.infer.ambiguity = true;
-
-                Ok(false)
-            }
+            // open variables fail as ambiguity until they solve
+            dir::Type::Variable(_) => Ok(false),
             // reject valueless and scalar types, they have no capability
             dir::Type::Error
             | dir::Type::Never

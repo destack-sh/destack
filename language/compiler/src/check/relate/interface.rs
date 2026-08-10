@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Cause, CauseKind, CheckState, GenericParameterId, MemberRole, Origin, Relation,
-    TypeSubstitution,
+    TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -83,7 +83,8 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
+        // read the target interface declaration
         let (_, target_instance) = self.nominal_application(target)?;
         let is_nominal = match self.definition(target_instance.symbol)? {
             Some(dir::Definition::Interface(interface)) => interface.is_nominal,
@@ -93,10 +94,18 @@ impl CheckState<'_> {
                 });
             }
         };
+
+        // classify the markers the compiler decides itself
         let auto_interface = self
             .language_item(target_instance.symbol)?
             .and_then(dir::AutoInterface::from_language_item)
-            .filter(|interface| interface.is_marker());
+            .filter(|interface| {
+                interface.is_marker()
+                    || matches!(
+                        interface,
+                        dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual
+                    )
+            });
 
         // find the target interface in the source heritage closure
         let application = if let dir::Type::Application(source_instance) = self.ty(source)? {
@@ -146,7 +155,7 @@ impl CheckState<'_> {
                 )?
             };
 
-            return Ok(arguments);
+            return Ok(Verdict::decided(arguments));
         }
 
         // select a visible extension implementation
@@ -160,26 +169,33 @@ impl CheckState<'_> {
             &target_instance,
             None,
         )?;
-        if implemented {
-            return Ok(true);
+        if implemented == Verdict::Holds {
+            return Ok(Verdict::Holds);
         }
 
-        // derive marker conformance when no declaration provides it
+        // use intrinsic conformance when no declaration provides it
         if let Some(auto_interface) = auto_interface {
-            return self.satisfies_auto_interface(origin, source, auto_interface);
+            let decided =
+                self.satisfies_intrinsic_interface(origin, source, target, auto_interface)?;
+
+            return Ok(decided.join_undecided(implemented));
         }
 
         // dynamic values carry their erased interface constraint
         if let dir::Type::Dynamic(dynamic) = self.ty(source)? {
-            return self.decide_relation(origin, relation, dynamic.constraint, target);
+            let holds = self.decide_relation(origin, relation, dynamic.constraint, target)?;
+
+            return Ok(Verdict::decided(holds));
         }
 
-        // non-nominal interfaces permit structural conformance
+        // structural interfaces conform by shape
         if !is_nominal {
-            return self.decide_interface_requirements(origin, relation, source, target);
+            let holds = self.decide_interface_requirements(origin, relation, source, target)?;
+
+            return Ok(Verdict::decided(holds));
         }
 
-        Ok(false)
+        Ok(implemented)
     }
 
     /// Decide one structural relation between declaration members.
@@ -243,6 +259,8 @@ impl CheckState<'_> {
             )? {
                 continue;
             }
+
+            // apply the fresh bindings to the declared interface
             let implemented = self.substitute_type(declared, &scratch)?;
             let implemented = self.shallow_resolve(implemented)?;
 
@@ -282,6 +300,7 @@ impl CheckState<'_> {
                 None => false,
             };
 
+            // commit the bindings of the first implementation that matched
             if is_matched {
                 *substitution = scratch;
 
@@ -313,6 +332,8 @@ impl CheckState<'_> {
         if let Some(filled) = self.fill_elided_application(base.module_id, &application)? {
             base = filled;
         }
+
+        // read the interface declaration behind the filled application
         let dir::Type::Application(application) = self.ty(base)? else {
             return Err(CompilerError::Internal {
                 message: format!("filled interface {base:?} has no application"),
@@ -327,6 +348,7 @@ impl CheckState<'_> {
                 ),
             });
         };
+
         let interface_members = definition.members.clone();
 
         // select written bindings, declared values, then interface defaults
@@ -387,6 +409,7 @@ impl CheckState<'_> {
             let Some((_, value)) = bindings.iter().find(|(key, _)| *key == associated.key) else {
                 continue;
             };
+
             let constraint =
                 self.instantiate_interface_type(constraint, implementation, receiver)?;
             if !self.decide_relation(origin, Relation::Satisfies, *value, constraint)? {
@@ -405,6 +428,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // read what the applied interface demands of the source
         let requirements = self.interface_requirements(target, source)?;
         let module = origin.module();
 
@@ -424,6 +448,7 @@ impl CheckState<'_> {
                 return Ok(false);
             };
 
+            // relate the found member against the requirement by its role
             let access = self.property_access(member.role, member_type, member.is_readonly)?;
             let member_decision = match access {
                 // properties relate their complete read and write operations
@@ -485,6 +510,7 @@ impl CheckState<'_> {
                     self.decide_relation(origin, Relation::Assignable, found, member_type)?
                 }
             };
+
             if !member_decision {
                 return Ok(false);
             }
@@ -565,6 +591,7 @@ impl CheckState<'_> {
         required: dir::GlobalTypeId,
         family: SignatureFamily,
     ) -> CompilerResult<bool> {
+        // read the source's reduced head
         let head = self.reduce_type_head(origin, source)?;
 
         // relate function-typed sources through their own signature
@@ -575,6 +602,7 @@ impl CheckState<'_> {
             dir::Type::Application(callable) => self.is_function_language_item(callable.symbol)?,
             _ => false,
         };
+
         if is_function {
             return match family {
                 SignatureFamily::Call => {
@@ -590,6 +618,8 @@ impl CheckState<'_> {
             dir::Type::Application(_) => head,
             _ => return Ok(false),
         };
+
+        // one apparent signature accepting the requirement is enough
         let signatures = self.apparent_signatures(origin, constraint, family)?;
         for signature in signatures {
             let satisfied = self.decide_method_relation(
@@ -632,6 +662,8 @@ impl CheckState<'_> {
 
         // collect only the named interface's own members
         self.collect_interface_members(symbol, interface, receiver, &mut members)?;
+
+        // apply the interface arguments to each declared signature
         for member in &definition_members {
             // apply the substitution to each index signature domain
             if let dir::DefinitionMember::IndexSignature(signature) = member {
@@ -669,6 +701,8 @@ impl CheckState<'_> {
                 });
             }
         }
+
+        // apply the interface arguments to each inherited clause
         let inherited = self.apply_interface_heritage(interface, receiver, inherited)?;
 
         Ok(InterfaceRequirements {
@@ -687,10 +721,13 @@ impl CheckState<'_> {
         constraint: dir::GlobalTypeId,
         family: SignatureFamily,
     ) -> CompilerResult<SmallVec<[InterfaceSignature; 2]>> {
+        // only an applied interface declares signatures
         let constraint = self.reduce_type_head(origin, constraint)?;
         if self.nominal_application_maybe(constraint)?.is_none() {
             return Ok(SmallVec::new());
         }
+
+        // read the constraint's own signatures of this family
         let requirements = self.interface_requirements(constraint, constraint)?;
         let mut signatures = match family {
             SignatureFamily::Call => requirements.call_signatures.clone(),
@@ -727,11 +764,13 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         required: &mut SmallVec<[InterfaceMember; 8]>,
     ) -> CompilerResult<()> {
+        // read the interface declaration owning these members
         let Some(dir::Definition::Interface(definition)) = self.definition(symbol)? else {
             return Err(CompilerError::Internal {
                 message: format!("interface member source {symbol:?} is not an interface"),
             });
         };
+
         let members = definition.members.clone();
 
         // collect direct interface members with applied arguments
@@ -756,6 +795,8 @@ impl CheckState<'_> {
                 }
                 _ => (self.definition_member_type(&member)?, member.is_default()),
             };
+
+            // apply the interface arguments to the declared type
             let ty = match declared {
                 Some(ty) => Some(self.instantiate_interface_type(ty, interface, receiver)?),
                 None => None,
@@ -764,6 +805,7 @@ impl CheckState<'_> {
                 dir::DefinitionMember::Field(field) => (field.is_optional, field.is_readonly),
                 _ => (false, false),
             };
+
             required.push(InterfaceMember {
                 symbol,
                 source: member.source(),
@@ -786,6 +828,7 @@ impl CheckState<'_> {
         interface: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::TypeProperty>>> {
+        // only an interface application carries instance properties
         let (_, instance) = self.nominal_application(interface)?;
         if !matches!(
             self.symbol_kind(instance.symbol)?,
@@ -814,6 +857,8 @@ impl CheckState<'_> {
                 }
             }
         }
+
+        // add the interface's own instance members over the inherited ones
         for member in requirements.members {
             if member.space != dir::MemberSpace::Instance {
                 continue;

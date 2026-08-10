@@ -223,7 +223,7 @@ impl BodyState<'_, '_> {
         // barrier targets check once their variables close, after the body
         if let Some(no_infer) = self.no_infer_target(expectation.target)? {
             let open = self.open_type_variables([no_infer])?;
-            if !open.is_empty() && !self.check.infer.forcing {
+            if !open.is_empty() {
                 self.check
                     .register_check(DeferredCheck::Expect { site, expectation });
 

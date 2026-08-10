@@ -135,7 +135,7 @@ impl FunctionBody {
             return_target,
             yield_target,
             self.asynchrony,
-            self.receiver.clone(),
+            self.receiver,
         );
         for entry in &self.entries {
             state.check.mark_bindings_assigned(*entry);

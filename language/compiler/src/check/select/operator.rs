@@ -69,9 +69,7 @@ impl BodyState<'_, '_> {
         }
 
         // open operands defer selection to their settle point with a hole
-        if !self.check.infer.forcing
-            && (self.type_flags(left)? | self.type_flags(right)?).has_variable()
-        {
+        if (self.type_flags(left)? | self.type_flags(right)?).has_variable() {
             let stalled_on = self.open_type_variables([left, right])?.first().copied();
             self.defer_operator_selection(site, stalled_on)?;
 
@@ -481,7 +479,7 @@ impl BodyState<'_, '_> {
                 let source = place.source;
                 let resolution = place.clone().resolution();
                 self.commit_node_type(source, operand)?;
-                self.commit_decision(source, dir::Decision::Assignment(resolution))?;
+                self.commit_decision(source, dir::Decision::Assignment(Box::new(resolution)))?;
                 let scope = self.origin_scope(origin)?;
                 self.push_obligation(
                     Obligation::WritableTarget(Box::new(WritableTargetObligation {

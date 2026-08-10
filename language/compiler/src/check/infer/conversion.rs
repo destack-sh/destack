@@ -76,7 +76,7 @@ impl BodyState<'_, '_> {
                 target = self.shallow_resolve(target)?;
                 variables = self.type_variables(source.ty)?;
                 variables.extend(self.type_variables(target)?);
-                if !variables.is_empty() && !self.check.infer.forcing {
+                if !variables.is_empty() {
                     self.check.register_check(DeferredCheck::Convert {
                         site,
                         source,

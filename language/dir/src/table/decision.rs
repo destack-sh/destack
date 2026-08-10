@@ -30,7 +30,7 @@ pub enum Decision {
     /// Resolved subscript access.
     Subscript(SubscriptDecision),
     /// Resolved assignment target.
-    Assignment(AssignmentDecision),
+    Assignment(Box<AssignmentDecision>),
     /// Resolved runtime predicate expression.
     Guard(GuardDecision),
     /// Resolved construct expression.
@@ -127,10 +127,12 @@ impl<'a> DecisionTable<'a> {
     /// Iterate all label target decisions.
     pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalNodeIdAny)> + '_ {
         self.segments.iter().flat_map(|segment| {
-            segment.decision_entries().filter_map(|(node_id, decision)| match decision {
-                Decision::Label(target) => Some((node_id, *target)),
-                _ => None,
-            })
+            segment
+                .decision_entries()
+                .filter_map(|(node_id, decision)| match decision {
+                    Decision::Label(target) => Some((node_id, *target)),
+                    _ => None,
+                })
         })
     }
 

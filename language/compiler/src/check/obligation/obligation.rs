@@ -124,6 +124,8 @@ pub(in crate::check) enum ObligationCheck {
     Holds,
     /// The obligation failed for one or more known reasons.
     Fails(Vec<ObligationFailure>),
+    /// The obligation stays undecided while its variables are open.
+    Ambiguous(SmallVec<[dir::TypeVariableId; 2]>),
 }
 
 impl ObligationCheck {
@@ -149,7 +151,7 @@ impl ObligationCheck {
     /// Return the failed reasons.
     pub(in crate::check) fn into_failures(self) -> Vec<ObligationFailure> {
         match self {
-            Self::Holds => Vec::new(),
+            Self::Holds | Self::Ambiguous(_) => Vec::new(),
             Self::Fails(failures) => failures,
         }
     }
@@ -692,24 +694,32 @@ impl CheckState<'_> {
         scope: Option<GenericTemplateId>,
     ) -> ObligationId {
         let entry = ObligationEntry { obligation, scope };
-        let id = self.infer.allocate_obligation(entry);
-        self.infer.pending.push(PendingWork::Obligation(id));
+        let id = self.fulfill.allocate_obligation(entry);
+        self.fulfill.register_work(PendingWork::Obligation(id));
 
         id
     }
 
     /// Check one obligation once, returning its failures.
-    pub(in crate::check) fn run_obligation(&mut self, id: ObligationId) -> CompilerResult<()> {
+    pub(in crate::check) fn run_obligation(
+        &mut self,
+        id: ObligationId,
+    ) -> CompilerResult<Option<SmallVec<[dir::TypeVariableId; 2]>>> {
         // body obligations judge checked nodes: only check runs them
         if !self.is_checking() {
-            return Ok(());
+            return Ok(None);
         }
 
         // copy the obligation for the borrow-free check
-        let entry = self.infer.obligations.get(id)?.clone();
+        let entry = self.fulfill.obligations.get(id)?.clone();
         let origin = Origin::Node(entry.obligation.source(), entry.scope);
         let obligation = entry.obligation;
         let check = self.check_obligation(origin, &obligation)?;
+
+        // stall the obligation while its variables stay open
+        if let ObligationCheck::Ambiguous(stalls) = check {
+            return Ok(Some(stalls));
+        }
 
         // report every failure the check produced, then record the result
         for failure in check.into_failures() {
@@ -720,7 +730,7 @@ impl CheckState<'_> {
             is_finished: true,
         });
 
-        Ok(())
+        Ok(None)
     }
 
     /// Check one obligation against solved inputs.

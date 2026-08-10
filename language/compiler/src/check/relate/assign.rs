@@ -6,9 +6,6 @@ use crate::check::{CheckState, Origin, Relation};
 
 impl CheckState<'_> {
     /// Decide assignability from one reduced source to one reduced target.
-    ///
-    /// `Widens` decides the same relation restricted to conversions that
-    /// require no coercion.
     pub(in crate::check) fn decide_assignable(
         &mut self,
         origin: Origin,
@@ -178,6 +175,7 @@ impl CheckState<'_> {
                     .is_some_and(|kind| kind.is_interface()) =>
             {
                 self.decide_interface_relation(origin, Relation::Assignable, source, target)?
+                    .holds()
             }
 
             // literals and intervals widen by value
@@ -244,6 +242,7 @@ impl CheckState<'_> {
                 .is_some_and(|kind| kind.is_interface()) =>
             {
                 self.decide_interface_relation(origin, Relation::Assignable, source, target)?
+                    .holds()
             }
             // relate callable applications to interface targets
             (dir::Type::Application(callable), dir::Type::Application(instance))
@@ -253,6 +252,7 @@ impl CheckState<'_> {
                     && self.is_function_language_item(callable.symbol)? =>
             {
                 self.decide_interface_relation(origin, Relation::Assignable, source, target)?
+                    .holds()
             }
             (dir::Type::Application(reference), dir::Type::Shape(_)) => self
                 .decide_reference_against_target(

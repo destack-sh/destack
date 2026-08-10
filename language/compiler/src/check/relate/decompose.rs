@@ -34,6 +34,7 @@ impl CheckState<'_> {
                 source_slots
                     .extend_from_slice(self.type_ids(source.module_id, source_type.arguments)?);
                 source_slots.extend(source_type.qualifier);
+
                 let mut target_slots = SmallVec::from_slice(&[target_type.owner]);
                 target_slots
                     .extend_from_slice(self.type_ids(target.module_id, target_type.arguments)?);
@@ -142,6 +143,7 @@ impl CheckState<'_> {
                     self.tuple_elements(source.module_id, source_type.elements)?;
                 let target_elements =
                     self.tuple_elements(target.module_id, target_type.elements)?;
+
                 let mut source_slots = SmallVec::new();
                 let mut target_slots = SmallVec::new();
                 for (source, target) in source_elements.iter().zip(target_elements) {
@@ -152,6 +154,7 @@ impl CheckState<'_> {
                     {
                         return Ok(None);
                     }
+
                     source_slots.push(source.ty);
                     target_slots.push(target.ty);
                 }
@@ -175,18 +178,22 @@ impl CheckState<'_> {
                 if source_parameters.len() != target_parameters.len() {
                     return Ok(None);
                 }
+
                 let mut source_slots = SmallVec::new();
                 let mut target_slots = SmallVec::new();
                 source_slots.extend(source_type.this_parameter);
                 target_slots.extend(target_type.this_parameter);
+
                 for (source, target) in source_parameters.iter().zip(target_parameters) {
                     if source.is_optional != target.is_optional || source.is_rest != target.is_rest
                     {
                         return Ok(None);
                     }
+
                     source_slots.push(source.ty);
                     target_slots.push(target.ty);
                 }
+
                 source_slots.extend(source_type.return_type);
                 target_slots.extend(target_type.return_type);
 
@@ -366,6 +373,7 @@ impl CheckState<'_> {
             if !self.type_flags(pattern)?.has_parameter() {
                 continue;
             }
+
             if !self.match_generic_type(origin, parameters, substitution, pattern, actual)? {
                 return Ok(false);
             }
@@ -411,12 +419,18 @@ impl CheckState<'_> {
             self.reduce_type_head(origin, actual)?
         };
 
+        // an open actual leaves parameter-free patterns to the relation,
+        //  which constrains it after matching
+        if self.root_variable(actual)?.is_some() && !self.type_flags(pattern)?.has_parameter() {
+            return Ok(true);
+        }
+
+        // read both constructor heads
         let pattern_type = self.ty(pattern)?;
         let actual_type = self.ty(actual)?;
 
         // lifetime slots collect components and verify outlives on MIR,
-        //  so they never gate matching: elided implementation lifetimes
-        //  serve any spread of required ones
+        //  so an elided implementation lifetime serves any required spread
         if self.is_lifetime_slot(&pattern_type)? && self.is_lifetime_slot(&actual_type)? {
             return Ok(true);
         }
@@ -436,6 +450,7 @@ impl CheckState<'_> {
             }
             _ => None,
         };
+
         if let Some((pattern_elements, actual_elements)) = set {
             let pattern_elements =
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(pattern.module_id, pattern_elements)?);
@@ -512,6 +527,7 @@ impl CheckState<'_> {
                         false => {}
                     }
                 }
+
                 if !is_ambiguous && let Some((actual_index, matched)) = candidate {
                     selected = Some((pattern_index, actual_index, matched));
 
@@ -523,6 +539,7 @@ impl CheckState<'_> {
             let Some((pattern_index, actual_index, matched)) = selected else {
                 return Ok(false);
             };
+
             *substitution = matched;
             patterns.remove(pattern_index);
             actuals.remove(actual_index);

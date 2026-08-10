@@ -977,9 +977,7 @@ impl BodyState<'_, '_> {
             }
 
             // defer an unknown callee head until its value solves
-            if !self.check.infer.forcing
-                && let Some(stalled_on) = self.check.root_variable(callee_type)?
-            {
+            if let Some(stalled_on) = self.check.root_variable(callee_type)? {
                 return self.defer_call_selection(site, expectation, stalled_on);
             }
             self.report_not_callable(origin, callee_type)?;
@@ -1061,8 +1059,8 @@ impl BodyState<'_, '_> {
 
         // confirm the selected declaration outside any probe
         if let Some(candidate) = overload.candidates.first().copied() {
-            let mark = self.check.infer.mark();
-            let pending = self.check.infer.pending.len();
+            let mark = self.check.infer.mark(&self.check.fulfill);
+            let pending = self.check.fulfill.work.len();
             let attempt =
                 self.attempt_call(origin, candidate, &arguments, &argument_types, expectation)?;
             match &attempt {
@@ -1074,8 +1072,10 @@ impl BodyState<'_, '_> {
                 }
                 _ => {
                     let poison = self.check.intern_type(dir::Type::Error)?;
-                    self.check.infer.rollback(mark, poison)?;
-                    self.check.infer.pending.truncate(pending);
+                    self.check
+                        .infer
+                        .rollback(mark, poison, &mut self.check.fulfill)?;
+                    self.check.fulfill.cancel_work_from(pending);
                 }
             }
 

@@ -15,6 +15,29 @@ pub(in crate::check) enum Verdict {
     Ambiguous,
 }
 
+impl Verdict {
+    /// Classify one decided outcome.
+    pub(in crate::check) fn decided(holds: bool) -> Self {
+        match holds {
+            true => Self::Holds,
+            false => Self::Fails,
+        }
+    }
+
+    /// Return whether the relation decidedly holds.
+    pub(in crate::check) fn holds(self) -> bool {
+        self == Self::Holds
+    }
+
+    /// Keep a failure ambiguous while another undecided path may still hold.
+    pub(in crate::check) fn join_undecided(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Fails, Self::Ambiguous) => Self::Ambiguous,
+            _ => self,
+        }
+    }
+}
+
 impl CheckState<'_> {
     /// Decide one relation between closed type roots, growing the stack.
     pub(in crate::check) fn decide_relation(
@@ -27,40 +50,39 @@ impl CheckState<'_> {
         let holds = ensure_sufficient_stack(|| {
             self.decide_relation_recursive(origin, relation, source, target)
         })?;
-        if !holds {
-            self.witness_ambiguity(source, target)?;
-        }
 
         Ok(holds)
     }
 
-    /// Pack one judged outcome with the ambiguity witness.
-    pub(in crate::check) fn verdict(&mut self, holds: bool) -> Verdict {
-        match (holds, self.take_ambiguity()) {
-            (true, _) => Verdict::Holds,
-            (false, true) => Verdict::Ambiguous,
-            (false, false) => Verdict::Fails,
-        }
-    }
-
-    /// Record ambiguity when one failed pair rides on an open variable.
-    pub(in crate::check) fn witness_ambiguity(
+    /// Classify one judged outcome.
+    ///
+    /// Failure over an open head is ambiguity, and failed predicates classify through their
+    /// own evaluation.
+    pub(in crate::check) fn verdict(
         &mut self,
+        holds: bool,
+        origin: Origin,
+        relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Verdict> {
+        if holds {
+            return Ok(Verdict::Holds);
+        }
+
+        // an open head retries the judgment once it solves
         let source = self.shallow_resolve(source)?;
         let target = self.shallow_resolve(target)?;
         if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
-            self.infer.ambiguity = true;
+            return Ok(Verdict::Ambiguous);
         }
 
-        Ok(())
-    }
+        // predicates carry their own ambiguity
+        if relation == Relation::Satisfies {
+            return self.decide_satisfies(origin, relation, source, target);
+        }
 
-    /// Take and reset the ambiguity witness.
-    pub(in crate::check) fn take_ambiguity(&mut self) -> bool {
-        std::mem::take(&mut self.infer.ambiguity)
+        Ok(Verdict::Fails)
     }
 
     /// Decide one relation recursively on the grown stack.
@@ -91,6 +113,8 @@ impl CheckState<'_> {
             if !base {
                 return Ok(false);
             }
+
+            // project the refined key out of the source
             let arguments = self.intern_type_ids(&[])?;
             let projected = self.intern_member(dir::MemberType {
                 owner: source,
@@ -143,11 +167,18 @@ impl CheckState<'_> {
         //  pairs as recursive cycles
         let key = (relation, source, target, scope);
         if let Some(holds) = self.relates.get(&key) {
+            self.counters.judge_hits += 1;
+
             return Ok(*holds);
         }
         if let Some(holds) = self.infer.relations.lookup(&key) {
+            self.counters.judge_hits += 1;
+
             return Ok(holds);
         }
+
+        // enter this pair as an active decision
+        self.counters.judges += 1;
         let attempt = self.infer.relations.enter(key);
 
         // prove type equality before the broader relation
@@ -155,6 +186,8 @@ impl CheckState<'_> {
             Relation::Equal => false,
             _ => self.decide_equal(origin, source, target)?,
         };
+
+        // decide the relation itself when equality left it open
         let decision = if equal {
             Ok(true)
         } else {
@@ -166,7 +199,16 @@ impl CheckState<'_> {
                 }
                 Relation::Castable => self.decide_castable(origin, source, target)?,
                 Relation::Satisfies | Relation::Extends => {
-                    self.decide_satisfies(origin, relation, source, target)?
+                    let verdict = self.decide_satisfies(origin, relation, source, target)?;
+
+                    // an ambiguous predicate degrades to false without memoizing
+                    if verdict == Verdict::Ambiguous {
+                        self.infer.relations.cancel(attempt);
+
+                        return Ok(false);
+                    }
+
+                    verdict.holds()
                 }
             };
 
@@ -263,8 +305,11 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // read both callable signatures for the callable fallbacks below
         let source_signature = self.callable_signature(source)?;
         let target_signature = self.callable_signature(target)?;
+
+        // decide inclusion by constructor pair
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // empty and indeterminate domains
             (dir::Type::Error, _) | (_, dir::Type::Error) => true,
@@ -364,6 +409,7 @@ impl CheckState<'_> {
                 if self.symbol_kind(instance.symbol)?.is_interface() =>
             {
                 self.decide_interface_relation(origin, Relation::Subtype, source, target)?
+                    .holds()
             }
             (dir::Type::Literal(literal), target) => literal.widens_to(&target),
             (dir::Type::Range(range), target) => range.widens_to(&target),
@@ -420,9 +466,9 @@ impl CheckState<'_> {
                 | dir::Type::Slice(_)
                 | dir::Type::FixedArray(_),
                 dir::Type::Application(instance),
-            ) if self.symbol_kind(instance.symbol)?.is_interface() => {
-                self.decide_interface_relation(origin, Relation::Subtype, source, target)?
-            }
+            ) if self.symbol_kind(instance.symbol)?.is_interface() => self
+                .decide_interface_relation(origin, Relation::Subtype, source, target)?
+                .holds(),
             (dir::Type::Application(instance), dir::Type::Shape(_) | dir::Type::Object(_)) => self
                 .decide_reference_against_target(
                     origin,

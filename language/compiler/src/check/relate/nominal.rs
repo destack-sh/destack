@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Cause, CauseKind, CheckState, Origin, Relation};
+use crate::check::{Cause, CauseKind, CheckState, Origin, Relation, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 /// One applied heritage edge in a nominal declaration closure.
@@ -67,14 +67,14 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // memory forms decide like closed form assignability
         if (matches!(self.ty(source)?, dir::Type::Form(_))
             || matches!(self.ty(target)?, dir::Type::Form(_)))
             && let Some(decision) =
                 self.constrain_form_assignable_rooted(origin, relation, source, target)?
         {
-            return Ok(decision);
+            return Ok(Verdict::decided(decision));
         }
 
         // memory singletons inhabit their stdlib singleton kind
@@ -90,33 +90,38 @@ impl CheckState<'_> {
         if let Some(memory_kind) = memory_kind
             && target_item == Some(memory_kind)
         {
-            return Ok(true);
+            return Ok(Verdict::Holds);
         }
 
         // enum members satisfy constraints through their owner
         if let dir::Type::Variant(member) = self.ty(source)? {
-            return self.decide_relation(origin, relation, member.owner, target);
+            let holds = self.decide_relation(origin, relation, member.owner, target)?;
+
+            return Ok(Verdict::decided(holds));
         }
 
         // generic parameters prove relations through their active bounds
         if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = self.ty(source)? {
             let decision = self.decide_parameter_relation(origin, relation, parameter, target)?;
+            let holds = self.decide_union_membership(origin, relation, decision, source, target)?;
 
-            return self.decide_union_membership(origin, relation, decision, source, target);
+            return Ok(Verdict::decided(holds));
         }
 
         // union sources must satisfy the target through every element
         if let dir::Type::Union(union) = self.ty(source)? {
             let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
+            let holds = self.decide_all_sources(origin, relation, &elements, target)?;
 
-            return self.decide_all_sources(origin, relation, &elements, target);
+            return Ok(Verdict::decided(holds));
         }
 
         // union targets accept when any element accepts the source
         if let dir::Type::Union(union) = self.ty(target)? {
             let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+            let holds = self.decide_any_target(origin, relation, source, &elements)?;
 
-            return self.decide_any_target(origin, relation, source, &elements);
+            return Ok(Verdict::decided(holds));
         }
 
         // comptime scalars inhabit closed enums by member value
@@ -130,11 +135,11 @@ impl CheckState<'_> {
                     continue;
                 };
                 if dir::ScalarLiteral::from(variant.value) == literal {
-                    return Ok(true);
+                    return Ok(Verdict::Holds);
                 }
             }
 
-            return Ok(false);
+            return Ok(Verdict::Fails);
         }
 
         // static scalar operations relate through their result type
@@ -144,7 +149,7 @@ impl CheckState<'_> {
         ) && let Some(result) = self.static_operation_type(origin, source)?
             && self.decide_relation(origin, relation, result, target)?
         {
-            return Ok(true);
+            return Ok(Verdict::Holds);
         }
 
         // intersection targets require every element under the same relation
@@ -152,8 +157,9 @@ impl CheckState<'_> {
             let elements = self
                 .type_ids(target.module_id, intersection.elements)?
                 .to_vec();
+            let holds = self.decide_all_targets(origin, relation, source, &elements)?;
 
-            return self.decide_all_targets(origin, relation, source, &elements);
+            return Ok(Verdict::decided(holds));
         }
 
         // intersection sources satisfy through any element
@@ -161,10 +167,12 @@ impl CheckState<'_> {
             let elements = self
                 .type_ids(source.module_id, intersection.elements)?
                 .to_vec();
+            let holds = self.decide_any_source(origin, relation, &elements, target)?;
 
-            return self.decide_any_source(origin, relation, &elements, target);
+            return Ok(Verdict::decided(holds));
         }
 
+        // read the nominal application the target names, if any
         let target_instance = match self.ty(target)? {
             dir::Type::Application(target) => Some(target),
             _ => None,
@@ -187,14 +195,18 @@ impl CheckState<'_> {
         };
 
         match (instances, relation) {
-            (Some((source_instance, target_instance)), _) => self.decide_application_relation(
-                origin,
-                relation,
-                source,
-                &source_instance,
-                target,
-                &target_instance,
-            ),
+            (Some((source_instance, target_instance)), _) => {
+                let holds = self.decide_application_relation(
+                    origin,
+                    relation,
+                    source,
+                    &source_instance,
+                    target,
+                    &target_instance,
+                )?;
+
+                Ok(Verdict::decided(holds))
+            }
 
             // other values satisfy through assignability,
             //  or sit inside a union target as a member
@@ -205,11 +217,17 @@ impl CheckState<'_> {
                     dir::Type::Shape(_) | dir::Type::Object(_),
                 ) = (self.ty(source)?, self.ty(target)?)
                 {
-                    return self.decide_shape_relation(origin, relation, source, target);
-                }
-                let assignable = self.decide_assignable(origin, relation, source, target)?;
+                    let holds = self.decide_shape_relation(origin, relation, source, target)?;
 
-                self.decide_union_membership(origin, relation, assignable, source, target)
+                    return Ok(Verdict::decided(holds));
+                }
+
+                // everything else decides through assignability
+                let assignable = self.decide_assignable(origin, relation, source, target)?;
+                let holds =
+                    self.decide_union_membership(origin, relation, assignable, source, target)?;
+
+                Ok(Verdict::decided(holds))
             }
         }
     }
@@ -239,11 +257,14 @@ impl CheckState<'_> {
                 ),
             });
         }
+
         let target_kind = self.symbol_kind(target_instance.symbol)?;
 
         // interface targets select one implementation path
         if target_kind.is_interface() {
-            return self.decide_interface_relation(origin, relation, source, target);
+            let decided = self.decide_interface_relation(origin, relation, source, target)?;
+
+            return Ok(decided.holds());
         }
 
         // select the source application of the target declaration
@@ -321,6 +342,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::StaticKey>> {
+        // read the written fields of the structural source
         let source_fields = match self.ty(source)? {
             dir::Type::Shape(shape) | dir::Type::Object(shape) => self
                 .shape_properties(source.module_id, shape.properties)?
@@ -330,6 +352,7 @@ impl CheckState<'_> {
             _ => return Ok(None),
         };
 
+        // only a struct application declares construction fields
         let dir::Type::Application(target_instance) = self.ty(target)? else {
             return Ok(None);
         };
@@ -342,6 +365,7 @@ impl CheckState<'_> {
             if source_fields.contains(&key) {
                 continue;
             }
+
             if !is_required {
                 continue;
             }
@@ -358,6 +382,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::StaticKey>> {
+        // read the written fields of the structural source
         let source_fields = match self.ty(source)? {
             dir::Type::Shape(shape) | dir::Type::Object(shape) => self
                 .shape_properties(source.module_id, shape.properties)?
@@ -367,6 +392,7 @@ impl CheckState<'_> {
             _ => return Ok(None),
         };
 
+        // only a struct application declares construction fields
         let dir::Type::Application(target_instance) = self.ty(target)? else {
             return Ok(None);
         };
@@ -391,6 +417,7 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[dir::TypeProperty; 8]>> {
+        // read the nominal application beneath the target's memory forms
         let receiver = self.reduce_type_head(origin, target)?;
         let chain = self.form_chain(origin, receiver)?;
         let target = chain.base();
@@ -407,6 +434,7 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[dir::TypeProperty; 8]>> {
+        // read the struct declaration behind the target's instance fields
         let mut fields = self.struct_fields(origin, target)?;
         let receiver = self.reduce_type_head(origin, target)?;
         let chain = self.form_chain(origin, receiver)?;
@@ -446,6 +474,8 @@ impl CheckState<'_> {
         else {
             return Ok(SmallVec::new());
         };
+
+        // substitute the instance arguments over the declared field types
         let substitution = self
             .instance_substitution(instance_module, instance)?
             .with_receiver(receiver);
@@ -459,6 +489,7 @@ impl CheckState<'_> {
             if field.space != dir::MemberSpace::Instance {
                 continue;
             }
+
             let ty = self.symbol_type(field.symbol)?;
             let ty = self.substitute_type(ty, &substitution)?;
             fields.push(dir::TypeProperty {
@@ -481,6 +512,7 @@ impl CheckState<'_> {
         source_fields: &[dir::TypeProperty],
         target: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
+        // relate each written field against its declared counterpart
         let declared_fields = self.struct_fields(origin, target)?;
         for declared in declared_fields {
             let Some(field) = source_fields.iter().find(|field| field.key == declared.key) else {
@@ -518,6 +550,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<SmallVec<[(dir::StaticKey, bool); 8]>> {
+        // walk the heritage chain from the declaration, visiting each symbol once
         let mut keys = SmallVec::new();
         let mut pending = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
         let mut visited = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
@@ -538,6 +571,8 @@ impl CheckState<'_> {
                 .iter()
                 .map(|heritage| heritage.ty)
                 .collect::<SmallVec<[_; 2]>>();
+
+            // keep each declared instance field with its required presence
             for member in members {
                 if let dir::DefinitionMember::Field(field) = member
                     && field.space == dir::MemberSpace::Instance
@@ -546,6 +581,8 @@ impl CheckState<'_> {
                     keys.push((field.key, is_required));
                 }
             }
+
+            // queue the bases this declaration inherits from
             for heritage in bases {
                 let (_, base) = self.nominal_application(heritage)?;
                 pending.push(base.symbol);
@@ -560,6 +597,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<SmallVec<[dir::StaticKey; 8]>> {
+        // walk the heritage chain from the declaration, visiting each symbol once
         let mut keys = SmallVec::new();
         let mut pending = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
         let mut visited = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
@@ -580,11 +618,15 @@ impl CheckState<'_> {
                 .iter()
                 .map(|heritage| heritage.ty)
                 .collect::<SmallVec<[_; 2]>>();
+
+            // keep every keyed member of this declaration
             for member in members {
                 if let Some(key) = member.key() {
                     keys.push(key);
                 }
             }
+
+            // queue the bases this declaration inherits from
             for heritage in bases {
                 let (_, base) = self.nominal_application(heritage)?;
                 pending.push(base.symbol);
@@ -617,6 +659,8 @@ impl CheckState<'_> {
         };
         let module = origin.module();
         let source = self.reference_type(origin, source_module, source_instance)?;
+
+        // look each target key up on the source and relate what it finds
         for (key, field_type, is_optional) in fields {
             let subject = dir::MemberSubject::new(source, source, dir::MemberSpace::Instance);
             let lookup = self.body().lookup_member(origin, module, subject, key)?;
@@ -653,17 +697,19 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<HeritageClosure> {
+        // read the root application the closure grows from
         let (instance_module, instance) = self.nominal_application(ty)?;
         let mut closure = HeritageClosure::default();
         let mut active = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
 
         // extensions implement each application independently, so
-        //  same-symbol instantiations dispatch by form instead of conflicting
+        //  same-symbol instantiations dispatch by form
         let independent = matches!(
             self.definition(instance.symbol)?,
             Some(dir::Definition::Extension(_))
         );
 
+        // walk the heritage edges from the root
         active.push(instance.symbol);
         self.collect_heritage(
             origin,
@@ -691,6 +737,7 @@ impl CheckState<'_> {
         active: &mut SmallVec<[dir::GlobalSymbolId; 8]>,
         closure: &mut HeritageClosure,
     ) -> CompilerResult<()> {
+        // read the declaration this application instantiates
         let definition =
             self.definition(instance.symbol)?
                 .ok_or_else(|| CompilerError::Internal {
@@ -699,6 +746,8 @@ impl CheckState<'_> {
                         instance.symbol
                     ),
                 })?;
+
+        // bases and implemented interfaces are both heritage edges
         let mut heritages = definition
             .bases()
             .iter()
@@ -710,6 +759,8 @@ impl CheckState<'_> {
                 .iter()
                 .map(|conformance| (conformance.source, conformance.interface)),
         );
+
+        // apply this instance's arguments to every edge below
         let substitution =
             self.qualified_instance_substitution(instance_module, instance, receiver)?;
 
@@ -736,6 +787,7 @@ impl CheckState<'_> {
                 if independent {
                     continue;
                 }
+
                 let (previous_module, previous_instance) = self.nominal_application(previous.ty)?;
                 match self.constrain_instance_arguments(
                     origin,
@@ -809,6 +861,7 @@ impl CheckState<'_> {
                 source = filled;
                 source_module = self.module_id;
             }
+
             if let Some(filled) = self.fill_elided_application(target_module, &target)? {
                 let dir::Type::Application(filled) = self.ty(filled)? else {
                     unreachable!("filled application is not an application");
@@ -817,10 +870,13 @@ impl CheckState<'_> {
                 target_module = self.module_id;
             }
         }
+
+        // both applications must reach the same arity to pair up
         if source.arguments.len() != target.arguments.len() {
             return Ok(false);
         }
 
+        // pair the arguments positionally
         let pairs = self
             .type_ids(source_module, source.arguments)?
             .iter()
@@ -848,6 +904,7 @@ impl CheckState<'_> {
             None => SmallVec::new(),
         };
 
+        // require every remaining pair to be equal
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         for (index, (source_argument, target_argument)) in pairs.into_iter().enumerate() {
             if lifetimes.get(index).copied().unwrap_or(false) {
@@ -870,6 +927,7 @@ impl CheckState<'_> {
         instance_module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // adopt the arguments into this module before interning
         let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
         let arguments = self.intern_type_ids(&arguments)?;
         let instance = dir::GenericApplication {

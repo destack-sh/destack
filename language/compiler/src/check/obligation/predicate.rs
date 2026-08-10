@@ -42,6 +42,9 @@ impl CheckState<'_> {
             ObligationCheck::Fails(failures) => {
                 return Ok(ObligationCheck::Fails(failures));
             }
+            check @ ObligationCheck::Ambiguous(_) => {
+                return Ok(check);
+            }
         }
 
         if self.types_may_overlap(origin, predicate.value_type, predicate.target_type)? {

@@ -66,7 +66,7 @@ impl CheckState<'_> {
             self.check_writable_target(origin, target.source, &target.write, target.mode)?;
 
         match check {
-            ObligationCheck::Fails(_) => Ok(check),
+            ObligationCheck::Fails(_) | ObligationCheck::Ambiguous(_) => Ok(check),
             ObligationCheck::Holds => match target.mode {
                 WriteMode::Direct | WriteMode::Initialize { .. } => Ok(ObligationCheck::holds()),
                 WriteMode::Indirect { receiver } => {
@@ -112,7 +112,7 @@ impl CheckState<'_> {
             let check = self.check_writable_member_access(origin, source, access, mode)?;
             match check {
                 ObligationCheck::Holds => {}
-                ObligationCheck::Fails(_) => {
+                ObligationCheck::Fails(_) | ObligationCheck::Ambiguous(_) => {
                     return Ok(check);
                 }
             }
@@ -162,7 +162,7 @@ impl CheckState<'_> {
                         self.check_writable_member_target(origin, source, receiver, target, mode)?;
                     match check {
                         ObligationCheck::Holds => {}
-                        ObligationCheck::Fails(_) => {
+                        ObligationCheck::Fails(_) | ObligationCheck::Ambiguous(_) => {
                             return Ok(check);
                         }
                     }
@@ -212,7 +212,7 @@ impl CheckState<'_> {
             };
             match check {
                 ObligationCheck::Holds => {}
-                ObligationCheck::Fails(_) => {
+                ObligationCheck::Fails(_) | ObligationCheck::Ambiguous(_) => {
                     return Ok(check);
                 }
             }

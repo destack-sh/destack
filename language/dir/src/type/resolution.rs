@@ -7,7 +7,8 @@ use crate::{
     AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor,
     DynamicDispatch, Expression, GenericArgumentBinding, GlobalNodeId, GlobalNodeIdAny,
     GlobalSymbolId, GlobalTypeId, MemberReceiver, MemberSpace, Predicate, Projection,
-    ProjectionResolution, ScalarFamilySet, ScalarLiteral, StaticKey, StringId, UnaryOperator,
+    ProjectionResolution, ScalarFamily, ScalarFamilySet, ScalarLiteral, StaticKey, StringId,
+    UnaryOperator,
 };
 
 /// One operation or the operations selected for every runtime union arm.
@@ -819,6 +820,13 @@ pub struct BuiltinOperand {
 }
 
 impl BuiltinOperand {
+    /// Return whether this operand may use one scalar family.
+    pub fn has_scalar_family(&self, family: ScalarFamily) -> bool {
+        self.scalar_families
+            .as_ref()
+            .is_some_and(|families| families.contains(family))
+    }
+
     /// Return whether this operand uses builtin integral behavior.
     pub fn is_integral(&self) -> bool {
         self.scalar_families
