@@ -172,8 +172,8 @@ parse(true);
         r#"
 /// @diagnostic.error id=no-matching-call message="no overload matches arguments ('true')"
 /// @diagnostic.label line=5 column=1 span="parse(true)" line_source="parse(true);"
-/// @diagnostic.note message="the candidate '(string) => int32' rejects argument 0: 'true' is not assignable to 'string'"
-/// @diagnostic.note message="the candidate '(int32) => int32' rejects argument 0: 'true' is not assignable to 'int32'"
+/// @diagnostic.note message="the candidate '(value: string) => int32' rejects argument 0: 'true' is not assignable to 'string'"
+/// @diagnostic.note message="the candidate '(value: int32) => int32' rejects argument 0: 'true' is not assignable to 'int32'"
 "#,
     );
 }
@@ -273,6 +273,55 @@ extension of Buffer {
 /// @diagnostic.label line=8 column=9 span="capacity" line_source="get capacity(): usize;"
 /// @diagnostic.error id=missing-declaration-body message="declaration 'trailing' requires a body"
 /// @diagnostic.label line=10 column=5 span="trailing" line_source="trailing(): usize;"
+"#,
+    );
+}
+
+#[test]
+fn test_check_retains_attempted_call_bindings_on_rejection() {
+    let session = TestSession::single(
+        r#"
+function greet(name: string, count: int32): string {
+    return name;
+}
+
+const value = greet("hi");
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function greet(name: string, count: int32): string {
+    return name;
+}
+
+const value = greet("hi");
+
+=== checked ===
+function greet(name: string, count: int32): string {
+/// @type.symbol symbol=greet type=(string, int32) => string
+/// @type.symbol symbol=greet.name source="name: string" type=string
+/// @type.symbol symbol=greet.count source="count: int32" type=int32
+
+    return name;
+    /// @resolution.name source=name target=greet.name
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=name root=greet.name
+
+}
+
+const value = greet("hi");
+/// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=greet target=greet
+/// @resolution.call source="greet(\"hi\")" parameters=() return=<error> kind=symbol target=greet
+"#,
+        r#"
+/// @diagnostic.error id=wrong-argument-count message="expected 2 arguments, but got 1 argument(s)"
+/// @diagnostic.label line=6 column=15 span="greet(\"hi\")" line_source="const value = greet(\"hi\");"
 "#,
     );
 }

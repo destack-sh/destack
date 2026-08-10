@@ -663,7 +663,7 @@ impl BodyState<'_, '_> {
                 Ok(None)
             }
             // reject namespaces and projections used directly as values
-            Some(dir::Reference::Namespace(_) | dir::Reference::Projected { .. }) => {
+            Some(dir::Reference::Namespace { .. } | dir::Reference::Projected { .. }) => {
                 let path = self
                     .module(module)
                     .view()

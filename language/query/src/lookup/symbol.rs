@@ -117,7 +117,7 @@ impl ProgramQueryContext<'_> {
 
                 Ok(targets.to_vec())
             }
-            dir::Reference::Namespace { module: _, .. } => Ok(vec![symbol_id]),
+            dir::Reference::Namespace { .. } => Ok(vec![symbol_id]),
             dir::Reference::Projected { .. } => Err(QueryError::invalid(format!(
                 "symbol target: {declaration:?}"
             ))),

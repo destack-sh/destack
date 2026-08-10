@@ -568,7 +568,7 @@ impl WalkState<'_, '_> {
             }
 
             // a namespace alone fails at the type query site
-            Some(dir::Reference::Namespace(_)) => {
+            Some(dir::Reference::Namespace { .. }) => {
                 self.check
                     .report_invalid_type_query(self.module, id.into_any());
 
@@ -658,7 +658,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), path);
             }
-            Some(dir::Reference::Namespace(_))
+            Some(dir::Reference::Namespace { .. })
             | Some(dir::Reference::Projected {
                 base: dir::ReferenceTarget::Namespace(_),
                 ..
@@ -717,7 +717,7 @@ impl WalkState<'_, '_> {
             }
 
             // reject namespaces and missing references in type position
-            Some(dir::Reference::Namespace(_))
+            Some(dir::Reference::Namespace { .. })
             | Some(dir::Reference::Projected {
                 base: dir::ReferenceTarget::Namespace(_),
                 ..

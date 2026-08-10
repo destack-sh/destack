@@ -397,6 +397,12 @@ fn add_field(
         .optional_field("static", static_label(field.space))
         .optional_field("abstract", field.is_abstract.then(|| "true".to_string()))
         .optional_field("override", field.is_override.then(|| "true".to_string()))
+        .optional_field(
+            "overrides",
+            field
+                .overrides
+                .map(|symbol| builder.symbol_path_label(symbol)),
+        )
         .type_field("type", builder.global_symbol_type_label(field.symbol));
 
     builder.push(row);
@@ -421,6 +427,12 @@ fn add_method(
         .optional_field("role", method.role.map(DirSnapshotBuilder::variant_label))
         .optional_field("abstraction", abstraction)
         .optional_field("override", method.is_override.then(|| "true".to_string()))
+        .optional_field(
+            "overrides",
+            method
+                .overrides
+                .map(|symbol| builder.symbol_path_label(symbol)),
+        )
         .type_field("type", builder.global_symbol_type_label(method.symbol));
 
     builder.push(row);

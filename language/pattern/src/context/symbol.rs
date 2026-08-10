@@ -253,7 +253,7 @@ impl ProgramContext {
                     .copied()
                     .map(dir::ReferenceTarget::Symbol)
                     .collect(),
-                dir::Reference::Namespace(module) => {
+                dir::Reference::Namespace { module, .. } => {
                     vec![dir::ReferenceTarget::Namespace(*module)]
                 }
                 dir::Reference::Ambiguous(targets) => targets.clone().into_vec(),

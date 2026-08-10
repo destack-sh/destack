@@ -99,7 +99,9 @@ impl ModuleQueryContext<'_> {
                 .copied()
                 .map(dir::ReferenceTarget::Symbol)
                 .collect(),
-            dir::Reference::Namespace { module: module, .. } => vec![dir::ReferenceTarget::Namespace(*module)],
+            dir::Reference::Namespace { module, .. } => {
+                vec![dir::ReferenceTarget::Namespace(*module)]
+            }
             dir::Reference::Projected { .. } => {
                 return Err(QueryError::invalid(format!(
                     "dependency item has a projected target: {source:?}"

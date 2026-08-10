@@ -56,6 +56,12 @@ impl SnapshotTable for dir::DecisionTable<'_> {
                 dir::Decision::Operator(resolution) => {
                     add_operator_decision_row(builder, node_id, resolution);
                 }
+                // render the decision an attempted node retained
+                dir::Decision::Attempted(attempt) => {
+                    if let dir::Decision::Call(resolution) = attempt.as_ref() {
+                        add_call_decision_row(builder, node_id, resolution);
+                    }
+                }
                 dir::Decision::Call(resolution) => {
                     add_call_decision_row(builder, node_id, resolution);
                 }

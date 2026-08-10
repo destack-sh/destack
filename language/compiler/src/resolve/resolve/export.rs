@@ -105,7 +105,11 @@ impl ResolveState<'_> {
 
         // namespace exports select the target module directly
         let Some(key) = selector.selected_export_key() else {
-            let target = dir::Reference::Namespace(module);
+            // the re-export item itself declares the namespace name
+            let target = dir::Reference::Namespace {
+                module,
+                declaration: Some(item.into_global_any(self.module)),
+            };
 
             return Ok((target.clone(), target));
         };

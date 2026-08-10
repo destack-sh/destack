@@ -930,8 +930,66 @@ class Parser extends Base {
 }
 "#,
         r#"
-/// @diagnostic.error id=incompatible-override message="override 'parse' has type '(string) => int32', which is not assignable to the inherited type '(string) => string'"
+/// @diagnostic.error id=incompatible-override message="override 'parse' has type '(value: string) => int32', which is not assignable to the inherited type '(value: string) => string'"
 /// @diagnostic.label line=9 column=14 span="parse" line_source="override parse(value: string): int32 {"
+"#,
+    );
+}
+
+#[test]
+fn test_check_records_override_target_on_valid_override() {
+    let session = TestSession::single(
+        r#"
+class Base {
+    virtual describe(): string {
+        return "base";
+    }
+}
+
+class Child extends Base {
+    override describe(): string {
+        return "child";
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::none().with_definitions(),
+        r#"
+=== annotated ===
+class Base {
+    virtual describe(): string {
+        return "base";
+    }
+}
+
+class Child extends Base {
+    override describe(): string {
+        return "child";
+    }
+}
+
+=== checked ===
+class Base {
+/// @definition.class symbol=Base
+/// @definition.method symbol=Base.describe slot=describe abstraction=virtual type=(this: this) => string
+
+    virtual describe(): string {
+        return "base";
+    }
+}
+
+class Child extends Base {
+/// @definition.class symbol=Child
+/// @definition.extends symbol=Child source=Base target=Base
+/// @definition.method symbol=Child.describe slot=describe override=true overrides=Base.describe type=(this: this) => string
+
+    override describe(): string {
+        return "child";
+    }
+}
 "#,
     );
 }

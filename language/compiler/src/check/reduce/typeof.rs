@@ -91,7 +91,7 @@ impl CheckState<'_> {
             Some(
                 dir::Reference::Ambiguous(_)
                 | dir::Reference::Missing
-                | dir::Reference::Namespace(_),
+                | dir::Reference::Namespace { .. },
             ) => Ok(None),
         }
     }

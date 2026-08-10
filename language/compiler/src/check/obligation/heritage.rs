@@ -7,6 +7,8 @@ use crate::check::{
 
 /// One class instance member that participates in heritage checks.
 struct ClassMember {
+    /// The member declaration symbol.
+    symbol: dir::GlobalSymbolId,
     /// The member key.
     key: dir::StaticKey,
     /// The member type rewritten into the subclass's view.
@@ -44,6 +46,7 @@ impl CheckState<'_> {
                 };
 
                 Ok(Some(ClassMember {
+                    symbol: field.symbol,
                     key: field.key,
                     ty,
                     source: field.source,
@@ -65,6 +68,7 @@ impl CheckState<'_> {
                 let is_overridable = is_abstract || is_virtual;
 
                 Ok(Some(ClassMember {
+                    symbol: method.symbol,
                     key,
                     ty,
                     source: method.source,
@@ -178,6 +182,7 @@ impl CheckState<'_> {
 
         // decide every rule before reporting anything
         let mut failures = Vec::new();
+        let mut selected_overrides = Vec::new();
         for member in &own {
             let base = heritage
                 .members
@@ -209,7 +214,7 @@ impl CheckState<'_> {
                             None,
                         )?;
                         match assignment {
-                            true => {}
+                            true => selected_overrides.push((member.symbol, base.symbol)),
                             false => {
                                 failures.push(ObligationFailure::IncompatibleOverride {
                                     source: member.source,
@@ -237,6 +242,38 @@ impl CheckState<'_> {
                     source: member.source,
                     member: member.key,
                 });
+            }
+        }
+
+        // record validated override targets on their members
+        if !selected_overrides.is_empty()
+            && let Some(dir::Definition::Class(class)) = self.definition_mut(symbol)
+        {
+            for member in &mut class.members {
+                // read the symbol of each overridable member kind
+                let member_symbol = match member {
+                    dir::DefinitionMember::Field(field) => Some((field.symbol, member)),
+                    dir::DefinitionMember::Method(method) => Some((method.symbol, member)),
+                    _ => None,
+                };
+                let Some((member_symbol, member)) = member_symbol else {
+                    continue;
+                };
+
+                // find the base member this override was validated against
+                let Some((_, base)) = selected_overrides
+                    .iter()
+                    .find(|(own, _)| *own == member_symbol)
+                else {
+                    continue;
+                };
+
+                // write the base symbol onto the overriding member
+                match member {
+                    dir::DefinitionMember::Field(field) => field.overrides = Some(*base),
+                    dir::DefinitionMember::Method(method) => method.overrides = Some(*base),
+                    _ => {}
+                }
             }
         }
 

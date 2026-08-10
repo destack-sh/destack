@@ -177,7 +177,7 @@ impl ResolveState<'_> {
 
                 Ok(dir::Reference::Ambiguous(targets))
             }
-            dir::Reference::Namespace(module) if has_import_conflict => {
+            dir::Reference::Namespace { module, .. } if has_import_conflict => {
                 Ok(dir::Reference::Ambiguous(smallvec![
                     dir::ReferenceTarget::Namespace(module)
                 ]))
@@ -214,7 +214,7 @@ impl ResolveState<'_> {
                         .copied()
                         .map(dir::ReferenceTarget::Symbol)
                         .collect::<SmallVec<[_; 2]>>(),
-                    dir::Reference::Namespace(module) => {
+                    dir::Reference::Namespace { module, .. } => {
                         smallvec![dir::ReferenceTarget::Namespace(*module)]
                     }
                     _ => continue,

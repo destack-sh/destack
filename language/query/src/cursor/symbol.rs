@@ -613,7 +613,7 @@ impl ModuleQueryContext<'_> {
 
             // intermediate and unresolved segments have no recorded symbol identity
             dir::Reference::Bound(_)
-            | dir::Reference::Namespace { module: _, .. }
+            | dir::Reference::Namespace { .. }
             | dir::Reference::Projected { .. }
             | dir::Reference::Ambiguous(_)
             | dir::Reference::Missing => None,

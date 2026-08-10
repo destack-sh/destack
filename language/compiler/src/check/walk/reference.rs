@@ -72,7 +72,7 @@ impl WalkState<'_, '_> {
             }
 
             // reject namespaces used directly as values
-            Some(dir::Reference::Namespace(_)) => {
+            Some(dir::Reference::Namespace { .. }) => {
                 let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;
             }
@@ -147,7 +147,7 @@ impl WalkState<'_, '_> {
             }
 
             // reject namespaces used directly as values
-            Some(dir::Reference::Namespace(_)) => {
+            Some(dir::Reference::Namespace { .. }) => {
                 let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;
             }

@@ -22,7 +22,7 @@ impl CheckState<'_> {
                         }
                     }
                     dir::Reference::Missing
-                    | dir::Reference::Namespace(_)
+                    | dir::Reference::Namespace { .. }
                     | dir::Reference::Projected { .. }
                     | dir::Reference::Ambiguous(_) => return None,
                 };

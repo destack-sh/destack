@@ -420,6 +420,7 @@ impl WalkState<'_, '_> {
                     is_definite,
                     is_abstract,
                     is_override,
+                    overrides: None,
                 })))
             }
             // method() {}
@@ -532,6 +533,7 @@ impl WalkState<'_, '_> {
                     role: signature.role,
                     abstraction: *abstraction,
                     is_override: *is_override,
+                    overrides: None,
                     implementation,
                 })))
             }
@@ -749,6 +751,7 @@ impl WalkState<'_, '_> {
                     is_definite: false,
                     is_abstract: false,
                     is_override: false,
+                    overrides: None,
                 })))
             }
             // method(): T
@@ -829,6 +832,7 @@ impl WalkState<'_, '_> {
                     role: signature.role,
                     abstraction: dir::MethodAbstraction::Concrete,
                     is_override: false,
+                    overrides: None,
                     implementation,
                 })))
             }

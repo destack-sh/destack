@@ -48,10 +48,12 @@ impl DirSnapshotBuilder<'_> {
                     .field("kind", "bound")
                     .list_field("targets", targets)
             }
-            dir::Reference::Namespace(module) => SnapshotRow::new(anchor, "reference", column)
-                .field("source", source)
-                .field("kind", "namespace")
-                .field("module", self.module_path(*module)),
+            dir::Reference::Namespace { module, .. } => {
+                SnapshotRow::new(anchor, "reference", column)
+                    .field("source", source)
+                    .field("kind", "namespace")
+                    .field("module", self.module_path(*module))
+            }
             dir::Reference::Projected { base, from } => {
                 let base = match base {
                     dir::ReferenceTarget::Symbol(symbol) => self.symbol_path_label(*symbol),

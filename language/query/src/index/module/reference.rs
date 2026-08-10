@@ -382,7 +382,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                     dir::ReferenceTarget::Namespace(_) => None,
                 })
                 .collect(),
-            dir::Reference::Namespace { module: _, .. } | dir::Reference::Missing => Vec::new(),
+            dir::Reference::Namespace { .. } | dir::Reference::Missing => Vec::new(),
             dir::Reference::Projected { .. } => {
                 return Err(ProviderError::internal(format!(
                     "dependency reference {source:?} has a projected target"

@@ -256,7 +256,9 @@ impl<'a> ExportIndexer<'a> {
     ) -> ProviderResult<Option<dir::ExportTarget>> {
         match reference {
             dir::Reference::Bound(symbols) => Ok(Some(dir::ExportTarget::Symbols(symbols.clone()))),
-            dir::Reference::Namespace { module: module, .. } => Ok(Some(dir::ExportTarget::Namespace(*module))),
+            dir::Reference::Namespace { module, .. } => {
+                Ok(Some(dir::ExportTarget::Namespace(*module)))
+            }
             dir::Reference::Ambiguous(_) | dir::Reference::Missing => Ok(None),
             dir::Reference::Projected { .. } => Err(ProviderError::internal(format!(
                 "export dependency item {item:?} has a projected target"

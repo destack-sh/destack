@@ -802,13 +802,65 @@ impl BodyState<'_, '_> {
 }
 
 impl BodyState<'_, '_> {
+    /// Build one retained call attempt from an unmatched candidate.
+    fn attempted_call(
+        &mut self,
+        candidate: &CallableCandidate,
+    ) -> CompilerResult<Option<dir::CallDecision>> {
+        // name the callable the candidate reached for
+        let target = match &candidate.target {
+            CallableTarget::Symbol(symbol) => dir::CallTarget::Symbol {
+                function: dir::FunctionTarget {
+                    receiver: None,
+                    generic_scope: candidate.generic_scope,
+                    symbol: *symbol,
+                    generic_arguments: candidate.generic_arguments.clone(),
+                },
+                dispatch: dir::FunctionDispatch::Direct,
+            },
+            CallableTarget::Expression => dir::CallTarget::Expression {
+                generic_arguments: Vec::new(),
+            },
+            _ => return Ok(None),
+        };
+
+        // the arguments never matched, so the attempt returns an error type
+        let return_type = self.intern_type(dir::Type::Error)?;
+
+        Ok(Some(dir::OperationResolution::One(dir::Call {
+            target,
+            callable_type: candidate.ty,
+            arguments: Vec::new(),
+            return_type,
+        })))
+    }
+
     /// Commit one rejected call node and produce its failed check.
     pub(in crate::check) fn reject_call(
         &mut self,
         node: dir::GlobalNodeIdAny,
         expectation: Option<Expectation>,
     ) -> CompilerResult<ValueCheck> {
-        self.commit_decision(node, dir::Decision::Rejected)?;
+        self.reject_call_attempted(node, expectation, None)
+    }
+
+    /// Commit one rejected call node while retaining its best attempt.
+    pub(in crate::check) fn reject_call_attempted(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        expectation: Option<Expectation>,
+        attempt: Option<dir::CallDecision>,
+    ) -> CompilerResult<ValueCheck> {
+        // wrap a retained attempt, or commit a bare rejection
+        match attempt {
+            Some(attempt) => self.commit_decision(
+                node,
+                dir::Decision::Attempted(Box::new(dir::Decision::Call(attempt))),
+            )?,
+            None => self.commit_decision(node, dir::Decision::Rejected)?,
+        }
+
+        // fail the node against its expectation, or against itself
         let source = self.commit_error_node(node)?;
         let target = expectation.map_or(source, |expectation| expectation.target);
 
@@ -1152,8 +1204,9 @@ impl BodyState<'_, '_> {
                     if is_single_candidate && rejection.is_precise() =>
                 {
                     self.report_signature_rejection(origin, rejection)?;
+                    let attempt = self.attempted_call(candidate)?;
 
-                    return self.reject_call(node, expectation);
+                    return self.reject_call_attempted(node, expectation, attempt);
                 }
                 SignatureMatch::Invalid { .. } => {}
                 SignatureMatch::Inapplicable(_) => {}
@@ -1165,7 +1218,14 @@ impl BodyState<'_, '_> {
         rejections.truncate(4);
         let arguments = self.infer_argument_types(site, argument_nodes)?;
         self.report_no_matching_call(origin, &arguments, &rejections)?;
-        self.reject_call(node, expectation)
+
+        // retain the first candidate so downstream passes keep a target
+        let attempt = match overload.candidates.first() {
+            Some(candidate) => self.attempted_call(candidate)?,
+            None => None,
+        };
+
+        self.reject_call_attempted(node, expectation, attempt)
     }
 
     /// Return whether one call head is an inference hole.
