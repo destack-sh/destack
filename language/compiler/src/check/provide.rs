@@ -13,24 +13,34 @@ use destack_source::{Content, ModuleId};
 use crate::check::{AnnotatedSource, CheckState, Pass};
 use crate::{Compiler, CompilerError, CompilerResult};
 
+/// Record one provider span around a closure when tracing is active.
+fn breakdown<T>(context: &dyn ProviderContext, name: &'static str, work: impl FnOnce() -> T) -> T {
+    match context.recorder() {
+        Some(recorder) => recorder.breakdown(name, work),
+        None => work(),
+    }
+}
+
 /// The foreign modules one module's check reads through resolution targets.
 struct ReferencedModules {
-    /// Modules referenced by resolution targets.
+    /// The modules referenced by resolution targets.
     targets: FxIndexSet<ModuleId>,
 }
 
-/// Return the modules one module references, or None while their resolve
-/// stages are still building.
+/// Return the modules one module references, or None while their resolve stages build.
 fn referenced_modules(
     artifacts: &destack_repository::ArtifactReader<'_>,
     module: ModuleId,
     profile: ProfileId,
 ) -> CompilerResult<Option<ReferencedModules>> {
+    // wait while the module's own resolve stage is still building
     let resolved = match artifacts.read::<DirResolved>((module, profile)) {
         Ok(resolved) => resolved,
         Err(ProviderError::Blocked { .. }) => return Ok(None),
         Err(error) => return Err(error.into()),
     };
+
+    // keep the foreign modules the resolution targets reach
     let mut targets = resolved.target_modules().collect::<FxIndexSet<_>>();
     targets.shift_remove(&module);
 
@@ -45,6 +55,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
+        // require this module's own stage artifacts
         let mut dependencies = ArtifactDependencySet::default();
         dependencies.require(ArtifactKey::dir_parsed(module));
         dependencies.require(ArtifactKey::dir_bound(module, profile));
@@ -66,6 +77,7 @@ impl Compiler {
 
             return Ok(dependencies);
         };
+
         for reference in references.targets {
             dependencies.require_projection(
                 ArtifactKey::dir_bound(reference, profile),
@@ -91,6 +103,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
+        // read the profile's environment and this module's compiler options
         let artifacts = self.artifact_reader(context);
         let global = artifacts
             .read_content::<EnvironmentBound>(profile)
@@ -100,19 +113,24 @@ impl Compiler {
         let options = self.workspace_compiler_options(context, repository_module.as_ref())?;
 
         // declare the module without walking callable bodies
-        let mut check = CheckState::new(
-            self,
-            context,
-            &artifacts,
-            profile,
-            global,
-            None,
-            environment,
-            module,
-            Pass::Declare,
-            options.emit_events || context.emit_events(),
-        )?;
-        check.run_declare()?;
+        let emit_events = options.emit_events || context.emit_events();
+        let mut check = breakdown(context, "check.load", || {
+            CheckState::new(
+                self,
+                context,
+                &artifacts,
+                profile,
+                global,
+                None,
+                environment,
+                module,
+                Pass::Declare,
+                emit_events,
+            )
+        })?;
+
+        // run the pass
+        breakdown(context, "check.run", || check.run_declare())?;
 
         // emit solver counters for the declaration pass
         let stats = check.stats();
@@ -133,6 +151,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
+        // require this module's own stage artifacts
         let mut dependencies = ArtifactDependencySet::default();
         dependencies.require(ArtifactKey::dir_parsed(module));
         dependencies.require(ArtifactKey::dir_bound(module, profile));
@@ -159,6 +178,7 @@ impl Compiler {
 
             return Ok(dependencies);
         };
+
         for import in references.targets {
             dependencies.require_projection(
                 ArtifactKey::dir_declared(import, profile),
@@ -188,6 +208,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
+        // read the profile's environment and this module's compiler options
         let artifacts = self.artifact_reader(context);
         let global = artifacts
             .read::<EnvironmentBound>(profile)
@@ -200,19 +221,24 @@ impl Compiler {
         let options = self.workspace_compiler_options(context, repository_module.as_ref())?;
 
         // flatten the module's declared owners
-        let mut check = CheckState::new(
-            self,
-            context,
-            &artifacts,
-            profile,
-            global,
-            Some(declared_environment),
-            environment,
-            module,
-            Pass::Elaborate,
-            options.emit_events || context.emit_events(),
-        )?;
-        check.run_elaborate()?;
+        let emit_events = options.emit_events || context.emit_events();
+        let mut check = breakdown(context, "check.load", || {
+            CheckState::new(
+                self,
+                context,
+                &artifacts,
+                profile,
+                global,
+                Some(declared_environment),
+                environment,
+                module,
+                Pass::Elaborate,
+                emit_events,
+            )
+        })?;
+
+        // run the pass
+        breakdown(context, "check.run", || check.run_elaborate())?;
 
         // package elaborated DIR tables and report the pass's diagnostics
         let (elaborated, diagnostics) = check.finish_elaborate(module)?;
@@ -228,6 +254,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
+        // require this module's own stage artifacts
         let mut dependencies = ArtifactDependencySet::default();
         dependencies.require(ArtifactKey::dir_parsed(module));
         dependencies.require(ArtifactKey::dir_bound(module, profile));
@@ -259,6 +286,7 @@ impl Compiler {
 
             return Ok(dependencies);
         };
+
         for import in references.targets {
             dependencies.require_projection(
                 ArtifactKey::dir_declared(import, profile),
@@ -292,6 +320,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
+        // read the profile's environment and this module's compiler options
         let artifacts = self.artifact_reader(context);
         let global = artifacts
             .read_content::<EnvironmentBound>(profile)
@@ -305,19 +334,23 @@ impl Compiler {
 
         // check the module's declarations and bodies
         let emit_events = options.emit_events || context.emit_events();
-        let mut check = CheckState::new(
-            self,
-            context,
-            &artifacts,
-            profile,
-            global,
-            Some(declared_environment),
-            environment,
-            module,
-            Pass::Check,
-            emit_events,
-        )?;
-        check.run_check()?;
+        let mut check = breakdown(context, "check.load", || {
+            CheckState::new(
+                self,
+                context,
+                &artifacts,
+                profile,
+                global,
+                Some(declared_environment),
+                environment,
+                module,
+                Pass::Check,
+                emit_events,
+            )
+        })?;
+
+        // run the pass
+        breakdown(context, "check.run", || check.run_check())?;
 
         // emit solver counters and optional trace sidecars
         let stats = check.stats();
@@ -325,12 +358,26 @@ impl Compiler {
         context.emit_counter("solve.constraints", stats.constraints as u64);
         context.emit_counter("solve.bounds", stats.bounds as u64);
         context.emit_counter("solve.decisions", stats.decisions as u64);
+        let counters = check.counters;
+        context.emit_counter("check.judges", counters.judges);
+        context.emit_counter("check.judge_hits", counters.judge_hits);
+        context.emit_counter("check.binding_builds", counters.binding_builds);
+        context.emit_counter("check.binding_hits", counters.binding_hits);
+        context.emit_counter("check.probes", counters.probes);
+        context.emit_counter("check.selection_probes", counters.selection_probes);
+        context.emit_counter("check.extension_probes", counters.extension_probes);
+        context.emit_counter("check.interns", counters.interns);
+        context.emit_counter("check.reduces", counters.reduces);
+        context.emit_counter("check.instantiations", counters.instantiations);
+
+        // emit the stats sidecar when the options ask for it
         if options.emit_stats {
             let content = stats.render_metadata();
             context.emit_sidecar(check_sidecar("metadata", content));
         }
-        let events = emit_events.then(|| check.events());
 
+        // emit the recorded trace events as their own sidecar
+        let events = emit_events.then(|| check.events());
         if let Some(events) = events {
             context.emit_sidecar(check_sidecar("events", events.render()));
         }
@@ -366,6 +413,7 @@ impl Compiler {
             Err(destack_repository::ProviderError::Blocked { .. }) => return Ok(dependencies),
             Err(error) => return Err(error.into()),
         };
+
         for module in environment.implicit_modules() {
             dependencies.require_projection(
                 ArtifactKey::dir_declared(module, profile),
@@ -382,6 +430,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
+        // read the profile's bound environment
         let artifacts = self.artifact_reader(context);
         let bound = artifacts
             .read_content::<EnvironmentBound>(profile)
@@ -394,6 +443,7 @@ impl Compiler {
                 .read::<DirDeclared>((module, profile))
                 .map_err(CompilerError::from)?;
             let types = declared.types.clone();
+
             for (symbol, definition) in declared.definitions.iter_definitions() {
                 // index extension declarations by their resolved target
                 if let dir::Definition::Extension(extension) = definition {

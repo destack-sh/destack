@@ -12,10 +12,11 @@ use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Cause, CauseId, CheckModuleState, CheckTrace, DecoratorApplication, ExternalModuleTable,
-    FlowBranch, FlowState, FunctionBody, GenericParameterId, InducedParameterSite, InferContext,
-    MemberSubject, MemberTable, Origin, OriginId, Relation, RelationKey, Scope, Selection,
-    SelectionKey, VarianceForm, VarianceState, should_stream_check_events,
+    Cause, CauseId, CheckCounters, CheckModuleState, CheckTrace, DecoratorApplication,
+    ExternalModuleTable, FlowBranch, FlowState, Fulfillment, FunctionBody, GenericParameterId,
+    InducedParameterSite, InferContext, MemberSubject, MemberTable, Origin, OriginId, Relation,
+    RelationKey, Scope, Selection, SelectionKey, VarianceForm, VarianceState, Verdict,
+    should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -31,10 +32,6 @@ pub(in crate::check) enum Pass {
 }
 
 /// Node types stored densely per module column, journaled for probes.
-///
-/// Each module owns one column indexed by tree-global node id. Probe
-/// inserts journal their prior entries and roll back exactly,
-/// overwrites included.
 #[derive(Debug, Default)]
 pub(in crate::check) struct NodeTable {
     /// One dense column per module, indexed by tree-global node id.
@@ -72,6 +69,7 @@ impl NodeTable {
             let prior = column[index].and_then(|(tag, ty)| (tag == node.local_id.ty).then_some(ty));
             self.journal.push((node, prior));
         }
+
         column[index] = Some((node.local_id.ty, ty));
     }
 
@@ -109,6 +107,7 @@ impl NodeTable {
                 .expect("journaled column");
             column[node.local_id.id as usize] = prior.map(|ty| (node.local_id.ty, ty));
         }
+
         self.probes -= 1;
     }
 }
@@ -150,6 +149,17 @@ pub(in crate::check) struct CheckState<'a> {
     // decisions
     /// Decided relations between closed type pairs.
     pub(in crate::check) relates: FxIndexMap<RelationKey, bool>,
+    /// Canonical member bindings per owner and space.
+    pub(in crate::check) bindings:
+        FxIndexMap<(dir::GlobalSymbolId, dir::MemberSpace), Option<Arc<Vec<dir::MemberBinding>>>>,
+    /// Extension selections of settled goals, with the winning
+    /// implementation replayed on later hits.
+    pub(in crate::check) extensions: FxIndexMap<
+        (Relation, dir::GlobalTypeId, dir::GlobalTypeId, Scope),
+        (Verdict, Option<dir::GlobalSymbolId>),
+    >,
+    /// Work counters for the stats sidecar.
+    pub(in crate::check) counters: CheckCounters,
     /// Reduced heads of closed types.
     pub(in crate::check) reduces: FxIndexMap<(dir::GlobalTypeId, Scope), dir::GlobalTypeId>,
     /// Extension member tables of closed subjects, grouped by key.
@@ -166,6 +176,8 @@ pub(in crate::check) struct CheckState<'a> {
 
     /// The module's transient inference state.
     pub(in crate::check) infer: InferContext,
+    /// The fulfillment queue driving pending work to verdicts.
+    pub(in crate::check) fulfill: Fulfillment,
 
     // walk state
     /// Resolved decorators in module walk order.
@@ -256,6 +268,8 @@ impl<'a> CheckState<'a> {
             .then(|| artifacts.read::<DirElaborated>((module_id, profile)))
             .transpose()
             .map_err(CompilerError::from)?;
+
+        // assemble the module's working tables over those artifacts
         let module = CheckModuleState::new(
             repository_module,
             package,
@@ -268,6 +282,7 @@ impl<'a> CheckState<'a> {
             elaborated,
         );
 
+        // open every decision, inference, and trace table empty
         let state = Self {
             compiler,
             context,
@@ -282,6 +297,9 @@ impl<'a> CheckState<'a> {
             external_resolved: FxIndexMap::default(),
             pass,
             relates: FxIndexMap::default(),
+            bindings: FxIndexMap::default(),
+            extensions: FxIndexMap::default(),
+            counters: CheckCounters::default(),
             reduces: FxIndexMap::default(),
             members: FxIndexMap::default(),
             conforms: FxIndexMap::default(),
@@ -290,6 +308,7 @@ impl<'a> CheckState<'a> {
             variances: FxIndexMap::default(),
             imported_types: FxIndexMap::default(),
             infer: InferContext::new(),
+            fulfill: Fulfillment::new(),
             decorators: Vec::new(),
             deriving_newtypes: FxIndexSet::default(),
             induced_parameter_sites: Vec::new(),
@@ -307,6 +326,7 @@ impl<'a> CheckState<'a> {
             lambdas: FxIndexMap::default(),
             trace: CheckTrace::new(emit_events, should_stream_check_events()),
         };
+
         Ok(state)
     }
 
@@ -327,8 +347,8 @@ impl<'a> CheckState<'a> {
 
     /// Bind the error type to every exported binding without a derived type.
     ///
-    /// Every export commits a type, so exports whose types inference could not
-    /// derive report a diagnostic and bind the error type instead.
+    /// Every export commits a type, so an export whose type inference failed to derive
+    /// reports a diagnostic and binds the error type.
     pub(in crate::check) fn bind_underivable_exports(&mut self) -> CompilerResult<()> {
         // view the module tree with its expansion patches
         let module = self.module_id;
@@ -349,7 +369,7 @@ impl<'a> CheckState<'a> {
                 continue;
             }
 
-            // skip statically absent exports, they bind nothing
+            // skip statically absent exports
             if self.is_absent(declarator.into_global(module)) {
                 continue;
             }
@@ -479,7 +499,7 @@ impl CheckState<'_> {
         else if let Some(external) = self.external_modules.get(&id.module_id) {
             Ok(external.types.get_type(id.local_id))
         }
-        // should never happen
+        // fail loudly on a module this check never loaded
         else {
             Err(CompilerError::Internal {
                 message: format!("check type {id:?} belongs to an unloaded module"),
@@ -517,7 +537,7 @@ impl CheckState<'_> {
         else if let Some(external) = self.external_modules.get(&id.module_id) {
             Ok(external.types.get_type_flags(id.local_id))
         }
-        // should never happen
+        // fail loudly on a module this check never loaded
         else {
             Err(CompilerError::Internal {
                 message: format!("check type {id:?} belongs to an unloaded module"),
@@ -621,6 +641,7 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::Type,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        self.counters.interns += 1;
         let module = self.module_id;
 
         // memory forms intern in one canonical composition order
@@ -635,11 +656,12 @@ impl CheckState<'_> {
         }
 
         // record the foreign modules this row mentions as it stores
-        for child in children {
+        for child in &children {
             if child.module_id != module {
                 self.module.references.insert(child.module_id);
             }
         }
+
         let mut mentions = SmallVec::<[ModuleId; 2]>::new();
         ty.referenced_modules(&mut |mentioned| mentions.push(mentioned));
         for mentioned in mentions {
@@ -653,6 +675,7 @@ impl CheckState<'_> {
             child_flags |= self.type_operation(module, operation)?.own_flags();
         }
 
+        // store the row in this module's working tail
         let local = self.module.types_tail.intern_type(ty, child_flags);
 
         Ok(local.into_global(module))
@@ -1021,6 +1044,7 @@ impl CheckState<'_> {
             if list.is_empty() {
                 return Ok(&[]);
             }
+
             if let Some(elements) = read_segment(&self.module.types_tail) {
                 return Ok(elements);
             }
@@ -1085,12 +1109,13 @@ impl CheckState<'_> {
         };
 
         for (symbol, _) in declared.types.symbol_types() {
-            // skip statically absent declarations, they keep no canonical rows
+            // skip statically absent declarations
             if let Ok(source) = self.symbol_source(symbol)
                 && self.is_absent(source)
             {
                 continue;
             }
+
             self.canonical_symbol_type_maybe(symbol)?;
         }
 
@@ -1532,6 +1557,8 @@ impl CheckState<'_> {
                 },
             };
         }
+
+        // map the signature lists as they stand
         shape.properties = self.intern_properties(&properties)?;
         shape.call_signatures =
             self.map_type_id_list(source, target, shape.call_signatures, map)?;
@@ -1546,6 +1573,7 @@ impl CheckState<'_> {
             signature.key_type = map(self, signature.key_type)?;
             signature.value_type = map(self, signature.value_type)?;
         }
+
         shape.index_signatures = self.intern_index_signatures(&signatures)?;
 
         Ok(shape)
@@ -1656,6 +1684,7 @@ impl CheckState<'_> {
         base: dir::GlobalTypeId,
         bindings: &[(dir::StaticKey, dir::GlobalTypeId)],
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // sort the bindings, so equal refinement sets intern identically
         let mut bindings = SmallVec::<[_; 2]>::from_slice(bindings);
         bindings.sort_by_key(|(key, _)| *key);
         let mut ty = base;
@@ -1688,6 +1717,7 @@ impl CheckState<'_> {
             bindings.push((refined.key, refined.value));
             id = refined.base;
         }
+
         bindings.sort_by_key(|(key, _)| *key);
 
         Ok((id, bindings))

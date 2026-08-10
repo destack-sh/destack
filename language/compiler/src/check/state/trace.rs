@@ -9,6 +9,31 @@ use crate::check::{
 /// Environment variable naming the file check events stream into.
 const CHECK_EVENT_STREAM_ENV: &str = "DESTACK_CHECK_EVENT_STREAM";
 
+/// Work counters accumulated while checking one module.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(in crate::check) struct CheckCounters {
+    /// Relation judgments computed past the memos.
+    pub(in crate::check) judges: u64,
+    /// Relation judgments served from the memos.
+    pub(in crate::check) judge_hits: u64,
+    /// Member binding surfaces built past the memo.
+    pub(in crate::check) binding_builds: u64,
+    /// Member binding surfaces served from the memo.
+    pub(in crate::check) binding_hits: u64,
+    /// Speculative probes opened.
+    pub(in crate::check) probes: u64,
+    /// Probes opened by overload selection.
+    pub(in crate::check) selection_probes: u64,
+    /// Probes opened by extension implementation matching.
+    pub(in crate::check) extension_probes: u64,
+    /// Types interned into the working segment.
+    pub(in crate::check) interns: u64,
+    /// Type heads reduced.
+    pub(in crate::check) reduces: u64,
+    /// Generic parameter instantiations opened.
+    pub(in crate::check) instantiations: u64,
+}
+
 /// Derived size counters for one checked module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct CheckStats {
@@ -139,9 +164,12 @@ impl CheckState<'_> {
             return;
         };
 
+        // print the event as it happens
         if trace.stream {
             self.stream_event(&event);
         }
+
+        // retain the event for artifact output
         if let Some(trace) = &mut self.trace
             && trace.emit
         {
@@ -180,15 +208,17 @@ impl CheckState<'_> {
 
     /// Return derived size counters for this module.
     pub(in crate::check) fn stats(&self) -> CheckStats {
+        // count the variables that already reached a solution
         let bounds = self.infer.variables.bound_count();
         let mut solutions = 0;
         for (_, state) in self.infer.variables() {
             solutions += usize::from(!state.state.is_open());
         }
+
         CheckStats {
             variables: self.infer.variable_count(),
-            constraints: self.infer.constraint_count(),
-            obligations: self.infer.obligation_count(),
+            constraints: self.fulfill.constraint_count(),
+            obligations: self.fulfill.obligation_count(),
             solutions,
             bounds,
             decisions: self.module.decisions.decision_entries().count(),

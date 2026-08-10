@@ -48,6 +48,7 @@ impl BodyState<'_, '_> {
             return Ok(dir::MemberSpace::Static);
         }
 
+        // read the declaration the receiver expression names, if any
         let symbol = match self.name_decision(receiver) {
             Some(resolution) => match resolution.symbols() {
                 [symbol] => Some(*symbol),
@@ -62,9 +63,8 @@ impl BodyState<'_, '_> {
             return Ok(dir::MemberSpace::Instance);
         };
 
-        let kind = self.symbol_kind(symbol)?;
-
         // select static members for names that resolve to types
+        let kind = self.symbol_kind(symbol)?;
         let is_type_name =
             kind.is_nominal() || matches!(kind, dir::SymbolKind::GenericTypeParameter);
         let space = if is_type_name {
@@ -166,6 +166,7 @@ impl BodyState<'_, '_> {
             return Ok(MemberLookup::Missing);
         }
 
+        // look the key up in the reduced subject, then leave the path
         let lookup = self.lookup_settled_member(
             origin, module, receiver, subject, space, key, extensions, active,
         );
@@ -228,6 +229,8 @@ impl BodyState<'_, '_> {
                         origin, module, receiver, subject, space, key, extensions,
                     );
                 };
+
+                // look the key up in the case's payload
                 let projected = self.replace_form_value(origin, receiver, backing)?;
                 let mut lookup = self.lookup_subject_member(
                     origin, module, projected, backing, space, key, extensions, active,
@@ -258,6 +261,7 @@ impl BodyState<'_, '_> {
                     dir::Type::Literal(literal) => self.intern_type(literal.widen())?,
                     _ => subject,
                 };
+
                 let lookup = self.lookup_apparent_instance_member(
                     origin, module, receiver, subject, space, key, extensions,
                 )?;
@@ -319,6 +323,8 @@ impl BodyState<'_, '_> {
                     receiver: dir::AdjustedReceiver::direct(receiver),
                     constraint,
                 };
+
+                // look the key up in the erased constraint, then dispatch dynamically
                 let constraint_receiver = self.replace_form_value(origin, receiver, constraint)?;
                 let mut lookup = self.lookup_bound_member(
                     origin,
@@ -363,6 +369,7 @@ impl BodyState<'_, '_> {
                     return Ok(MemberLookup::Missing);
                 }
 
+                // project each declared operation through the receiver
                 let mut reads = SmallVec::<[dir::GlobalTypeId; 2]>::new();
                 let mut writes = SmallVec::<[dir::GlobalTypeId; 2]>::new();
                 let mut is_optional = true;
@@ -378,6 +385,7 @@ impl BodyState<'_, '_> {
                         )?;
                         reads.push(read);
                     }
+
                     if let Some(write) = property.access.write() {
                         let write = self.projected_member_type(
                             origin,
@@ -389,6 +397,7 @@ impl BodyState<'_, '_> {
                     }
                 }
 
+                // several declarations of one key intersect into one operation
                 let read = match reads.as_slice() {
                     [] => None,
                     [read] => Some(*read),
@@ -399,6 +408,7 @@ impl BodyState<'_, '_> {
                     [write] => Some(*write),
                     writes => Some(self.normalized_intersection_type(writes.iter().copied())?),
                 };
+
                 let access = match (read, write) {
                     (Some(read), Some(write)) => dir::PropertyAccess::ReadWrite { read, write },
                     (Some(read), None) => dir::PropertyAccess::Read(read),
@@ -432,6 +442,8 @@ impl BodyState<'_, '_> {
                 let Some(element) = element else {
                     return Ok(MemberLookup::Missing);
                 };
+
+                // readonly elements expose the read operation alone
                 let access_type = self.projected_member_type(
                     origin,
                     Some(receiver),
@@ -483,6 +495,7 @@ impl BodyState<'_, '_> {
                     }
                 }
 
+                // a sole element's lookup answers directly
                 let lookup = if lookups.is_empty() {
                     MemberLookup::Missing
                 } else if lookups.len() == 1 {
@@ -580,6 +593,7 @@ impl BodyState<'_, '_> {
                 symbol = named;
             }
         }
+
         if !self.is_own_module(symbol.module_id) {
             self.import_external_module(symbol.module_id)?;
         }
@@ -650,9 +664,11 @@ impl BodyState<'_, '_> {
                 extensions,
                 active,
             )?;
+
             if matches!(lookup, MemberLookup::Missing) {
                 return Ok(MemberLookup::Missing);
             }
+
             lookups.push(MemberArmLookup {
                 receiver: arm_receiver,
                 lookup,
@@ -686,6 +702,7 @@ impl BodyState<'_, '_> {
         } else {
             self.lookup_inherent_symbol_member(origin, receiver, &instance, space, key)?
         };
+
         if inherent.is_found() {
             return Ok(inherent);
         }
@@ -742,6 +759,7 @@ impl BodyState<'_, '_> {
         if space != dir::MemberSpace::Static {
             return Ok(MemberLookup::Missing);
         }
+
         let Some(qualifier) = self.select_associated_qualifier(origin, receiver, key)? else {
             return Ok(MemberLookup::Missing);
         };
@@ -765,6 +783,7 @@ impl BodyState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
+        // read the static members this declaration declares under the key
         let Some(definition) = self.definition(symbol)? else {
             return Ok(MemberLookup::Missing);
         };
@@ -776,9 +795,8 @@ impl BodyState<'_, '_> {
             return Ok(MemberLookup::Missing);
         }
 
-        let mut candidates = Vec::new();
-
         // collect visible static declaration members
+        let mut candidates = Vec::new();
         for member in members {
             let Some(member) = self.declared_member(&member)? else {
                 continue;
@@ -786,6 +804,7 @@ impl BodyState<'_, '_> {
             let Some(ty) = member.ty else {
                 continue;
             };
+
             let mut ty = ty;
             let mut written = self.static_value(member.symbol);
             let mut generic_arguments = Vec::new();
@@ -807,11 +826,13 @@ impl BodyState<'_, '_> {
                         message: format!("declaration template {template:?} cannot instantiate"),
                     });
                 };
+
                 for constraint in
                     self.substitute_application_constraints(origin, template, &substitution)?
                 {
                     self.check.push_constraint(constraint)?;
                 }
+
                 ty = self.substitute_type(ty, &substitution)?;
                 written = written
                     .map(|written| self.substitute_type(written, &substitution))
@@ -819,11 +840,11 @@ impl BodyState<'_, '_> {
                 generic_arguments = substitution.bindings.to_vec();
             }
 
+            // project the member's operations through the receiver
             let callable = member.callable_type(origin.module(), symbol, ty, self)?;
             let access_type = member.access_type(self, ty)?;
             let access_type =
                 self.projected_member_type(origin, Some(receiver), member.role, access_type)?;
-
             candidates.push(MemberCandidate {
                 symbol: member.symbol,
                 owner: symbol,
@@ -858,6 +879,7 @@ impl BodyState<'_, '_> {
         let Some(definition) = self.definition(instance.symbol)? else {
             return Ok(MemberLookup::Missing);
         };
+
         let members = definition
             .members_with_key(space, key)
             .cloned()
@@ -893,6 +915,7 @@ impl BodyState<'_, '_> {
                 symbol: heritage.symbol,
                 arguments: arguments.iter().copied().collect(),
             };
+
             let lookup =
                 self.lookup_inherent_symbol_member(origin, receiver, &heritage, space, key)?;
             match lookup {
@@ -906,9 +929,9 @@ impl BodyState<'_, '_> {
 
     /// Return one closed subject's inherent members, grouped by key.
     ///
-    /// Levels walk in declaration preorder, so own members claim their keys
-    /// first and each heritage level serves only the keys nearer levels left
-    /// open, matching the per key search order.
+    /// Levels walk in declaration preorder, so own members claim their keys first and each
+    /// heritage level serves the keys nearer levels left open.
+    /// This matches the per key search order.
     pub(in crate::check) fn inherent_member_table(
         &mut self,
         origin: Origin,
@@ -916,12 +939,12 @@ impl BodyState<'_, '_> {
         instance: &ApparentInstance,
         space: dir::MemberSpace,
     ) -> CompilerResult<Arc<FxIndexMap<dir::StaticKey, MemberLookup>>> {
-        // derive the table from the owner's stored member bindings
-        if let Some(bindings) = self.stored_member_bindings(instance.symbol, space) {
+        // derive the table from the owner's canonical member bindings
+        if let Some(bindings) = self.member_bindings(origin, instance.symbol, space)? {
             let mut table = FxIndexMap::default();
-            for binding in bindings {
+            for binding in bindings.iter() {
                 let candidates =
-                    self.binding_member_candidates(origin, receiver, instance, &binding, space)?;
+                    self.binding_member_candidates(origin, receiver, instance, binding, space)?;
                 table.insert(binding.key, MemberLookup::Found(candidates));
             }
 
@@ -939,6 +962,7 @@ impl BodyState<'_, '_> {
             if !visited.insert((level.symbol, level.arguments.clone())) {
                 continue;
             }
+
             let Some(definition) = self.definition(level.symbol)? else {
                 continue;
             };
@@ -953,6 +977,7 @@ impl BodyState<'_, '_> {
                     keys.push(key);
                 }
             }
+
             let heritages = definition
                 .bases()
                 .iter()
@@ -1002,9 +1027,8 @@ impl BodyState<'_, '_> {
 
     /// Build one owner's canonical member bindings with `this` symbolic.
     ///
-    /// Bindings substitute each heritage level's arguments but never a
-    /// receiver, so use sites substitute their own receivers and the
-    /// stored types stay canonical.
+    /// Bindings substitute each heritage level's arguments and leave the receiver symbolic,
+    /// so use sites substitute their own receivers over canonical stored types.
     pub(in crate::check) fn canonical_member_bindings(
         &mut self,
         origin: Origin,
@@ -1012,17 +1036,19 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
     ) -> CompilerResult<Option<Vec<dir::MemberBinding>>> {
         let mut bindings: Vec<dir::MemberBinding> = Vec::new();
-        let mut stack = vec![instance.clone()];
+        let mut stack = vec![(instance.clone(), false)];
         let mut visited = FxIndexSet::default();
 
         // walk the declaration levels in preorder, first level per key wins
-        while let Some(level) = stack.pop() {
+        while let Some((level, is_conformance)) = stack.pop() {
             if !visited.insert((level.symbol, level.arguments.clone())) {
                 continue;
             }
+
             let Some(definition) = self.definition(level.symbol)?.cloned() else {
                 return Ok(None);
             };
+
             let substitution = level.substitution(self.check)?;
 
             // bind each declared member the nearer levels left open
@@ -1033,9 +1059,24 @@ impl BodyState<'_, '_> {
                 if member.space() != space {
                     continue;
                 }
+
+                // conformance levels serve their default members only
+                if is_conformance {
+                    let has_default = match &member {
+                        dir::DefinitionMember::AssociatedType(associated) => {
+                            associated.value.is_some()
+                        }
+                        member => member.is_default(),
+                    };
+                    if !has_default {
+                        continue;
+                    }
+                }
+
                 let Some(declared) = self.declared_member(&member.clone())? else {
                     continue;
                 };
+
                 let ty = match declared.ty {
                     Some(ty) => ty,
                     // valueless associated members project through receivers
@@ -1052,6 +1093,8 @@ impl BodyState<'_, '_> {
                     }
                     None => continue,
                 };
+
+                // apply this level's arguments and read the member's operations
                 let ty = self.substitute_type(ty, &substitution)?;
                 let callable = declared.callable_type(origin.module(), level.symbol, ty, self)?;
                 let access_type = declared.access_type(self.check, ty)?;
@@ -1063,6 +1106,7 @@ impl BodyState<'_, '_> {
                     },
                     _ => dir::PropertyAccess::Read(access_type),
                 };
+
                 let declaration = dir::MemberDeclaration {
                     symbol: declared.symbol,
                     owner: level.symbol,
@@ -1099,6 +1143,7 @@ impl BodyState<'_, '_> {
                             },
                             _ => binding.access,
                         };
+
                         binding.declarations.push(declaration);
                     }
 
@@ -1114,23 +1159,34 @@ impl BodyState<'_, '_> {
                 ));
             }
 
-            // push substituted heritage levels in reverse for preorder
+            // push substituted heritage levels in reverse for preorder,
+            //  with implemented interfaces serving their default members
             let heritages = definition
                 .bases()
                 .iter()
-                .map(|heritage| heritage.ty)
+                .map(|heritage| (heritage.ty, is_conformance))
+                .chain(
+                    definition
+                        .implementations()
+                        .iter()
+                        .map(|conformance| (conformance.interface, true)),
+                )
                 .collect::<SmallVec<[_; 2]>>();
-            for heritage in heritages.into_iter().rev() {
+            for (heritage, is_conformance) in heritages.into_iter().rev() {
                 let heritage = self.substitute_type(heritage, &substitution)?;
                 let Some((heritage_module, heritage)) = self.nominal_application_maybe(heritage)?
                 else {
                     continue;
                 };
+
                 let arguments = self.type_ids(heritage_module, heritage.arguments)?;
-                stack.push(ApparentInstance {
-                    symbol: heritage.symbol,
-                    arguments: arguments.iter().copied().collect(),
-                });
+                stack.push((
+                    ApparentInstance {
+                        symbol: heritage.symbol,
+                        arguments: arguments.iter().copied().collect(),
+                    },
+                    is_conformance,
+                ));
             }
         }
 
@@ -1155,21 +1211,25 @@ impl BodyState<'_, '_> {
             if !visited.insert((level.symbol, level.arguments.clone())) {
                 continue;
             }
+
             let Some(definition) = self.definition(level.symbol)? else {
                 continue;
             };
+
             let heritages = definition
                 .bases()
                 .iter()
                 .map(|heritage| heritage.ty)
                 .collect::<SmallVec<[_; 2]>>();
             let substitution = level.substitution(self.check)?;
+
             for heritage in heritages {
                 let heritage = self.substitute_type(heritage, &substitution)?;
                 let Some((heritage_module, heritage)) = self.nominal_application_maybe(heritage)?
                 else {
                     continue;
                 };
+
                 let arguments = self.type_ids(heritage_module, heritage.arguments)?;
                 stack.push(ApparentInstance {
                     symbol: heritage.symbol,
@@ -1181,53 +1241,7 @@ impl BodyState<'_, '_> {
         Ok(None)
     }
 
-    /// Return one owner's canonical instance over its own parameters.
-    fn canonical_instance(
-        &mut self,
-        instance: &ApparentInstance,
-    ) -> CompilerResult<Option<ApparentInstance>> {
-        let Some(template) = self.symbol_template(instance.symbol)? else {
-            return Ok(None);
-        };
-        let parameters = self.generic_template_parameters(template)?;
-        let mut arguments = SmallVec::with_capacity(parameters.len());
-        for parameter in parameters {
-            let Some(binding) = self.generic_parameter(parameter) else {
-                return Ok(None);
-            };
-            arguments.push(binding.ty);
-        }
-
-        Ok(Some(ApparentInstance {
-            symbol: instance.symbol,
-            arguments,
-        }))
-    }
-
-    /// Return whether one instance applies its owner's own parameters.
-    fn is_canonical_instance(&mut self, instance: &ApparentInstance) -> CompilerResult<bool> {
-        let Some(template) = self.symbol_template(instance.symbol)? else {
-            return Ok(instance.arguments.is_empty());
-        };
-        let parameters = self.generic_template_parameters(template)?;
-        if parameters.len() != instance.arguments.len() {
-            return Ok(false);
-        }
-
-        // every argument names the declared parameter in its own slot
-        for (argument, parameter) in instance.arguments.iter().zip(parameters) {
-            let Some(binding) = self.generic_parameter(parameter) else {
-                return Ok(false);
-            };
-            if binding.ty != *argument {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// Derive one key's member lookup from the owner's flattened surface.
+    /// Derive one key's member lookup from the owner's canonical surface.
     fn stored_member_lookup(
         &mut self,
         origin: Origin,
@@ -1236,38 +1250,75 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
-        // flatten the owner's canonical surface on first use
-        if self
-            .stored_member_bindings(instance.symbol, space)
-            .is_none()
-        {
-            let canonical = match self.is_canonical_instance(instance)? {
-                true => None,
-                false => self.canonical_instance(instance)?,
-            };
-            let canonical = canonical.as_ref().unwrap_or(instance);
-            let _ = self.inherent_member_table(origin, receiver, canonical, space)?;
-        }
-
         // derive the asked key only; absent owners searched live already
-        let Some(bindings) = self.stored_member_bindings(instance.symbol, space) else {
+        let Some(bindings) = self.member_bindings(origin, instance.symbol, space)? else {
             let table = self.inherent_member_table(origin, receiver, instance, space)?;
 
             return Ok(table.get(&key).cloned().unwrap_or(MemberLookup::Missing));
         };
-        let Some(binding) = bindings.into_iter().find(|binding| binding.key == key) else {
+        let Some(binding) = bindings.iter().find(|binding| binding.key == key) else {
             return Ok(MemberLookup::Missing);
         };
+
+        // substitute the binding through this instance and receiver
         let candidates =
-            self.binding_member_candidates(origin, receiver, instance, &binding, space)?;
+            self.binding_member_candidates(origin, receiver, instance, binding, space)?;
 
         Ok(MemberLookup::Found(candidates))
     }
 
+    /// Return one owner's canonical member bindings, memoized per run.
+    ///
+    /// Settled owners read their module's stored surface.
+    /// Unsettled owners build their canonical bindings once, and every later ask is served
+    /// from the memo.
+    pub(in crate::check) fn member_bindings(
+        &mut self,
+        origin: Origin,
+        symbol: dir::GlobalSymbolId,
+        space: dir::MemberSpace,
+    ) -> CompilerResult<Option<Arc<Vec<dir::MemberBinding>>>> {
+        // serve the memo
+        if let Some(bindings) = self.check.bindings.get(&(symbol, space)) {
+            self.check.counters.binding_hits += 1;
+
+            return Ok(bindings.clone());
+        }
+
+        self.check.counters.binding_builds += 1;
+
+        // read settled owners from their module's stored surface
+        let stored = self.stored_member_bindings(symbol, space).map(Arc::new);
+
+        // build the canonical surface for unsettled owners
+        let bindings = match stored {
+            Some(bindings) => Some(bindings),
+            None => {
+                let application = self.declaration_instance(symbol)?;
+                let module = self.module_id;
+                let arguments = self.type_ids(module, application.arguments)?.to_vec();
+                let instance = ApparentInstance {
+                    symbol,
+                    arguments: arguments.into_iter().collect(),
+                };
+
+                self.canonical_member_bindings(origin, &instance, space)?
+                    .map(Arc::new)
+            }
+        };
+
+        // memoize the surface for every later ask
+        self.check
+            .bindings
+            .insert((symbol, space), bindings.clone());
+
+        Ok(bindings)
+    }
+
     /// Return the stored member bindings of one owner's canonical type.
     ///
-    /// Each checking module flattens each owner it uses once into its own
-    /// member segment, keyed by the owner's declared canonical type.
+    /// Each checking module flattens each owner it uses once into its own member segment,
+    /// keyed by the owner's declared canonical type.
     fn stored_member_bindings(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -1283,6 +1334,7 @@ impl BodyState<'_, '_> {
 
             return Some(bindings.to_vec());
         }
+
         let bindings = self.check.module.members.subject_bindings(&subject)?;
 
         Some(bindings.to_vec())
@@ -1290,8 +1342,8 @@ impl BodyState<'_, '_> {
 
     /// Return one owner's declared canonical self type.
     ///
-    /// The declared id keys the stored member bindings, so the settled
-    /// declared stage answers before this pass's re-canonicalized tail.
+    /// The declared id keys the stored member bindings, so the settled declared stage answers
+    /// before this pass's re-canonicalized tail.
     fn canonical_owner_type(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalTypeId> {
         if self.check.is_own_module(symbol.module_id) {
             let module = &self.check.module;
@@ -1309,9 +1361,9 @@ impl BodyState<'_, '_> {
 
     /// Derive one stored member binding's candidates for a lookup instance.
     ///
-    /// Stored access and callable types are canonical: the owner resolved
-    /// them for its own self type, so instances substitute their applied
-    /// arguments and receiver into the stored types.
+    /// Stored access and callable types are canonical: the owner resolved them for its own
+    /// self type, so instances substitute their applied arguments and receiver into the
+    /// stored types.
     fn binding_member_candidates(
         &mut self,
         origin: Origin,
@@ -1328,6 +1380,7 @@ impl BodyState<'_, '_> {
         let generic_arguments =
             self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?;
 
+        // build one candidate per declaration behind the key
         let mut candidates = Vec::with_capacity(binding.declarations.len());
         for declaration in &binding.declarations {
             // carry the declaring heritage level's arguments, not the top instance's
@@ -1340,6 +1393,7 @@ impl BodyState<'_, '_> {
             } else {
                 generic_arguments.clone()
             };
+
             // pick the stored access basis by the declaration's role
             let access = match declaration.role {
                 dir::MemberRole::Setter => binding.access.write(),
@@ -1358,6 +1412,7 @@ impl BodyState<'_, '_> {
                     ),
                 });
             };
+
             // rigid receivers project associated members through themselves
             let access_type = if declaration.role == dir::MemberRole::Associated
                 && self.is_rigid_projection_owner(receiver)?
@@ -1379,12 +1434,13 @@ impl BodyState<'_, '_> {
                 Some(callable) => Some(self.substitute_type(callable, &substitution)?),
                 None => None,
             };
+
+            // substitute the stored static value through the same instance
             let value = self.check.symbol_static_id(declaration.symbol);
             let value_type = match self.static_value(declaration.symbol) {
                 Some(written) => Some(self.substitute_type(written, &substitution)?),
                 None => None,
             };
-
             candidates.push(MemberCandidate {
                 symbol: declaration.symbol,
                 owner: declaration.owner,
@@ -1417,16 +1473,17 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Vec<MemberCandidate>> {
+        // build one candidate per declaration behind the key
         let substitution = substitution.clone();
         let mut candidates = Vec::new();
         for member in members.iter().cloned() {
             let Some(declared) = self.declared_member(&member)? else {
                 continue;
             };
-            let symbol = declared.symbol;
 
             // project value-less associated types through the receiver while keeping
-            // defaults conformance-only behind rigid owners
+            //  defaults conformance-only behind rigid owners
+            let symbol = declared.symbol;
             let is_associated = matches!(member, dir::DefinitionMember::AssociatedType(_));
             let is_rigid = self.is_rigid_projection_owner(receiver)?;
             let ty = match declared.ty {
@@ -1443,8 +1500,9 @@ impl BodyState<'_, '_> {
                 }
                 _ => continue,
             };
-            let member = declared;
 
+            // apply this instance's arguments and read the member's operations
+            let member = declared;
             let ty = self.substitute_type(ty, &substitution)?;
             let callable = member.callable_type(origin.module(), instance.symbol, ty, self)?;
             let access_type = member.access_type(self, ty)?;
@@ -1457,9 +1515,9 @@ impl BodyState<'_, '_> {
                 written => written,
             };
 
+            // carry this instance's solved arguments onto the candidate
             let generic_arguments =
                 self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?;
-
             candidates.push(MemberCandidate {
                 symbol,
                 owner: instance.symbol,
@@ -1524,7 +1582,7 @@ impl BodyState<'_, '_> {
         }
 
         match self.ty(subject)? {
-            // solved member subjects cannot retain inference variables
+            // fail loudly on a variable that survived solving
             dir::Type::Variable(variable) => {
                 return Err(CompilerError::Internal {
                     message: format!(
@@ -1548,6 +1606,7 @@ impl BodyState<'_, '_> {
                     if let Some(discriminator) = definition.discriminator {
                         keys.insert(discriminator);
                     }
+
                     if let Some(payload) = self.newtype_payload(origin, subject)? {
                         self.collect_subject_keys(
                             origin,
@@ -1757,6 +1816,7 @@ impl BodyState<'_, '_> {
             }
             None => SmallVec::new(),
         };
+
         for heritage in heritages {
             self.collect_subject_keys(
                 Origin::Symbol(symbol),

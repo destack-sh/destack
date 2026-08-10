@@ -75,6 +75,7 @@ impl CheckState<'_> {
         mut substitution: TypeSubstitution,
         inference: TypeArgumentInference<'_>,
     ) -> CompilerResult<Option<TypeSubstitution>> {
+        self.counters.instantiations += 1;
         let writable = parameters
             .iter()
             .filter(|parameter| {

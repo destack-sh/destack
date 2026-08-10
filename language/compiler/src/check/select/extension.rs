@@ -8,7 +8,7 @@ use smallvec::SmallVec;
 use crate::check::{
     BodyState, CandidateOutcome, Cause, CauseKind, DeclaredMember, GenericParameterId,
     GenericTemplateId, LookupReceiver, MemberCandidate, MemberLookup, MemberSubject, MemberTable,
-    Origin, ReceiverSteps, Relation, TypeSubstitution,
+    Origin, ReceiverSteps, Relation, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -56,6 +56,8 @@ impl BodyState<'_, '_> {
             symbol,
             space,
         };
+
+        // serve the memo
         if is_closed && let Some(members) = self.check.members.get(&key) {
             return Ok(members.clone());
         }
@@ -69,6 +71,7 @@ impl BodyState<'_, '_> {
             let dir::Type::Primitive(primitive) = self.ty(value)? else {
                 continue;
             };
+
             for symbol in self.primitive_extensions(primitive)? {
                 if !extensions.contains(&symbol) {
                     extensions.push(symbol);
@@ -92,9 +95,11 @@ impl BodyState<'_, '_> {
                 if !seen.insert(candidate.symbol) {
                     continue;
                 }
+
                 members.entry(key).or_default().push(candidate);
             }
         }
+
         let members = Arc::new(members);
 
         // decide the closed table
@@ -110,6 +115,7 @@ impl BodyState<'_, '_> {
         &self,
         primitive: dir::PrimitiveType,
     ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
+        // primitive extensions live only in the declared environment
         let environment =
             self.check
                 .environment_declared
@@ -133,6 +139,7 @@ impl BodyState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
+        // collect the extension declarations this module can see
         let extensions = self.visible_extensions(module, symbol)?;
         let mut candidates = Vec::new();
         let mut seen = FxIndexSet::default();
@@ -151,10 +158,12 @@ impl BodyState<'_, '_> {
                     });
                 }
             };
+
             for candidate in found {
                 if !seen.insert(candidate.symbol) {
                     continue;
                 }
+
                 candidates.push(candidate);
             }
         }
@@ -184,6 +193,7 @@ impl BodyState<'_, '_> {
                 symbols.extend(definitions.target_extensions(target).iter().copied());
                 symbols.extend(definitions.blanket_extensions().iter().copied());
             }
+
             if let Some(external) = self.external_modules.get(&target.module_id) {
                 symbols.extend(external.definitions.target_extensions(target));
                 symbols.extend(external.definitions.blanket_extensions());
@@ -245,6 +255,7 @@ impl BodyState<'_, '_> {
             let Some(member) = self.declared_member(member)? else {
                 continue;
             };
+
             matched.push(member);
         }
 
@@ -261,36 +272,133 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         interface: &dir::GenericApplication,
         excluded: Option<dir::GlobalSymbolId>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // intern the requested interface application in this module
         let arguments = self
             .type_ids(interface_module, interface.arguments)?
             .to_vec();
         let arguments = self.intern_type_ids(&arguments)?;
         let module = self.module_id;
-        let interface_type = self.intern_type(dir::Type::Application(dir::GenericApplication {
+        let mut instance = dir::GenericApplication {
             symbol: interface.symbol,
             arguments,
-        }))?;
+        };
+
+        let mut instance_module = module;
+        let mut interface_type = self.intern_type(dir::Type::Application(instance))?;
+
+        // fill elided interface arguments before matching declared rows
+        if let Some(filled) = self.fill_elided_application(interface_type.module_id, &instance)? {
+            interface_type = filled;
+            let (filled_module, filled_instance) = self.nominal_application(filled)?;
+            instance_module = filled_module;
+            instance = filled_instance;
+        }
+
+        // serve repeated goals from the selection memo, replaying the
+        //  winning implementation so its inference binds this goal's variables
+        let flags = self.type_flags(receiver)? | self.type_flags(interface_type)?;
+        let scope = if flags.has_parameter() || flags.has_this() {
+            self.assuming_scope(origin)?
+        } else {
+            None
+        };
+
+        let is_settled = !flags.has_variable();
+        let key = (relation, receiver, interface_type, scope);
+        if excluded.is_none()
+            && is_settled
+            && let Some((verdict, winner)) = self.check.extensions.get(&key).copied()
+        {
+            match winner {
+                Some(winner) => {
+                    let replayed = self.confirm_extension(
+                        origin,
+                        relation,
+                        instance_module,
+                        receiver,
+                        &instance,
+                        winner,
+                    )?;
+                    if replayed {
+                        return Ok(Verdict::Holds);
+                    }
+                }
+                None => return Ok(verdict),
+            }
+        }
 
         // break inductive applicability cycles: goals reached from themselves fail
         let goal = (relation, receiver, interface_type);
         if !self.check.deciding_extensions.insert(goal) {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         }
 
+        // try each visible implementation declaration
         let decision = self.decide_visible_extensions(
             origin,
             relation,
             module,
-            interface_module,
+            instance_module,
             receiver,
-            interface,
+            &instance,
             excluded,
         );
         self.check.deciding_extensions.swap_remove(&goal);
 
-        decision
+        // remember settled decided goals and their winner for replay
+        let (decision, winner) = decision?;
+        if excluded.is_none() && is_settled && decision != Verdict::Ambiguous {
+            self.check.extensions.insert(key, (decision, winner));
+        }
+
+        Ok(decision)
+    }
+
+    /// Confirm one known extension implementation against a goal.
+    fn confirm_extension(
+        &mut self,
+        origin: Origin,
+        relation: Relation,
+        interface_module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        interface: &dir::GenericApplication,
+        extension_symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)? else {
+            return Ok(false);
+        };
+
+        // read the declaration's target and implemented interfaces
+        let interfaces = extension
+            .implements
+            .iter()
+            .map(|conformance| conformance.interface)
+            .collect::<SmallVec<[_; 2]>>();
+        let target_type = extension.target.r#type();
+        let template = self.symbol_template(extension_symbol)?;
+
+        // replay the match, committing the inference it binds
+        self.check.counters.extension_probes += 1;
+        let matched = self.confirm_candidate(|state| {
+            let matched = state.match_extension_implementation(
+                origin,
+                relation,
+                interface_module,
+                receiver,
+                receiver,
+                interface,
+                template,
+                target_type,
+                &interfaces,
+            )?;
+            Ok(match matched {
+                Some(_) => CandidateOutcome::Accepted(()),
+                None => CandidateOutcome::Rejected(()),
+            })
+        })?;
+
+        Ok(matched.is_some())
     }
 
     /// Decide whether any visible extension satisfies one applicability goal.
@@ -303,27 +411,32 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         interface: &dir::GenericApplication,
         excluded: Option<dir::GlobalSymbolId>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<(Verdict, Option<dir::GlobalSymbolId>)> {
+        // collect the implementation declarations this module can see
         let extensions =
             self.visible_implementation_extensions(origin, module, receiver, interface.symbol)?;
 
         // try each visible implementation declaration
+        let mut speculative = Vec::new();
         for extension_symbol in extensions {
             if Some(extension_symbol) == excluded {
                 continue;
             }
+
             if self.is_absent_symbol(extension_symbol) {
                 continue;
             }
+
             let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
             else {
                 continue;
             };
+
             if !extension.is_visible_from(module) {
                 continue;
             }
 
-            // skip extensions without interface declarations
+            // only a declaration implementing an interface can satisfy the goal
             let interfaces = extension
                 .implements
                 .iter()
@@ -333,9 +446,15 @@ impl BodyState<'_, '_> {
                 continue;
             }
 
-            // match the target and implemented interfaces in one candidate probe
+            // match in one confirming attempt: a match that solves outer
+            //  variables rejects itself, so argument inference keeps first
+            //  claim on them and only clean matches commit
             let target_type = extension.target.r#type();
             let template = self.symbol_template(extension_symbol)?;
+            let trail_from = self.check.infer.trail.len();
+            let variables = self.check.infer.variable_count();
+            let mut solves_outer = false;
+            self.check.counters.extension_probes += 1;
             let matched = self.confirm_candidate(|state| {
                 let matched = state.match_extension_implementation(
                     origin,
@@ -348,17 +467,57 @@ impl BodyState<'_, '_> {
                     target_type,
                     &interfaces,
                 )?;
+                solves_outer = state
+                    .check
+                    .infer
+                    .solves_variable_before(trail_from, variables);
+                Ok(match (matched, solves_outer) {
+                    (Some(_), false) => CandidateOutcome::Accepted(()),
+                    _ => CandidateOutcome::Rejected(()),
+                })
+            })?;
+
+            if matched.is_some() {
+                return Ok((Verdict::Holds, Some(extension_symbol)));
+            }
+
+            // hold a match that solves outer variables for uniqueness:
+            //  only a sole applicable candidate may commit their solutions
+            if solves_outer {
+                speculative.push((extension_symbol, template, target_type, interfaces));
+            }
+        }
+
+        // a sole speculative candidate selects, committing its inference
+        if let [(extension_symbol, template, target_type, interfaces)] = speculative.as_slice() {
+            self.check.counters.extension_probes += 1;
+            let matched = self.confirm_candidate(|state| {
+                let matched = state.match_extension_implementation(
+                    origin,
+                    relation,
+                    interface_module,
+                    receiver,
+                    receiver,
+                    interface,
+                    *template,
+                    *target_type,
+                    interfaces,
+                )?;
                 Ok(match matched {
                     Some(_) => CandidateOutcome::Accepted(()),
                     None => CandidateOutcome::Rejected(()),
                 })
             })?;
+
             if matched.is_some() {
-                return Ok(true);
+                return Ok((Verdict::Holds, Some(*extension_symbol)));
             }
         }
 
-        Ok(false)
+        Ok(match speculative.is_empty() {
+            false => (Verdict::Ambiguous, None),
+            true => (Verdict::Fails, None),
+        })
     }
 
     /// Match one extension target and implemented interface.
@@ -379,6 +538,7 @@ impl BodyState<'_, '_> {
             Some(template) => self.generic_template_parameters(template)?,
             None => SmallVec::new(),
         };
+
         let mut substitution = TypeSubstitution::default().with_receiver(receiver);
         let matched = self.bind_extension_target(
             origin,
@@ -454,6 +614,7 @@ impl BodyState<'_, '_> {
         if !is_nominal {
             return Ok(false);
         }
+
         let closure = self.heritage_closure(origin, receiver_value)?;
         for ancestor in &closure.applications {
             let mut scratch = substitution.clone();
@@ -480,6 +641,7 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         interface: dir::GlobalSymbolId,
     ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
+        // collect the extensions in scope for the receiver's own head
         let mut parameters = SmallVec::new();
         let mut symbols = SmallVec::new();
         self.collect_implementation_extensions(
@@ -520,11 +682,14 @@ impl BodyState<'_, '_> {
                 if parameters.contains(&parameter) {
                     return Ok(());
                 }
+
                 for symbol in self.visible_blanket_extensions(module)? {
                     if !symbols.contains(&symbol) {
                         symbols.push(symbol);
                     }
                 }
+
+                // descend into each declared bound under the parameter
                 let bounds = self.parameter_bounds(origin, parameter)?;
                 parameters.push(parameter);
                 for bound in bounds {
@@ -540,6 +705,7 @@ impl BodyState<'_, '_> {
                         }
                     }
                 }
+
                 parameters.pop();
 
                 Ok(())
@@ -568,6 +734,7 @@ impl BodyState<'_, '_> {
                         .map(|item| self.language_symbol(item))
                         .transpose()?,
                 };
+
                 let Some(scope) = scope else {
                     for symbol in self.visible_blanket_extensions(module)? {
                         if !symbols.contains(&symbol) {
@@ -628,6 +795,7 @@ impl BodyState<'_, '_> {
                 self.definition(symbol)?,
                 Some(dir::Definition::Extension(extension)) if extension.target.is_blanket()
             );
+
             if is_blanket && !symbols.contains(&symbol) {
                 symbols.push(symbol);
             }
@@ -665,9 +833,11 @@ impl BodyState<'_, '_> {
             }
             None => return Ok(Vec::new()),
         };
+
         if !extension.is_visible_from(module) {
             return Ok(Vec::new());
         }
+
         let target_type = extension.target.r#type();
 
         // resolve the members declared in the requested space, keeping keys
@@ -681,12 +851,15 @@ impl BodyState<'_, '_> {
             if member_space != space {
                 continue;
             }
+
             let Some(member) = self.declared_member(member)? else {
                 continue;
             };
+
             keys.push(key);
             members.push(member);
         }
+
         if members.is_empty() {
             return Ok(Vec::new());
         }
@@ -751,9 +924,11 @@ impl BodyState<'_, '_> {
             }
             None => return Ok(MemberLookup::Missing),
         };
+
         if !extension.is_visible_from(module) {
             return Ok(MemberLookup::Missing);
         }
+
         if extension.target.root() != Some(symbol) {
             return Ok(MemberLookup::Missing);
         }
@@ -763,6 +938,7 @@ impl BodyState<'_, '_> {
         if keyed.is_empty() {
             return Ok(MemberLookup::Missing);
         }
+
         let members = self.matching_extension_members(&keyed, dir::MemberSpace::Static, key)?;
         if members.is_empty() {
             return Ok(MemberLookup::Missing);
@@ -784,6 +960,7 @@ impl BodyState<'_, '_> {
             let Some(ty) = member.ty else {
                 continue;
             };
+
             let callable = member.callable_type(origin.module(), extension_symbol, ty, self)?;
             let access_type = member.access_type(self, ty)?;
             let written = self.static_value(member.symbol);
@@ -826,9 +1003,8 @@ impl BodyState<'_, '_> {
             _ => dir::MemberOrigin::RootedExtension,
         };
 
-        let mut candidates = Vec::new();
-
         // substitute extension parameters in each matching member
+        let mut candidates = Vec::new();
         for member in members {
             let Some(ty) = member.ty else {
                 continue;
@@ -854,8 +1030,8 @@ impl BodyState<'_, '_> {
                 written => written,
             };
 
+            // carry the solved extension arguments onto the candidate
             let generic_arguments = self.settled_argument_bindings(&substitution.bindings)?;
-
             candidates.push(MemberCandidate {
                 symbol: member.symbol,
                 owner: extension_symbol,
@@ -899,6 +1075,7 @@ impl BodyState<'_, '_> {
             return Ok(None);
         };
 
+        // substitute the matched arguments into every declared member
         let candidates =
             self.extension_member_candidates(origin, extension_symbol, &substitution, members)?;
         if candidates.is_empty() {
@@ -953,6 +1130,7 @@ impl BodyState<'_, '_> {
                 return Ok(None);
             }
         }
+
         let substitution = substitution.with_receiver(receiver);
 
         // require the subject to satisfy the bound target

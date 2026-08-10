@@ -52,7 +52,7 @@ impl CheckEvent {
             Self::RelationChecked {
                 constraint,
                 is_finished,
-            } => match context.check.infer.constraints.get(*constraint) {
+            } => match context.check.fulfill.constraints.get(*constraint) {
                 Ok(relation) => relation.render_event(*constraint, *is_finished, context),
                 Err(_) => ArtifactEvent::new("relation.checked")
                     .debug()
@@ -62,7 +62,7 @@ impl CheckEvent {
             Self::ObligationChecked {
                 obligation,
                 is_finished,
-            } => match context.check.infer.obligations.get(*obligation) {
+            } => match context.check.fulfill.obligations.get(*obligation) {
                 Ok(entry) => entry
                     .obligation
                     .render_event(*obligation, *is_finished, context),
