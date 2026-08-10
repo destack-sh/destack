@@ -191,6 +191,12 @@ impl FileSystem for TemporaryPhysicalFileSystem {
         Ok(resolved)
     }
 
+    fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read + Send>> {
+        let path = self.resolve_path(path)?;
+
+        PhysicalFileSystem.open(&path)
+    }
+
     fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
         let path = self.resolve_path(path)?;
         PhysicalFileSystem.read(&path)

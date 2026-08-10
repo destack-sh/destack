@@ -1,10 +1,11 @@
+use destack_core::{Blob, BlobId};
 use destack_serde::Schema;
 
 use crate::{
-    Applicability, ByteRange, ComponentId, Content, ContentId, Diagnostic, DiagnosticHelp,
-    DiagnosticLabel, DiagnosticNote, DiagnosticReference, DiagnosticSeverity, DiagnosticSuggestion,
-    DiagnosticTag, Edit, FileId, FilePatch, FileType, ModuleId, PackageId, Patch, PatchSet,
-    ProductId, ProfileId, Span, TargetId, TextChange, TextPatch, TextPosition, TextRange,
+    Applicability, ByteRange, ComponentId, Diagnostic, DiagnosticHelp, DiagnosticLabel,
+    DiagnosticNote, DiagnosticReference, DiagnosticSeverity, DiagnosticSuggestion, DiagnosticTag,
+    Edit, FileId, FilePatch, FileType, ModuleId, PackageId, Patch, PatchSet, ProductId, ProfileId,
+    Span, TargetId, TextChange, TextPatch, TextPosition, TextRange,
 };
 
 /// Include public source schema roots.
@@ -16,8 +17,8 @@ pub fn schema(schema: &mut Schema) {
     schema.register::<TargetId>();
     schema.register::<ProductId>();
     schema.register::<FileId>();
-    schema.register::<ContentId>();
-    schema.register::<Content>();
+    schema.register::<BlobId>();
+    schema.register::<Blob>();
     schema.register::<Span>();
     schema.register::<FileType>();
 

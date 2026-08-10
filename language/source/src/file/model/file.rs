@@ -1,8 +1,9 @@
-use destack_serde::Reflect;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::{error, fmt, str};
 
-use destack_core::{SectionEntry, StableHasher};
+use destack_core::{Blob, BlobMemory, SectionEntry};
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::hash::{stable_source_id, stable_source_path};
@@ -10,7 +11,6 @@ use crate::{ByteRange, FileType, Span, Uri};
 
 const FILE_LOGICAL_DOMAIN: &[u8] = b"destack.source.file.logical.v1";
 const FILE_SOURCE_DOMAIN: &[u8] = b"destack.source.file.source.v1";
-const CONTENT_DOMAIN: &[u8] = b"destack.content.v1";
 
 /// The id of a File.
 #[repr(transparent)]
@@ -20,14 +20,14 @@ const CONTENT_DOMAIN: &[u8] = b"destack.content.v1";
 #[serde(transparent)]
 pub struct FileId(pub u64);
 
-impl std::fmt::Debug for FileId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for FileId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "f{:016x}", self.0)
     }
 }
 
-impl std::fmt::Display for FileId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for FileId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "f{:016x}", self.0)
     }
 }
@@ -64,168 +64,90 @@ impl FileId {
     }
 }
 
-/// File with content.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// One loaded source file.
+#[derive(Debug, Clone)]
 pub struct File {
-    /// The id of the File.
+    /// The stable file identity.
     pub id: FileId,
-    /// The name of the source (usually the last segment of the URI).
+    /// The source name, usually the last URI segment.
     pub name: String,
-    /// The URI of the File.
+    /// The source URI.
     pub uri: Uri,
-    /// The path to the File (may be invalid as a path).
+    /// The physical path when one exists.
     pub path: Option<PathBuf>,
-    /// The type of file.
+    /// The source format.
     pub ty: FileType,
-    /// The length of the File in bytes.
+    /// The byte length.
     pub len: u32,
-    /// The shared content entry for the File.
-    pub content: Arc<ContentEntry>,
-}
-
-/// One exact content payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum Content {
-    /// Text content.
-    Text { content: String },
-    /// Binary content.
-    Binary { content: Vec<u8> },
-}
-
-impl Content {
-    /// Return the payload length in bytes.
-    pub fn byte_length(&self) -> usize {
-        match self {
-            Self::Text { content } => content.len(),
-            Self::Binary { content } => content.len(),
-        }
-    }
-}
-
-/// The exact identity of one content payload.
-#[repr(transparent)]
-#[derive(
-    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-#[serde(transparent)]
-pub struct ContentId(pub u128);
-
-impl std::fmt::Debug for ContentId {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "c{:016x}", self.0)
-    }
-}
-
-impl std::fmt::Display for ContentId {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "c{:032x}", self.0)
-    }
-}
-
-impl ContentId {
-    /// Build one content id from one raw stable value.
-    pub const fn new(value: u128) -> Self {
-        Self(value)
-    }
-
-    /// Build one content id from one exact content payload.
-    pub fn for_content(content: &Content) -> Self {
-        match content {
-            Content::Text { content } => Self::for_text(content),
-            Content::Binary { content } => Self::for_binary(content),
-        }
-    }
-
-    /// Build one content id from one exact text payload.
-    pub fn for_text(content: &str) -> Self {
-        let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(CONTENT_DOMAIN);
-
-        hasher.update(&[0]);
-        hasher.update_len_prefixed(content.as_bytes());
-
-        Self::new(hasher.finish_u128())
-    }
-
-    /// Build one content id from one exact binary payload.
-    pub fn for_binary(content: &[u8]) -> Self {
-        let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(CONTENT_DOMAIN);
-
-        hasher.update(&[1]);
-        hasher.update_len_prefixed(content);
-
-        Self::new(hasher.finish_u128())
-    }
-}
-
-/// One canonical content payload and its derived data.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ContentEntry {
-    /// The raw content payload.
-    payload: Content,
-    /// The payload length in bytes.
-    length: u32,
+    /// The exact immutable bytes.
+    pub blob: Blob,
+    /// Retained immutable byte memory.
+    memory: Arc<BlobMemory>,
     /// Shared line index for text content.
     line_index: Option<Arc<[u32]>>,
 }
 
-impl ContentEntry {
-    /// Build one shared content entry from one payload.
-    pub fn new(payload: Content) -> Self {
-        let length = payload.byte_length();
-        assert!(
-            length <= File::MAX_BYTES,
-            "content length exceeds source coordinate range"
-        );
-
-        // index text lines
-        let line_index = match &payload {
-            Content::Text { content } => Some(Arc::<[u32]>::from(
-                File::precompute_line_start_offsets(content),
-            )),
-            Content::Binary { .. } => None,
-        };
-
-        Self {
-            payload,
-            length: length as u32,
-            line_index,
-        }
-    }
-
-    /// Return the raw payload.
-    pub fn payload(&self) -> &Content {
-        &self.payload
-    }
-
-    /// Return the exact content id for this payload.
-    pub fn content_id(&self) -> ContentId {
-        ContentId::for_content(&self.payload)
-    }
-
-    /// Return shared line start offsets when present.
-    pub fn line_index(&self) -> Option<&[u32]> {
-        self.line_index.as_deref()
+impl PartialEq for File {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.name == other.name
+            && self.uri == other.uri
+            && self.path == other.path
+            && self.ty == other.ty
+            && self.blob == other.blob
     }
 }
+
+impl Eq for File {}
+
+/// Failure while constructing one loaded File.
+#[derive(Debug)]
+pub enum FileError {
+    /// The Blob exceeds the source coordinate range.
+    TooLarge {
+        /// The Blob byte length.
+        byte_len: u64,
+    },
+    /// A text File contains invalid UTF-8.
+    Utf8(str::Utf8Error),
+}
+
+impl fmt::Display for FileError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TooLarge { byte_len } => {
+                write!(
+                    formatter,
+                    "File contains {byte_len} bytes beyond the source limit"
+                )
+            }
+            Self::Utf8(error) => write!(formatter, "File text is not UTF-8: {error}"),
+        }
+    }
+}
+
+impl error::Error for FileError {}
 
 impl File {
     /// The greatest representable content length.
     pub const MAX_BYTES: usize = u32::MAX as usize - 1;
 
-    /// Create an empty source in some format.
+    /// Build one empty text File.
     pub fn empty_text(ty: FileType) -> Self {
         let file_id = FileId::from_logical_str("<empty>");
+        let memory = Arc::new(BlobMemory::from_bytes(Vec::new()));
 
-        Self::from_text(
-            file_id,
-            "<empty>".to_string(),
-            Uri::from_string("<empty>"),
-            None,
+        Self {
+            id: file_id,
+            name: "<empty>".to_string(),
+            uri: Uri::from_string("<empty>"),
+            path: None,
             ty,
-            String::new(),
-        )
+            len: 0,
+            blob: memory.blob(),
+            memory,
+            line_index: Some(Arc::from([0_u32])),
+        }
     }
 
     /// Precompute line start byte offsets for constant-time line access.
@@ -250,29 +172,47 @@ impl File {
         }
     }
 
-    /// Build one file from shared content.
-    pub fn from_content(
+    /// Build one File from an exact Blob and retained memory.
+    pub fn from_blob(
         id: FileId,
         name: String,
         uri: Uri,
         path: Option<PathBuf>,
         ty: FileType,
-        content: Arc<ContentEntry>,
-    ) -> Self {
-        let len = content.length;
+        memory: Arc<BlobMemory>,
+    ) -> Result<Self, FileError> {
+        let blob = memory.blob();
+        if blob.byte_len > Self::MAX_BYTES as u64 {
+            return Err(FileError::TooLarge {
+                byte_len: blob.byte_len,
+            });
+        }
 
-        Self {
+        // validate and index source text once
+        let line_index = if ty.is_binary() {
+            None
+        } else {
+            let text = str::from_utf8(memory.bytes()).map_err(FileError::Utf8)?;
+
+            Some(Arc::<[u32]>::from(Self::precompute_line_start_offsets(
+                text,
+            )))
+        };
+
+        Ok(Self {
             id,
             name,
             uri,
             path,
             ty,
-            len,
-            content,
-        }
+            len: blob.byte_len as u32,
+            blob,
+            memory,
+            line_index,
+        })
     }
 
-    /// Create a new File.
+    /// Build one text File from owned source text.
     pub fn from_text(
         id: FileId,
         name: String,
@@ -280,14 +220,15 @@ impl File {
         path: Option<PathBuf>,
         ty: FileType,
         content: String,
-    ) -> Self {
+    ) -> Result<Self, FileError> {
         let content = Self::normalize_line_endings(content);
-        let content = ContentEntry::new(Content::Text { content });
+        let bytes = content.into_bytes();
+        let memory = Arc::new(BlobMemory::from_bytes(bytes));
 
-        Self::from_content(id, name, uri, path, ty, Arc::new(content))
+        Self::from_blob(id, name, uri, path, ty, memory)
     }
 
-    /// Create a new binary file from bytes.
+    /// Build one binary File from owned bytes.
     pub fn from_binary(
         id: FileId,
         name: String,
@@ -295,29 +236,38 @@ impl File {
         path: Option<PathBuf>,
         ty: FileType,
         content: Vec<u8>,
-    ) -> Self {
-        let content = ContentEntry::new(Content::Binary { content });
+    ) -> Result<Self, FileError> {
+        let memory = Arc::new(BlobMemory::from_bytes(content));
 
-        Self::from_content(id, name, uri, path, ty, Arc::new(content))
+        Self::from_blob(id, name, uri, path, ty, memory)
     }
 
-    /// Get the text content of the File (empty if not text).
+    /// Return the text content of the File.
+    ///
+    /// # Panics
+    ///
+    /// Panics when this File is binary.
     #[inline]
     pub fn text(&self) -> &str {
-        match self.content.payload() {
-            Content::Text { content } => content,
-            _ => "",
-        }
+        assert!(self.line_index.is_some(), "binary File has no text");
+
+        // from_blob creates a line index only after successful UTF-8 validation
+        unsafe { str::from_utf8_unchecked(self.bytes()) }
     }
 
-    /// Return the exact content id for this file image.
-    pub fn content_id(&self) -> ContentId {
-        self.content.content_id()
+    /// Return the exact immutable bytes.
+    pub fn bytes(&self) -> &[u8] {
+        self.memory.bytes()
+    }
+
+    /// Return the exact Blob descriptor.
+    pub const fn blob(&self) -> Blob {
+        self.blob
     }
 
     /// Return shared line start offsets when present.
     pub fn line_start_offsets(&self) -> Option<&[u32]> {
-        self.content.line_index()
+        self.line_index.as_deref()
     }
 
     /// Return whether the file starts with a hashbang line.
@@ -342,10 +292,11 @@ impl File {
     /// Return the string slice for one file-local byte range.
     #[inline]
     pub fn get_range_str(&self, range: ByteRange) -> Option<&str> {
-        match self.content.payload() {
-            Content::Text { content } => content.get(range.start as usize..range.end as usize),
-            Content::Binary { .. } => None,
+        if self.line_index.is_none() {
+            return None;
         }
+
+        self.text().get(range.start as usize..range.end as usize)
     }
 
     /// Get the string slice for a given span, or empty string if unavailable.

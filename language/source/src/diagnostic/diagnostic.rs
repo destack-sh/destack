@@ -1,3 +1,6 @@
+use std::iter;
+
+use destack_core::Blob;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -115,6 +118,17 @@ impl Diagnostic {
     /// Return all additional source labels.
     pub fn labels(&self) -> impl Iterator<Item = &DiagnosticLabel> {
         self.labels.iter()
+    }
+
+    /// Return every source Blob carried by this diagnostic's labels.
+    pub fn blobs(&self) -> impl Iterator<Item = Blob> + '_ {
+        iter::once(self.primary.blob)
+            .chain(self.labels.iter().map(|label| label.blob))
+            .chain(
+                self.suggestions
+                    .iter()
+                    .flat_map(|suggestion| suggestion.labels.iter().map(|label| label.blob)),
+            )
     }
 
     /// Return note messages.

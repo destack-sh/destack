@@ -1,7 +1,8 @@
+use destack_core::Blob;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{ContentId, FileId, Span};
+use crate::{FileId, Span};
 
 /// One resolved diagnostic location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -42,8 +43,8 @@ impl DiagnosticTarget {
 /// One concrete source label in a diagnostic.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct DiagnosticLabel {
-    /// The exact content the target was recorded against.
-    pub content: ContentId,
+    /// The exact Blob the target was recorded against.
+    pub blob: Blob,
     /// The targeted source location.
     pub target: DiagnosticTarget,
     /// The optional label shown on the target.
@@ -52,22 +53,18 @@ pub struct DiagnosticLabel {
 
 impl DiagnosticLabel {
     /// Create a source label.
-    pub fn new(content: ContentId, target: DiagnosticTarget) -> Self {
+    pub fn new(blob: Blob, target: DiagnosticTarget) -> Self {
         Self {
-            content,
+            blob,
             target,
             message: None,
         }
     }
 
     /// Create a source label with one message.
-    pub fn message(
-        content: ContentId,
-        target: DiagnosticTarget,
-        message: impl Into<String>,
-    ) -> Self {
+    pub fn message(blob: Blob, target: DiagnosticTarget, message: impl Into<String>) -> Self {
         Self {
-            content,
+            blob,
             target,
             message: Some(message.into()),
         }

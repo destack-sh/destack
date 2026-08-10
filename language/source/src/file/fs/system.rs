@@ -109,6 +109,9 @@ pub trait FileSystem: Send + Sync + Debug {
     /// See [std::fs::canonicalize].
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf>;
 
+    /// Open a file as a byte stream.
+    fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read + Send>>;
+
     /// Read the contents of a file into a vector of bytes.
     ///
     /// See [std::fs::read].
@@ -303,9 +306,7 @@ impl FileSystem for PhysicalFileSystem {
         Self
     }
 
-    #[tracing::instrument(name = "fs.physical.exists", level = "trace", skip(self))]
     fn exists(&self, path: &Path) -> io::Result<bool> {
-        tracing::trace!(?path, "fs.physical.exists");
         match self.metadata(path) {
             Ok(_) => Ok(true),
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
@@ -313,33 +314,27 @@ impl FileSystem for PhysicalFileSystem {
         }
     }
 
-    #[tracing::instrument(name = "fs.physical.metadata", level = "trace", skip(self))]
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        tracing::trace!(?path, "fs.physical.metadata");
         Self::metadata(path)
     }
 
-    #[tracing::instrument(name = "fs.physical.resolve_symlink", level = "trace", skip(self))]
     fn resolve_symlink(&self, path: &Path) -> io::Result<PathBuf> {
-        tracing::trace!(?path, "fs.physical.resolve_symlink");
         Self::read_link(path)
     }
 
-    #[tracing::instrument(name = "fs.physical.canonicalize", level = "trace", skip(self))]
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
-        tracing::trace!(?path, "fs.physical.canonicalize");
         Self::canonicalize(path)
     }
 
-    #[tracing::instrument(name = "fs.physical.read", level = "trace", skip(self))]
+    fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read + Send>> {
+        Ok(Box::new(fs::File::open(path)?))
+    }
+
     fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
-        tracing::trace!(?path, "fs.physical.read");
         fs::read(path)
     }
 
-    #[tracing::instrument(name = "fs.physical.read_dir", level = "trace", skip(self))]
     fn read_dir(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
-        tracing::trace!(?path, "fs.physical.read_dir");
         let mut entries = Vec::new();
         for entry in fs::read_dir(path)? {
             entries.push(entry?.path());
@@ -347,46 +342,32 @@ impl FileSystem for PhysicalFileSystem {
         Ok(entries)
     }
 
-    #[tracing::instrument(name = "fs.physical.read_to_string", level = "trace", skip(self))]
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
-        tracing::trace!(?path, "fs.physical.read_to_string");
         let bytes = self.read(path)?;
         validate_utf8_string(bytes)
     }
 
-    #[tracing::instrument(name = "fs.physical.symlink_metadata", level = "trace", skip(self))]
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        tracing::trace!(?path, "fs.physical.symlink_metadata");
         Self::symlink_metadata(path)
     }
 
-    #[tracing::instrument(name = "fs.physical.write", level = "trace", skip(self, content))]
     fn write(&self, path: &Path, content: &[u8]) -> io::Result<()> {
-        tracing::trace!(?path, len = content.len(), "fs.physical.write");
         fs::write(path, content)
     }
 
-    #[tracing::instrument(name = "fs.physical.create_dir", level = "trace", skip(self))]
     fn create_dir(&self, path: &Path) -> io::Result<()> {
-        tracing::trace!(?path, "fs.physical.create_dir");
         fs::create_dir(path)
     }
 
-    #[tracing::instrument(name = "fs.physical.create_dir_all", level = "trace", skip(self))]
     fn create_dir_all(&self, path: &Path) -> io::Result<()> {
-        tracing::trace!(?path, "fs.physical.create_dir_all");
         fs::create_dir_all(path)
     }
 
-    #[tracing::instrument(name = "fs.physical.remove_file", level = "trace", skip(self))]
     fn remove_file(&self, path: &Path) -> io::Result<()> {
-        tracing::trace!(?path, "fs.physical.remove_file");
         fs::remove_file(path)
     }
 
-    #[tracing::instrument(name = "fs.physical.remove_dir", level = "trace", skip(self))]
     fn remove_dir(&self, path: &Path) -> io::Result<()> {
-        tracing::trace!(?path, "fs.physical.remove_dir");
         fs::remove_dir(path)
     }
 }

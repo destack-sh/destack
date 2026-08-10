@@ -616,6 +616,7 @@ mod tests {
             FileType::Destack,
             content.to_string(),
         )
+        .expect("test source should load")
     }
 
     fn plain_options() -> AnnotateOptions {

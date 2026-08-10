@@ -285,12 +285,12 @@ where
 {
     let file_id = label.target.file();
     let file = file_for_id(file_id).ok_or(DiagnosticRenderError::MissingFile { file: file_id })?;
-    let actual = file.content_id();
+    let actual = file.blob();
 
-    if actual != label.content {
-        return Err(DiagnosticRenderError::ContentMismatch {
+    if actual != label.blob {
+        return Err(DiagnosticRenderError::BlobMismatch {
             file: file_id,
-            expected: label.content,
+            expected: label.blob,
             actual,
         });
     }
@@ -407,29 +407,32 @@ mod tests {
     #[test]
     fn test_prints_suggestion_labels_and_diff() {
         let file_id = FileId::new(1);
-        let file = Arc::new(File::from_text(
-            file_id,
-            "<test>".to_string(),
-            Uri::from_string("<test>"),
-            None,
-            FileType::Destack,
-            "let value = 1;".to_string(),
-        ));
+        let file = Arc::new(
+            File::from_text(
+                file_id,
+                "<test>".to_string(),
+                Uri::from_string("<test>"),
+                None,
+                FileType::Destack,
+                "let value = 1;".to_string(),
+            )
+            .expect("test source should load"),
+        );
         let let_span = Span::new(file_id, 0, 3);
-        let content = file.content_id();
+        let blob = file.blob();
         let mut file_patch = FilePatch::new(file_id);
         file_patch.push(Patch::replace(let_span, "const"));
         let suggestion =
             DiagnosticSuggestion::new("use `const`", file_patch.into(), Applicability::Automatic)
                 .label(DiagnosticLabel::message(
-                    content,
+                    blob,
                     DiagnosticTarget::Span(let_span),
                     "replace `let` with `const`",
                 ));
         let diagnostic = Diagnostic::warning(
             "prefer-const",
             "variable is never reassigned",
-            DiagnosticLabel::message(content, DiagnosticTarget::Span(let_span), "use const"),
+            DiagnosticLabel::message(blob, DiagnosticTarget::Span(let_span), "use const"),
         )
         .suggestion(suggestion);
         let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
@@ -458,28 +461,31 @@ mod tests {
     #[test]
     fn test_prints_labels_notes_and_helps() {
         let file_id = FileId::new(1);
-        let file = Arc::new(File::from_text(
-            file_id,
-            "<test>".to_string(),
-            Uri::from_string("<test>"),
-            None,
-            FileType::Destack,
-            "const overflows: int8 = 300;".to_string(),
-        ));
-        let content = file.content_id();
+        let file = Arc::new(
+            File::from_text(
+                file_id,
+                "<test>".to_string(),
+                Uri::from_string("<test>"),
+                None,
+                FileType::Destack,
+                "const overflows: int8 = 300;".to_string(),
+            )
+            .expect("test source should load"),
+        );
+        let blob = file.blob();
         let value_span = Span::new(file_id, 24, 27);
         let annotation_span = Span::new(file_id, 17, 21);
         let diagnostic = Diagnostic::error(
             "not-assignable",
             "type '300' is not assignable to type 'int8'",
             DiagnosticLabel::message(
-                content,
+                blob,
                 DiagnosticTarget::Span(value_span),
                 "this value does not fit",
             ),
         )
         .label(DiagnosticLabel::message(
-            content,
+            blob,
             DiagnosticTarget::Span(annotation_span),
             "expected `int8` because of this annotation",
         ))

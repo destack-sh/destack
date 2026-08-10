@@ -103,16 +103,12 @@ impl FileSystem for MemoryFileSystem {
         Self::default()
     }
 
-    #[tracing::instrument(name = "fs.memory.exists", level = "trace", skip(self))]
     fn exists(&self, path: &Path) -> io::Result<bool> {
-        tracing::trace!(?path, "fs.memory.exists");
         let inner = self.inner.read();
         Ok(inner.files.contains_key(path) || inner.directories.contains(path))
     }
 
-    #[tracing::instrument(name = "fs.memory.metadata", level = "trace", skip(self))]
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        tracing::trace!(?path, "fs.memory.metadata");
         let inner = self.inner.read();
         if inner.directories.contains(path) {
             Ok(FileMetadata::new(false, true, false, 0, None))
@@ -132,18 +128,14 @@ impl FileSystem for MemoryFileSystem {
         }
     }
 
-    #[tracing::instrument(name = "fs.memory.resolve_symlink", level = "trace", skip(self))]
     fn resolve_symlink(&self, path: &Path) -> io::Result<PathBuf> {
-        tracing::trace!(?path, "fs.memory.resolve_symlink");
         Err(io::Error::new(
             io::ErrorKind::NotFound,
             path.display().to_string(),
         ))
     }
 
-    #[tracing::instrument(name = "fs.memory.canonicalize", level = "trace", skip(self))]
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
-        tracing::trace!(?path, "fs.memory.canonicalize");
         let metadata = self.metadata(path)?;
         if metadata.is_directory || metadata.is_file {
             return Ok(path.normalize());
@@ -154,9 +146,13 @@ impl FileSystem for MemoryFileSystem {
         ))
     }
 
-    #[tracing::instrument(name = "fs.memory.read", level = "trace", skip(self))]
+    fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read + Send>> {
+        let bytes = self.read(path)?;
+
+        Ok(Box::new(io::Cursor::new(bytes)))
+    }
+
     fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
-        tracing::trace!(?path, "fs.memory.read");
         let inner = self.inner.read();
         inner
             .files
@@ -165,9 +161,7 @@ impl FileSystem for MemoryFileSystem {
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, path.display().to_string()))
     }
 
-    #[tracing::instrument(name = "fs.memory.read_dir", level = "trace", skip(self))]
     fn read_dir(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
-        tracing::trace!(?path, "fs.memory.read_dir");
         let inner = self.inner.read();
         if !inner.directories.contains(path) {
             return Err(io::Error::new(
@@ -190,28 +184,20 @@ impl FileSystem for MemoryFileSystem {
         Ok(entries)
     }
 
-    #[tracing::instrument(name = "fs.memory.read_to_string", level = "trace", skip(self))]
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
-        tracing::trace!(?path, "fs.memory.read_to_string");
         let bytes = self.read(path)?;
         validate_utf8_string(bytes)
     }
 
-    #[tracing::instrument(name = "fs.memory.symlink_metadata", level = "trace", skip(self))]
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        tracing::trace!(?path, "fs.memory.symlink_metadata");
         self.metadata(path)
     }
 
-    #[tracing::instrument(name = "fs.memory.write", level = "trace", skip(self, content))]
     fn write(&self, path: &Path, content: &[u8]) -> io::Result<()> {
-        tracing::trace!(?path, len = content.len(), "fs.memory.write");
         self.add_file(path, content)
     }
 
-    #[tracing::instrument(name = "fs.memory.create_dir", level = "trace", skip(self))]
     fn create_dir(&self, path: &Path) -> io::Result<()> {
-        tracing::trace!(?path, "fs.memory.create_dir");
         let mut inner = self.inner.write();
 
         // check parent exists (root "/" is always valid as a parent)
@@ -237,9 +223,7 @@ impl FileSystem for MemoryFileSystem {
         Ok(())
     }
 
-    #[tracing::instrument(name = "fs.memory.create_dir_all", level = "trace", skip(self))]
     fn create_dir_all(&self, path: &Path) -> io::Result<()> {
-        tracing::trace!(?path, "fs.memory.create_dir_all");
         let mut inner = self.inner.write();
 
         // insert all ancestors
@@ -258,9 +242,7 @@ impl FileSystem for MemoryFileSystem {
         Ok(())
     }
 
-    #[tracing::instrument(name = "fs.memory.remove_file", level = "trace", skip(self))]
     fn remove_file(&self, path: &Path) -> io::Result<()> {
-        tracing::trace!(?path, "fs.memory.remove_file");
         let mut inner = self.inner.write();
         if inner.files.remove(path).is_some() {
             Ok(())
@@ -272,9 +254,7 @@ impl FileSystem for MemoryFileSystem {
         }
     }
 
-    #[tracing::instrument(name = "fs.memory.remove_dir", level = "trace", skip(self))]
     fn remove_dir(&self, path: &Path) -> io::Result<()> {
-        tracing::trace!(?path, "fs.memory.remove_dir");
         let mut inner = self.inner.write();
 
         // check directory exists

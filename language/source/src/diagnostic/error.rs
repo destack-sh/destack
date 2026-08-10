@@ -1,7 +1,9 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use crate::{ContentId, FileId, PatchApplyError};
+use destack_core::Blob;
+
+use crate::{FileId, PatchApplyError};
 
 /// Error produced while annotating one source span.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -101,14 +103,14 @@ pub enum DiagnosticRenderError {
         /// The missing file.
         file: FileId,
     },
-    /// A diagnostic label references stale or different content.
-    ContentMismatch {
-        /// The file carrying the rendered content.
+    /// A diagnostic label references a stale or different Blob.
+    BlobMismatch {
+        /// The file carrying the rendered Blob.
         file: FileId,
-        /// The content expected by the diagnostic label.
-        expected: ContentId,
-        /// The content carried by the current file.
-        actual: ContentId,
+        /// The Blob expected by the diagnostic label.
+        expected: Blob,
+        /// The Blob carried by the current file.
+        actual: Blob,
     },
     /// One source annotation could not be rendered.
     Annotate {
@@ -128,13 +130,13 @@ impl Display for DiagnosticRenderError {
             Self::MissingFile { file } => {
                 write!(formatter, "missing diagnostic file {file:?}")
             }
-            Self::ContentMismatch {
+            Self::BlobMismatch {
                 file,
                 expected,
                 actual,
             } => write!(
                 formatter,
-                "diagnostic references content {expected} but file {file:?} has content {actual}"
+                "diagnostic references Blob {expected} but file {file:?} has Blob {actual}"
             ),
             Self::Annotate { error } => Display::fmt(error, formatter),
             Self::Patch { error } => Display::fmt(error, formatter),

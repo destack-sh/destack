@@ -129,6 +129,17 @@ impl FileSystem for OverlayFileSystem {
         self.inner.canonicalize(path)
     }
 
+    fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read + Send>> {
+        let canonical = self.normalize_path(path);
+        if let Some(entry) = self.overlays.get(&canonical) {
+            let bytes = entry.content.clone();
+
+            return Ok(Box::new(io::Cursor::new(bytes)));
+        }
+
+        self.inner.open(path)
+    }
+
     fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
         let canonical = self.normalize_path(path);
         if let Some(entry) = self.overlays.get(&canonical) {
