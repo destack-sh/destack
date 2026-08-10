@@ -838,13 +838,51 @@ impl BodyState<'_, '_> {
             return Ok(Vec::new());
         }
 
+        // read the members and conformances the extension declares
         let target_type = extension.target.r#type();
-
-        // resolve the members declared in the requested space, keeping keys
         let declared = extension.members.clone();
+        let implements = extension.implements.clone();
+
+        // close recursive lookups of this extension coinductively
+        if !self.check.extending.insert((extension_symbol, subject)) {
+            return Ok(Vec::new());
+        }
+
+        // collect the candidates, then release the re-entry mark
+        let result = self.collect_extension_candidates(
+            origin,
+            receiver,
+            subject,
+            extension_symbol,
+            space,
+            target_type,
+            &declared,
+            &implements,
+        );
+        self.check
+            .extending
+            .swap_remove(&(extension_symbol, subject));
+
+        result
+    }
+
+    /// Collect one extension's declared and conformance member candidates.
+    #[allow(clippy::too_many_arguments)]
+    fn collect_extension_candidates(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        subject: dir::GlobalTypeId,
+        extension_symbol: dir::GlobalSymbolId,
+        space: dir::MemberSpace,
+        target_type: dir::GlobalTypeId,
+        declared: &[dir::DefinitionMember],
+        implements: &[dir::NominalConformance],
+    ) -> CompilerResult<Vec<(dir::StaticKey, MemberCandidate)>> {
+        // resolve the members declared in the requested space, keeping keys
         let mut keys = Vec::new();
         let mut members = Vec::new();
-        for member in &declared {
+        for member in declared {
             let (member_space, Some(key)) = (member.space(), member.key()) else {
                 continue;
             };
@@ -858,6 +896,48 @@ impl BodyState<'_, '_> {
 
             keys.push(key);
             members.push(member);
+        }
+
+        // fill the keys the extension left open with conformance defaults
+        let mut conformance_bindings = Vec::new();
+        for conformance in implements {
+            let Some((interface_module, interface)) =
+                self.nominal_application_maybe(conformance.interface)?
+            else {
+                continue;
+            };
+            let Some(dir::Definition::Interface(definition)) =
+                self.definition(interface.symbol)?.cloned()
+            else {
+                continue;
+            };
+
+            // read the interface's own view of its parameters
+            let substitution = self.instance_substitution(interface_module, &interface)?;
+
+            // take each default member the extension left unkeyed
+            let mut served = false;
+            for member in &definition.members {
+                let (member_space, Some(key)) = (member.space(), member.key()) else {
+                    continue;
+                };
+                if member_space != space || keys.contains(&key) || !member.is_default() {
+                    continue;
+                }
+
+                let Some(member) = self.declared_member(member)? else {
+                    continue;
+                };
+
+                keys.push(key);
+                members.push(member);
+                served = true;
+            }
+
+            // carry the interface bindings that the taken defaults need
+            if served {
+                conformance_bindings.extend(substitution.bindings);
+            }
         }
 
         if members.is_empty() {
@@ -875,6 +955,7 @@ impl BodyState<'_, '_> {
                 template,
                 target_type,
                 &members,
+                &conformance_bindings,
             )? {
                 Some(candidates) => Ok(CandidateOutcome::Accepted(candidates)),
                 None => Ok(CandidateOutcome::Rejected(())),
@@ -1063,6 +1144,7 @@ impl BodyState<'_, '_> {
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
         members: &[DeclaredMember],
+        conformance_bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
         // match the exact receiver first, then its widened lookup subject
         let mut substitution =
@@ -1071,9 +1153,15 @@ impl BodyState<'_, '_> {
             substitution =
                 self.match_extension_subject(origin, receiver, subject, template, target_type)?;
         }
-        let Some(substitution) = substitution else {
+        let Some(mut substitution) = substitution else {
             return Ok(None);
         };
+
+        // rewrite conformance interface parameters into subject terms
+        for binding in conformance_bindings {
+            let argument = self.substitute_type(binding.argument, &substitution)?;
+            substitution.bind(binding.parameter, argument)?;
+        }
 
         // substitute the matched arguments into every declared member
         let candidates =
