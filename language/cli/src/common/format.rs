@@ -461,12 +461,12 @@ where
     let file_id = label.target.file();
     let file =
         file_for_id(file_id).unwrap_or_else(|| panic!("missing diagnostic file: {file_id:?}"));
-    let content = file.content_id();
+    let blob = file.blob;
     assert_eq!(
-        content,
-        label.content,
-        "diagnostic content mismatch for file {file_id:?}: expected {expected}, got {content}",
-        expected = label.content,
+        blob,
+        label.blob,
+        "diagnostic Blob mismatch for File {file_id:?}: expected {expected}, got {blob}",
+        expected = label.blob,
     );
 
     file

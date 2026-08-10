@@ -9,6 +9,6 @@ pub(crate) use report::{
     finish_workspace_message_command, run_workspace_command, run_workspace_command_or_report,
     run_workspace_payload_command_or_report,
 };
-pub(crate) use result::{CommandResult, command_error, workspace_error};
+pub(crate) use result::{CommandResult, command_error};
 
 pub(crate) use watch::{WatchCompileContext, WatchCycle, WorkspaceWatch};

@@ -3,14 +3,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
-use destack_artifact::{BlobStore, BuildId, MemoryBlobStore};
+use destack_artifact::BuildId;
 use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonLaunch, DaemonLaunchCommand,
     OpenWorkspaceRequest,
 };
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, Execution, FormatterOptions, Host, Ref,
-    Repository, Settings, SourceRoot, default_blob_store, open_repository,
+    DestackLayout, DestackLayoutOverride, Environment, Execution, FormatterOptions, Host,
+    MemoryBlobStore, Ref, Repository, Settings, SourceRoot, open_repository,
 };
 use destack_session::Executor;
 use destack_source::{FileSystem, IndentStyle, LineEnding, OverlayFileSystem, PhysicalFileSystem};
@@ -322,16 +322,14 @@ impl ProgramArgs {
     /// Open a repository from these arguments.
     pub(crate) fn open_repository(&self) -> ConsoleResult<Arc<Repository>> {
         let file_system = self.file_system();
-        let blob_store = self.blob_store();
 
-        self.open_repository_with_file_system(file_system, blob_store)
+        self.open_repository_with_file_system(file_system)
     }
 
     /// Open a repository using explicit host storage.
     fn open_repository_with_file_system(
         &self,
         file_system: Arc<dyn FileSystem>,
-        blob_store: Arc<dyn BlobStore>,
     ) -> ConsoleResult<Arc<Repository>> {
         let cwd = self.effective_cwd()?;
         let workspace_path = self.workspace_path()?;
@@ -356,7 +354,12 @@ impl ProgramArgs {
         let build_id = BuildId::current().map_err(|error| {
             ConsoleError::message(format!("failed to identify Destack build: {error}"))
         })?;
-        let host = Host::new(build_id, environment, file_system, blob_store);
+        let host = Host::new(build_id, environment, file_system);
+        let host = if self.file_system_override.is_some() {
+            host.with_blob_store(Arc::new(MemoryBlobStore::new()))
+        } else {
+            host
+        };
         let repository = open_repository(workspace_path, host, settings, layout_override)
             .map_err(|error| ConsoleError::message(format!("failed to open workspace: {error}")))?;
 
@@ -377,9 +380,8 @@ impl ProgramArgs {
     /// Open a daemon workspace over one shared editor overlay.
     pub(crate) fn daemon_workspace(&self) -> ConsoleResult<Workspace> {
         let file_system = self.file_system();
-        let blob_store = self.blob_store();
         let overlay = Arc::new(OverlayFileSystem::with_inner(file_system));
-        let repository = self.open_repository_with_file_system(overlay.clone(), blob_store)?;
+        let repository = self.open_repository_with_file_system(overlay.clone())?;
         let executor = self.executor()?;
 
         Workspace::new(repository, Some(overlay), executor)
@@ -392,15 +394,6 @@ impl ProgramArgs {
             .as_ref()
             .map(FileSystemOverride::file_system)
             .unwrap_or_else(|| Arc::new(PhysicalFileSystem::new()))
-    }
-
-    /// Return the selected artifact blob store.
-    fn blob_store(&self) -> Arc<dyn BlobStore> {
-        if self.file_system_override.is_some() {
-            Arc::new(MemoryBlobStore::new())
-        } else {
-            default_blob_store()
-        }
     }
 
     /// Open a local workspace from these arguments.

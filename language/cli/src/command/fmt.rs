@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use destack_source::{Content, FileType};
+use destack_source::FileType;
 use destack_workspace::{CommandRevision, FormatInput, FormatMode, FormatPayload, FormatSource};
 
 use crate::common::{
     CommandOptionsBuilder, CommandResult, ProgramArgs, ReportArgs, command_error,
     emit_workspace_text_output, ensure_no_watch_or_dev, parse_command_payload, print_report,
-    report_error, report_from_payload, run_workspace_command_or_report, workspace_error,
+    report_error, report_from_payload, run_workspace_command_or_report,
 };
 
 /// Arguments for the format command.
@@ -60,17 +60,11 @@ pub async fn run(args: &FmtArgs) -> i32 {
         &args.program,
         async |workspace, progress| {
             let source = match eval {
-                Some(content) => {
-                    let content = workspace
-                        .store(Content::Text { content })
-                        .map_err(workspace_error)?;
-
-                    FormatSource::Content {
-                        name: "<eval>".to_string(),
-                        file_type: FileType::Destack,
-                        content,
-                    }
-                }
+                Some(content) => FormatSource::Text {
+                    name: "<eval>".to_string(),
+                    file_type: FileType::Destack,
+                    text: content,
+                },
                 None => FormatSource::Files(files),
             };
             let request = FormatInput {

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use destack_serde::Value;
 use destack_source::{DiagnosticCollection, File, FileId};
-use destack_workspace::{CommandError, CommandOutput, Error, FileImage, Output};
+use destack_workspace::{CommandError, CommandOutput, FileImage, Output};
 
 use crate::console;
 use crate::diagnostic::{ConsoleError, ConsoleResult};
@@ -32,7 +32,7 @@ impl CommandResult {
             .map(Value::from)
             .map_err(|error| ConsoleError::message(format!("command payload failed: {error}")))?;
         let diagnostics = DiagnosticCollection::from_diagnostics(response.diagnostics.clone());
-        let files = files(&response.files);
+        let files = files(&response.files)?;
         let response = Output {
             revision: response.revision,
             success: response.success,
@@ -75,28 +75,19 @@ pub(crate) fn command_error(error: CommandError) -> ConsoleError {
     ConsoleError::message(format!("command failed: {error}"))
 }
 
-/// Convert a workspace error into a CLI error.
-pub(crate) fn workspace_error(error: Error) -> ConsoleError {
-    ConsoleError::message(format!("workspace failed: {error}"))
-}
-
 /// Convert file images into a file registry.
-fn files(images: &[FileImage]) -> BTreeMap<FileId, Arc<File>> {
+fn files(images: &[FileImage]) -> ConsoleResult<BTreeMap<FileId, Arc<File>>> {
     let mut files = BTreeMap::new();
     for image in images {
-        let Some(content) = image.content.as_ref() else {
+        if image.content.is_none() {
             continue;
-        };
-        let file = File::from_text(
-            image.id,
-            image.name.clone(),
-            image.uri.clone(),
-            image.path.clone(),
-            image.file_type,
-            content.clone(),
-        );
+        }
+        let file = image
+            .clone()
+            .into_file()
+            .map_err(|error| ConsoleError::message(format!("diagnostic file failed: {error}")))?;
         files.insert(image.id, Arc::new(file));
     }
 
-    files
+    Ok(files)
 }

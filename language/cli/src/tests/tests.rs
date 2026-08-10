@@ -6,10 +6,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use destack_artifact::{BuildId, MemoryBlobStore};
+use destack_artifact::BuildId;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository, Revision,
-    Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, MemoryBlobStore, Ref,
+    Repository, Revision, Settings,
 };
 use destack_source::{File, FileSystem, MemoryFileSystem};
 use futures::executor::block_on;
@@ -47,12 +47,8 @@ impl TestProgram {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(
-            BuildId::test(),
-            environment,
-            fs.clone(),
-            Arc::new(MemoryBlobStore::new()),
-        );
+        let host = Host::new(BuildId::test(), environment, fs.clone())
+            .with_blob_store(Arc::new(MemoryBlobStore::new()));
         let repository = Repository::new(root.clone(), host, Settings::default(), layout);
         let repository = Arc::new(repository);
 
@@ -117,9 +113,13 @@ impl TestProgram {
         });
 
         // edited repository state
+        let blob = self
+            .repository
+            .put_blob(contents.as_bytes())
+            .expect("CLI test Blob should store");
         let revision = self
             .repository
-            .edit(revision, [Edit::set_text(logical_path, contents)])
+            .edit(revision, [Edit::set_file(logical_path, blob)])
             .unwrap_or_else(|error| {
                 panic!(
                     "failed to fork repository for '{}' after write: {error}",
