@@ -7,7 +7,7 @@ pub use destack_serde::SectionEntry;
 use destack_serde::{Reflect, Schema, Type};
 use serde::{Deserialize, Serialize};
 
-use crate::StringId;
+use crate::{BlobMemory, StringId};
 
 const SECTION_CHUNK_BYTES: usize = mem::size_of::<u128>();
 const SECTION_ALIGNMENT_BYTES: usize = mem::align_of::<u128>();
@@ -549,11 +549,6 @@ unsafe impl<T: SectionEntry> SectionEntry for Optional<T> {
     }
 }
 
-/// Shared immutable memory containing one section image.
-pub trait SectionMemory: AsRef<[u8]> + fmt::Debug + Send + Sync {}
-
-impl<T> SectionMemory for T where T: AsRef<[u8]> + fmt::Debug + Send + Sync {}
-
 /// Immutable aligned section storage.
 #[derive(Debug, Clone)]
 pub struct SectionStorage {
@@ -574,7 +569,7 @@ enum SectionBytes {
         byte_len: u64,
     },
     /// Shared immutable image memory.
-    Shared(Arc<dyn SectionMemory>),
+    Shared(Arc<BlobMemory>),
 }
 
 impl Serialize for SectionStorage {
@@ -616,16 +611,16 @@ impl SectionStorage {
         })
     }
 
-    /// Retain shared immutable section memory without copying it.
-    pub fn from_shared(memory: Arc<dyn SectionMemory>) -> Result<Self, SectionImageError> {
-        let bytes = memory.as_ref().as_ref();
-        if !(bytes.as_ptr() as usize).is_multiple_of(SECTION_ALIGNMENT_BYTES) {
-            return Err(SectionImageError::Misaligned);
+    /// Create section storage from shared immutable memory.
+    pub fn from_memory(memory: Arc<BlobMemory>) -> Self {
+        let bytes = memory.bytes();
+        if (bytes.as_ptr() as usize).is_multiple_of(SECTION_ALIGNMENT_BYTES) {
+            Self {
+                bytes: SectionBytes::Shared(memory),
+            }
+        } else {
+            Self::from_bytes(bytes)
         }
-
-        Ok(Self {
-            bytes: SectionBytes::Shared(memory),
-        })
     }
 
     /// Copy raw bytes into owned aligned section storage.
@@ -649,10 +644,18 @@ impl SectionStorage {
 
                 Ok(())
             }
-            // require retained mappings to satisfy the requested alignment in place
+            // retain compatible shared and static storage in place
             SectionBytes::Static { .. } | SectionBytes::Shared(_) if is_aligned => Ok(()),
-            SectionBytes::Static { .. } | SectionBytes::Shared(_) => {
-                Err(SectionImageError::Misaligned)
+
+            // immutable static images must already satisfy their declared alignment
+            SectionBytes::Static { .. } => Err(SectionImageError::Misaligned),
+
+            // copy an unusually aligned mapped image only when required
+            SectionBytes::Shared(_) => {
+                let bytes = Buffer::from_bytes(self.bytes(), alignment);
+                self.bytes = SectionBytes::Owned(bytes);
+
+                Ok(())
             }
         }
     }
@@ -667,7 +670,7 @@ impl SectionStorage {
                 // SAFETY: constructors require byte_len to fit in the backing chunks.
                 unsafe { slice::from_raw_parts(bytes, *byte_len as usize) }
             }
-            SectionBytes::Shared(memory) => memory.as_ref().as_ref(),
+            SectionBytes::Shared(memory) => memory.bytes(),
         }
     }
 
@@ -676,7 +679,7 @@ impl SectionStorage {
         match &self.bytes {
             SectionBytes::Owned(bytes) => bytes.len() as u64,
             SectionBytes::Static { byte_len, .. } => *byte_len,
-            SectionBytes::Shared(memory) => memory.as_ref().as_ref().len() as u64,
+            SectionBytes::Shared(memory) => memory.bytes().len() as u64,
         }
     }
 

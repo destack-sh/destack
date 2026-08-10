@@ -1,5 +1,6 @@
 mod arena;
 mod bitset;
+mod blob;
 mod capture;
 mod color;
 mod cow;
@@ -17,6 +18,7 @@ mod treap;
 
 pub use arena::*;
 pub use bitset::*;
+pub use blob::*;
 pub use capture::*;
 pub use color::*;
 pub use cow::*;
