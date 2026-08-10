@@ -846,6 +846,8 @@ pub struct FieldDefinition {
     pub is_abstract: bool,
     /// Whether the field overrides an inherited member.
     pub is_override: bool,
+    /// The overridden base member, selected while checking.
+    pub overrides: Option<GlobalSymbolId>,
 }
 
 /// One method member.
@@ -865,6 +867,8 @@ pub struct MethodDefinition {
     pub abstraction: MethodAbstraction,
     /// Whether the method overrides an inherited member.
     pub is_override: bool,
+    /// The overridden base member, selected while checking.
+    pub overrides: Option<GlobalSymbolId>,
     /// How the method receives its implementation.
     pub implementation: MethodImplementation,
 }
