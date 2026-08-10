@@ -126,11 +126,12 @@ export type ArtifactPayload =
           readonly kind: "environmentDeclared";
           readonly environment_declared: EnvironmentDeclared;
       }
-    /** Checked DIR module. */
+    /** Elaborated DIR module. */
     | {
           readonly kind: "dirElaborated";
           readonly dir_elaborated: DirElaborated;
       }
+    /** Checked DIR module. */
     | {
           readonly kind: "dirChecked";
           readonly dir_checked: DirChecked;
@@ -283,11 +284,12 @@ export const ArtifactPayload = {
         return { kind: "environmentDeclared", environment_declared };
     },
 
-    /** Checked DIR module. */
+    /** Elaborated DIR module. */
     dirElaborated(dir_elaborated: DirElaborated): ArtifactPayload {
         return { kind: "dirElaborated", dir_elaborated };
     },
 
+    /** Checked DIR module. */
     dirChecked(dir_checked: DirChecked): ArtifactPayload {
         return { kind: "dirChecked", dir_checked };
     },

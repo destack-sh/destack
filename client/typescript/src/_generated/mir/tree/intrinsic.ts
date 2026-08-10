@@ -3,7 +3,7 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonString } from "../../../protocol/serde.js";
 
 /** Machine intrinsic operations. */
-export type Intrinsic = "leadingZeroCount" | "trailingZeroCount" | "populationCount" | "byteSwap" | "bitReverse" | "rotateLeft" | "rotateRight" | "addOverflow" | "subOverflow" | "mulOverflow" | "addUnchecked" | "subUnchecked" | "mulUnchecked" | "divUnchecked" | "remUnchecked" | "shlUnchecked" | "shrUnchecked" | "satAdd" | "satSub" | "memcpy" | "memmove" | "memset" | "memcmp" | "prefetchRead" | "prefetchWrite" | "transmute" | "spaceCast" | "pointerByteOffsetFrom" | "volatileLoad" | "volatileStore" | "rawEq" | "sqrt" | "abs" | "fma" | "copySign" | "min" | "max" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "atan2" | "exp" | "exp2" | "log" | "log2" | "log10" | "pow" | "floor" | "ceil" | "trunc" | "round" | "spinLoop" | "expect" | "blackBox";
+export type Intrinsic = "leadingZeroCount" | "trailingZeroCount" | "populationCount" | "byteSwap" | "bitReverse" | "rotateLeft" | "rotateRight" | "isolateLowestOne" | "midpoint" | "clamp" | "divideCeil" | "remainderEuclidean" | "isMultipleOf" | "absDiff" | "addOverflow" | "subOverflow" | "mulOverflow" | "addUnchecked" | "subUnchecked" | "mulUnchecked" | "divUnchecked" | "remUnchecked" | "shlUnchecked" | "shrUnchecked" | "satAdd" | "satSub" | "memcpy" | "memmove" | "memset" | "memcmp" | "prefetchRead" | "prefetchWrite" | "transmute" | "spaceCast" | "pointerByteOffsetFrom" | "volatileLoad" | "volatileStore" | "rawEq" | "sqrt" | "abs" | "isFinite" | "isInfinite" | "fma" | "copySign" | "min" | "max" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "atan2" | "exp" | "exp2" | "log" | "log2" | "log10" | "pow" | "floor" | "ceil" | "trunc" | "round" | "roundTiesEven" | "roundTiesAway" | "spinLoop" | "expect" | "blackBox";
 
 export const Intrinsic = {
     /** Encode this value. */
@@ -51,155 +51,188 @@ export function encodeIntrinsic(writer: BinaryWriter, value: Intrinsic): void {
         case "rotateRight":
             writer.writeUnsigned(6);
             return;
-        case "addOverflow":
+        case "isolateLowestOne":
             writer.writeUnsigned(7);
             return;
-        case "subOverflow":
+        case "midpoint":
             writer.writeUnsigned(8);
             return;
-        case "mulOverflow":
+        case "clamp":
             writer.writeUnsigned(9);
             return;
-        case "addUnchecked":
+        case "divideCeil":
             writer.writeUnsigned(10);
             return;
-        case "subUnchecked":
+        case "remainderEuclidean":
             writer.writeUnsigned(11);
             return;
-        case "mulUnchecked":
+        case "isMultipleOf":
             writer.writeUnsigned(12);
             return;
-        case "divUnchecked":
+        case "absDiff":
             writer.writeUnsigned(13);
             return;
-        case "remUnchecked":
+        case "addOverflow":
             writer.writeUnsigned(14);
             return;
-        case "shlUnchecked":
+        case "subOverflow":
             writer.writeUnsigned(15);
             return;
-        case "shrUnchecked":
+        case "mulOverflow":
             writer.writeUnsigned(16);
             return;
-        case "satAdd":
+        case "addUnchecked":
             writer.writeUnsigned(17);
             return;
-        case "satSub":
+        case "subUnchecked":
             writer.writeUnsigned(18);
             return;
-        case "memcpy":
+        case "mulUnchecked":
             writer.writeUnsigned(19);
             return;
-        case "memmove":
+        case "divUnchecked":
             writer.writeUnsigned(20);
             return;
-        case "memset":
+        case "remUnchecked":
             writer.writeUnsigned(21);
             return;
-        case "memcmp":
+        case "shlUnchecked":
             writer.writeUnsigned(22);
             return;
-        case "prefetchRead":
+        case "shrUnchecked":
             writer.writeUnsigned(23);
             return;
-        case "prefetchWrite":
+        case "satAdd":
             writer.writeUnsigned(24);
             return;
-        case "transmute":
+        case "satSub":
             writer.writeUnsigned(25);
             return;
-        case "spaceCast":
+        case "memcpy":
             writer.writeUnsigned(26);
             return;
-        case "pointerByteOffsetFrom":
+        case "memmove":
             writer.writeUnsigned(27);
             return;
-        case "volatileLoad":
+        case "memset":
             writer.writeUnsigned(28);
             return;
-        case "volatileStore":
+        case "memcmp":
             writer.writeUnsigned(29);
             return;
-        case "rawEq":
+        case "prefetchRead":
             writer.writeUnsigned(30);
             return;
-        case "sqrt":
+        case "prefetchWrite":
             writer.writeUnsigned(31);
             return;
-        case "abs":
+        case "transmute":
             writer.writeUnsigned(32);
             return;
-        case "fma":
+        case "spaceCast":
             writer.writeUnsigned(33);
             return;
-        case "copySign":
+        case "pointerByteOffsetFrom":
             writer.writeUnsigned(34);
             return;
-        case "min":
+        case "volatileLoad":
             writer.writeUnsigned(35);
             return;
-        case "max":
+        case "volatileStore":
             writer.writeUnsigned(36);
             return;
-        case "sin":
+        case "rawEq":
             writer.writeUnsigned(37);
             return;
-        case "cos":
+        case "sqrt":
             writer.writeUnsigned(38);
             return;
-        case "tan":
+        case "abs":
             writer.writeUnsigned(39);
             return;
-        case "asin":
+        case "isFinite":
             writer.writeUnsigned(40);
             return;
-        case "acos":
+        case "isInfinite":
             writer.writeUnsigned(41);
             return;
-        case "atan":
+        case "fma":
             writer.writeUnsigned(42);
             return;
-        case "atan2":
+        case "copySign":
             writer.writeUnsigned(43);
             return;
-        case "exp":
+        case "min":
             writer.writeUnsigned(44);
             return;
-        case "exp2":
+        case "max":
             writer.writeUnsigned(45);
             return;
-        case "log":
+        case "sin":
             writer.writeUnsigned(46);
             return;
-        case "log2":
+        case "cos":
             writer.writeUnsigned(47);
             return;
-        case "log10":
+        case "tan":
             writer.writeUnsigned(48);
             return;
-        case "pow":
+        case "asin":
             writer.writeUnsigned(49);
             return;
-        case "floor":
+        case "acos":
             writer.writeUnsigned(50);
             return;
-        case "ceil":
+        case "atan":
             writer.writeUnsigned(51);
             return;
-        case "trunc":
+        case "atan2":
             writer.writeUnsigned(52);
             return;
-        case "round":
+        case "exp":
             writer.writeUnsigned(53);
             return;
-        case "spinLoop":
+        case "exp2":
             writer.writeUnsigned(54);
             return;
-        case "expect":
+        case "log":
             writer.writeUnsigned(55);
             return;
-        case "blackBox":
+        case "log2":
             writer.writeUnsigned(56);
+            return;
+        case "log10":
+            writer.writeUnsigned(57);
+            return;
+        case "pow":
+            writer.writeUnsigned(58);
+            return;
+        case "floor":
+            writer.writeUnsigned(59);
+            return;
+        case "ceil":
+            writer.writeUnsigned(60);
+            return;
+        case "trunc":
+            writer.writeUnsigned(61);
+            return;
+        case "round":
+            writer.writeUnsigned(62);
+            return;
+        case "roundTiesEven":
+            writer.writeUnsigned(63);
+            return;
+        case "roundTiesAway":
+            writer.writeUnsigned(64);
+            return;
+        case "spinLoop":
+            writer.writeUnsigned(65);
+            return;
+        case "expect":
+            writer.writeUnsigned(66);
+            return;
+        case "blackBox":
+            writer.writeUnsigned(67);
             return;
     }
 
@@ -226,104 +259,126 @@ export function decodeIntrinsic(reader: BinaryReader): Intrinsic {
         case 6:
             return "rotateRight";
         case 7:
-            return "addOverflow";
+            return "isolateLowestOne";
         case 8:
-            return "subOverflow";
+            return "midpoint";
         case 9:
-            return "mulOverflow";
+            return "clamp";
         case 10:
-            return "addUnchecked";
+            return "divideCeil";
         case 11:
-            return "subUnchecked";
+            return "remainderEuclidean";
         case 12:
-            return "mulUnchecked";
+            return "isMultipleOf";
         case 13:
-            return "divUnchecked";
+            return "absDiff";
         case 14:
-            return "remUnchecked";
+            return "addOverflow";
         case 15:
-            return "shlUnchecked";
+            return "subOverflow";
         case 16:
-            return "shrUnchecked";
+            return "mulOverflow";
         case 17:
-            return "satAdd";
+            return "addUnchecked";
         case 18:
-            return "satSub";
+            return "subUnchecked";
         case 19:
-            return "memcpy";
+            return "mulUnchecked";
         case 20:
-            return "memmove";
+            return "divUnchecked";
         case 21:
-            return "memset";
+            return "remUnchecked";
         case 22:
-            return "memcmp";
+            return "shlUnchecked";
         case 23:
-            return "prefetchRead";
+            return "shrUnchecked";
         case 24:
-            return "prefetchWrite";
+            return "satAdd";
         case 25:
-            return "transmute";
+            return "satSub";
         case 26:
-            return "spaceCast";
+            return "memcpy";
         case 27:
-            return "pointerByteOffsetFrom";
+            return "memmove";
         case 28:
-            return "volatileLoad";
+            return "memset";
         case 29:
-            return "volatileStore";
+            return "memcmp";
         case 30:
-            return "rawEq";
+            return "prefetchRead";
         case 31:
-            return "sqrt";
+            return "prefetchWrite";
         case 32:
-            return "abs";
+            return "transmute";
         case 33:
-            return "fma";
+            return "spaceCast";
         case 34:
-            return "copySign";
+            return "pointerByteOffsetFrom";
         case 35:
-            return "min";
+            return "volatileLoad";
         case 36:
-            return "max";
+            return "volatileStore";
         case 37:
-            return "sin";
+            return "rawEq";
         case 38:
-            return "cos";
+            return "sqrt";
         case 39:
-            return "tan";
+            return "abs";
         case 40:
-            return "asin";
+            return "isFinite";
         case 41:
-            return "acos";
+            return "isInfinite";
         case 42:
-            return "atan";
+            return "fma";
         case 43:
-            return "atan2";
+            return "copySign";
         case 44:
-            return "exp";
+            return "min";
         case 45:
-            return "exp2";
+            return "max";
         case 46:
-            return "log";
+            return "sin";
         case 47:
-            return "log2";
+            return "cos";
         case 48:
-            return "log10";
+            return "tan";
         case 49:
-            return "pow";
+            return "asin";
         case 50:
-            return "floor";
+            return "acos";
         case 51:
-            return "ceil";
+            return "atan";
         case 52:
-            return "trunc";
+            return "atan2";
         case 53:
-            return "round";
+            return "exp";
         case 54:
-            return "spinLoop";
+            return "exp2";
         case 55:
-            return "expect";
+            return "log";
         case 56:
+            return "log2";
+        case 57:
+            return "log10";
+        case 58:
+            return "pow";
+        case 59:
+            return "floor";
+        case 60:
+            return "ceil";
+        case 61:
+            return "trunc";
+        case 62:
+            return "round";
+        case 63:
+            return "roundTiesEven";
+        case 64:
+            return "roundTiesAway";
+        case 65:
+            return "spinLoop";
+        case 66:
+            return "expect";
+        case 67:
             return "blackBox";
     }
 
@@ -354,6 +409,20 @@ export function fromJsonIntrinsic(value: Json): Intrinsic {
             return "rotateLeft";
         case "rotateRight":
             return "rotateRight";
+        case "isolateLowestOne":
+            return "isolateLowestOne";
+        case "midpoint":
+            return "midpoint";
+        case "clamp":
+            return "clamp";
+        case "divideCeil":
+            return "divideCeil";
+        case "remainderEuclidean":
+            return "remainderEuclidean";
+        case "isMultipleOf":
+            return "isMultipleOf";
+        case "absDiff":
+            return "absDiff";
         case "addOverflow":
             return "addOverflow";
         case "subOverflow":
@@ -406,6 +475,10 @@ export function fromJsonIntrinsic(value: Json): Intrinsic {
             return "sqrt";
         case "abs":
             return "abs";
+        case "isFinite":
+            return "isFinite";
+        case "isInfinite":
+            return "isInfinite";
         case "fma":
             return "fma";
         case "copySign":
@@ -448,6 +521,10 @@ export function fromJsonIntrinsic(value: Json): Intrinsic {
             return "trunc";
         case "round":
             return "round";
+        case "roundTiesEven":
+            return "roundTiesEven";
+        case "roundTiesAway":
+            return "roundTiesAway";
         case "spinLoop":
             return "spinLoop";
         case "expect":
