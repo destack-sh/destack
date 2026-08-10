@@ -224,6 +224,31 @@ pub enum CheckError {
         target: String,
     },
 
+    /// Strict equality compares identity, so its operands must carry one.
+    ///
+    /// ```ds
+    /// struct Point {
+    ///     x: int32;
+    /// }
+    ///
+    /// declare const a: Point;
+    /// declare const b: Point;
+    ///
+    /// const same = a === b;
+    /// ```
+    #[diagnostic(
+        id = "no-strict-identity",
+        message = "value type '{ty}' has no identity, compare with '=='"
+    )]
+    NoStrictIdentity {
+        /// Report the strict comparison.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The compared value type.
+        ty: String,
+    },
+
     /// An equality requirement has unequal normalized operands.
     ///
     /// ```ds

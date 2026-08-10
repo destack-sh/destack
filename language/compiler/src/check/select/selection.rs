@@ -57,8 +57,8 @@ pub(in crate::check) enum Selection {
     Newtype(NewtypeInstance),
     /// The selected operator protocol call.
     Protocol(ProtocolCall, OperatorExpressionResult),
-    /// A builtin numeric operator application.
-    Numeric {
+    /// A builtin binary operator application.
+    Builtin {
         /// The applied result type.
         result: dir::GlobalTypeId,
         /// The coerced operand types.

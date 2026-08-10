@@ -289,7 +289,6 @@ const same = left === right;
 /// @type.node source="left === right" type=<error>
 /// @type.node source=left type=Badge
 /// @resolution.name source=left target=left
-/// @resolution.rejected source="left === right"
 /// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=left root=left
 /// @type.node source=right type=Badge
@@ -298,7 +297,7 @@ const same = left === right;
 /// @resolution.access source=right root=right
 "#,
         r#"
-/// @diagnostic.error id=no-matching-operator message="operator '===' is not defined for 'Badge' and 'Badge'"
+/// @diagnostic.error id=no-strict-identity message="value type 'Badge' has no identity, compare with '=='"
 /// @diagnostic.label line=8 column=19 span="===" line_source="const same = left === right;"
 "#,
     );

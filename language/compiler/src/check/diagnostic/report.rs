@@ -1679,7 +1679,21 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one impossible strict equality comparison.
+    /// Report one strict comparison over a value type without identity.
+    pub(in crate::check) fn report_no_strict_identity(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let ty = self.format_type(ty);
+        let error = CheckError::NoStrictIdentity { anchor, module, ty };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one strict comparison over non-overlapping operands.
     pub(in crate::check) fn report_invalid_strict_equality(
         &mut self,
         origin: Origin,
@@ -2311,6 +2325,7 @@ impl CheckState<'_> {
             | dir::AutoInterface::Clone
             | dir::AutoInterface::Debug
             | dir::AutoInterface::Default
+            | dir::AutoInterface::Display
             | dir::AutoInterface::Hash
             | dir::AutoInterface::Equal
             | dir::AutoInterface::PartialEqual

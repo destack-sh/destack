@@ -83,7 +83,7 @@ impl BodyState<'_, '_> {
             && let Some(selected) = self.check.selections.get(key).cloned()
         {
             return match selected {
-                Selection::Numeric { result, operands } => {
+                Selection::Builtin { result, operands } => {
                     self.check_builtin_operand(left_source, left, operands[0])?;
                     self.check_builtin_operand(right_source, right, operands[1])?;
                     let left = self.builtin_operand(origin, left_source, operands[0])?;
@@ -142,6 +142,20 @@ impl BodyState<'_, '_> {
                 let supported =
                     self.supports_builtin_strict_equality(origin, left_value, right_value)?;
                 if !supported {
+                    // report an owned operand, which carries no identity to compare
+                    for operand in [left_value, right_value] {
+                        let is_scalar = self.scalar_families(origin, operand)?.is_some();
+                        if !is_scalar
+                            && self.default_ownership(origin, operand)?
+                                == Some(dir::Ownership::Owned)
+                        {
+                            self.report_no_strict_identity(origin, operand)?;
+                            self.commit_error_node(node)?;
+
+                            return Ok(());
+                        }
+                    }
+
                     return self.reject_operator(
                         node,
                         origin,
@@ -199,7 +213,7 @@ impl BodyState<'_, '_> {
             if let Some(key) = &selection_key {
                 self.check.selections.insert(
                     *key,
-                    Selection::Numeric {
+                    Selection::Builtin {
                         result,
                         operands: [left_target, right_target],
                     },
@@ -222,7 +236,7 @@ impl BodyState<'_, '_> {
             if let Some(key) = selection_key {
                 self.check
                     .selections
-                    .insert(key, Selection::Numeric { result, operands });
+                    .insert(key, Selection::Builtin { result, operands });
             }
 
             // operands check as arguments of the builtin operation
@@ -273,6 +287,39 @@ impl BodyState<'_, '_> {
                 call,
                 writeback,
             );
+        }
+
+        // dispatch equality through the intrinsic partial equality conformance
+        if matches!(
+            operator,
+            dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual
+        ) {
+            let left_operand = self.strip_form(origin, left)?;
+            let right_operand = self.strip_form(origin, right)?;
+            let target = self.language_type(dir::LanguageItem::PartialEqual, &[right_operand])?;
+            if self.decide_relation(origin, Relation::Satisfies, left_operand, target)? {
+                // record the selection so later passes replay this dispatch
+                let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
+                if let Some(key) = selection_key {
+                    self.check.selections.insert(
+                        key,
+                        Selection::Builtin {
+                            result,
+                            operands: [left_operand, right_operand],
+                        },
+                    );
+                }
+
+                // check and lower both operands as builtin values
+                self.check_builtin_operand(left_source, left, left_operand)?;
+                self.check_builtin_operand(right_source, right, right_operand)?;
+                let left = self.builtin_operand(origin, left_source, left_operand)?;
+                let right = self.builtin_operand(origin, right_source, right_operand)?;
+
+                return self.commit_builtin_binary_operator(
+                    origin, node, operator, left, right, result, writeback,
+                );
+            }
         }
 
         if let Some(key) = selection_key {
