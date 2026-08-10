@@ -13,7 +13,7 @@ use destack_source::{
 
 use crate::{
     BlobStore, Dependency, DestackFile, DestackLayout, DestackLayoutOverride, Edit, Environment,
-    Host, MemoryBlobStore, Ref, Repository, RepositoryError, Revision, Settings,
+    Host, MemoryBlobStore, Ref, Repository, RepositoryError, Revision, Settings, artifact,
 };
 
 /// Open one repository after discovering the source root from one path.
@@ -49,8 +49,9 @@ pub fn open_repository_from_memory(
         message: format!("failed to identify Destack build: {error}"),
     })?;
     let host = Host::new(build_id, environment, file_system).with_blob_store(blob_store);
+    let repository = open_repository(root, host, settings, layout_override)?;
 
-    open_repository(root, host, settings, layout_override)
+    Ok(repository.with_artifact_store(Arc::new(artifact::MemoryStore::new())))
 }
 
 /// Open one repository from explicit host capabilities.

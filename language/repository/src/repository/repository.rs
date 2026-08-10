@@ -73,14 +73,7 @@ impl Repository {
         let refs = DashMap::default();
         let root_reference = Ref::for_root(&root);
 
-        let storage = match host.blob_store().cloned() {
-            Some(blobs) => {
-                let artifacts: Arc<dyn ArtifactStore> = Arc::new(artifact::MemoryStore::new());
-
-                Storage { blobs, artifacts }
-            }
-            None => Storage::open(&root, &layout, host.build_id()),
-        };
+        let storage = Storage::open(&root, &layout, host.build_id(), host.blob_store().cloned());
 
         let repository = Self {
             root,
@@ -252,9 +245,14 @@ impl Repository {
 
 #[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
 impl Storage {
-    /// Open disk storage for one Repository.
-    fn open(root: &Path, layout: &DestackLayout, build_id: BuildId) -> Self {
-        let blobs: Arc<dyn BlobStore> = Arc::new(DiskBlobStore::new(layout.blob_directory()));
+    /// Open storage for one native Repository.
+    fn open(
+        root: &Path,
+        layout: &DestackLayout,
+        build_id: BuildId,
+        blobs: Option<Arc<dyn BlobStore>>,
+    ) -> Self {
+        let blobs = blobs.unwrap_or_else(|| Arc::new(DiskBlobStore::new(layout.blob_directory())));
         let artifacts = Arc::new(artifact::DiskStore::new(
             root,
             layout,
@@ -268,9 +266,14 @@ impl Storage {
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 impl Storage {
-    /// Open memory storage for one Repository.
-    fn open(_root: &Path, _layout: &DestackLayout, _build_id: BuildId) -> Self {
-        let blobs = Arc::new(MemoryBlobStore::new());
+    /// Open storage for one WebAssembly Repository.
+    fn open(
+        _root: &Path,
+        _layout: &DestackLayout,
+        _build_id: BuildId,
+        blobs: Option<Arc<dyn BlobStore>>,
+    ) -> Self {
+        let blobs = blobs.unwrap_or_else(|| Arc::new(MemoryBlobStore::new()));
         let artifacts = Arc::new(artifact::MemoryStore::new());
 
         Self { blobs, artifacts }
