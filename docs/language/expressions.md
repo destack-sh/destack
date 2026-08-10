@@ -413,7 +413,7 @@ Equality `==` / `!=` follows Rust's split between "partial" and "total" equality
 - Equality operators `==` and `!=` dispatch through `PartialEqual<T>.equal`
 - `Equal<T>` is a stronger _marker_ interface based on `PartialEqual<T>`
 
-The distinction between `Equal` and `PartialEqual` exists mainly to deal with the oddities of floating point numbers (since e.g. `NaN` does not equal itself, definitionally).
+`Equal` and `PartialEqual` are different because of floating point numbers, since e.g. `NaN` does not equal itself.
 Comparison operators `<` / `>` follow the same pattern and support `PartialCompare<T>` where ordering may be undefined (e.g., floats), and `Compare<T>` when ordering is total (e.g., integers).
 Strict identity `===` still keeps its TypeScript meaning: by value for primitives (including `string` and `char` contents, and `NaN === NaN` is still `false`), and by reference identity for managed objects.
 
@@ -1062,9 +1062,11 @@ Destack supports all the common capability-like derives one would expect from a 
 | Derive | Library identity | Applies to | Explicit failure |
 |--------|------------------|------------|------------------|
 | `Copy` | `destack:memory.Copy` | nominal value types whose fields are all copyable | field or representation is not copyable |
+| `SharedSafe` | `destack:memory.SharedSafe` | types whose structural closure stays shared-safe | field reaches worker-local state |
 | `Clone` | `destack:memory.Clone` | nominal value types whose fields are cloneable | field is not cloneable |
 | `Default` | `destack:memory.Default` | nominal value types whose fields have defaults | field has no default |
 | `Debug` | `destack:ops.Debug` | nominal value types | field is not debug-formatable |
+| `Display` | `destack:ops.Display` | nominal value types | field is not display-formatable |
 | `PartialEqual` | `destack:ops.PartialEqual` | nominal value types | field is not partially comparable for equality |
 | `Equal` | `destack:ops.Equal` | nominal value types | field does not have total equality |
 | `PartialCompare` | `destack:ops.PartialCompare` | nominal value types | field is not partially orderable |
