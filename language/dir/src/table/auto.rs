@@ -210,10 +210,18 @@ impl AutoInterface {
 
     /// Return whether the compiler implements this interface without declarations.
     pub fn is_intrinsic(self) -> bool {
-        // scalar ordering is intrinsic even though ordering never auto-derives
+        // include scalar ordering, which the compiler decides outside the auto set
         self.is_marker()
             || self.is_auto_derivable()
             || matches!(self, Self::Compare | Self::PartialCompare)
+    }
+
+    /// Return whether this interface takes the compared value as its argument.
+    pub fn has_receiver_argument(self) -> bool {
+        matches!(
+            self,
+            Self::Equal | Self::PartialEqual | Self::Compare | Self::PartialCompare
+        )
     }
 
     /// Return whether a written derive decorator may name this interface.

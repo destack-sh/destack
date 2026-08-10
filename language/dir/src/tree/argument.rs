@@ -110,7 +110,7 @@ impl Node for Parameter {
 }
 
 impl Parameter {
-    /// Return the name this parameter declares, if it declares one.
+    /// Return the name this parameter declares.
     pub fn name(&self) -> Option<StringId> {
         match self {
             Self::Named { name, .. } | Self::VariadicNamed { name, .. } => Some(*name),

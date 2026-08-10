@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{GlobalSymbolId, LanguageItem};
+use crate::{AutoInterface, GlobalSymbolId, LanguageItem};
 
 /// One runtime scalar family.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -141,6 +141,24 @@ pub enum ScalarDomain {
 }
 
 impl ScalarDomain {
+    /// Return how this domain decides one capability interface, when it decides it.
+    pub fn conforms_to(self, interface: AutoInterface) -> Option<bool> {
+        match interface {
+            // every domain duplicates, prints, and compares partially
+            AutoInterface::Clone
+            | AutoInterface::Debug
+            | AutoInterface::Display
+            | AutoInterface::PartialEqual
+            | AutoInterface::PartialCompare => Some(true),
+            // floats exclude total equality, hashing, and total ordering
+            AutoInterface::Equal | AutoInterface::Hash | AutoInterface::Compare => {
+                Some(self != Self::Float)
+            }
+            // the remaining interfaces decide outside the scalar domains
+            _ => None,
+        }
+    }
+
     /// Return the language item that owns this domain's members.
     pub fn member_owner_item(self) -> Option<LanguageItem> {
         match self {
