@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_core::StringPool;
+use destack_core::{Blob, StringPool};
 use destack_source::{
-    Content, ContentId, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File,
-    FileId, NodeSpanList, NodeSpanType, Span,
+    DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File, FileId, NodeSpanList,
+    NodeSpanType, Span,
 };
 
 use crate::source::{Lexer, TokenType};
@@ -140,8 +140,8 @@ pub struct Parser {
     pub(super) strings: StringPool,
     /// The source file id for spans.
     pub(super) file_id: FileId,
-    /// The exact source content id for diagnostics.
-    pub(super) content_id: ContentId,
+    /// The exact source Blob for diagnostics.
+    pub(super) blob: Blob,
     /// The diagnostics produced while parsing.
     pub(super) diagnostics: DiagnosticCollector,
     /// Map from concrete function names to their ids for forward references.
@@ -175,11 +175,13 @@ pub struct Parser {
 impl Parser {
     /// Create a new parser for a specific file.
     pub fn new(file: &File, options: ParseOptions) -> ParseResult<Self> {
-        let Content::Text { content } = file.content.payload() else {
+        if file.ty.is_binary() {
             return Err(ParseError::new("MIR parser requires text content", 0));
-        };
+        }
 
-        let tree = Tree::with_parsed_source(content.clone(), Lexer::lex(file.id, content));
+        let content = file.text();
+
+        let tree = Tree::with_parsed_source(content.to_string(), Lexer::lex(file.id, content));
         let target_layout = TargetLayout::for_pointer_bytes(options.pointer_bytes);
 
         Ok(Self {
@@ -195,7 +197,7 @@ impl Parser {
             profile: ProfileTable::default(),
             strings: StringPool::new(),
             file_id: file.id,
-            content_id: file.content_id(),
+            blob: file.blob(),
             diagnostics: DiagnosticCollector::new(),
             function_map: HashMap::new(),
             global_map: HashMap::new(),

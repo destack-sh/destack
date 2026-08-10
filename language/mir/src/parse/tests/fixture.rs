@@ -54,6 +54,7 @@ pub(crate) fn test_file(source: &str) -> File {
         FileType::Text,
         source.to_string(),
     )
+    .expect("test MIR should load")
 }
 
 impl<'a> TestParser<'a> {

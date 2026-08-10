@@ -107,6 +107,7 @@ fn library_file(path: &Path, logical_path: &Path, source: &str) -> File {
         FileType::Destack,
         source.to_string(),
     )
+    .expect("library source should load")
 }
 
 /// Format one checked-in library source.

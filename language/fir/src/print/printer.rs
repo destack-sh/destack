@@ -2006,7 +2006,8 @@ mod tests {
             None,
             FileType::Binary,
             vec![1, 2, 3],
-        );
+        )
+        .expect("test binary source should load");
         let span = Span::new(file_id, 0, 1);
         let allocator = Allocator::default();
         let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);

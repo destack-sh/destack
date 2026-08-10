@@ -50,7 +50,10 @@ fn format_embedded_source(
         None,
         file_type,
         source.to_owned(),
-    );
+    )
+    .map_err(|_| FormatError::SyntaxError {
+        message: "embedded Destack documentation is too large",
+    })?;
     let mut formatted =
         format_file_source(&file, file.text(), options).map_err(|_| FormatError::SyntaxError {
             message: "embedded Destack documentation could not be formatted",

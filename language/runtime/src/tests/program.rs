@@ -30,7 +30,8 @@ impl TestProgram {
             None,
             FileType::Text,
             source.to_string(),
-        );
+        )
+        .expect("runtime test MIR should load");
         let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
             .expect("runtime test MIR should be text");
         if parsed

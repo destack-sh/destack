@@ -1,7 +1,8 @@
 use std::fmt;
 
+use destack_core::Blob;
 use destack_source::{
-    ContentId, Diagnostic, DiagnosticDefinition, DiagnosticLabel, DiagnosticTarget, FileId, Span,
+    Diagnostic, DiagnosticDefinition, DiagnosticLabel, DiagnosticTarget, FileId, Span,
 };
 
 use crate::source::{Token, TokenType};
@@ -126,13 +127,13 @@ impl ParseError {
     }
 
     /// Convert this MIR parse error into one source diagnostic.
-    pub(super) fn to_diagnostic(&self, content: ContentId, file_id: FileId) -> Diagnostic {
+    pub(super) fn to_diagnostic(&self, blob: Blob, file_id: FileId) -> Diagnostic {
         let definition = self.kind.definition();
         let start = self.position as u32;
         let length = self.length as u32;
         let span = Span::at(file_id, start, length);
         let primary =
-            DiagnosticLabel::message(content, DiagnosticTarget::Span(span), self.message.clone());
+            DiagnosticLabel::message(blob, DiagnosticTarget::Span(span), self.message.clone());
 
         Diagnostic::error(definition.id, self.message.clone(), primary)
     }

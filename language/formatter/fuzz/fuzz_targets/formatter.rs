@@ -1,9 +1,9 @@
 #![no_main]
 
 use destack_formatter::format_file_source;
+use destack_repository::FormatterOptions;
 use destack_source::{File, FileId, FileType, Uri};
 use destack_test::stress::{StressExpectation, generate_fuzz_case};
-use destack_repository::FormatterOptions;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -52,6 +52,7 @@ fn fuzz_file(name: &str, file_type: FileType, source: &str) -> File {
         file_type,
         source.to_string(),
     )
+    .expect("fuzz source should load")
 }
 
 fn file_type_from_byte(byte: u8) -> FileType {

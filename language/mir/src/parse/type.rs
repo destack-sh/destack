@@ -139,7 +139,7 @@ impl Parser {
                         .apply_type_lifetimes(ty, lifetimes)
                         .unwrap_or_else(|error| {
                             self.diagnostics
-                                .insert(error.to_diagnostic(self.content_id, self.file_id));
+                                .insert(error.to_diagnostic(self.blob, self.file_id));
                             self.error_type()
                         });
                     let span = self.span_from_parse_start(type_start);
@@ -155,7 +155,7 @@ impl Parser {
     /// Emit one type recovery diagnostic and return the canonical error type.
     fn recovered_type(&mut self, error: ParseError, should_advance: bool) -> (TypeId, Span) {
         self.diagnostics
-            .insert(error.to_diagnostic(self.content_id, self.file_id));
+            .insert(error.to_diagnostic(self.blob, self.file_id));
 
         if should_advance && self.peek().is_some() {
             self.bump();

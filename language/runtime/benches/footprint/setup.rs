@@ -340,7 +340,8 @@ impl VmSetup {
             None,
             FileType::Text,
             PROGRAM.to_string(),
-        );
+        )
+        .expect("footprint MIR should load");
         let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
             .expect("footprint MIR should be text");
         if parsed

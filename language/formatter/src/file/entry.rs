@@ -105,7 +105,7 @@ pub fn format_source(
     let language_type = LanguageType::try_from(file.ty).map_err(|_| FormatFileError {
         message: format!("formatter received non-code file type: {:?}", file.ty),
     })?;
-    let parser_file = parser_file(file, source);
+    let parser_file = parser_file(file, source)?;
     let mut parser = source_parser(parser_file.clone(), language_type);
     let expressions = parser.parse();
     let diagnostics = parser.diagnostics();
@@ -149,7 +149,7 @@ pub fn format_source_range(
     let language_type = LanguageType::try_from(file.ty).map_err(|_| FormatFileError {
         message: format!("formatter received non-code file type: {:?}", file.ty),
     })?;
-    let parser_file = parser_file(file, source);
+    let parser_file = parser_file(file, source)?;
     let mut parser = source_parser(parser_file.clone(), language_type);
     let expressions = parser.parse();
     let diagnostics = parser.diagnostics();
@@ -215,15 +215,20 @@ pub fn format_source_range(
 }
 
 /// Build a parser file from an input file and source text.
-fn parser_file(file: &File, source: &str) -> Arc<File> {
-    Arc::new(File::from_text(
+fn parser_file(file: &File, source: &str) -> Result<Arc<File>, FormatFileError> {
+    let file = File::from_text(
         file.id,
         file.name.clone(),
         file.uri.clone(),
         file.path.clone(),
         file.ty,
         source.to_owned(),
-    ))
+    )
+    .map_err(|error| FormatFileError {
+        message: error.to_string(),
+    })?;
+
+    Ok(Arc::new(file))
 }
 
 /// Build a parser configured for source formatting.
@@ -355,7 +360,8 @@ mod tests {
             None,
             FileType::Destack,
             "const stale=1".to_string(),
-        );
+        )
+        .expect("test source should load");
 
         let formatted =
             format_file_source(&file, "const fresh=2", FormatterOptions::default()).unwrap();
@@ -377,7 +383,8 @@ mod tests {
             None,
             FileType::Destack,
             String::new(),
-        );
+        )
+        .expect("test source should load");
 
         let formatted = format_file_source(
             &file,
@@ -406,7 +413,8 @@ mod tests {
             None,
             FileType::Destack,
             String::new(),
-        );
+        )
+        .expect("test source should load");
 
         let formatted = format_file_source(
             &file,
@@ -430,7 +438,8 @@ mod tests {
             None,
             FileType::Destack,
             source.to_string(),
-        );
+        )
+        .expect("test source should load");
 
         // select the second declaration
         let start = source.find("second").unwrap() as u32;

@@ -24,7 +24,7 @@ impl Parser {
             if let Err(error) = self.parse_module_item() {
                 self.restore_lifetime_scopes(lifetime_scope_count);
                 self.diagnostics
-                    .insert(error.to_diagnostic(self.content_id, self.file_id));
+                    .insert(error.to_diagnostic(self.blob, self.file_id));
                 self.try_recover_to_item(recovery_pos);
             }
         }

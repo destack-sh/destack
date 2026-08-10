@@ -95,7 +95,8 @@ impl TestFormatter {
             None,
             file_type,
             input.to_string(),
-        );
+        )
+        .expect("test source should load");
         let file = Arc::new(file);
 
         // parse
@@ -206,6 +207,7 @@ fn test_file(input: &str, file_name: &str, file_type: FileType) -> File {
         file_type,
         input.to_string(),
     )
+    .expect("test source should load")
 }
 
 /// Format one whole source file through the public formatter entrypoint.

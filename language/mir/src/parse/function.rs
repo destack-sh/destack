@@ -316,7 +316,7 @@ impl Parser {
                 Ok(local) => locals.push(local),
                 Err(error) => {
                     self.diagnostics
-                        .insert(error.to_diagnostic(self.content_id, self.file_id));
+                        .insert(error.to_diagnostic(self.blob, self.file_id));
                     self.try_recover_to_block(recovery_pos);
                     break;
                 }
@@ -338,7 +338,7 @@ impl Parser {
             // stray body tokens
             let error = ParseError::new("expected block label", self.pos());
             self.diagnostics
-                .insert(error.to_diagnostic(self.content_id, self.file_id));
+                .insert(error.to_diagnostic(self.blob, self.file_id));
             self.try_recover_to_block(self.pos());
         }
 
@@ -636,7 +636,7 @@ impl Parser {
                     }
                     Err(error) => {
                         self.diagnostics
-                            .insert(error.to_diagnostic(self.content_id, self.file_id));
+                            .insert(error.to_diagnostic(self.blob, self.file_id));
                         self.try_recover_to_block(recovery_pos);
                         terminator_span = Some(self.span_between(error.position(), self.pos()));
                         terminator_main_span = main_token.as_ref().map(|token| token.span);
@@ -654,7 +654,7 @@ impl Parser {
                 Ok(inst) => instructions.push(inst),
                 Err(error) => {
                     self.diagnostics
-                        .insert(error.to_diagnostic(self.content_id, self.file_id));
+                        .insert(error.to_diagnostic(self.blob, self.file_id));
                     let continue_block = self.try_recover_in_block(recovery_index);
                     let error_end = self.pos();
                     let error_span = self.span_between(instruction_start, error_end);
@@ -706,7 +706,7 @@ impl Parser {
             Ok(block_id) => block_id,
             Err(error) => {
                 self.diagnostics
-                    .insert(error.to_diagnostic(self.content_id, self.file_id));
+                    .insert(error.to_diagnostic(self.blob, self.file_id));
                 self.create_error_block(self.pos())
             }
         };
@@ -717,7 +717,7 @@ impl Parser {
             Ok(block_id) => block_id,
             Err(error) => {
                 self.diagnostics
-                    .insert(error.to_diagnostic(self.content_id, self.file_id));
+                    .insert(error.to_diagnostic(self.blob, self.file_id));
                 self.try_recover_to_block(recovery_pos);
 
                 let error_start = error.position();
