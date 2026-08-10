@@ -235,8 +235,6 @@ thiserror = "2.0"
 tokio = "1.50.0"
 tokio-util = "0.7.18"
 tower = { version = "0.5.3", default-features = false }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 udev = "0.9.3"
 url = "2.5.8"
 pnp = "0.12.8"

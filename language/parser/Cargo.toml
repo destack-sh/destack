@@ -22,7 +22,6 @@ destack_unicode = { workspace = true }
 memchr = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }
-tracing = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

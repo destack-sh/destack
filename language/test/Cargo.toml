@@ -78,10 +78,6 @@ schemars = { workspace = true }
 indexmap = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "sync", "time"] }
 toml = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-
-[dev-dependencies]
 
 [lints]
 workspace = true
