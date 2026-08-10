@@ -1,3 +1,4 @@
+import { BlobService, blobService } from "../blob/blob.js";
 import { daemonService, Daemon } from "../daemon/daemon.js";
 import {
     Connection,
@@ -12,12 +13,15 @@ import {
 export class Destack {
     /** Shared RPC connection. */
     readonly connection: Connection;
+    /** Immutable Blob operations. */
+    readonly blob: BlobService;
     /** Daemon service. */
     readonly daemon: Daemon;
 
     /** Bind Destack services to one negotiated connection. */
     constructor(connection: Connection) {
         this.connection = connection;
+        this.blob = new BlobService(connection);
         this.daemon = new Daemon(connection);
     }
 
@@ -28,7 +32,7 @@ export class Destack {
     ): Promise<Destack> {
         const connection = await Connection.connectWebSocket(
             url,
-            [daemonService, workspaceService],
+            [blobService, daemonService, workspaceService],
             options,
         );
 

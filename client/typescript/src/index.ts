@@ -1,3 +1,4 @@
+export * from "./blob/blob.js";
 export * from "./destack/destack.js";
 export * from "./daemon/daemon.js";
 export * from "./workspace/workspace.js";

@@ -3,7 +3,6 @@ import {
     workspaceService,
 } from "../_generated/workspace/workspace.js";
 import { daemonService } from "../_generated/daemon/daemon.js";
-import type { Content, ContentId } from "../_generated/source/file/model/file.js";
 import type { DiagnosticsRequest } from "../_generated/workspace/diagnostic/file.js";
 import type { ArtifactRequest, ExportRequest } from "../_generated/workspace/service/artifact.js";
 import type {
@@ -198,16 +197,6 @@ export class Workspace {
     /** Read one exact artifact from this root. */
     artifact(artifact: ArtifactRequest["artifact"]) {
         return this.client.artifact({ root: this.root, artifact });
-    }
-
-    /** Store one content value through this workspace. */
-    store(content: Content) {
-        return this.client.store({ root: this.root, content });
-    }
-
-    /** Load one content value through this workspace. */
-    load(content: ContentId) {
-        return this.client.load({ root: this.root, content });
     }
 
     /** Materialize one artifact through this root's host. */

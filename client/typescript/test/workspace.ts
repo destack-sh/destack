@@ -14,29 +14,6 @@ type Project = {
     readonly files: Readonly<Record<string, string>>;
 };
 
-test("generated RPC client exchanges workspace values through N-API", async () => {
-    const workspace = await openProject({
-        config: { name: "@test/app" },
-        files: {},
-    });
-
-    try {
-        // roundtrip nested content and its bigint identity through generated serde codecs
-        const stored = await workspace.store({
-            kind: "text",
-            content: "export const value = 1;\n",
-        });
-        const loaded = await workspace.load(stored.value);
-
-        expect(loaded.value).toEqual({
-            kind: "text",
-            content: "export const value = 1;\n",
-        });
-    } finally {
-        workspace.connection.close();
-    }
-});
-
 test("server stream terminates with its command response", async () => {
     const workspace = await openProject({
         config: { name: "@test/app" },
