@@ -138,7 +138,7 @@ impl IdentifierCase {
         })?;
         let targets = match reference {
             dir::Reference::Bound(symbols) => symbols,
-            dir::Reference::Namespace(_) => return Ok(Some(Self::Camel)),
+            dir::Reference::Namespace { module: _, .. } => return Ok(Some(Self::Camel)),
             dir::Reference::Ambiguous(_) | dir::Reference::Missing => return Ok(None),
             dir::Reference::Projected { .. } => {
                 return Err(ProviderError::internal(format!(

@@ -464,16 +464,10 @@ pub(super) fn shared_repository() -> &'static (Arc<Repository>, Revision) {
     })
 }
 
-/// Return the shared cooperative session executor for linter tests.
+/// Return the artifact executor for one linter test session.
 pub(super) fn executor() -> Arc<Executor> {
-    static EXECUTOR: OnceLock<Arc<Executor>> = OnceLock::new();
-
-    EXECUTOR
-        .get_or_init(|| {
-            Executor::new(Execution::Cooperative, 1)
-                .expect("linter test artifact executor should start")
-        })
-        .clone()
+    // cooperative hosts execute inline, so each session schedules alone
+    Executor::new(Execution::Cooperative, 1).expect("linter test artifact executor should start")
 }
 
 /// Remove one framing newline from each edge of multiline source.
