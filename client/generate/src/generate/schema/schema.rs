@@ -31,6 +31,7 @@ impl Schema {
     /// Load types reachable from the RPC grammar and client services.
     pub(crate) fn load() -> Result<Self> {
         let mut services = vec![
+            daemon::BlobClient::service_schema()?,
             daemon::DaemonClient::service_schema()?,
             workspace::WorkspaceClient::service_schema()?,
         ];
