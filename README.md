@@ -44,20 +44,6 @@ The architecture is therefore modeled around "do-it-yourself software" over "rea
 - Install Destack via `curl -fsSL https://destack.sh/install | sh`.
 - Create a new Destack app with `destack new my-destack-app`.
 
-## Higher-Order Programming
-
-Over 50 years after [C introduced higher order programming](https://en.wikipedia.org/wiki/C_(programming_language)#History) programming is still astoundingly immature.
-Software "engineering" is _still_ anything but, and while our tools have gotten prettier, the fundamental motions are unchanged: text in, text out, no [_real_ confidence](https://apple.github.io/foundationdb/flow.html).
-We have increasingly grown accustomed to the acrued sediment of software being buggy, slow and fragmented, but it doesn't have to be this way. 
-
-Software "engineering" bears little resemblence to real engineering: 
-we routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it is not well integrated with other software.
-The inscrutability, inefficiency, and instability of software spans the entire lifecycle, and it must be solved by reimagining software production end-to-end across _all_ incidentally disparate sub-processes.
-
-Software is very useful, we have a lot of it, and there is about to be much, much more, with exciting new possibilities to integrate probabilistic into symbolic computation.
-The more we can express in software, the higher order the tasks we can program -
-there is great promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a universal software engine is the best way to support that.
-
 ## Contributing
 
 Destack is in [very active development](https://github.com/destack-sh/destack/commits/main/) with a singular focus: a fully integrated computing stack for building optimal, correct, integrated software systems.

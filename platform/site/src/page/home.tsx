@@ -1,7 +1,8 @@
 import { createMemo, createSignal, onCleanup, onMount } from "solid-js";
 
-import { homePoints } from "../content/site";
+import { type HomeExample, homeExamples, installCommand } from "../content/site";
 import { Seo } from "../site/seo";
+import { highlightExample } from "../site/highlight";
 import { Shell } from "../site/shell";
 import { createSweep } from "../site/sweep";
 
@@ -32,9 +33,6 @@ const asciiLightIntervalMilliseconds = 220;
 /// The first shared sweep column.
 const firstSweepColumn = -asciiLightWidth;
 
-/// The final shared sweep column.
-const lastSweepColumn = 110;
-
 /// The horizontal planet offset within the shared sweep.
 const planetSweepOffset = 18;
 
@@ -44,41 +42,8 @@ const planetFieldWidth = 64;
 /// The height of the planet and star coordinate field.
 const planetFieldHeight = 32;
 
-/// The width of the upper-right nebular field.
-const nebulaFieldWidth = 72;
-
-/// The height of the upper-right nebular field.
-const nebulaFieldHeight = 15;
-
-/// The number of shared steps between nebular flow changes.
-const nebulaPhaseDivisor = 3;
-
-/// The deterministic glyph currents flowing through each filament.
-const nebulaPatterns = [".  -~  +*  ~-  ", "  .  --~  +  . "] as const;
-
-/// The width of the ASCII lake.
-const lakeWidth = 140;
-
-/// The horizontal inset of each successive lake row.
-const lakeRowInsets = [0, 8, 18, 30, 42] as const;
-
-/// The horizontal lake center beneath the planet.
-const lakeCenterRatio = 0.72;
-
-/// The interval between small breaks in each lake row.
-const lakeBreakInterval = 37;
-
-/// The ordered Destack-token luminance ramp for the lake.
-const lakeGlyphRamp = ".-~|=&#";
-
-/// The Destack token patterns repeated through successive lake rows.
-const lakePatterns = [
-    "... ..= ... ",
-    "..=~==||",
-    "~==||..=",
-    "||==~..=",
-    "..=||==~~",
-] as const;
+/// The final shared sweep column.
+const lastSweepColumn = planetSweepOffset + planetFieldWidth + asciiLightWidth;
 
 /// One fixed star in the planet coordinate field.
 type Star = {
@@ -108,23 +73,17 @@ const stars: readonly Star[] = [
     { column: 58, phase: 16, row: 25 },
 ];
 
-/// Properties supplied to one lower action section.
-type ActionSectionProps = {
-    /// The selected action.
-    action: string;
-
-    /// The selected action description.
-    description: string;
-
-    /// The displayed action number.
-    number: string;
+/// Properties supplied to the selected example preview.
+type ExamplePreviewProps = {
+    /// The selected example.
+    example: HomeExample;
 };
 
 /// One public action identifier.
-type Action = (typeof homePoints)[number]["action"];
+type Action = (typeof homeExamples)[number]["action"];
 
-/// The first non-install action shown when the URL does not select one.
-const defaultPoint = homePoints.find((point) => point.action !== "install") ?? homePoints[0];
+/// The first action shown when the URL does not select one.
+const defaultExample = homeExamples[0];
 
 /// The real Destack mark sampled into a fixed-width luminance field.
 const planet = [
@@ -208,19 +167,19 @@ export function HomePage() {
         lastColumn: lastSweepColumn,
         stepMilliseconds: asciiLightIntervalMilliseconds,
     });
-    const [selectedAction, setSelectedAction] = createSignal<Action>(defaultPoint.action);
-    const selectedPoint = createMemo(
-        () => homePoints.find((point) => point.action === selectedAction()) ?? defaultPoint,
+    const [selectedAction, setSelectedAction] = createSignal<Action>(defaultExample.action);
+    const selectedExample = createMemo(
+        () =>
+            homeExamples.find((example) => example.action === selectedAction()) ?? defaultExample,
     );
-    const selectedIndex = createMemo(() => homePoints.indexOf(selectedPoint()));
 
     // select URL-addressed actions after hydration and on navigation
     onMount(() => {
         const selectHash = () => {
             const action = window.location.hash.slice(1);
-            const point = homePoints.find((candidate) => candidate.action === action);
+            const example = homeExamples.find((candidate) => candidate.action === action);
 
-            setSelectedAction(point?.action ?? defaultPoint.action);
+            setSelectedAction(example?.action ?? defaultExample.action);
         };
 
         selectHash();
@@ -238,146 +197,215 @@ export function HomePage() {
                 }
             />
 
-            <article class="home-page">
+            <article
+                class={
+                    "mx-auto grid h-full min-h-0 w-full max-w-[min(var(--site-width),100vw)] " +
+                    "grid-rows-[minmax(17rem,0.8fr)_minmax(25rem,1.2fr)] gap-4 " +
+                    "pr-[var(--site-gutter-right)] pb-6 pl-[var(--site-gutter-left)] " +
+                    "text-[length:var(--site-font-size)] max-md:h-auto max-md:grid-rows-[auto_auto] " +
+                    "max-md:pr-[var(--site-gutter-right)] max-md:pb-4 " +
+                    "max-md:pl-[var(--site-gutter-left)]"
+                }
+            >
                 {/* Main pitch */}
-                <section class="home-hero">
-                    {/* Nebular field */}
-                    <AsciiNebula phase={sweep.phase()} />
+                <section
+                    class={
+                        "grid min-h-0 min-w-0 grid-cols-[minmax(0,0.9fr)_minmax(24rem,1.1fr)] " +
+                        "items-center gap-8 overflow-hidden pt-6 pb-3 " +
+                        "max-[900px]:grid-cols-[minmax(0,1fr)_minmax(20rem,1fr)] " +
+                        "max-[900px]:gap-6 max-md:grid-cols-1 max-md:gap-4 max-md:pt-9 max-md:pb-4"
+                    }
+                >
+                    <div class="grid min-w-0 content-center gap-2">
+                        <h1
+                            class={
+                                "m-0 text-[clamp(2rem,3.2vw,2.875rem)] leading-[1.02] " +
+                                "font-[650] tracking-[-0.045em] text-destack-text"
+                            }
+                        >
+                            <span class="block">absurdly integrated</span>
+                            <span class="block">standardized</span>
+                            <span class="block">computing stack</span>
+                        </h1>
+                        <p class="mt-1.5 mb-0 text-base leading-[1.4] font-semibold text-destack-text">
+                            TypeScript++, web standards, familiar APIs
+                        </p>
+                        <ul class="mt-1.5 mb-0 grid list-none gap-1 p-0 leading-[1.45] text-destack-soft">
+                            <li class="before:mr-2.5 before:text-destack-accent before:content-['•']">
+                                sandboxed VM and true AOT native targets
+                            </li>
+                            <li class="before:mr-2.5 before:text-destack-accent before:content-['•']">
+                                strong typing, tests, simulation, and debugging
+                            </li>
+                            <li class="before:mr-2.5 before:text-destack-accent before:content-['•']">
+                                precise control over every host binding
+                            </li>
+                        </ul>
 
-                    <div class="home-hero__body">
-                        <div class="home-hero__copy">
-                            <div class="home-hero__heading">
-                                <p class="home-hero__label">[destack]</p>
-                                <p class="home-hero__statement">
-                                    the absurdly integrated computing stack
-                                </p>
-                            </div>
-
-                            <ol class="home-points">
-                                {homePoints.map((point, index) => (
-                                    <li>
-                                        <a
-                                            aria-current={
-                                                selectedAction() === point.action
-                                                    ? "location"
-                                                    : undefined
-                                            }
-                                            href={`#${point.action}`}
-                                            onClick={() => setSelectedAction(point.action)}
-                                            data-shortcut={String(index)}
-                                            title={`Alt+${index}: ${point.action}`}
-                                        >
-                                            <span class="home-points__number">
-                                                {pointNumber(
-                                                    index,
-                                                    selectedAction() === point.action,
-                                                )}
-                                            </span>
-                                            <strong class="home-points__action">
-                                                [{point.action}]
-                                            </strong>
-                                            <span>{point.description}</span>
-                                        </a>
-                                    </li>
-                                ))}
-                            </ol>
+                        {/* Installation */}
+                        <div
+                            class={
+                                "mt-3 flex min-w-0 items-stretch self-start border " +
+                                "border-destack-frame font-mono text-xs leading-none"
+                            }
+                        >
+                            <a
+                                class={
+                                    "flex shrink-0 items-center border-r border-destack-frame " +
+                                    "px-3 py-2.5 font-semibold text-destack-text no-underline " +
+                                    "hover:text-destack-accent"
+                                }
+                                href="/docs/"
+                            >
+                                get started
+                            </a>
+                            <code class="min-w-0 overflow-hidden px-3 py-2.5 text-ellipsis whitespace-nowrap text-destack-soft">
+                                {installCommand}
+                            </code>
                         </div>
-
-                        <AsciiPlanet
-                            lightColumn={sweep.column() - planetSweepOffset}
-                            onRelease={sweep.release}
-                            onSteer={(column) => sweep.steer(column + planetSweepOffset)}
-                            phase={sweep.phase()}
-                        />
-
-                        <AsciiLake
-                            lightColumn={projectLakeColumn(sweep.trailColumn())}
-                            onRelease={sweep.release}
-                            onSteer={(column) => sweep.steer(unprojectLakeColumn(column))}
-                        />
                     </div>
+
+                    <AsciiPlanet
+                        lightColumn={sweep.column() - planetSweepOffset}
+                        onRelease={sweep.release}
+                        onSteer={(column) => sweep.steer(column + planetSweepOffset)}
+                        phase={sweep.phase()}
+                    />
                 </section>
 
-                {/* Selected action */}
-                <section class="home-stage">
-                    {homePoints.map((point) => (
-                        <span
-                            aria-hidden="true"
-                            class="home-stage__anchor"
-                            id={point.action}
-                        />
-                    ))}
+                {/* Product workbench */}
+                <section
+                    aria-label="Destack actions"
+                    class="grid min-h-0 min-w-0 content-start grid-rows-[auto_minmax(0,1fr)]"
+                >
+                    <nav
+                        aria-label="Destack action previews"
+                        class="min-w-0 overflow-x-auto border-y border-destack-frame"
+                    >
+                        <ol class="m-0 flex w-max min-w-full list-none p-0">
+                            {homeExamples.map((example, index) => (
+                                <li class="flex-[1_0_auto]" id={example.action}>
+                                    <a
+                                        aria-current={
+                                            selectedAction() === example.action
+                                                ? "location"
+                                                : undefined
+                                        }
+                                        href={`#${example.action}`}
+                                        onClick={() => setSelectedAction(example.action)}
+                                        data-shortcut={String(index)}
+                                        title={`Alt+${index}: ${example.action}`}
+                                        class={
+                                            "flex min-h-[var(--site-control-height)] " +
+                                            "items-center justify-center border-b-2 " +
+                                            "border-transparent px-3 py-2 font-mono text-xs " +
+                                            "leading-none text-destack-soft hover:text-destack-text " +
+                                            "aria-[current=location]:border-destack-accent " +
+                                            "aria-[current=location]:text-destack-text"
+                                        }
+                                    >
+                                        <strong class="font-semibold">{example.action}</strong>
+                                    </a>
+                                </li>
+                            ))}
+                        </ol>
+                    </nav>
 
-                    <PlaceholderSection
-                        action={selectedPoint().action}
-                        description={selectedPoint().description}
-                        number={String(selectedIndex()).padStart(2, "0")}
-                    />
+                    <ExamplePreview example={selectedExample()} />
                 </section>
             </article>
         </Shell>
     );
 }
 
-/// Render the sparse upper-right nebular field.
-function AsciiNebula(props: { phase: number }) {
+/// Render the lightweight selected example placeholder.
+function ExamplePreview(props: ExamplePreviewProps) {
     return (
-        <pre aria-hidden="true" class="ascii-nebula">
-            {renderAsciiNebula(props.phase)}
-        </pre>
+        <section
+            aria-live="polite"
+            class={
+                "mt-4 grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-sm " +
+                "border border-destack-frame bg-destack-panel max-md:min-h-[22rem]"
+            }
+        >
+            <header
+                class={
+                    "grid grid-cols-[7rem_minmax(0,1fr)] items-baseline gap-4 " +
+                    "border-b border-destack-frame px-4 py-3.5 " +
+                    "max-[900px]:grid-cols-[5rem_minmax(0,1fr)] " +
+                    "max-md:grid-cols-1 max-md:gap-1"
+                }
+            >
+                <h2 class="m-0 font-mono text-[0.8125rem] leading-[1.4] font-semibold">
+                    {props.example.action}
+                </h2>
+                <p class="m-0 leading-[1.4] text-destack-soft">
+                    {props.example.description}
+                </p>
+            </header>
+
+            <ExampleCode example={props.example} />
+        </section>
     );
 }
 
-/// Render one deterministic frame of two flowing nebular filaments.
-function renderAsciiNebula(phase: number) {
-    const flowPhase = Math.floor(phase / nebulaPhaseDivisor);
+/// Render one numbered static code listing.
+function ExampleCode(props: { example: HomeExample }) {
+    const lines = createMemo(() =>
+        highlightExample(props.example.source.code, props.example.source.language),
+    );
 
-    return Array.from({ length: nebulaFieldHeight }, (_, row) => {
-        const firstCenter = 14 + 2 * row + 3 * Math.sin(0.65 * row);
-        const secondCenter = 33 + 0.8 * row + 5 * Math.sin(0.45 * row + 1.4);
-
-        return Array.from({ length: nebulaFieldWidth }, (_, column) => {
-            const firstDistance = Math.abs(column - firstCenter);
-            const secondDistance = Math.abs(column - secondCenter);
-            const isFirst = firstDistance <= secondDistance;
-            const distance = isFirst ? firstDistance : secondDistance;
-
-            // keep each current narrow and leave most of the field empty
-            if (distance > 3.2) {
-                return " ";
-            }
-
-            // translate glyphs along the stable filament geometry
-            const pattern = nebulaPatterns[isFirst ? 0 : 1];
-            const patternIndex = wrapIndex(column + 3 * row - flowPhase, pattern.length);
-            const glyph = pattern[patternIndex];
-
-            return glyph === " " && distance < 1.2 ? "." : glyph;
-        }).join("");
-    }).join("\n");
-}
-
-/// Wrap one possibly negative value into an array index.
-function wrapIndex(value: number, length: number) {
-    return ((value % length) + length) % length;
-}
-
-/// Format one action index, marking the selected row in place.
-function pointNumber(index: number, isSelected: boolean) {
-    const number = String(index).padStart(2, "0");
-
-    return isSelected ? `>${number.slice(1)}` : number;
-}
-
-/// Render an empty lower section for an action.
-function PlaceholderSection(props: ActionSectionProps) {
     return (
-        <section class="home-action-section">
-            <header class="home-action-section__header">
-                [{props.number}:{props.action}]
+        <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
+            <header
+                class={
+                    "flex items-center justify-between border-b border-destack-frame " +
+                    "px-4 py-2 font-mono text-xs text-destack-soft"
+                }
+            >
+                <span class="text-destack-text">{props.example.source.title}</span>
+                <span>{props.example.source.language}</span>
             </header>
-            <div aria-hidden="true" class="home-action-section__body">
-                <span>...</span>
+
+            <div class="syntax min-h-0 overflow-auto py-4 font-mono text-[0.8125rem] leading-6">
+                <ol aria-label={props.example.source.title} class="m-0 list-none p-0">
+                    {lines().map((line, index) => (
+                        <li class="grid min-w-max grid-cols-[3.25rem_minmax(0,1fr)]">
+                            <span
+                                aria-hidden="true"
+                                class={
+                                    "border-r border-destack-frame pr-3 text-right " +
+                                    "text-destack-soft select-none"
+                                }
+                            >
+                                {index + 1}
+                            </span>
+                            <code
+                                class="px-4 whitespace-pre text-destack-text"
+                                innerHTML={line || " "}
+                            />
+                        </li>
+                    ))}
+                </ol>
+
+                {/* Result */}
+                <div
+                    class={
+                        "mt-3 grid min-w-max grid-cols-[3.25rem_minmax(0,1fr)] " +
+                        "text-destack-text"
+                    }
+                >
+                    <span
+                        aria-hidden="true"
+                        class="pr-3 text-right text-destack-accent select-none"
+                    >
+                        →
+                    </span>
+                    <div class="flex min-w-0 items-baseline gap-3 px-4">
+                        <span class="shrink-0 text-destack-soft">{props.example.result.title}</span>
+                        <pre class="m-0 whitespace-pre-wrap">{props.example.result.text}</pre>
+                    </div>
+                </div>
             </div>
         </section>
     );
@@ -404,7 +432,11 @@ function AsciiPlanet(props: {
     };
 
     return (
-        <figure aria-label="The Destack ringed planet" class="ascii-planet" role="img">
+        <figure
+            aria-label="The Destack ringed planet"
+            class="ascii-planet m-0 grid w-[min(100%,27rem)] min-w-0 justify-self-end justify-items-center overflow-hidden max-md:justify-self-center"
+            role="img"
+        >
             <div
                 aria-hidden="true"
                 class="ascii-planet__art"
@@ -442,37 +474,6 @@ function renderAsciiStars(phase: number) {
     }
 
     return field.map((row) => row.join("")).join("\n");
-}
-
-/// Render the page-wide ASCII lake beneath the hero.
-function AsciiLake(props: {
-    lightColumn: number;
-    onRelease: () => void;
-    onSteer: (column: number) => void;
-}) {
-    // map pointer movement into the wider lake field
-    const steer = (event: PointerEvent & { currentTarget: HTMLPreElement }) => {
-        // preserve native touch scrolling
-        if (event.pointerType === "touch") {
-            return;
-        }
-
-        const bounds = event.currentTarget.getBoundingClientRect();
-        const progress = (event.clientX - bounds.left) / bounds.width;
-
-        props.onSteer(progress * lakeWidth);
-    };
-
-    return (
-        <pre
-            aria-hidden="true"
-            class="ascii-lake"
-            onPointerLeave={props.onRelease}
-            onPointerMove={steer}
-        >
-            {renderAsciiLake(props.lightColumn)}
-        </pre>
-    );
 }
 
 /// Fill each visible mask segment with one repeating token pattern.
@@ -522,62 +523,4 @@ function illuminateAscii(source: string, lightColumn: number, glyphRamp: string)
             }).join("");
         })
         .join("\n");
-}
-
-/// Project the shared sweep onto the wider lake field.
-function projectLakeColumn(column: number) {
-    const sweepWidth = lastSweepColumn - firstSweepColumn;
-    const progress = (column - firstSweepColumn) / sweepWidth;
-    const fieldWidth = lakeWidth + 2 * asciiLightWidth;
-
-    return progress * fieldWidth - asciiLightWidth;
-}
-
-/// Project a lake field coordinate back onto the shared sweep.
-function unprojectLakeColumn(column: number) {
-    const fieldWidth = lakeWidth + 2 * asciiLightWidth;
-    const progress = (column + asciiLightWidth) / fieldWidth;
-    const sweepWidth = lastSweepColumn - firstSweepColumn;
-
-    return progress * sweepWidth + firstSweepColumn;
-}
-
-/// Render one deterministic lake frame with tapered depth.
-function renderAsciiLake(lightColumn: number) {
-    const centerColumn = Math.floor(lakeWidth * lakeCenterRatio);
-
-    return lakeRowInsets.map((inset, row) => {
-        const rowWidth = lakeWidth - 2 * inset;
-        const centeredStart = Math.round(centerColumn - rowWidth / 2);
-        const startColumn = Math.max(0, Math.min(lakeWidth - rowWidth, centeredStart));
-        const endColumn = startColumn + rowWidth;
-        const pattern = lakePatterns[row];
-
-        return Array.from({ length: lakeWidth }, (_, column) => {
-            if (column < startColumn || column >= endColumn) {
-                return " ";
-            }
-
-            const rowColumn = column - startColumn;
-            const breakOffset = (rowColumn + 11 * row) % lakeBreakInterval;
-
-            if (breakOffset <= row % 2) {
-                return " ";
-            }
-
-            const character = pattern[rowColumn % pattern.length];
-            const patternIndex = lakeGlyphRamp.indexOf(character);
-
-            if (patternIndex < 0) {
-                return character;
-            }
-
-            const lightDistance = Math.abs(column - lightColumn);
-            const isLit = lightDistance < 2 * asciiLightWidth;
-            const brightness = isLit ? 2 : 0;
-            const nextIndex = Math.min(lakeGlyphRamp.length - 1, patternIndex + brightness);
-
-            return lakeGlyphRamp[nextIndex];
-        }).join("");
-    }).join("\n");
 }

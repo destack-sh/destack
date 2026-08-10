@@ -19,7 +19,7 @@ export function Shell(props: ShellProps) {
         <div class={`site-shell ${props.class ?? ""}`}>
             <KeyboardShortcuts />
             <TopBar />
-            <main class="site-main">{props.children}</main>
+            <main class="site-main grid">{props.children}</main>
             <Footer />
         </div>
     );
