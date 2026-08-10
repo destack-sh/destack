@@ -3,7 +3,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use destack_artifact::{ArtifactBindingId, ArtifactKey, ArtifactVersion};
-use destack_source::{ContentId, File, FileId, ModuleId, PackageId, ProfileId, TargetId};
+use destack_source::{FileId, ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::repository::{Ref, Revision};
 
@@ -42,12 +42,15 @@ pub enum RepositoryError {
     },
     /// The requested revision does not exist.
     MissingRevision { revision: Revision },
-    /// The requested content payload does not exist.
-    MissingContent { content: ContentId },
-    /// One content payload exceeds the source coordinate range.
-    ContentTooLarge { length: usize },
-    /// The repository content store failed.
-    ContentStore { message: String },
+    /// The repository BlobStore failed.
+    Blob { message: String },
+    /// One loaded File is invalid.
+    InvalidFile {
+        /// The invalid File.
+        file: FileId,
+        /// The validation failure.
+        message: String,
+    },
     /// The repository artifact store failed.
     ArtifactStore { message: String },
     /// The requested module does not exist in the given revision.
@@ -189,16 +192,11 @@ impl fmt::Display for RepositoryError {
             Self::MissingRevision { revision } => {
                 write!(formatter, "missing repository revision '{revision}'")
             }
-            Self::MissingContent { content } => {
-                write!(formatter, "missing repository content '{content}'")
+            Self::Blob { message } => {
+                write!(formatter, "repository BlobStore failed: {message}")
             }
-            Self::ContentTooLarge { length } => write!(
-                formatter,
-                "content is {length} bytes, maximum is {}",
-                File::MAX_BYTES
-            ),
-            Self::ContentStore { message } => {
-                write!(formatter, "repository content store failed: {message}")
+            Self::InvalidFile { file, message } => {
+                write!(formatter, "invalid repository File '{file}': {message}")
             }
             Self::ArtifactStore { message } => {
                 write!(formatter, "repository artifact store failed: {message}")

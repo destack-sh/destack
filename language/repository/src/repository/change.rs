@@ -1,6 +1,6 @@
-use destack_core::TreapRoot;
+use destack_core::{Blob, TreapRoot};
 use destack_serde::Reflect;
-use destack_source::{ContentId, FileId};
+use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::repository::Repository;
@@ -12,10 +12,10 @@ pub struct Change {
     pub file: FileId,
     /// The normalized repository-relative path.
     pub path: String,
-    /// Content in the previous revision.
-    pub before: Option<ContentId>,
-    /// Content in the updated revision.
-    pub after: Option<ContentId>,
+    /// Blob in the previous revision.
+    pub before: Option<Blob>,
+    /// Blob in the updated revision.
+    pub after: Option<Blob>,
 }
 
 impl Change {
@@ -39,8 +39,8 @@ impl Change {
         Some(Self {
             file,
             path,
-            before: before.map(|entry| entry.content_id),
-            after: after.map(|entry| entry.content_id),
+            before: before.map(|entry| entry.blob),
+            after: after.map(|entry| entry.blob),
         })
     }
 }

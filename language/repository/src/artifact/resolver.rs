@@ -498,13 +498,13 @@ impl<'a> ArtifactResolver<'a> {
 
     /// Return whether one primitive source observation matches this revision.
     fn source_matches(&self, dependency: &SourceDependency) -> Result<bool, RepositoryError> {
-        let current = match dependency.key {
+        let current = match dependency.key() {
             SourceDependencyKey::File(file) => {
-                let Some(content) = self.repository.file_content_id(self.revision, file)? else {
+                let Some(blob) = self.repository.file_blob(self.revision, file)? else {
                     return Ok(false);
                 };
 
-                SourceDependency::file_content(file, content)
+                SourceDependency::file(file, blob.id)
             }
             SourceDependencyKey::Packages => {
                 let packages = self.repository.package_ids(self.revision)?;

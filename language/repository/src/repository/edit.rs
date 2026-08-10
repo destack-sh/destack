@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use dashmap::mapref::entry::Entry;
 use destack_artifact::SourceDependency;
-use destack_core::TreapRoot;
-use destack_source::{Content, FileId};
+use destack_core::{Blob, TreapRoot};
+use destack_source::FileId;
 
 use crate::repository::{
     Change, Commit, Delta, Discovery, FileEntry, Ref, Repository, RepositoryError, Revision,
@@ -14,17 +14,19 @@ use crate::repository::{
 /// One atomic mutation inside one repository edit batch.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Edit {
-    /// Add one file with one full content payload.
+    /// Add one file Blob.
     AddFile {
         /// The workspace logical path.
         logical_path: String,
-        content: Content,
+        /// The exact file Blob.
+        blob: Blob,
     },
-    /// Set one file with one full content payload.
+    /// Set one file Blob.
     SetFile {
         /// The workspace logical path.
         logical_path: String,
-        content: Content,
+        /// The exact file Blob.
+        blob: Blob,
     },
     /// Remove one file from the revision file bindings.
     RemoveFile {
@@ -41,23 +43,19 @@ pub enum Edit {
 }
 
 impl Edit {
-    /// Build one text add edit.
-    pub fn add_text(path: impl AsRef<str>, content: impl Into<String>) -> Self {
+    /// Build one file add edit.
+    pub fn add_file(path: impl AsRef<str>, blob: Blob) -> Self {
         Self::AddFile {
             logical_path: normalize_logical_path(path),
-            content: Content::Text {
-                content: content.into(),
-            },
+            blob,
         }
     }
 
-    /// Build one text set edit.
-    pub fn set_text(path: impl AsRef<str>, content: impl Into<String>) -> Self {
+    /// Build one file set edit.
+    pub fn set_file(path: impl AsRef<str>, blob: Blob) -> Self {
         Self::SetFile {
             logical_path: normalize_logical_path(path),
-            content: Content::Text {
-                content: content.into(),
-            },
+            blob,
         }
     }
 
@@ -233,10 +231,9 @@ impl Repository {
 
             match edit {
                 // add one new file binding
-                Edit::AddFile {
-                    logical_path,
-                    content,
-                } => {
+                Edit::AddFile { logical_path, blob } => {
+                    self.require_blob(blob)?;
+
                     let logical_path = normalize_logical_path(&logical_path);
                     let file = FileId::from_logical_str(&logical_path);
                     if self.files.entries.contains(files, &file) {
@@ -252,19 +249,16 @@ impl Repository {
                     self.observe_module_path(before, file, &mut invalidated)?;
 
                     let logical_path = self.intern_logical_path(logical_path);
-                    let content = self.intern_content(content)?;
-                    files = self.files.entries.insert(
-                        files,
-                        file,
-                        FileEntry::loaded(logical_path, content),
-                    );
+                    files =
+                        self.files
+                            .entries
+                            .insert(files, file, FileEntry::new(logical_path, blob));
                 }
 
                 // replace one file binding
-                Edit::SetFile {
-                    logical_path,
-                    content,
-                } => {
+                Edit::SetFile { logical_path, blob } => {
+                    self.require_blob(blob)?;
+
                     let logical_path = normalize_logical_path(&logical_path);
                     let file = FileId::from_logical_str(&logical_path);
                     let previous = self.files.entries.get(files, &file);
@@ -281,16 +275,14 @@ impl Repository {
                         self.observe_module_path(before, file, &mut invalidated)?;
                     }
                     if let Some(previous) = previous {
-                        invalidated.push(SourceDependency::file_content(file, previous.content_id));
+                        invalidated.push(SourceDependency::file(file, previous.blob.id));
                     }
 
                     let logical_path = self.intern_logical_path(logical_path);
-                    let content = self.intern_content(content)?;
-                    files = self.files.entries.insert(
-                        files,
-                        file,
-                        FileEntry::loaded(logical_path, content),
-                    );
+                    files =
+                        self.files
+                            .entries
+                            .insert(files, file, FileEntry::new(logical_path, blob));
                 }
 
                 // remove one existing file binding
@@ -308,7 +300,7 @@ impl Repository {
                         Discovery::Paths
                     };
                     discovery = discovery.merge(change);
-                    invalidated.push(SourceDependency::file_content(file, previous.content_id));
+                    invalidated.push(SourceDependency::file(file, previous.blob.id));
                     self.observe_module_path(before, file, &mut invalidated)?;
 
                     files = self.files.entries.remove(files, &file);
@@ -339,16 +331,13 @@ impl Repository {
                     }
 
                     discovery = discovery.merge(change);
-                    invalidated.push(SourceDependency::file_content(
-                        source,
-                        source_entry.content_id,
-                    ));
+                    invalidated.push(SourceDependency::file(source, source_entry.blob.id));
                     self.observe_module_path(before, source, &mut invalidated)?;
                     self.observe_module_path(before, destination, &mut invalidated)?;
 
                     files = self.files.entries.remove(files, &source);
                     let to = self.intern_logical_path(to);
-                    let destination_entry = FileEntry::loaded(to, source_entry.content_id);
+                    let destination_entry = FileEntry::new(to, source_entry.blob);
                     files = self
                         .files
                         .entries

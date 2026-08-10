@@ -1,20 +1,26 @@
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_artifact::{
-    ArtifactDependency, ArtifactStore, ArtifactTable, ArtifactVersion, BlobStore, ContentStore,
-    RepositoryStoreLayout, SegmentedArtifactStore,
+    ArtifactDependency, ArtifactStore, ArtifactTable, ArtifactVersion, BuildId,
 };
-use destack_core::{StringPool, TreapRoot};
-use destack_source::{Content, ContentEntry, ContentId, File, FileSystem};
+use destack_core::{Blob, StringPool, TreapRoot};
+use destack_source::FileSystem;
 use rustc_hash::FxBuildHasher;
 
 use crate::repository::{
-    ContentPool, EmbeddedBuiltinPackage, Files, Ref, RepositoryError, Revision, RevisionEntry,
-    RevisionState,
+    EmbeddedBuiltinPackage, Files, Ref, RepositoryError, Revision, RevisionEntry, RevisionState,
 };
-use crate::{ArtifactBindingTable, DestackLayout, Host, Root, RootKind, Settings};
+use crate::{
+    ArtifactBindingTable, BlobStore, DestackLayout, Host, Root, RootKind, Settings, artifact,
+};
+
+#[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
+use crate::DiskBlobStore;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use crate::MemoryBlobStore;
 
 /// Content-addressed store for revision source state and derived artifacts.
 #[derive(Debug)]
@@ -33,8 +39,8 @@ pub struct Repository {
     pub(crate) layout: DestackLayout,
     /// Machine-local settings used to open this repository.
     pub(crate) settings: Settings,
-    /// Shared immutable in-process contents.
-    pub(crate) content_pool: ContentPool,
+    /// Shared immutable Blob storage.
+    pub(crate) blobs: Arc<dyn BlobStore>,
     /// Embedded Builtin Package shipped with the current build.
     pub(crate) embedded_builtin: EmbeddedBuiltinPackage,
     /// Repository-owned source state.
@@ -52,20 +58,29 @@ pub struct Repository {
     pub(crate) strings: Arc<StringPool>,
 }
 
+/// Physical storage selected for one Repository.
+struct Storage {
+    /// Immutable Blob storage.
+    blobs: Arc<dyn BlobStore>,
+    /// Persistent artifact record storage.
+    artifacts: Arc<dyn ArtifactStore>,
+}
+
 impl Repository {
     /// Create one repository from explicit parts.
     pub fn new(root: PathBuf, host: Host, settings: Settings, layout: DestackLayout) -> Self {
-        let content_pool = ContentPool::new();
-
         let revisions = DashMap::default();
         let refs = DashMap::default();
         let root_reference = Ref::for_root(&root);
 
-        let artifact_store = Arc::new(SegmentedArtifactStore::new(
-            host.blob_store().clone(),
-            Self::repository_store_layout_for(&root, &layout),
-            host.build_id(),
-        ));
+        let storage = match host.blob_store().cloned() {
+            Some(blobs) => {
+                let artifacts: Arc<dyn ArtifactStore> = Arc::new(artifact::MemoryStore::new());
+
+                Storage { blobs, artifacts }
+            }
+            None => Storage::open(&root, &layout, host.build_id()),
+        };
 
         let repository = Self {
             root,
@@ -74,9 +89,9 @@ impl Repository {
             refs,
             files: Files::new(),
             artifact_table: Arc::new(ArtifactTable::default()),
-            artifact_store,
+            artifact_store: storage.artifacts,
             pending_artifacts: DashMap::default(),
-            content_pool,
+            blobs: storage.blobs,
             mounts: DashMap::default(),
             embedded_builtin: EmbeddedBuiltinPackage::new(),
             strings: Arc::new(StringPool::new()),
@@ -98,20 +113,6 @@ impl Repository {
         repository.refs.insert(root_reference, initial_revision_id);
 
         repository
-    }
-
-    /// Override the backing blob store.
-    pub fn with_blob_store(mut self, blob_store: Arc<dyn BlobStore>) -> Self {
-        let artifact_store = Arc::new(SegmentedArtifactStore::new(
-            blob_store.clone(),
-            self.repository_store_layout(),
-            self.host.build_id(),
-        ));
-
-        self.host.set_blob_store(blob_store);
-        self.artifact_store = artifact_store;
-
-        self
     }
 
     /// Override the persistent artifact store.
@@ -142,7 +143,7 @@ impl Repository {
 
     /// Return the repository blob store.
     pub fn blob_store(&self) -> &Arc<dyn BlobStore> {
-        self.host.blob_store()
+        &self.blobs
     }
 
     /// Return the repository host capabilities.
@@ -200,26 +201,6 @@ impl Repository {
         self.layout.workspace_cache.clone()
     }
 
-    /// Build one persisted repository store layout.
-    pub fn repository_store_layout(&self) -> RepositoryStoreLayout {
-        Self::repository_store_layout_for(self.path(), self.layout())
-    }
-
-    /// Build one persisted repository store layout from explicit parts.
-    fn repository_store_layout_for(root: &Path, layout: &DestackLayout) -> RepositoryStoreLayout {
-        let cache_root = layout.workspace_cache.clone();
-        let is_shared_root = !cache_root.starts_with(root);
-
-        RepositoryStoreLayout::new(&cache_root, root, is_shared_root)
-    }
-
-    /// Build one persisted content store.
-    pub fn content_store(&self) -> ContentStore<'_> {
-        let layout = self.repository_store_layout();
-
-        ContentStore::new(self.blob_store().as_ref(), &layout)
-    }
-
     /// Return the current revision for one ref.
     pub fn current(&self, reference: &Ref) -> Result<Revision, RepositoryError> {
         self.refs
@@ -241,49 +222,57 @@ impl Repository {
             .ok_or(RepositoryError::MissingRevision { revision })
     }
 
-    /// Intern one immutable content payload.
-    pub fn intern_content(&self, content: Content) -> Result<ContentId, RepositoryError> {
-        let length = content.byte_length();
-        if length > File::MAX_BYTES {
-            return Err(RepositoryError::ContentTooLarge { length });
-        }
-
-        // persist and intern content
-        let content_id = self.content_store().store(&content).map_err(|error| {
-            RepositoryError::ContentStore {
+    /// Store exact immutable bytes.
+    pub fn put_blob(&self, bytes: &[u8]) -> Result<Blob, RepositoryError> {
+        let mut input = Cursor::new(bytes);
+        self.blobs
+            .put(&mut input)
+            .map_err(|error| RepositoryError::Blob {
                 message: error.to_string(),
-            }
-        })?;
-        let _entry = self.content_pool.insert(content_id, content);
-
-        Ok(content_id)
+            })
     }
 
-    /// Return one shared content payload by exact content id.
-    pub fn content(&self, content: ContentId) -> Result<Arc<ContentEntry>, RepositoryError> {
-        if let Some(entry) = self.content_pool.get(content) {
-            return Ok(entry);
+    /// Require one exact Blob in repository storage.
+    pub(crate) fn require_blob(&self, blob: Blob) -> Result<(), RepositoryError> {
+        let is_present = self
+            .blobs
+            .contains(blob)
+            .map_err(|error| RepositoryError::Blob {
+                message: error.to_string(),
+            })?;
+        if !is_present {
+            return Err(RepositoryError::Blob {
+                message: format!("missing Blob {blob}"),
+            });
         }
 
-        let Some(payload) =
-            self.content_store()
-                .load(content)
-                .map_err(|error| RepositoryError::ContentStore {
-                    message: error.to_string(),
-                })?
-        else {
-            return Err(RepositoryError::MissingContent { content });
-        };
+        Ok(())
+    }
+}
 
-        // validate stored content
-        let length = payload.byte_length();
-        if length > File::MAX_BYTES {
-            return Err(RepositoryError::ContentTooLarge { length });
-        }
+#[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
+impl Storage {
+    /// Open disk storage for one Repository.
+    fn open(root: &Path, layout: &DestackLayout, build_id: BuildId) -> Self {
+        let blobs: Arc<dyn BlobStore> = Arc::new(DiskBlobStore::new(layout.blob_directory()));
+        let artifacts = Arc::new(artifact::DiskStore::new(
+            root,
+            layout,
+            build_id,
+            blobs.clone(),
+        ));
 
-        // intern the loaded content
-        let entry = self.content_pool.insert(content, payload);
+        Self { blobs, artifacts }
+    }
+}
 
-        Ok(entry)
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+impl Storage {
+    /// Open memory storage for one Repository.
+    fn open(_root: &Path, _layout: &DestackLayout, _build_id: BuildId) -> Self {
+        let blobs = Arc::new(MemoryBlobStore::new());
+        let artifacts = Arc::new(artifact::MemoryStore::new());
+
+        Self { blobs, artifacts }
     }
 }

@@ -10,10 +10,11 @@ use destack_artifact::{
     ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactPayload, ArtifactRecord, ArtifactSidecar,
     ArtifactVersion, DeclarationReference, DiagnosticRecord, DirBound, DirParsed,
 };
+use destack_core::Blob;
 use destack_dir::LocalSymbolId;
 use destack_source::{
-    ContentId, Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, ModuleId,
-    ProfileId, Span,
+    Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, ModuleId, ProfileId,
+    Span,
 };
 use rustc_hash::FxHashSet;
 
@@ -302,12 +303,25 @@ impl Repository {
 
         // encode and transfer every completed artifact version to the persistent store
         for (version, dependencies) in &pending {
+            let payload = self
+                .artifact_table()
+                .payload(version)
+                .ok_or(RepositoryError::MissingArtifact { version: *version })?;
+            let bytes =
+                payload
+                    .as_ref()
+                    .encode()
+                    .map_err(|error| RepositoryError::ArtifactStore {
+                        message: error.to_string(),
+                    })?;
+            let blob = self.put_blob(bytes.as_ref())?;
             let record = self
                 .artifact_table()
-                .record(*version, dependencies, self.string_pool())
+                .record(*version, blob, dependencies, self.string_pool())
                 .map_err(|error| RepositoryError::ArtifactStore {
                     message: error.to_string(),
                 })?;
+            self.require_blobs(&record.blobs)?;
             self.artifact_store().store(record).map_err(|error| {
                 RepositoryError::ArtifactStore {
                     message: error.to_string(),
@@ -542,7 +556,8 @@ impl Repository {
         sidecars: Vec<ArtifactSidecar>,
         recorder: Option<&ArtifactAttemptRecorder>,
     ) -> Result<ArtifactBindingPin, RepositoryError> {
-        let load_contents = || self.load_artifact_contents(&payload);
+        let blobs = ArtifactRecord::referenced_blobs(payload.as_ref(), &diagnostics, &sidecars);
+        let load_contents = || self.require_blobs(&blobs);
         match recorder {
             Some(recorder) => recorder.breakdown("commit.retain", load_contents),
             None => load_contents(),
@@ -582,20 +597,25 @@ impl Repository {
                 message: "artifact store returned a different version".to_owned(),
             });
         }
+        self.require_blobs(&record.blobs)?;
+        let memory =
+            self.blob_store()
+                .open(record.payload)
+                .map_err(|error| RepositoryError::Blob {
+                    message: error.to_string(),
+                })?;
         let payload = record
-            .decode(self.host().build_id(), self.string_pool())
+            .decode(self.host().build_id(), self.string_pool(), memory)
             .map_err(|error| RepositoryError::ArtifactStore {
                 message: error.to_string(),
             })?;
-        self.load_artifact_contents(&payload)?;
-
         Ok(Some((record, payload)))
     }
 
-    /// Load all content ids referenced by one artifact payload.
-    fn load_artifact_contents(&self, payload: &ArtifactPayload) -> Result<(), RepositoryError> {
-        for content in payload.content_ids() {
-            let _ = self.content(content)?;
+    /// Require every exact Blob in one retained closure.
+    fn require_blobs(&self, blobs: &[Blob]) -> Result<(), RepositoryError> {
+        for blob in blobs {
+            self.require_blob(*blob)?;
         }
 
         Ok(())
@@ -664,8 +684,8 @@ impl Repository {
         });
 
         match span {
-            Some((span, content)) => Ok(DiagnosticLabel {
-                content,
+            Some((span, blob)) => Ok(DiagnosticLabel {
+                blob,
                 target: DiagnosticTarget::Span(span),
                 message,
             }),
@@ -722,7 +742,7 @@ impl Repository {
             .ok_or(RepositoryError::MissingModule { module })?;
 
         Ok(DiagnosticLabel {
-            content: file.content_id(),
+            blob: file.blob,
             target: DiagnosticTarget::File(file.id),
             message,
         })
@@ -735,7 +755,7 @@ impl Repository {
         module: ModuleId,
         profile: ProfileId,
         symbol: u32,
-    ) -> Option<(Span, ContentId)> {
+    ) -> Option<(Span, Blob)> {
         // resolve the declaration's local symbol row
         let bound_key = ArtifactKey::dir_bound(module, profile);
         let bound_version = self.artifact_version(revision, &bound_key).ok()??;
@@ -752,9 +772,9 @@ impl Repository {
             .artifact_table()
             .artifact::<DirParsed>(&parsed_version)?;
         let span = parsed.tree.get_main_span_by_id(declaration.local_id.id)?;
-        let content = self.file(revision, span.file).ok()??.content_id();
+        let blob = self.file(revision, span.file).ok()??.blob;
 
-        Some((span, content))
+        Some((span, blob))
     }
 
     /// Return the first source file of one module.

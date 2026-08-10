@@ -1305,6 +1305,7 @@ dependencies = [
 name = "destack_repository"
 version = "0.55.4"
 dependencies = [
+ "blake3",
  "dashmap",
  "destack_artifact",
  "destack_core",
@@ -1315,10 +1316,10 @@ dependencies = [
  "destack_serde",
  "destack_source",
  "filetime",
- "fs2",
  "im",
  "indexmap",
  "js-sys",
+ "memmap2",
  "parking_lot",
  "regex",
  "rustc-hash 2.1.2",

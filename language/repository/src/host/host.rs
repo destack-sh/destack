@@ -1,13 +1,10 @@
 use std::sync::Arc;
 
-#[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
-use destack_artifact::DiskBlobStore;
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-use destack_artifact::MemoryBlobStore;
-use destack_artifact::{BlobStore, BuildId};
+use destack_artifact::BuildId;
 use destack_source::FileSystem;
 
 use super::{Clock, Environment};
+use crate::BlobStore;
 
 /// Host capabilities available to repository operations.
 #[derive(Debug, Clone)]
@@ -18,8 +15,8 @@ pub struct Host {
     environment: Environment,
     /// File system backing repository discovery and loads.
     files: Arc<dyn FileSystem>,
-    /// Shared byte store for persisted blobs.
-    blob_store: Arc<dyn BlobStore>,
+    /// Explicit shared BlobStore, when supplied by the host.
+    blob_store: Option<Arc<dyn BlobStore>>,
     /// Clock available to repository tooling.
     clock: Clock,
     /// Execution available to repository tooling.
@@ -28,20 +25,22 @@ pub struct Host {
 
 impl Host {
     /// Create one host from explicit capabilities.
-    pub fn new(
-        build_id: BuildId,
-        environment: Environment,
-        files: Arc<dyn FileSystem>,
-        blob_store: Arc<dyn BlobStore>,
-    ) -> Self {
+    pub fn new(build_id: BuildId, environment: Environment, files: Arc<dyn FileSystem>) -> Self {
         Self {
             build_id,
             environment,
             files,
-            blob_store,
+            blob_store: None,
             clock: Clock::default(),
             execution: Execution::default(),
         }
+    }
+
+    /// Return this host with one shared BlobStore.
+    pub fn with_blob_store(mut self, blob_store: Arc<dyn BlobStore>) -> Self {
+        self.blob_store = Some(blob_store);
+
+        self
     }
 
     /// Return the Destack build producing derived artifacts.
@@ -73,14 +72,9 @@ impl Host {
         &self.files
     }
 
-    /// Return the shared byte store.
-    pub fn blob_store(&self) -> &Arc<dyn BlobStore> {
-        &self.blob_store
-    }
-
-    /// Replace the shared byte store.
-    pub(crate) fn set_blob_store(&mut self, blob_store: Arc<dyn BlobStore>) {
-        self.blob_store = blob_store;
+    /// Return the explicitly supplied shared BlobStore.
+    pub(crate) fn blob_store(&self) -> Option<&Arc<dyn BlobStore>> {
+        self.blob_store.as_ref()
     }
 
     /// Return the clock available to repository tooling.
@@ -92,11 +86,6 @@ impl Host {
     pub fn execution(&self) -> Execution {
         self.execution
     }
-}
-
-/// Return the default blob store for this host platform.
-pub fn default_blob_store() -> Arc<dyn BlobStore> {
-    default_platform_blob_store()
 }
 
 /// Execution available to repository tooling.
@@ -125,16 +114,4 @@ fn default_execution() -> Execution {
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 fn default_execution() -> Execution {
     Execution::Cooperative
-}
-
-/// Return a persistent disk store on native hosts.
-#[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
-fn default_platform_blob_store() -> Arc<dyn BlobStore> {
-    Arc::new(DiskBlobStore::new())
-}
-
-/// Return a process-local store on browser WebAssembly.
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-fn default_platform_blob_store() -> Arc<dyn BlobStore> {
-    Arc::new(MemoryBlobStore::new())
 }

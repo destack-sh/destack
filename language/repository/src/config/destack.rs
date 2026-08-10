@@ -205,21 +205,20 @@ impl DestackFile {
             }
         };
 
-        // reject content outside source coordinates
-        let length = content.len();
-        if length > File::MAX_BYTES {
-            return Err(RepositoryError::ContentTooLarge { length });
-        }
-
         // parse through normal repository config logic
+        let file_id = FileId::from_logical_str("destack.json");
         let file = File::from_text(
-            FileId::from_logical_str("destack.json"),
+            file_id,
             "destack.json".to_string(),
             Uri::from_path(&path),
             Some(path.clone()),
             FileType::Json,
             content,
-        );
+        )
+        .map_err(|error| RepositoryError::InvalidFile {
+            file: file_id,
+            message: error.to_string(),
+        })?;
         let file = Arc::new(file);
 
         Self::parse(&file)

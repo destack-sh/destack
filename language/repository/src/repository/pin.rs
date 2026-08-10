@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactBindingId, ArtifactKey, ArtifactVersion};
-use destack_source::{ContentId, File, FileId, ModuleId, PackageId};
+use destack_core::BlobId;
+use destack_source::{File, FileId, ModuleId, PackageId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{Module, Package, Root};
@@ -38,7 +39,7 @@ impl Repository {
         entry.unpin();
     }
 
-    /// Prune file revisions and file contents that are no longer reachable.
+    /// Prune repository revisions, artifact records, and loaded files that are no longer reachable.
     pub fn prune_unreachable(&self) -> Result<(), RepositoryError> {
         let reachable_revisions = self.reachable_file_revisions();
         let selected_bindings = self.selected_artifact_bindings(&reachable_revisions);
@@ -48,8 +49,7 @@ impl Repository {
             .map_err(|error| RepositoryError::InvalidArtifact {
                 message: error.to_string(),
             })?;
-        let reachable_contents =
-            self.reachable_content_ids(&reachable_revisions, &retained_versions)?;
+        let reachable_blobs = self.reachable_file_blobs(&reachable_revisions);
 
         self.revisions
             .retain(|revision, _| reachable_revisions.contains(revision));
@@ -61,13 +61,7 @@ impl Repository {
             .map_err(|error| RepositoryError::ArtifactStore {
                 message: error.to_string(),
             })?;
-        self.files.cache.retain_file_contents(&reachable_contents);
-        self.content_pool.retain_reachable(&reachable_contents);
-        self.content_store()
-            .retain_reachable(&reachable_contents)
-            .map_err(|error| RepositoryError::ContentStore {
-                message: error.to_string(),
-            })?;
+        self.files.cache.retain(&reachable_blobs);
 
         Ok(())
     }
@@ -96,12 +90,8 @@ impl Repository {
         bindings
     }
 
-    /// Collect all content ids reachable from one revision set.
-    fn reachable_content_ids(
-        &self,
-        reachable_revisions: &HashSet<Revision>,
-        reachable_artifacts: &HashSet<ArtifactVersion>,
-    ) -> Result<HashSet<ContentId>, RepositoryError> {
+    /// Collect file BlobIds reachable from one revision set.
+    fn reachable_file_blobs(&self, reachable_revisions: &HashSet<Revision>) -> HashSet<BlobId> {
         let mut reachable = HashSet::new();
         let roots = reachable_revisions
             .iter()
@@ -109,24 +99,12 @@ impl Repository {
             .map(|entry| entry.state().files())
             .collect::<Vec<_>>();
 
-        // collect source file contents from shared tree nodes once
+        // collect file Blobs from shared tree nodes once
         for entry in self.files.entries.unique_values(roots) {
-            reachable.insert(entry.content_id);
+            reachable.insert(entry.blob.id);
         }
 
-        // artifact output contents
-        for artifact_version in reachable_artifacts {
-            let contents = self.artifact_table().content_ids(artifact_version).ok_or(
-                RepositoryError::MissingArtifact {
-                    version: *artifact_version,
-                },
-            )?;
-            for content in contents {
-                reachable.insert(content);
-            }
-        }
-
-        Ok(reachable)
+        reachable
     }
 
     /// Compact revision tree storage around reachable revision roots.
@@ -257,13 +235,11 @@ mod tests {
     use destack_artifact::{
         ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactProjection,
         ArtifactProjectionKey, ArtifactVersion, BuildId, Bundle, BundleFile, BundleMode,
-        BundleSection, DirExported, DiskBlobStore, EnvironmentBound, LanguageEnvironment,
-        SourceDependency,
+        BundleSection, DirExported, EnvironmentBound, LanguageEnvironment, SourceDependency,
     };
     use destack_dir::{ExportTable, GlobalSymbolId, GlobalTable, LocalSymbolId};
     use destack_source::{
-        Content, FileSystem, FileType, ModuleId, PackageId, PhysicalFileSystem, ProfileId,
-        TargetId, Uri,
+        FileSystem, FileType, ModuleId, PackageId, PhysicalFileSystem, ProfileId, TargetId, Uri,
     };
     use indexmap::IndexMap;
 
@@ -283,12 +259,7 @@ mod tests {
             None,
         );
 
-        let host = Host::new(
-            BuildId::test(),
-            environment,
-            file_system,
-            Arc::new(DiskBlobStore::new()),
-        );
+        let host = Host::new(BuildId::test(), environment, file_system);
 
         Repository::new(root.to_path_buf(), host, Settings::default(), layout)
     }
@@ -309,12 +280,7 @@ mod tests {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(
-            BuildId::test(),
-            environment,
-            file_system,
-            Arc::new(DiskBlobStore::new()),
-        );
+        let host = Host::new(BuildId::test(), environment, file_system);
         let repository = Arc::new(Repository::new(
             root.clone(),
             host,
@@ -328,7 +294,12 @@ mod tests {
         let anonymous_revision = repository
             .edit(
                 base_revision,
-                [Edit::add_text("src/example.ts", "export const value = 1")],
+                [Edit::add_file(
+                    "src/example.ts",
+                    repository
+                        .put_blob(b"export const value = 1")
+                        .expect("source Blob should store"),
+                )],
             )
             .expect("anonymous revision should publish")
             .after;
@@ -340,7 +311,12 @@ mod tests {
         publish_edits(
             repository.as_ref(),
             &reference,
-            [Edit::add_text("src/other.ts", "export const other = 2")],
+            [Edit::add_file(
+                "src/other.ts",
+                repository
+                    .put_blob(b"export const other = 2")
+                    .expect("source Blob should store"),
+            )],
         );
 
         // pinned revision
@@ -356,26 +332,23 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    /// Load content from the persistent store into a fresh repository.
+    /// Load one Blob from persistent storage through a fresh repository.
     #[test]
-    fn test_load_content_from_store() {
-        let root = unique_test_root("repository-content-load");
-        fs::create_dir_all(&root).expect("repository content load test root should exist");
+    fn test_load_blob_from_store() {
+        let root = unique_test_root("repository-blob-load");
+        fs::create_dir_all(&root).expect("repository Blob load test root should exist");
 
         let repository = test_repository(&root);
-        let content = Content::Text {
-            content: "cached content\n".to_string(),
-        };
-        let content_id = repository
-            .intern_content(content.clone())
-            .expect("content should intern");
+        let bytes = b"cached bytes\n";
+        let blob = repository.put_blob(bytes).expect("Blob should store");
 
         let repository = test_repository(&root);
         let loaded = repository
-            .content(content_id)
-            .expect("content should load from store");
+            .blob_store()
+            .open(blob)
+            .expect("Blob should load from store");
 
-        assert_eq!(loaded.payload(), &content);
+        assert_eq!(loaded.bytes(), bytes);
 
         let _ = fs::remove_dir_all(&root);
     }
@@ -392,18 +365,16 @@ mod tests {
             .expect("root ref should exist");
         let package = PackageId::new(1);
         let target = TargetId::new(package, "browser");
-        let content = repository
-            .intern_content(Content::Text {
-                content: "console.log('loaded')\n".to_string(),
-            })
-            .expect("artifact content should intern");
+        let blob = repository
+            .put_blob(b"console.log('loaded')\n")
+            .expect("artifact Blob should store");
         let output = Bundle::new(
             BundleMode::SingleFile,
             vec![BundleFile::new(
                 BundleSection::Entry,
                 Uri::from_string("memory:/out.js"),
                 FileType::Script,
-                content,
+                blob,
                 None,
             )],
         );
@@ -432,7 +403,12 @@ mod tests {
             .expect("artifact should exist in the store");
 
         assert!(matches!(loaded, ArtifactPayload::Bundle(_)));
-        assert!(repository.content(content).is_ok());
+        assert!(
+            repository
+                .blob_store()
+                .contains(blob)
+                .expect("Blob should inspect")
+        );
 
         let _ = fs::remove_dir_all(&root);
     }
@@ -528,12 +504,7 @@ mod tests {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(
-            BuildId::test(),
-            environment,
-            file_system,
-            Arc::new(DiskBlobStore::new()),
-        );
+        let host = Host::new(BuildId::test(), environment, file_system);
         let repository = Arc::new(Repository::new(
             root.clone(),
             host,
@@ -545,12 +516,22 @@ mod tests {
         let revision_1 = publish_edits(
             repository.as_ref(),
             &reference,
-            [Edit::add_text("src/example.ts", "export const value = 1")],
+            [Edit::add_file(
+                "src/example.ts",
+                repository
+                    .put_blob(b"export const value = 1")
+                    .expect("source Blob should store"),
+            )],
         );
         let revision_2 = publish_edits(
             repository.as_ref(),
             &reference,
-            [Edit::set_text("src/example.ts", "export const value = 2")],
+            [Edit::set_file(
+                "src/example.ts",
+                repository
+                    .put_blob(b"export const value = 2")
+                    .expect("source Blob should store"),
+            )],
         );
         let file_id = repository.file_id(&root.join("src/example.ts"));
 
@@ -585,33 +566,36 @@ mod tests {
         let first_revision = publish_edits(
             &repository,
             &reference,
-            [Edit::add_text("src/input.ds", "export const value = 1;")],
+            [Edit::add_file(
+                "src/input.ds",
+                repository
+                    .put_blob(b"export const value = 1;")
+                    .expect("source Blob should store"),
+            )],
         );
         let file_id = repository.file_id(&root.join("src/input.ds"));
-        let first_content = repository
-            .file_content_id(first_revision, file_id)
-            .expect("first source content should resolve")
-            .expect("first source content should exist");
-        let first_dependencies = vec![ArtifactDependency::Source(SourceDependency::file_content(
+        let first_blob = repository
+            .file_blob(first_revision, file_id)
+            .expect("first source Blob should resolve")
+            .expect("first source Blob should exist");
+        let first_dependencies = vec![ArtifactDependency::Source(SourceDependency::file(
             file_id,
-            first_content,
+            first_blob.id,
         ))];
 
         // publish the first artifact version
         let package = PackageId::new(1);
         let target = TargetId::new(package, "browser");
-        let output_content = repository
-            .intern_content(Content::Text {
-                content: "console.log('same output')\n".to_string(),
-            })
-            .expect("artifact output should intern");
+        let output_blob = repository
+            .put_blob(b"console.log('same output')\n")
+            .expect("artifact output should store");
         let output = Bundle::new(
             BundleMode::SingleFile,
             vec![BundleFile::new(
                 BundleSection::Entry,
                 Uri::from_string("memory:/out.js"),
                 FileType::Script,
-                output_content,
+                output_blob,
                 None,
             )],
         );
@@ -641,15 +625,20 @@ mod tests {
         let second_revision = publish_edits(
             &repository,
             &reference,
-            [Edit::set_text("src/input.ds", "export const value = 2;")],
+            [Edit::set_file(
+                "src/input.ds",
+                repository
+                    .put_blob(b"export const value = 2;")
+                    .expect("source Blob should store"),
+            )],
         );
-        let second_content = repository
-            .file_content_id(second_revision, file_id)
-            .expect("second source content should resolve")
-            .expect("second source content should exist");
-        let second_dependencies = vec![ArtifactDependency::Source(SourceDependency::file_content(
+        let second_blob = repository
+            .file_blob(second_revision, file_id)
+            .expect("second source Blob should resolve")
+            .expect("second source Blob should exist");
+        let second_dependencies = vec![ArtifactDependency::Source(SourceDependency::file(
             file_id,
-            second_content,
+            second_blob.id,
         ))];
         let second_version = ArtifactVersion::new(
             key,
@@ -713,15 +702,20 @@ mod tests {
         let third_revision = publish_edits(
             &repository,
             &reference,
-            [Edit::set_text("src/input.ds", "export const value = 3;")],
+            [Edit::set_file(
+                "src/input.ds",
+                repository
+                    .put_blob(b"export const value = 3;")
+                    .expect("source Blob should store"),
+            )],
         );
-        let third_content = repository
-            .file_content_id(third_revision, file_id)
-            .expect("third source content should resolve")
-            .expect("third source content should exist");
-        let third_dependencies = vec![ArtifactDependency::Source(SourceDependency::file_content(
+        let third_blob = repository
+            .file_blob(third_revision, file_id)
+            .expect("third source Blob should resolve")
+            .expect("third source Blob should exist");
+        let third_dependencies = vec![ArtifactDependency::Source(SourceDependency::file(
             file_id,
-            third_content,
+            third_blob.id,
         ))];
         let third_version = ArtifactVersion::new(
             key,
@@ -781,7 +775,12 @@ mod tests {
         let first_revision = publish_edits(
             &repository,
             &reference,
-            [Edit::add_text("src/input.ds", "export const value = 1;")],
+            [Edit::add_file(
+                "src/input.ds",
+                repository
+                    .put_blob(b"export const value = 1;")
+                    .expect("source Blob should store"),
+            )],
         );
         let branch = Ref::new("branch:artifact-projection");
         repository
@@ -793,13 +792,14 @@ mod tests {
         let module = ModuleId::new(package, 1);
         let profile = ProfileId::new(1);
         let file = repository.file_id(&root.join("src/input.ds"));
-        let first_content = repository
-            .file_content_id(first_revision, file)
-            .expect("first source content should resolve")
-            .expect("first source content should exist");
-        let first_owner_dependencies = vec![ArtifactDependency::Source(
-            SourceDependency::file_content(file, first_content),
-        )];
+        let first_blob = repository
+            .file_blob(first_revision, file)
+            .expect("first source Blob should resolve")
+            .expect("first source Blob should exist");
+        let first_owner_dependencies = vec![ArtifactDependency::Source(SourceDependency::file(
+            file,
+            first_blob.id,
+        ))];
         let owner = DirExported {
             exports: ExportTable::new(module),
             globals: GlobalTable::new(module),
@@ -851,15 +851,21 @@ mod tests {
         let second_revision = publish_edits(
             &repository,
             &reference,
-            [Edit::set_text("src/input.ds", "export const value = 2;")],
+            [Edit::set_file(
+                "src/input.ds",
+                repository
+                    .put_blob(b"export const value = 2;")
+                    .expect("source Blob should store"),
+            )],
         );
-        let second_content = repository
-            .file_content_id(second_revision, file)
-            .expect("second source content should resolve")
-            .expect("second source content should exist");
-        let second_owner_dependencies = vec![ArtifactDependency::Source(
-            SourceDependency::file_content(file, second_content),
-        )];
+        let second_blob = repository
+            .file_blob(second_revision, file)
+            .expect("second source Blob should resolve")
+            .expect("second source Blob should exist");
+        let second_owner_dependencies = vec![ArtifactDependency::Source(SourceDependency::file(
+            file,
+            second_blob.id,
+        ))];
         let second_owner = ArtifactVersion::new(
             owner_key,
             repository.host().build_id(),
@@ -907,72 +913,6 @@ mod tests {
             first_projection.fingerprint(),
             second_projection.fingerprint()
         );
-
-        let _ = fs::remove_dir_all(&root);
-    }
-
-    /// Keep generated artifact contents while their artifact version is reachable.
-    #[test]
-    fn test_keep_generated_contents_while_artifact_reachable() {
-        let root = unique_test_root("repository-generated-contents");
-        fs::create_dir_all(&root).expect("repository generated contents test root should exist");
-
-        let repository = test_repository(&root);
-        let revision = repository
-            .current(&Ref::for_root(&root))
-            .expect("root ref should exist");
-        let package = PackageId::new(1);
-        let target = TargetId::new(package, "browser");
-        let retained = repository
-            .intern_content(Content::Text {
-                content: "console.log('retained')\n".to_string(),
-            })
-            .expect("retained content should intern");
-        let pruned = repository
-            .intern_content(Content::Text {
-                content: "console.log('pruned')\n".to_string(),
-            })
-            .expect("pruned content should intern");
-        let output = Bundle::new(
-            BundleMode::SingleFile,
-            vec![BundleFile::new(
-                BundleSection::Entry,
-                Uri::from_string("memory:/out.js"),
-                FileType::Script,
-                retained,
-                None,
-            )],
-        );
-        let key = ArtifactKey::bundle(package, target);
-
-        repository
-            .complete_artifact(
-                revision,
-                key,
-                output.into(),
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-                None,
-            )
-            .expect("bundle should publish");
-        repository
-            .prune_unreachable()
-            .expect("repository should prune");
-
-        // reachable artifact contents
-        assert!(repository.content(retained).is_ok());
-
-        // unreferenced generated contents
-        assert!(repository.content(pruned).is_err());
-
-        let repository = test_repository(&root);
-
-        // persistent reachable artifact contents
-        assert!(repository.content(retained).is_ok());
-
-        // persistent unreferenced generated contents
-        assert!(repository.content(pruned).is_err());
 
         let _ = fs::remove_dir_all(&root);
     }

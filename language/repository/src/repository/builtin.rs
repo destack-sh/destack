@@ -1,9 +1,9 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
+use destack_core::Blob;
 use destack_source::{
-    Content, ContentEntry, ContentId, File, FileId, FileMetadata, FileType, LanguageType, Loader,
-    ModuleId, PackageId, TargetId, Uri,
+    File, FileId, FileMetadata, FileType, LanguageType, Loader, ModuleId, PackageId, TargetId, Uri,
 };
 use indexmap::IndexMap;
 
@@ -468,9 +468,9 @@ impl BuiltinFile {
         FileId::from_logical_str(self.uri)
     }
 
-    /// Return the stable builtin source content id.
-    pub fn content_id(self) -> ContentId {
-        ContentId::for_text(self.content)
+    /// Return the exact builtin source Blob.
+    pub fn blob(self) -> Blob {
+        Blob::for_bytes(self.content.as_bytes())
     }
 
     /// Return the stable builtin module id.
@@ -503,12 +503,6 @@ impl BuiltinFile {
 
     /// Return this builtin as a source file.
     pub fn file(self) -> File {
-        // build shared text content
-        let content = Content::Text {
-            content: self.content.to_string(),
-        };
-        let content = Arc::new(ContentEntry::new(content));
-
         // build virtual source file
         let file_type = if self.path.ends_with(".json") {
             FileType::Json
@@ -516,14 +510,15 @@ impl BuiltinFile {
             FileType::Destack
         };
 
-        File::from_content(
+        File::from_text(
             self.file_id(),
             self.name(),
             Uri::from_string(format!("{BUILTIN_PACKAGE_URI}{}", self.path)),
             None,
             file_type,
-            content,
+            self.content.to_string(),
         )
+        .expect("embedded Builtin File should fit source coordinates")
     }
 
     /// Return metadata for this builtin file.

@@ -1,18 +1,19 @@
 use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::str;
 use std::sync::Arc;
 
-use destack_artifact::{BlobStore, BuildId, MemoryBlobStore};
+use destack_artifact::BuildId;
 use destack_source as source;
 use destack_source::{
-    Content, ContentId, File, FileId, FileMetadata, FilePatch, FileSystem, FileType,
-    MemoryFileSystem, Patch, Span, TextPatch, Uri, apply_file_patch, matches,
+    File, FileId, FileMetadata, FilePatch, FileSystem, FileType, MemoryFileSystem, Patch, Span,
+    TextPatch, Uri, apply_file_patch, matches,
 };
 
 use crate::{
-    Dependency, DestackFile, DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref,
-    Repository, RepositoryError, Revision, Settings, default_blob_store,
+    BlobStore, Dependency, DestackFile, DestackLayout, DestackLayoutOverride, Edit, Environment,
+    Host, MemoryBlobStore, Ref, Repository, RepositoryError, Revision, Settings,
 };
 
 /// Open one repository after discovering the source root from one path.
@@ -23,11 +24,10 @@ pub fn open_repository_from_fs(
     settings: Settings,
     layout_override: DestackLayoutOverride,
 ) -> Result<Repository, RepositoryError> {
-    let blob_store = default_blob_store();
     let build_id = BuildId::current().map_err(|error| RepositoryError::ArtifactStore {
         message: format!("failed to identify Destack build: {error}"),
     })?;
-    let host = Host::new(build_id, environment, file_system, blob_store);
+    let host = Host::new(build_id, environment, file_system);
 
     open_repository(path, host, settings, layout_override)
 }
@@ -48,7 +48,7 @@ pub fn open_repository_from_memory(
     let build_id = BuildId::current().map_err(|error| RepositoryError::ArtifactStore {
         message: format!("failed to identify Destack build: {error}"),
     })?;
-    let host = Host::new(build_id, environment, file_system, blob_store);
+    let host = Host::new(build_id, environment, file_system).with_blob_store(blob_store);
 
     open_repository(root, host, settings, layout_override)
 }
@@ -488,17 +488,44 @@ impl<'a> Scan<'a> {
     ) -> Result<(), RepositoryError> {
         let logical_path = self.path_text(logical_path);
         let file_id = FileId::from_logical_str(&logical_path);
-        let content = self.read_content(path)?;
+        let mut input = self.repository.file_system().open(path).map_err(|error| {
+            RepositoryError::FileSystem {
+                operation: "open",
+                path: path.to_path_buf(),
+                message: error.to_string(),
+            }
+        })?;
+        let incoming = self
+            .repository
+            .blob_store()
+            .put(input.as_mut())
+            .map_err(|error| RepositoryError::Blob {
+                message: error.to_string(),
+            })?;
+
+        // require text files to contain valid UTF-8 before publishing their binding
+        if !FileType::from_path_or_unknown(path).is_binary() {
+            let memory = self
+                .repository
+                .blob_store()
+                .open(incoming)
+                .map_err(|error| RepositoryError::Blob {
+                    message: error.to_string(),
+                })?;
+            str::from_utf8(memory.bytes()).map_err(|error| RepositoryError::InvalidFile {
+                file: file_id,
+                message: error.to_string(),
+            })?;
+        }
 
         self.seen_file_ids.insert(file_id);
-        let incoming = ContentId::for_content(&content);
-        let current = self.repository.file_content_id(self.base, file_id)?;
+        let current = self.repository.file_blob(self.base, file_id)?;
 
         // record changed files only
         if current != Some(incoming) {
             self.edits.push(Edit::SetFile {
                 logical_path,
-                content,
+                blob: incoming,
             });
         }
 
@@ -580,38 +607,6 @@ impl<'a> Scan<'a> {
                 message: error.to_string(),
             })
     }
-
-    /// Read one source file content.
-    fn read_content(&self, path: &Path) -> Result<Content, RepositoryError> {
-        let file_type = FileType::from_path_or_unknown(path);
-
-        // binary file content
-        if file_type.is_binary() {
-            let content = self.repository.file_system().read(path).map_err(|error| {
-                RepositoryError::FileSystem {
-                    operation: "read",
-                    path: path.to_path_buf(),
-                    message: error.to_string(),
-                }
-            })?;
-
-            Ok(Content::Binary { content })
-        }
-        // text file content
-        else {
-            let content = self
-                .repository
-                .file_system()
-                .read_to_string(path)
-                .map_err(|error| RepositoryError::FileSystem {
-                    operation: "read_to_string",
-                    path: path.to_path_buf(),
-                    message: error.to_string(),
-                })?;
-
-            Ok(Content::Text { content })
-        }
-    }
 }
 
 impl Scan<'_> {
@@ -679,8 +674,8 @@ impl Scan<'_> {
             match self.repository.file_system().metadata(&path) {
                 Ok(metadata) if metadata.is_file => {
                     let file_id = FileId::from_logical_path(&logical_path);
-                    let content_id = self.repository.file_content_id(self.base, file_id)?;
-                    if content_id.is_some() || self.includes(&path)? {
+                    let blob = self.repository.file_blob(self.base, file_id)?;
+                    if blob.is_some() || self.includes(&path)? {
                         paths.push((logical_path, path, true));
                     }
                 }
@@ -895,10 +890,13 @@ fn patch_text(
             message: error.to_string(),
         })?;
 
-    // reject content outside source coordinates
+    // reject files outside source coordinates
     let length = text.len();
     if length > File::MAX_BYTES {
-        return Err(RepositoryError::ContentTooLarge { length });
+        return Err(RepositoryError::InvalidFile {
+            file: FileId::from_logical_path(logical_path),
+            message: format!("File contains {length} bytes beyond the source limit"),
+        });
     }
 
     // build the source file for patch application
@@ -917,7 +915,11 @@ fn patch_text(
         Some(path.to_path_buf()),
         FileType::from_path_or_unknown(path),
         text,
-    );
+    )
+    .map_err(|error| RepositoryError::InvalidFile {
+        file: file_id,
+        message: error.to_string(),
+    })?;
 
     // lower path level text patches into source patches
     let patches = patches

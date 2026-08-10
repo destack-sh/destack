@@ -43,12 +43,13 @@ impl Repository {
         file_id: FileId,
     ) -> Result<Option<Arc<DestackFile>>, RepositoryError> {
         // read file
-        let Some(content_id) = self.file_content_id(revision, file_id)? else {
+        let Some(blob) = self.file_blob(revision, file_id)? else {
             return Ok(None);
         };
 
         // cached parse result
-        if let Some(config) = self.files.cache.destack_by_content_id.get(&content_id) {
+        let cache_key = (file_id, blob.id);
+        if let Some(config) = self.files.cache.destack.get(&cache_key) {
             return config
                 .value()
                 .as_ref()
@@ -76,10 +77,7 @@ impl Repository {
                 });
 
         // populate cache
-        self.files
-            .cache
-            .destack_by_content_id
-            .insert(content_id, config);
+        self.files.cache.destack.insert(cache_key, config);
 
         destack_config
     }

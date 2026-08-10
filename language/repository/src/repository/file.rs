@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_core::Treap;
-use destack_source::{ContentId, File, FileId, FileMetadata, FileType, PathExt, StringId, Uri};
+use destack_core::{Blob, BlobId, Treap};
+use destack_source::{File, FileId, FileMetadata, FileType, PathExt, StringId, Uri};
 use rustc_hash::FxHashSet;
 
 use crate::DestackFile;
@@ -18,7 +18,7 @@ pub(crate) const MOUNT_PREFIX: &str = "mount:";
 pub(crate) struct Files {
     /// Shared file entry treap.
     pub(crate) entries: Treap<FileId, FileEntry>,
-    /// Parsed file data by exact file content.
+    /// Loaded file state.
     pub(crate) cache: FileCache,
 }
 
@@ -32,11 +32,13 @@ impl Files {
     }
 }
 
-/// Parsed file data keyed by exact file content.
+/// Loaded and parsed file state keyed by exact Blobs.
 #[derive(Debug, Default)]
 pub(crate) struct FileCache {
-    /// The config parse result by exact content.
-    pub(crate) destack_by_content_id: DashMap<ContentId, Result<Arc<DestackFile>, String>>,
+    /// Loaded Files by identity and exact Blob.
+    pub(crate) files: DashMap<(FileId, BlobId), Arc<File>>,
+    /// Parsed Destack files by path and exact Blob.
+    pub(crate) destack: DashMap<(FileId, BlobId), Result<Arc<DestackFile>, String>>,
 }
 
 impl FileCache {
@@ -45,10 +47,12 @@ impl FileCache {
         Self::default()
     }
 
-    /// Drop entries for file contents that are no longer reachable.
-    pub(crate) fn retain_file_contents(&self, reachable: &HashSet<ContentId>) {
-        self.destack_by_content_id
-            .retain(|content_id, _| reachable.contains(content_id));
+    /// Retain entries backed by reachable Blobs.
+    pub(crate) fn retain(&self, reachable: &HashSet<BlobId>) {
+        self.files
+            .retain(|(_file, blob), _| reachable.contains(blob));
+        self.destack
+            .retain(|(_file, blob), _| reachable.contains(blob));
     }
 }
 
@@ -58,16 +62,13 @@ pub(crate) struct FileEntry {
     /// The logical path for this file in this revision.
     pub logical_path: StringId,
     /// The fixed content binding for this file.
-    pub content_id: ContentId,
+    pub blob: Blob,
 }
 
 impl FileEntry {
     /// Build one loaded file entry.
-    pub(crate) fn loaded(logical_path: StringId, content_id: ContentId) -> Self {
-        Self {
-            logical_path,
-            content_id,
-        }
+    pub(crate) fn new(logical_path: StringId, blob: Blob) -> Self {
+        Self { logical_path, blob }
     }
 }
 
@@ -217,8 +218,19 @@ impl Repository {
             return Ok(None);
         };
 
+        // reuse retained Blob memory and line offsets for this exact file binding
+        let cache_key = (file_id, entry.blob.id);
+        if let Some(file) = self.files.cache.files.get(&cache_key) {
+            return Ok(Some(file.clone()));
+        }
+
         // assemble the physical source file
-        let content = self.content(entry.content_id)?;
+        let memory = self
+            .blob_store()
+            .open(entry.blob)
+            .map_err(|error| RepositoryError::Blob {
+                message: error.to_string(),
+            })?;
         let logical_path = self.logical_path_text(entry.logical_path);
         let path = self.file_entry_path(&entry);
         let uri = Uri::from_path(&path);
@@ -227,9 +239,24 @@ impl Repository {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_else(|| logical_path.to_string());
         let file_type = FileType::from_path_or_unknown(&path);
-        let file = File::from_content(file_id, name, uri, Some(path), file_type, content);
+        let file = File::from_blob(file_id, name, uri, Some(path), file_type, memory).map_err(
+            |error| RepositoryError::InvalidFile {
+                file: file_id,
+                message: error.to_string(),
+            },
+        )?;
 
-        Ok(Some(Arc::new(file)))
+        // publish one shared File when concurrent readers loaded the same binding
+        let file = Arc::new(file);
+        let file = self
+            .files
+            .cache
+            .files
+            .entry(cache_key)
+            .or_insert(file)
+            .clone();
+
+        Ok(Some(file))
     }
 
     /// Return one workspace path metadata for one revision and workspace path.
@@ -271,26 +298,26 @@ impl Repository {
         Ok(None)
     }
 
-    /// Return one file content identity from one revision.
-    pub fn file_content_id(
+    /// Return one file Blob from one revision.
+    pub fn file_blob(
         &self,
         revision: Revision,
         file_id: FileId,
-    ) -> Result<Option<ContentId>, RepositoryError> {
+    ) -> Result<Option<Blob>, RepositoryError> {
         // resolve embedded Builtin FileIds from their immutable table
         if let Some(builtin) = self.embedded_builtin.builtin_file(file_id) {
-            return Ok(Some(builtin.content_id()));
+            return Ok(Some(builtin.blob()));
         }
 
         // read editable revision files
         let revision = self.revision(revision)?;
-        let content_id = self
+        let blob = self
             .files
             .entries
             .get(revision.files(), &file_id)
-            .map(|entry| entry.content_id);
+            .map(|entry| entry.blob);
 
-        Ok(content_id)
+        Ok(blob)
     }
 
     /// Return the logical path for one file in one revision.

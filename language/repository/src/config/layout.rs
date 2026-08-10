@@ -3,15 +3,17 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    DEFAULT_PACKAGE_DIRECTORY, DEFAULT_VENDOR_DIRECTORY, DEFAULT_WORKSPACE_CACHE_DIRECTORY,
     DESTACK_CACHE_DIR, DESTACK_HOME, DESTACK_PACKAGE_DIR, Environment, HOME, LOCAL_APPDATA,
-    Settings, USERPROFILE,
+    Settings, UNIX_DESTACK_HOME_DIRECTORY, USERPROFILE, WINDOWS_DESTACK_HOME_DIRECTORY,
 };
 
-const DEFAULT_WORKSPACE_CACHE_DIRECTORY: &str = ".destack";
-const DEFAULT_PACKAGE_DIRECTORY: &str = "packages";
-const DEFAULT_VENDOR_DIRECTORY: &str = "vendor";
-const UNIX_DESTACK_HOME_DIRECTORY: &str = ".destack";
-const WINDOWS_DESTACK_HOME_DIRECTORY: &str = "Destack";
+#[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
+use crate::{
+    ARTIFACT_DIRECTORY, BLOB_DIRECTORY, CACHE_DIRECTORY, LANGUAGE_DIRECTORY, WORKSPACE_DIRECTORY,
+};
+#[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
+use destack_core::stable_hash_value_128;
 
 /// Resolved Destack storage layout for one invocation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -29,6 +31,28 @@ pub struct DestackLayout {
 }
 
 impl DestackLayout {
+    /// Return the shared Blob directory.
+    #[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
+    pub(crate) fn blob_directory(&self) -> PathBuf {
+        self.language_cache().join(BLOB_DIRECTORY)
+    }
+
+    /// Return one repository artifact directory.
+    #[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
+    pub(crate) fn artifact_directory(&self, repository_root: &Path) -> PathBuf {
+        let language_cache = self.language_cache();
+        if self.workspace_cache.starts_with(repository_root) {
+            return language_cache.join(ARTIFACT_DIRECTORY);
+        }
+
+        let repository = format!("{:032x}", stable_hash_value_128(&repository_root));
+
+        language_cache
+            .join(WORKSPACE_DIRECTORY)
+            .join(repository)
+            .join(ARTIFACT_DIRECTORY)
+    }
+
     /// Resolve the layout for one workspace invocation.
     pub fn resolve(
         workspace_root: &Path,
@@ -73,6 +97,14 @@ impl DestackLayout {
         override_path: Option<&Path>,
     ) -> PathBuf {
         resolve_home(cwd, environment, override_path)
+    }
+
+    /// Return the language cache directory.
+    #[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
+    fn language_cache(&self) -> PathBuf {
+        self.workspace_cache
+            .join(CACHE_DIRECTORY)
+            .join(LANGUAGE_DIRECTORY)
     }
 }
 

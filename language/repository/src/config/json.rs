@@ -1,6 +1,6 @@
 use std::io::{Error, ErrorKind};
 
-use destack_source::{Content, File, strip_json};
+use destack_source::{File, strip_json};
 use serde_json::{self, Value};
 
 /// Build one file content error.
@@ -30,16 +30,18 @@ pub fn parse_jsonc_text(content: &str) -> Result<Value, serde_json::Error> {
 
 /// Parse one file as strict file text.
 pub fn parse_json_file(file: &File) -> Result<Value, serde_json::Error> {
-    match file.content.payload() {
-        Content::Text { content } => parse_json_text(content),
-        Content::Binary { .. } => Err(json_content_error("file is not text")),
+    if file.ty.is_binary() {
+        return Err(json_content_error("file is not text"));
     }
+
+    parse_json_text(file.text())
 }
 
 /// Parse one file as fileC text.
 pub fn parse_jsonc_file(file: &File) -> Result<Value, serde_json::Error> {
-    match file.content.payload() {
-        Content::Text { content } => parse_jsonc_text(content),
-        Content::Binary { .. } => Err(json_content_error("file is not text")),
+    if file.ty.is_binary() {
+        return Err(json_content_error("file is not text"));
     }
+
+    parse_jsonc_text(file.text())
 }

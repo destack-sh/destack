@@ -1,7 +1,4 @@
-use std::path::Path;
-
 use dashmap::mapref::entry::Entry;
-use destack_source::{Content, FileType};
 
 use crate::repository::{Ref, Repository, RepositoryError, Revision};
 
@@ -53,37 +50,5 @@ impl Repository {
         };
 
         Ok(did_advance)
-    }
-
-    /// Load one workspace file payload from the attached file system.
-    pub fn load_workspace_file_content(&self, path: &Path) -> Result<Content, RepositoryError> {
-        let file_type = FileType::from_path_or_unknown(path);
-        let file_system = self.file_system();
-
-        // read binary payload
-        if file_type.is_binary() {
-            let content = file_system
-                .read(path)
-                .map_err(|error| RepositoryError::FileSystem {
-                    operation: "read",
-                    path: path.to_path_buf(),
-                    message: error.to_string(),
-                })?;
-
-            Ok(Content::Binary { content })
-        }
-        // read text payload
-        else {
-            let content =
-                file_system
-                    .read_to_string(path)
-                    .map_err(|error| RepositoryError::FileSystem {
-                        operation: "read_to_string",
-                        path: path.to_path_buf(),
-                        message: error.to_string(),
-                    })?;
-
-            Ok(Content::Text { content })
-        }
     }
 }
