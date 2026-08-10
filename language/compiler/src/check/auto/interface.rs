@@ -3,10 +3,54 @@ use smallvec::SmallVec;
 
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
-use crate::check::{CheckState, Origin, Relation};
+use crate::check::{CheckState, Origin, Relation, Verdict};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
+    /// Decide whether one type intrinsically satisfies one applied compiler-known interface.
+    pub(in crate::check) fn satisfies_intrinsic_interface(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        interface: dir::AutoInterface,
+    ) -> CompilerResult<Verdict> {
+        // require intrinsic binary protocols to use the receiver type on both sides
+        if matches!(
+            interface,
+            dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual
+        ) {
+            let (module, application) = self.nominal_application(target)?;
+            let arguments = self.type_ids(module, application.arguments)?;
+            let [other] = arguments else {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "intrinsic {} application has {} arguments",
+                        interface.name(),
+                        arguments.len()
+                    ),
+                });
+            };
+
+            // read argument solutions settled since the bound was queued
+            let other = self.shallow_resolve(*other)?;
+            let receiver_holds = self.decide_relation(origin, Relation::Equal, ty, other)?;
+            if !receiver_holds {
+                // an open argument leaves the receiver rule undecided
+                if !self.open_type_variables([ty, other])?.is_empty() {
+                    return Ok(Verdict::Ambiguous);
+                }
+
+                return Ok(Verdict::Fails);
+            }
+        }
+
+        // decide the interface's own conformance rule
+        let holds = self.satisfies_auto_interface(origin, ty, interface)?;
+
+        Ok(Verdict::decided(holds))
+    }
+
     /// Decide whether one type satisfies a compiler-known auto interface.
     pub(in crate::check) fn satisfies_auto_interface(
         &mut self,
@@ -28,6 +72,8 @@ impl CheckState<'_> {
 
             Some((ty, interface, scope))
         };
+
+        // serve the memo
         if let Some(key) = &key
             && let Some(holds) = self.conforms.get(key)
         {
@@ -68,21 +114,58 @@ impl CheckState<'_> {
             // TODO #Incomplete: the remaining auto interfaces never hold
             dir::AutoInterface::Unpin | dir::AutoInterface::Zeroable => Ok(false),
             dir::AutoInterface::Concrete => self.satisfies_concrete(origin, ty),
+            dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual => {
+                self.satisfies_builtin_equality(origin, ty, interface)
+            }
             // leave derivable interfaces to their generated extensions
             dir::AutoInterface::Clone
             | dir::AutoInterface::Debug
             | dir::AutoInterface::Default
             | dir::AutoInterface::Hash
-            | dir::AutoInterface::Equal
-            | dir::AutoInterface::PartialEqual
             | dir::AutoInterface::Compare
             | dir::AutoInterface::PartialCompare
             | dir::AutoInterface::Serialize
             | dir::AutoInterface::Deserialize => Ok(false),
         }?;
+
+        // memoize the settled decision
         if let Some(key) = key {
             self.conforms.insert(key, holds);
         }
+
+        Ok(holds)
+    }
+
+    /// Decide intrinsic equality conformance for builtin scalar values.
+    fn satisfies_builtin_equality(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        interface: dir::AutoInterface,
+    ) -> CompilerResult<bool> {
+        // read the subject's scalar domain
+        let ty = self.reduce_type_head(origin, ty)?;
+        let domain = self.ty(ty)?.scalar_domain();
+
+        // discrete scalar domains compare exactly, floats only partially
+        let holds = matches!(
+            (interface, domain),
+            (
+                dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual,
+                Some(
+                    dir::ScalarDomain::Integer
+                        | dir::ScalarDomain::Bigint
+                        | dir::ScalarDomain::Character
+                        | dir::ScalarDomain::Symbol
+                        | dir::ScalarDomain::Boolean
+                        | dir::ScalarDomain::Null
+                        | dir::ScalarDomain::Undefined,
+                ),
+            ) | (
+                dir::AutoInterface::PartialEqual,
+                Some(dir::ScalarDomain::Float)
+            )
+        );
 
         Ok(holds)
     }
@@ -155,7 +238,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<()> {
-        // record one conformance for each concrete nominal instance
+        // collect every concrete nominal declaration in the module
         let mut nominals = Vec::new();
         for (symbol, definition) in self.module(module).definitions.iter_definitions() {
             let is_nominal = matches!(

@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     CheckState, InterfaceConformanceObligation, InterfaceMember, MemberCandidate, MemberLookup,
-    ObligationCheck, ObligationFailure, Origin, Relation, TypeSubstitution,
+    ObligationCheck, ObligationFailure, Origin, Relation, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -14,12 +14,15 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: &InterfaceConformanceObligation,
     ) -> CompilerResult<ObligationCheck> {
+        // read the declaration this obligation proves conformance for
         let symbol = obligation.symbol;
         let Some(definition) = self.definition(symbol)? else {
             return Err(CompilerError::Internal {
                 message: format!("interface conformance has no definition: {symbol:?}"),
             });
         };
+
+        // extensions implement for their target, nominals for themselves
         let extension_target = match definition {
             dir::Definition::Extension(extension) => Some(extension.target.r#type()),
             dir::Definition::Struct(_) | dir::Definition::Class(_) | dir::Definition::Enum(_) => {
@@ -29,6 +32,7 @@ impl CheckState<'_> {
             | dir::Definition::Interface(_)
             | dir::Definition::Newtype(_) => return Ok(ObligationCheck::Holds),
         };
+        // read the declared members and the interfaces they must satisfy
         let members = definition.members().to_vec();
         let implementations = definition
             .implementations()
@@ -59,6 +63,8 @@ impl CheckState<'_> {
                 .any(|application| {
                     application.resolution.target.language_item() == Some(dir::LanguageItem::Unsafe)
                 });
+
+        // collect the failures and the members selected per interface
         let mut failures = Vec::new();
         let mut member_selections = Vec::with_capacity(implementations.len());
 
@@ -72,14 +78,18 @@ impl CheckState<'_> {
                 is_unsafe_extension,
             )?;
             match selected_members {
-                Some(members) => member_selections.push(members),
-                None => {
+                ConformanceSelection::Selected(members) => member_selections.push(members),
+                ConformanceSelection::Missing => {
                     failures.push(ObligationFailure::InterfaceNotImplemented {
                         source,
                         ty: target,
                         interface,
                     });
                     member_selections.push(Vec::new());
+                }
+                // re-run the whole obligation once the variables solve
+                ConformanceSelection::Undecided(stalls) => {
+                    return Ok(ObligationCheck::Ambiguous(stalls));
                 }
             }
         }
@@ -107,6 +117,8 @@ impl CheckState<'_> {
                 ),
             });
         }
+
+        // write each interface's selected members onto its conformance
         for (conformance, members) in conformances.iter_mut().zip(member_selections) {
             conformance.members = members;
         }
@@ -122,21 +134,39 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
         is_unsafe_extension: bool,
-    ) -> CompilerResult<Option<Vec<dir::MemberConformance>>> {
+    ) -> CompilerResult<ConformanceSelection> {
         // validate compiler-known markers through their compiler rule
         let (_, application) = self.nominal_application(interface)?;
         let auto_interface = self
             .language_item(application.symbol)?
             .and_then(dir::AutoInterface::from_language_item)
-            .filter(|interface| interface.is_marker());
-        if let Some(interface) = auto_interface {
-            if is_unsafe_extension && interface.permits_unsafe_implementation() {
-                return Ok(Some(Vec::new()));
+            .filter(|interface| {
+                interface.is_marker()
+                    || matches!(
+                        interface,
+                        dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual
+                    )
+            });
+        if let Some(auto_interface) = auto_interface {
+            if is_unsafe_extension && auto_interface.permits_unsafe_implementation() {
+                return Ok(ConformanceSelection::Selected(Vec::new()));
             }
 
-            let conforms = self.satisfies_auto_interface(origin, target, interface)?;
-
-            return Ok(conforms.then(Vec::new));
+            // derive intrinsic conformance, or select declared members below
+            match self.satisfies_intrinsic_interface(origin, target, interface, auto_interface)? {
+                Verdict::Holds => return Ok(ConformanceSelection::Selected(Vec::new())),
+                // markers have no members to fall through to
+                Verdict::Fails if auto_interface.is_marker() => {
+                    return Ok(ConformanceSelection::Missing);
+                }
+                Verdict::Fails => {}
+                // leave the conformance undecided while its variables stay open
+                Verdict::Ambiguous => {
+                    return Ok(ConformanceSelection::Undecided(
+                        self.open_type_variables([target, interface])?,
+                    ));
+                }
+            }
         }
 
         // resolve associated projections through the declared implementation
@@ -149,9 +179,40 @@ impl CheckState<'_> {
             &substitution,
         )?
         else {
-            return Ok(None);
+            return Ok(ConformanceSelection::Missing);
         };
-        let requirements = self.interface_requirements(interface, target)?;
+
+        // read the members, signatures, and inherited interfaces it demands
+        let mut requirements = self.interface_requirements(interface, target)?;
+
+        // project interface-owner members through this implementation's
+        //  refinements: every plain spelling of the implemented application
+        //  names this same conformance
+        let mut base = interface;
+        while let Some(refined) = self.refined_head(base)? {
+            base = refined.base;
+        }
+        if base != interface
+            && let dir::Type::Application(base_instance) = self.ty(base)?
+        {
+            let module = self.module_id;
+            let base_arguments = self
+                .type_ids(base.module_id, base_instance.arguments)?
+                .to_vec();
+            for index in 0..requirements.members.len() {
+                let Some(ty) = requirements.members[index].ty else {
+                    continue;
+                };
+                let plain =
+                    self.plain_applications_of(ty, base_instance.symbol, &base_arguments)?;
+                let mut rewritten = ty;
+                for occurrence in plain {
+                    rewritten = self.replace_type(module, rewritten, occurrence, interface)?;
+                }
+                requirements.members[index].ty = Some(rewritten);
+            }
+        }
+
         let mut selected = Vec::new();
 
         // match each named requirement against declared or inherent members
@@ -175,7 +236,6 @@ impl CheckState<'_> {
 
             // include matching members inherited by the target declaration
             if candidates.is_empty() {
-                // use target members that do not come from this declaration
                 let inherent = self.inherent_member_candidates(origin, target, requirement)?;
                 for candidate in inherent {
                     let ty = candidate.callable.unwrap_or(candidate.access_type);
@@ -191,7 +251,7 @@ impl CheckState<'_> {
                         requirement: requirement.symbol,
                     });
                 } else if !requirement.is_optional {
-                    return Ok(None);
+                    return Ok(ConformanceSelection::Missing);
                 }
 
                 continue;
@@ -218,7 +278,7 @@ impl CheckState<'_> {
                     }
                 }
                 let Some(member) = selected else {
-                    return Ok(None);
+                    return Ok(ConformanceSelection::Missing);
                 };
 
                 member
@@ -237,7 +297,7 @@ impl CheckState<'_> {
         let signatures =
             self.decide_interface_signatures(origin, Relation::Satisfies, target, &requirements)?;
         if !signatures {
-            return Ok(None);
+            return Ok(ConformanceSelection::Missing);
         }
 
         // validate inherited interfaces through the same declaration
@@ -249,13 +309,57 @@ impl CheckState<'_> {
                 members,
                 is_unsafe_extension,
             )?;
-            let Some(inherited) = inherited else {
-                return Ok(None);
-            };
-            selected.extend(inherited);
+            match inherited {
+                ConformanceSelection::Selected(inherited) => selected.extend(inherited),
+                ConformanceSelection::Missing => {
+                    return Ok(ConformanceSelection::Missing);
+                }
+                ConformanceSelection::Undecided(stalls) => {
+                    return Ok(ConformanceSelection::Undecided(stalls));
+                }
+            }
         }
 
-        Ok(Some(selected))
+        Ok(ConformanceSelection::Selected(selected))
+    }
+
+    /// Collect the applications of one symbol with the given arguments.
+    fn plain_applications_of(
+        &self,
+        ty: dir::GlobalTypeId,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
+        // walk the type tree from the root, visiting each node once
+        let mut found = SmallVec::new();
+        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        let mut visited = SmallVec::<[dir::GlobalTypeId; 16]>::new();
+        pending.push(ty);
+
+        while let Some(id) = pending.pop() {
+            if visited.contains(&id) {
+                continue;
+            }
+
+            visited.push(id);
+            let node = self.ty(id)?;
+
+            // match the application's symbol and exact arguments
+            if let dir::Type::Application(instance) = node
+                && instance.symbol == symbol
+                && self.type_ids(id.module_id, instance.arguments)? == arguments
+                && !found.contains(&id)
+            {
+                found.push(id);
+
+                continue;
+            }
+
+            // descend into every child of an unmatched node
+            self.for_each_type_child(id.module_id, &node, |child| pending.push(child))?;
+        }
+
+        Ok(found)
     }
 
     /// Return target members matching one interface requirement.
@@ -272,6 +376,8 @@ impl CheckState<'_> {
             requirement.space,
             requirement.key,
         )?;
+
+        // a nominal implementation only ever yields declaration candidates
         let candidates = match lookup {
             MemberLookup::Missing => Vec::new(),
             MemberLookup::Found(candidates) => candidates,
@@ -299,16 +405,19 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<ObligationCheck> {
+        // read the subject's reduced head
         let ty = self.reduce_type_head(origin, ty)?;
 
         // hold without checking once an operand already reported an error
         if self.any_error_operand(&[ty])? {
             return Ok(ObligationCheck::holds());
         }
+        // decide the interface's own conformance rule
         if self.satisfies_auto_interface(origin, ty, interface)? {
             return Ok(ObligationCheck::holds());
         }
 
+        // report the unsatisfied interface against the obligation's source
         let source = self.origin_source(origin)?;
         let failure = ObligationFailure::AutoInterfaceNotSatisfied {
             source,
@@ -318,4 +427,14 @@ impl CheckState<'_> {
 
         Ok(ObligationCheck::fail(failure))
     }
+}
+
+/// One declared conformance selection outcome.
+enum ConformanceSelection {
+    /// The interface is implemented by these member selections.
+    Selected(Vec<dir::MemberConformance>),
+    /// The interface has no implementation.
+    Missing,
+    /// Open variables leave the conformance undecided.
+    Undecided(SmallVec<[dir::TypeVariableId; 2]>),
 }

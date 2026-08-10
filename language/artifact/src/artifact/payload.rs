@@ -8,10 +8,9 @@ use destack_source::{ContentId, ModuleId, PackageId, ProductId, ProfileId, Targe
 use crate::{
     ArtifactError, ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build,
     Bundle, Data, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
-    DirImported,
-    DirMaterialized, DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared, IndexKind,
-    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex,
-    ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared,
+    IndexKind, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph,
+    ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use serde::{Deserialize, Serialize};
 
@@ -222,7 +221,8 @@ impl ArtifactPayload {
                     | (
                         ArtifactKey::DirElaborated { .. },
                         ArtifactPayload::DirElaborated(_)
-                    ) | (
+                    )
+                    | (
                         ArtifactKey::DirChecked { .. },
                         ArtifactPayload::DirChecked(_)
                     )

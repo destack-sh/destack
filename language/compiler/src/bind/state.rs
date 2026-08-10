@@ -163,18 +163,24 @@ impl<'a> BindState<'a> {
 
     /// Attach the global scope at the current module cursor.
     pub(in crate::bind) fn attach_global_scope(&mut self) {
-        let parent = self.scope();
-        let global = self.bindings.get_scope_by_id(self.global_scope);
-
-        // keep the first global block as the visibility root
-        if global.parent.is_some() {
+        // keep the first attachment as the visibility root
+        if self
+            .bindings
+            .get_scope_by_id(self.namespace_scope)
+            .parent
+            .is_some()
+        {
             return;
         }
 
-        self.bindings.get_scope_by_id_mut(self.global_scope).parent = Some(parent);
+        // route module lookups through the ancestor global scope
+        let global = dir::LocalScope::new(self.global_scope, dir::LocalScopeMark::end());
         self.bindings
-            .get_scope_by_id_mut(parent.id)
-            .append_child(self.global_scope);
+            .get_scope_by_id_mut(self.namespace_scope)
+            .parent = Some(global);
+        self.bindings
+            .get_scope_by_id_mut(self.global_scope)
+            .append_child(self.namespace_scope);
     }
 
     /// Push one scope while visiting children.

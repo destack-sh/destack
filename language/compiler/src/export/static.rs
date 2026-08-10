@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
+use crate::ExportResult;
 use crate::export::state::ExportState;
-use crate::r#static::{StaticError, StaticEvaluator, StaticGuard, StaticGuardError};
-use crate::{ExportError, ExportResult};
+use crate::r#static::{StaticError, StaticEvaluator, StaticGuard};
 
 impl ExportState<'_> {
     /// Return whether static export decorators attached to one node allow it.
@@ -23,8 +23,8 @@ impl ExportState<'_> {
         for decorator in decorators {
             match StaticGuard::classify(self.view, self.strings(), decorator) {
                 StaticGuard::Ordinary => {}
-                StaticGuard::Rejected(error) => {
-                    self.report_static_guard_error(error)?;
+                StaticGuard::Rejected(_) => {
+                    // checking owns the guard diagnostics; export only decides presence
                     self.static_visibility_by_node.insert(owner, false);
 
                     return Ok(false);
@@ -100,44 +100,10 @@ impl ExportState<'_> {
             self.strings(),
         );
 
+        // checking owns the guard diagnostics; export only decides presence
         match evaluator.evaluate_boolean(condition) {
             Ok(value) => Ok(Some(value)),
-            Err(StaticError::NotBoolean(expression)) => {
-                let anchor = self.anchor_node(expression.id)?;
-                self.report_diagnostic(ExportError::StaticIfRequiresBoolean { anchor });
-
-                Ok(None)
-            }
-            Err(StaticError::NotStatic(expression)) => {
-                let anchor = self.anchor_node(expression.id)?;
-                self.report_diagnostic(ExportError::StaticIfNotStatic { anchor });
-
-                Ok(None)
-            }
+            Err(StaticError::NotBoolean(_) | StaticError::NotStatic(_)) => Ok(None),
         }
-    }
-
-    /// Report one malformed static guard.
-    fn report_static_guard_error(&mut self, error: StaticGuardError) -> ExportResult<()> {
-        match error {
-            StaticGuardError::InvalidInvocation { node } => {
-                let anchor = self.anchor_node(node.id)?;
-                self.report_diagnostic(ExportError::InvalidStaticIfInvocation { anchor });
-            }
-            StaticGuardError::MissingCondition { node } => {
-                let anchor = self.anchor_node(node.id)?;
-                self.report_diagnostic(ExportError::StaticIfRequiresCondition { anchor });
-            }
-            StaticGuardError::MultipleConditions { node } => {
-                let anchor = self.anchor_node(node.id)?;
-                self.report_diagnostic(ExportError::StaticIfRequiresOneArgument { anchor });
-            }
-            StaticGuardError::InvalidCondition { node } => {
-                let anchor = self.anchor_node(node.id)?;
-                self.report_diagnostic(ExportError::StaticIfRequiresCondition { anchor });
-            }
-        }
-
-        Ok(())
     }
 }

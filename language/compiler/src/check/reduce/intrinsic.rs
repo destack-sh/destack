@@ -66,6 +66,9 @@ impl CheckState<'_> {
                 self.reduce_string_mapping_application(origin, module, item, instance)
             }
             dir::LanguageItem::NoInfer => self.reduce_noinfer_application(origin, module, instance),
+            dir::LanguageItem::Unsigned => {
+                self.reduce_unsigned_application(origin, module, instance)
+            }
             dir::LanguageItem::Awaited => self.reduce_awaited_application(origin, module, instance),
             dir::LanguageItem::Readonly => {
                 self.reduce_form_constructor(origin, module, instance, dir::Form::Readonly)
@@ -119,6 +122,28 @@ impl CheckState<'_> {
         }
     }
 
+    /// Reduce one unsigned integer type projection.
+    fn reduce_unsigned_application(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        instance: &dir::GenericApplication,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let [target] = self.type_ids(module, instance.arguments)? else {
+            return Ok(None);
+        };
+        let target = self.reduce_type_head(origin, *target)?;
+
+        // project only settled builtin integers to their unsigned width
+        let dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) = self.ty(target)? else {
+            return Ok(None);
+        };
+        let ty = dir::Type::Primitive(dir::PrimitiveType::Integer(integer.unsigned()));
+        let ty = self.intern_type(ty)?;
+
+        Ok(Some(ty))
+    }
+
     /// Return whether one declaration is a transparent compiler-known intrinsic alias.
     pub(in crate::check) fn is_transparent_intrinsic_alias(
         &mut self,
@@ -130,6 +155,7 @@ impl CheckState<'_> {
                 dir::LanguageItem::Awaited
                     | dir::LanguageItem::NoInfer
                     | dir::LanguageItem::Readonly
+                    | dir::LanguageItem::Unsigned
             ) || item.string_mapping().is_some()
         });
 

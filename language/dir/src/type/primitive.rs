@@ -314,6 +314,17 @@ impl IntegerType {
         }
     }
 
+    /// Return the unsigned integer type with the same width.
+    pub fn unsigned(self) -> Self {
+        match self {
+            Self::Fixed { width, .. } => Self::Fixed {
+                width,
+                is_signed: false,
+            },
+            Self::Pointer { .. } => Self::Pointer { is_signed: false },
+        }
+    }
+
     /// Whether the integer type is signed.
     pub fn is_signed(&self) -> bool {
         match self {

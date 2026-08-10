@@ -178,6 +178,28 @@ export { @if(false) Foo, @if(true) Bar } from "./dep.ds";
 }
 
 #[test]
+fn test_export_drops_generic_static_if_invocation() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+const value = 1;
+
+@if<boolean>(true)
+export { value };
+"#,
+        )
+        .build();
+
+    // checking owns the guard diagnostics; export drops the gated root silently
+    compiler.assert_dir_exported_diagnostics(
+        "main.ds", r#"
+"#,
+    );
+}
+
+/// Reject generic arguments on `@if` export guards.
+#[test]
 fn test_export_reports_generic_static_if_invocation() {
     let compiler = TestSession::builder()
         .module(
@@ -191,11 +213,17 @@ export { value };
         )
         .build();
 
-    compiler.assert_dir_exported_diagnostics(
+    compiler.assert_dir_exported(
         "main.ds",
+        DirRows::exports().with_summaries().with_export_stats(),
         r#"
-/// @diagnostic.error id=invalid-static-export-condition message="`@if` export guard must be invoked as `@if(condition)`"
-/// @diagnostic.label line=4 column=1 span="@if<boolean>(true)" line_source="@if<boolean>(true)"
+const value = 1;
+
+@if<boolean>(true)
+export { value };
+
+/// @export.summary
+/// @export.stats roots=2 expressions=visibility:2,export:2 symbols=scanned:2 guards=evaluated:0,skipped:1
 "#,
     );
 }

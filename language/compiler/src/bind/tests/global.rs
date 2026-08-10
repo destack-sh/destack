@@ -27,7 +27,7 @@ import { Process, Task } from "runtime";
 /// @binding.symbol symbol=Task role=local kind=import scope=<module>@2
 
 global {
-/// @binding.scope scope=scope1 kind=global parent=<module>@3
+/// @binding.scope scope=scope1 kind=global
 
     let process: Process;
     /// @binding.symbol symbol=process#1 role=local kind=variable scope=scope1@0 mutability=mutable origin=global
@@ -47,7 +47,7 @@ let process: string = "local";
 /// @binding.symbol symbol=process#2 role=local kind=variable scope=<module>@3 mutability=mutable
 
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
-/// @binding.scope scope=<module> kind=module owner=<module>
+/// @binding.scope scope=<module> kind=module parent=scope1@end owner=<module>
 
 /// @binding.summary symbols=7 scopes=4 declarations=6 node_scopes=21 owner_scopes=1
 /// @bind.stats files=1 roots=3

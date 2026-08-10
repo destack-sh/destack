@@ -165,7 +165,7 @@ impl Compiler {
                     [source] => state.import_binding(*source)?,
                     _ => None,
                 };
-                let declaration = declaration.or_else(|| match &imported {
+                let declaration = declaration.or(match &imported {
                     Some(dir::ExportBinding::Import { local, .. }) => Some(*local),
                     Some(
                         dir::ExportBinding::Local { .. } | dir::ExportBinding::ReExport { .. },

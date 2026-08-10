@@ -809,6 +809,9 @@ define_language_items! {
 
             /// Builtin integer marker.
             Integer => (NewtypeInterface, "math/integer", "Integer"),
+
+            /// Same-width unsigned integer type.
+            Unsigned => (Type, "math/integer", "Unsigned"),
         }
 
         /// `destack:math/math`.
@@ -819,6 +822,9 @@ define_language_items! {
 
         /// `destack:math/number`.
         number {
+            /// The global `Infinity` constant.
+            Infinity => (Variable, "math/number", "Infinity"),
+
             /// The global `NaN` constant.
             NaN => (Variable, "math/number", "NaN"),
 
@@ -827,6 +833,22 @@ define_language_items! {
 
             /// The `Number.NaN` constant.
             NumberNaN => (Variable, "math/number", "NaN", "math.Number.NaN"),
+
+            /// The `Number.NEGATIVE_INFINITY` constant.
+            NumberNegativeInfinity => (
+                Variable,
+                "math/number",
+                "NEGATIVE_INFINITY",
+                "math.Number.NEGATIVE_INFINITY"
+            ),
+
+            /// The `Number.POSITIVE_INFINITY` constant.
+            NumberPositiveInfinity => (
+                Variable,
+                "math/number",
+                "POSITIVE_INFINITY",
+                "math.Number.POSITIVE_INFINITY"
+            ),
         }
 
         /// `destack:math/vector`.

@@ -41,7 +41,7 @@ import { dep as local, type TypeDep } from "dep";
 /// @binding.symbol symbol=TypeDep role=local kind=import scope=<module>@2
 
 global {
-/// @binding.scope scope=scope1 kind=global parent=<module>@3
+/// @binding.scope scope=scope1 kind=global
 
     let process: Process;
     /// @binding.symbol symbol=process role=local kind=variable scope=scope1@0 mutability=mutable origin=global
@@ -94,7 +94,7 @@ type Pick<T> = {
 };
 
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
-/// @binding.scope scope=<module> kind=module owner=<module>
+/// @binding.scope scope=<module> kind=module parent=scope1@end owner=<module>
 
 /// @binding.summary symbols=15 scopes=9 declarations=14 node_scopes=63 owner_scopes=2
 /// @bind.stats files=1 roots=6
