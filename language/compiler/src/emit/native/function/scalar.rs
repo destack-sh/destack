@@ -1,5 +1,6 @@
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
+use destack_core::{FloatFormat, float_to_bits};
 use destack_mir as mir;
 use destack_native as native;
 
@@ -428,7 +429,7 @@ impl<'a> FunctionEmitter<'a> {
             mir::ConvertMode::Exact => {
                 let rounded = builder.ins().trunc(value);
                 let difference = builder.ins().fsub(value, rounded);
-                let zero = self.float_zero(source_type, builder)?;
+                let zero = self.emit_float_constant(source_type, 0.0, builder)?;
                 let changed =
                     builder
                         .ins()
@@ -457,16 +458,17 @@ impl<'a> FunctionEmitter<'a> {
 
         // enforce the exact half-open integer domain in floating point
         let (lower, lower_is_infinite) = if target_signed {
-            self.float_power_of_two(source_type, target_width - 1, true, builder)?
+            self.emit_float_power_of_two(source_type, target_width - 1, true, builder)?
         } else {
-            (self.float_zero(source_type, builder)?, false)
+            (self.emit_float_constant(source_type, 0.0, builder)?, false)
         };
         let upper_exponent = if target_signed {
             target_width - 1
         } else {
             target_width
         };
-        let (upper, _) = self.float_power_of_two(source_type, upper_exponent, false, builder)?;
+        let (upper, _) =
+            self.emit_float_power_of_two(source_type, upper_exponent, false, builder)?;
         let lower_condition = if lower_is_infinite {
             cir::condcodes::FloatCC::LessThanOrEqual
         } else {
@@ -550,8 +552,8 @@ impl<'a> FunctionEmitter<'a> {
         Ok(value)
     }
 
-    /// Build one signed power-of-two floating-point constant.
-    fn float_power_of_two(
+    /// Emit one signed power-of-two floating-point constant.
+    fn emit_float_power_of_two(
         &self,
         ty: cir::Type,
         exponent: u16,
@@ -565,89 +567,45 @@ impl<'a> FunctionEmitter<'a> {
             _ => return Err(self.invalid("native conversion source is not a supported float")),
         };
         let is_infinite = exponent >= maximum_exponent;
-        let value = match (ty, is_infinite) {
-            (cir::types::F16, true) => {
-                let bits = if is_negative { 0xfc00 } else { 0x7c00 };
-                builder
-                    .ins()
-                    .f16const(cir::immediates::Ieee16::with_bits(bits))
-            }
-            (cir::types::F32, true) => {
-                let bits = if is_negative {
-                    0xff80_0000
-                } else {
-                    0x7f80_0000
-                };
-                builder
-                    .ins()
-                    .f32const(cir::immediates::Ieee32::with_bits(bits))
-            }
-            (cir::types::F64, true) => {
-                let bits = if is_negative {
-                    0xfff0_0000_0000_0000
-                } else {
-                    0x7ff0_0000_0000_0000
-                };
-                builder
-                    .ins()
-                    .f64const(cir::immediates::Ieee64::with_bits(bits))
-            }
-            (cir::types::F16, false) => {
-                let bits = cir::immediates::Ieee16::pow2(exponent as i32).bits();
-                let bits = bits | if is_negative { 0x8000 } else { 0 };
-                builder
-                    .ins()
-                    .f16const(cir::immediates::Ieee16::with_bits(bits))
-            }
-            (cir::types::F32, false) => {
-                let bits = cir::immediates::Ieee32::pow2(exponent as i32).bits();
-                let bits = bits | if is_negative { 0x8000_0000 } else { 0 };
-                builder
-                    .ins()
-                    .f32const(cir::immediates::Ieee32::with_bits(bits))
-            }
-            (cir::types::F64, false) => {
-                let bits = cir::immediates::Ieee64::pow2(exponent as i32).bits();
-                let bits = bits
-                    | if is_negative {
-                        0x8000_0000_0000_0000
-                    } else {
-                        0
-                    };
-                builder
-                    .ins()
-                    .f64const(cir::immediates::Ieee64::with_bits(bits))
-            }
-            _ => return Err(self.invalid("native conversion source is not a supported float")),
-        };
+        let magnitude = 2.0_f64.powi(i32::from(exponent));
+        let value = if is_negative { -magnitude } else { magnitude };
+        let value = self.emit_float_constant(ty, value, builder)?;
 
         Ok((value, is_infinite))
     }
 
-    /// Build one positive floating-point zero.
-    fn float_zero(
+    /// Emit one floating-point constant in an exact native format.
+    pub(super) fn emit_float_constant(
         &self,
         ty: cir::Type,
+        value: f64,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let value = match ty {
+        let format = match ty {
+            cir::types::F16 => FloatFormat::Float16,
+            cir::types::F32 => FloatFormat::Float32,
+            cir::types::F64 => FloatFormat::Float64,
+            _ => return Err(self.invalid("native constant requires a floating-point type")),
+        };
+        let bits = float_to_bits(format, value);
+        let constant = match ty {
             cir::types::F16 => builder
                 .ins()
-                .f16const(cir::immediates::Ieee16::with_bits(0)),
+                .f16const(cir::immediates::Ieee16::with_bits(bits as u16)),
             cir::types::F32 => builder
                 .ins()
-                .f32const(cir::immediates::Ieee32::with_bits(0)),
+                .f32const(cir::immediates::Ieee32::with_bits(bits as u32)),
             cir::types::F64 => builder
                 .ins()
-                .f64const(cir::immediates::Ieee64::with_bits(0)),
-            _ => return Err(self.invalid("native conversion source is not a supported float")),
+                .f64const(cir::immediates::Ieee64::with_bits(bits)),
+            _ => return Err(self.invalid("native constant requires a floating-point type")),
         };
 
-        Ok(value)
+        Ok(constant)
     }
 
     /// Trap when one native condition is true.
-    fn trap(
+    pub(super) fn trap(
         &self,
         condition: cir::Value,
         trap: native::abi::Trap,

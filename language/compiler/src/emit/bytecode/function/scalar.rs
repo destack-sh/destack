@@ -22,6 +22,11 @@ impl<'a> FunctionEmitter<'a> {
             | mir::Intrinsic::BitReverse
             | mir::Intrinsic::RotateLeft
             | mir::Intrinsic::RotateRight
+            | mir::Intrinsic::IsolateLowestOne
+            | mir::Intrinsic::DivideCeil
+            | mir::Intrinsic::RemainderEuclidean
+            | mir::Intrinsic::IsMultipleOf
+            | mir::Intrinsic::AbsDiff
             | mir::Intrinsic::AddOverflow
             | mir::Intrinsic::SubOverflow
             | mir::Intrinsic::MulOverflow
@@ -36,8 +41,22 @@ impl<'a> FunctionEmitter<'a> {
             | mir::Intrinsic::SatSub => {
                 self.emit_integer_intrinsic(destination, intrinsic, &arguments)
             }
+            mir::Intrinsic::Midpoint | mir::Intrinsic::Clamp => {
+                let source = arguments
+                    .first()
+                    .copied()
+                    .ok_or_else(|| self.internal("numeric intrinsic argument is missing"))?;
+                let ty = self.register_type(source)?;
+                if ty.is_signed_integer() || ty.is_unsigned_integer() {
+                    self.emit_integer_intrinsic(destination, intrinsic, &arguments)
+                } else {
+                    self.emit_float_intrinsic(destination, intrinsic, &arguments)
+                }
+            }
             mir::Intrinsic::Sqrt
             | mir::Intrinsic::Abs
+            | mir::Intrinsic::IsFinite
+            | mir::Intrinsic::IsInfinite
             | mir::Intrinsic::Fma
             | mir::Intrinsic::CopySign
             | mir::Intrinsic::Min
@@ -58,7 +77,9 @@ impl<'a> FunctionEmitter<'a> {
             | mir::Intrinsic::Floor
             | mir::Intrinsic::Ceil
             | mir::Intrinsic::Trunc
-            | mir::Intrinsic::Round => {
+            | mir::Intrinsic::Round
+            | mir::Intrinsic::RoundTiesEven
+            | mir::Intrinsic::RoundTiesAway => {
                 self.emit_float_intrinsic(destination, intrinsic, &arguments)
             }
             mir::Intrinsic::Transmute
@@ -102,6 +123,13 @@ impl<'a> FunctionEmitter<'a> {
             mir::Intrinsic::BitReverse => bytecode::IntegerOperation::BitReverse,
             mir::Intrinsic::RotateLeft => bytecode::IntegerOperation::RotateLeft,
             mir::Intrinsic::RotateRight => bytecode::IntegerOperation::RotateRight,
+            mir::Intrinsic::IsolateLowestOne => bytecode::IntegerOperation::IsolateLowestOne,
+            mir::Intrinsic::Midpoint => bytecode::IntegerOperation::Midpoint,
+            mir::Intrinsic::Clamp => bytecode::IntegerOperation::Clamp,
+            mir::Intrinsic::DivideCeil => bytecode::IntegerOperation::DivideCeil,
+            mir::Intrinsic::RemainderEuclidean => bytecode::IntegerOperation::RemainderEuclidean,
+            mir::Intrinsic::IsMultipleOf => bytecode::IntegerOperation::IsMultipleOf,
+            mir::Intrinsic::AbsDiff => bytecode::IntegerOperation::AbsDiff,
             mir::Intrinsic::AddOverflow => bytecode::IntegerOperation::AddOverflow,
             mir::Intrinsic::SubOverflow => bytecode::IntegerOperation::SubtractOverflow,
             mir::Intrinsic::MulOverflow => bytecode::IntegerOperation::MultiplyOverflow,
@@ -169,6 +197,8 @@ impl<'a> FunctionEmitter<'a> {
         let operation = match intrinsic {
             mir::Intrinsic::Sqrt => bytecode::FloatOperation::SquareRoot,
             mir::Intrinsic::Abs => bytecode::FloatOperation::Absolute,
+            mir::Intrinsic::IsFinite => bytecode::FloatOperation::IsFinite,
+            mir::Intrinsic::IsInfinite => bytecode::FloatOperation::IsInfinite,
             mir::Intrinsic::Fma => bytecode::FloatOperation::FusedMultiplyAdd,
             mir::Intrinsic::CopySign => bytecode::FloatOperation::CopySign,
             mir::Intrinsic::Min => bytecode::FloatOperation::Minimum,
@@ -189,7 +219,11 @@ impl<'a> FunctionEmitter<'a> {
             mir::Intrinsic::Floor => bytecode::FloatOperation::Floor,
             mir::Intrinsic::Ceil => bytecode::FloatOperation::Ceil,
             mir::Intrinsic::Trunc => bytecode::FloatOperation::Truncate,
-            mir::Intrinsic::Round => bytecode::FloatOperation::RoundTiesEven,
+            mir::Intrinsic::Round => bytecode::FloatOperation::Round,
+            mir::Intrinsic::RoundTiesEven => bytecode::FloatOperation::RoundTiesEven,
+            mir::Intrinsic::RoundTiesAway => bytecode::FloatOperation::RoundTiesAway,
+            mir::Intrinsic::Midpoint => bytecode::FloatOperation::Midpoint,
+            mir::Intrinsic::Clamp => bytecode::FloatOperation::Clamp,
             _ => return Err(self.internal("intrinsic is not a float operation")),
         };
         let opcode = bytecode::Opcode::float(operation, scalar)

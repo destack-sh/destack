@@ -98,6 +98,50 @@ function integer {
     );
 }
 
+/// Emit integer arithmetic intrinsics as direct scalar operations.
+#[test]
+fn test_emit_bytecode_integer_intrinsics() {
+    let program = TestProgram::mir(
+        r#"
+export function arithmetic(v0: int64, v1: int64, v2: int64): boolean {
+entry(v0: int64, v1: int64, v2: int64):
+    v3: int64 = intrinsic.math.arithmetic.midpoint(v0, v1)
+    v4: int64 = intrinsic.math.arithmetic.clamp(v3, v1, v2)
+    v5: int64 = intrinsic.math.arithmetic.divideCeil(v4, v1)
+    v6: int64 = intrinsic.math.arithmetic.remainderEuclidean(v5, v2)
+    v7: int64 = intrinsic.math.bits.isolateLowestOne(v6)
+    v8: boolean = intrinsic.math.arithmetic.isMultipleOf(v7, v2)
+    return v8
+}
+
+export function difference(v0: int64, v1: int64): uint64 {
+entry(v0: int64, v1: int64):
+    v2: uint64 = intrinsic.math.arithmetic.absDiff(v0, v1)
+    return v2
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function arithmetic {
+    int.midpoint r3, r0, r1: int64
+    int.clamp r0, r3, r1, r2: int64
+    int.divideCeil r3, r0, r1: int64
+    int.remainderEuclidean r0, r3, r2: int64
+    int.isolateLowestOne r1, r0: int64
+    int.isMultipleOf r0, r1, r2: int64
+    return r0
+}
+
+function difference {
+    int.absDiff r2, r0, r1: int64
+    return r2
+}
+"#,
+    );
+}
+
 /// Emit floating-point arithmetic, unary, comparison, and selection operations.
 #[test]
 fn test_emit_bytecode_float_operations() {
@@ -128,6 +172,68 @@ function float {
     float.lt r2, r1, r0: float64
     select r3, r2, r1, r0
     return r3
+}
+"#,
+    );
+}
+
+/// Emit floating-point arithmetic intrinsics as direct scalar operations.
+#[test]
+fn test_emit_bytecode_float_intrinsics() {
+    let program = TestProgram::mir(
+        r#"
+export function bounds(v0: float64, v1: float64, v2: float64): float64 {
+entry(v0: float64, v1: float64, v2: float64):
+    v3: float64 = intrinsic.math.arithmetic.midpoint(v0, v1)
+    v4: float64 = intrinsic.math.arithmetic.clamp(v3, v1, v2)
+    return v4
+}
+
+export function finite(v0: float64): boolean {
+entry(v0: float64):
+    v1: boolean = intrinsic.math.float.isFinite(v0)
+    return v1
+}
+
+export function infinite(v0: float64): boolean {
+entry(v0: float64):
+    v1: boolean = intrinsic.math.float.isInfinite(v0)
+    return v1
+}
+
+export function rounding(v0: float64): float64 {
+entry(v0: float64):
+    v1: float64 = intrinsic.math.float.round(v0)
+    v2: float64 = intrinsic.math.float.roundTiesEven(v1)
+    v3: float64 = intrinsic.math.float.roundTiesAway(v2)
+    return v3
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function bounds {
+    float.midpoint r3, r0, r1: float64
+    float.clamp r0, r3, r1, r2: float64
+    return r0
+}
+
+function finite {
+    float.isFinite r1, r0: float64
+    return r1
+}
+
+function infinite {
+    float.isInfinite r1, r0: float64
+    return r1
+}
+
+function rounding {
+    float.round r1, r0: float64
+    float.roundTiesEven r0, r1: float64
+    float.roundTiesAway r1, r0: float64
+    return r1
 }
 "#,
     );
