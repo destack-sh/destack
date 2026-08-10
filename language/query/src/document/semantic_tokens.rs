@@ -661,7 +661,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         // namespace values have module rather than symbol identity
         if matches!(
             self.module.resolved()?.references.get(node_id),
-            Some(dir::Reference::Namespace(_))
+            Some(dir::Reference::Namespace { module: _, .. })
         ) {
             return Ok(Some((
                 SemanticTokenType::Namespace,

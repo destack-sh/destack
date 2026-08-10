@@ -155,7 +155,7 @@ impl CompletionReceiver {
                     dir::TypeExpression::Member { left, .. } => left.into_any(),
                     dir::TypeExpression::Reference { .. } => {
                         return match module.resolved()?.references.get(global_source) {
-                            Some(dir::Reference::Namespace(module_id)) => {
+                            Some(dir::Reference::Namespace { module: module_id, .. }) => {
                                 Ok(Some(Self::Namespace {
                                     module_id: *module_id,
                                 }))
@@ -219,7 +219,7 @@ impl CompletionReceiver {
         module: &ModuleQueryContext<'_>,
     ) -> QueryResult<Option<ModuleId>> {
         let module_id = match module.resolved()?.references.get(receiver) {
-            Some(dir::Reference::Namespace(module_id)) => Some(*module_id),
+            Some(dir::Reference::Namespace { module: module_id, .. }) => Some(*module_id),
             _ => None,
         };
 
