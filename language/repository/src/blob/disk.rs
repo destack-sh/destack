@@ -13,7 +13,7 @@ use memmap2::MmapOptions;
 #[cfg(target_os = "wasi")]
 use parking_lot::Mutex;
 
-use super::{BlobStore, BlobStoreError};
+use super::{BlobStore, BlobStoreError, BlobWriter};
 
 /// Process-local sequence for temporary Blob files.
 static TEMPORARY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -26,6 +26,21 @@ static PUBLICATION: Mutex<()> = Mutex::new(());
 pub struct DiskBlobStore {
     /// Root containing content-addressed Blob files.
     root: PathBuf,
+}
+
+/// Incremental writer into one disk BlobStore.
+#[derive(Debug)]
+struct DiskBlobWriter<'a> {
+    /// Destination BlobStore.
+    store: &'a DiskBlobStore,
+    /// Unpublished temporary path.
+    path: Option<PathBuf>,
+    /// Unpublished temporary file.
+    file: Option<File>,
+    /// Incremental BLAKE3 state.
+    hasher: blake3::Hasher,
+    /// Bytes written so far.
+    byte_len: u64,
 }
 
 impl DiskBlobStore {
@@ -106,36 +121,14 @@ impl DiskBlobStore {
 
 impl BlobStore for DiskBlobStore {
     fn put(&self, input: &mut dyn Read) -> Result<Blob, BlobStoreError> {
-        let (temporary_path, mut temporary) = self.temporary()?;
-        let mut input = HashingReader::new(input);
-        let byte_len = match io::copy(&mut input, &mut temporary) {
-            Ok(byte_len) => byte_len,
-            Err(error) => {
-                drop(temporary);
-                Self::discard(&temporary_path)?;
+        let mut writer = DiskBlobWriter::new(self)?;
+        io::copy(input, &mut writer)?;
 
-                return Err(error.into());
-            }
-        };
+        writer.commit()
+    }
 
-        // durably finish the staged bytes
-        let synced = temporary.sync_all();
-        drop(temporary);
-        if let Err(error) = synced {
-            Self::discard(&temporary_path)?;
-
-            return Err(error.into());
-        }
-
-        // identify the complete staged bytes
-        let blob = Blob::new(BlobId::new(input.finish()), byte_len);
-
-        // publish the exact Blob and always remove its staging file
-        let published = self.publish(&temporary_path, blob);
-        Self::discard(&temporary_path)?;
-        published?;
-
-        Ok(blob)
+    fn writer(&self) -> Result<Box<dyn BlobWriter + '_>, BlobStoreError> {
+        Ok(Box::new(DiskBlobWriter::new(self)?))
     }
 
     fn open(&self, blob: Blob) -> Result<Arc<BlobMemory>, BlobStoreError> {
@@ -236,6 +229,93 @@ impl BlobStore for DiskBlobStore {
         }
 
         Ok(())
+    }
+}
+
+impl<'a> DiskBlobWriter<'a> {
+    /// Create one unpublished Blob writer.
+    fn new(store: &'a DiskBlobStore) -> Result<Self, BlobStoreError> {
+        let (path, file) = store.temporary()?;
+
+        Ok(Self {
+            store,
+            path: Some(path),
+            file: Some(file),
+            hasher: blake3::Hasher::new(),
+            byte_len: 0,
+        })
+    }
+
+    /// Publish the complete Blob.
+    fn commit(mut self) -> Result<Blob, BlobStoreError> {
+        let file = self
+            .file
+            .take()
+            .ok_or_else(|| io::Error::other("Blob writer is complete"))?;
+        let path = self
+            .path
+            .take()
+            .ok_or_else(|| io::Error::other("Blob writer has no temporary path"))?;
+
+        // durably finish the staged bytes
+        let synced = file.sync_all();
+        drop(file);
+        if let Err(error) = synced {
+            DiskBlobStore::discard(&path)?;
+
+            return Err(error.into());
+        }
+
+        // identify the complete staged bytes
+        let digest = *self.hasher.finalize().as_bytes();
+        let blob = Blob::new(BlobId::new(digest), self.byte_len);
+
+        // publish the exact Blob and always remove its staging file
+        let published = self.store.publish(&path, blob);
+        DiskBlobStore::discard(&path)?;
+        published?;
+
+        Ok(blob)
+    }
+}
+
+impl Write for DiskBlobWriter<'_> {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        let file = self
+            .file
+            .as_mut()
+            .ok_or_else(|| io::Error::other("Blob writer is complete"))?;
+        let byte_len = file.write(buffer)?;
+        self.hasher.update(&buffer[..byte_len]);
+        self.byte_len += byte_len as u64;
+
+        Ok(byte_len)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        let file = self
+            .file
+            .as_mut()
+            .ok_or_else(|| io::Error::other("Blob writer is complete"))?;
+
+        file.flush()
+    }
+}
+
+impl BlobWriter for DiskBlobWriter<'_> {
+    fn commit(self: Box<Self>) -> Result<Blob, BlobStoreError> {
+        DiskBlobWriter::commit(*self)
+    }
+}
+
+impl Drop for DiskBlobWriter<'_> {
+    fn drop(&mut self) {
+        let file = self.file.take();
+        drop(file);
+
+        if let Some(path) = self.path.take() {
+            let _discarded = DiskBlobStore::discard(&path);
+        }
     }
 }
 

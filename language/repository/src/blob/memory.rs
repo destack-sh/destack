@@ -8,13 +8,22 @@ use destack_core::{Blob, BlobId, BlobMemory};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
-use super::{BlobStore, BlobStoreError};
+use super::{BlobStore, BlobStoreError, BlobWriter};
 
 /// BlobStore backed by process-local memory.
 #[derive(Debug, Default)]
 pub struct MemoryBlobStore {
     /// Immutable bytes by exact identity.
     blobs: RwLock<FxHashMap<BlobId, Arc<BlobMemory>>>,
+}
+
+/// Incremental writer into one memory BlobStore.
+#[derive(Debug)]
+struct MemoryBlobWriter<'a> {
+    /// Destination BlobStore.
+    store: &'a MemoryBlobStore,
+    /// Bytes written so far.
+    bytes: Vec<u8>,
 }
 
 /// Aligned immutable Blob memory.
@@ -35,28 +44,14 @@ impl MemoryBlobStore {
 
 impl BlobStore for MemoryBlobStore {
     fn put(&self, input: &mut dyn Read) -> Result<Blob, BlobStoreError> {
-        let mut bytes = Vec::new();
-        input.read_to_end(&mut bytes)?;
-        let memory = Arc::new(Memory::from_bytes(&bytes));
-        let memory = Arc::new(BlobMemory::from_shared(memory));
-        let blob = memory.blob();
+        let mut writer = MemoryBlobWriter::new(self);
+        io::copy(input, &mut writer)?;
 
-        // retain one aligned copy per exact identity
-        let mut blobs = self.blobs.write();
-        match blobs.entry(blob.id) {
-            hash_map::Entry::Vacant(entry) => {
-                entry.insert(memory);
-            }
-            hash_map::Entry::Occupied(entry) if entry.get().blob() == blob => {}
-            hash_map::Entry::Occupied(entry) => {
-                return Err(BlobStoreError::Corrupt {
-                    expected: blob,
-                    actual: entry.get().blob(),
-                });
-            }
-        }
+        writer.commit()
+    }
 
-        Ok(blob)
+    fn writer(&self) -> Result<Box<dyn BlobWriter + '_>, BlobStoreError> {
+        Ok(Box::new(MemoryBlobWriter::new(self)))
     }
 
     fn open(&self, blob: Blob) -> Result<Arc<BlobMemory>, BlobStoreError> {
@@ -104,6 +99,58 @@ impl BlobStore for MemoryBlobStore {
         io::copy(&mut input, output)?;
 
         Ok(())
+    }
+}
+
+impl<'a> MemoryBlobWriter<'a> {
+    /// Create one unpublished Blob writer.
+    fn new(store: &'a MemoryBlobStore) -> Self {
+        Self {
+            store,
+            bytes: Vec::new(),
+        }
+    }
+
+    /// Publish the complete Blob.
+    fn commit(self) -> Result<Blob, BlobStoreError> {
+        let memory = Arc::new(Memory::from_bytes(&self.bytes));
+        let memory = Arc::new(BlobMemory::from_shared(memory));
+        let blob = memory.blob();
+
+        // retain one aligned copy per exact identity
+        let mut blobs = self.store.blobs.write();
+        match blobs.entry(blob.id) {
+            hash_map::Entry::Vacant(entry) => {
+                entry.insert(memory);
+            }
+            hash_map::Entry::Occupied(entry) if entry.get().blob() == blob => {}
+            hash_map::Entry::Occupied(entry) => {
+                return Err(BlobStoreError::Corrupt {
+                    expected: blob,
+                    actual: entry.get().blob(),
+                });
+            }
+        }
+
+        Ok(blob)
+    }
+}
+
+impl Write for MemoryBlobWriter<'_> {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        self.bytes.extend_from_slice(buffer);
+
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl BlobWriter for MemoryBlobWriter<'_> {
+    fn commit(self: Box<Self>) -> Result<Blob, BlobStoreError> {
+        MemoryBlobWriter::commit(*self)
     }
 }
 
