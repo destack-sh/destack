@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use base64::Engine as _;
-use destack_artifact::BundleFile;
+use destack_artifact::{BundleFile, BundleSection};
 use destack_repository::{JsAssetMode, Module, Target};
-use destack_source::{Content, File, FileType, ModuleId};
+use destack_source::{File, FileType, ModuleId, Uri};
 use indexmap::{IndexMap, IndexSet};
 
 use super::super::JsLinker;
@@ -14,48 +14,13 @@ use super::model::{Asset, AssetReference};
 use super::name::{content_hash, directory_token, name_token, percent_encode_for_data_url};
 
 impl Asset {
-    /// Build one linker-local asset payload from one source module.
-    fn from_module(module: &Module, file: &File) -> Result<Self, String> {
-        let output_extension = output_extension(module, file)?;
-        let content = Self::content_from_file(file)?;
-        let hash = content_hash(&content)?;
+    /// Build one linker-local Asset from one source module.
+    fn from_module(module: &Module, file: Arc<File>) -> Result<Self, String> {
+        let output_extension = output_extension(module, file.as_ref())?;
+        let hash = content_hash(file.bytes());
         let media_type = media_type(file.ty, &output_extension);
 
-        Ok(Self::new(
-            module.id,
-            content,
-            file.ty,
-            hash,
-            output_extension,
-            media_type,
-            module.uri.clone(),
-        ))
-    }
-
-    /// Build one normalized emitted payload from one loaded file.
-    fn content_from_file(file: &File) -> Result<Content, String> {
-        let file_type = file.ty;
-
-        // text assets keep a textual payload for emission and inline references
-        if file_type.is_text() {
-            let text = match file.content.payload() {
-                Content::Text { content } => content.clone(),
-                Content::Binary { content } => std::str::from_utf8(content)
-                    .map_err(|_| format!("failed to read text asset '{}'", file.uri))?
-                    .to_string(),
-            };
-
-            return Ok(Content::Text { content: text });
-        }
-
-        let bytes = match file.content.payload() {
-            Content::Binary { content } => content.clone(),
-            Content::Text { .. } => {
-                return Err(format!("failed to read binary asset '{}'", file.uri));
-            }
-        };
-
-        Ok(Content::Binary { content: bytes })
+        Ok(Self::new(file, hash, output_extension, media_type))
     }
 
     /// Render the configured output file name for this asset.
@@ -73,17 +38,19 @@ impl Asset {
 
     /// Build one inline asset data URL.
     fn inline_url(&self) -> String {
-        match self.content() {
-            Content::Text { content } => {
-                let encoded = percent_encode_for_data_url(content);
+        let file = self.file();
 
-                format!("data:{},{}", self.media_type(), encoded)
-            }
-            Content::Binary { content } => {
-                let encoded = base64::engine::general_purpose::STANDARD.encode(content);
+        // encode binary bytes as base64
+        if file.ty.is_binary() {
+            let encoded = base64::engine::general_purpose::STANDARD.encode(file.bytes());
 
-                format!("data:{};base64,{}", self.media_type(), encoded)
-            }
+            format!("data:{};base64,{}", self.media_type(), encoded)
+        }
+        // percent encode validated UTF-8 text
+        else {
+            let encoded = percent_encode_for_data_url(file.text());
+
+            format!("data:{},{}", self.media_type(), encoded)
         }
     }
 }
@@ -107,7 +74,7 @@ fn output_extension(module: &Module, file: &File) -> Result<String, String> {
     Ok(extension.to_string())
 }
 
-/// Return the emitted media type for one asset payload.
+/// Return the emitted media type for one Asset.
 fn media_type(file_type: FileType, output_extension: &str) -> String {
     let media_type = explicit_media_type(file_type)
         .or_else(|| mime_guess::from_ext(output_extension).first_raw())
@@ -164,17 +131,17 @@ impl<'a> JsLinker<'a> {
     ) -> CompilerResult<Vec<ModuleId>> {
         let mut asset_module_ids = asset_root_modules.iter().copied().collect::<IndexSet<_>>();
 
-        // JS file-loader modules also participate in the asset lane
+        // include JS file loader modules in the emitted assets
         asset_module_ids.extend(self.collect_file_modules(script_module_ids)?);
 
         Ok(asset_module_ids.into_iter().collect())
     }
 
-    /// Collect the file modules that should emit through the asset lane.
+    /// Collect the file modules that should emit as assets.
     fn collect_file_modules(&self, module_ids: &[ModuleId]) -> LinkResult<Vec<ModuleId>> {
         let mut asset_module_ids = Vec::new();
 
-        // file modules in the JS closure emit as linked assets
+        // collect file modules in the JS closure
         for module_id in module_ids {
             let module = self.module(*module_id)?;
 
@@ -193,31 +160,19 @@ impl<'a> JsLinker<'a> {
         self.module(module_id)
     }
 
-    /// Return the loaded source file for one asset module id.
-    fn asset_file(&self, module_id: ModuleId) -> LinkResult<Arc<File>> {
-        let module = self.asset_module(module_id)?;
-        self.file(module.file_id)
-    }
+    /// Return one linker-local Asset from one source module.
+    fn asset(&self, module: &Module) -> LinkResult<Asset> {
+        let file = self.file(module.file_id)?;
 
-    /// Return one linker-local asset payload from one source module.
-    fn asset(&self, module_id: ModuleId) -> LinkResult<Asset> {
-        let module = self.asset_module(module_id)?;
-        let file = self.asset_file(module_id)?;
-
-        Asset::from_module(module.as_ref(), file.as_ref()).map_err(|message| LinkError::Internal {
+        Asset::from_module(module, file).map_err(|message| LinkError::Internal {
             anchor: (self.package_id).into(),
             package: self.package_id,
             message,
         })
     }
 
-    /// Return one emitted asset output location for one asset payload.
-    fn asset_output_location_with_asset(
-        &self,
-        module_id: ModuleId,
-        asset: &Asset,
-    ) -> LinkResult<OutputLocation> {
-        let module = self.asset_module(module_id)?;
+    /// Return one emitted output location for an Asset.
+    fn asset_output_location(&self, module: &Module, asset: &Asset) -> LinkResult<OutputLocation> {
         let source_path = module.path.as_ref().ok_or_else(|| LinkError::Internal {
             anchor: (self.package_id).into(),
             package: self.package_id,
@@ -248,7 +203,8 @@ impl<'a> JsLinker<'a> {
 
     /// Plan the final reference for one asset module.
     pub(crate) fn plan_asset_reference(&self, module_id: ModuleId) -> LinkResult<AssetReference> {
-        let asset = self.asset(module_id)?;
+        let module = self.asset_module(module_id)?;
+        let asset = self.asset(module.as_ref())?;
         let should_inline = match self.target.js.assets.mode {
             JsAssetMode::Inline => true,
             JsAssetMode::Emit => self
@@ -256,7 +212,7 @@ impl<'a> JsLinker<'a> {
                 .js
                 .assets
                 .inline_limit
-                .is_some_and(|limit| asset.byte_len() as u64 <= limit),
+                .is_some_and(|limit| asset.byte_len() <= limit),
             JsAssetMode::Reference => false,
         };
 
@@ -272,9 +228,9 @@ impl<'a> JsLinker<'a> {
             });
         }
 
-        // emitted assets use the configured asset file naming lane
+        // use the configured asset file name for emitted assets
         Ok(AssetReference::Emitted {
-            output_location: self.asset_output_location_with_asset(module_id, &asset)?,
+            output_location: self.asset_output_location(module.as_ref(), &asset)?,
         })
     }
 
@@ -304,17 +260,16 @@ impl<'a> JsLinker<'a> {
         module_id: ModuleId,
         output_location: &OutputLocation,
     ) -> LinkResult<BundleFile> {
-        let asset = self.asset(module_id)?;
+        let module = self.asset_module(module_id)?;
+        let file = self.file(module.file_id)?;
 
-        debug_assert_eq!(asset.module_id(), module_id);
-
-        asset
-            .output_file(output_location, self.compiler)
-            .map_err(|error| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: error.to_string(),
-            })
+        Ok(BundleFile::new(
+            BundleSection::Asset,
+            Uri::from_path(output_location.path()),
+            file.ty,
+            file.blob(),
+            Some(module.uri.clone()),
+        ))
     }
 
     /// Emit the concrete asset output files for one planned asset reference map.
@@ -324,7 +279,7 @@ impl<'a> JsLinker<'a> {
     ) -> LinkResult<Vec<BundleFile>> {
         let mut files = Vec::new();
 
-        // emit one copied file for each emitted asset reference
+        // emit one output for each emitted asset reference
         for (module_id, asset_reference) in asset_reference_map {
             let AssetReference::Emitted { output_location } = asset_reference else {
                 continue;

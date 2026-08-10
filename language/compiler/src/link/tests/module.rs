@@ -87,7 +87,8 @@ impl TestModule {
             None,
             FileType::Text,
             source.to_string(),
-        );
+        )
+        .expect("test MIR source should load");
         let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
             .expect("test MIR should be text");
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);

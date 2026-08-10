@@ -253,10 +253,7 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let module = self.module(context.revision(), module)?;
         let file = self.file(context, module.file_id)?;
-        let content = self
-            .repository
-            .intern_content(file.content.payload().clone())?;
-        let asset = Asset::new(file.ty, content, Some(module.uri.clone()), None);
+        let asset = Asset::new(file.ty, file.blob(), Some(module.uri.clone()), None);
 
         Ok(ArtifactPayload::Asset(Arc::new(asset)))
     }

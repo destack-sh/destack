@@ -2,12 +2,11 @@ use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar, DirParsed,
-    EnvironmentBound,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirParsed, EnvironmentBound,
 };
 use destack_dir as dir;
 use destack_repository::{ConditionSet, Module, ProviderContext};
-use destack_source::{Content, ModuleId, ProfileId};
+use destack_source::{ModuleId, ProfileId};
 use dir::NodeVisitor as _;
 
 use super::state::BindState;
@@ -53,13 +52,12 @@ impl Compiler {
         )?;
         let stats = state.stats;
         let dir_bound = state.finish();
-        context.emit_sidecar(ArtifactSidecar::new(
+        let metadata = stats.render_metadata();
+        context.emit_sidecar(self.put_sidecar(
             "metadata",
             iter::once(("phase", "bind")),
-            Content::Text {
-                content: stats.render_metadata(),
-            },
-        ));
+            metadata.as_bytes(),
+        )?);
 
         Ok(ArtifactPayload::DirBound(Arc::new(dir_bound)))
     }

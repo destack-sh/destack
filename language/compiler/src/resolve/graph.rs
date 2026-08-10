@@ -105,7 +105,7 @@ impl ModuleGraphDependencies {
                     }
                 }
                 ArtifactDependency::Source(source)
-                    if source.key == SourceDependencyKey::Modules && !is_module_set_observed =>
+                    if source.key() == SourceDependencyKey::Modules && !is_module_set_observed =>
                 {
                     is_module_set_observed = true;
                 }

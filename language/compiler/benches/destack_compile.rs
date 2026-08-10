@@ -1,6 +1,6 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use destack_artifact::{ArtifactKey, BuildId, DiskBlobStore};
+use destack_artifact::{ArtifactKey, BuildId};
 use destack_core::FxIndexSet;
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
@@ -130,12 +130,7 @@ fn build_workspace(workspace_root: &Path, sources: &[SourceFile]) -> (Arc<Sessio
     );
     let build_id = BuildId::current()
         .unwrap_or_else(|error| panic!("failed to identify compiler benchmark build: {error}"));
-    let host = Host::new(
-        build_id,
-        environment,
-        file_system,
-        Arc::new(DiskBlobStore::new()),
-    );
+    let host = Host::new(build_id, environment, file_system);
     let repository = Arc::new(Repository::new(
         workspace_root.clone(),
         host,
@@ -154,12 +149,14 @@ fn build_workspace(workspace_root: &Path, sources: &[SourceFile]) -> (Arc<Sessio
             .current(&reference)
             .unwrap_or_else(|error| panic!("missing workspace revision: {error}"));
 
+        // store exact source bytes
+        let blob = repository
+            .put_blob(source.content.as_bytes())
+            .expect("benchmark source Blob should store");
+
         // edited repository state
         let revision = repository
-            .edit(
-                revision,
-                [Edit::set_text(&logical_path, source.content.clone())],
-            )
+            .edit(revision, [Edit::set_file(&logical_path, blob)])
             .unwrap_or_else(|error| panic!("failed to materialize benchmark source: {error}"))
             .after;
 

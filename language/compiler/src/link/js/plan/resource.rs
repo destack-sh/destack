@@ -6,7 +6,7 @@ use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::Module;
 use destack_serde::Value;
-use destack_source::{Content, Loader, ModuleId};
+use destack_source::{Loader, ModuleId};
 
 use crate::link::TargetLocation;
 use crate::{LinkError, LinkResult};
@@ -378,7 +378,7 @@ impl<'a> JsLinker<'a> {
 
         if module.loader == Loader::Base64 {
             let file = self.file(module.file_id)?;
-            let Content::Binary { content } = file.content.payload() else {
+            if !file.ty.is_binary() {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
@@ -387,8 +387,8 @@ impl<'a> JsLinker<'a> {
                         module.uri
                     ),
                 });
-            };
-            let encoded = STANDARD.encode(content);
+            }
+            let encoded = STANDARD.encode(file.bytes());
 
             return Ok(insert_string_expression(
                 tree, strings, module.id, anchor, &encoded,
@@ -397,7 +397,7 @@ impl<'a> JsLinker<'a> {
 
         if module.loader.is_text() {
             let file = self.file(module.file_id)?;
-            let Content::Text { content } = file.content.payload() else {
+            if file.ty.is_binary() {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
@@ -406,16 +406,20 @@ impl<'a> JsLinker<'a> {
                         module.uri
                     ),
                 });
-            };
+            }
 
             return Ok(insert_string_expression(
-                tree, strings, module.id, anchor, content,
+                tree,
+                strings,
+                module.id,
+                anchor,
+                file.text(),
             ));
         }
 
         if module.loader == Loader::Binary {
             let file = self.file(module.file_id)?;
-            let Content::Binary { content } = file.content.payload() else {
+            if !file.ty.is_binary() {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
@@ -424,14 +428,14 @@ impl<'a> JsLinker<'a> {
                         module.uri
                     ),
                 });
-            };
+            }
 
             return Ok(insert_binary_expression(
                 tree,
                 strings,
                 module.id,
                 anchor,
-                content.as_slice(),
+                file.bytes(),
             ));
         }
 

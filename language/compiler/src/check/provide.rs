@@ -3,14 +3,14 @@ use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, ArtifactSidecar,
-    DirDeclared, DirResolved, EnvironmentBound, EnvironmentDeclared,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, DirDeclared,
+    DirResolved, EnvironmentBound, EnvironmentDeclared,
 };
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
-use destack_source::{Content, ModuleId};
+use destack_source::ModuleId;
 
-use crate::check::{AnnotatedSource, CheckState, Pass};
+use crate::check::{CheckState, Pass};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 /// Record one provider span around a closure when tracing is active.
@@ -373,13 +373,22 @@ impl Compiler {
         // emit the stats sidecar when the options ask for it
         if options.emit_stats {
             let content = stats.render_metadata();
-            context.emit_sidecar(check_sidecar("metadata", content));
+            context.emit_sidecar(self.put_sidecar(
+                "metadata",
+                iter::once(("phase", "check")),
+                content.as_bytes(),
+            )?);
         }
 
         // emit the recorded trace events as their own sidecar
         let events = emit_events.then(|| check.events());
         if let Some(events) = events {
-            context.emit_sidecar(check_sidecar("events", events.render()));
+            let content = events.render();
+            context.emit_sidecar(self.put_sidecar(
+                "events",
+                iter::once(("phase", "check")),
+                content.as_bytes(),
+            )?);
         }
 
         // write checked DIR tables and report the pass's diagnostics;
@@ -387,7 +396,15 @@ impl Compiler {
         let (checked, diagnostics, annotated) =
             check.finish_check(module, options.emit_checked_types)?;
         for source in annotated {
-            context.emit_sidecar(annotated_sidecar(source));
+            let labels = [
+                ("phase", "check".to_string()),
+                ("module", source.module.uri.to_string()),
+            ];
+            context.emit_sidecar(self.put_sidecar(
+                "annotated",
+                labels,
+                source.content.as_bytes(),
+            )?);
         }
         context.emit_diagnostics(diagnostics);
 
@@ -488,27 +505,4 @@ impl Compiler {
 
         Ok(ArtifactPayload::EnvironmentDeclared(Arc::new(environment)))
     }
-}
-
-/// Return one check-phase sidecar.
-fn check_sidecar(name: &str, content: String) -> ArtifactSidecar {
-    ArtifactSidecar::new(
-        name,
-        iter::once(("phase", "check")),
-        Content::Text { content },
-    )
-}
-
-/// Return one annotated source sidecar for one member module.
-fn annotated_sidecar(source: AnnotatedSource) -> ArtifactSidecar {
-    ArtifactSidecar::new(
-        "annotated",
-        [
-            ("phase", "check".to_string()),
-            ("module", source.module.uri.to_string()),
-        ],
-        Content::Text {
-            content: source.content,
-        },
-    )
 }

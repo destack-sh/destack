@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use destack_core::stable_hash_bytes;
-use destack_source::Content;
 
 /// Return the sanitized directory token for one asset module path.
 pub(super) fn directory_token(
@@ -41,14 +40,11 @@ pub(super) fn name_token(source_path: &Path) -> Option<String> {
     sanitize_output_name(stem)
 }
 
-/// Return one stable content hash for one asset payload.
-pub(super) fn content_hash(content: &Content) -> Result<String, String> {
-    let hash = match content {
-        Content::Text { content } => stable_hash_bytes(content.as_bytes()),
-        Content::Binary { content } => stable_hash_bytes(content),
-    };
+/// Return one stable content hash for exact Asset bytes.
+pub(super) fn content_hash(bytes: &[u8]) -> String {
+    let hash = stable_hash_bytes(bytes);
 
-    Ok(format!("{:08x}", hash as u32))
+    format!("{:08x}", hash as u32)
 }
 
 /// Percent encode one text payload for one data URL.

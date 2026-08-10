@@ -125,18 +125,18 @@ impl Compiler {
         // every declaration that built the effective config feeds the fingerprint
         let mut sources = Vec::with_capacity(config.file_ids.len());
         for file_id in &config.file_ids {
-            let content = self
+            let blob = self
                 .repository
-                .file_content_id(revision, *file_id)
+                .file_blob(revision, *file_id)
                 .map_err(|error| CompilerError::Internal {
                     message: format!(
-                        "failed to load config file content id for {file_id:?}: {error}"
+                        "failed to load configuration File Blob for {file_id:?}: {error}"
                     ),
                 })?
                 .ok_or_else(|| CompilerError::Internal {
-                    message: format!("missing config file content id for {file_id:?}"),
+                    message: format!("missing configuration File Blob for {file_id:?}"),
                 })?;
-            sources.push(SourceDependency::file_content(*file_id, content));
+            sources.push(SourceDependency::file(*file_id, blob.id));
         }
 
         Ok(sources)

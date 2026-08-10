@@ -6,16 +6,17 @@ use std::{env, thread};
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, BuildId, DirBound, DirChecked,
     DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirParsed, DirResolved,
-    EnvironmentBound, MemoryBlobStore, MirLowered, ModuleGraph, NullArtifactStore,
+    EnvironmentBound, MirLowered, ModuleGraph, NullArtifactStore,
 };
 use destack_dir as dir;
 use destack_mir::{FormatOptions, Formatter};
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
-    Revision, RevisionPin, Settings, Trace, TraceAggregate, TraceReport, TraceSnapshot, TraceView,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore, Ref,
+    Repository, Revision, RevisionPin, Settings, Trace, TraceAggregate, TraceReport, TraceSnapshot,
+    TraceView,
 };
 use destack_session::{ArtifactPriority, Executor, Session, SessionError};
-use destack_source::{Content, MemoryFileSystem, ModuleId, ProfileId, TargetId};
+use destack_source::{MemoryFileSystem, ModuleId, ProfileId, TargetId};
 use futures::executor::block_on;
 
 use crate::tests::snapshot::{
@@ -47,7 +48,7 @@ const WARM_ANCHOR_PATH: &str = "__warm.ds";
 #[derive(Debug, Default)]
 pub(crate) struct TestSessionBuilder {
     /// Source files keyed by logical path.
-    files: BTreeMap<String, Content>,
+    files: BTreeMap<String, String>,
     /// Whether to build on a fresh repository without warm bindings.
     is_cold: bool,
 }
@@ -55,24 +56,14 @@ pub(crate) struct TestSessionBuilder {
 impl TestSessionBuilder {
     /// Add one source module.
     pub(crate) fn module(mut self, path: &str, source: &str) -> Self {
-        self.files.insert(
-            path.to_string(),
-            Content::Text {
-                content: source.to_string(),
-            },
-        );
+        self.files.insert(path.to_string(), source.to_string());
 
         self
     }
 
     /// Add one data module.
     pub(crate) fn data(mut self, path: &str, source: &str) -> Self {
-        self.files.insert(
-            path.to_string(),
-            Content::Text {
-                content: source.to_string(),
-            },
-        );
+        self.files.insert(path.to_string(), source.to_string());
 
         self
     }
@@ -132,7 +123,7 @@ impl TestSession {
     }
 
     /// Build one test session from source files.
-    fn build(files: BTreeMap<String, Content>, is_cold: bool) -> Self {
+    fn build(files: BTreeMap<String, String>, is_cold: bool) -> Self {
         let (repository, revision) = if is_cold {
             cold_repository_revision()
         } else {
@@ -144,9 +135,12 @@ impl TestSession {
         // publish sealed test files
         let edits = files
             .iter()
-            .map(|(path, content)| Edit::SetFile {
-                logical_path: path.clone(),
-                content: content.clone(),
+            .map(|(path, source)| {
+                let blob = repository
+                    .put_blob(source.as_bytes())
+                    .expect("test source Blob should store");
+
+                Edit::add_file(path, blob)
             })
             .collect::<Vec<_>>();
         let revision = repository
@@ -329,12 +323,15 @@ impl TestSession {
             .expect("test artifact sidecar should be readable")
             .unwrap_or_else(|| panic!("test artifact sidecar `{name}` should exist"));
 
-        match sidecar.content {
-            Content::Text { content } => content,
-            Content::Binary { .. } => {
-                panic!("test artifact sidecar `{name}` should be text")
-            }
-        }
+        let memory = self
+            .repository
+            .blob_store()
+            .open(sidecar.blob)
+            .unwrap_or_else(|error| panic!("test artifact sidecar `{name}` should load: {error}"));
+
+        String::from_utf8(memory.bytes().to_vec()).unwrap_or_else(|error| {
+            panic!("test artifact sidecar `{name}` should be text: {error}")
+        })
     }
 
     /// Assert bound DIR rows for one module.
@@ -747,7 +744,7 @@ impl TestSession {
     fn build_modules(
         repository: &Repository,
         revision: Revision,
-        files: &BTreeMap<String, Content>,
+        files: &BTreeMap<String, String>,
     ) -> BTreeMap<String, TestModule> {
         let mut entries = BTreeMap::new();
 
@@ -830,7 +827,7 @@ impl TestSession {
     fn module_path_by_id(
         repository: &Repository,
         revision: Revision,
-        files: &BTreeMap<String, Content>,
+        files: &BTreeMap<String, String>,
     ) -> BTreeMap<ModuleId, String> {
         let mut paths = files
             .keys()
@@ -1714,18 +1711,15 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
     BASE.get_or_init(|| {
         let (repository, revision) = cold_repository_revision();
 
+        // store the empty warmup anchor
+        let blob = repository
+            .put_blob(b"")
+            .expect("warm anchor Blob should store");
+
         // anchor the anonymous workspace package so its profile exists
         //  while the warmup checks under it
         let revision = repository
-            .edit(
-                revision,
-                [Edit::SetFile {
-                    logical_path: WARM_ANCHOR_PATH.to_string(),
-                    content: Content::Text {
-                        content: String::new(),
-                    },
-                }],
-            )
+            .edit(revision, [Edit::set_file(WARM_ANCHOR_PATH, blob)])
             .expect("warmup anchor should publish")
             .after;
 
@@ -1807,8 +1801,8 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
         BuildId::test(),
         environment,
         Arc::new(MemoryFileSystem::new()),
-        shared_blob_store(),
     )
+    .with_blob_store(shared_blob_store())
     .with_execution(execution);
     let repository = Arc::new(
         Repository::new(root, host, Settings::default(), layout)
@@ -1819,17 +1813,14 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
         .current(&reference)
         .expect("test repository root ref should exist");
 
+    // store the default compiler test configuration
+    let blob = repository
+        .put_blob(DEFAULT_DESTACK_JSON.as_bytes())
+        .expect("test configuration Blob should store");
+
     // publish the default compiler-test configuration
     let revision = repository
-        .edit(
-            revision,
-            [Edit::AddFile {
-                logical_path: "destack.json".to_string(),
-                content: Content::Text {
-                    content: DEFAULT_DESTACK_JSON.to_string(),
-                },
-            }],
-        )
+        .edit(revision, [Edit::add_file("destack.json", blob)])
         .expect("test repository default config should publish")
         .after;
     repository

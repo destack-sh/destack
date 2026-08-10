@@ -250,7 +250,7 @@ impl JsLinker<'_> {
         });
 
         let code = output.annotate(shaped_code, map.as_ref(), map_reference)?;
-        let content = Compiler::text_output_content(code);
+        let bytes = Compiler::encode_output_text(code);
         let section = if self.target.is_single_file() {
             BundleSection::Entry
         } else {
@@ -258,11 +258,11 @@ impl JsLinker<'_> {
         };
         let mut files = vec![
             self.compiler
-                .intern_output_file(
+                .put_output_file(
                     section,
                     Uri::from_path(output_path),
                     FileType::Script,
-                    content,
+                    &bytes,
                     None,
                 )
                 .map_err(|error| error.to_string())?,
@@ -276,16 +276,16 @@ impl JsLinker<'_> {
             return Ok(files);
         };
 
-        let content = Compiler::source_map_content(map)
+        let bytes = Compiler::encode_source_map(map)
             .map_err(|error| format!("failed to serialize source map: {error}"))?;
 
         files.push(
             self.compiler
-                .intern_output_file(
+                .put_output_file(
                     BundleSection::SourceMap,
                     Uri::from_path(map_path),
                     FileType::SourceMap,
-                    content,
+                    &bytes,
                     None,
                 )
                 .map_err(|error| error.to_string())?,

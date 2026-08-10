@@ -5,7 +5,7 @@ use crate::{Compiler, CompilerResult};
 
 use destack_artifact::{BuildManifest, Bundle, BundleFile, BundleMode, BundleSection, SourceMap};
 use destack_repository::{JsOutputMode, RepositoryError, Target};
-use destack_source::{Content, FileType, ModuleId, Uri};
+use destack_source::{FileType, ModuleId, Uri};
 
 use super::layout::TargetLocation;
 
@@ -66,7 +66,7 @@ impl Compiler {
                 .map_err(|error| RepositoryError::InvalidArtifact {
                     message: format!("failed to build manifest JSON: {error}"),
                 })?;
-        let manifest_content = serde_json::to_string_pretty(&manifest).map_err(|error| {
+        let manifest_text = serde_json::to_string_pretty(&manifest).map_err(|error| {
             RepositoryError::InvalidArtifact {
                 message: format!("failed to serialize manifest JSON: {error}"),
             }
@@ -75,11 +75,12 @@ impl Compiler {
         let output_layout = TargetLocation::new(package_dir, target, target_name);
         let manifest_path = output_layout.manifest_location();
 
-        let file = self.intern_output_file(
+        let bytes = Self::encode_output_text(manifest_text);
+        let file = self.put_output_file(
             BundleSection::Manifest,
             Uri::from_path(manifest_path.path()),
             FileType::Json,
-            Self::text_output_content(manifest_content),
+            &bytes,
             None,
         )?;
 
@@ -88,34 +89,34 @@ impl Compiler {
         Ok(())
     }
 
-    /// Intern one output file payload and return its artifact record.
-    pub(crate) fn intern_output_file(
+    /// Store exact bytes as one emitted output File.
+    pub(crate) fn put_output_file(
         &self,
         section: BundleSection,
         uri: Uri,
         file_type: FileType,
-        content: Content,
+        bytes: &[u8],
         source: Option<Uri>,
     ) -> Result<BundleFile, RepositoryError> {
-        let content = self.repository.intern_content(content)?;
+        let blob = self.repository.put_blob(bytes)?;
 
-        Ok(BundleFile::new(section, uri, file_type, content, source))
+        Ok(BundleFile::new(section, uri, file_type, blob, source))
     }
 
-    /// Build one normalized text output payload.
-    pub(crate) fn text_output_content(mut content: String) -> Content {
-        if !content.is_empty() && !content.ends_with('\n') {
-            content.push('\n');
+    /// Encode one normalized text output.
+    pub(crate) fn encode_output_text(mut text: String) -> Vec<u8> {
+        if !text.is_empty() && !text.ends_with('\n') {
+            text.push('\n');
         }
 
-        Content::Text { content }
+        text.into_bytes()
     }
 
-    /// Build one source map output payload.
-    pub(crate) fn source_map_content(source_map: &SourceMap) -> Result<Content, serde_json::Error> {
+    /// Encode one source map output.
+    pub(crate) fn encode_source_map(source_map: &SourceMap) -> Result<Vec<u8>, serde_json::Error> {
         let source_map = source_map.to_json_value()?;
-        let content = serde_json::to_string(&source_map)?;
+        let text = serde_json::to_string(&source_map)?;
 
-        Ok(Self::text_output_content(content))
+        Ok(Self::encode_output_text(text))
     }
 }

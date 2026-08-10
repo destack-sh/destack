@@ -43,6 +43,7 @@ fn test_mir_file(source: &str) -> File {
         FileType::Text,
         source.to_string(),
     )
+    .expect("test MIR source should load")
 }
 
 /// Parse and format one expected MIR fixture.

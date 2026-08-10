@@ -35,14 +35,17 @@ impl TestProgram {
     /// Parse one MIR program.
     pub(crate) fn mir(source: &str) -> Self {
         let file_id = FileId::new(0);
-        let file = Arc::new(File::from_text(
-            file_id,
-            "<test.dsm>".to_string(),
-            Uri::from_string("<test.dsm>"),
-            None,
-            FileType::Text,
-            source.to_string(),
-        ));
+        let file = Arc::new(
+            File::from_text(
+                file_id,
+                "<test.dsm>".to_string(),
+                Uri::from_string("<test.dsm>"),
+                None,
+                FileType::Text,
+                source.to_string(),
+            )
+            .expect("test MIR source should load"),
+        );
         let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
             .expect("test MIR should be text");
         if parsed
@@ -278,7 +281,7 @@ impl DiagnosticContext for TestMirProvider {
         };
 
         Ok(DiagnosticLabel {
-            content: self.file.content_id(),
+            blob: self.file.blob(),
             target: DiagnosticTarget::Span(span),
             message,
         })

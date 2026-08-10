@@ -150,18 +150,20 @@ fn render_label(
         false => format!(" file={}", quote(&file.name)),
     };
 
-    // labels into sources outside the test revision pin by file only
-    let Ok(content) = repository.content(label.content) else {
-        return format!("/// @diagnostic.{tag} file={}{message}", quote(&file.name));
-    };
-    let file = File::from_content(
+    // load the exact source revision named by the diagnostic label
+    let memory = repository
+        .blob_store()
+        .open(label.blob)
+        .expect("diagnostic snapshot Blob should load");
+    let file = File::from_blob(
         file.id,
         file.name.clone(),
         file.uri.clone(),
         file.path.clone(),
         file.ty,
-        content,
-    );
+        memory,
+    )
+    .expect("diagnostic snapshot source should load");
     let (line, column) = file
         .get_position(span.start)
         .expect("diagnostic snapshot position should exist");

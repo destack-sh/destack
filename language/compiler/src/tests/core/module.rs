@@ -4,7 +4,7 @@ use destack_artifact::{ArtifactDependency, DirParsed, DirParsedFile, SourceDepen
 use destack_dir as dir;
 use destack_parser::{CommentRetention, Parser};
 use destack_repository::{Module, Repository, Revision};
-use destack_source::{ContentId, File, FileId, LanguageType, ProfileId, Span};
+use destack_source::{File, LanguageType, ProfileId, Span};
 
 /// One code module in a compiler test.
 #[derive(Debug)]
@@ -113,17 +113,12 @@ pub(crate) fn parsed_dependencies(
         .files
         .iter()
         .map(|file| {
-            let content = file_content_id(repository, revision, file.file_id);
+            let blob = repository
+                .file_blob(revision, file.file_id)
+                .expect("test file Blob should resolve")
+                .expect("test file Blob should exist");
 
-            ArtifactDependency::Source(SourceDependency::file_content(file.file_id, content))
+            ArtifactDependency::Source(SourceDependency::file(file.file_id, blob.id))
         })
         .collect()
-}
-
-/// Return one file content id from the repository.
-fn file_content_id(repository: &Repository, revision: Revision, file: FileId) -> ContentId {
-    repository
-        .file_content_id(revision, file)
-        .expect("test file content should resolve")
-        .expect("test file content should exist")
 }

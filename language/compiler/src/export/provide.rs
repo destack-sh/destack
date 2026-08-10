@@ -2,12 +2,12 @@ use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar, DirBound, DirExpanded,
-    DirImported, DirParsed,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirExpanded, DirImported,
+    DirParsed,
 };
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
-use destack_source::{Content, ModuleId};
+use destack_source::ModuleId;
 
 use crate::export::state::ExportState;
 use crate::{Compiler, CompilerError, CompilerResult, ExportError};
@@ -75,13 +75,12 @@ impl Compiler {
             .map_err(CompilerError::from)?;
         let stats = state.stats;
         let (exported, diagnostics) = state.finish();
-        context.emit_sidecar(ArtifactSidecar::new(
+        let metadata = stats.render_metadata();
+        context.emit_sidecar(self.put_sidecar(
             "metadata",
             iter::once(("phase", "export")),
-            Content::Text {
-                content: stats.render_metadata(),
-            },
-        ));
+            metadata.as_bytes(),
+        )?);
         for diagnostic in diagnostics {
             self.emit_diagnostic::<ExportError>(context, diagnostic)?;
         }
