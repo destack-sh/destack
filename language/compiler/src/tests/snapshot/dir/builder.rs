@@ -674,26 +674,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.type_table_label(types, type_id.local_id)
     }
 
-    /// Render one reduced type id when it differs from the original type id.
-    pub(crate) fn reduced_type_label(&self, type_id: dir::GlobalTypeId) -> Option<String> {
-        let types = if type_id.module_id != self.tree.module_id {
-            self.foreign_types.get(&type_id.module_id)?
-        } else {
-            self.types.as_ref()?
-        };
-        let reduced = types.get_reduced_type_id(type_id);
-        if reduced == type_id {
-            return None;
-        }
-        let reduced = self.global_type_label(reduced);
-        let original = self.global_type_label(type_id);
-        if reduced == original {
-            return None;
-        }
-
-        Some(reduced)
-    }
-
     /// Render one symbol's checked type.
     pub(crate) fn global_symbol_type_label(&self, symbol: dir::GlobalSymbolId) -> String {
         let type_id = if symbol.module_id != self.tree.module_id {

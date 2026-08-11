@@ -208,7 +208,7 @@ type Counts = { [key: string]: int32 };
 /// @definition.type symbol=Counts source="type Counts = { [key: string]: int32 }" value={ [key: string]: int32 }
 
 const counts: Counts = { apples: 1, oranges: 2 };
-/// @type.symbol symbol=counts source=counts type=Counts reduced={ [key: string]: int32 }
+/// @type.symbol symbol=counts source=counts type={ [key: string]: int32 }
 /// @resolution.pattern source=counts kind=binding target=counts
 /// @resolution.name source=Counts target=Counts
 /// @type.node source={ apples: 1, oranges: 2 } type={ apples: int32; oranges: int32 }

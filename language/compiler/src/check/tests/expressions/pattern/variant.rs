@@ -657,7 +657,6 @@ function describe(mode: Mode): int32 {
 }
 "#,
         r#"
-
 "#,
     );
 }

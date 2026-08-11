@@ -91,7 +91,7 @@ type Route = `api:${string}`;
 /// @definition.type symbol=Route source="type Route = `api:${string}`" value=`api:${string}`
 
 declare const route: Route;
-/// @type.symbol symbol=route source=route type=Route reduced=`api:${string}`
+/// @type.symbol symbol=route source=route type=`api:${string}`
 /// @resolution.pattern source=route kind=binding target=route
 /// @resolution.name source=Route target=Route
 
@@ -143,7 +143,7 @@ section satisfies "users" | "posts";
 === annotated ===
 type Route = `api:${"users" | "posts"}`;
 
-const route: Route = "api:users" as "api:users" | "api:posts";
+const route: "api:users" | "api:posts" = "api:users" as "api:users" | "api:posts";
 
 const section: "users" | "posts" = match (route) {
     "api:users" => "users"
@@ -154,11 +154,11 @@ section satisfies "users" | "posts";
 
 === checked ===
 type Route = `api:${"users" | "posts"}`;
-/// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type=`api:${"users" | "posts"}` reduced="api:users" | "api:posts"
-/// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value=`api:${"users" | "posts"}` reduced="api:users" | "api:posts"
+/// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type="api:users" | "api:posts"
+/// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value="api:users" | "api:posts"
 
 const route: Route = "api:users";
-/// @type.symbol symbol=route source=route type=Route reduced="api:users" | "api:posts"
+/// @type.symbol symbol=route source=route type="api:users" | "api:posts"
 /// @resolution.pattern source=route kind=binding target=route
 /// @resolution.name source=Route target=Route
 

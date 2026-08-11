@@ -160,7 +160,7 @@ match (point) {
 === annotated ===
 type Point = { x: int32; y: int32 };
 
-declare const point: Point;
+declare const point: { x: int32; y: int32 };
 
 match (point) {
     Point { x, y } => x + y
@@ -172,29 +172,29 @@ type Point = { x: int32; y: int32 };
 /// @definition.type symbol=Point source="type Point = { x: int32; y: int32 }" value={ x: int32; y: int32 }
 
 declare const point: Point;
-/// @type.symbol symbol=point source=point type=Point reduced={ x: int32; y: int32 }
+/// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
 /// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 match (point) {
-/// @type.node type=<error>
-/// @type.node source=point type=Point reduced={ x: int32; y: int32 }
+/// @type.node type=int32
+/// @type.node source=point type={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
 
     Point { x, y } => x + y
     /// @resolution.name source=Point target=Point
-    /// @resolution.rejected source="Point { x, y }"
-    /// @type.symbol symbol=x source=x type=<error>
-    /// @type.symbol symbol=y source=y type=<error>
-    /// @type.node source="x + y" type=<error>
-    /// @type.node source=x type=<error>
+    /// @resolution.pattern source="Point { x, y }" kind=nominal_object target=Point fields={ x, y }
+    /// @type.symbol symbol=x source=x type=int32
+    /// @type.symbol symbol=y source=y type=int32
+    /// @type.node source="x + y" type=int32
+    /// @type.node source=x type=int32
     /// @resolution.name source=x target=x
-    /// @resolution.poisoned source="x + y"
+    /// @resolution.operator source="x + y" type=int32 operator="+" kind=builtin operands=[x as int32 families=(integer), y as int32 families=(integer)]
     /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=x
-    /// @type.node source=y type=<error>
+    /// @type.node source=y type=int32
     /// @resolution.name source=y target=y
     /// @resolution.place source=y placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=y root=y
@@ -202,8 +202,9 @@ match (point) {
 }
 "#,
         r#"
-/// @diagnostic.error id=invalid-pattern-tag message="pattern tag '{ x: int32; y: int32 }' is not a nominal type"
-/// @diagnostic.label line=7 column=5 span="Point { x, y }" line_source="Point { x, y } => x + y"
+/// @diagnostic.error id=non-exhaustive-pattern message="match is not exhaustive: '{ x: int32; y: int32 }' is not covered"
+/// @diagnostic.label line=6 column=1 span="match (point) {\n    Point { x, y } => x + y\n}" line_source="match (point) {"
+/// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
     );
 }

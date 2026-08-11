@@ -18,17 +18,17 @@ ok satisfies string;
 === annotated ===
 type Value = Awaited<string>;
 
-const ok: Value = "ready";
+const ok: string = "ready";
 ok satisfies string;
 
 === checked ===
 type Value = Awaited<string>;
-/// @type.symbol symbol=Value source="type Value = Awaited<string>" type=Awaited<string> reduced=string
-/// @definition.type symbol=Value source="type Value = Awaited<string>" value=Awaited<string> reduced=string
+/// @type.symbol symbol=Value source="type Value = Awaited<string>" type=string
+/// @definition.type symbol=Value source="type Value = Awaited<string>" value=string
 /// @resolution.name source=Awaited target=types.object.Awaited
 
 const ok: Value = "ready";
-/// @type.symbol symbol=ok source=ok type=Value reduced=string
+/// @type.symbol symbol=ok source=ok type=string
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 
@@ -36,8 +36,6 @@ ok satisfies string;
 /// @resolution.name source=ok target=ok
 /// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=ok root=ok
-
-/// @generic.instance id=Awaited<string> template=types.object.Awaited arguments=(string)
 "#,
     );
 }
@@ -60,19 +58,19 @@ ok satisfies string;
 === annotated ===
 type Value = Awaited<Promise<Promise<string>>>;
 
-const ok: Value = "ready";
+const ok: string = "ready";
 ok satisfies string;
 
 === checked ===
 type Value = Awaited<Promise<Promise<string>>>;
-/// @type.symbol symbol=Value source="type Value = Awaited<Promise<Promise<string>>>" type=Awaited<Promise<Promise<string>>> reduced=string
-/// @definition.type symbol=Value source="type Value = Awaited<Promise<Promise<string>>>" value=Awaited<Promise<Promise<string>>> reduced=string
+/// @type.symbol symbol=Value source="type Value = Awaited<Promise<Promise<string>>>" type=string
+/// @definition.type symbol=Value source="type Value = Awaited<Promise<Promise<string>>>" value=string
 /// @resolution.name source=Awaited target=types.object.Awaited
 /// @resolution.name source=Promise target=async.promise.Promise
 /// @resolution.name source=Promise target=async.promise.Promise
 
 const ok: Value = "ready";
-/// @type.symbol symbol=ok source=ok type=Value reduced=string
+/// @type.symbol symbol=ok source=ok type=string
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 
@@ -80,10 +78,6 @@ ok satisfies string;
 /// @resolution.name source=ok target=ok
 /// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=ok root=ok
-
-/// @generic.instance id=Awaited<Promise<Promise<string>>> template=types.object.Awaited arguments=(Promise<Promise<string>>)
-/// @generic.instance id=Promise<Promise<string>> template=async.promise.Promise arguments=(Promise<string>)
-/// @generic.instance id=Promise<string> template=async.promise.Promise arguments=(string)
 "#,
     );
 }
@@ -106,26 +100,24 @@ const second: Value = undefined;
 === annotated ===
 type Value = Awaited<null | undefined>;
 
-const first: Value = null as null | undefined;
-const second: Value = undefined as null | undefined;
+const first: null | undefined = null as null | undefined;
+const second: null | undefined = undefined as null | undefined;
 
 === checked ===
 type Value = Awaited<null | undefined>;
-/// @type.symbol symbol=Value source="type Value = Awaited<null | undefined>" type=Awaited<null | undefined> reduced=null | undefined
-/// @definition.type symbol=Value source="type Value = Awaited<null | undefined>" value=Awaited<null | undefined> reduced=null | undefined
+/// @type.symbol symbol=Value source="type Value = Awaited<null | undefined>" type=null | undefined
+/// @definition.type symbol=Value source="type Value = Awaited<null | undefined>" value=null | undefined
 /// @resolution.name source=Awaited target=types.object.Awaited
 
 const first: Value = null;
-/// @type.symbol symbol=first source=first type=Value reduced=null | undefined
+/// @type.symbol symbol=first source=first type=null | undefined
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=Value target=Value
 
 const second: Value = undefined;
-/// @type.symbol symbol=second source=second type=Value reduced=null | undefined
+/// @type.symbol symbol=second source=second type=null | undefined
 /// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Awaited<null | undefined>" template=types.object.Awaited arguments=(null | undefined)
 "#,
     );
 }
@@ -149,12 +141,12 @@ const bad: Value = promise;
 type Value = Awaited<Promise<string>>;
 
 declare const promise: Promise<string>;
-const bad: Value = promise;
+const bad: string = promise;
 
 === checked ===
 type Value = Awaited<Promise<string>>;
-/// @type.symbol symbol=Value source="type Value = Awaited<Promise<string>>" type=Awaited<Promise<string>> reduced=string
-/// @definition.type symbol=Value source="type Value = Awaited<Promise<string>>" value=Awaited<Promise<string>> reduced=string
+/// @type.symbol symbol=Value source="type Value = Awaited<Promise<string>>" type=string
+/// @definition.type symbol=Value source="type Value = Awaited<Promise<string>>" value=string
 /// @resolution.name source=Awaited target=types.object.Awaited
 /// @resolution.name source=Promise target=async.promise.Promise
 
@@ -164,21 +156,19 @@ declare const promise: Promise<string>;
 /// @resolution.name source=Promise target=async.promise.Promise
 
 const bad: Value = promise;
-/// @type.symbol symbol=bad source=bad type=Value reduced=string
+/// @type.symbol symbol=bad source=bad type=string
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 /// @resolution.name source=promise target=promise
 /// @resolution.place source=promise placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=promise root=promise
 
-/// @generic.instance id=Awaited<Promise<string>> template=types.object.Awaited arguments=(Promise<string>)
 /// @generic.instance id=Promise<string> template=async.promise.Promise arguments=(string)
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Promise<string>' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type 'Promise<string>' is not assignable to type 'string'"
 /// @diagnostic.label line=5 column=20 span="promise" line_source="const bad: Value = promise;"
 /// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = promise;" message="expected due to this annotation"
-/// @diagnostic.note message="'Value' reduces to 'string'"
 "#,
     );
 }

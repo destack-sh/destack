@@ -18,19 +18,19 @@ ok satisfies (string, number);
 === annotated ===
 type Args = Parameters<(name: string, count: float64) => boolean>;
 
-const ok: Args = ("Ada", 1);
+const ok: (string, float64) = ("Ada", 1);
 ok satisfies (string, number);
 
 === checked ===
 type Args = Parameters<(name: string, count: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=(string, float64)
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=(string, float64)
 /// @resolution.name source=Parameters target=types.function.Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count: number" type=float64
 
 const ok: Args = ("Ada", 1);
-/// @type.symbol symbol=ok source=ok type=Args reduced=(string, float64)
+/// @type.symbol symbol=ok source=ok type=(string, float64)
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Args target=Args
 
@@ -38,8 +38,6 @@ ok satisfies (string, number);
 /// @resolution.name source=ok target=ok
 /// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=ok root=ok
-
-/// @generic.instance id="Parameters<Function<(string, float64), boolean>>" template=types.function.Parameters arguments=(Function<(string, float64), boolean>)
 "#,
     );
 }
@@ -62,28 +60,26 @@ const full: Args = ("Ada", 1);
 === annotated ===
 type Args = Parameters<(name: string, count?: float64) => boolean>;
 
-const short: Args = ("Ada",) as (string, float64 | undefined?);
-const full: Args = ("Ada", 1 as float64 | undefined);
+const short: (string, float64 | undefined?) = ("Ada",) as (string, float64 | undefined?);
+const full: (string, float64 | undefined?) = ("Ada", 1 as float64 | undefined);
 
 === checked ===
 type Args = Parameters<(name: string, count?: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" type=Parameters<Function<(string, float64 | undefined?), boolean>> reduced=(string, float64 | undefined?)
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" value=Parameters<Function<(string, float64 | undefined?), boolean>> reduced=(string, float64 | undefined?)
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" type=(string, float64 | undefined?)
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" value=(string, float64 | undefined?)
 /// @resolution.name source=Parameters target=types.function.Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count?: number" type=float64 | undefined
 
 const short: Args = ("Ada",);
-/// @type.symbol symbol=short source=short type=Args reduced=(string, float64 | undefined?)
+/// @type.symbol symbol=short source=short type=(string, float64 | undefined?)
 /// @resolution.pattern source=short kind=binding target=short
 /// @resolution.name source=Args target=Args
 
 const full: Args = ("Ada", 1);
-/// @type.symbol symbol=full source=full type=Args reduced=(string, float64 | undefined?)
+/// @type.symbol symbol=full source=full type=(string, float64 | undefined?)
 /// @resolution.pattern source=full kind=binding target=full
 /// @resolution.name source=Args target=Args
-
-/// @generic.instance id="Parameters<Function<(string, float64 | undefined?), boolean>>" template=types.function.Parameters arguments=(Function<(string, float64 | undefined?), boolean>)
 "#,
     );
 }
@@ -105,22 +101,20 @@ const ok: Args = ("Ada", true, false);
 === annotated ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 
-const ok: Args = ("Ada", true, false) as (string, ...boolean[]);
+const ok: (string, ...boolean[]) = ("Ada", true, false) as (string, ...boolean[]);
 
 === checked ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=Parameters<Function<(string, ...boolean[]), void>> reduced=(string, ...boolean[])
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=Parameters<Function<(string, ...boolean[]), void>> reduced=(string, ...boolean[])
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=(string, ...boolean[])
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=(string, ...boolean[])
 /// @resolution.name source=Parameters target=types.function.Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.flags source="...flags: boolean[]" type=Array<boolean>
 
 const ok: Args = ("Ada", true, false);
-/// @type.symbol symbol=ok source=ok type=Args reduced=(string, ...boolean[])
+/// @type.symbol symbol=ok source=ok type=(string, ...boolean[])
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Args target=Args
-
-/// @generic.instance id="Parameters<Function<(string, ...boolean[]), void>>" template=types.function.Parameters arguments=(Function<(string, ...boolean[]), void>)
 "#,
     );
 }
@@ -142,22 +136,20 @@ const bad: Args = ("Ada", "one");
 === annotated ===
 type Args = Parameters<(name: string, count: float64) => boolean>;
 
-const bad: Args = ("Ada", "one");
+const bad: (string, float64) = ("Ada", "one");
 
 === checked ===
 type Args = Parameters<(name: string, count: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=(string, float64)
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=(string, float64)
 /// @resolution.name source=Parameters target=types.function.Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count: number" type=float64
 
 const bad: Args = ("Ada", "one");
-/// @type.symbol symbol=bad source=bad type=Args reduced=(string, float64)
+/// @type.symbol symbol=bad source=bad type=(string, float64)
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Args target=Args
-
-/// @generic.instance id="Parameters<Function<(string, float64), boolean>>" template=types.function.Parameters arguments=(Function<(string, float64), boolean>)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"one\"' is not assignable to type 'float64'"

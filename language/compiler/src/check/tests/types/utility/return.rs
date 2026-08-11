@@ -18,17 +18,17 @@ ok satisfies string;
 === annotated ===
 type Value = ReturnType<() => string>;
 
-const ok: Value = "ready";
+const ok: string = "ready";
 ok satisfies string;
 
 === checked ===
 type Value = ReturnType<() => string>;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=ReturnType<Function<(), string>> reduced=string
-/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=ReturnType<Function<(), string>> reduced=string
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
+/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=string
 /// @resolution.name source=ReturnType target=types.function.ReturnType
 
 const ok: Value = "ready";
-/// @type.symbol symbol=ok source=ok type=Value reduced=string
+/// @type.symbol symbol=ok source=ok type=string
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 
@@ -36,8 +36,6 @@ ok satisfies string;
 /// @resolution.name source=ok target=ok
 /// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=ok root=ok
-
-/// @generic.instance id="ReturnType<Function<(), string>>" template=types.function.ReturnType arguments=(Function<(), string>)
 "#,
     );
 }
@@ -60,26 +58,24 @@ const second: Value = "b";
 === annotated ===
 type Value = ReturnType<() => "a" | "b">;
 
-const first: Value = "a" as "a" | "b";
-const second: Value = "b" as "a" | "b";
+const first: "a" | "b" = "a" as "a" | "b";
+const second: "a" | "b" = "b" as "a" | "b";
 
 === checked ===
 type Value = ReturnType<() => "a" | "b">;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" type=ReturnType<Function<(), "a" | "b">> reduced="a" | "b"
-/// @definition.type symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" value=ReturnType<Function<(), "a" | "b">> reduced="a" | "b"
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" type="a" | "b"
+/// @definition.type symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" value="a" | "b"
 /// @resolution.name source=ReturnType target=types.function.ReturnType
 
 const first: Value = "a";
-/// @type.symbol symbol=first source=first type=Value reduced="a" | "b"
+/// @type.symbol symbol=first source=first type="a" | "b"
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=Value target=Value
 
 const second: Value = "b";
-/// @type.symbol symbol=second source=second type=Value reduced="a" | "b"
+/// @type.symbol symbol=second source=second type="a" | "b"
 /// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="ReturnType<Function<(), \"a\" | \"b\">>" template=types.function.ReturnType arguments=(Function<(), "a" | "b">)
 "#,
     );
 }
@@ -101,26 +97,23 @@ const bad: Value = 1;
 === annotated ===
 type Value = ReturnType<() => string>;
 
-const bad: Value = 1;
+const bad: string = 1;
 
 === checked ===
 type Value = ReturnType<() => string>;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=ReturnType<Function<(), string>> reduced=string
-/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=ReturnType<Function<(), string>> reduced=string
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
+/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=string
 /// @resolution.name source=ReturnType target=types.function.ReturnType
 
 const bad: Value = 1;
-/// @type.symbol symbol=bad source=bad type=Value reduced=string
+/// @type.symbol symbol=bad source=bad type=string
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="ReturnType<Function<(), string>>" template=types.function.ReturnType arguments=(Function<(), string>)
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'string'"
 /// @diagnostic.label line=4 column=20 span="1" line_source="const bad: Value = 1;"
 /// @diagnostic.related line=4 column=12 span="Value" line_source="const bad: Value = 1;" message="expected due to this annotation"
-/// @diagnostic.note message="'Value' reduces to 'string'"
 "#,
     );
 }

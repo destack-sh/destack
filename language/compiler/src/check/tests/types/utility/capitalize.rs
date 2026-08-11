@@ -17,20 +17,18 @@ const ok: Value = "Hello";
 === annotated ===
 type Value = Capitalize<"hello">;
 
-const ok: Value = "Hello";
+const ok: "Hello" = "Hello";
 
 === checked ===
 type Value = Capitalize<"hello">;
-/// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type=Capitalize<"hello"> reduced="Hello"
-/// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value=Capitalize<"hello"> reduced="Hello"
+/// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type="Hello"
+/// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value="Hello"
 /// @resolution.name source=Capitalize target=types.string.Capitalize
 
 const ok: Value = "Hello";
-/// @type.symbol symbol=ok source=ok type=Value reduced="Hello"
+/// @type.symbol symbol=ok source=ok type="Hello"
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Capitalize<\"hello\">" template=types.string.Capitalize arguments=("hello")
 "#,
     );
 }
@@ -54,18 +52,18 @@ value satisfies "Yes" | "No";
 === annotated ===
 type Value = Capitalize<"yes" | "no">;
 
-declare const value: Value;
+declare const value: "Yes" | "No";
 
 value satisfies "Yes" | "No";
 
 === checked ===
 type Value = Capitalize<"yes" | "no">;
-/// @type.symbol symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" type=Capitalize<"yes" | "no"> reduced="Yes" | "No"
-/// @definition.type symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" value=Capitalize<"yes" | "no"> reduced="Yes" | "No"
+/// @type.symbol symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" type="Yes" | "No"
+/// @definition.type symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" value="Yes" | "No"
 /// @resolution.name source=Capitalize target=types.string.Capitalize
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=Value reduced="Yes" | "No"
+/// @type.symbol symbol=value source=value type="Yes" | "No"
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
@@ -73,8 +71,6 @@ value satisfies "Yes" | "No";
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-
-/// @generic.instance id="Capitalize<\"yes\" | \"no\">" template=types.string.Capitalize arguments=("yes" | "no")
 "#,
     );
 }
@@ -96,26 +92,23 @@ const bad: Value = "hello";
 === annotated ===
 type Value = Capitalize<"hello">;
 
-const bad: Value = "hello";
+const bad: "Hello" = "hello";
 
 === checked ===
 type Value = Capitalize<"hello">;
-/// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type=Capitalize<"hello"> reduced="Hello"
-/// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value=Capitalize<"hello"> reduced="Hello"
+/// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type="Hello"
+/// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value="Hello"
 /// @resolution.name source=Capitalize target=types.string.Capitalize
 
 const bad: Value = "hello";
-/// @type.symbol symbol=bad source=bad type=Value reduced="Hello"
+/// @type.symbol symbol=bad source=bad type="Hello"
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Capitalize<\"hello\">" template=types.string.Capitalize arguments=("hello")
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type '\"Hello\"'"
 /// @diagnostic.label line=4 column=20 span="\"hello\"" line_source="const bad: Value = \"hello\";"
 /// @diagnostic.related line=4 column=12 span="Value" line_source="const bad: Value = \"hello\";" message="expected due to this annotation"
-/// @diagnostic.note message="'Value' reduces to '\"Hello\"'"
 "#,
     );
 }

@@ -84,7 +84,6 @@ selected satisfies "borrowed";
 /// @resolution.access source=selected root=selected
 "#,
         r#"
-
 "#,
     );
 }
@@ -174,7 +173,6 @@ selected satisfies "readonly";
 /// @resolution.access source=selected root=selected
 "#,
         r#"
-
 "#,
     );
 }
@@ -263,7 +261,6 @@ selected satisfies "readonly";
 /// @resolution.access source=selected root=selected
 "#,
         r#"
-
 "#,
     );
 }
@@ -607,8 +604,8 @@ struct Cell {}
 type ManagedCell = Managed<Cell>;
 
 declare function inspect<'a>(value: &'a readonly Cell): void;
-declare const explicit: Managed<Cell>;
-declare const alias: ManagedCell;
+declare const explicit: Cell;
+declare const alias: Cell;
 
 inspect(explicit as &'static readonly Cell);
 inspect(alias as &'static readonly Cell);
@@ -637,7 +634,7 @@ declare const explicit: Managed<Cell>;
 /// @resolution.name source=Cell target=Cell
 
 declare const alias: ManagedCell;
-/// @type.symbol symbol=alias source=alias type=ManagedCell reduced=Managed<Cell>
+/// @type.symbol symbol=alias source=alias type=Managed<Cell>
 /// @resolution.pattern source=alias kind=binding target=alias
 /// @resolution.name source=ManagedCell target=ManagedCell
 
@@ -655,9 +652,7 @@ inspect(alias);
 /// @resolution.name source=alias target=alias
 /// @resolution.place source=alias placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=alias root=alias
-/// @coercion.node source=alias from=ManagedCell adjustments=[{ kind: borrow, target: &'static readonly Cell }] origin=implicit
-
-/// @generic.instance id=Managed<Cell> template=memory.managed.Managed arguments=(Cell)
+/// @coercion.node source=alias from=Managed<Cell> adjustments=[{ kind: borrow, target: &'static readonly Cell }] origin=implicit
 "#,
         r#"
 
@@ -1697,7 +1692,7 @@ struct Label {
 }
 
 declare const label: ^Label;
-let borrow: &'static Label = &label;
+let borrow: &'static ^Label = &label;
 let owned: ^Label = borrow;
 
 === checked ===
@@ -1713,33 +1708,32 @@ struct Label { buffer: ^Buffer; }
 /// @resolution.name source=Buffer target=Buffer
 
 declare const label: ^Label;
-/// @type.symbol symbol=label source=label type=Owned<Label> reduced=Label
+/// @type.symbol symbol=label source=label type=Owned<Label>
 /// @resolution.pattern source=label kind=binding target=label
 /// @resolution.name source=Label target=Label
 
 let borrow = &label;
-/// @type.symbol symbol=borrow source=borrow type=&'static Label
+/// @type.symbol symbol=borrow source=borrow type=&'static Owned<Label>
 /// @resolution.pattern source=borrow kind=binding target=borrow
-/// @type.node source=&label type=&'static Label
-/// @type.node source=label type=Owned<Label> reduced=Label
+/// @type.node source=&label type=&'static Owned<Label>
+/// @type.node source=label type=Owned<Label>
 /// @resolution.name source=label target=label
 /// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=label root=label
 
 let owned: ^Label = borrow;
-/// @type.symbol symbol=owned source=owned type=Owned<Label> reduced=Label
+/// @type.symbol symbol=owned source=owned type=Owned<Label>
 /// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Label target=Label
-/// @type.node source=borrow type=&'static Label
+/// @type.node source=borrow type=&'static Owned<Label>
 /// @resolution.name source=borrow target=borrow
 /// @resolution.place source=borrow placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=borrow root=borrow
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&'static Label' is not assignable to type '^Label'"
+/// @diagnostic.error id=not-assignable message="type '&'static ^Label' is not assignable to type '^Label'"
 /// @diagnostic.label line=7 column=21 span="borrow" line_source="let owned: ^Label = borrow;"
 /// @diagnostic.related line=7 column=12 span="^" line_source="let owned: ^Label = borrow;" message="expected due to this annotation"
-/// @diagnostic.note message="'^Label' reduces to 'Label'"
 "#,
     );
 }
@@ -1768,10 +1762,10 @@ struct Point {
     x: int32;
 }
 
-let point: ^Point = Point { x: 1 };
-let borrow: &'static Point = &point;
-let copied: Point = borrow as Point;
-let owned: ^Point = borrow as Point;
+let point: ^Point = ^Point { x: 1 };
+let borrow: &'static ^Point = &point;
+let copied: Point = borrow;
+let owned: ^Point = borrow;
 
 === checked ===
 struct Point {
@@ -1785,19 +1779,19 @@ struct Point {
 }
 
 let point: ^Point = Point { x: 1 };
-/// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
+/// @type.symbol symbol=point source=point type=Owned<Point>
 /// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
-/// @type.node source="Point { x: 1 }" type=Point
+/// @type.node source="Point { x: 1 }" type=Owned<Point>
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }] origin=implicit
 
 let borrow = &point;
-/// @type.symbol symbol=borrow source=borrow type=&'static Point
+/// @type.symbol symbol=borrow source=borrow type=&'static Owned<Point>
 /// @resolution.pattern source=borrow kind=binding target=borrow
-/// @type.node source=&point type=&'static Point
-/// @type.node source=point type=Owned<Point> reduced=Point
+/// @type.node source=&point type=&'static Owned<Point>
+/// @type.node source=point type=Owned<Point>
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
@@ -1806,24 +1800,27 @@ let copied: Point = borrow;
 /// @type.symbol symbol=copied source=copied type=Point
 /// @resolution.pattern source=copied kind=binding target=copied
 /// @resolution.name source=Point target=Point
-/// @type.node source=borrow type=&'static Point
+/// @type.node source=borrow type=&'static Owned<Point>
 /// @resolution.name source=borrow target=borrow
 /// @resolution.place source=borrow placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=borrow root=borrow
-/// @coercion.node source=borrow from=&'static Point adjustments=[{ kind: read, target: Point }] origin=implicit
 
 let owned: ^Point = borrow;
-/// @type.symbol symbol=owned source=owned type=Owned<Point> reduced=Point
+/// @type.symbol symbol=owned source=owned type=Owned<Point>
 /// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Point target=Point
-/// @type.node source=borrow type=&'static Point
+/// @type.node source=borrow type=&'static Owned<Point>
 /// @resolution.name source=borrow target=borrow
 /// @resolution.place source=borrow placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=borrow root=borrow
-/// @coercion.node source=borrow from=&'static Point adjustments=[{ kind: read, target: Point }] origin=implicit
 "#,
         r#"
-
+/// @diagnostic.error id=not-assignable message="type '&'static ^Point' is not assignable to type 'Point'"
+/// @diagnostic.label line=8 column=21 span="borrow" line_source="let copied: Point = borrow;"
+/// @diagnostic.related line=8 column=13 span="Point" line_source="let copied: Point = borrow;" message="expected due to this annotation"
+/// @diagnostic.error id=not-assignable message="type '&'static ^Point' is not assignable to type '^Point'"
+/// @diagnostic.label line=9 column=21 span="borrow" line_source="let owned: ^Point = borrow;"
+/// @diagnostic.related line=9 column=12 span="^" line_source="let owned: ^Point = borrow;" message="expected due to this annotation"
 "#,
     );
 }
@@ -1910,7 +1907,7 @@ let point = Point { x: 1 };
 /// @type.node source=1 type=1
 
 let owned: ^Point = point;
-/// @type.symbol symbol=owned source=owned type=Owned<Point> reduced=Point
+/// @type.symbol symbol=owned source=owned type=Owned<Point>
 /// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Point target=Point
 /// @type.node source=point type=Point

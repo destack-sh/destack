@@ -34,7 +34,10 @@ type Events = {
     message: string;
 };
 
-declare const handlers: Handlers<Events>;
+declare const handlers: {
+    on-ready: (arg0: Events["ready"]) => void;
+    on-message: (arg0: Events["message"]) => void;
+};
 
 handlers["on-ready"] satisfies (value: boolean) => void;
 handlers["on-message"] satisfies (value: string) => void;
@@ -66,7 +69,7 @@ type Events = {
 };
 
 declare const handlers: Handlers<Events>;
-/// @type.symbol symbol=handlers source=handlers type=Handlers<Events> reduced={ on-ready: Function<(boolean,), void>; on-message: Function<(string,), void> }
+/// @type.symbol symbol=handlers source=handlers type={ on-ready: Function<(Events["ready"],), void>; on-message: Function<(Events["message"],), void> }
 /// @resolution.pattern source=handlers kind=binding target=handlers
 /// @resolution.name source=Handlers target=Handlers
 /// @resolution.name source=Events target=Events
@@ -88,8 +91,6 @@ handlers["on-message"] satisfies (value: string) => void;
 /// @resolution.place source=handlers placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handlers root=handlers
 /// @type.symbol symbol=value#2 source="value: string" type=string
-
-/// @generic.instance id=Handlers<Events> template=Handlers arguments=(Events)
 "#,
     );
 }
@@ -128,7 +129,7 @@ type Person = {
     age: int32;
 };
 
-declare const getters: Getters<Person>;
+declare const getters: { getName: () => Person["name"]; getAge: () => Person["age"] };
 
 getters.getName satisfies () => string;
 getters.getAge satisfies () => int32;
@@ -160,7 +161,7 @@ type Person = {
 };
 
 declare const getters: Getters<Person>;
-/// @type.symbol symbol=getters source=getters type=Getters<Person> reduced={ getName: Function<(), string>; getAge: Function<(), int32> }
+/// @type.symbol symbol=getters source=getters type={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> }
 /// @resolution.pattern source=getters kind=binding target=getters
 /// @resolution.name source=Getters target=Getters
 /// @resolution.name source=Person target=Person
@@ -182,7 +183,6 @@ getters.getAge satisfies () => int32;
 /// @resolution.access source=getters.getAge root=getters keys=[getAge]
 
 /// @generic.instance id="Capitalize<string & K>" template=types.string.Capitalize arguments=(string & K)
-/// @generic.instance id=Getters<Person> template=Getters arguments=(Person)
 "#,
     );
 }
@@ -213,7 +213,7 @@ type Handlers<T> = {
 
 type Value = Handlers<{ name: string }>["on-name"];
 
-declare const value: Value;
+declare const value: string;
 value satisfies string;
 
 === checked ===
@@ -234,12 +234,12 @@ type Handlers<T> = {
 };
 
 type Value = Handlers<{ name: string }>["on-name"];
-/// @type.symbol symbol=Value source="type Value = Handlers<{ name: string }>[\"on-name\"]" type=Handlers<{ name: string }>["on-name"] reduced=string
-/// @definition.type symbol=Value source="type Value = Handlers<{ name: string }>[\"on-name\"]" value=Handlers<{ name: string }>["on-name"] reduced=string
+/// @type.symbol symbol=Value source="type Value = Handlers<{ name: string }>[\"on-name\"]" type=string
+/// @definition.type symbol=Value source="type Value = Handlers<{ name: string }>[\"on-name\"]" value=string
 /// @resolution.name source=Handlers target=Handlers
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=Value reduced=string
+/// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
@@ -247,8 +247,6 @@ value satisfies string;
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-
-/// @generic.instance id="Handlers<{ name: string }>" template=Handlers arguments=({ name: string })
 "#,
     );
 }
@@ -286,7 +284,7 @@ type Names<T> = {
     [K in keyof T as K extends `${infer Name}Created` ? Name : never]: T[K];
 };
 
-declare const names: Names<Events>;
+declare const names: { user: string };
 
 names.user satisfies string;
 
@@ -317,7 +315,7 @@ type Names<T> = {
 };
 
 declare const names: Names<Events>;
-/// @type.symbol symbol=names source=names type=Names<Events> reduced={ user: string }
+/// @type.symbol symbol=names source=names type={ user: string }
 /// @resolution.pattern source=names kind=binding target=names
 /// @resolution.name source=Names target=Names
 /// @resolution.name source=Events target=Events
@@ -329,8 +327,6 @@ names.user satisfies string;
 /// @resolution.access source=names root=names
 /// @resolution.place source=names.user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=names.user root=names keys=[user]
-
-/// @generic.instance id=Names<Events> template=Names arguments=(Events)
 "#,
     );
 }
@@ -367,7 +363,7 @@ type Names<T> = {
     [K in keyof T as K extends `${infer Name}Created` ? Name : never]: T[K];
 };
 
-declare const names: Names<Events>;
+declare const names: { user: string };
 const missing = names.orderPaid;
 
 === checked ===
@@ -397,7 +393,7 @@ type Names<T> = {
 };
 
 declare const names: Names<Events>;
-/// @type.symbol symbol=names source=names type=Names<Events> reduced={ user: string }
+/// @type.symbol symbol=names source=names type={ user: string }
 /// @resolution.pattern source=names kind=binding target=names
 /// @resolution.name source=Names target=Names
 /// @resolution.name source=Events target=Events
@@ -409,11 +405,9 @@ const missing = names.orderPaid;
 /// @resolution.place source=names placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=names root=names
 /// @resolution.rejected source=names.orderPaid
-
-/// @generic.instance id=Names<Events> template=Names arguments=(Events)
 "#,
         r#"
-/// @diagnostic.error id=missing-member message="member 'orderPaid' does not exist on type 'Names<Events>'"
+/// @diagnostic.error id=missing-member message="member 'orderPaid' does not exist on type '{ user: string }'"
 /// @diagnostic.label line=12 column=23 span="orderPaid" line_source="const missing = names.orderPaid;"
 "#,
     );

@@ -33,7 +33,7 @@ type Point = {
 };
 
 struct Rectangle {
-    start: Point;
+    start: { x: int32; y: int32 };
 }
 
 const rectangle: Rectangle = Rectangle {
@@ -55,10 +55,10 @@ type Point = {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.field symbol=Rectangle.start source="start: Point" key=start type=Point
+/// @definition.field symbol=Rectangle.start source="start: Point" key=start type={ x: int32; y: int32 }
 
     start: Point;
-    /// @type.symbol symbol=Rectangle.start source="start: Point" type=Point reduced={ x: int32; y: int32 }
+    /// @type.symbol symbol=Rectangle.start source="start: Point" type={ x: int32; y: int32 }
     /// @resolution.name source=Point target=Point
 
 }
@@ -83,7 +83,7 @@ rectangle.start satisfies Point;
 rectangle.start.x satisfies int32;
 /// @resolution.name source=rectangle target=rectangle
 /// @resolution.member source=rectangle.start receiver=Rectangle type=Point kind=field target_receiver=Rectangle key=start target=Rectangle.start target_type=Point
-/// @resolution.member source=rectangle.start.x receiver={ x: int32; y: int32 } type=int32 kind=field target_receiver={ x: int32; y: int32 } key=x target_type=int32
+/// @resolution.member source=rectangle.start.x receiver=Point type=int32 kind=field target_receiver=Point key=x target_type=int32
 /// @resolution.place source=rectangle placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=rectangle root=rectangle
 /// @resolution.place source=rectangle.start placement="local" lifetime="static" access="exclusive"
@@ -124,7 +124,7 @@ type Point = {
 };
 
 struct Rectangle {
-    start: Point;
+    start: { x: int32; y: int32 };
 }
 
 const rectangle: Rectangle = Rectangle {
@@ -143,10 +143,10 @@ type Point = {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.field symbol=Rectangle.start source="start: Point" key=start type=Point
+/// @definition.field symbol=Rectangle.start source="start: Point" key=start type={ x: int32; y: int32 }
 
     start: Point;
-    /// @type.symbol symbol=Rectangle.start source="start: Point" type=Point reduced={ x: int32; y: int32 }
+    /// @type.symbol symbol=Rectangle.start source="start: Point" type={ x: int32; y: int32 }
     /// @resolution.name source=Point target=Point
 
 }
@@ -160,7 +160,7 @@ const rectangle = Rectangle {
 };
 "#,
         r#"
-/// @diagnostic.error id=excess-property message="unknown property 'z' in object literal for type 'Point'"
+/// @diagnostic.error id=excess-property message="unknown property 'z' in object literal for type '{ x: int32; y: int32 }'"
 /// @diagnostic.label line=12 column=12 span="{ x: 0, y: 0, z: 0 }" line_source="start: { x: 0, y: 0, z: 0 },"
 /// @diagnostic.related line=11 column=19 span="Rectangle {\n    start: { x: 0, y: 0, z: 0 },\n}" line_source="const rectangle = Rectangle {" message="expected due to the type of this target"
 /// @diagnostic.note message="object literals may only specify known properties"
@@ -381,12 +381,12 @@ struct Rectangle {
 
 type Shape = Circle | Rectangle;
 
-const shapes: Array<Shape> = [
+const shapes: Shape[] = [
     Circle { radius: 1.0 } as Circle | Rectangle,
     Rectangle { width: 1.0, height: 1.0 } as Circle | Rectangle,
 ];
 
-const first: Circle | Rectangle = shapes[0];
+const first: Shape = shapes[0];
 first satisfies Shape;
 
 === checked ===
@@ -435,13 +435,13 @@ const shapes: Array<Shape> = [
 ];
 
 const first = shapes[0];
-/// @type.symbol symbol=first source=first type=Circle | Rectangle
+/// @type.symbol symbol=first source=first type=Shape
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=shapes target=shapes
 /// @resolution.place source=shapes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=shapes root=shapes
 /// @resolution.access source=shapes[0] root=shapes keys=[0]
-/// @resolution.subscript source=shapes[0] type=Circle | Rectangle kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static Shape, \"exclusive\">)"
+/// @resolution.subscript source=shapes[0] type=Shape kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static Shape, \"exclusive\">)"
 /// @generic.instance source=shapes[0] id="Array<Shape>.<extension#4>.index#1<\"exclusive\">"
 
 first satisfies Shape;
@@ -451,7 +451,6 @@ first satisfies Shape;
 /// @resolution.name source=Shape target=Shape
 
 /// @generic.instance id="Array<Shape>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
-/// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
 "#,
     );
 }
@@ -517,7 +516,7 @@ const player = Player {
 
 player.mode satisfies Mode;
 /// @resolution.name source=player target=player
-/// @resolution.member source=player.mode receiver=Player type="active" | "paused" kind=field target_receiver=Player key=mode target=Player.mode target_type="active" | "paused"
+/// @resolution.member source=player.mode receiver=Player type=Mode kind=field target_receiver=Player key=mode target=Player.mode target_type=Mode
 /// @resolution.place source=player placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=player root=player
 /// @resolution.place source=player.mode placement="local" lifetime="static" access="exclusive"
@@ -557,11 +556,11 @@ marker.position satisfies Point;
 type Point = { x: int32; y: int32 };
 
 struct Segment {
-    start: Point;
+    start: { x: int32; y: int32 };
 }
 
 class Marker {
-    position!: Point;
+    position!: { x: int32; y: int32 };
 }
 
 declare const segment: Segment;
@@ -578,10 +577,10 @@ type Point = { x: int32; y: int32 };
 struct Segment {
 /// @type.symbol symbol=Segment type=Segment
 /// @definition.struct symbol=Segment
-/// @definition.field symbol=Segment.start source="start: Point" key=start type=Point
+/// @definition.field symbol=Segment.start source="start: Point" key=start type={ x: int32; y: int32 }
 
     start: Point;
-    /// @type.symbol symbol=Segment.start source="start: Point" type=Point reduced={ x: int32; y: int32 }
+    /// @type.symbol symbol=Segment.start source="start: Point" type={ x: int32; y: int32 }
     /// @resolution.name source=Point target=Point
 
 }
@@ -589,10 +588,10 @@ struct Segment {
 class Marker {
 /// @type.symbol symbol=Marker type=Marker
 /// @definition.class symbol=Marker
-/// @definition.field symbol=Marker.position source="position!: Point" key=position type=Point
+/// @definition.field symbol=Marker.position source="position!: Point" key=position type={ x: int32; y: int32 }
 
     position!: Point;
-    /// @type.symbol symbol=Marker.position source="position!: Point" type=Point reduced={ x: int32; y: int32 }
+    /// @type.symbol symbol=Marker.position source="position!: Point" type={ x: int32; y: int32 }
     /// @resolution.name source=Point target=Point
 
 }

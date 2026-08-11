@@ -17,7 +17,7 @@ const text = transform(1);
             .without_reference_types(),
         r#"
 === annotated ===
-declare const transform: Function<(int32,), string>;
+declare const transform: (arg0: int32) => string;
 
 const text: string = transform(1);
 
@@ -36,8 +36,6 @@ const text = transform(1);
 /// @resolution.place source=transform placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=transform root=transform
 /// @type.node source=1 type=1
-
-/// @generic.instance id="Function<(int32,), string>" template=types.function.Function arguments=((int32,), string)
 "#,
     );
 }

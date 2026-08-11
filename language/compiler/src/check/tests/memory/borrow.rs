@@ -163,7 +163,7 @@ declare const readonlyUser: local readonly User;
 
 const sharedExclusive: shared &'static exclusive User = &exclusive sharedUser;
 const readonlyMutable: local &'static readonly User = &readonlyUser;
-const readonlyExclusive: local &'static readonly User = &exclusive readonlyUser;
+const readonlyExclusive: local &'static exclusive readonly User = &exclusive readonlyUser;
 
 === checked ===
 class User {}
@@ -188,14 +188,14 @@ const sharedExclusive = &exclusive sharedUser;
 /// @resolution.access source=sharedUser root=sharedUser
 
 const readonlyMutable = &readonlyUser;
-/// @type.symbol symbol=readonlyMutable source=readonlyMutable type=Placed<&'static readonly User, "local">
+/// @type.symbol symbol=readonlyMutable source=readonlyMutable type=Placed<&'static Readonly<User>, "local">
 /// @resolution.pattern source=readonlyMutable kind=binding target=readonlyMutable
 /// @resolution.name source=readonlyUser target=readonlyUser
 /// @resolution.place source=readonlyUser placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=readonlyUser root=readonlyUser
 
 const readonlyExclusive = &exclusive readonlyUser;
-/// @type.symbol symbol=readonlyExclusive source=readonlyExclusive type=Placed<&'static readonly User, "local">
+/// @type.symbol symbol=readonlyExclusive source=readonlyExclusive type=Placed<&'static exclusive Readonly<User>, "local">
 /// @resolution.pattern source=readonlyExclusive kind=binding target=readonlyExclusive
 /// @resolution.name source=readonlyUser target=readonlyUser
 /// @resolution.place source=readonlyUser placement="local" lifetime="static" access="readonly"
@@ -520,7 +520,7 @@ struct Point {
     x: int32;
 }
 
-let point: ^Point = Point { x: 1 };
+let point: ^Point = ^Point { x: 1 };
 let x: &'static readonly int32 = &readonly point.x;
 
 x satisfies &readonly int32;
@@ -538,10 +538,10 @@ struct Point {
 }
 
 let point: ^Point = Point { x: 1 };
-/// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
+/// @type.symbol symbol=point source=point type=Owned<Point>
 /// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
-/// @type.node source="Point { x: 1 }" type=Point
+/// @type.node source="Point { x: 1 }" type=Owned<Point>
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
 
@@ -549,10 +549,10 @@ let x = &readonly point.x;
 /// @type.symbol symbol=x source=x type=&'static readonly int32
 /// @resolution.pattern source=x kind=binding target=x
 /// @type.node source="&readonly point.x" type=&'static readonly int32
-/// @type.node source=point type=Owned<Point> reduced=Point
+/// @type.node source=point type=Owned<Point>
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+/// @resolution.member source=point.x receiver=Owned<Point> type=int32 kind=field target_receiver=Owned<Point> key=x target=Point.x target_type=int32
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
 /// @resolution.place source=point.x placement="local" lifetime="static" access="exclusive"
@@ -567,10 +567,10 @@ x satisfies &readonly int32;
 
 point.x satisfies local int32;
 /// @type.node source="point.x satisfies local int32" type=int32
-/// @type.node source=point type=Owned<Point> reduced=Point
+/// @type.node source=point type=Owned<Point>
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+/// @resolution.member source=point.x receiver=Owned<Point> type=int32 kind=field target_receiver=Owned<Point> key=x target=Point.x target_type=int32
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
 /// @resolution.place source=point.x placement="local" lifetime="static" access="exclusive"

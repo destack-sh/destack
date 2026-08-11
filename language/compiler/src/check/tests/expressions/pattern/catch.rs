@@ -174,15 +174,15 @@ try {
     /// @generic.instance source=read() id="Result<string, { message: string }>"
 
 } catch (error) {
-/// @type.symbol symbol=error source=error type=TryResidual<Result<string, { message: string }>> reduced={ message: string }
+/// @type.symbol symbol=error source=error type=TryResidual<Result<string, { message: string }>>
 /// @resolution.pattern source=error kind=binding target=error
 
     error.message satisfies string;
     /// @type.node source="error.message satisfies string" type=string
-    /// @type.node source=error type=TryResidual<Result<string, { message: string }>> reduced={ message: string }
+    /// @type.node source=error type=TryResidual<Result<string, { message: string }>>
     /// @type.node source=error.message type=string
     /// @resolution.name source=error target=error
-    /// @resolution.member source=error.message receiver={ message: string } type=string kind=field target_receiver={ message: string } key=message target_type=string
+    /// @resolution.member source=error.message receiver=TryResidual<Result<string, { message: string }>> type=string kind=field target_receiver=TryResidual<Result<string, { message: string }>> key=message target_type=string
     /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=error root=error
     /// @resolution.place source=error.message placement="local" lifetime="frame" access="exclusive"

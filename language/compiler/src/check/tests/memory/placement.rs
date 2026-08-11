@@ -179,7 +179,7 @@ type LocalChoice = local (User | shared Team);
 type CarrierPlace = PlaceOf<LocalChoice>;
 
 declare const localChoice: local (User | shared Team);
-declare const carrierPlace: CarrierPlace;
+declare const carrierPlace: "local";
 
 localChoice satisfies local (User | shared Team);
 carrierPlace satisfies "local";
@@ -200,8 +200,8 @@ type LocalChoice = local (User | shared Team);
 /// @resolution.name source=Team target=Team
 
 type CarrierPlace = PlaceOf<LocalChoice>;
-/// @type.symbol symbol=CarrierPlace source="type CarrierPlace = PlaceOf<LocalChoice>" type=PlaceOf<LocalChoice> reduced="local"
-/// @definition.type symbol=CarrierPlace source="type CarrierPlace = PlaceOf<LocalChoice>" value=PlaceOf<LocalChoice> reduced="local"
+/// @type.symbol symbol=CarrierPlace source="type CarrierPlace = PlaceOf<LocalChoice>" type="local"
+/// @definition.type symbol=CarrierPlace source="type CarrierPlace = PlaceOf<LocalChoice>" value="local"
 /// @resolution.name source=PlaceOf target=memory.type.PlaceOf
 /// @resolution.name source=LocalChoice target=LocalChoice
 
@@ -211,7 +211,7 @@ declare const localChoice: LocalChoice;
 /// @resolution.name source=LocalChoice target=LocalChoice
 
 declare const carrierPlace: CarrierPlace;
-/// @type.symbol symbol=carrierPlace source=carrierPlace type=CarrierPlace reduced="local"
+/// @type.symbol symbol=carrierPlace source=carrierPlace type="local"
 /// @resolution.pattern source=carrierPlace kind=binding target=carrierPlace
 /// @resolution.name source=CarrierPlace target=CarrierPlace
 
@@ -226,11 +226,8 @@ carrierPlace satisfies "local";
 /// @resolution.name source=carrierPlace target=carrierPlace
 /// @resolution.place source=carrierPlace placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=carrierPlace root=carrierPlace
-
-/// @generic.instance id=PlaceOf<LocalChoice> template=memory.type.PlaceOf arguments=(LocalChoice)
 "#,
         r#"
-
 "#,
     );
 }

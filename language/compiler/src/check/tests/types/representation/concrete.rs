@@ -282,7 +282,7 @@ declare const value: Dynamic<<T>(input: T) => T>;
 
 === checked ===
 declare const value: Dynamic<<T>(input: T) => T>;
-/// @type.symbol symbol=value source=value type=<error>
+/// @type.symbol symbol=value source=value type=Dynamic<Function<(T,), T>>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 /// @generic.template source=type_expression parameters=(T)
@@ -290,6 +290,8 @@ declare const value: Dynamic<<T>(input: T) => T>;
 /// @type.symbol symbol=input source="input: T" type=T
 /// @resolution.name source=T target=T
 /// @resolution.name source=T target=T
+
+/// @generic.instance id="Dynamic<Function<(T,), T>>" template=memory.dynamic.Dynamic arguments=(Function<(T,), T>)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '<T>(input: T) => T' does not satisfy 'DynamicSafe'"
@@ -387,9 +389,9 @@ function makeCircle(): Shape {
 }
 
 makeCircle() satisfies Shape;
-/// @type.node source="makeCircle() satisfies Shape" type=Shape reduced=Circle | Rectangle
+/// @type.node source="makeCircle() satisfies Shape" type=Shape
 /// @type.node source=makeCircle type=() => Shape
-/// @type.node source=makeCircle() type=Shape reduced=Circle | Rectangle
+/// @type.node source=makeCircle() type=Shape
 /// @resolution.name source=makeCircle target=makeCircle
 /// @resolution.call source=makeCircle() parameters=() return=Shape kind=symbol target=makeCircle
 /// @resolution.name source=Shape target=Shape
@@ -644,9 +646,9 @@ function makeShape(flag: boolean): Shape {
 }
 
 makeShape(true) satisfies Shape;
-/// @type.node source="makeShape(true) satisfies Shape" type=Shape reduced=Circle | Rectangle
+/// @type.node source="makeShape(true) satisfies Shape" type=Shape
 /// @type.node source=makeShape type=(boolean) => Shape
-/// @type.node source=makeShape(true) type=Shape reduced=Circle | Rectangle
+/// @type.node source=makeShape(true) type=Shape
 /// @resolution.name source=makeShape target=makeShape
 /// @resolution.call source=makeShape(true) parameters=(boolean) arguments=(provided(true) as boolean) return=Shape kind=symbol target=makeShape
 /// @type.node source=true type=true

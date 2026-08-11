@@ -22,8 +22,8 @@ type Bag = { readonly [key: symbol]: int32 };
 type Keys = keyof Bag;
 
 declare const key: symbol;
-const ok: Keys = key;
-const bad: Keys = "name";
+const ok: symbol = key;
+const bad: symbol = "name";
 
 === checked ===
 type Bag = { readonly [key: symbol]: int32 };
@@ -31,8 +31,8 @@ type Bag = { readonly [key: symbol]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: symbol]: int32 }" value={ readonly [key: symbol]: int32 }
 
 type Keys = keyof Bag;
-/// @type.symbol symbol=Keys source="type Keys = keyof Bag" type=keyof Bag reduced=symbol
-/// @definition.type symbol=Keys source="type Keys = keyof Bag" value=keyof Bag reduced=symbol
+/// @type.symbol symbol=Keys source="type Keys = keyof Bag" type=symbol
+/// @definition.type symbol=Keys source="type Keys = keyof Bag" value=symbol
 /// @resolution.name source=Bag target=Bag
 
 declare const key: symbol;
@@ -40,7 +40,7 @@ declare const key: symbol;
 /// @resolution.pattern source=key kind=binding target=key
 
 const ok: Keys = key;
-/// @type.symbol symbol=ok source=ok type=Keys reduced=symbol
+/// @type.symbol symbol=ok source=ok type=symbol
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Keys target=Keys
 /// @resolution.name source=key target=key
@@ -48,15 +48,14 @@ const ok: Keys = key;
 /// @resolution.access source=key root=key
 
 const bad: Keys = "name";
-/// @type.symbol symbol=bad source=bad type=Keys reduced=symbol
+/// @type.symbol symbol=bad source=bad type=symbol
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Keys target=Keys
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"name\"' is not assignable to type 'Keys'"
+/// @diagnostic.error id=not-assignable message="type '\"name\"' is not assignable to type 'symbol'"
 /// @diagnostic.label line=7 column=19 span="\"name\"" line_source="const bad: Keys = \"name\";"
 /// @diagnostic.related line=7 column=12 span="Keys" line_source="const bad: Keys = \"name\";" message="expected due to this annotation"
-/// @diagnostic.note message="'Keys' reduces to 'symbol'"
 "#,
     );
 }
@@ -100,7 +99,7 @@ type TokenBox = { readonly [token]: int32 };
 /// @definition.type symbol=TokenBox source="type TokenBox = { readonly [token]: int32 }" value={ readonly [token]: int32 }
 
 declare const box: TokenBox;
-/// @type.symbol symbol=box source=box type=TokenBox reduced={ readonly [token]: int32 }
+/// @type.symbol symbol=box source=box type={ readonly [token]: int32 }
 /// @resolution.pattern source=box kind=binding target=box
 /// @resolution.name source=TokenBox target=TokenBox
 
@@ -158,12 +157,12 @@ type TokenBox = { readonly [token]: int32 };
 /// @definition.type symbol=TokenBox source="type TokenBox = { readonly [token]: int32 }" value={ readonly [token]: int32 }
 
 type Keys = keyof TokenBox;
-/// @type.symbol symbol=Keys source="type Keys = keyof TokenBox" type=keyof TokenBox reduced=token
-/// @definition.type symbol=Keys source="type Keys = keyof TokenBox" value=keyof TokenBox reduced=token
+/// @type.symbol symbol=Keys source="type Keys = keyof TokenBox" type=token
+/// @definition.type symbol=Keys source="type Keys = keyof TokenBox" value=token
 /// @resolution.name source=TokenBox target=TokenBox
 
 const ok: Keys = token;
-/// @type.symbol symbol=ok source=ok type=Keys reduced=token
+/// @type.symbol symbol=ok source=ok type=token
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Keys target=Keys
 /// @resolution.name source=token target=token
@@ -214,12 +213,12 @@ type TokenBox = { readonly [token]: int32 };
 /// @definition.type symbol=TokenBox source="type TokenBox = { readonly [token]: int32 }" value={ readonly [token]: int32 }
 
 type Keys = keyof TokenBox;
-/// @type.symbol symbol=Keys source="type Keys = keyof TokenBox" type=keyof TokenBox reduced=token
-/// @definition.type symbol=Keys source="type Keys = keyof TokenBox" value=keyof TokenBox reduced=token
+/// @type.symbol symbol=Keys source="type Keys = keyof TokenBox" type=token
+/// @definition.type symbol=Keys source="type Keys = keyof TokenBox" value=token
 /// @resolution.name source=TokenBox target=TokenBox
 
 const bad: Keys = other;
-/// @type.symbol symbol=bad source=bad type=Keys reduced=token
+/// @type.symbol symbol=bad source=bad type=token
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Keys target=Keys
 /// @resolution.name source=other target=other
@@ -227,10 +226,9 @@ const bad: Keys = other;
 /// @resolution.access source=other root=other
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'other' is not assignable to type 'Keys'"
+/// @diagnostic.error id=not-assignable message="type 'other' is not assignable to type 'token'"
 /// @diagnostic.label line=8 column=19 span="other" line_source="const bad: Keys = other;"
 /// @diagnostic.related line=8 column=12 span="Keys" line_source="const bad: Keys = other;" message="expected due to this annotation"
-/// @diagnostic.note message="'Keys' reduces to 'token'"
 "#,
     );
 }
@@ -266,7 +264,7 @@ type RegistryBox = { readonly [Symbol.for("token")]: string };
 /// @definition.type symbol=RegistryBox source="type RegistryBox = { readonly [Symbol.for(\"token\")]: string }" value={ readonly [Symbol.for("token")]: string }
 
 const box: RegistryBox = { [Symbol.for("token")]: "ok" };
-/// @type.symbol symbol=box source=box type=RegistryBox reduced={ readonly [Symbol.for("token")]: string }
+/// @type.symbol symbol=box source=box type={ readonly [Symbol.for("token")]: string }
 /// @resolution.pattern source=box kind=binding target=box
 /// @resolution.name source=RegistryBox target=RegistryBox
 /// @resolution.name source=Symbol target=types.symbol.Symbol

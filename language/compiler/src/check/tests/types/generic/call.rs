@@ -43,7 +43,7 @@ const result: Result<boolean, string> = first().andThen((value) => second(value)
 /// @type.symbol symbol=result source=result type=error.result.Result<boolean, string>
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=Result target=error.result.Result
-/// @type.node source="first().andThen((value) => second(value))" type=error.result.Result<boolean, string | string> reduced=error.result.Result<boolean, string>
+/// @type.node source="first().andThen((value) => second(value))" type=error.result.Result<boolean, string>
 /// @type.node source=first type=() => error.result.Result<int32, string>
 /// @type.node source=first() type=error.result.Result<int32, string>
 /// @type.node source=first().andThen type=<error.result.andThen.U, error.result.andThen.F>(this: error.result.Result<int32, string>, Function<(int32,), error.result.Result<error.result.andThen.U, error.result.andThen.F>>) => error.result.Result<error.result.andThen.U, string | error.result.andThen.F>
@@ -51,7 +51,7 @@ const result: Result<boolean, string> = first().andThen((value) => second(value)
 /// @resolution.member source=first().andThen receiver=error.result.Result<int32, string> type=<error.result.andThen.U, error.result.andThen.F>(this: error.result.Result<int32, string>, Function<(int32,), error.result.Result<error.result.andThen.U, error.result.andThen.F>>) => error.result.Result<error.result.andThen.U, string | error.result.andThen.F> kind=symbol target_receiver=error.result.Result<int32, string> target=error.result.andThen
 /// @resolution.call source="first().andThen((value) => second(value))" parameters=(Function<(int32,), error.result.Result<boolean, string>>) arguments=(provided((value) => second(value)) as Function<(int32,), error.result.Result<boolean, string>>) return=error.result.Result<boolean, string | string> kind=symbol target=error.result.andThen receiver=error.result.Result<int32, string> instance="error.result.Result<int32, string>.<extension#1>.andThen<boolean, string>"
 /// @resolution.call source=first() parameters=() return=error.result.Result<int32, string> kind=symbol target=first
-/// @generic.instance source="first().andThen((value) => second(value))" id="error.result.Result<boolean, string | string>"
+/// @generic.instance source="first().andThen((value) => second(value))" id="error.result.Result<boolean, string>"
 /// @generic.instance source="first().andThen((value) => second(value))" id="error.result.Result<int32, string>.<extension#1>.andThen<boolean, string>"
 /// @generic.instance source=first id="error.result.Result<int32, string>"
 /// @generic.instance source=first() id="error.result.Result<int32, string>"
@@ -73,7 +73,6 @@ const result: Result<boolean, string> = first().andThen((value) => second(value)
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol5.value
 
-/// @generic.instance id="error.result.Result<boolean, string | string>" template=error.result.Result arguments=(boolean, string | string)
 /// @generic.instance id="error.result.Result<boolean, string>" template=error.result.Result arguments=(boolean, string)
 /// @generic.instance id="error.result.Result<error.result.andThen.U, error.result.andThen.F>" template=error.result.Result arguments=(error.result.andThen.U, error.result.andThen.F)
 /// @generic.instance id="error.result.Result<error.result.andThen.U, string | error.result.andThen.F>" template=error.result.Result arguments=(error.result.andThen.U, string | error.result.andThen.F)

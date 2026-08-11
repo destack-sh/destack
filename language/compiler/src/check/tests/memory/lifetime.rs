@@ -28,12 +28,12 @@ struct Point {
     x: int32;
 }
 
-const modulePoint: ^Point = Point { x: 1 };
-const moduleBorrow: &'static readonly Point = &readonly modulePoint;
+const modulePoint: ^Point = ^Point { x: 1 };
+const moduleBorrow: &'static readonly ^Point = &readonly modulePoint;
 
 function inspectFrame(): void {
-    const framePoint: ^Point = Point { x: 2 };
-    const frameBorrow: &'frame readonly Point = &readonly framePoint;
+    const framePoint: ^Point = ^Point { x: 2 };
+    const frameBorrow: &'frame readonly ^Point = &readonly framePoint;
 
     moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
     frameBorrow satisfies local Borrowed<Point, "frame", "readonly">;
@@ -47,13 +47,13 @@ struct Point { x: int32; }
 /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
 const modulePoint: ^Point = Point { x: 1 };
-/// @type.symbol symbol=modulePoint source=modulePoint type=Owned<Point> reduced=Point
+/// @type.symbol symbol=modulePoint source=modulePoint type=Owned<Point>
 /// @resolution.pattern source=modulePoint kind=binding target=modulePoint
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Point target=Point
 
 const moduleBorrow = &readonly modulePoint;
-/// @type.symbol symbol=moduleBorrow source=moduleBorrow type=&'static readonly Point
+/// @type.symbol symbol=moduleBorrow source=moduleBorrow type=&'static readonly Owned<Point>
 /// @resolution.pattern source=moduleBorrow kind=binding target=moduleBorrow
 /// @resolution.name source=modulePoint target=modulePoint
 /// @resolution.place source=modulePoint placement="local" lifetime="static" access="exclusive"
@@ -63,13 +63,13 @@ function inspectFrame(): void {
 /// @type.symbol symbol=inspectFrame type=() => void
 
     const framePoint: ^Point = Point { x: 2 };
-    /// @type.symbol symbol=inspectFrame.framePoint source=framePoint type=Owned<Point> reduced=Point
+    /// @type.symbol symbol=inspectFrame.framePoint source=framePoint type=Owned<Point>
     /// @resolution.pattern source=framePoint kind=binding target=inspectFrame.framePoint
     /// @resolution.name source=Point target=Point
     /// @resolution.name source=Point target=Point
 
     const frameBorrow = &readonly framePoint;
-    /// @type.symbol symbol=inspectFrame.frameBorrow source=frameBorrow type=&'frame readonly Point
+    /// @type.symbol symbol=inspectFrame.frameBorrow source=frameBorrow type=&'frame readonly Owned<Point>
     /// @resolution.pattern source=frameBorrow kind=binding target=inspectFrame.frameBorrow
     /// @resolution.name source=framePoint target=inspectFrame.framePoint
     /// @resolution.place source=framePoint placement="local" lifetime="frame" access="exclusive"
@@ -243,18 +243,18 @@ struct Node { id: int32; }
 
 declare function choose<'a, 'b>(
 /// @generic.template symbol=choose parameters=('a, 'b)
-/// @type.symbol symbol=choose type=<'a, 'b>(Borrowed<Node, 'a, "mutable">, Borrowed<Node, 'b, "mutable">) => &'a | 'b Node reduced=<'a, 'b>(&'a Node, &'b Node) => &'a | 'b Node
+/// @type.symbol symbol=choose type=<'a, 'b>(Borrowed<Node, 'a, "mutable">, Borrowed<Node, 'b, "mutable">) => &'a | 'b Node
 /// @type.symbol symbol=choose.'a source='a type='a
 /// @type.symbol symbol=choose.'b source='b type='b
 
     a: Borrowed<Node, 'a, "mutable">,
-    /// @type.symbol symbol=choose.a source="a: Borrowed<Node, 'a, \"mutable\">" type=Borrowed<Node, 'a, "mutable"> reduced=&'a Node
+    /// @type.symbol symbol=choose.a source="a: Borrowed<Node, 'a, \"mutable\">" type=Borrowed<Node, 'a, "mutable">
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Node target=Node
     /// @resolution.name source='a target=choose.'a
 
     b: Borrowed<Node, 'b, "mutable">,
-    /// @type.symbol symbol=choose.b source="b: Borrowed<Node, 'b, \"mutable\">" type=Borrowed<Node, 'b, "mutable"> reduced=&'b Node
+    /// @type.symbol symbol=choose.b source="b: Borrowed<Node, 'b, \"mutable\">" type=Borrowed<Node, 'b, "mutable">
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Node target=Node
     /// @resolution.name source='b target=choose.'b
@@ -266,7 +266,6 @@ declare function choose<'a, 'b>(
 /// @generic.instance id="Borrowed<Node, 'b, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, 'b, "mutable")
 "#,
         r#"
-
 "#,
     );
 }
@@ -443,12 +442,12 @@ interface Viewing {
 
     view<comptime A: Access = "readonly">(
     /// @generic.template symbol=Viewing.view parent=template#0 parameters=(comptime A: memory.access.Access = "readonly", 'a)
-    /// @type.symbol symbol=Viewing.view type=<comptime A: memory.access.Access = "readonly", Viewing.view.'a>(this: memory.type.WithAccess<&Viewing.view.'a this, A>) => memory.type.WithAccess<&Viewing.view.'a this.View, A> reduced=<comptime A: memory.access.Access = "readonly", Viewing.view.'a>(this: Borrowed<this, Viewing.view.'a, A>) => Borrowed<this.View, Viewing.view.'a, A>
+    /// @type.symbol symbol=Viewing.view type=<comptime A: memory.access.Access = "readonly", Viewing.view.'a>(this: memory.type.WithAccess<&Viewing.view.'a this, A>) => memory.type.WithAccess<&Viewing.view.'a this.View, A>
     /// @type.symbol symbol=Viewing.view.A source="comptime A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=memory.access.Access
 
         this: WithAccess<&this, A>,
-        /// @type.symbol symbol=Viewing.view.this source="this: WithAccess<&this, A>" type=memory.type.WithAccess<&Viewing.view.'a this, A> reduced=Borrowed<this, Viewing.view.'a, A>
+        /// @type.symbol symbol=Viewing.view.this source="this: WithAccess<&this, A>" type=memory.type.WithAccess<&Viewing.view.'a this, A>
         /// @resolution.name source=WithAccess target=memory.type.WithAccess
         /// @resolution.name source=A target=Viewing.view.A
 

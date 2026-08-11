@@ -33,12 +33,12 @@ type Tight = `user-${string}-id`;
 /// @definition.type symbol=Tight source="type Tight = `user-${string}-id`" value=`user-${string}-id`
 
 declare const tight: Tight;
-/// @type.symbol symbol=tight source=tight type=Tight reduced=`user-${string}-id`
+/// @type.symbol symbol=tight source=tight type=`user-${string}-id`
 /// @resolution.pattern source=tight kind=binding target=tight
 /// @resolution.name source=Tight target=Tight
 
 const loose: Loose = tight;
-/// @type.symbol symbol=loose source=loose type=Loose reduced=`${string}-id`
+/// @type.symbol symbol=loose source=loose type=`${string}-id`
 /// @resolution.pattern source=loose kind=binding target=loose
 /// @resolution.name source=Loose target=Loose
 /// @resolution.name source=tight target=tight
@@ -81,12 +81,12 @@ type Tight = `user-${string}-id`;
 /// @definition.type symbol=Tight source="type Tight = `user-${string}-id`" value=`user-${string}-id`
 
 declare const loose: Loose;
-/// @type.symbol symbol=loose source=loose type=Loose reduced=`${string}-id`
+/// @type.symbol symbol=loose source=loose type=`${string}-id`
 /// @resolution.pattern source=loose kind=binding target=loose
 /// @resolution.name source=Loose target=Loose
 
 const tight: Tight = loose;
-/// @type.symbol symbol=tight source=tight type=Tight reduced=`user-${string}-id`
+/// @type.symbol symbol=tight source=tight type=`user-${string}-id`
 /// @resolution.pattern source=tight kind=binding target=tight
 /// @resolution.name source=Tight target=Tight
 /// @resolution.name source=loose target=loose
@@ -94,11 +94,9 @@ const tight: Tight = loose;
 /// @resolution.access source=loose root=loose
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Loose' is not assignable to type 'Tight'"
+/// @diagnostic.error id=not-assignable message="type '`${string}-id`' is not assignable to type '`user-${string}-id`'"
 /// @diagnostic.label line=6 column=22 span="loose" line_source="const tight: Tight = loose;"
 /// @diagnostic.related line=6 column=14 span="Tight" line_source="const tight: Tight = loose;" message="expected due to this annotation"
-/// @diagnostic.note message="'Loose' reduces to '`${string}-id`'"
-/// @diagnostic.note message="'Tight' reduces to '`user-${string}-id`'"
 "#,
     );
 }
@@ -136,12 +134,12 @@ type StringId = `id-${string}`;
 /// @definition.type symbol=StringId source="type StringId = `id-${string}`" value=`id-${string}`
 
 declare const numeric: NumericId;
-/// @type.symbol symbol=numeric source=numeric type=NumericId reduced=`id-${float64}`
+/// @type.symbol symbol=numeric source=numeric type=`id-${float64}`
 /// @resolution.pattern source=numeric kind=binding target=numeric
 /// @resolution.name source=NumericId target=NumericId
 
 const id: StringId = numeric;
-/// @type.symbol symbol=id source=id type=StringId reduced=`id-${string}`
+/// @type.symbol symbol=id source=id type=`id-${string}`
 /// @resolution.pattern source=id kind=binding target=id
 /// @resolution.name source=StringId target=StringId
 /// @resolution.name source=numeric target=numeric
@@ -184,12 +182,12 @@ type StringId = `id-${string}`;
 /// @definition.type symbol=StringId source="type StringId = `id-${string}`" value=`id-${string}`
 
 declare const id: StringId;
-/// @type.symbol symbol=id source=id type=StringId reduced=`id-${string}`
+/// @type.symbol symbol=id source=id type=`id-${string}`
 /// @resolution.pattern source=id kind=binding target=id
 /// @resolution.name source=StringId target=StringId
 
 const numeric: NumericId = id;
-/// @type.symbol symbol=numeric source=numeric type=NumericId reduced=`id-${float64}`
+/// @type.symbol symbol=numeric source=numeric type=`id-${float64}`
 /// @resolution.pattern source=numeric kind=binding target=numeric
 /// @resolution.name source=NumericId target=NumericId
 /// @resolution.name source=id target=id
@@ -197,11 +195,9 @@ const numeric: NumericId = id;
 /// @resolution.access source=id root=id
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'StringId' is not assignable to type 'NumericId'"
+/// @diagnostic.error id=not-assignable message="type '`id-${string}`' is not assignable to type '`id-${float64}`'"
 /// @diagnostic.label line=6 column=28 span="id" line_source="const numeric: NumericId = id;"
 /// @diagnostic.related line=6 column=16 span="NumericId" line_source="const numeric: NumericId = id;" message="expected due to this annotation"
-/// @diagnostic.note message="'StringId' reduces to '`id-${string}`'"
-/// @diagnostic.note message="'NumericId' reduces to '`id-${float64}`'"
 "#,
     );
 }

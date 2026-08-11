@@ -29,17 +29,17 @@ type Numeric = `${number}`;
 /// @definition.type symbol=Numeric source="type Numeric = `${number}`" value=`${float64}`
 
 const decimal: Numeric = "42";
-/// @type.symbol symbol=decimal source=decimal type=Numeric reduced=`${float64}`
+/// @type.symbol symbol=decimal source=decimal type=`${float64}`
 /// @resolution.pattern source=decimal kind=binding target=decimal
 /// @resolution.name source=Numeric target=Numeric
 
 const exponent: Numeric = "1e3";
-/// @type.symbol symbol=exponent source=exponent type=Numeric reduced=`${float64}`
+/// @type.symbol symbol=exponent source=exponent type=`${float64}`
 /// @resolution.pattern source=exponent kind=binding target=exponent
 /// @resolution.name source=Numeric target=Numeric
 
 const hexadecimal: Numeric = "0x1";
-/// @type.symbol symbol=hexadecimal source=hexadecimal type=Numeric reduced=`${float64}`
+/// @type.symbol symbol=hexadecimal source=hexadecimal type=`${float64}`
 /// @resolution.pattern source=hexadecimal kind=binding target=hexadecimal
 /// @resolution.name source=Numeric target=Numeric
 "#,
@@ -71,15 +71,14 @@ type Numeric = `${number}`;
 /// @definition.type symbol=Numeric source="type Numeric = `${number}`" value=`${float64}`
 
 const bad: Numeric = "NaN";
-/// @type.symbol symbol=bad source=bad type=Numeric reduced=`${float64}`
+/// @type.symbol symbol=bad source=bad type=`${float64}`
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Numeric target=Numeric
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"NaN\"' is not assignable to type 'Numeric'"
+/// @diagnostic.error id=not-assignable message="type '\"NaN\"' is not assignable to type '`${float64}`'"
 /// @diagnostic.label line=4 column=22 span="\"NaN\"" line_source="const bad: Numeric = \"NaN\";"
 /// @diagnostic.related line=4 column=12 span="Numeric" line_source="const bad: Numeric = \"NaN\";" message="expected due to this annotation"
-/// @diagnostic.note message="'Numeric' reduces to '`${float64}`'"
 "#,
     );
 }
@@ -113,17 +112,17 @@ type Big = `${bigint}`;
 /// @definition.type symbol=Big source="type Big = `${bigint}`" value=`${bigint}`
 
 const decimal: Big = "900";
-/// @type.symbol symbol=decimal source=decimal type=Big reduced=`${bigint}`
+/// @type.symbol symbol=decimal source=decimal type=`${bigint}`
 /// @resolution.pattern source=decimal kind=binding target=decimal
 /// @resolution.name source=Big target=Big
 
 const negative: Big = "-1";
-/// @type.symbol symbol=negative source=negative type=Big reduced=`${bigint}`
+/// @type.symbol symbol=negative source=negative type=`${bigint}`
 /// @resolution.pattern source=negative kind=binding target=negative
 /// @resolution.name source=Big target=Big
 
 const hexadecimal: Big = "0x1";
-/// @type.symbol symbol=hexadecimal source=hexadecimal type=Big reduced=`${bigint}`
+/// @type.symbol symbol=hexadecimal source=hexadecimal type=`${bigint}`
 /// @resolution.pattern source=hexadecimal kind=binding target=hexadecimal
 /// @resolution.name source=Big target=Big
 "#,
@@ -155,15 +154,14 @@ type Small = `${int8}`;
 /// @definition.type symbol=Small source="type Small = `${int8}`" value=`${int8}`
 
 const bad: Small = "128";
-/// @type.symbol symbol=bad source=bad type=Small reduced=`${int8}`
+/// @type.symbol symbol=bad source=bad type=`${int8}`
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Small target=Small
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"128\"' is not assignable to type 'Small'"
+/// @diagnostic.error id=not-assignable message="type '\"128\"' is not assignable to type '`${int8}`'"
 /// @diagnostic.label line=4 column=20 span="\"128\"" line_source="const bad: Small = \"128\";"
 /// @diagnostic.related line=4 column=12 span="Small" line_source="const bad: Small = \"128\";" message="expected due to this annotation"
-/// @diagnostic.note message="'Small' reduces to '`${int8}`'"
 "#,
     );
 }

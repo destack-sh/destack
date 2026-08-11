@@ -228,7 +228,8 @@ function make<T: Zero>(): Box<T> {
 
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }
 
@@ -766,7 +767,7 @@ function make(options?: Options): Entry {
     /// @resolution.pattern source=entry kind=binding target=make.entry
     /// @resolution.name source=Entry target=Entry
     /// @resolution.name source=options target=make.options
-    /// @resolution.member source=options?.message receiver={ message?: string } type=string | undefined kind=field target_receiver={ message?: string } key=message target_type=string | undefined
+    /// @resolution.member source=options?.message receiver=Options type=string | undefined kind=field target_receiver=Options key=message target_type=string | undefined
     /// @resolution.place source=options placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=options root=make.options
     /// @resolution.place source=options?.message placement="local" lifetime="frame" access="exclusive"

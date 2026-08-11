@@ -691,7 +691,7 @@ struct State { status: Status; }
 /// @resolution.name source=Status target=Status
 
 declare const state: ^State;
-/// @type.symbol symbol=state source=state type=Owned<State> reduced=State
+/// @type.symbol symbol=state source=state type=Owned<State>
 /// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
 
@@ -701,7 +701,7 @@ state.status = Status.Busy;
 /// @resolution.access source=state root=state
 /// @resolution.pattern.assign source=state.status kind=place
 /// @resolution.access source=state.status root=state keys=[status]
-/// @resolution.assignment source=state.status write="receiver=State, target=field(receiver=State, target=State.status, type=Status), type=Status" type=Status
+/// @resolution.assignment source=state.status write="receiver=Owned<State>, target=field(receiver=Owned<State>, target=State.status, type=Status), type=Status" type=Status
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 "#,

@@ -50,10 +50,10 @@ const value: readonly (1, "two", true) = (1, "two", true) as const;
 
 === checked ===
 const value = (1, "two", true) as const;
-/// @type.symbol symbol=value source=value type=readonly (1, "two", true) reduced=(1, "two", true)
+/// @type.symbol symbol=value source=value type=readonly (1, "two", true)
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source="(1, \"two\", true) as const" type=readonly (1, "two", true) reduced=(1, "two", true)
-/// @type.node source=(1, "two", true) type=readonly (1, "two", true) reduced=(1, "two", true)
+/// @type.node source="(1, \"two\", true) as const" type=readonly (1, "two", true)
+/// @type.node source=(1, "two", true) type=readonly (1, "two", true)
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true

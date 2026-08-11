@@ -17,20 +17,18 @@ const ok: Value = "HELLO";
 === annotated ===
 type Value = Uppercase<"hello">;
 
-const ok: Value = "HELLO";
+const ok: "HELLO" = "HELLO";
 
 === checked ===
 type Value = Uppercase<"hello">;
-/// @type.symbol symbol=Value source="type Value = Uppercase<\"hello\">" type=Uppercase<"hello"> reduced="HELLO"
-/// @definition.type symbol=Value source="type Value = Uppercase<\"hello\">" value=Uppercase<"hello"> reduced="HELLO"
+/// @type.symbol symbol=Value source="type Value = Uppercase<\"hello\">" type="HELLO"
+/// @definition.type symbol=Value source="type Value = Uppercase<\"hello\">" value="HELLO"
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 
 const ok: Value = "HELLO";
-/// @type.symbol symbol=ok source=ok type=Value reduced="HELLO"
+/// @type.symbol symbol=ok source=ok type="HELLO"
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Uppercase<\"hello\">" template=types.string.Uppercase arguments=("hello")
 "#,
     );
 }
@@ -54,18 +52,18 @@ method satisfies "GET" | "POST";
 === annotated ===
 type Method = Uppercase<"get" | "post">;
 
-declare const method: Method;
+declare const method: "GET" | "POST";
 
 method satisfies "GET" | "POST";
 
 === checked ===
 type Method = Uppercase<"get" | "post">;
-/// @type.symbol symbol=Method source="type Method = Uppercase<\"get\" | \"post\">" type=Uppercase<"get" | "post"> reduced="GET" | "POST"
-/// @definition.type symbol=Method source="type Method = Uppercase<\"get\" | \"post\">" value=Uppercase<"get" | "post"> reduced="GET" | "POST"
+/// @type.symbol symbol=Method source="type Method = Uppercase<\"get\" | \"post\">" type="GET" | "POST"
+/// @definition.type symbol=Method source="type Method = Uppercase<\"get\" | \"post\">" value="GET" | "POST"
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 
 declare const method: Method;
-/// @type.symbol symbol=method source=method type=Method reduced="GET" | "POST"
+/// @type.symbol symbol=method source=method type="GET" | "POST"
 /// @resolution.pattern source=method kind=binding target=method
 /// @resolution.name source=Method target=Method
 
@@ -73,8 +71,6 @@ method satisfies "GET" | "POST";
 /// @resolution.name source=method target=method
 /// @resolution.place source=method placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=method root=method
-
-/// @generic.instance id="Uppercase<\"get\" | \"post\">" template=types.string.Uppercase arguments=("get" | "post")
 "#,
     );
 }
@@ -96,26 +92,23 @@ const bad: Value = "hello";
 === annotated ===
 type Value = Uppercase<"hello">;
 
-const bad: Value = "hello";
+const bad: "HELLO" = "hello";
 
 === checked ===
 type Value = Uppercase<"hello">;
-/// @type.symbol symbol=Value source="type Value = Uppercase<\"hello\">" type=Uppercase<"hello"> reduced="HELLO"
-/// @definition.type symbol=Value source="type Value = Uppercase<\"hello\">" value=Uppercase<"hello"> reduced="HELLO"
+/// @type.symbol symbol=Value source="type Value = Uppercase<\"hello\">" type="HELLO"
+/// @definition.type symbol=Value source="type Value = Uppercase<\"hello\">" value="HELLO"
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 
 const bad: Value = "hello";
-/// @type.symbol symbol=bad source=bad type=Value reduced="HELLO"
+/// @type.symbol symbol=bad source=bad type="HELLO"
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Uppercase<\"hello\">" template=types.string.Uppercase arguments=("hello")
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type '\"HELLO\"'"
 /// @diagnostic.label line=4 column=20 span="\"hello\"" line_source="const bad: Value = \"hello\";"
 /// @diagnostic.related line=4 column=12 span="Value" line_source="const bad: Value = \"hello\";" message="expected due to this annotation"
-/// @diagnostic.note message="'Value' reduces to '\"HELLO\"'"
 "#,
     );
 }

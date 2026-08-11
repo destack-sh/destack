@@ -146,7 +146,7 @@ const fits: int8 = 100;
 const overflows: int8 = 300;
 
 type Pair = { 0: string; 1: string };
-declare const key: keyof Pair;
+declare const key: 0 | 1;
 const index: usize = key as usize;
 
 === checked ===
@@ -165,7 +165,7 @@ type Pair = { 0: string; 1: string };
 /// @definition.type symbol=Pair source="type Pair = { 0: string; 1: string }" value={ 0: string; 1: string }
 
 declare const key: keyof Pair;
-/// @type.symbol symbol=key source=key type=keyof Pair reduced=0 | 1
+/// @type.symbol symbol=key source=key type=0 | 1
 /// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Pair target=Pair
 

@@ -79,7 +79,7 @@ type Drawable = {
     draw(): void;
 };
 
-function paint(item: Drawable): void {
+function paint(item: { draw: () => void }): void {
     item.draw();
 }
 
@@ -93,7 +93,7 @@ type Drawable = {
 
 function paint(item: Drawable): void {
 /// @type.symbol symbol=paint type=(Drawable) => void
-/// @type.symbol symbol=paint.item source="item: Drawable" type=Drawable reduced={ draw(): void }
+/// @type.symbol symbol=paint.item source="item: Drawable" type={ draw(): void }
 /// @resolution.name source=Drawable target=Drawable
 
     item.draw();

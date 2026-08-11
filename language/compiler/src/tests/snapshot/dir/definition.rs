@@ -125,8 +125,7 @@ fn add_type_alias_row(
                 .template
                 .and_then(|template| template_label(builder, symbol, template)),
         )
-        .type_field("value", builder.global_type_label(definition.value))
-        .optional_type_field("reduced", builder.reduced_type_label(definition.value));
+        .type_field("value", builder.global_type_label(definition.value));
 
     builder.push(row);
 }

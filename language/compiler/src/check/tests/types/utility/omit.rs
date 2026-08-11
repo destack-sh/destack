@@ -28,7 +28,7 @@ interface Person {
     active: boolean;
 }
 
-declare const person: Omit<Person, "age">;
+declare const person: { name: string; active: boolean };
 
 person.name satisfies string;
 person.active satisfies boolean;
@@ -53,7 +53,7 @@ interface Person {
 }
 
 declare const person: Omit<Person, "age">;
-/// @type.symbol symbol=person source=person type=Omit<Person, "age"> reduced={ name: string; active: boolean }
+/// @type.symbol symbol=person source=person type={ name: string; active: boolean }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
@@ -73,8 +73,6 @@ person.active satisfies boolean;
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.active placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person.active root=person keys=[active]
-
-/// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
     );
 }
@@ -105,7 +103,7 @@ interface Person {
     active: boolean;
 }
 
-declare const person: Omit<Person, "age">;
+declare const person: { name: string; active: boolean };
 const age = person.age;
 
 === checked ===
@@ -128,7 +126,7 @@ interface Person {
 }
 
 declare const person: Omit<Person, "age">;
-/// @type.symbol symbol=person source=person type=Omit<Person, "age"> reduced={ name: string; active: boolean }
+/// @type.symbol symbol=person source=person type={ name: string; active: boolean }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
@@ -140,11 +138,9 @@ const age = person.age;
 /// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.age
-
-/// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
         r#"
-/// @diagnostic.error id=missing-member message="member 'age' does not exist on type 'Omit<Person, \"age\">'"
+/// @diagnostic.error id=missing-member message="member 'age' does not exist on type '{ name: string; active: boolean }'"
 /// @diagnostic.label line=9 column=20 span="age" line_source="const age = person.age;"
 "#,
     );
@@ -178,7 +174,7 @@ interface Person {
 
 type WithoutAge = Omit<Person, "age">;
 
-const person: WithoutAge = { name: "Ada" };
+const person: { name: string } = { name: "Ada" };
 person satisfies WithoutAge;
 
 === checked ===
@@ -197,13 +193,13 @@ interface Person {
 }
 
 type WithoutAge = Omit<Person, "age">;
-/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type=Omit<Person, "age"> reduced={ name: string }
-/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value=Omit<Person, "age"> reduced={ name: string }
+/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type={ name: string }
+/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value={ name: string }
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAge = { name: "Ada" };
-/// @type.symbol symbol=person source=person type=WithoutAge reduced={ name: string }
+/// @type.symbol symbol=person source=person type={ name: string }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=WithoutAge target=WithoutAge
 
@@ -212,8 +208,6 @@ person satisfies WithoutAge;
 /// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.name source=WithoutAge target=WithoutAge
-
-/// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
     );
 }
@@ -245,7 +239,7 @@ interface Person {
 
 type WithoutAge = Omit<Person, "age">;
 
-const person: WithoutAge = { name: "Ada", age: 42 };
+const person: { name: string } = { name: "Ada", age: 42 };
 
 === checked ===
 interface Person {
@@ -263,20 +257,18 @@ interface Person {
 }
 
 type WithoutAge = Omit<Person, "age">;
-/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type=Omit<Person, "age"> reduced={ name: string }
-/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value=Omit<Person, "age"> reduced={ name: string }
+/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type={ name: string }
+/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value={ name: string }
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAge = { name: "Ada", age: 42 };
-/// @type.symbol symbol=person source=person type=WithoutAge reduced={ name: string }
+/// @type.symbol symbol=person source=person type={ name: string }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=WithoutAge target=WithoutAge
-
-/// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
         r#"
-/// @diagnostic.error id=excess-property message="unknown property 'age' in object literal for type 'WithoutAge'"
+/// @diagnostic.error id=excess-property message="unknown property 'age' in object literal for type '{ name: string }'"
 /// @diagnostic.label line=9 column=28 span="{ name: \"Ada\", age: 42 }" line_source="const person: WithoutAge = { name: \"Ada\", age: 42 };"
 /// @diagnostic.related line=9 column=15 span="WithoutAge" line_source="const person: WithoutAge = { name: \"Ada\", age: 42 };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
@@ -311,7 +303,7 @@ interface Person {
 
 type WithoutAll = Omit<Person, "name" | "age">;
 
-const person: WithoutAll = {};
+const person: {} = {};
 
 === checked ===
 interface Person {
@@ -329,17 +321,15 @@ interface Person {
 }
 
 type WithoutAll = Omit<Person, "name" | "age">;
-/// @type.symbol symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" type=Omit<Person, "name" | "age"> reduced={}
-/// @definition.type symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" value=Omit<Person, "name" | "age"> reduced={}
+/// @type.symbol symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" type={}
+/// @definition.type symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" value={}
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAll = {};
-/// @type.symbol symbol=person source=person type=WithoutAll reduced={}
+/// @type.symbol symbol=person source=person type={}
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=WithoutAll target=WithoutAll
-
-/// @generic.instance id="Omit<Person, \"name\" | \"age\">" template=types.object.Omit arguments=(Person, "name" | "age")
 "#,
     );
 }
@@ -372,7 +362,7 @@ interface Person {
 
 type Same = Omit<Person, "missing">;
 
-const person: Same = { name: "Ada", age: 42 };
+const person: { name: string; age: int32 } = { name: "Ada", age: 42 };
 person satisfies Person;
 
 === checked ===
@@ -391,13 +381,13 @@ interface Person {
 }
 
 type Same = Omit<Person, "missing">;
-/// @type.symbol symbol=Same source="type Same = Omit<Person, \"missing\">" type=Omit<Person, "missing"> reduced={ name: string; age: int32 }
-/// @definition.type symbol=Same source="type Same = Omit<Person, \"missing\">" value=Omit<Person, "missing"> reduced={ name: string; age: int32 }
+/// @type.symbol symbol=Same source="type Same = Omit<Person, \"missing\">" type={ name: string; age: int32 }
+/// @definition.type symbol=Same source="type Same = Omit<Person, \"missing\">" value={ name: string; age: int32 }
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const person: Same = { name: "Ada", age: 42 };
-/// @type.symbol symbol=person source=person type=Same reduced={ name: string; age: int32 }
+/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Same target=Same
 
@@ -406,8 +396,6 @@ person satisfies Person;
 /// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.name source=Person target=Person
-
-/// @generic.instance id="Omit<Person, \"missing\">" template=types.object.Omit arguments=(Person, "missing")
 "#,
     );
 }
@@ -440,7 +428,7 @@ interface Person {
 
 type NameOnly = Omit<Person, "age">;
 
-const person: NameOnly = { name: "Ada" };
+const person: { readonly name: string } = { name: "Ada" };
 person.name = "Grace";
 
 === checked ===
@@ -459,13 +447,13 @@ interface Person {
 }
 
 type NameOnly = Omit<Person, "age">;
-/// @type.symbol symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" type=Omit<Person, "age"> reduced={ readonly name: string }
-/// @definition.type symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" value=Omit<Person, "age"> reduced={ readonly name: string }
+/// @type.symbol symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" type={ readonly name: string }
+/// @definition.type symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" value={ readonly name: string }
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const person: NameOnly = { name: "Ada" };
-/// @type.symbol symbol=person source=person type=NameOnly reduced={ readonly name: string }
+/// @type.symbol symbol=person source=person type={ readonly name: string }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=NameOnly target=NameOnly
 
@@ -474,11 +462,8 @@ person.name = "Grace";
 /// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.name
-
-/// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
         r#"
-
 "#,
     );
 }

@@ -521,10 +521,10 @@ export extension<T> of Pack<T> where T: Copy {
 
         this.duplicate()
         /// @type.node source=this type=&twice.'a readonly Pack<T#3>
-        /// @type.node source=this.duplicate type=<duplicate.'a>(this: &duplicate.'a readonly &twice.'a readonly Pack<T#3>) => T#3 reduced=<duplicate.'a>(this: &duplicate.'a readonly Pack<T#3>) => T#3
+        /// @type.node source=this.duplicate type=<duplicate.'a>(this: &duplicate.'a readonly &twice.'a readonly Pack<T#3>) => T#3
         /// @type.node source=this.duplicate() type=T#3
         /// @resolution.member source=this.duplicate receiver=&twice.'a readonly Pack<T#3> type=<duplicate.'a>(this: &duplicate.'a readonly &twice.'a readonly Pack<T#3>) => T#3 kind=symbol target_receiver=&twice.'a readonly Pack<T#3> target=duplicate
-        /// @resolution.call source=this.duplicate() parameters=() return=T#3 kind=symbol target=duplicate receiver=&twice.'a readonly Pack<T#3> instance=Pack<T#3>.<extension#1>.duplicate
+        /// @resolution.call source=this.duplicate() parameters=() return=T#3 kind=symbol target=duplicate receiver=&twice.'a readonly Pack<T#3> adjustments=(&twice.'a readonly Pack<T#3> => direct -> Pack<T#3>, borrow(&twice.'a readonly Pack<T#3>)) instance=Pack<T#3>.<extension#1>.duplicate
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=&twice.'a readonly Pack<T#3>
         /// @resolution.place source=this placement="local" lifetime=twice.'a access="readonly"
         /// @resolution.access source=this root=this
@@ -538,6 +538,7 @@ export extension<T> of Pack<T> where T: Copy {
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
 /// @generic.instance id=Pack<T#3>.<extension#1>.duplicate template=duplicate arguments=(T#3)
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }

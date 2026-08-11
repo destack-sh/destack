@@ -617,15 +617,15 @@ export { Iter } from "./inner.ds";
 === annotated ===
 import { Iter } from "./lib.ds";
 
-declare function probe(values: Dynamic<Iter<int32>>): boolean;
+declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
 === checked ===
 import { Iter } from "./lib.ds";
 
 declare function probe(values: Iter<int32>): boolean;
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<inner.Iter<int32>>) => boolean reduced=(Dynamic<inner.Iter<int32, unknown>>) => boolean
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<inner.Iter<int32>> reduced=Dynamic<inner.Iter<int32, unknown>>
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<inner.Iter<int32>>) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<inner.Iter<int32, unknown>>
 /// @resolution.name source=Iter target=inner.Iter
 
 const value = probe(todo("iter"));
@@ -636,6 +636,7 @@ const value = probe(todo("iter"));
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
+/// @generic.instance id="inner.Iter<int32, unknown>" template=inner.Iter arguments=(int32, unknown)
 /// @generic.instance id=inner.Iter<int32> template=inner.Iter arguments=(int32)
 "#,
     );
@@ -683,7 +684,7 @@ export interface Marker {
     marked: boolean;
 }
 
-declare function probe(values: Dynamic<Iter<int32>>): boolean;
+declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
 === checked ===
@@ -700,8 +701,8 @@ export interface Marker {
 }
 
 declare function probe(values: Iter<int32>): boolean;
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<b.Iter<int32>>) => boolean reduced=(Dynamic<b.Iter<int32, unknown>>) => boolean
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<b.Iter<int32>> reduced=Dynamic<b.Iter<int32, unknown>>
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<b.Iter<int32>>) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<b.Iter<int32, unknown>>
 /// @resolution.name source=Iter target=b.Iter
 
 const value = probe(todo("iter"));
@@ -712,6 +713,7 @@ const value = probe(todo("iter"));
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
+/// @generic.instance id="b.Iter<int32, unknown>" template=b.Iter arguments=(int32, unknown)
 /// @generic.instance id=b.Iter<int32> template=b.Iter arguments=(int32)
 
 === b.ds ===
@@ -1041,14 +1043,14 @@ export { Box } from "./a.ds";
 === annotated ===
 import { Box } from "./b.ds";
 
-declare const boxed: Box;
+declare const boxed: { value: Marker };
 const value: Marker = boxed.value;
 
 === checked ===
 import { Box } from "./b.ds";
 
 declare const boxed: Box;
-/// @type.symbol symbol=boxed source=boxed type=a.Box reduced={ value: a.Marker }
+/// @type.symbol symbol=boxed source=boxed type={ value: a.Marker }
 /// @resolution.pattern source=boxed kind=binding target=boxed
 /// @resolution.name source=Box target=a.Box
 

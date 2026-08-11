@@ -22,7 +22,7 @@ class Topic<in out T: string> {
     type Channel = `topic:${T}`;
 }
 
-declare const channel: Topic<"orders">.Channel;
+declare const channel: "topic:orders";
 channel satisfies `topic:${"orders"}`;
 
 === checked ===
@@ -40,7 +40,7 @@ class Topic<T: string> {
 }
 
 declare const channel: Topic<"orders">.Channel;
-/// @type.symbol symbol=channel source=channel type=Topic<"orders">.Channel reduced="topic:orders"
+/// @type.symbol symbol=channel source=channel type="topic:orders"
 /// @resolution.pattern source=channel kind=binding target=channel
 /// @resolution.name source="Topic<\"orders\">.Channel" target=Topic.Channel
 /// @resolution.name source=Topic target=Topic
@@ -49,8 +49,6 @@ channel satisfies `topic:${"orders"}`;
 /// @resolution.name source=channel target=channel
 /// @resolution.place source=channel placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=channel root=channel
-
-/// @generic.instance id="Topic<\"orders\">" template=Topic arguments=("orders")
 "#,
     );
 }
@@ -87,7 +85,7 @@ interface EventShape<in out T> {
 
 class Bus<in out T> implements EventShape<T> {}
 
-declare const handlers: Bus<{ ready: boolean; message: string }>.Handlers;
+declare const handlers: { on-ready: boolean; on-message: string };
 
 handlers["on-ready"] satisfies boolean;
 handlers["on-message"] satisfies string;
@@ -127,7 +125,7 @@ class Bus<T> implements EventShape<T> {}
 /// @resolution.name source=T target=Bus.T
 
 declare const handlers: Bus<{ ready: boolean; message: string }>.Handlers;
-/// @type.symbol symbol=handlers source=handlers type=Bus<{ ready: boolean; message: string }>.Handlers reduced={ on-ready: boolean; on-message: string }
+/// @type.symbol symbol=handlers source=handlers type={ on-ready: boolean; on-message: string }
 /// @resolution.pattern source=handlers kind=binding target=handlers
 /// @resolution.name source="Bus<{ ready: boolean; message: string }>.Handlers" target=EventShape.Handlers
 /// @resolution.name source=Bus target=Bus
@@ -147,8 +145,6 @@ handlers["on-message"] satisfies string;
 /// @resolution.subscript source="handlers[\"on-message\"]" type=string kind=member target="receiver={ on-ready: boolean; on-message: string }, target=field(receiver={ on-ready: boolean; on-message: string }, target=on-message, type=string), type=string"
 /// @resolution.place source=handlers placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handlers root=handlers
-
-/// @generic.instance id="Bus<{ ready: boolean; message: string }>" template=Bus arguments=({ ready: boolean; message: string })
 "#,
     );
 }
@@ -175,7 +171,7 @@ class EventName<in out T: string> {
     type Kind = T extends `evt:${infer Name}` ? Name : never;
 }
 
-declare const kind: EventName<"evt:login">.Kind;
+declare const kind: "login";
 kind satisfies "login";
 
 === checked ===
@@ -194,7 +190,7 @@ class EventName<T: string> {
 }
 
 declare const kind: EventName<"evt:login">.Kind;
-/// @type.symbol symbol=kind source=kind type=EventName<"evt:login">.Kind reduced="login"
+/// @type.symbol symbol=kind source=kind type="login"
 /// @resolution.pattern source=kind kind=binding target=kind
 /// @resolution.name source="EventName<\"evt:login\">.Kind" target=EventName.Kind
 /// @resolution.name source=EventName target=EventName
@@ -203,8 +199,6 @@ kind satisfies "login";
 /// @resolution.name source=kind target=kind
 /// @resolution.place source=kind placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=kind root=kind
-
-/// @generic.instance id="EventName<\"evt:login\">" template=EventName arguments=("evt:login")
 "#,
     );
 }

@@ -17,7 +17,7 @@ const value: Person = { name: "Ada", extra: true };
 === annotated ===
 type Person = { name: string };
 
-const value: Person = { name: "Ada", extra: true };
+const value: { name: string } = { name: "Ada", extra: true };
 
 === checked ===
 type Person = { name: string };
@@ -25,7 +25,7 @@ type Person = { name: string };
 /// @definition.type symbol=Person source="type Person = { name: string }" value={ name: string }
 
 const value: Person = { name: "Ada", extra: true };
-/// @type.symbol symbol=value source=value type=Person reduced={ name: string }
+/// @type.symbol symbol=value source=value type={ name: string }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Person target=Person
 /// @type.node source={ name: "Ada", extra: true } type={ name: string }
@@ -33,7 +33,7 @@ const value: Person = { name: "Ada", extra: true };
 /// @type.node source=true type=true
 "#,
         r#"
-/// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type 'Person'"
+/// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type '{ name: string }'"
 /// @diagnostic.label line=4 column=23 span="{ name: \"Ada\", extra: true }" line_source="const value: Person = { name: \"Ada\", extra: true };"
 /// @diagnostic.related line=4 column=14 span="Person" line_source="const value: Person = { name: \"Ada\", extra: true };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
@@ -61,7 +61,7 @@ const value: Person = source;
 type Person = { name: string };
 
 const source: { name: string; extra: boolean } = { name: "Ada", extra: true };
-const value: Person = source;
+const value: { name: string } = source;
 
 === checked ===
 type Person = { name: string };
@@ -76,7 +76,7 @@ const source = { name: "Ada", extra: true };
 /// @type.node source=true type=true
 
 const value: Person = source;
-/// @type.symbol symbol=value source=value type=Person reduced={ name: string }
+/// @type.symbol symbol=value source=value type={ name: string }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Person target=Person
 /// @type.node source=source type={ name: string; extra: boolean }
@@ -85,10 +85,9 @@ const value: Person = source;
 /// @resolution.access source=source root=source
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '{ name: string; extra: boolean }' is not assignable to type 'Person'"
+/// @diagnostic.error id=not-assignable message="type '{ name: string; extra: boolean }' is not assignable to type '{ name: string }'"
 /// @diagnostic.label line=5 column=23 span="source" line_source="const value: Person = source;"
 /// @diagnostic.related line=5 column=14 span="Person" line_source="const value: Person = source;" message="expected due to this annotation"
-/// @diagnostic.note message="'Person' reduces to '{ name: string }'"
 /// @diagnostic.note message="'{ name: string }' stores its exact object type, declare an interface to accept structurally wider values"
 "#,
     );

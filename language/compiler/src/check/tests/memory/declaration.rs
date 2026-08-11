@@ -135,7 +135,8 @@ sharedBox satisfies shared SharedBox<int32>;
 /// @generic.instance id=LocalBox<int32> template=LocalBox arguments=(int32)
 /// @generic.instance id=SharedBox<int32> template=SharedBox arguments=(int32)
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }
 
@@ -916,7 +917,7 @@ declare function consume<T>(request: Request<T>): void;
 /// @generic.template symbol=consume parameters=(T#3)
 /// @type.symbol symbol=consume source="declare function consume<T>(request: Request<T>): void" type=<T#3>(Request<T#3>) => void
 /// @type.symbol symbol=consume.T source=T type=T#3
-/// @type.symbol symbol=consume.request source="request: Request<T>" type=Request<T#3> reduced=Next<T#3> | Return<T#3>
+/// @type.symbol symbol=consume.request source="request: Request<T>" type=Request<T#3>
 /// @resolution.name source=Request target=Request
 /// @resolution.name source=T target=consume.T
 

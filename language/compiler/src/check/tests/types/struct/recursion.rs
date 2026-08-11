@@ -20,8 +20,8 @@ const tree: TreeB = source;
 type TreeA = { value: float64; child: TreeA | null };
 type TreeB = { value: float64; child: TreeB | null };
 
-declare const source: TreeA;
-const tree: TreeB = source;
+declare const source: { value: float64; child: TreeA | null };
+const tree: { value: float64; child: TreeB | null } = source;
 
 === checked ===
 type TreeA = { value: float64; child: TreeA | null };
@@ -35,15 +35,15 @@ type TreeB = { value: float64; child: TreeB | null };
 /// @resolution.name source=TreeB target=TreeB
 
 declare const source: TreeA;
-/// @type.symbol symbol=source source=source type=TreeA reduced={ value: float64; child: TreeA | null }
+/// @type.symbol symbol=source source=source type={ value: float64; child: TreeA | null }
 /// @resolution.pattern source=source kind=binding target=source
 /// @resolution.name source=TreeA target=TreeA
 
 const tree: TreeB = source;
-/// @type.symbol symbol=tree source=tree type=TreeB reduced={ value: float64; child: TreeB | null }
+/// @type.symbol symbol=tree source=tree type={ value: float64; child: TreeB | null }
 /// @resolution.pattern source=tree kind=binding target=tree
 /// @resolution.name source=TreeB target=TreeB
-/// @type.node source=source type=TreeA reduced={ value: float64; child: TreeA | null }
+/// @type.node source=source type={ value: float64; child: TreeA | null }
 /// @resolution.name source=source target=source
 /// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=source root=source

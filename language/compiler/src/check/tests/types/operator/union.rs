@@ -129,7 +129,7 @@ value satisfies string;
 === annotated ===
 type A = never | string;
 
-const value: A = "hello";
+const value: string = "hello";
 value satisfies string;
 
 === checked ===
@@ -138,7 +138,7 @@ type A = never | string;
 /// @definition.type symbol=A source="type A = never | string" value=string
 
 const value: A = "hello";
-/// @type.symbol symbol=value source=value type=A reduced=string
+/// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=A target=A
 
@@ -168,7 +168,7 @@ value satisfies void;
 === annotated ===
 type Value = void | never;
 
-const value: Value = ();
+const value: void = ();
 value satisfies void;
 
 === checked ===
@@ -177,7 +177,7 @@ type Value = void | never;
 /// @definition.type symbol=Value source="type Value = void | never" value=void
 
 const value: Value = ();
-/// @type.symbol symbol=value source=value type=Value reduced=void
+/// @type.symbol symbol=value source=value type=void
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 

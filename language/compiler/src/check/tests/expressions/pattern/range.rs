@@ -91,7 +91,7 @@ const label = match (value) {
 === annotated ===
 type Tiny = 0..=2;
 
-declare const value: Tiny;
+declare const value: 0..=2;
 
 const label: "low" | "two" = match (value) {
     0..=1 => "low"
@@ -104,7 +104,7 @@ type Tiny = 0..=2;
 /// @definition.type symbol=Tiny source="type Tiny = 0..=2" value=0..=2
 
 declare const value: Tiny;
-/// @type.symbol symbol=value source=value type=Tiny reduced=0..=2
+/// @type.symbol symbol=value source=value type=0..=2
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Tiny target=Tiny
 
@@ -112,7 +112,7 @@ const label = match (value) {
 /// @type.symbol symbol=label source=label type="low" | "two"
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="low" | "two"
-/// @type.node source=value type=Tiny reduced=0..=2
+/// @type.node source=value type=0..=2
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
@@ -155,7 +155,7 @@ const isEarly = match (value) {
 === annotated ===
 type LowerAscii = 'a'..='z';
 
-declare const value: LowerAscii;
+declare const value: 'a'..='z';
 
 const isEarly: true | false = match (value) {
     'a'..='m' => true
@@ -168,7 +168,7 @@ type LowerAscii = 'a'..='z';
 /// @definition.type symbol=LowerAscii source="type LowerAscii = 'a'..='z'" value='a'..='z'
 
 declare const value: LowerAscii;
-/// @type.symbol symbol=value source=value type=LowerAscii reduced='a'..='z'
+/// @type.symbol symbol=value source=value type='a'..='z'
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=LowerAscii target=LowerAscii
 
@@ -176,7 +176,7 @@ const isEarly = match (value) {
 /// @type.symbol symbol=isEarly source=isEarly type=true | false
 /// @resolution.pattern source=isEarly kind=binding target=isEarly
 /// @type.node type=true | false
-/// @type.node source=value type=LowerAscii reduced='a'..='z'
+/// @type.node source=value type='a'..='z'
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
@@ -220,7 +220,7 @@ const label = match (value) {
 === annotated ===
 type Tiny = 0..=3;
 
-declare const value: Tiny;
+declare const value: 0..=3;
 
 const label: "low" | "high" = match (value) {
     0..=1 => "low"
@@ -233,7 +233,7 @@ type Tiny = 0..=3;
 /// @definition.type symbol=Tiny source="type Tiny = 0..=3" value=0..=3
 
 declare const value: Tiny;
-/// @type.symbol symbol=value source=value type=Tiny reduced=0..=3
+/// @type.symbol symbol=value source=value type=0..=3
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Tiny target=Tiny
 
@@ -241,7 +241,7 @@ const label = match (value) {
 /// @type.symbol symbol=label source=label type="low" | "high"
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="low" | "high"
-/// @type.node source=value type=Tiny reduced=0..=3
+/// @type.node source=value type=0..=3
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value

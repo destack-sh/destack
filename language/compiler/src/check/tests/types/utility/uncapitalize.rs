@@ -17,20 +17,18 @@ const ok: Value = "hello";
 === annotated ===
 type Value = Uncapitalize<"Hello">;
 
-const ok: Value = "hello";
+const ok: "hello" = "hello";
 
 === checked ===
 type Value = Uncapitalize<"Hello">;
-/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Hello\">" type=Uncapitalize<"Hello"> reduced="hello"
-/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value=Uncapitalize<"Hello"> reduced="hello"
+/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Hello\">" type="hello"
+/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value="hello"
 /// @resolution.name source=Uncapitalize target=types.string.Uncapitalize
 
 const ok: Value = "hello";
-/// @type.symbol symbol=ok source=ok type=Value reduced="hello"
+/// @type.symbol symbol=ok source=ok type="hello"
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Uncapitalize<\"Hello\">" template=types.string.Uncapitalize arguments=("Hello")
 "#,
     );
 }
@@ -54,18 +52,18 @@ value satisfies "yes" | "no";
 === annotated ===
 type Value = Uncapitalize<"Yes" | "No">;
 
-declare const value: Value;
+declare const value: "yes" | "no";
 
 value satisfies "yes" | "no";
 
 === checked ===
 type Value = Uncapitalize<"Yes" | "No">;
-/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Yes\" | \"No\">" type=Uncapitalize<"Yes" | "No"> reduced="yes" | "no"
-/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Yes\" | \"No\">" value=Uncapitalize<"Yes" | "No"> reduced="yes" | "no"
+/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Yes\" | \"No\">" type="yes" | "no"
+/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Yes\" | \"No\">" value="yes" | "no"
 /// @resolution.name source=Uncapitalize target=types.string.Uncapitalize
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=Value reduced="yes" | "no"
+/// @type.symbol symbol=value source=value type="yes" | "no"
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
@@ -73,8 +71,6 @@ value satisfies "yes" | "no";
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-
-/// @generic.instance id="Uncapitalize<\"Yes\" | \"No\">" template=types.string.Uncapitalize arguments=("Yes" | "No")
 "#,
     );
 }
@@ -96,26 +92,23 @@ const bad: Value = "Hello";
 === annotated ===
 type Value = Uncapitalize<"Hello">;
 
-const bad: Value = "Hello";
+const bad: "hello" = "Hello";
 
 === checked ===
 type Value = Uncapitalize<"Hello">;
-/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Hello\">" type=Uncapitalize<"Hello"> reduced="hello"
-/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value=Uncapitalize<"Hello"> reduced="hello"
+/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Hello\">" type="hello"
+/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value="hello"
 /// @resolution.name source=Uncapitalize target=types.string.Uncapitalize
 
 const bad: Value = "Hello";
-/// @type.symbol symbol=bad source=bad type=Value reduced="hello"
+/// @type.symbol symbol=bad source=bad type="hello"
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Uncapitalize<\"Hello\">" template=types.string.Uncapitalize arguments=("Hello")
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"Hello\"' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type '\"Hello\"' is not assignable to type '\"hello\"'"
 /// @diagnostic.label line=4 column=20 span="\"Hello\"" line_source="const bad: Value = \"Hello\";"
 /// @diagnostic.related line=4 column=12 span="Value" line_source="const bad: Value = \"Hello\";" message="expected due to this annotation"
-/// @diagnostic.note message="'Value' reduces to '\"hello\"'"
 "#,
     );
 }

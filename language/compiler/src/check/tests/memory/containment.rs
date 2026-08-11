@@ -562,7 +562,7 @@ struct BorrowedBox { value: local Borrowed<User, "static">; }
 /// @type.symbol symbol=BorrowedBox source="struct BorrowedBox { value: local Borrowed<User, \"static\">; }" type=BorrowedBox
 /// @definition.struct symbol=BorrowedBox source="struct BorrowedBox { value: local Borrowed<User, \"static\">; }"
 /// @definition.field symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" key=value type=Placed<Borrowed<User, "static">, "local">
-/// @type.symbol symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" type=Placed<Borrowed<User, "static">, "local"> reduced=Placed<&'static User, "local">
+/// @type.symbol symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" type=Placed<Borrowed<User, "static">, "local">
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=User target=User
 
@@ -572,7 +572,7 @@ declare const owned: local ^User;
 /// @resolution.name source=User target=User
 
 declare const borrowed: local Borrowed<User, "static">;
-/// @type.symbol symbol=borrowed source=borrowed type=Placed<Borrowed<User, "static">, "local"> reduced=Placed<&'static User, "local">
+/// @type.symbol symbol=borrowed source=borrowed type=Placed<Borrowed<User, "static">, "local">
 /// @resolution.pattern source=borrowed kind=binding target=borrowed
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=User target=User
@@ -592,7 +592,7 @@ const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
 /// @resolution.name source=BorrowedBox target=BorrowedBox
 /// @resolution.name source=BorrowedBox target=BorrowedBox
 /// @resolution.name source=borrowed target=borrowed
-/// @resolution.place source=borrowed placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=borrowed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=borrowed root=borrowed
 
 /// @generic.instance id="Borrowed<User, \"static\">" template=memory.borrow.Borrowed arguments=(User, "static")

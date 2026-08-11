@@ -44,7 +44,7 @@ type Bag = { readonly [key: string]: int32 };
 
 function read(bag: Bag): int32 | undefined {
 /// @type.symbol symbol=read type=(Bag) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag reduced={ readonly [key: string]: int32 }
+/// @type.symbol symbol=read.bag source="bag: Bag" type={ readonly [key: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
     const x = bag["x"];
@@ -130,7 +130,7 @@ type Bag = { readonly [key: string]: int32 };
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag reduced={ readonly [key: string]: int32 }
+/// @type.symbol symbol=read.bag source="bag: Bag" type={ readonly [key: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
 const mixed: { x: int32; y: string } = { x: 1, y: "two" };
@@ -150,7 +150,6 @@ const value = read(mixed);
 /// @diagnostic.error id=argument-not-assignable message="argument of type '{ x: int32; y: string }' is not assignable to parameter of type 'Bag'"
 /// @diagnostic.label line=7 column=20 span="mixed" line_source="const value = read(mixed);"
 /// @diagnostic.related line=7 column=15 span="read(mixed)" line_source="const value = read(mixed);" message="in this call"
-/// @diagnostic.note message="'Bag' reduces to '{ readonly [key: string]: int32 }'"
 "#,
     );
 }
@@ -233,7 +232,7 @@ type Bag = { [key: string]: int32 };
 
 declare function write(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=write source="declare function write(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
-/// @type.symbol symbol=write.bag source="bag: Bag" type=Bag reduced={ [key: string]: int32 }
+/// @type.symbol symbol=write.bag source="bag: Bag" type={ [key: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
@@ -250,7 +249,6 @@ const bad = write(point);
 /// @resolution.access source=point root=point
 "#,
         r#"
-
 "#,
     );
 }
@@ -297,14 +295,14 @@ type Bag = { [key: string]: int32 };
 
 function write(bag: Bag): int32 | undefined {
 /// @type.symbol symbol=write type=(Bag) => int32 | undefined
-/// @type.symbol symbol=write.bag source="bag: Bag" type=Bag reduced={ [key: string]: int32 }
+/// @type.symbol symbol=write.bag source="bag: Bag" type={ [key: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
     bag["x"] = 1;
     /// @resolution.name source=bag target=write.bag
     /// @resolution.pattern.assign source="bag[\"x\"]" kind=place
     /// @resolution.access source="bag[\"x\"]" root=write.bag keys=[x]
-    /// @resolution.assignment source="bag[\"x\"]" write="member(receiver=Bag, target=index(string), type=int32)" type=int32
+    /// @resolution.assignment source="bag[\"x\"]" write="member(receiver={ [key: string]: int32 }, target=index(string), type=int32)" type=int32
     /// @resolution.place source=bag placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=bag root=write.bag
 
@@ -426,7 +424,7 @@ struct Store {
 extension of Store implements Index<string>, IndexSet<string, int32> {
 /// @definition.extension symbol=<module>#2 form=local target=Store
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32>" target="IndexSet<string, int32>"
-/// @definition.implements symbol=<module>#2 source=Index<string> target=Index<string>
+/// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\">"
 /// @definition.associated.type symbol=Output source="type Output = int32 | undefined" key=Output value="int32 | undefined"
 /// @definition.method symbol=index slot=index type=<index.'a>(this: &index.'a exclusive this, string) => this.Output
 /// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32) => void
@@ -494,7 +492,7 @@ declare let store: Store;
 
 declare function write(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=write source="declare function write(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
-/// @type.symbol symbol=write.bag source="bag: Bag" type=Bag reduced={ [key: string]: int32 }
+/// @type.symbol symbol=write.bag source="bag: Bag" type={ [key: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
 const value = write(store);
@@ -544,13 +542,13 @@ const bad: int32 | undefined = read(point);
 
 === checked ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32> reduced={ [P: string]: int32 }
-/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32> reduced={ [P: string]: int32 }
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
+/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
 /// @resolution.name source=Record target=types.object.Record
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag reduced={ [P: string]: int32 }
+/// @type.symbol symbol=read.bag source="bag: Bag" type={ [P: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32 } = { x: 1 };
@@ -565,11 +563,8 @@ const bad = read(point);
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
-
-/// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-
 "#,
     );
 }
@@ -601,12 +596,12 @@ value satisfies int32 | undefined;
 
 === checked ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32> reduced={ [P: string]: int32 }
-/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32> reduced={ [P: string]: int32 }
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
+/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
 /// @resolution.name source=Record target=types.object.Record
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type=Bag reduced={ [P: string]: int32 }
+/// @type.symbol symbol=bag source=bag type={ [P: string]: int32 }
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
@@ -623,8 +618,6 @@ value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-
-/// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
     );
 }
@@ -656,12 +649,12 @@ value satisfies int32 | undefined;
 
 === checked ===
 type Bag = Record<usize, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<usize, int32>" type=Record<usize, int32> reduced={ [P: usize]: int32 }
-/// @definition.type symbol=Bag source="type Bag = Record<usize, int32>" value=Record<usize, int32> reduced={ [P: usize]: int32 }
+/// @type.symbol symbol=Bag source="type Bag = Record<usize, int32>" type={ [P: usize]: int32 }
+/// @definition.type symbol=Bag source="type Bag = Record<usize, int32>" value={ [P: usize]: int32 }
 /// @resolution.name source=Record target=types.object.Record
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type=Bag reduced={ [P: usize]: int32 }
+/// @type.symbol symbol=bag source=bag type={ [P: usize]: int32 }
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
@@ -678,8 +671,6 @@ value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-
-/// @generic.instance id="Record<usize, int32>" template=types.object.Record arguments=(usize, int32)
 "#,
     );
 }
@@ -707,12 +698,12 @@ const value = bag.missing;
 
 === checked ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32> reduced={ [P: string]: int32 }
-/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32> reduced={ [P: string]: int32 }
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
+/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
 /// @resolution.name source=Record target=types.object.Record
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type=Bag reduced={ [P: string]: int32 }
+/// @type.symbol symbol=bag source=bag type={ [P: string]: int32 }
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
@@ -723,11 +714,9 @@ const value = bag.missing;
 /// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bag root=bag
 /// @resolution.rejected source=bag.missing
-
-/// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error id=missing-member message="member 'missing' does not exist on type 'Bag'"
+/// @diagnostic.error id=missing-member message="member 'missing' does not exist on type '{ [P: string]: int32 }'"
 /// @diagnostic.label line=5 column=19 span="missing" line_source="const value = bag.missing;"
 "#,
     );
@@ -792,7 +781,6 @@ const value = bag["name"];
 /// @generic.instance id=Bag<int32> template=Bag arguments=(int32)
 "#,
         r#"
-
 "#,
     );
 }
@@ -996,7 +984,7 @@ struct Counter {}
 extension of Counter implements Index<string>, IndexSet<string, int32 | float64> {
 /// @definition.extension symbol=<module>#2 form=local target=Counter
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32 | float64>" target="IndexSet<string, int32 | float64>"
-/// @definition.implements symbol=<module>#2 source=Index<string> target=Index<string>
+/// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\">"
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=index slot=index type=<comptime L>(this: Borrowed<this, L, "readonly">, string) => Borrowed<this.Output, L, "readonly">
 /// @definition.method symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32 | float64) => void
@@ -1051,7 +1039,7 @@ declare let counter: Counter;
 
 counter["value"] += 1;
 /// @resolution.name source=counter target=counter
-/// @resolution.operator source="counter[\"value\"] += 1" type=int32 operator="+" kind=builtin operands=[counter["value"] as int32 families=(integer), 1 as int32 families=(integer)]
+/// @resolution.operator source="counter[\"value\"] += 1" type=Counter.Output operator="+" kind=builtin operands=[counter["value"] as Counter.Output families=(integer), 1 as Counter.Output families=(integer)]
 /// @resolution.pattern.assign source="counter[\"value\"]" kind=place
 /// @resolution.assignment source="counter[\"value\"]" read="index(parameters=(string), arguments=(provided(\"value\") as string), return=Borrowed<Counter.Output, \"static\", \"readonly\">)" write="indexSet(parameters=(string, int32 | float64), arguments=(provided(\"value\") as string, write as int32 | float64), return=void)" type=int32 | float64
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"

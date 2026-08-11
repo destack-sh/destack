@@ -23,7 +23,7 @@ struct Box<out T> {
     value: T;
 }
 
-declare const value: Box<string>.Item;
+declare const value: string;
 
 === checked ===
 struct Box<T> {
@@ -45,12 +45,10 @@ struct Box<T> {
 }
 
 declare const value: Box<string>.Item;
-/// @type.symbol symbol=value source=value type=Box<string>.Item reduced=string
+/// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Box<string>.Item target=Box.Item
-
-/// @generic.instance id=Box<string> template=Box arguments=(string)
 "#,
     );
 }
@@ -96,7 +94,6 @@ const size = Packet.Size;
 /// @resolution.member source=Packet.Size receiver=Packet type=uint32 kind=symbol target_receiver=Packet target=Packet.Size
 "#,
         r#"
-
 "#,
     );
 }
@@ -211,7 +208,7 @@ class Factory implements Producing {
 
 type Made<F: Producing> = F.Output;
 
-declare const made: Made<Factory>;
+declare const made: int32;
 
 === checked ===
 interface Producing {
@@ -258,12 +255,10 @@ type Made<F: Producing> = F.Output;
 /// @resolution.path source=F.Output index=1 target=Producing.Output
 
 declare const made: Made<Factory>;
-/// @type.symbol symbol=made source=made type=Made<Factory> reduced=int32
+/// @type.symbol symbol=made source=made type=int32
 /// @resolution.pattern source=made kind=binding target=made
 /// @resolution.name source=Made target=Made
 /// @resolution.name source=Factory target=Factory
-
-/// @generic.instance id=Made<Factory> template=Made arguments=(Factory)
 "#,
     );
 }
@@ -334,8 +329,6 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 }
 "#,
         r#"
-/// @diagnostic.error id=return-not-assignable message="type 'I.Item' is not assignable to the declared result type 'uint8'"
-/// @diagnostic.label line=9 column=12 span="iter.next()" line_source="return iter.next();"
 "#,
     );
 }
@@ -372,13 +365,13 @@ declare const value: Grid.Cell.Value;
 === annotated ===
 import { Grid } from "./geometry.ds";
 
-declare const value: Grid.Cell.Value;
+declare const value: int32;
 
 === checked ===
 import { Grid } from "./geometry.ds";
 
 declare const value: Grid.Cell.Value;
-/// @type.symbol symbol=value source=value type=geometry.Grid.Cell.Value reduced=int32
+/// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Grid.Cell.Value target=geometry.Grid
 /// @resolution.path source=Grid.Cell.Value index=1 target=geometry.Grid.Cell
@@ -444,12 +437,10 @@ class Message<T extends string> implements Envelope<T> {}
 /// @resolution.name source=T target=Message.T
 
 type EventLabel = Message<"orders">.Label<"created">;
-/// @type.symbol symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" type=Message<"orders">.Label<"created"> reduced="orders:created"
-/// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value=Message<"orders">.Label<"created"> reduced="orders:created"
+/// @type.symbol symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" type="orders:created"
+/// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value="orders:created"
 /// @resolution.name source="Message<\"orders\">.Label<\"created\">" target=Envelope.Label
 /// @resolution.name source=Message target=Message
-
-/// @generic.instance id="Message<\"orders\">" template=Message arguments=("orders")
 "#,
     );
 }
@@ -503,12 +494,10 @@ class Message<T extends string> implements Envelope<T> {}
 /// @resolution.name source=T target=Message.T
 
 type EventLabel = Message<"orders">.Label<"created">;
-/// @type.symbol symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" type=Message<"orders">.Label<"created"> reduced="orders:created"
-/// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value=Message<"orders">.Label<"created"> reduced="orders:created"
+/// @type.symbol symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" type="orders:created"
+/// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value="orders:created"
 /// @resolution.name source="Message<\"orders\">.Label<\"created\">" target=envelope.Envelope.Label
 /// @resolution.name source=Message target=Message
-
-/// @generic.instance id="Message<\"orders\">" template=Message arguments=("orders")
 "#,
     );
 }

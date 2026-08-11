@@ -19,7 +19,7 @@ const digit: Digit = value;
 type Digit = 0..=9;
 
 declare const value: int32;
-const digit: Digit = value;
+const digit: 0..=9 = value;
 
 === checked ===
 type Digit = 0..=9;
@@ -31,7 +31,7 @@ declare const value: int32;
 /// @resolution.pattern source=value kind=binding target=value
 
 const digit: Digit = value;
-/// @type.symbol symbol=digit source=digit type=Digit reduced=0..=9
+/// @type.symbol symbol=digit source=digit type=0..=9
 /// @resolution.pattern source=digit kind=binding target=digit
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=value target=value
@@ -39,10 +39,9 @@ const digit: Digit = value;
 /// @resolution.access source=value root=value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'int32' is not assignable to type 'Digit'"
+/// @diagnostic.error id=not-assignable message="type 'int32' is not assignable to type '0..=9'"
 /// @diagnostic.label line=5 column=22 span="value" line_source="const digit: Digit = value;"
 /// @diagnostic.related line=5 column=14 span="Digit" line_source="const digit: Digit = value;" message="expected due to this annotation"
-/// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
     );
 }
@@ -65,8 +64,8 @@ const next: Digit = digit + 1;
 === annotated ===
 type Digit = 0..=9;
 
-declare const digit: Digit;
-const next: Digit = digit + 1;
+declare const digit: 0..=9;
+const next: 0..=9 = digit + 1;
 
 === checked ===
 type Digit = 0..=9;
@@ -74,12 +73,12 @@ type Digit = 0..=9;
 /// @definition.type symbol=Digit source="type Digit = 0..=9" value=0..=9
 
 declare const digit: Digit;
-/// @type.symbol symbol=digit source=digit type=Digit reduced=0..=9
+/// @type.symbol symbol=digit source=digit type=0..=9
 /// @resolution.pattern source=digit kind=binding target=digit
 /// @resolution.name source=Digit target=Digit
 
 const next: Digit = digit + 1;
-/// @type.symbol symbol=next source=next type=Digit reduced=0..=9
+/// @type.symbol symbol=next source=next type=0..=9
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=digit target=digit
@@ -88,10 +87,9 @@ const next: Digit = digit + 1;
 /// @resolution.access source=digit root=digit
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'int64' is not assignable to type 'Digit'"
+/// @diagnostic.error id=not-assignable message="type 'int64' is not assignable to type '0..=9'"
 /// @diagnostic.label line=5 column=21 span="digit + 1" line_source="const next: Digit = digit + 1;"
 /// @diagnostic.related line=5 column=13 span="Digit" line_source="const next: Digit = digit + 1;" message="expected due to this annotation"
-/// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
     );
 }

@@ -18,19 +18,19 @@ ok.id satisfies string;
 === annotated ===
 type Receiver = ThisParameterType<(this: { id: string }, value: float64) => void>;
 
-const ok: Receiver = { id: "u1" };
+const ok: { id: string } = { id: "u1" };
 ok.id satisfies string;
 
 === checked ===
 type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>;
-/// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" type=ThisParameterType<Function<(float64,), void>> reduced={ id: string }
-/// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" value=ThisParameterType<Function<(float64,), void>> reduced={ id: string }
+/// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" type={ id: string }
+/// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" value={ id: string }
 /// @resolution.name source=ThisParameterType target=types.function.ThisParameterType
 /// @type.symbol symbol=Receiver.this source="this: { id: string }" type={ id: string }
 /// @type.symbol symbol=Receiver.value source="value: number" type=float64
 
 const ok: Receiver = { id: "u1" };
-/// @type.symbol symbol=ok source=ok type=Receiver reduced={ id: string }
+/// @type.symbol symbol=ok source=ok type={ id: string }
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Receiver target=Receiver
 
@@ -41,8 +41,6 @@ ok.id satisfies string;
 /// @resolution.access source=ok root=ok
 /// @resolution.place source=ok.id placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=ok.id root=ok keys=[id]
-
-/// @generic.instance id="ThisParameterType<Function<(float64,), void>>" template=types.function.ThisParameterType arguments=(Function<(float64,), void>)
 "#,
     );
 }
@@ -64,21 +62,19 @@ const ok: Receiver = { anything: true };
 === annotated ===
 type Receiver = ThisParameterType<(value: float64) => void>;
 
-const ok: Receiver = { anything: true } as Dynamic<unknown>;
+const ok: Dynamic<unknown> = { anything: true } as Dynamic<unknown>;
 
 === checked ===
 type Receiver = ThisParameterType<(value: number) => void>;
-/// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" type=ThisParameterType<Function<(float64,), void>> reduced=unknown
-/// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" value=ThisParameterType<Function<(float64,), void>> reduced=unknown
+/// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" type=unknown
+/// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" value=unknown
 /// @resolution.name source=ThisParameterType target=types.function.ThisParameterType
 /// @type.symbol symbol=Receiver.value source="value: number" type=float64
 
 const ok: Receiver = { anything: true };
-/// @type.symbol symbol=ok source=ok type=Receiver reduced=unknown
+/// @type.symbol symbol=ok source=ok type=Dynamic<unknown>
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Receiver target=Receiver
-
-/// @generic.instance id="ThisParameterType<Function<(float64,), void>>" template=types.function.ThisParameterType arguments=(Function<(float64,), void>)
 "#,
     );
 }
@@ -101,19 +97,19 @@ fn("one") satisfies string;
 === annotated ===
 type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>;
 
-const fn: Fn = (value: string): string => `${value}`;
+const fn: (arg0: string) => string = (value: string): string => `${value}`;
 fn("one") satisfies string;
 
 === checked ===
 type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>;
-/// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" type=OmitThisParameter<Function<(string,), string>> reduced=Function<(string,), string>
-/// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" value=OmitThisParameter<Function<(string,), string>> reduced=Function<(string,), string>
+/// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" type=Function<(string,), string>
+/// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" value=Function<(string,), string>
 /// @resolution.name source=OmitThisParameter target=types.function.OmitThisParameter
 /// @type.symbol symbol=Fn.this source="this: { id: string }" type={ id: string }
 /// @type.symbol symbol=Fn.value source="value: string" type=string
 
 const fn: Fn = (value) => `${value}`;
-/// @type.symbol symbol=fn source=fn type=Fn reduced=Function<(string,), string>
+/// @type.symbol symbol=fn source=fn type=Function<(string,), string>
 /// @resolution.pattern source=fn kind=binding target=fn
 /// @resolution.name source=Fn target=Fn
 /// @type.symbol symbol=symbol6 source="(value) => `${value}`" type=Function<(string,), string>
@@ -127,8 +123,6 @@ fn("one") satisfies string;
 /// @resolution.call source="fn(\"one\")" parameters=(string) arguments=(provided("one") as string) return=string kind=expression target=expression
 /// @resolution.place source=fn placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=fn root=fn
-
-/// @generic.instance id="OmitThisParameter<Function<(string,), string>>" template=types.function.OmitThisParameter arguments=(Function<(string,), string>)
 "#,
     );
 }
@@ -151,19 +145,19 @@ fn("bad");
 === annotated ===
 type Fn = OmitThisParameter<(this: { id: string }, value: float64) => string>;
 
-declare const fn: Fn;
+declare const fn: (arg0: float64) => string;
 fn("bad");
 
 === checked ===
 type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
-/// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" type=OmitThisParameter<Function<(float64,), string>> reduced=Function<(float64,), string>
-/// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" value=OmitThisParameter<Function<(float64,), string>> reduced=Function<(float64,), string>
+/// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" type=Function<(float64,), string>
+/// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" value=Function<(float64,), string>
 /// @resolution.name source=OmitThisParameter target=types.function.OmitThisParameter
 /// @type.symbol symbol=Fn.this source="this: { id: string }" type={ id: string }
 /// @type.symbol symbol=Fn.value source="value: number" type=float64
 
 declare const fn: Fn;
-/// @type.symbol symbol=fn source=fn type=Fn reduced=Function<(float64,), string>
+/// @type.symbol symbol=fn source=fn type=Function<(float64,), string>
 /// @resolution.pattern source=fn kind=binding target=fn
 /// @resolution.name source=Fn target=Fn
 
@@ -172,8 +166,6 @@ fn("bad");
 /// @resolution.call source="fn(\"bad\")" parameters=(float64) arguments=(provided("bad") as float64) return=string kind=expression target=expression
 /// @resolution.place source=fn placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=fn root=fn
-
-/// @generic.instance id="OmitThisParameter<Function<(float64,), string>>" template=types.function.OmitThisParameter arguments=(Function<(float64,), string>)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"bad\"' is not assignable to parameter of type 'float64'"

@@ -25,7 +25,7 @@ interface Person {
     age: int32;
 }
 
-declare const person: Readonly<Person>;
+declare const person: readonly Dynamic<Person>;
 
 person.age satisfies int32;
 
@@ -45,20 +45,18 @@ interface Person {
 }
 
 declare const person: Readonly<Person>;
-/// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @type.symbol symbol=person source=person type=Readonly<Dynamic<Person>>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
 
 person.age satisfies int32;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.age receiver=Readonly<Person> type=int32 kind=field target_receiver=Readonly<Person> key=age target=Person.age target_type=int32
+/// @resolution.member source=person.age receiver=Readonly<Dynamic<Person>> type=int32 kind=field target_receiver=Readonly<Dynamic<Person>> dispatch=dynamic constraint=Person key=age target=Person.age target_type=int32
 /// @resolution.place source=person placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.age placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person.age root=person keys=[age]
-
-/// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)
 "#,
     );
 }
@@ -86,7 +84,7 @@ interface Person {
     name?: string;
 }
 
-const person: Readonly<Person> = {} as readonly Dynamic<Person>;
+const person: readonly Dynamic<Person> = {} as readonly Dynamic<Person>;
 
 person.name satisfies string | undefined;
 
@@ -102,20 +100,18 @@ interface Person {
 }
 
 const person: Readonly<Person> = {};
-/// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @type.symbol symbol=person source=person type=Readonly<Dynamic<Person>>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver=Readonly<Person> type=string | undefined kind=field target_receiver=Readonly<Person> key=name target=Person.name target_type=string | undefined
+/// @resolution.member source=person.name receiver=Readonly<Dynamic<Person>> type=Readonly<string> | undefined kind=field target_receiver=Readonly<Dynamic<Person>> dispatch=dynamic constraint=Person key=name target=Person.name target_type=Readonly<string> | undefined
 /// @resolution.place source=person placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.name placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person.name root=person keys=[name]
-
-/// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)
 "#,
     );
 }
@@ -145,7 +141,7 @@ interface Person {
     age: int32;
 }
 
-declare const person: Readonly<Person>;
+declare const person: readonly Dynamic<Person>;
 
 person.name = "Grace";
 
@@ -165,7 +161,7 @@ interface Person {
 }
 
 declare const person: Readonly<Person>;
-/// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @type.symbol symbol=person source=person type=Readonly<Dynamic<Person>>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
@@ -176,9 +172,7 @@ person.name = "Grace";
 /// @resolution.access source=person root=person
 /// @resolution.pattern.assign source=person.name kind=place
 /// @resolution.access source=person.name root=person keys=[name]
-/// @resolution.assignment source=person.name write="receiver=Readonly<Person>, target=field(receiver=Readonly<Person>, target=Person.name, type=string), type=string" type=string
-
-/// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)
+/// @resolution.assignment source=person.name write="receiver=Readonly<Dynamic<Person>>, target=field(receiver=dynamic(Readonly<Dynamic<Person>>, constraint=Person), target=Person.name, type=Readonly<string>), type=Readonly<string>" type=Readonly<string>
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
@@ -214,7 +208,7 @@ interface Person {
     };
 }
 
-const person: Readonly<Person> = { profile: { name: "Ada" } } as readonly Dynamic<Person>;
+const person: readonly Dynamic<Person> = { profile: { name: "Ada" } };
 
 person.profile.name = "Grace";
 
@@ -232,25 +226,26 @@ interface Person {
 }
 
 const person: Readonly<Person> = { profile: { name: "Ada" } };
-/// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @type.symbol symbol=person source=person type=Readonly<Dynamic<Person>>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
 
 person.profile.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.profile receiver=Readonly<Person> type=Readonly<{ name: string }> kind=field target_receiver=Readonly<Person> key=profile target=Person.profile target_type=Readonly<{ name: string }>
+/// @resolution.member source=person.profile receiver=Readonly<Dynamic<Person>> type=Readonly<{ name: string }> kind=field target_receiver=Readonly<Dynamic<Person>> dispatch=dynamic constraint=Person key=profile target=Person.profile target_type=Readonly<{ name: string }>
 /// @resolution.place source=person placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.profile placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person.profile root=person keys=[profile]
 /// @resolution.pattern.assign source=person.profile.name kind=place
 /// @resolution.access source=person.profile.name root=person keys=[profile, name]
-/// @resolution.assignment source=person.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=string), type=string" type=string
-
-/// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)
+/// @resolution.assignment source=person.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=Readonly<string>), type=Readonly<string>" type=Readonly<string>
 "#,
         r#"
+/// @diagnostic.error id=not-assignable message="type '{ profile: { name: \"Ada\" } }' is not assignable to type 'readonly Dynamic<Person>'"
+/// @diagnostic.label line=8 column=34 span="{ profile: { name: \"Ada\" } }" line_source="const person: Readonly<Person> = { profile: { name: \"Ada\" } };"
+/// @diagnostic.related line=8 column=15 span="Readonly" line_source="const person: Readonly<Person> = { profile: { name: \"Ada\" } };" message="expected due to this annotation"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
 /// @diagnostic.label line=10 column=16 span="name" line_source="person.profile.name = \"Grace\";"
 "#,

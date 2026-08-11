@@ -312,7 +312,6 @@ extension<T> of Slice<T> {
 /// @generic.instance id=Slice<T#2>.<extension#1>.size template=size arguments=(T#2)
 "#,
         r#"
-
 "#,
     );
 }

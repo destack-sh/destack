@@ -68,7 +68,7 @@ key satisfies "id:users";
 === annotated ===
 declare function build<T: string>(value: T): `id:${T}`;
 
-const key: "id:users" = build<"users">("users");
+const key = build<"users">("users");
 
 key satisfies "id:users";
 
@@ -82,7 +82,7 @@ declare function build<T: string>(value: T): `id:${T}`;
 /// @resolution.name source=T target=build.T
 
 const key = build("users");
-/// @type.symbol symbol=key source=key type=`id:${"users"}` reduced="id:users"
+/// @type.symbol symbol=key source=key type=`id:${"users"}`
 /// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=build target=build
 /// @resolution.call source="build(\"users\")" parameters=("users") arguments=(provided("users") as "users") return=`id:${"users"}` kind=symbol target=build instance="build<\"users\">"

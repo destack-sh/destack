@@ -23,7 +23,7 @@ struct Point {
     x: int32;
 }
 
-let point: ^Point = Point { x: 1 };
+let point: ^Point = ^Point { x: 1 };
 
 point satisfies ^Point;
 
@@ -39,16 +39,16 @@ struct Point {
 }
 
 let point: ^Point = Point { x: 1 };
-/// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
+/// @type.symbol symbol=point source=point type=Owned<Point>
 /// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
-/// @type.node source="Point { x: 1 }" type=Point
+/// @type.node source="Point { x: 1 }" type=Owned<Point>
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
 
 point satisfies ^Point;
-/// @type.node source="point satisfies ^Point" type=Owned<Point> reduced=Point
-/// @type.node source=point type=Owned<Point> reduced=Point
+/// @type.node source="point satisfies ^Point" type=Owned<Point>
+/// @type.node source=point type=Owned<Point>
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
@@ -100,7 +100,7 @@ declare function makeBuffer(): Buffer;
 /// @resolution.name source=Buffer target=Buffer
 
 let buffer: ^Buffer = makeBuffer();
-/// @type.symbol symbol=buffer source=buffer type=Owned<Buffer> reduced=Buffer
+/// @type.symbol symbol=buffer source=buffer type=Owned<Buffer>
 /// @resolution.pattern source=buffer kind=binding target=buffer
 /// @resolution.name source=Buffer target=Buffer
 /// @type.node source=makeBuffer type=() => Buffer
@@ -191,7 +191,7 @@ struct Container {
     data: ^Data;
 }
 
-const container: Container = Container { data: Data { value: 1 } };
+const container: Container = Container { data: ^Data { value: 1 } };
 
 container.data satisfies ^Data;
 
@@ -212,7 +212,7 @@ struct Container {
 /// @definition.field symbol=Container.data source="data: ^Data" key=data type=Owned<Data>
 
     data: ^Data;
-    /// @type.symbol symbol=Container.data source="data: ^Data" type=Owned<Data> reduced=Data
+    /// @type.symbol symbol=Container.data source="data: ^Data" type=Owned<Data>
     /// @resolution.name source=Data target=Data
 
 }
@@ -222,14 +222,14 @@ const container = Container { data: Data { value: 1 } };
 /// @resolution.pattern source=container kind=binding target=container
 /// @type.node source="Container { data: Data { value: 1 } }" type=Container
 /// @resolution.name source=Container target=Container
-/// @type.node source="Data { value: 1 }" type=Data
+/// @type.node source="Data { value: 1 }" type=Owned<Data>
 /// @resolution.name source=Data target=Data
 /// @type.node source=1 type=1
 
 container.data satisfies ^Data;
-/// @type.node source="container.data satisfies ^Data" type=Owned<Data> reduced=Data
+/// @type.node source="container.data satisfies ^Data" type=Owned<Data>
 /// @type.node source=container type=Container
-/// @type.node source=container.data type=Owned<Data> reduced=Data
+/// @type.node source=container.data type=Owned<Data>
 /// @resolution.name source=container target=container
 /// @resolution.member source=container.data receiver=Container type=Owned<Data> kind=field target_receiver=Container key=data target=Container.data target_type=Owned<Data>
 /// @resolution.place source=container placement="local" lifetime="static" access="exclusive"
@@ -274,7 +274,7 @@ struct User {
     profile: Profile;
 }
 
-let user: ^readonly User = readonly User {
+let user: ^readonly User = ^readonly User {
     profile: Profile { name: "Ada" },
 };
 
@@ -303,10 +303,10 @@ struct User {
 }
 
 let user: ^readonly User = User {
-/// @type.symbol symbol=user source=user type=Owned<Readonly<User>> reduced=Readonly<User>
+/// @type.symbol symbol=user source=user type=Owned<Readonly<User>>
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
-/// @type.node type=Readonly<User>
+/// @type.node type=Owned<Readonly<User>>
 /// @resolution.name source=User target=User
 
     profile: Profile { name: "Ada" },
@@ -318,18 +318,18 @@ let user: ^readonly User = User {
 
 user.profile.name = "Grace";
 /// @type.node source="user.profile.name = \"Grace\"" type="Grace"
-/// @type.node source=user type=Owned<Readonly<User>> reduced=Readonly<User>
+/// @type.node source=user type=Owned<Readonly<User>>
 /// @type.node source=user.profile type=Profile
-/// @type.node source=user.profile.name type=string
+/// @type.node source=user.profile.name type=Readonly<string>
 /// @resolution.name source=user target=user
-/// @resolution.member source=user.profile receiver=Readonly<User> type=Profile kind=field target_receiver=Readonly<User> key=profile target=User.profile target_type=Profile
+/// @resolution.member source=user.profile receiver=Owned<Readonly<User>> type=Profile kind=field target_receiver=Owned<Readonly<User>> key=profile target=User.profile target_type=Profile
 /// @resolution.place source=user placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user root=user
 /// @resolution.place source=user.profile placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user.profile root=user keys=[profile]
 /// @resolution.pattern.assign source=user.profile.name kind=place
 /// @resolution.access source=user.profile.name root=user keys=[profile, name]
-/// @resolution.assignment source=user.profile.name write="receiver=Readonly<Profile>, target=field(receiver=Readonly<Profile>, target=Profile.name, type=string), type=string" type=string
+/// @resolution.assignment source=user.profile.name write="receiver=Readonly<Profile>, target=field(receiver=Readonly<Profile>, target=Profile.name, type=Readonly<string>), type=Readonly<string>" type=Readonly<string>
 /// @type.node source="\"Grace\"" type="Grace"
 "#,
         r#"

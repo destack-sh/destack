@@ -64,7 +64,7 @@ class Cell<T> {
     constructor(executor: (consume: Consume<T>) => void) {
     /// @type.symbol symbol=Cell.constructor type=(Function<(Consume<T#2>,), void>) => this
     /// @type.symbol symbol=Cell.constructor.executor source="executor: (consume: Consume<T>) => void" type=Function<(Consume<T#2>,), void>
-    /// @type.symbol symbol=Cell.constructor.consume source="consume: Consume<T>" type=Consume<T#2> reduced=Function<(T#2,), void>
+    /// @type.symbol symbol=Cell.constructor.consume source="consume: Consume<T>" type=Consume<T#2>
     /// @resolution.name source=Consume target=Consume
     /// @resolution.name source=T target=Cell.T
 
@@ -99,10 +99,10 @@ function capture<T>(): void {
     /// @resolution.name source=T target=capture.T
     /// @type.symbol symbol=capture.symbol13 type=Function<(Consume<T#3>,), void>
     /// @type.node type=Function<(Consume<T#3>,), void>
-    /// @type.symbol symbol=capture.symbol13.inner source=inner type=Consume<T#3> reduced=Function<(T#3,), void>
+    /// @type.symbol symbol=capture.symbol13.inner source=inner type=Consume<T#3>
 
         seen = inner;
-        /// @type.node source="seen = inner" type=Consume<T#3> reduced=Function<(T#3,), void>
+        /// @type.node source="seen = inner" type=Consume<T#3>
         /// @type.node source=seen type=Consume<T#3> | undefined
         /// @resolution.name source=seen target=capture.seen
         /// @resolution.pattern.assign source=seen kind=place
@@ -110,7 +110,7 @@ function capture<T>(): void {
         /// @resolution.assignment source=seen write=binding(capture.seen) type=Consume<T#3> | undefined
         /// @generic.instance source="seen = inner" id=Consume<T#3>
         /// @generic.instance source=seen id=Consume<T#3>
-        /// @type.node source=inner type=Consume<T#3> reduced=Function<(T#3,), void>
+        /// @type.node source=inner type=Consume<T#3>
         /// @resolution.name source=inner target=capture.symbol13.inner
         /// @resolution.place source=inner placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=inner root=capture.symbol13.inner

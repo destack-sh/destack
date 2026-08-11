@@ -91,3 +91,42 @@ const writer: NamedWriter = Buffer {};
 "#,
     );
 }
+
+#[test]
+fn test_construct_newtype_constant_from_shifted_literal() {
+    // a newtype constructor call over a comptime shift settles at its annotation
+    let session = TestSession::single(
+        r#"
+export newtype Mask = uint32;
+
+export const CREATE: Mask = Mask(1 << 0);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+export newtype Mask = uint32;
+
+export const CREATE: Mask = Mask(1 << 0);
+
+=== checked ===
+export newtype Mask = uint32;
+/// @type.symbol symbol=Mask source="export newtype Mask = uint32" type=Mask
+/// @definition.newtype symbol=Mask source="export newtype Mask = uint32" backing=uint32 constructors=[(uint32) => Mask]
+
+export const CREATE: Mask = Mask(1 << 0);
+/// @type.symbol symbol=CREATE source=CREATE type=Mask
+/// @resolution.pattern source=CREATE kind=binding target=CREATE
+/// @resolution.name source=Mask target=Mask
+/// @resolution.name source=Mask target=Mask
+/// @resolution.construct source="Mask(1 << 0)" parameters=(uint32) arguments=(provided(1 << 0) as uint32) return=Mask kind=newtype target=Mask backing=uint32
+/// @resolution.operator source="1 << 0" type=1 operator="<<" kind=builtin operands=[1 as 1 families=(integer), 0 as 0 families=(integer)]
+"#,
+        r#"
+
+"#,
+    );
+}

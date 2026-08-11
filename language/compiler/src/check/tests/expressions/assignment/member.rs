@@ -33,7 +33,6 @@ state.count = 1;
 /// @resolution.rejected source=state.count
 "#,
         r#"
-
 "#,
     );
 }

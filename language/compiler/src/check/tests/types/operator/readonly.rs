@@ -40,20 +40,20 @@ type User = {
 };
 
 declare const user: readonly User;
-/// @type.symbol symbol=user source=user type=Readonly<User> reduced=Readonly<{ profile: { name: string } }>
+/// @type.symbol symbol=user source=user type=Readonly<User>
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 user.profile.name = "Grace";
 /// @resolution.name source=user target=user
-/// @resolution.member source=user.profile receiver=Readonly<{ profile: { name: string } }> type=Readonly<{ name: string }> kind=field target_receiver=Readonly<{ profile: { name: string } }> key=profile target_type=Readonly<{ name: string }>
+/// @resolution.member source=user.profile receiver=Readonly<User> type=Readonly<{ name: string }> kind=field target_receiver=Readonly<User> key=profile target_type=Readonly<{ name: string }>
 /// @resolution.place source=user placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user root=user
 /// @resolution.place source=user.profile placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user.profile root=user keys=[profile]
 /// @resolution.pattern.assign source=user.profile.name kind=place
 /// @resolution.access source=user.profile.name root=user keys=[profile, name]
-/// @resolution.assignment source=user.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=string), type=string" type=string
+/// @resolution.assignment source=user.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=Readonly<string>), type=Readonly<string>" type=Readonly<string>
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
@@ -209,7 +209,7 @@ user.profile.name = "Grace";
 /// @resolution.access source=user.profile root=user keys=[profile]
 /// @resolution.pattern.assign source=user.profile.name kind=place
 /// @resolution.access source=user.profile.name root=user keys=[profile, name]
-/// @resolution.assignment source=user.profile.name write="receiver=Readonly<Profile>, target=field(receiver=Readonly<Profile>, target=Profile.name, type=string), type=string" type=string
+/// @resolution.assignment source=user.profile.name write="receiver=Readonly<Profile>, target=field(receiver=Readonly<Profile>, target=Profile.name, type=Readonly<string>), type=Readonly<string>" type=Readonly<string>
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"

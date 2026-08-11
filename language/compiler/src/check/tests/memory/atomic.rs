@@ -69,7 +69,7 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
     return value.load();
     /// @resolution.name source=value target=read.value
     /// @resolution.member source=value.load receiver=&read.'a readonly sync.atomic.Atomic<T> type=<sync.atomic.load.'a>(this: &sync.atomic.load.'a readonly &read.'a readonly sync.atomic.Atomic<T>, sync.atomic.MemoryOrdering?) => T kind=symbol target_receiver=&read.'a readonly sync.atomic.Atomic<T> target=sync.atomic.load
-    /// @resolution.call source=value.load() parameters=(sync.atomic.MemoryOrdering) arguments=(omitted as sync.atomic.MemoryOrdering) return=T kind=symbol target=sync.atomic.load receiver=&read.'a readonly sync.atomic.Atomic<T> instance=sync.atomic.Atomic<T>.<extension#1>.load
+    /// @resolution.call source=value.load() parameters=(sync.atomic.MemoryOrdering) arguments=(omitted as sync.atomic.MemoryOrdering) return=T kind=symbol target=sync.atomic.load receiver=&read.'a readonly sync.atomic.Atomic<T> adjustments=(&read.'a readonly sync.atomic.Atomic<T> => direct -> sync.atomic.Atomic<T>, borrow(&read.'a readonly sync.atomic.Atomic<T>)) instance=sync.atomic.Atomic<T>.<extension#1>.load
     /// @resolution.place source=value placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=value root=read.value
     /// @generic.instance source=value.load() id=sync.atomic.Atomic<T>.<extension#1>.load
@@ -109,9 +109,11 @@ declare const wide: Atomic<uint128>;
 import { Atomic } from "destack:sync";
 
 declare const wide: Atomic<uint128>;
-/// @type.symbol symbol=wide source=wide type=<error>
+/// @type.symbol symbol=wide source=wide type=sync.atomic.Atomic<uint128>
 /// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=Atomic target=sync.atomic.Atomic
+
+/// @generic.instance id=sync.atomic.Atomic<uint128> template=sync.atomic.Atomic arguments=(uint128)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'uint128' does not satisfy 'AtomicSafe'"

@@ -19,7 +19,7 @@ declare const name: Name;
 type User = { name: string; age: int32 };
 type Name = User["name"];
 
-declare const name: Name;
+declare const name: string;
 
 === checked ===
 type User = { name: string; age: int32 };
@@ -27,12 +27,12 @@ type User = { name: string; age: int32 };
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
 
 type Name = User["name"];
-/// @type.symbol symbol=Name source="type Name = User[\"name\"]" type=User["name"] reduced=string
-/// @definition.type symbol=Name source="type Name = User[\"name\"]" value=User["name"] reduced=string
+/// @type.symbol symbol=Name source="type Name = User[\"name\"]" type=string
+/// @definition.type symbol=Name source="type Name = User[\"name\"]" value=string
 /// @resolution.name source=User target=User
 
 declare const name: Name;
-/// @type.symbol symbol=name source=name type=Name reduced=string
+/// @type.symbol symbol=name source=name type=string
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=Name target=Name
 "#,
@@ -58,7 +58,7 @@ declare const value: Right;
 type Pair = { 0: string; 1: int32 };
 type Right = Pair[1];
 
-declare const value: Right;
+declare const value: int32;
 
 === checked ===
 type Pair = { 0: string; 1: int32 };
@@ -66,12 +66,12 @@ type Pair = { 0: string; 1: int32 };
 /// @definition.type symbol=Pair source="type Pair = { 0: string; 1: int32 }" value={ 0: string; 1: int32 }
 
 type Right = Pair[1];
-/// @type.symbol symbol=Right source="type Right = Pair[1]" type=Pair[1] reduced=int32
-/// @definition.type symbol=Right source="type Right = Pair[1]" value=Pair[1] reduced=int32
+/// @type.symbol symbol=Right source="type Right = Pair[1]" type=int32
+/// @definition.type symbol=Right source="type Right = Pair[1]" value=int32
 /// @resolution.name source=Pair target=Pair
 
 declare const value: Right;
-/// @type.symbol symbol=value source=value type=Right reduced=int32
+/// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Right target=Right
 "#,
@@ -101,8 +101,8 @@ type ObjectLike = { label: string };
 /// @definition.type symbol=ObjectLike source="type ObjectLike = { label: string }" value={ label: string }
 
 type Missing = ObjectLike[5];
-/// @type.symbol symbol=Missing source="type Missing = ObjectLike[5]" type=ObjectLike[5] reduced=<error>
-/// @definition.type symbol=Missing source="type Missing = ObjectLike[5]" value=ObjectLike[5] reduced=<error>
+/// @type.symbol symbol=Missing source="type Missing = ObjectLike[5]" type=<error>
+/// @definition.type symbol=Missing source="type Missing = ObjectLike[5]" value=<error>
 /// @resolution.name source=ObjectLike target=ObjectLike
 "#,
         r#"
@@ -129,8 +129,8 @@ type Missing = int32["name"];
 
 === checked ===
 type Missing = int32["name"];
-/// @type.symbol symbol=Missing source="type Missing = int32[\"name\"]" type=int32["name"] reduced=<error>
-/// @definition.type symbol=Missing source="type Missing = int32[\"name\"]" value=int32["name"] reduced=<error>
+/// @type.symbol symbol=Missing source="type Missing = int32[\"name\"]" type=<error>
+/// @definition.type symbol=Missing source="type Missing = int32[\"name\"]" value=<error>
 "#,
         r#"
 /// @diagnostic.error id=invalid-index-receiver message="type 'int32' cannot be indexed"
@@ -158,7 +158,7 @@ declare const value: Value;
 type User = { name: string; age: int32 };
 type Value = User["name" | "age"];
 
-declare const value: Value;
+declare const value: string | int32;
 
 === checked ===
 type User = { name: string; age: int32 };
@@ -166,12 +166,12 @@ type User = { name: string; age: int32 };
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
 
 type Value = User["name" | "age"];
-/// @type.symbol symbol=Value source="type Value = User[\"name\" | \"age\"]" type=User["name" | "age"] reduced=string | int32
-/// @definition.type symbol=Value source="type Value = User[\"name\" | \"age\"]" value=User["name" | "age"] reduced=string | int32
+/// @type.symbol symbol=Value source="type Value = User[\"name\" | \"age\"]" type=string | int32
+/// @definition.type symbol=Value source="type Value = User[\"name\" | \"age\"]" value=string | int32
 /// @resolution.name source=User target=User
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=Value reduced=string | int32
+/// @type.symbol symbol=value source=value type=string | int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
@@ -197,7 +197,7 @@ const bad: Value = true;
 type User = { name: string; age: int32 };
 type Value = User["name" | "age"];
 
-const bad: Value = true;
+const bad: string | int32 = true;
 
 === checked ===
 type User = { name: string; age: int32 };
@@ -205,20 +205,19 @@ type User = { name: string; age: int32 };
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
 
 type Value = User["name" | "age"];
-/// @type.symbol symbol=Value source="type Value = User[\"name\" | \"age\"]" type=User["name" | "age"] reduced=string | int32
-/// @definition.type symbol=Value source="type Value = User[\"name\" | \"age\"]" value=User["name" | "age"] reduced=string | int32
+/// @type.symbol symbol=Value source="type Value = User[\"name\" | \"age\"]" type=string | int32
+/// @definition.type symbol=Value source="type Value = User[\"name\" | \"age\"]" value=string | int32
 /// @resolution.name source=User target=User
 
 const bad: Value = true;
-/// @type.symbol symbol=bad source=bad type=Value reduced=string | int32
+/// @type.symbol symbol=bad source=bad type=string | int32
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'string | int32'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
 /// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = true;" message="expected due to this annotation"
-/// @diagnostic.note message="'Value' reduces to 'string | int32'"
 "#,
     );
 }
@@ -245,8 +244,8 @@ type Left = { kind: "left"; value: int32 };
 type Right = { kind: "right"; value: string };
 type Value = (Left | Right)["value"];
 
-const number: Value = 1 as int32 | string;
-const text: Value = "hello" as int32 | string;
+const number: int32 | string = 1 as int32 | string;
+const text: int32 | string = "hello" as int32 | string;
 
 === checked ===
 type Left = { kind: "left"; value: int32 };
@@ -258,18 +257,18 @@ type Right = { kind: "right"; value: string };
 /// @definition.type symbol=Right source="type Right = { kind: \"right\"; value: string }" value={ kind: "right"; value: string }
 
 type Value = (Left | Right)["value"];
-/// @type.symbol symbol=Value source="type Value = (Left | Right)[\"value\"]" type=Left | Right["value"] reduced=int32 | string
-/// @definition.type symbol=Value source="type Value = (Left | Right)[\"value\"]" value=Left | Right["value"] reduced=int32 | string
+/// @type.symbol symbol=Value source="type Value = (Left | Right)[\"value\"]" type=int32 | string
+/// @definition.type symbol=Value source="type Value = (Left | Right)[\"value\"]" value=int32 | string
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right
 
 const number: Value = 1;
-/// @type.symbol symbol=number source=number type=Value reduced=int32 | string
+/// @type.symbol symbol=number source=number type=int32 | string
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=Value target=Value
 
 const text: Value = "hello";
-/// @type.symbol symbol=text source=text type=Value reduced=int32 | string
+/// @type.symbol symbol=text source=text type=int32 | string
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Value target=Value
 "#,
@@ -297,9 +296,9 @@ const text: Value = "hello";
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 type Value = Input["value"];
 
-const missing: Value = undefined as float64 | undefined | string;
-const number: Value = 1 as float64 | undefined | string;
-const text: Value = "hello" as float64 | undefined | string;
+const missing: float64 | undefined | string = undefined as float64 | undefined | string;
+const number: float64 | undefined | string = 1 as float64 | undefined | string;
+const text: float64 | undefined | string = "hello" as float64 | undefined | string;
 
 === checked ===
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
@@ -307,22 +306,22 @@ type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 /// @definition.type symbol=Input source="type Input = { kind: \"a\"; value?: number } | { kind: \"b\"; value: string }" value={ kind: "a"; value?: float64 } | { kind: "b"; value: string }
 
 type Value = Input["value"];
-/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=Input["value"] reduced=float64 | undefined | string
-/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=Input["value"] reduced=float64 | undefined | string
+/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | undefined | string
+/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=float64 | undefined | string
 /// @resolution.name source=Input target=Input
 
 const missing: Value = undefined;
-/// @type.symbol symbol=missing source=missing type=Value reduced=float64 | undefined | string
+/// @type.symbol symbol=missing source=missing type=float64 | undefined | string
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=Value target=Value
 
 const number: Value = 1;
-/// @type.symbol symbol=number source=number type=Value reduced=float64 | undefined | string
+/// @type.symbol symbol=number source=number type=float64 | undefined | string
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=Value target=Value
 
 const text: Value = "hello";
-/// @type.symbol symbol=text source=text type=Value reduced=float64 | undefined | string
+/// @type.symbol symbol=text source=text type=float64 | undefined | string
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Value target=Value
 "#,
@@ -348,7 +347,7 @@ const bad: Value = true;
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 type Value = Input["value"];
 
-const bad: Value = true;
+const bad: float64 | undefined | string = true;
 
 === checked ===
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
@@ -356,20 +355,19 @@ type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 /// @definition.type symbol=Input source="type Input = { kind: \"a\"; value?: number } | { kind: \"b\"; value: string }" value={ kind: "a"; value?: float64 } | { kind: "b"; value: string }
 
 type Value = Input["value"];
-/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=Input["value"] reduced=float64 | undefined | string
-/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=Input["value"] reduced=float64 | undefined | string
+/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | undefined | string
+/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=float64 | undefined | string
 /// @resolution.name source=Input target=Input
 
 const bad: Value = true;
-/// @type.symbol symbol=bad source=bad type=Value reduced=float64 | undefined | string
+/// @type.symbol symbol=bad source=bad type=float64 | undefined | string
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'float64 | undefined | string'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
 /// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = true;" message="expected due to this annotation"
-/// @diagnostic.note message="'Value' reduces to 'float64 | undefined | string'"
 "#,
     );
 }
@@ -397,8 +395,8 @@ type User = { name: string; age: int32 };
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
 
 type Missing = User["missing"];
-/// @type.symbol symbol=Missing source="type Missing = User[\"missing\"]" type=User["missing"] reduced=<error>
-/// @definition.type symbol=Missing source="type Missing = User[\"missing\"]" value=User["missing"] reduced=<error>
+/// @type.symbol symbol=Missing source="type Missing = User[\"missing\"]" type=<error>
+/// @definition.type symbol=Missing source="type Missing = User[\"missing\"]" value=<error>
 /// @resolution.name source=User target=User
 "#,
         r#"
@@ -427,7 +425,7 @@ declare const first: First;
 type Pair = (string, int32);
 type First = Pair[0];
 
-declare const first: First;
+declare const first: string;
 
 === checked ===
 type Pair = (string, int32);
@@ -435,12 +433,12 @@ type Pair = (string, int32);
 /// @definition.type symbol=Pair source="type Pair = (string, int32)" value=(string, int32)
 
 type First = Pair[0];
-/// @type.symbol symbol=First source="type First = Pair[0]" type=Pair[0] reduced=string
-/// @definition.type symbol=First source="type First = Pair[0]" value=Pair[0] reduced=string
+/// @type.symbol symbol=First source="type First = Pair[0]" type=string
+/// @definition.type symbol=First source="type First = Pair[0]" value=string
 /// @resolution.name source=Pair target=Pair
 
 declare const first: First;
-/// @type.symbol symbol=first source=first type=First reduced=string
+/// @type.symbol symbol=first source=first type=string
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=First target=First
 "#,
@@ -466,7 +464,7 @@ declare const value: Value;
 type Element<T: string[]> = T[usize];
 type Value = Element<string[]>;
 
-declare const value: Value;
+declare const value: string;
 
 === checked ===
 type Element<T: string[]> = T[usize];
@@ -477,16 +475,14 @@ type Element<T: string[]> = T[usize];
 /// @resolution.name source=T target=Element.T
 
 type Value = Element<string[]>;
-/// @type.symbol symbol=Value source="type Value = Element<string[]>" type=Element<Array<string>> reduced=string
-/// @definition.type symbol=Value source="type Value = Element<string[]>" value=Element<Array<string>> reduced=string
+/// @type.symbol symbol=Value source="type Value = Element<string[]>" type=string
+/// @definition.type symbol=Value source="type Value = Element<string[]>" value=string
 /// @resolution.name source=Element target=Element
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=Value reduced=string
+/// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id=Element<Array<string>> template=Element arguments=(Array<string>)
 "#,
     );
 }
@@ -512,7 +508,7 @@ type ValueAt<T, K: keyof T> = T[K];
 type User = { name: string; age: int32 };
 type Name = ValueAt<User, "name">;
 
-declare const name: Name;
+declare const name: string;
 
 === checked ===
 type ValueAt<T, K: keyof T> = T[K];
@@ -530,17 +526,15 @@ type User = { name: string; age: int32 };
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
 
 type Name = ValueAt<User, "name">;
-/// @type.symbol symbol=Name source="type Name = ValueAt<User, \"name\">" type=ValueAt<User, "name"> reduced=string
-/// @definition.type symbol=Name source="type Name = ValueAt<User, \"name\">" value=ValueAt<User, "name"> reduced=string
+/// @type.symbol symbol=Name source="type Name = ValueAt<User, \"name\">" type=string
+/// @definition.type symbol=Name source="type Name = ValueAt<User, \"name\">" value=string
 /// @resolution.name source=ValueAt target=ValueAt
 /// @resolution.name source=User target=User
 
 declare const name: Name;
-/// @type.symbol symbol=name source=name type=Name reduced=string
+/// @type.symbol symbol=name source=name type=string
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=Name target=Name
-
-/// @generic.instance id="ValueAt<User, \"name\">" template=ValueAt arguments=(User, "name")
 "#,
     );
 }
@@ -609,13 +603,13 @@ type User = {
     readonly age: int32;
 };
 
-function get<K: keyof User>(user: User, key: K): User[K] {
-    return user[key as "name" | "age"];
+function get<K: keyof User>(user: { readonly name: string; readonly age: int32 }, key: K): User[K] {
+    return user[key];
 }
 
-declare const user: User;
-const name: string = get<"name">(user, "name");
-const age: int32 = get<"age">(user, "age");
+declare const user: { readonly name: string; readonly age: int32 };
+const name: User["name"] = get<"name">(user, "name");
+const age: User["age"] = get<"age">(user, "age");
 
 name satisfies string;
 age satisfies int32;
@@ -634,7 +628,7 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 /// @type.symbol symbol=get type=<K: keyof User>(User, K) => User[K]
 /// @type.symbol symbol=get.K source="K: keyof User" type=K
 /// @resolution.name source=User target=User
-/// @type.symbol symbol=get.user source="user: User" type=User reduced={ readonly name: string; readonly age: int32 }
+/// @type.symbol symbol=get.user source="user: User" type={ readonly name: string; readonly age: int32 }
 /// @resolution.name source=User target=User
 /// @type.symbol symbol=get.key source="key: K" type=K
 /// @resolution.name source=K target=get.K
@@ -642,7 +636,7 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 /// @resolution.name source=K target=get.K
 
     return user[key];
-    /// @type.node source=user type=User reduced={ readonly name: string; readonly age: int32 }
+    /// @type.node source=user type={ readonly name: string; readonly age: int32 }
     /// @type.node source=user[key] type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.name source=user target=get.user
     /// @resolution.place source=user placement="local" lifetime="frame" access="exclusive"
@@ -657,48 +651,48 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 }
 
 declare const user: User;
-/// @type.symbol symbol=user source=user type=User reduced={ readonly name: string; readonly age: int32 }
+/// @type.symbol symbol=user source=user type={ readonly name: string; readonly age: int32 }
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const name = get(user, "name");
-/// @type.symbol symbol=name source=name type=User["name"] reduced=string
+/// @type.symbol symbol=name source=name type=User["name"]
 /// @resolution.pattern source=name kind=binding target=name
-/// @type.node source="get(user, \"name\")" type=User["name"] reduced=string
-/// @type.node source=get type=(User, "name") => User["name"] reduced=(User, "name") => string
+/// @type.node source="get(user, \"name\")" type=User["name"]
+/// @type.node source=get type=(User, "name") => User["name"]
 /// @resolution.name source=get target=get
 /// @resolution.call source="get(user, \"name\")" parameters=(User, "name") arguments=(provided(user) as User, provided("name") as "name") return=User["name"] kind=symbol target=get instance="get<\"name\">"
 /// @generic.instance source="get(user, \"name\")" id="get<\"name\">"
-/// @type.node source=user type=User reduced={ readonly name: string; readonly age: int32 }
+/// @type.node source=user type={ readonly name: string; readonly age: int32 }
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
 /// @type.node source="\"name\"" type="name"
 
 const age = get(user, "age");
-/// @type.symbol symbol=age source=age type=User["age"] reduced=int32
+/// @type.symbol symbol=age source=age type=User["age"]
 /// @resolution.pattern source=age kind=binding target=age
-/// @type.node source="get(user, \"age\")" type=User["age"] reduced=int32
-/// @type.node source=get type=(User, "age") => User["age"] reduced=(User, "age") => int32
+/// @type.node source="get(user, \"age\")" type=User["age"]
+/// @type.node source=get type=(User, "age") => User["age"]
 /// @resolution.name source=get target=get
 /// @resolution.call source="get(user, \"age\")" parameters=(User, "age") arguments=(provided(user) as User, provided("age") as "age") return=User["age"] kind=symbol target=get instance="get<\"age\">"
 /// @generic.instance source="get(user, \"age\")" id="get<\"age\">"
-/// @type.node source=user type=User reduced={ readonly name: string; readonly age: int32 }
+/// @type.node source=user type={ readonly name: string; readonly age: int32 }
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
 /// @type.node source="\"age\"" type="age"
 
 name satisfies string;
-/// @type.node source="name satisfies string" type=User["name"] reduced=string
-/// @type.node source=name type=User["name"] reduced=string
+/// @type.node source="name satisfies string" type=User["name"]
+/// @type.node source=name type=User["name"]
 /// @resolution.name source=name target=name
 /// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=name root=name
 
 age satisfies int32;
-/// @type.node source="age satisfies int32" type=User["age"] reduced=int32
-/// @type.node source=age type=User["age"] reduced=int32
+/// @type.node source="age satisfies int32" type=User["age"]
+/// @type.node source=age type=User["age"]
 /// @resolution.name source=age target=age
 /// @resolution.place source=age placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=age root=age
@@ -728,7 +722,7 @@ declare const name: Name;
 type User = { name?: string };
 type Name = User["name"];
 
-declare const name: Name;
+declare const name: string | undefined;
 
 === checked ===
 type User = { name?: string };
@@ -736,12 +730,12 @@ type User = { name?: string };
 /// @definition.type symbol=User source="type User = { name?: string }" value={ name?: string }
 
 type Name = User["name"];
-/// @type.symbol symbol=Name source="type Name = User[\"name\"]" type=User["name"] reduced=string | undefined
-/// @definition.type symbol=Name source="type Name = User[\"name\"]" value=User["name"] reduced=string | undefined
+/// @type.symbol symbol=Name source="type Name = User[\"name\"]" type=string | undefined
+/// @definition.type symbol=Name source="type Name = User[\"name\"]" value=string | undefined
 /// @resolution.name source=User target=User
 
 declare const name: Name;
-/// @type.symbol symbol=name source=name type=Name reduced=string | undefined
+/// @type.symbol symbol=name source=name type=string | undefined
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=Name target=Name
 "#,
@@ -771,7 +765,7 @@ declare const token: unique symbol;
 type TokenBox = { readonly [token]: int32 };
 type Value = TokenBox[token];
 
-declare const value: Value;
+declare const value: int32;
 
 === checked ===
 declare const token: unique symbol;
@@ -783,13 +777,13 @@ type TokenBox = { readonly [token]: int32 };
 /// @definition.type symbol=TokenBox source="type TokenBox = { readonly [token]: int32 }" value={ readonly [token]: int32 }
 
 type Value = TokenBox[token];
-/// @type.symbol symbol=Value source="type Value = TokenBox[token]" type=TokenBox[token] reduced=int32
-/// @definition.type symbol=Value source="type Value = TokenBox[token]" value=TokenBox[token] reduced=int32
+/// @type.symbol symbol=Value source="type Value = TokenBox[token]" type=int32
+/// @definition.type symbol=Value source="type Value = TokenBox[token]" value=int32
 /// @resolution.name source=TokenBox target=TokenBox
 /// @resolution.name source=token target=token
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=Value reduced=int32
+/// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
@@ -825,19 +819,19 @@ declare const value: Value;
 import { TokenBox, token } from "./keys.ds";
 
 type Value = TokenBox[token];
-declare const value: Value;
+declare const value: int32;
 
 === checked ===
 import { token, TokenBox } from "./keys.ds";
 
 type Value = TokenBox[token];
-/// @type.symbol symbol=Value source="type Value = TokenBox[token]" type=keys.TokenBox[keys.token] reduced=int32
-/// @definition.type symbol=Value source="type Value = TokenBox[token]" value=keys.TokenBox[keys.token] reduced=int32
+/// @type.symbol symbol=Value source="type Value = TokenBox[token]" type=int32
+/// @definition.type symbol=Value source="type Value = TokenBox[token]" value=int32
 /// @resolution.name source=TokenBox target=keys.TokenBox
 /// @resolution.name source=token target=keys.token
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=Value reduced=int32
+/// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
@@ -863,7 +857,7 @@ declare const value: Value;
 type Bag = { readonly [key: string]: int32 };
 type Value = Bag["name"];
 
-declare const value: Value;
+declare const value: int32;
 
 === checked ===
 type Bag = { readonly [key: string]: int32 };
@@ -871,12 +865,12 @@ type Bag = { readonly [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
 
 type Value = Bag["name"];
-/// @type.symbol symbol=Value source="type Value = Bag[\"name\"]" type=Bag["name"] reduced=int32
-/// @definition.type symbol=Value source="type Value = Bag[\"name\"]" value=Bag["name"] reduced=int32
+/// @type.symbol symbol=Value source="type Value = Bag[\"name\"]" type=int32
+/// @definition.type symbol=Value source="type Value = Bag[\"name\"]" value=int32
 /// @resolution.name source=Bag target=Bag
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=Value reduced=int32
+/// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
@@ -906,35 +900,35 @@ type Pair = keyof (string, int32);
 type Open = keyof [int32];
 type Fixed = keyof [int32; 3];
 
-declare const pair: Pair;
-declare const open: Open;
-declare const fixed: Fixed;
+declare const pair: 0 | 1;
+declare const open: usize;
+declare const fixed: 0 | 1 | 2;
 
 === checked ===
 type Pair = keyof (string, int32);
-/// @type.symbol symbol=Pair source="type Pair = keyof (string, int32)" type=keyof (string, int32) reduced=0 | 1
-/// @definition.type symbol=Pair source="type Pair = keyof (string, int32)" value=keyof (string, int32) reduced=0 | 1
+/// @type.symbol symbol=Pair source="type Pair = keyof (string, int32)" type=0 | 1
+/// @definition.type symbol=Pair source="type Pair = keyof (string, int32)" value=0 | 1
 
 type Open = keyof [int32];
-/// @type.symbol symbol=Open source="type Open = keyof [int32]" type=keyof Slice<int32> reduced=usize
-/// @definition.type symbol=Open source="type Open = keyof [int32]" value=keyof Slice<int32> reduced=usize
+/// @type.symbol symbol=Open source="type Open = keyof [int32]" type=usize
+/// @definition.type symbol=Open source="type Open = keyof [int32]" value=usize
 
 type Fixed = keyof [int32; 3];
-/// @type.symbol symbol=Fixed source="type Fixed = keyof [int32; 3]" type=keyof FixedArray<int32, 3> reduced=0 | 1 | 2
-/// @definition.type symbol=Fixed source="type Fixed = keyof [int32; 3]" value=keyof FixedArray<int32, 3> reduced=0 | 1 | 2
+/// @type.symbol symbol=Fixed source="type Fixed = keyof [int32; 3]" type=0 | 1 | 2
+/// @definition.type symbol=Fixed source="type Fixed = keyof [int32; 3]" value=0 | 1 | 2
 
 declare const pair: Pair;
-/// @type.symbol symbol=pair source=pair type=Pair reduced=0 | 1
+/// @type.symbol symbol=pair source=pair type=0 | 1
 /// @resolution.pattern source=pair kind=binding target=pair
 /// @resolution.name source=Pair target=Pair
 
 declare const open: Open;
-/// @type.symbol symbol=open source=open type=Open reduced=usize
+/// @type.symbol symbol=open source=open type=usize
 /// @resolution.pattern source=open kind=binding target=open
 /// @resolution.name source=Open target=Open
 
 declare const fixed: Fixed;
-/// @type.symbol symbol=fixed source=fixed type=Fixed reduced=0 | 1 | 2
+/// @type.symbol symbol=fixed source=fixed type=0 | 1 | 2
 /// @resolution.pattern source=fixed kind=binding target=fixed
 /// @resolution.name source=Fixed target=Fixed
 "#,

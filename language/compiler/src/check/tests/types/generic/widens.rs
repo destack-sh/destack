@@ -1398,8 +1398,8 @@ class Circle extends Shape {}
 
 newtype Handle<out T> = intrinsic;
 
-declare const handle: Managed<Handle<Circle>>;
-const widened: Managed<Handle<Shape>> = handle;
+declare const handle: Handle<Circle>;
+const widened: Handle<Shape> = handle;
 
 === checked ===
 class Shape {}
@@ -1437,15 +1437,11 @@ const widened: Managed<Handle<Shape>> = handle;
 
 /// @generic.instance id=Handle<Circle> template=Handle arguments=(Circle)
 /// @generic.instance id=Handle<Shape> template=Handle arguments=(Shape)
-/// @generic.instance id=Managed<Handle<Circle>> template=memory.managed.Managed arguments=(Handle<Circle>)
-/// @generic.instance id=Managed<Handle<Shape>> template=memory.managed.Managed arguments=(Handle<Shape>)
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Managed<Handle<Circle>>' is not assignable to type 'Managed<Handle<Shape>>'"
+/// @diagnostic.error id=not-assignable message="type 'Handle<Circle>' is not assignable to type 'Handle<Shape>'"
 /// @diagnostic.label line=8 column=41 span="handle" line_source="const widened: Managed<Handle<Shape>> = handle;"
 /// @diagnostic.related line=8 column=16 span="Managed" line_source="const widened: Managed<Handle<Shape>> = handle;" message="expected due to this annotation"
-/// @diagnostic.note message="'Managed<Handle<Circle>>' reduces to 'Handle<Circle>'"
-/// @diagnostic.note message="'Managed<Handle<Shape>>' reduces to 'Handle<Shape>'"
 "#,
     );
 }

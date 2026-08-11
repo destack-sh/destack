@@ -141,7 +141,7 @@ type Read = <comptime N: uint>() => [uint8; N];
 /// @resolution.name source=N target=Read.N
 
 declare const read: Read;
-/// @type.symbol symbol=read source=read type=Read reduced=Function<(), FixedArray<uint8, N>>
+/// @type.symbol symbol=read source=read type=Function<(), FixedArray<uint8, N>>
 /// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=Read target=Read
 "#,
@@ -168,8 +168,8 @@ declare const flagged: Flagged<{ name: "search"; enabled: true }>;
 type Tagged<comptime Tag: string> = { tag: Tag };
 type Flagged<comptime Config: { name: string; enabled: boolean }> = Config;
 
-declare const tagged: Tagged<"alpha">;
-declare const flagged: Flagged<{ name: "search"; enabled: true }>;
+declare const tagged: { tag: "alpha" };
+declare const flagged: { name: "search"; enabled: true };
 
 === checked ===
 type Tagged<comptime Tag: string> = { tag: Tag };
@@ -187,17 +187,14 @@ type Flagged<comptime Config: { name: string; enabled: boolean }> = Config;
 /// @resolution.name source=Config target=Flagged.Config
 
 declare const tagged: Tagged<"alpha">;
-/// @type.symbol symbol=tagged source=tagged type=Tagged<"alpha"> reduced={ tag: "alpha" }
+/// @type.symbol symbol=tagged source=tagged type={ tag: "alpha" }
 /// @resolution.pattern source=tagged kind=binding target=tagged
 /// @resolution.name source=Tagged target=Tagged
 
 declare const flagged: Flagged<{ name: "search"; enabled: true }>;
-/// @type.symbol symbol=flagged source=flagged type=Flagged<{ name: "search"; enabled: true }> reduced={ name: "search"; enabled: true }
+/// @type.symbol symbol=flagged source=flagged type={ name: "search"; enabled: true }
 /// @resolution.pattern source=flagged kind=binding target=flagged
 /// @resolution.name source=Flagged target=Flagged
-
-/// @generic.instance id="Flagged<{ name: \"search\"; enabled: true }>" template=Flagged arguments=({ name: "search"; enabled: true })
-/// @generic.instance id="Tagged<\"alpha\">" template=Tagged arguments=("alpha")
 "#,
     );
 }

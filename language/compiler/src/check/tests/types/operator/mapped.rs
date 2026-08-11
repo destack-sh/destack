@@ -19,7 +19,7 @@ declare const value: Actual;
 type Flags<T> = { [K in keyof T]: boolean };
 type Actual = Flags<{ name: string; age: int32 }>;
 
-declare const value: Actual;
+declare const value: { name: boolean; age: boolean };
 
 === checked ===
 type Flags<T> = { [K in keyof T]: boolean };
@@ -32,16 +32,14 @@ type Flags<T> = { [K in keyof T]: boolean };
 /// @resolution.name source=T target=Flags.T
 
 type Actual = Flags<{ name: string; age: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Flags<{ name: string; age: int32 }>" type=Flags<{ name: string; age: int32 }> reduced={ name: boolean; age: boolean }
-/// @definition.type symbol=Actual source="type Actual = Flags<{ name: string; age: int32 }>" value=Flags<{ name: string; age: int32 }> reduced={ name: boolean; age: boolean }
+/// @type.symbol symbol=Actual source="type Actual = Flags<{ name: string; age: int32 }>" type={ name: boolean; age: boolean }
+/// @definition.type symbol=Actual source="type Actual = Flags<{ name: string; age: int32 }>" value={ name: boolean; age: boolean }
 /// @resolution.name source=Flags target=Flags
 
 declare const value: Actual;
-/// @type.symbol symbol=value source=value type=Actual reduced={ name: boolean; age: boolean }
+/// @type.symbol symbol=value source=value type={ name: boolean; age: boolean }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Actual target=Actual
-
-/// @generic.instance id="Flags<{ name: string; age: int32 }>" template=Flags arguments=({ name: string; age: int32 })
 "#,
     );
 }
@@ -76,11 +74,9 @@ type Clone<T> = { [K in keyof T]: T[K] };
 /// @resolution.name source=K target=Clone.K
 
 type Actual = Clone<{ readonly name: string; age?: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" type=Clone<{ readonly name: string; age?: int32 }> reduced={ readonly name: string; age?: int32 }
-/// @definition.type symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" value=Clone<{ readonly name: string; age?: int32 }> reduced={ readonly name: string; age?: int32 }
+/// @type.symbol symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" type={ readonly name: string; age?: int32 }
+/// @definition.type symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" value={ readonly name: string; age?: int32 }
 /// @resolution.name source=Clone target=Clone
-
-/// @generic.instance id="Clone<{ readonly name: string; age?: int32 }>" template=Clone arguments=({ readonly name: string; age?: int32 })
 "#,
     );
 }
@@ -115,11 +111,9 @@ type Loose<T> = { [K in keyof T]?: T[K] };
 /// @resolution.name source=K target=Loose.K
 
 type Actual = Loose<{ name: string; age: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Loose<{ name: string; age: int32 }>" type=Loose<{ name: string; age: int32 }> reduced={ name?: string; age?: int32 }
-/// @definition.type symbol=Actual source="type Actual = Loose<{ name: string; age: int32 }>" value=Loose<{ name: string; age: int32 }> reduced={ name?: string; age?: int32 }
+/// @type.symbol symbol=Actual source="type Actual = Loose<{ name: string; age: int32 }>" type={ name?: string; age?: int32 }
+/// @definition.type symbol=Actual source="type Actual = Loose<{ name: string; age: int32 }>" value={ name?: string; age?: int32 }
 /// @resolution.name source=Loose target=Loose
-
-/// @generic.instance id="Loose<{ name: string; age: int32 }>" template=Loose arguments=({ name: string; age: int32 })
 "#,
     );
 }
@@ -143,7 +137,7 @@ const missing: Value = undefined;
 type Optional<T> = { [K in keyof T]?: T[K] };
 type Value = Optional<{ name: string }>["name"];
 
-const missing: Value = undefined as string | undefined;
+const missing: string | undefined = undefined as string | undefined;
 
 === checked ===
 type Optional<T> = { [K in keyof T]?: T[K] };
@@ -158,16 +152,14 @@ type Optional<T> = { [K in keyof T]?: T[K] };
 /// @resolution.name source=K target=Optional.K
 
 type Value = Optional<{ name: string }>["name"];
-/// @type.symbol symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" type=Optional<{ name: string }>["name"] reduced=string | undefined
-/// @definition.type symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" value=Optional<{ name: string }>["name"] reduced=string | undefined
+/// @type.symbol symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" type=string | undefined
+/// @definition.type symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" value=string | undefined
 /// @resolution.name source=Optional target=Optional
 
 const missing: Value = undefined;
-/// @type.symbol symbol=missing source=missing type=Value reduced=string | undefined
+/// @type.symbol symbol=missing source=missing type=string | undefined
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Optional<{ name: string }>" template=Optional arguments=({ name: string })
 "#,
     );
 }
@@ -191,7 +183,7 @@ const bad: Value = 1;
 type Optional<T> = { [K in keyof T]?: T[K] };
 type Value = Optional<{ name: string }>["name"];
 
-const bad: Value = 1;
+const bad: string | undefined = 1;
 
 === checked ===
 type Optional<T> = { [K in keyof T]?: T[K] };
@@ -206,22 +198,19 @@ type Optional<T> = { [K in keyof T]?: T[K] };
 /// @resolution.name source=K target=Optional.K
 
 type Value = Optional<{ name: string }>["name"];
-/// @type.symbol symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" type=Optional<{ name: string }>["name"] reduced=string | undefined
-/// @definition.type symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" value=Optional<{ name: string }>["name"] reduced=string | undefined
+/// @type.symbol symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" type=string | undefined
+/// @definition.type symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" value=string | undefined
 /// @resolution.name source=Optional target=Optional
 
 const bad: Value = 1;
-/// @type.symbol symbol=bad source=bad type=Value reduced=string | undefined
+/// @type.symbol symbol=bad source=bad type=string | undefined
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Optional<{ name: string }>" template=Optional arguments=({ name: string })
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'string | undefined'"
 /// @diagnostic.label line=5 column=20 span="1" line_source="const bad: Value = 1;"
 /// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = 1;" message="expected due to this annotation"
-/// @diagnostic.note message="'Value' reduces to 'string | undefined'"
 "#,
     );
 }
@@ -256,11 +245,9 @@ type Strict<T> = { -readonly [K in keyof T]-?: T[K] };
 /// @resolution.name source=K target=Strict.K
 
 type Actual = Strict<{ readonly name?: string }>;
-/// @type.symbol symbol=Actual source="type Actual = Strict<{ readonly name?: string }>" type=Strict<{ readonly name?: string }> reduced={ name: string }
-/// @definition.type symbol=Actual source="type Actual = Strict<{ readonly name?: string }>" value=Strict<{ readonly name?: string }> reduced={ name: string }
+/// @type.symbol symbol=Actual source="type Actual = Strict<{ readonly name?: string }>" type={ name: string }
+/// @definition.type symbol=Actual source="type Actual = Strict<{ readonly name?: string }>" value={ name: string }
 /// @resolution.name source=Strict target=Strict
-
-/// @generic.instance id="Strict<{ readonly name?: string }>" template=Strict arguments=({ readonly name?: string })
 "#,
     );
 }
@@ -282,8 +269,8 @@ type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
 
 === checked ===
 type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
-/// @type.symbol symbol=Caps source="type Caps = { [K in \"name\" | \"age\" as Uppercase<K>]: boolean }" type={ [K in "name" | "age" as Uppercase<K>]: boolean } reduced={ NAME: boolean; AGE: boolean }
-/// @definition.type symbol=Caps source="type Caps = { [K in \"name\" | \"age\" as Uppercase<K>]: boolean }" value={ [K in "name" | "age" as Uppercase<K>]: boolean } reduced={ NAME: boolean; AGE: boolean }
+/// @type.symbol symbol=Caps source="type Caps = { [K in \"name\" | \"age\" as Uppercase<K>]: boolean }" type={ [K in "name" | "age" as Uppercase<K>]: boolean }
+/// @definition.type symbol=Caps source="type Caps = { [K in \"name\" | \"age\" as Uppercase<K>]: boolean }" value={ [K in "name" | "age" as Uppercase<K>]: boolean }
 /// @generic.template source=mapped_type_parameter parameters=(K: "name" | "age")
 /// @type.symbol symbol=Caps.K source=[K in "name" | "age" as Uppercase<K>] type=K
 /// @resolution.name source=Uppercase target=types.string.Uppercase
@@ -315,7 +302,7 @@ actual.value satisfies string | int32;
 type Collide<T> = { [K in keyof T as "value"]: T[K] };
 type Actual = Collide<{ name: string; age: int32 }>;
 
-declare const actual: Actual;
+declare const actual: { value: string; value: int32 };
 
 actual.value satisfies string | int32;
 
@@ -332,12 +319,12 @@ type Collide<T> = { [K in keyof T as "value"]: T[K] };
 /// @resolution.name source=K target=Collide.K
 
 type Actual = Collide<{ name: string; age: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Collide<{ name: string; age: int32 }>" type=Collide<{ name: string; age: int32 }> reduced={ value: string; value: int32 }
-/// @definition.type symbol=Actual source="type Actual = Collide<{ name: string; age: int32 }>" value=Collide<{ name: string; age: int32 }> reduced={ value: string; value: int32 }
+/// @type.symbol symbol=Actual source="type Actual = Collide<{ name: string; age: int32 }>" type={ value: string; value: int32 }
+/// @definition.type symbol=Actual source="type Actual = Collide<{ name: string; age: int32 }>" value={ value: string; value: int32 }
 /// @resolution.name source=Collide target=Collide
 
 declare const actual: Actual;
-/// @type.symbol symbol=actual source=actual type=Actual reduced={ value: string; value: int32 }
+/// @type.symbol symbol=actual source=actual type={ value: string; value: int32 }
 /// @resolution.pattern source=actual kind=binding target=actual
 /// @resolution.name source=Actual target=Actual
 
@@ -348,8 +335,6 @@ actual.value satisfies string | int32;
 /// @resolution.access source=actual root=actual
 /// @resolution.place source=actual.value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=actual.value root=actual keys=[value]
-
-/// @generic.instance id="Collide<{ name: string; age: int32 }>" template=Collide arguments=({ name: string; age: int32 })
 "#,
     );
 }
@@ -386,11 +371,9 @@ type WithoutSecret<T> = { [K in keyof T as K extends "secret" ? never : K]: T[K]
 /// @resolution.name source=K target=WithoutSecret.K
 
 type Actual = WithoutSecret<{ name: string; secret: string }>;
-/// @type.symbol symbol=Actual source="type Actual = WithoutSecret<{ name: string; secret: string }>" type=WithoutSecret<{ name: string; secret: string }> reduced={ name: string }
-/// @definition.type symbol=Actual source="type Actual = WithoutSecret<{ name: string; secret: string }>" value=WithoutSecret<{ name: string; secret: string }> reduced={ name: string }
+/// @type.symbol symbol=Actual source="type Actual = WithoutSecret<{ name: string; secret: string }>" type={ name: string }
+/// @definition.type symbol=Actual source="type Actual = WithoutSecret<{ name: string; secret: string }>" value={ name: string }
 /// @resolution.name source=WithoutSecret target=WithoutSecret
-
-/// @generic.instance id="WithoutSecret<{ name: string; secret: string }>" template=WithoutSecret arguments=({ name: string; secret: string })
 "#,
     );
 }
@@ -433,11 +416,9 @@ type Clone<T> = { [K in keyof T]: T[K] };
 /// @resolution.name source=K target=Clone.K
 
 type Actual = Clone<{ readonly [token]: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Clone<{ readonly [token]: int32 }>" type=Clone<{ readonly [token]: int32 }> reduced={ readonly [token]: int32 }
-/// @definition.type symbol=Actual source="type Actual = Clone<{ readonly [token]: int32 }>" value=Clone<{ readonly [token]: int32 }> reduced={ readonly [token]: int32 }
+/// @type.symbol symbol=Actual source="type Actual = Clone<{ readonly [token]: int32 }>" type={ readonly [token]: int32 }
+/// @definition.type symbol=Actual source="type Actual = Clone<{ readonly [token]: int32 }>" value={ readonly [token]: int32 }
 /// @resolution.name source=Clone target=Clone
-
-/// @generic.instance id="Clone<{ readonly [token]: int32 }>" template=Clone arguments=({ readonly [token]: int32 })
 "#,
     );
 }
@@ -472,11 +453,9 @@ type Locked<T> = { +readonly [K in keyof T]+?: T[K] };
 /// @resolution.name source=K target=Locked.K
 
 type Actual = Locked<{ name: string; age: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Locked<{ name: string; age: int32 }>" type=Locked<{ name: string; age: int32 }> reduced={ readonly name?: string; readonly age?: int32 }
-/// @definition.type symbol=Actual source="type Actual = Locked<{ name: string; age: int32 }>" value=Locked<{ name: string; age: int32 }> reduced={ readonly name?: string; readonly age?: int32 }
+/// @type.symbol symbol=Actual source="type Actual = Locked<{ name: string; age: int32 }>" type={ readonly name?: string; readonly age?: int32 }
+/// @definition.type symbol=Actual source="type Actual = Locked<{ name: string; age: int32 }>" value={ readonly name?: string; readonly age?: int32 }
 /// @resolution.name source=Locked target=Locked
-
-/// @generic.instance id="Locked<{ name: string; age: int32 }>" template=Locked arguments=({ name: string; age: int32 })
 "#,
     );
 }

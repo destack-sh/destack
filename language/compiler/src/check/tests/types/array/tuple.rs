@@ -63,26 +63,26 @@ const count: 42 = tuple[1];
 
 === checked ===
 const tuple = ["id", 42] as const;
-/// @type.symbol symbol=tuple source=tuple type=readonly ["id", 42] reduced=["id", 42]
+/// @type.symbol symbol=tuple source=tuple type=readonly ["id", 42]
 /// @resolution.pattern source=tuple kind=binding target=tuple
 
 const name = tuple[0];
 /// @type.symbol symbol=name source=name type="id"
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=tuple target=tuple
-/// @resolution.place source=tuple placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=tuple placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=tuple root=tuple
 /// @resolution.access source=tuple[0] root=tuple keys=[0]
-/// @resolution.subscript source=tuple[0] type="id" kind=member target="receiver=[\"id\", 42], target=field(receiver=[\"id\", 42], target=0, type=\"id\"), type=\"id\""
+/// @resolution.subscript source=tuple[0] type="id" kind=member target="receiver=readonly [\"id\", 42], target=field(receiver=[\"id\", 42], target=0, type=\"id\"), type=\"id\""
 
 const count = tuple[1];
 /// @type.symbol symbol=count source=count type=42
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.name source=tuple target=tuple
-/// @resolution.place source=tuple placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=tuple placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=tuple root=tuple
 /// @resolution.access source=tuple[1] root=tuple keys=[1]
-/// @resolution.subscript source=tuple[1] type=42 kind=member target="receiver=[\"id\", 42], target=field(receiver=[\"id\", 42], target=1, type=42), type=42"
+/// @resolution.subscript source=tuple[1] type=42 kind=member target="receiver=readonly [\"id\", 42], target=field(receiver=[\"id\", 42], target=1, type=42), type=42"
 "#,
     );
 }

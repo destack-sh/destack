@@ -1323,7 +1323,7 @@ class Cell<T> {
 /// @type.symbol symbol=Cell.T source=T type=T#5
 
     state: State<T>;
-    /// @type.symbol symbol=Cell.state source="state: State<T>" type=State<T#5> reduced=Pending<T#5> | Fulfilled<T#5>
+    /// @type.symbol symbol=Cell.state source="state: State<T>" type=State<T#5>
     /// @resolution.name source=State target=State
     /// @resolution.name source=T target=Cell.T
 
@@ -1366,7 +1366,7 @@ class Cell<T> {
 
         if (this.state.kind == "fulfilled") {
         /// @resolution.member source=this.state receiver=Cell<T#5> type=State<T#5> kind=field target_receiver=Cell<T#5> key=state target=Cell.state target_type=State<T#5>
-        /// @resolution.member source=this.state.kind type="pending" | "fulfilled" kind=union arms=[receiver=Pending<T#5>, target=field(receiver=Pending<T#5>, target=Pending.kind, type="pending"), type="pending", receiver=Fulfilled<T#5>, target=field(receiver=Fulfilled<T#5>, target=Fulfilled.kind, type="fulfilled"), type="fulfilled"]
+        /// @resolution.member source=this.state.kind type="pending" | "fulfilled" kind=union arms=[receiver=State<T#5>, target=field(receiver=State<T#5>, target=Pending.kind, type="pending"), type="pending", receiver=State<T#5>, target=field(receiver=State<T#5>, target=Fulfilled.kind, type="fulfilled"), type="fulfilled"]
         /// @resolution.operator source="this.state.kind == \"fulfilled\"" type=boolean operator="==" kind=builtin operands=[this.state.kind as "pending" | "fulfilled" families=(string), "fulfilled" as "fulfilled" families=(string)]
         /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"

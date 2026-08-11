@@ -359,8 +359,8 @@ struct Box<out T> {
 declare const owned: Box<Circle>;
 const copy: Box<Shape> = owned;
 
-declare const aliased: Managed<Box<Circle>>;
-const widened: Managed<Box<Shape>> = aliased;
+declare const aliased: Box<Circle>;
+const widened: Box<Shape> = aliased;
 
 === checked ===
 class Shape {}
@@ -420,15 +420,11 @@ const widened: Managed<Box<Shape>> = aliased;
 
 /// @generic.instance id=Box<Circle> template=Box arguments=(Circle)
 /// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
-/// @generic.instance id=Managed<Box<Circle>> template=memory.managed.Managed arguments=(Box<Circle>)
-/// @generic.instance id=Managed<Box<Shape>> template=memory.managed.Managed arguments=(Box<Shape>)
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Managed<Box<Circle>>' is not assignable to type 'Managed<Box<Shape>>'"
+/// @diagnostic.error id=not-assignable message="type 'Box<Circle>' is not assignable to type 'Box<Shape>'"
 /// @diagnostic.label line=13 column=38 span="aliased" line_source="const widened: Managed<Box<Shape>> = aliased;"
 /// @diagnostic.related line=13 column=16 span="Managed" line_source="const widened: Managed<Box<Shape>> = aliased;" message="expected due to this annotation"
-/// @diagnostic.note message="'Managed<Box<Circle>>' reduces to 'Box<Circle>'"
-/// @diagnostic.note message="'Managed<Box<Shape>>' reduces to 'Box<Shape>'"
 "#,
     );
 }

@@ -26,7 +26,7 @@ interface Person {
     age?: int32;
 }
 
-declare const person: Required<Person>;
+declare const person: { name: string; age: int32 };
 
 person.name satisfies string;
 person.age satisfies int32;
@@ -47,7 +47,7 @@ interface Person {
 }
 
 declare const person: Required<Person>;
-/// @type.symbol symbol=person source=person type=Required<Person> reduced={ name: string; age: int32 }
+/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
@@ -67,8 +67,6 @@ person.age satisfies int32;
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.age placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person.age root=person keys=[age]
-
-/// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
     );
 }
@@ -96,7 +94,7 @@ interface Person {
     age?: int32;
 }
 
-const person: Required<Person> = { name: "Ada" };
+const person: { name: string; age: int32 } = { name: "Ada" };
 
 === checked ===
 interface Person {
@@ -114,15 +112,13 @@ interface Person {
 }
 
 const person: Required<Person> = { name: "Ada" };
-/// @type.symbol symbol=person source=person type=Required<Person> reduced={ name: string; age: int32 }
+/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
-
-/// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
         r#"
-/// @diagnostic.error id=missing-required-property message="missing required property 'age' for type 'Required<Person>'"
+/// @diagnostic.error id=missing-required-property message="missing required property 'age' for type '{ name: string; age: int32 }'"
 /// @diagnostic.label line=7 column=34 span="{ name: \"Ada\" }" line_source="const person: Required<Person> = { name: \"Ada\" };"
 /// @diagnostic.related line=7 column=15 span="Required" line_source="const person: Required<Person> = { name: \"Ada\" };" message="expected due to this annotation"
 "#,
@@ -151,7 +147,7 @@ interface Person {
     name?: string | undefined;
 }
 
-const person: Required<Person> = { name: undefined as string | undefined };
+const person: { name: string | undefined } = { name: undefined as string | undefined };
 person.name satisfies string | undefined;
 
 === checked ===
@@ -166,7 +162,7 @@ interface Person {
 }
 
 const person: Required<Person> = { name: undefined };
-/// @type.symbol symbol=person source=person type=Required<Person> reduced={ name: string | undefined }
+/// @type.symbol symbol=person source=person type={ name: string | undefined }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
@@ -178,8 +174,6 @@ person.name satisfies string | undefined;
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.name placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person.name root=person keys=[name]
-
-/// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
     );
 }
@@ -206,7 +200,7 @@ interface Person {
     readonly name?: string;
 }
 
-const person: Required<Person> = { name: "Ada" };
+const person: { readonly name: string } = { name: "Ada" };
 person.name = "Grace";
 
 === checked ===
@@ -221,7 +215,7 @@ interface Person {
 }
 
 const person: Required<Person> = { name: "Ada" };
-/// @type.symbol symbol=person source=person type=Required<Person> reduced={ readonly name: string }
+/// @type.symbol symbol=person source=person type={ readonly name: string }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
@@ -231,11 +225,8 @@ person.name = "Grace";
 /// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.name
-
-/// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
         r#"
-
 "#,
     );
 }

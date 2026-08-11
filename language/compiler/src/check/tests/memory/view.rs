@@ -79,7 +79,7 @@ local class Counter {
         label(this.name)
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter type=string kind=field target_receiver=&Counter.describe.'a readonly Counter key=name target=Counter.name target_type=string
+        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter type=Readonly<string> kind=field target_receiver=&Counter.describe.'a readonly Counter key=name target=Counter.name target_type=Readonly<string>
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'a readonly Counter
         /// @resolution.place source=this placement="local" lifetime=Counter.describe.'a access="readonly"
         /// @resolution.access source=this root=this
@@ -320,7 +320,7 @@ local class Counter {
         label(this.name)
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter type=string kind=field target_receiver=&Counter.describe.'a readonly Counter key=name target=Counter.name target_type=string
+        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter type=Readonly<string> kind=field target_receiver=&Counter.describe.'a readonly Counter key=name target=Counter.name target_type=Readonly<string>
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'a readonly Counter
         /// @resolution.place source=this placement="local" lifetime=Counter.describe.'a access="readonly"
         /// @resolution.access source=this root=this

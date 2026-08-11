@@ -21,7 +21,7 @@ person.name satisfies string;
 type Person = { name: string };
 
 const source: { name: string } = { name: "Ada" };
-const person: Person = source;
+const person: { name: string } = source;
 
 person.name satisfies string;
 
@@ -37,7 +37,7 @@ const source = { name: "Ada" };
 /// @type.node source="\"Ada\"" type="Ada"
 
 const person: Person = source;
-/// @type.symbol symbol=person source=person type=Person reduced={ name: string }
+/// @type.symbol symbol=person source=person type={ name: string }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Person target=Person
 /// @type.node source=source type={ name: string }
@@ -47,7 +47,7 @@ const person: Person = source;
 
 person.name satisfies string;
 /// @type.node source="person.name satisfies string" type=string
-/// @type.node source=person type=Person reduced={ name: string }
+/// @type.node source=person type={ name: string }
 /// @type.node source=person.name type=string
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver={ name: string } type=string kind=field target_receiver={ name: string } key=name target_type=string
@@ -82,9 +82,9 @@ type Options = { retries?: int32 };
 
 declare const maybe: int32 | undefined;
 
-const explicit: Options = { retries: 3 };
-const omitted: Options = {};
-const undecided: Options = { retries: maybe };
+const explicit: { retries?: int32 } = { retries: 3 };
+const omitted: { retries?: int32 } = {};
+const undecided: { retries?: int32 } = { retries: maybe };
 
 === checked ===
 type Options = { retries?: int32 };
@@ -96,17 +96,17 @@ declare const maybe: int32 | undefined;
 /// @resolution.pattern source=maybe kind=binding target=maybe
 
 const explicit: Options = { retries: 3 };
-/// @type.symbol symbol=explicit source=explicit type=Options reduced={ retries?: int32 }
+/// @type.symbol symbol=explicit source=explicit type={ retries?: int32 }
 /// @resolution.pattern source=explicit kind=binding target=explicit
 /// @resolution.name source=Options target=Options
 
 const omitted: Options = {};
-/// @type.symbol symbol=omitted source=omitted type=Options reduced={ retries?: int32 }
+/// @type.symbol symbol=omitted source=omitted type={ retries?: int32 }
 /// @resolution.pattern source=omitted kind=binding target=omitted
 /// @resolution.name source=Options target=Options
 
 const undecided: Options = { retries: maybe };
-/// @type.symbol symbol=undecided source=undecided type=Options reduced={ retries?: int32 }
+/// @type.symbol symbol=undecided source=undecided type={ retries?: int32 }
 /// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
@@ -144,8 +144,8 @@ type Options = { retries?: int32 | undefined };
 
 declare const maybe: int32 | undefined;
 
-const undecided: Options = { retries: maybe };
-const cleared: Options = { retries: undefined as int32 | undefined };
+const undecided: { retries?: int32 | undefined } = { retries: maybe };
+const cleared: { retries?: int32 | undefined } = { retries: undefined as int32 | undefined };
 
 === checked ===
 type Options = { retries?: int32 | undefined };
@@ -157,7 +157,7 @@ declare const maybe: int32 | undefined;
 /// @resolution.pattern source=maybe kind=binding target=maybe
 
 const undecided: Options = { retries: maybe };
-/// @type.symbol symbol=undecided source=undecided type=Options reduced={ retries?: int32 | undefined }
+/// @type.symbol symbol=undecided source=undecided type={ retries?: int32 | undefined }
 /// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
@@ -165,7 +165,7 @@ const undecided: Options = { retries: maybe };
 /// @resolution.access source=maybe root=maybe
 
 const cleared: Options = { retries: undefined };
-/// @type.symbol symbol=cleared source=cleared type=Options reduced={ retries?: int32 | undefined }
+/// @type.symbol symbol=cleared source=cleared type={ retries?: int32 | undefined }
 /// @resolution.pattern source=cleared kind=binding target=cleared
 /// @resolution.name source=Options target=Options
 "#,
@@ -199,7 +199,7 @@ type Meter = {
     set reading(next: string | int32);
 };
 
-declare let meter: Meter;
+declare let meter: { reading: string | int32 };
 const shown: string = meter.reading;
 meter.reading = 5 as string | int32;
 
@@ -215,14 +215,14 @@ type Meter = {
 };
 
 declare let meter: Meter;
-/// @type.symbol symbol=meter source=meter type=Meter reduced={ get reading(): string; set reading(value: string | int32) }
+/// @type.symbol symbol=meter source=meter type={ get reading(): string; set reading(value: string | int32) }
 /// @resolution.pattern source=meter kind=binding target=meter
 /// @resolution.name source=Meter target=Meter
 
 const shown = meter.reading;
 /// @type.symbol symbol=shown source=shown type=string
 /// @resolution.pattern source=shown kind=binding target=shown
-/// @type.node source=meter type=Meter reduced={ get reading(): string; set reading(value: string | int32) }
+/// @type.node source=meter type={ get reading(): string; set reading(value: string | int32) }
 /// @type.node source=meter.reading type=string
 /// @resolution.name source=meter target=meter
 /// @resolution.member source=meter.reading receiver={ get reading(): string; set reading(value: string | int32) } type=string kind=field target_receiver={ get reading(): string; set reading(value: string | int32) } key=reading target_type=string
@@ -232,7 +232,7 @@ const shown = meter.reading;
 
 meter.reading = 5;
 /// @type.node source="meter.reading = 5" type=5
-/// @type.node source=meter type=Meter reduced={ get reading(): string; set reading(value: string | int32) }
+/// @type.node source=meter type={ get reading(): string; set reading(value: string | int32) }
 /// @type.node source=meter.reading type=string | int32
 /// @resolution.name source=meter target=meter
 /// @resolution.place source=meter placement="local" lifetime="static" access="exclusive"

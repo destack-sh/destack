@@ -26,7 +26,7 @@ interface Person {
     age: int32;
 }
 
-let person: MutableFields<Person> = { name: "Ada", age: 42 };
+let person: { name: string; age: int32 } = { name: "Ada", age: 42 };
 
 person.name = "Grace";
 person.name satisfies string;
@@ -47,7 +47,7 @@ interface Person {
 }
 
 let person: MutableFields<Person> = { name: "Ada", age: 42 };
-/// @type.symbol symbol=person source=person type=MutableFields<Person> reduced={ name: string; age: int32 }
+/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=MutableFields target=types.object.MutableFields
 /// @resolution.name source=Person target=Person
@@ -67,8 +67,6 @@ person.name satisfies string;
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.name placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person.name root=person keys=[name]
-
-/// @generic.instance id=MutableFields<Person> template=types.object.MutableFields arguments=(Person)
 "#,
     );
 }
@@ -98,8 +96,8 @@ interface Person {
     readonly name?: string;
 }
 
-const empty: MutableFields<Person> = {};
-const named: MutableFields<Person> = { name: "Ada" };
+const empty: { name?: string } = {};
+const named: { name?: string } = { name: "Ada" };
 
 empty satisfies MutableFields<Person>;
 named satisfies MutableFields<Person>;
@@ -116,13 +114,13 @@ interface Person {
 }
 
 const empty: MutableFields<Person> = {};
-/// @type.symbol symbol=empty source=empty type=MutableFields<Person> reduced={ name?: string }
+/// @type.symbol symbol=empty source=empty type={ name?: string }
 /// @resolution.pattern source=empty kind=binding target=empty
 /// @resolution.name source=MutableFields target=types.object.MutableFields
 /// @resolution.name source=Person target=Person
 
 const named: MutableFields<Person> = { name: "Ada" };
-/// @type.symbol symbol=named source=named type=MutableFields<Person> reduced={ name?: string }
+/// @type.symbol symbol=named source=named type={ name?: string }
 /// @resolution.pattern source=named kind=binding target=named
 /// @resolution.name source=MutableFields target=types.object.MutableFields
 /// @resolution.name source=Person target=Person
@@ -140,8 +138,6 @@ named satisfies MutableFields<Person>;
 /// @resolution.access source=named root=named
 /// @resolution.name source=MutableFields target=types.object.MutableFields
 /// @resolution.name source=Person target=Person
-
-/// @generic.instance id=MutableFields<Person> template=types.object.MutableFields arguments=(Person)
 "#,
     );
 }
@@ -173,7 +169,7 @@ interface Person {
     };
 }
 
-let person: MutableFields<Person> = { profile: { name: "Ada" } };
+let person: { profile: readonly { name: string } } = { profile: { name: "Ada" } };
 
 person.profile.name = "Grace";
 
@@ -191,7 +187,7 @@ interface Person {
 }
 
 let person: MutableFields<Person> = { profile: { name: "Ada" } };
-/// @type.symbol symbol=person source=person type=MutableFields<Person> reduced={ profile: Readonly<{ name: string }> }
+/// @type.symbol symbol=person source=person type={ profile: Readonly<{ name: string }> }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=MutableFields target=types.object.MutableFields
 /// @resolution.name source=Person target=Person
@@ -205,9 +201,7 @@ person.profile.name = "Grace";
 /// @resolution.access source=person.profile root=person keys=[profile]
 /// @resolution.pattern.assign source=person.profile.name kind=place
 /// @resolution.access source=person.profile.name root=person keys=[profile, name]
-/// @resolution.assignment source=person.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=string), type=string" type=string
-
-/// @generic.instance id=MutableFields<Person> template=types.object.MutableFields arguments=(Person)
+/// @resolution.assignment source=person.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=Readonly<string>), type=Readonly<string>" type=Readonly<string>
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"

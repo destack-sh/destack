@@ -801,7 +801,7 @@ const map: Map<string, int32> = record;
 
 === checked ===
 declare const record: Record<string, int32>;
-/// @type.symbol symbol=record source=record type=Record<string, int32> reduced={ [P: string]: int32 }
+/// @type.symbol symbol=record source=record type={ [P: string]: int32 }
 /// @resolution.pattern source=record kind=binding target=record
 /// @resolution.name source=Record target=types.object.Record
 
@@ -814,13 +814,11 @@ const map: Map<string, int32> = record;
 /// @resolution.access source=record root=record
 
 /// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
-/// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Record<string, int32>' is not assignable to type 'Map<string, int32>'"
+/// @diagnostic.error id=not-assignable message="type '{ [P: string]: int32 }' is not assignable to type 'Map<string, int32>'"
 /// @diagnostic.label line=3 column=33 span="record" line_source="const map: Map<string, int32> = record;"
 /// @diagnostic.related line=3 column=12 span="Map" line_source="const map: Map<string, int32> = record;" message="expected due to this annotation"
-/// @diagnostic.note message="'Record<string, int32>' reduces to '{ [P: string]: int32 }'"
 "#,
     );
 }

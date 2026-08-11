@@ -19,7 +19,7 @@ declare const bytes: Bytes;
 type Slots<comptime N: usize> = [uint8; N];
 type Bytes = Slots<16>;
 
-declare const bytes: Bytes;
+declare const bytes: [uint8; 16];
 
 === checked ===
 type Slots<comptime N: usize> = [uint8; N];
@@ -30,16 +30,14 @@ type Slots<comptime N: usize> = [uint8; N];
 /// @resolution.name source=N target=Slots.N
 
 type Bytes = Slots<16>;
-/// @type.symbol symbol=Bytes source="type Bytes = Slots<16>" type=Slots<16> reduced=FixedArray<uint8, 16>
-/// @definition.type symbol=Bytes source="type Bytes = Slots<16>" value=Slots<16> reduced=FixedArray<uint8, 16>
+/// @type.symbol symbol=Bytes source="type Bytes = Slots<16>" type=FixedArray<uint8, 16>
+/// @definition.type symbol=Bytes source="type Bytes = Slots<16>" value=FixedArray<uint8, 16>
 /// @resolution.name source=Slots target=Slots
 
 declare const bytes: Bytes;
-/// @type.symbol symbol=bytes source=bytes type=Bytes reduced=FixedArray<uint8, 16>
+/// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 16>
 /// @resolution.pattern source=bytes kind=binding target=bytes
 /// @resolution.name source=Bytes target=Bytes
-
-/// @generic.instance id=Slots<16> template=Slots arguments=(16)
 "#,
     );
 }
@@ -63,7 +61,7 @@ function print(value: Printable): string {
 === annotated ===
 type Printable = { print(): string };
 
-function print(value: Printable): string {
+function print(value: { print: () => string }): string {
     return value.print();
 }
 
@@ -74,11 +72,11 @@ type Printable = { print(): string };
 
 function print(value: Printable): string {
 /// @type.symbol symbol=print type=(Printable) => string
-/// @type.symbol symbol=print.value source="value: Printable" type=Printable reduced={ print(): string }
+/// @type.symbol symbol=print.value source="value: Printable" type={ print(): string }
 /// @resolution.name source=Printable target=Printable
 
     return value.print();
-    /// @type.node source=value type=Printable reduced={ print(): string }
+    /// @type.node source=value type={ print(): string }
     /// @type.node source=value.print type=() => string
     /// @type.node source=value.print() type=string
     /// @resolution.name source=value target=print.value

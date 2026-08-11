@@ -397,15 +397,15 @@ const items: Iterable<int32> = [1, 2];
         DirRows::checked(),
         r#"
 === annotated ===
-const items: Dynamic<Iterable<int32>> = [1, 2];
+const items: Dynamic<Iterable<int32, void>> = [1, 2];
 
 === checked ===
 const items: Iterable<int32> = [1, 2];
-/// @type.symbol symbol=items source=items type=Dynamic<Iterable<int32>> reduced=Dynamic<Iterable<int32, void>>
+/// @type.symbol symbol=items source=items type=Dynamic<Iterable<int32, void>>
 /// @resolution.pattern source=items kind=binding target=items
 /// @resolution.name source=Iterable target=iter.iterator.Iterable
 
-/// @generic.instance id=Iterable<int32> template=iter.iterator.Iterable arguments=(int32)
+/// @generic.instance id="Iterable<int32, void>" template=iter.iterator.Iterable arguments=(int32, void)
 "#,
     );
 }

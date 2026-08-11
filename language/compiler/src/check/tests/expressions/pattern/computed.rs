@@ -134,7 +134,7 @@ declare const key: string;
 /// @resolution.pattern source=key kind=binding target=key
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type=Bag reduced={ [key: string]: int32 }
+/// @type.symbol symbol=bag source=bag type={ [key: string]: int32 }
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
@@ -146,7 +146,7 @@ let { [key]: value } = bag;
 /// @resolution.access source=key root=key
 /// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=bag type=Bag reduced={ [key: string]: int32 }
+/// @type.node source=bag type={ [key: string]: int32 }
 /// @resolution.name source=bag target=bag
 /// @resolution.access source=bag root=bag
 
@@ -186,8 +186,8 @@ type User = {
     readonly age: int32;
 };
 
-function get<K: keyof User>(user: User, key: K): User[K] {
-    let { [key as "name" | "age"]: value } = user;
+function get<K: keyof User>(user: { readonly name: string; readonly age: int32 }, key: K): User[K] {
+    let { [key]: value } = user;
     return value;
 }
 
@@ -205,7 +205,7 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 /// @type.symbol symbol=get type=<K: keyof User>(User, K) => User[K]
 /// @type.symbol symbol=get.K source="K: keyof User" type=K
 /// @resolution.name source=User target=User
-/// @type.symbol symbol=get.user source="user: User" type=User reduced={ readonly name: string; readonly age: int32 }
+/// @type.symbol symbol=get.user source="user: User" type={ readonly name: string; readonly age: int32 }
 /// @resolution.name source=User target=User
 /// @type.symbol symbol=get.key source="key: K" type=K
 /// @resolution.name source=K target=get.K
@@ -220,7 +220,7 @@ function get<K: keyof User>(user: User, key: K): User[K] {
     /// @resolution.access source=key root=get.key
     /// @type.symbol symbol=get.value source=value type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.pattern source=value kind=binding target=get.value
-    /// @type.node source=user type=User reduced={ readonly name: string; readonly age: int32 }
+    /// @type.node source=user type={ readonly name: string; readonly age: int32 }
     /// @resolution.name source=user target=get.user
     /// @resolution.access source=user root=get.user
 

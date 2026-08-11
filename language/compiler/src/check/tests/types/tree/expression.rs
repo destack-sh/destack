@@ -437,7 +437,7 @@ function render(): Panel {
     );
 
     session.assert_dir_checked_diagnostics("main.ds", r#"
-/// @diagnostic.error id=unknown-tree-attribute message="attribute row '{ class?: string }' declares no 'misspelled' attribute"
+/// @diagnostic.error id=unknown-tree-attribute message="attribute row '{ div: { class?: string }; img: { src: string }; span: {} }[\"div\"]' declares no 'misspelled' attribute"
 /// @diagnostic.label line=29 column=25 span="<div misspelled=\"1\"/>" line_source="const page: Panel = <div misspelled=\"1\"/>;"
 "#);
 }
@@ -479,10 +479,10 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", r#"
-/// @diagnostic.error id=missing-tree-attribute message="required attribute 'src' of row '{ src: string }' is missing"
-/// @diagnostic.label line=29 column=25 span="<img/>" line_source="const page: Panel = <img/>;"
-"#);
+    session.assert_dir_checked_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
 #[test]

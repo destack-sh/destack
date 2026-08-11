@@ -270,7 +270,7 @@ function make(): () => float64 {
     @capture({
     /// @type.node source=capture type=capture
     /// @resolution.name source=capture target=decorator.capture.capture
-    /// @type.node type={ default: decorator.capture.CaptureMode; step: decorator.capture.CaptureMode }
+    /// @type.node type={ default: "manage"; step: "copy" }
 
         default: "manage",
         /// @type.node source="\"manage\"" type="manage"
@@ -355,7 +355,7 @@ function connect(): void {
         default: "manage",
         socket: "move",
     })
-    const send: ^Function<(string,), void> = (message: string): void => {
+    const send: ^((arg0: string) => void) = (message: string): void => {
         count += 1;
         socket.write(message);
     };
@@ -395,7 +395,7 @@ function connect(): void {
     @capture({
     /// @type.node source=capture type=capture
     /// @resolution.name source=capture target=decorator.capture.capture
-    /// @type.node type={ default: decorator.capture.CaptureMode; socket: decorator.capture.CaptureMode }
+    /// @type.node type={ default: "manage"; socket: "move" }
 
         default: "manage",
         /// @type.node source="\"manage\"" type="manage"
@@ -452,12 +452,9 @@ function connect(): void {
     /// @resolution.call source="send(\"ping\")" parameters=(string) arguments=(provided("ping") as string) return=void kind=expression target=expression
     /// @resolution.place source=send placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=send root=connect.send
-    /// @generic.instance source=send id="Function<(string,), void>"
     /// @type.node source="\"ping\"" type="ping"
 
 }
-
-/// @generic.instance id="Function<(string,), void>" template=types.function.Function arguments=((string,), void)
 "#,
     );
 }

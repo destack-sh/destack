@@ -190,9 +190,9 @@ export extension<T: Compare<T>> of Pack<T> {
 /// @resolution.name source=T target=T#1
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @type.symbol symbol=from#1 type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> reduced=(Dynamic<Iterable<T#2, void>>) => Pack<T#2>
+    /// @type.symbol symbol=from#1 type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>>
     /// @type.symbol symbol=from#1 type=(Iterable<T#2>) => Owned<Pack<T#2>>
-    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2>> reduced=Dynamic<Iterable<T#2, void>>
+    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#1
     /// @resolution.name source=Pack target=Pack
@@ -219,9 +219,9 @@ export extension<T: Compare<T>> of ^Pack<T> {
 /// @resolution.name source=T target=T#2
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @type.symbol symbol=from#2 type=(Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#3, void>>) => Pack<T#3>
+    /// @type.symbol symbol=from#2 type=(Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>>
     /// @type.symbol symbol=from#2 type=(Iterable<T#3>) => Owned<Pack<T#3>>
-    /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Dynamic<Iterable<T#3>> reduced=Dynamic<Iterable<T#3, void>>
+    /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Dynamic<Iterable<T#3>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#2
     /// @resolution.name source=Pack target=Pack
@@ -229,8 +229,8 @@ export extension<T: Compare<T>> of ^Pack<T> {
 
         Pack.from(values)
         /// @type.node source=Pack type=Pack
-        /// @type.node source=Pack.from type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#2, void>>) => Pack<T#2> & (Dynamic<Iterable<T#3, void>>) => Pack<T#3>
-        /// @type.node source=Pack.from(values) type=Owned<Pack<T#3>> reduced=Pack<T#3>
+        /// @type.node source=Pack.from type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>>
+        /// @type.node source=Pack.from(values) type=Owned<Pack<T#3>>
         /// @resolution.name source=Pack target=Pack
         /// @resolution.member source=Pack.from receiver=Pack type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> kind=existential targets=[from#1, from#2]
         /// @resolution.call source=Pack.from(values) parameters=(Dynamic<Iterable<T#3>>) arguments=(provided(values) as Dynamic<Iterable<T#3>>) return=Owned<Pack<T#3>> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
@@ -240,7 +240,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
         /// @generic.instance source=Pack.from id=Pack<T#3>
         /// @generic.instance source=Pack.from(values) id=Pack<T#3>
         /// @generic.instance source=Pack.from(values) id=Pack<T#3>.<extension#1>.from#1
-        /// @type.node source=values type=Dynamic<Iterable<T#3>> reduced=Dynamic<Iterable<T#3, void>>
+        /// @type.node source=values type=Dynamic<Iterable<T#3>>
         /// @resolution.name source=values target=from.values#2
         /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values root=from.values#2
@@ -255,7 +255,8 @@ export extension<T: Compare<T>> of ^Pack<T> {
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
 /// @generic.instance id=Pack<T#3>.<extension#1>.from#1 template=from#1 arguments=(T#3)
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }
 
@@ -322,7 +323,8 @@ export type ReadPort = Port<Mode.Write>;
 
 /// @generic.instance id=Port<Mode.Write> template=Port arguments=(Mode.Write)
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }
 
@@ -564,7 +566,8 @@ export extension<T, E> of Outcome<T, E> {
 /// @generic.instance id=Err<E#3> template=Err arguments=(E#3)
 /// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }
 
@@ -686,7 +689,8 @@ function wrap(): Packed<string> {
 /// @generic.instance id=Pack<string>.<extension#1>.of template=of arguments=(string)
 /// @generic.instance id=Packed<string> template=Packed arguments=(string)
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }
 
@@ -756,7 +760,6 @@ function read<T>(pack: &readonly Pack<T>): readonly T {
 /// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
 "#,
         r#"
-
 "#,
     );
 }
@@ -864,7 +867,8 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
 /// @generic.instance id=same<T#3> template=same arguments=(T#3)
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }
 

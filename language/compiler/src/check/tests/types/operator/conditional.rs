@@ -22,8 +22,8 @@ type Select<T> = T extends string ? "yes" : "no";
 type Text = Select<string>;
 type Number = Select<int32>;
 
-declare const text: Text;
-declare const number: Number;
+declare const text: "yes";
+declare const number: "no";
 
 === checked ===
 type Select<T> = T extends string ? "yes" : "no";
@@ -34,27 +34,24 @@ type Select<T> = T extends string ? "yes" : "no";
 /// @resolution.name source=T target=Select.T
 
 type Text = Select<string>;
-/// @type.symbol symbol=Text source="type Text = Select<string>" type=Select<string> reduced="yes"
-/// @definition.type symbol=Text source="type Text = Select<string>" value=Select<string> reduced="yes"
+/// @type.symbol symbol=Text source="type Text = Select<string>" type="yes"
+/// @definition.type symbol=Text source="type Text = Select<string>" value="yes"
 /// @resolution.name source=Select target=Select
 
 type Number = Select<int32>;
-/// @type.symbol symbol=Number source="type Number = Select<int32>" type=Select<int32> reduced="no"
-/// @definition.type symbol=Number source="type Number = Select<int32>" value=Select<int32> reduced="no"
+/// @type.symbol symbol=Number source="type Number = Select<int32>" type="no"
+/// @definition.type symbol=Number source="type Number = Select<int32>" value="no"
 /// @resolution.name source=Select target=Select
 
 declare const text: Text;
-/// @type.symbol symbol=text source=text type=Text reduced="yes"
+/// @type.symbol symbol=text source=text type="yes"
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Text target=Text
 
 declare const number: Number;
-/// @type.symbol symbol=number source=number type=Number reduced="no"
+/// @type.symbol symbol=number source=number type="no"
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=Number target=Number
-
-/// @generic.instance id=Select<int32> template=Select arguments=(int32)
-/// @generic.instance id=Select<string> template=Select arguments=(string)
 "#,
     );
 }
@@ -78,7 +75,7 @@ declare const value: Result;
 type OnlyStrings<T> = T extends string ? T : never;
 type Result = OnlyStrings<string | int32>;
 
-declare const value: Result;
+declare const value: string;
 
 === checked ===
 type OnlyStrings<T> = T extends string ? T : never;
@@ -90,16 +87,14 @@ type OnlyStrings<T> = T extends string ? T : never;
 /// @resolution.name source=T target=OnlyStrings.T
 
 type Result = OnlyStrings<string | int32>;
-/// @type.symbol symbol=Result source="type Result = OnlyStrings<string | int32>" type=OnlyStrings<string | int32> reduced=string
-/// @definition.type symbol=Result source="type Result = OnlyStrings<string | int32>" value=OnlyStrings<string | int32> reduced=string
+/// @type.symbol symbol=Result source="type Result = OnlyStrings<string | int32>" type=string
+/// @definition.type symbol=Result source="type Result = OnlyStrings<string | int32>" value=string
 /// @resolution.name source=OnlyStrings target=OnlyStrings
 
 declare const value: Result;
-/// @type.symbol symbol=value source=value type=Result reduced=string
+/// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Result target=Result
-
-/// @generic.instance id="OnlyStrings<string | int32>" template=OnlyStrings arguments=(string | int32)
 "#,
     );
 }
@@ -123,27 +118,25 @@ declare const value: Result;
 type Wrapped<T> = (T,) extends (string,) ? "yes" : "no";
 type Result = Wrapped<string | int32>;
 
-declare const value: Result;
+declare const value: "no";
 
 === checked ===
 type Wrapped<T> = (T,) extends (string,) ? "yes" : "no";
 /// @generic.template symbol=Wrapped parameters=(T)
-/// @type.symbol symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" type=(T,) extends (string,) ? "yes" : "no" reduced="no"
-/// @definition.type symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" template=(T) value=(T,) extends (string,) ? "yes" : "no" reduced="no"
+/// @type.symbol symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" type=(T,) extends (string,) ? "yes" : "no"
+/// @definition.type symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" template=(T) value=(T,) extends (string,) ? "yes" : "no"
 /// @type.symbol symbol=Wrapped.T source=T type=T
 /// @resolution.name source=T target=Wrapped.T
 
 type Result = Wrapped<string | int32>;
-/// @type.symbol symbol=Result source="type Result = Wrapped<string | int32>" type=Wrapped<string | int32> reduced="no"
-/// @definition.type symbol=Result source="type Result = Wrapped<string | int32>" value=Wrapped<string | int32> reduced="no"
+/// @type.symbol symbol=Result source="type Result = Wrapped<string | int32>" type="no"
+/// @definition.type symbol=Result source="type Result = Wrapped<string | int32>" value="no"
 /// @resolution.name source=Wrapped target=Wrapped
 
 declare const value: Result;
-/// @type.symbol symbol=value source=value type=Result reduced="no"
+/// @type.symbol symbol=value source=value type="no"
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Result target=Result
-
-/// @generic.instance id="Wrapped<string | int32>" template=Wrapped arguments=(string | int32)
 "#,
     );
 }
@@ -167,7 +160,7 @@ let value: Result = "no";
 type OnlyStrings<T> = T extends string ? T : never;
 type Result = OnlyStrings<never>;
 
-let value: Result = "no";
+let value: never = "no";
 
 === checked ===
 type OnlyStrings<T> = T extends string ? T : never;
@@ -179,22 +172,19 @@ type OnlyStrings<T> = T extends string ? T : never;
 /// @resolution.name source=T target=OnlyStrings.T
 
 type Result = OnlyStrings<never>;
-/// @type.symbol symbol=Result source="type Result = OnlyStrings<never>" type=OnlyStrings<never> reduced=never
-/// @definition.type symbol=Result source="type Result = OnlyStrings<never>" value=OnlyStrings<never> reduced=never
+/// @type.symbol symbol=Result source="type Result = OnlyStrings<never>" type=never
+/// @definition.type symbol=Result source="type Result = OnlyStrings<never>" value=never
 /// @resolution.name source=OnlyStrings target=OnlyStrings
 
 let value: Result = "no";
-/// @type.symbol symbol=value source=value type=Result reduced=never
+/// @type.symbol symbol=value source=value type=never
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Result target=Result
-
-/// @generic.instance id=OnlyStrings<never> template=OnlyStrings arguments=(never)
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'Result'"
+/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'never'"
 /// @diagnostic.label line=5 column=21 span="\"no\"" line_source="let value: Result = \"no\";"
 /// @diagnostic.related line=5 column=12 span="Result" line_source="let value: Result = \"no\";" message="expected due to this annotation"
-/// @diagnostic.note message="'Result' reduces to 'never'"
 "#,
     );
 }
@@ -220,7 +210,7 @@ type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 type Value = Unbox<Box<"ready">>;
 
-declare const value: Value;
+declare const value: "ready";
 
 === checked ===
 type Box<T> = { value: T };
@@ -240,19 +230,17 @@ type Unbox<T> = T extends Box<infer U> ? U : never;
 /// @resolution.name source=U target=Unbox.U
 
 type Value = Unbox<Box<"ready">>;
-/// @type.symbol symbol=Value source="type Value = Unbox<Box<\"ready\">>" type=Unbox<Box<"ready">> reduced="ready"
-/// @definition.type symbol=Value source="type Value = Unbox<Box<\"ready\">>" value=Unbox<Box<"ready">> reduced="ready"
+/// @type.symbol symbol=Value source="type Value = Unbox<Box<\"ready\">>" type="ready"
+/// @definition.type symbol=Value source="type Value = Unbox<Box<\"ready\">>" value="ready"
 /// @resolution.name source=Unbox target=Unbox
 /// @resolution.name source=Box target=Box
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=Value reduced="ready"
+/// @type.symbol symbol=value source=value type="ready"
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
-/// @generic.instance id="Box<\"ready\">" template=Box arguments=("ready")
 /// @generic.instance id="Box<infer U>" template=Box arguments=(infer U)
-/// @generic.instance id="Unbox<Box<\"ready\">>" template=Unbox arguments=(Box<"ready">)
 "#,
     );
 }
@@ -278,7 +266,7 @@ newtype Vector<in out T, comptime N: int> = intrinsic;
 type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 type Count = LaneCount<Vector<string, 4>>;
 
-declare const count: Count;
+declare const count: 4;
 
 === checked ===
 newtype Vector<T, comptime N: int> = intrinsic;
@@ -298,19 +286,17 @@ type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 /// @resolution.name source=N target=LaneCount.N
 
 type Count = LaneCount<Vector<string, 4>>;
-/// @type.symbol symbol=Count source="type Count = LaneCount<Vector<string, 4>>" type=LaneCount<Vector<string, 4>> reduced=4
-/// @definition.type symbol=Count source="type Count = LaneCount<Vector<string, 4>>" value=LaneCount<Vector<string, 4>> reduced=4
+/// @type.symbol symbol=Count source="type Count = LaneCount<Vector<string, 4>>" type=4
+/// @definition.type symbol=Count source="type Count = LaneCount<Vector<string, 4>>" value=4
 /// @resolution.name source=LaneCount target=LaneCount
 /// @resolution.name source=Vector target=Vector
 
 declare const count: Count;
-/// @type.symbol symbol=count source=count type=Count reduced=4
+/// @type.symbol symbol=count source=count type=4
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.name source=Count target=Count
 
-/// @generic.instance id="LaneCount<Vector<string, 4>>" template=LaneCount arguments=(Vector<string, 4>)
 /// @generic.instance id="Vector<infer T, infer N>" template=Vector arguments=(infer T, infer N)
-/// @generic.instance id="Vector<string, 4>" template=Vector arguments=(string, 4)
 "#,
     );
 }
@@ -336,7 +322,7 @@ type Box<T> = { value: T };
 type Text<T> = T extends Box<infer U extends string> ? U : never;
 type Value = Text<Box<int32>>;
 
-let value: Value = "no";
+let value: never = "no";
 
 === checked ===
 type Box<T> = { value: T };
@@ -356,25 +342,22 @@ type Text<T> = T extends Box<infer U extends string> ? U : never;
 /// @resolution.name source=U target=Text.U
 
 type Value = Text<Box<int32>>;
-/// @type.symbol symbol=Value source="type Value = Text<Box<int32>>" type=Text<Box<int32>> reduced=never
-/// @definition.type symbol=Value source="type Value = Text<Box<int32>>" value=Text<Box<int32>> reduced=never
+/// @type.symbol symbol=Value source="type Value = Text<Box<int32>>" type=never
+/// @definition.type symbol=Value source="type Value = Text<Box<int32>>" value=never
 /// @resolution.name source=Text target=Text
 /// @resolution.name source=Box target=Box
 
 let value: Value = "no";
-/// @type.symbol symbol=value source=value type=Value reduced=never
+/// @type.symbol symbol=value source=value type=never
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="Box<infer U extends string>" template=Box arguments=(infer U extends string)
-/// @generic.instance id=Box<int32> template=Box arguments=(int32)
-/// @generic.instance id=Text<Box<int32>> template=Text arguments=(Box<int32>)
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'never'"
 /// @diagnostic.label line=6 column=20 span="\"no\"" line_source="let value: Value = \"no\";"
 /// @diagnostic.related line=6 column=12 span="Value" line_source="let value: Value = \"no\";" message="expected due to this annotation"
-/// @diagnostic.note message="'Value' reduces to 'never'"
 "#,
     );
 }
@@ -403,8 +386,8 @@ type IsBox<T> = T extends Box<infer _> ? true : false;
 type Yes = IsBox<Box<string>>;
 type No = IsBox<string>;
 
-const yes: Yes = true;
-const no: No = false;
+const yes: true = true;
+const no: false = false;
 
 === checked ===
 type Box<T> = { value: T };
@@ -423,30 +406,27 @@ type IsBox<T> = T extends Box<infer _> ? true : false;
 /// @resolution.name source=Box target=Box
 
 type Yes = IsBox<Box<string>>;
-/// @type.symbol symbol=Yes source="type Yes = IsBox<Box<string>>" type=IsBox<Box<string>> reduced=true
-/// @definition.type symbol=Yes source="type Yes = IsBox<Box<string>>" value=IsBox<Box<string>> reduced=true
+/// @type.symbol symbol=Yes source="type Yes = IsBox<Box<string>>" type=true
+/// @definition.type symbol=Yes source="type Yes = IsBox<Box<string>>" value=true
 /// @resolution.name source=IsBox target=IsBox
 /// @resolution.name source=Box target=Box
 
 type No = IsBox<string>;
-/// @type.symbol symbol=No source="type No = IsBox<string>" type=IsBox<string> reduced=false
-/// @definition.type symbol=No source="type No = IsBox<string>" value=IsBox<string> reduced=false
+/// @type.symbol symbol=No source="type No = IsBox<string>" type=false
+/// @definition.type symbol=No source="type No = IsBox<string>" value=false
 /// @resolution.name source=IsBox target=IsBox
 
 const yes: Yes = true;
-/// @type.symbol symbol=yes source=yes type=Yes reduced=true
+/// @type.symbol symbol=yes source=yes type=true
 /// @resolution.pattern source=yes kind=binding target=yes
 /// @resolution.name source=Yes target=Yes
 
 const no: No = false;
-/// @type.symbol symbol=no source=no type=No reduced=false
+/// @type.symbol symbol=no source=no type=false
 /// @resolution.pattern source=no kind=binding target=no
 /// @resolution.name source=No target=No
 
 /// @generic.instance id="Box<infer _>" template=Box arguments=(infer _)
-/// @generic.instance id=Box<string> template=Box arguments=(string)
-/// @generic.instance id=IsBox<Box<string>> template=IsBox arguments=(Box<string>)
-/// @generic.instance id=IsBox<string> template=IsBox arguments=(string)
 "#,
     );
 }
@@ -473,8 +453,8 @@ type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 type Value = Unbox<Box<"a"> | Box<"b">>;
 
-const first: Value = "a" as "a" | "b";
-const second: Value = "b" as "a" | "b";
+const first: "a" | "b" = "a" as "a" | "b";
+const second: "a" | "b" = "b" as "a" | "b";
 
 === checked ===
 type Box<T> = { value: T };
@@ -494,26 +474,23 @@ type Unbox<T> = T extends Box<infer U> ? U : never;
 /// @resolution.name source=U target=Unbox.U
 
 type Value = Unbox<Box<"a"> | Box<"b">>;
-/// @type.symbol symbol=Value source="type Value = Unbox<Box<\"a\"> | Box<\"b\">>" type=Unbox<Box<"a"> | Box<"b">> reduced="a" | "b"
-/// @definition.type symbol=Value source="type Value = Unbox<Box<\"a\"> | Box<\"b\">>" value=Unbox<Box<"a"> | Box<"b">> reduced="a" | "b"
+/// @type.symbol symbol=Value source="type Value = Unbox<Box<\"a\"> | Box<\"b\">>" type="a" | "b"
+/// @definition.type symbol=Value source="type Value = Unbox<Box<\"a\"> | Box<\"b\">>" value="a" | "b"
 /// @resolution.name source=Unbox target=Unbox
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Box target=Box
 
 const first: Value = "a";
-/// @type.symbol symbol=first source=first type=Value reduced="a" | "b"
+/// @type.symbol symbol=first source=first type="a" | "b"
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=Value target=Value
 
 const second: Value = "b";
-/// @type.symbol symbol=second source=second type=Value reduced="a" | "b"
+/// @type.symbol symbol=second source=second type="a" | "b"
 /// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=Value target=Value
 
-/// @generic.instance id="Box<\"a\">" template=Box arguments=("a")
-/// @generic.instance id="Box<\"b\">" template=Box arguments=("b")
 /// @generic.instance id="Box<infer U>" template=Box arguments=(infer U)
-/// @generic.instance id="Unbox<Box<\"a\"> | Box<\"b\">>" template=Unbox arguments=(Box<"a"> | Box<"b">)
 "#,
     );
 }

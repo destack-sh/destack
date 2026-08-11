@@ -19,7 +19,7 @@ declare const name: Name;
 type Segment<T> = T extends `/${infer Name}` ? Name : never;
 type Name = Segment<"/api">;
 
-declare const name: Name;
+declare const name: "api";
 
 === checked ===
 type Segment<T> = T extends `/${infer Name}` ? Name : never;
@@ -31,16 +31,14 @@ type Segment<T> = T extends `/${infer Name}` ? Name : never;
 /// @resolution.name source=Name target=Segment.Name
 
 type Name = Segment<"/api">;
-/// @type.symbol symbol=Name source="type Name = Segment<\"/api\">" type=Segment<"/api"> reduced="api"
-/// @definition.type symbol=Name source="type Name = Segment<\"/api\">" value=Segment<"/api"> reduced="api"
+/// @type.symbol symbol=Name source="type Name = Segment<\"/api\">" type="api"
+/// @definition.type symbol=Name source="type Name = Segment<\"/api\">" value="api"
 /// @resolution.name source=Segment target=Segment
 
 declare const name: Name;
-/// @type.symbol symbol=name source=name type=Name reduced="api"
+/// @type.symbol symbol=name source=name type="api"
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=Name target=Name
-
-/// @generic.instance id="Segment<\"/api\">" template=Segment arguments=("/api")
 "#,
     );
 }
@@ -67,8 +65,8 @@ type HasId<T> = T extends `id:${infer _}` ? true : false;
 type Yes = HasId<"id:users">;
 type No = HasId<"users">;
 
-const yes: Yes = true;
-const no: No = false;
+const yes: true = true;
+const no: false = false;
 
 === checked ===
 type HasId<T> = T extends `id:${infer _}` ? true : false;
@@ -79,27 +77,24 @@ type HasId<T> = T extends `id:${infer _}` ? true : false;
 /// @resolution.name source=T target=HasId.T
 
 type Yes = HasId<"id:users">;
-/// @type.symbol symbol=Yes source="type Yes = HasId<\"id:users\">" type=HasId<"id:users"> reduced=true
-/// @definition.type symbol=Yes source="type Yes = HasId<\"id:users\">" value=HasId<"id:users"> reduced=true
+/// @type.symbol symbol=Yes source="type Yes = HasId<\"id:users\">" type=true
+/// @definition.type symbol=Yes source="type Yes = HasId<\"id:users\">" value=true
 /// @resolution.name source=HasId target=HasId
 
 type No = HasId<"users">;
-/// @type.symbol symbol=No source="type No = HasId<\"users\">" type=HasId<"users"> reduced=false
-/// @definition.type symbol=No source="type No = HasId<\"users\">" value=HasId<"users"> reduced=false
+/// @type.symbol symbol=No source="type No = HasId<\"users\">" type=false
+/// @definition.type symbol=No source="type No = HasId<\"users\">" value=false
 /// @resolution.name source=HasId target=HasId
 
 const yes: Yes = true;
-/// @type.symbol symbol=yes source=yes type=Yes reduced=true
+/// @type.symbol symbol=yes source=yes type=true
 /// @resolution.pattern source=yes kind=binding target=yes
 /// @resolution.name source=Yes target=Yes
 
 const no: No = false;
-/// @type.symbol symbol=no source=no type=No reduced=false
+/// @type.symbol symbol=no source=no type=false
 /// @resolution.pattern source=no kind=binding target=no
 /// @resolution.name source=No target=No
-
-/// @generic.instance id="HasId<\"id:users\">" template=HasId arguments=("id:users")
-/// @generic.instance id="HasId<\"users\">" template=HasId arguments=("users")
 "#,
     );
 }
@@ -124,8 +119,8 @@ const b: Result = "b";
 type Extract<T> = T extends `foo-${infer A}` ? A : never;
 type Result = Extract<`foo-a` | `foo-b`>;
 
-const a: Result = "a" as "a" | "b";
-const b: Result = "b" as "a" | "b";
+const a: "a" | "b" = "a" as "a" | "b";
+const b: "a" | "b" = "b" as "a" | "b";
 
 === checked ===
 type Extract<T> = T extends `foo-${infer A}` ? A : never;
@@ -137,21 +132,19 @@ type Extract<T> = T extends `foo-${infer A}` ? A : never;
 /// @resolution.name source=A target=Extract.A
 
 type Result = Extract<`foo-a` | `foo-b`>;
-/// @type.symbol symbol=Result source="type Result = Extract<`foo-a` | `foo-b`>" type=Extract<`foo-a` | `foo-b`> reduced="a" | "b"
-/// @definition.type symbol=Result source="type Result = Extract<`foo-a` | `foo-b`>" value=Extract<`foo-a` | `foo-b`> reduced="a" | "b"
+/// @type.symbol symbol=Result source="type Result = Extract<`foo-a` | `foo-b`>" type="a" | "b"
+/// @definition.type symbol=Result source="type Result = Extract<`foo-a` | `foo-b`>" value="a" | "b"
 /// @resolution.name source=Extract target=Extract
 
 const a: Result = "a";
-/// @type.symbol symbol=a source=a type=Result reduced="a" | "b"
+/// @type.symbol symbol=a source=a type="a" | "b"
 /// @resolution.pattern source=a kind=binding target=a
 /// @resolution.name source=Result target=Result
 
 const b: Result = "b";
-/// @type.symbol symbol=b source=b type=Result reduced="a" | "b"
+/// @type.symbol symbol=b source=b type="a" | "b"
 /// @resolution.pattern source=b kind=binding target=b
 /// @resolution.name source=Result target=Result
-
-/// @generic.instance id="Extract<`foo-a` | `foo-b`>" template=Extract arguments=(`foo-a` | `foo-b`)
 "#,
     );
 }
@@ -175,7 +168,7 @@ const matched: Match = "foo";
 type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
 type Match = Repeat<"foo-foo">;
 
-const matched: Match = "foo";
+const matched: "foo" = "foo";
 
 === checked ===
 type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
@@ -187,16 +180,14 @@ type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
 /// @resolution.name source=A target=Repeat.A
 
 type Match = Repeat<"foo-foo">;
-/// @type.symbol symbol=Match source="type Match = Repeat<\"foo-foo\">" type=Repeat<"foo-foo"> reduced="foo"
-/// @definition.type symbol=Match source="type Match = Repeat<\"foo-foo\">" value=Repeat<"foo-foo"> reduced="foo"
+/// @type.symbol symbol=Match source="type Match = Repeat<\"foo-foo\">" type="foo"
+/// @definition.type symbol=Match source="type Match = Repeat<\"foo-foo\">" value="foo"
 /// @resolution.name source=Repeat target=Repeat
 
 const matched: Match = "foo";
-/// @type.symbol symbol=matched source=matched type=Match reduced="foo"
+/// @type.symbol symbol=matched source=matched type="foo"
 /// @resolution.pattern source=matched kind=binding target=matched
 /// @resolution.name source=Match target=Match
-
-/// @generic.instance id="Repeat<\"foo-foo\">" template=Repeat arguments=("foo-foo")
 "#,
     );
 }
@@ -220,7 +211,7 @@ const matched: Match = "no";
 type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
 type Match = Repeat<"foo-bar">;
 
-const matched: Match = "no";
+const matched: "no" = "no";
 
 === checked ===
 type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
@@ -232,16 +223,14 @@ type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
 /// @resolution.name source=A target=Repeat.A
 
 type Match = Repeat<"foo-bar">;
-/// @type.symbol symbol=Match source="type Match = Repeat<\"foo-bar\">" type=Repeat<"foo-bar"> reduced="no"
-/// @definition.type symbol=Match source="type Match = Repeat<\"foo-bar\">" value=Repeat<"foo-bar"> reduced="no"
+/// @type.symbol symbol=Match source="type Match = Repeat<\"foo-bar\">" type="no"
+/// @definition.type symbol=Match source="type Match = Repeat<\"foo-bar\">" value="no"
 /// @resolution.name source=Repeat target=Repeat
 
 const matched: Match = "no";
-/// @type.symbol symbol=matched source=matched type=Match reduced="no"
+/// @type.symbol symbol=matched source=matched type="no"
 /// @resolution.pattern source=matched kind=binding target=matched
 /// @resolution.name source=Match target=Match
-
-/// @generic.instance id="Repeat<\"foo-bar\">" template=Repeat arguments=("foo-bar")
 "#,
     );
 }
@@ -265,7 +254,7 @@ const result: Result = ("foo", "bar-baz");
 type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 type Result = Pair<"foo-bar-baz">;
 
-const result: Result = ("foo", "bar-baz");
+const result: ("foo", "bar-baz") = ("foo", "bar-baz");
 
 === checked ===
 type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
@@ -278,16 +267,14 @@ type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 /// @resolution.name source=B target=Pair.B
 
 type Result = Pair<"foo-bar-baz">;
-/// @type.symbol symbol=Result source="type Result = Pair<\"foo-bar-baz\">" type=Pair<"foo-bar-baz"> reduced=("foo", "bar-baz")
-/// @definition.type symbol=Result source="type Result = Pair<\"foo-bar-baz\">" value=Pair<"foo-bar-baz"> reduced=("foo", "bar-baz")
+/// @type.symbol symbol=Result source="type Result = Pair<\"foo-bar-baz\">" type=("foo", "bar-baz")
+/// @definition.type symbol=Result source="type Result = Pair<\"foo-bar-baz\">" value=("foo", "bar-baz")
 /// @resolution.name source=Pair target=Pair
 
 const result: Result = ("foo", "bar-baz");
-/// @type.symbol symbol=result source=result type=Result reduced=("foo", "bar-baz")
+/// @type.symbol symbol=result source=result type=("foo", "bar-baz")
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=Result target=Result
-
-/// @generic.instance id="Pair<\"foo-bar-baz\">" template=Pair arguments=("foo-bar-baz")
 "#,
     );
 }
@@ -311,7 +298,7 @@ const bad: Result = ("foo-bar", "baz");
 type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 type Result = Pair<"foo-bar-baz">;
 
-const bad: Result = ("foo-bar", "baz");
+const bad: ("foo", "bar-baz") = ("foo-bar", "baz");
 
 === checked ===
 type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
@@ -324,16 +311,14 @@ type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 /// @resolution.name source=B target=Pair.B
 
 type Result = Pair<"foo-bar-baz">;
-/// @type.symbol symbol=Result source="type Result = Pair<\"foo-bar-baz\">" type=Pair<"foo-bar-baz"> reduced=("foo", "bar-baz")
-/// @definition.type symbol=Result source="type Result = Pair<\"foo-bar-baz\">" value=Pair<"foo-bar-baz"> reduced=("foo", "bar-baz")
+/// @type.symbol symbol=Result source="type Result = Pair<\"foo-bar-baz\">" type=("foo", "bar-baz")
+/// @definition.type symbol=Result source="type Result = Pair<\"foo-bar-baz\">" value=("foo", "bar-baz")
 /// @resolution.name source=Pair target=Pair
 
 const bad: Result = ("foo-bar", "baz");
-/// @type.symbol symbol=bad source=bad type=Result reduced=("foo", "bar-baz")
+/// @type.symbol symbol=bad source=bad type=("foo", "bar-baz")
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Result target=Result
-
-/// @generic.instance id="Pair<\"foo-bar-baz\">" template=Pair arguments=("foo-bar-baz")
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"foo-bar\"' is not assignable to type '\"foo\"'"
@@ -368,8 +353,8 @@ const bad: Result = ("", "a");
 type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
 type Result = Split<"a">;
 
-const ok: Result = ("a", "");
-const bad: Result = ("", "a");
+const ok: ("a", "") = ("a", "");
+const bad: ("a", "") = ("", "a");
 
 === checked ===
 type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
@@ -382,21 +367,19 @@ type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
 /// @resolution.name source=B target=Split.B
 
 type Result = Split<"a">;
-/// @type.symbol symbol=Result source="type Result = Split<\"a\">" type=Split<"a"> reduced=("a", "")
-/// @definition.type symbol=Result source="type Result = Split<\"a\">" value=Split<"a"> reduced=("a", "")
+/// @type.symbol symbol=Result source="type Result = Split<\"a\">" type=("a", "")
+/// @definition.type symbol=Result source="type Result = Split<\"a\">" value=("a", "")
 /// @resolution.name source=Split target=Split
 
 const ok: Result = ("a", "");
-/// @type.symbol symbol=ok source=ok type=Result reduced=("a", "")
+/// @type.symbol symbol=ok source=ok type=("a", "")
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Result target=Result
 
 const bad: Result = ("", "a");
-/// @type.symbol symbol=bad source=bad type=Result reduced=("a", "")
+/// @type.symbol symbol=bad source=bad type=("a", "")
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Result target=Result
-
-/// @generic.instance id="Split<\"a\">" template=Split arguments=("a")
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"\"' is not assignable to type '\"a\"'"
@@ -430,7 +413,7 @@ const ok: Result = ("", "");
 type Split<T> = T extends `a${infer A}${infer B}` ? (A, B) : never;
 type Result = Split<"a">;
 
-const ok: Result = ("", "");
+const ok: ("", "") = ("", "");
 
 === checked ===
 type Split<T> = T extends `a${infer A}${infer B}` ? (A, B) : never;
@@ -443,16 +426,14 @@ type Split<T> = T extends `a${infer A}${infer B}` ? (A, B) : never;
 /// @resolution.name source=B target=Split.B
 
 type Result = Split<"a">;
-/// @type.symbol symbol=Result source="type Result = Split<\"a\">" type=Split<"a"> reduced=("", "")
-/// @definition.type symbol=Result source="type Result = Split<\"a\">" value=Split<"a"> reduced=("", "")
+/// @type.symbol symbol=Result source="type Result = Split<\"a\">" type=("", "")
+/// @definition.type symbol=Result source="type Result = Split<\"a\">" value=("", "")
 /// @resolution.name source=Split target=Split
 
 const ok: Result = ("", "");
-/// @type.symbol symbol=ok source=ok type=Result reduced=("", "")
+/// @type.symbol symbol=ok source=ok type=("", "")
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Result target=Result
-
-/// @generic.instance id="Split<\"a\">" template=Split arguments=("a")
 "#,
     );
 }

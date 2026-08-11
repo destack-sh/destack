@@ -26,7 +26,7 @@ class User {
 
 type Args = ConstructorParameters<typeof User>;
 
-const ok: Args = ("Ada", 42);
+const ok: (string, float64) = ("Ada", 42);
 ok satisfies (string, number);
 
 === checked ===
@@ -43,13 +43,13 @@ class User {
 }
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<typeof User> reduced=(string, float64)
-/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User> reduced=(string, float64)
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
+/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=(string, float64)
 /// @resolution.name source=ConstructorParameters target=types.function.ConstructorParameters
 /// @resolution.name source=User target=User
 
 const ok: Args = ("Ada", 42);
-/// @type.symbol symbol=ok source=ok type=Args reduced=(string, float64)
+/// @type.symbol symbol=ok source=ok type=(string, float64)
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Args target=Args
 
@@ -57,8 +57,6 @@ ok satisfies (string, number);
 /// @resolution.name source=ok target=ok
 /// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=ok root=ok
-
-/// @generic.instance id="ConstructorParameters<typeof User>" template=types.function.ConstructorParameters arguments=(typeof User)
 "#,
     );
 }
@@ -95,23 +93,21 @@ import { User } from "./user.ds";
 
 type Args = ConstructorParameters<typeof User>;
 
-const value: Args = ("Ada", 42);
+const value: (string, float64) = ("Ada", 42);
 
 === checked ===
 import { User } from "./user.ds";
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<typeof User> reduced=(string, float64)
-/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User> reduced=(string, float64)
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
+/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=(string, float64)
 /// @resolution.name source=ConstructorParameters target=types.function.ConstructorParameters
 /// @resolution.name source=User target=user.User
 
 const value: Args = ("Ada", 42);
-/// @type.symbol symbol=value source=value type=Args reduced=(string, float64)
+/// @type.symbol symbol=value source=value type=(string, float64)
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Args target=Args
-
-/// @generic.instance id="ConstructorParameters<typeof User>" template=types.function.ConstructorParameters arguments=(typeof User)
 "#,
     );
 }
@@ -142,7 +138,7 @@ class User {
 
 type Value = InstanceType<typeof User>;
 
-const ok: Value = new User();
+const ok: User = new User();
 ok.name satisfies string;
 
 === checked ===
@@ -157,13 +153,13 @@ class User {
 }
 
 type Value = InstanceType<typeof User>;
-/// @type.symbol symbol=Value source="type Value = InstanceType<typeof User>" type=InstanceType<typeof User> reduced=User
-/// @definition.type symbol=Value source="type Value = InstanceType<typeof User>" value=InstanceType<typeof User> reduced=User
+/// @type.symbol symbol=Value source="type Value = InstanceType<typeof User>" type=User
+/// @definition.type symbol=Value source="type Value = InstanceType<typeof User>" value=User
 /// @resolution.name source=InstanceType target=types.function.InstanceType
 /// @resolution.name source=User target=User
 
 const ok: Value = new User();
-/// @type.symbol symbol=ok source=ok type=Value reduced=User
+/// @type.symbol symbol=ok source=ok type=User
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
@@ -176,8 +172,6 @@ ok.name satisfies string;
 /// @resolution.access source=ok root=ok
 /// @resolution.place source=ok.name placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=ok.name root=ok keys=[name]
-
-/// @generic.instance id="InstanceType<typeof User>" template=types.function.InstanceType arguments=(typeof User)
 "#,
     );
 }
@@ -207,7 +201,7 @@ class User {
 
 type Args = ConstructorParameters<typeof User>;
 
-const bad: Args = ("Ada", "old");
+const bad: (string, float64) = ("Ada", "old");
 
 === checked ===
 class User {
@@ -223,17 +217,15 @@ class User {
 }
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<typeof User> reduced=(string, float64)
-/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User> reduced=(string, float64)
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
+/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=(string, float64)
 /// @resolution.name source=ConstructorParameters target=types.function.ConstructorParameters
 /// @resolution.name source=User target=User
 
 const bad: Args = ("Ada", "old");
-/// @type.symbol symbol=bad source=bad type=Args reduced=(string, float64)
+/// @type.symbol symbol=bad source=bad type=(string, float64)
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Args target=Args
-
-/// @generic.instance id="ConstructorParameters<typeof User>" template=types.function.ConstructorParameters arguments=(typeof User)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"old\"' is not assignable to type 'float64'"

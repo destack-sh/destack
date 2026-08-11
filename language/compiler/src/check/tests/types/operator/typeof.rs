@@ -21,7 +21,7 @@ const value: 42 = 42;
 
 type ValueType = typeof value;
 
-let ok: ValueType = 42;
+let ok: 42 = 42;
 
 === checked ===
 const value = 42;
@@ -29,12 +29,12 @@ const value = 42;
 /// @resolution.pattern source=value kind=binding target=value
 
 type ValueType = typeof value;
-/// @type.symbol symbol=ValueType source="type ValueType = typeof value" type=typeof value reduced=42
-/// @definition.type symbol=ValueType source="type ValueType = typeof value" value=typeof value reduced=42
+/// @type.symbol symbol=ValueType source="type ValueType = typeof value" type=42
+/// @definition.type symbol=ValueType source="type ValueType = typeof value" value=42
 /// @resolution.name source=value target=value
 
 let ok: ValueType = 42;
-/// @type.symbol symbol=ok source=ok type=ValueType reduced=42
+/// @type.symbol symbol=ok source=ok type=42
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=ValueType target=ValueType
 "#,
@@ -62,7 +62,7 @@ const value: 42 = 42;
 
 type ValueType = typeof value;
 
-let bad: ValueType = "no";
+let bad: 42 = "no";
 
 === checked ===
 const value = 42;
@@ -70,20 +70,19 @@ const value = 42;
 /// @resolution.pattern source=value kind=binding target=value
 
 type ValueType = typeof value;
-/// @type.symbol symbol=ValueType source="type ValueType = typeof value" type=typeof value reduced=42
-/// @definition.type symbol=ValueType source="type ValueType = typeof value" value=typeof value reduced=42
+/// @type.symbol symbol=ValueType source="type ValueType = typeof value" type=42
+/// @definition.type symbol=ValueType source="type ValueType = typeof value" value=42
 /// @resolution.name source=value target=value
 
 let bad: ValueType = "no";
-/// @type.symbol symbol=bad source=bad type=ValueType reduced=42
+/// @type.symbol symbol=bad source=bad type=42
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=ValueType target=ValueType
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'ValueType'"
+/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type '42'"
 /// @diagnostic.label line=6 column=22 span="\"no\"" line_source="let bad: ValueType = \"no\";"
 /// @diagnostic.related line=6 column=10 span="ValueType" line_source="let bad: ValueType = \"no\";" message="expected due to this annotation"
-/// @diagnostic.note message="'ValueType' reduces to '42'"
 "#,
     );
 }
@@ -129,7 +128,7 @@ type CounterCtor = typeof Counter;
 declare function takesCounter(ctor: { new (value: int32): Counter }): void;
 
 takesCounter(Counter);
-let version: CounterCtor["version"] = 1;
+let version: int32 = 1;
 
 === checked ===
 class Counter {
@@ -164,8 +163,8 @@ class Counter {
 }
 
 type CounterCtor = typeof Counter;
-/// @type.symbol symbol=CounterCtor source="type CounterCtor = typeof Counter" type=typeof Counter reduced=Counter
-/// @definition.type symbol=CounterCtor source="type CounterCtor = typeof Counter" value=typeof Counter reduced=Counter
+/// @type.symbol symbol=CounterCtor source="type CounterCtor = typeof Counter" type=Counter
+/// @definition.type symbol=CounterCtor source="type CounterCtor = typeof Counter" value=Counter
 /// @resolution.name source=Counter target=Counter
 
 declare function takesCounter(ctor: { new (value: int32): Counter }): void;
@@ -180,7 +179,7 @@ takesCounter(Counter);
 /// @resolution.name source=Counter target=Counter
 
 let version: CounterCtor["version"] = 1;
-/// @type.symbol symbol=version source=version type=CounterCtor["version"] reduced=int32
+/// @type.symbol symbol=version source=version type=int32
 /// @resolution.pattern source=version kind=binding target=version
 /// @resolution.name source=CounterCtor target=CounterCtor
 "#,

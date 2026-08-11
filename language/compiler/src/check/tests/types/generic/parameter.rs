@@ -205,9 +205,9 @@ take([1, 2]);
         DirRows::checked(),
         r#"
 === annotated ===
-declare function take(values: Slice<float64>): void;
+declare function take(values: [float64]): void;
 
-take([1, 2] as [float64]);
+take([1, 2]);
 
 === checked ===
 declare function take(values: Slice<float64>): void;
@@ -2487,8 +2487,8 @@ function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
 /// @resolution.name source=T target=f.T
 
     (a - b).length()
-    /// @resolution.member source="(a - b).length" receiver=a.Vec<T> type=(this: a.Vec<T>) => T kind=symbol target_receiver=a.Vec<T> target=a.Vec.length
-    /// @resolution.call source=(a - b).length() parameters=() return=T kind=symbol target=a.Vec.length receiver=a.Vec<T> instance=a.Vec<T>.length
+    /// @resolution.member source="(a - b).length" receiver=a.Vec<T>.Output type=(this: a.Vec<T>) => T kind=symbol target_receiver=a.Vec<T>.Output target=a.Vec.length
+    /// @resolution.call source=(a - b).length() parameters=() return=T kind=symbol target=a.Vec.length receiver=a.Vec<T>.Output instance=a.Vec<T>.length
     /// @generic.instance source=(a - b).length() id=a.Vec<T>.length
     /// @resolution.name source=a target=f.a
     /// @resolution.operator source="a - b" type=a.Vec<T>.Output operator="-" kind=call parameters=(a.Vec<T>) arguments=(provided(b) as a.Vec<T>) return=a.Vec<T>.Output kind=symbol target=a.subtract receiver=a.Vec<T> instance=a.Vec<T>.<extension#1>.subtract

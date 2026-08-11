@@ -75,23 +75,23 @@ const first: 1 = values[0];
 
 === checked ===
 const values = [1, 2] as const;
-/// @type.symbol symbol=values source=values type=readonly [1, 2] reduced=[1, 2]
+/// @type.symbol symbol=values source=values type=readonly [1, 2]
 /// @resolution.pattern source=values kind=binding target=values
-/// @type.node source="[1, 2] as const" type=readonly [1, 2] reduced=[1, 2]
-/// @type.node source=[1, 2] type=readonly [1, 2] reduced=[1, 2]
+/// @type.node source="[1, 2] as const" type=readonly [1, 2]
+/// @type.node source=[1, 2] type=readonly [1, 2]
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=1
 /// @resolution.pattern source=first kind=binding target=first
-/// @type.node source=values type=readonly [1, 2] reduced=[1, 2]
+/// @type.node source=values type=readonly [1, 2]
 /// @type.node source=values[0] type=1
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=1 kind=member target="receiver=[1, 2], target=field(receiver=[1, 2], target=0, type=1), type=1"
+/// @resolution.subscript source=values[0] type=1 kind=member target="receiver=readonly [1, 2], target=field(receiver=[1, 2], target=0, type=1), type=1"
 /// @type.node source=0 type=0
 "#,
     );

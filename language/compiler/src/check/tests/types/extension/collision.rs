@@ -122,7 +122,6 @@ declare const widget: Widget;
 const size = widget.size;
 "#,
         r#"
-
 "#,
     );
 }

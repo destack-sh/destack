@@ -198,7 +198,6 @@ const total = requireEqual(Sample { label: "a", weight: 1.0 });
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Sample' does not satisfy 'Equal'"
 /// @diagnostic.label line=16 column=15 span="requireEqual(Sample { label: \"a\", weight: 1.0 })" line_source="const total = requireEqual(Sample { label: \"a\", weight: 1.0 });"
 /// @diagnostic.related line=7 column=23 span="T" line_source="function requireEqual<T: Equal>(value: T): T {" message="required by this bound on 'T'"
-/// @diagnostic.note message="'Equal' reduces to 'Equal<this>'"
 "#,
     );
 }
@@ -480,7 +479,6 @@ const value = requireCompare(Point { x: 1, y: 2 });
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Compare'"
 /// @diagnostic.label line=11 column=15 span="requireCompare(Point { x: 1, y: 2 })" line_source="const value = requireCompare(Point { x: 1, y: 2 });"
 /// @diagnostic.related line=7 column=25 span="T" line_source="function requireCompare<T: Compare>(value: T): T {" message="required by this bound on 'T'"
-/// @diagnostic.note message="'Compare' reduces to 'Compare<this>'"
 "#,
     );
 }
@@ -716,7 +714,6 @@ const value = requireEqual(Point { x: 1 });
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Equal'"
 /// @diagnostic.label line=11 column=15 span="requireEqual(Point { x: 1 })" line_source="const value = requireEqual(Point { x: 1 });"
 /// @diagnostic.related line=7 column=23 span="T" line_source="function requireEqual<T: Equal>(value: T): T {" message="required by this bound on 'T'"
-/// @diagnostic.note message="'Equal' reduces to 'Equal<this>'"
 "#,
     );
 }

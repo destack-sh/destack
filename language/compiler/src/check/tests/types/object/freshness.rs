@@ -57,8 +57,8 @@ type Base = {
 };
 
 type Options = Base & {
-/// @type.symbol symbol=Options type=Base & { samples?: uint64 } reduced={ only?: boolean; skip?: boolean; samples?: uint64 }
-/// @definition.type symbol=Options value=Base & { samples?: uint64 } reduced={ only?: boolean; skip?: boolean; samples?: uint64 }
+/// @type.symbol symbol=Options type=Base & { samples?: uint64 }
+/// @definition.type symbol=Options value=Base & { samples?: uint64 }
 /// @resolution.name source=Base target=Base
 
     samples?: uint64;
@@ -76,7 +76,7 @@ function skipAll(): void {
     /// @type.node source="run({ skip: true })" type=void
     /// @resolution.name source=run target=run
     /// @resolution.call source="run({ skip: true })" parameters=(Function<(), void> | Options | undefined) arguments=(provided({ skip: true }) as Function<(), void> | Options | undefined) return=void kind=symbol target=run
-    /// @type.node source={ skip: true } type={ only?: boolean; skip?: boolean; samples?: uint64 }
+    /// @type.node source={ skip: true } type=Options
     /// @type.node source=true type=true
 
 }

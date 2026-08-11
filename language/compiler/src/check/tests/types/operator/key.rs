@@ -19,7 +19,7 @@ declare const key: Keys;
 type User = { name: string; age: int32 };
 type Keys = keyof User;
 
-declare const key: Keys;
+declare const key: "name" | "age";
 
 === checked ===
 type User = { name: string; age: int32 };
@@ -27,12 +27,12 @@ type User = { name: string; age: int32 };
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
 
 type Keys = keyof User;
-/// @type.symbol symbol=Keys source="type Keys = keyof User" type=keyof User reduced="name" | "age"
-/// @definition.type symbol=Keys source="type Keys = keyof User" value=keyof User reduced="name" | "age"
+/// @type.symbol symbol=Keys source="type Keys = keyof User" type="name" | "age"
+/// @definition.type symbol=Keys source="type Keys = keyof User" value="name" | "age"
 /// @resolution.name source=User target=User
 
 declare const key: Keys;
-/// @type.symbol symbol=key source=key type=Keys reduced="name" | "age"
+/// @type.symbol symbol=key source=key type="name" | "age"
 /// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Keys target=Keys
 "#,
@@ -60,7 +60,7 @@ type Left = { shared: string; left: int32 };
 type Right = { shared: string; right: int32 };
 type Keys = keyof (Left | Right);
 
-declare const key: Keys;
+declare const key: "shared";
 
 === checked ===
 type Left = { shared: string; left: int32 };
@@ -72,13 +72,13 @@ type Right = { shared: string; right: int32 };
 /// @definition.type symbol=Right source="type Right = { shared: string; right: int32 }" value={ shared: string; right: int32 }
 
 type Keys = keyof (Left | Right);
-/// @type.symbol symbol=Keys source="type Keys = keyof (Left | Right)" type=keyof Left | Right reduced="shared"
-/// @definition.type symbol=Keys source="type Keys = keyof (Left | Right)" value=keyof Left | Right reduced="shared"
+/// @type.symbol symbol=Keys source="type Keys = keyof (Left | Right)" type="shared"
+/// @definition.type symbol=Keys source="type Keys = keyof (Left | Right)" value="shared"
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right
 
 declare const key: Keys;
-/// @type.symbol symbol=key source=key type=Keys reduced="shared"
+/// @type.symbol symbol=key source=key type="shared"
 /// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Keys target=Keys
 "#,
@@ -106,7 +106,7 @@ type Left = { shared: string; left: int32 };
 type Right = { shared: string; right: int32 };
 type Keys = keyof (Left | Right);
 
-const bad: Keys = "left";
+const bad: "shared" = "left";
 
 === checked ===
 type Left = { shared: string; left: int32 };
@@ -118,21 +118,20 @@ type Right = { shared: string; right: int32 };
 /// @definition.type symbol=Right source="type Right = { shared: string; right: int32 }" value={ shared: string; right: int32 }
 
 type Keys = keyof (Left | Right);
-/// @type.symbol symbol=Keys source="type Keys = keyof (Left | Right)" type=keyof Left | Right reduced="shared"
-/// @definition.type symbol=Keys source="type Keys = keyof (Left | Right)" value=keyof Left | Right reduced="shared"
+/// @type.symbol symbol=Keys source="type Keys = keyof (Left | Right)" type="shared"
+/// @definition.type symbol=Keys source="type Keys = keyof (Left | Right)" value="shared"
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right
 
 const bad: Keys = "left";
-/// @type.symbol symbol=bad source=bad type=Keys reduced="shared"
+/// @type.symbol symbol=bad source=bad type="shared"
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Keys target=Keys
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"left\"' is not assignable to type 'Keys'"
+/// @diagnostic.error id=not-assignable message="type '\"left\"' is not assignable to type '\"shared\"'"
 /// @diagnostic.label line=6 column=19 span="\"left\"" line_source="const bad: Keys = \"left\";"
 /// @diagnostic.related line=6 column=12 span="Keys" line_source="const bad: Keys = \"left\";" message="expected due to this annotation"
-/// @diagnostic.note message="'Keys' reduces to '\"shared\"'"
 "#,
     );
 }
@@ -158,7 +157,7 @@ type Left = { shared: string; left: int32 };
 type Right = { shared: string; right: int32 };
 type Keys = keyof (Left & Right);
 
-declare const key: Keys;
+declare const key: "shared" | "left" | "right";
 
 === checked ===
 type Left = { shared: string; left: int32 };
@@ -170,13 +169,13 @@ type Right = { shared: string; right: int32 };
 /// @definition.type symbol=Right source="type Right = { shared: string; right: int32 }" value={ shared: string; right: int32 }
 
 type Keys = keyof (Left & Right);
-/// @type.symbol symbol=Keys source="type Keys = keyof (Left & Right)" type=keyof Left & Right reduced="shared" | "left" | "right"
-/// @definition.type symbol=Keys source="type Keys = keyof (Left & Right)" value=keyof Left & Right reduced="shared" | "left" | "right"
+/// @type.symbol symbol=Keys source="type Keys = keyof (Left & Right)" type="shared" | "left" | "right"
+/// @definition.type symbol=Keys source="type Keys = keyof (Left & Right)" value="shared" | "left" | "right"
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right
 
 declare const key: Keys;
-/// @type.symbol symbol=key source=key type=Keys reduced="shared" | "left" | "right"
+/// @type.symbol symbol=key source=key type="shared" | "left" | "right"
 /// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Keys target=Keys
 "#,
@@ -202,7 +201,7 @@ declare const key: Actual;
 type Keys<T: { a: int32 }> = keyof T;
 type Actual = Keys<{ a: int32; b: string }>;
 
-declare const key: Actual;
+declare const key: "a" | "b";
 
 === checked ===
 type Keys<T: { a: int32 }> = keyof T;
@@ -213,16 +212,14 @@ type Keys<T: { a: int32 }> = keyof T;
 /// @resolution.name source=T target=Keys.T
 
 type Actual = Keys<{ a: int32; b: string }>;
-/// @type.symbol symbol=Actual source="type Actual = Keys<{ a: int32; b: string }>" type=Keys<{ a: int32; b: string }> reduced="a" | "b"
-/// @definition.type symbol=Actual source="type Actual = Keys<{ a: int32; b: string }>" value=Keys<{ a: int32; b: string }> reduced="a" | "b"
+/// @type.symbol symbol=Actual source="type Actual = Keys<{ a: int32; b: string }>" type="a" | "b"
+/// @definition.type symbol=Actual source="type Actual = Keys<{ a: int32; b: string }>" value="a" | "b"
 /// @resolution.name source=Keys target=Keys
 
 declare const key: Actual;
-/// @type.symbol symbol=key source=key type=Actual reduced="a" | "b"
+/// @type.symbol symbol=key source=key type="a" | "b"
 /// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Actual target=Actual
-
-/// @generic.instance id="Keys<{ a: int32; b: string }>" template=Keys arguments=({ a: int32; b: string })
 "#,
     );
 }
@@ -246,7 +243,7 @@ declare const key: Keys;
 type User = { readonly name: string; age?: int32 };
 type Keys = keyof User;
 
-declare const key: Keys;
+declare const key: "name" | "age";
 
 === checked ===
 type User = { readonly name: string; age?: int32 };
@@ -254,12 +251,12 @@ type User = { readonly name: string; age?: int32 };
 /// @definition.type symbol=User source="type User = { readonly name: string; age?: int32 }" value={ readonly name: string; age?: int32 }
 
 type Keys = keyof User;
-/// @type.symbol symbol=Keys source="type Keys = keyof User" type=keyof User reduced="name" | "age"
-/// @definition.type symbol=Keys source="type Keys = keyof User" value=keyof User reduced="name" | "age"
+/// @type.symbol symbol=Keys source="type Keys = keyof User" type="name" | "age"
+/// @definition.type symbol=Keys source="type Keys = keyof User" value="name" | "age"
 /// @resolution.name source=User target=User
 
 declare const key: Keys;
-/// @type.symbol symbol=key source=key type=Keys reduced="name" | "age"
+/// @type.symbol symbol=key source=key type="name" | "age"
 /// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Keys target=Keys
 "#,
@@ -307,8 +304,8 @@ struct Point {
 }
 
 type Keys = keyof Point;
-/// @type.symbol symbol=Keys source="type Keys = keyof Point" type=keyof Point reduced="x" | "y"
-/// @definition.type symbol=Keys source="type Keys = keyof Point" value=keyof Point reduced="x" | "y"
+/// @type.symbol symbol=Keys source="type Keys = keyof Point" type="x" | "y"
+/// @definition.type symbol=Keys source="type Keys = keyof Point" value="x" | "y"
 /// @resolution.name source=Point target=Point
 "#,
     );
@@ -373,8 +370,8 @@ class User {
 }
 
 type Keys = keyof User;
-/// @type.symbol symbol=Keys source="type Keys = keyof User" type=keyof User reduced="name" | "print"
-/// @definition.type symbol=Keys source="type Keys = keyof User" value=keyof User reduced="name" | "print"
+/// @type.symbol symbol=Keys source="type Keys = keyof User" type="name" | "print"
+/// @definition.type symbol=Keys source="type Keys = keyof User" value="name" | "print"
 /// @resolution.name source=User target=User
 "#,
     );
@@ -400,8 +397,8 @@ const index: Keys = 1;
 type Bag = { readonly [key: string]: int32 };
 type Keys = keyof Bag;
 
-const text: Keys = "name" as string | usize;
-const index: Keys = 1 as string | usize;
+const text: string | usize = "name" as string | usize;
+const index: string | usize = 1 as string | usize;
 
 === checked ===
 type Bag = { readonly [key: string]: int32 };
@@ -409,17 +406,17 @@ type Bag = { readonly [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
 
 type Keys = keyof Bag;
-/// @type.symbol symbol=Keys source="type Keys = keyof Bag" type=keyof Bag reduced=string | usize
-/// @definition.type symbol=Keys source="type Keys = keyof Bag" value=keyof Bag reduced=string | usize
+/// @type.symbol symbol=Keys source="type Keys = keyof Bag" type=string | usize
+/// @definition.type symbol=Keys source="type Keys = keyof Bag" value=string | usize
 /// @resolution.name source=Bag target=Bag
 
 const text: Keys = "name";
-/// @type.symbol symbol=text source=text type=Keys reduced=string | usize
+/// @type.symbol symbol=text source=text type=string | usize
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Keys target=Keys
 
 const index: Keys = 1;
-/// @type.symbol symbol=index source=index type=Keys reduced=string | usize
+/// @type.symbol symbol=index source=index type=string | usize
 /// @resolution.pattern source=index kind=binding target=index
 /// @resolution.name source=Keys target=Keys
 "#,
@@ -445,7 +442,7 @@ const bad: Keys = true;
 type Bag = { readonly [key: string]: int32 };
 type Keys = keyof Bag;
 
-const bad: Keys = true;
+const bad: string | usize = true;
 
 === checked ===
 type Bag = { readonly [key: string]: int32 };
@@ -453,20 +450,19 @@ type Bag = { readonly [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
 
 type Keys = keyof Bag;
-/// @type.symbol symbol=Keys source="type Keys = keyof Bag" type=keyof Bag reduced=string | usize
-/// @definition.type symbol=Keys source="type Keys = keyof Bag" value=keyof Bag reduced=string | usize
+/// @type.symbol symbol=Keys source="type Keys = keyof Bag" type=string | usize
+/// @definition.type symbol=Keys source="type Keys = keyof Bag" value=string | usize
 /// @resolution.name source=Bag target=Bag
 
 const bad: Keys = true;
-/// @type.symbol symbol=bad source=bad type=Keys reduced=string | usize
+/// @type.symbol symbol=bad source=bad type=string | usize
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Keys target=Keys
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Keys'"
+/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'string | usize'"
 /// @diagnostic.label line=5 column=19 span="true" line_source="const bad: Keys = true;"
 /// @diagnostic.related line=5 column=12 span="Keys" line_source="const bad: Keys = true;" message="expected due to this annotation"
-/// @diagnostic.note message="'Keys' reduces to 'string | usize'"
 "#,
     );
 }
@@ -490,7 +486,7 @@ const key: Keys = 1;
 type Slots = { readonly [key: usize]: string };
 type Keys = keyof Slots;
 
-const key: Keys = 1;
+const key: usize = 1;
 
 === checked ===
 type Slots = { readonly [key: usize]: string };
@@ -498,12 +494,12 @@ type Slots = { readonly [key: usize]: string };
 /// @definition.type symbol=Slots source="type Slots = { readonly [key: usize]: string }" value={ readonly [key: usize]: string }
 
 type Keys = keyof Slots;
-/// @type.symbol symbol=Keys source="type Keys = keyof Slots" type=keyof Slots reduced=usize
-/// @definition.type symbol=Keys source="type Keys = keyof Slots" value=keyof Slots reduced=usize
+/// @type.symbol symbol=Keys source="type Keys = keyof Slots" type=usize
+/// @definition.type symbol=Keys source="type Keys = keyof Slots" value=usize
 /// @resolution.name source=Slots target=Slots
 
 const key: Keys = 1;
-/// @type.symbol symbol=key source=key type=Keys reduced=usize
+/// @type.symbol symbol=key source=key type=usize
 /// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Keys target=Keys
 "#,
@@ -529,7 +525,7 @@ const bad: Keys = "name";
 type Slots = { readonly [key: usize]: string };
 type Keys = keyof Slots;
 
-const bad: Keys = "name";
+const bad: usize = "name";
 
 === checked ===
 type Slots = { readonly [key: usize]: string };
@@ -537,20 +533,19 @@ type Slots = { readonly [key: usize]: string };
 /// @definition.type symbol=Slots source="type Slots = { readonly [key: usize]: string }" value={ readonly [key: usize]: string }
 
 type Keys = keyof Slots;
-/// @type.symbol symbol=Keys source="type Keys = keyof Slots" type=keyof Slots reduced=usize
-/// @definition.type symbol=Keys source="type Keys = keyof Slots" value=keyof Slots reduced=usize
+/// @type.symbol symbol=Keys source="type Keys = keyof Slots" type=usize
+/// @definition.type symbol=Keys source="type Keys = keyof Slots" value=usize
 /// @resolution.name source=Slots target=Slots
 
 const bad: Keys = "name";
-/// @type.symbol symbol=bad source=bad type=Keys reduced=usize
+/// @type.symbol symbol=bad source=bad type=usize
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Keys target=Keys
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"name\"' is not assignable to type 'Keys'"
+/// @diagnostic.error id=not-assignable message="type '\"name\"' is not assignable to type 'usize'"
 /// @diagnostic.label line=5 column=19 span="\"name\"" line_source="const bad: Keys = \"name\";"
 /// @diagnostic.related line=5 column=12 span="Keys" line_source="const bad: Keys = \"name\";" message="expected due to this annotation"
-/// @diagnostic.note message="'Keys' reduces to 'usize'"
 "#,
     );
 }
@@ -577,8 +572,8 @@ type Person = { name: string; age: int32 };
 type HasName = "name" extends keyof Person ? true : false;
 type HasTitle = "title" extends keyof Person ? true : false;
 
-const name: HasName = true;
-const title: HasTitle = false;
+const name: true = true;
+const title: false = false;
 
 === checked ===
 type Person = { name: string; age: int32 };
@@ -586,22 +581,22 @@ type Person = { name: string; age: int32 };
 /// @definition.type symbol=Person source="type Person = { name: string; age: int32 }" value={ name: string; age: int32 }
 
 type HasName = "name" extends keyof Person ? true : false;
-/// @type.symbol symbol=HasName source="type HasName = \"name\" extends keyof Person ? true : false" type="name" extends keyof Person ? true : false reduced=true
-/// @definition.type symbol=HasName source="type HasName = \"name\" extends keyof Person ? true : false" value="name" extends keyof Person ? true : false reduced=true
+/// @type.symbol symbol=HasName source="type HasName = \"name\" extends keyof Person ? true : false" type=true
+/// @definition.type symbol=HasName source="type HasName = \"name\" extends keyof Person ? true : false" value=true
 /// @resolution.name source=Person target=Person
 
 type HasTitle = "title" extends keyof Person ? true : false;
-/// @type.symbol symbol=HasTitle source="type HasTitle = \"title\" extends keyof Person ? true : false" type="title" extends keyof Person ? true : false reduced=false
-/// @definition.type symbol=HasTitle source="type HasTitle = \"title\" extends keyof Person ? true : false" value="title" extends keyof Person ? true : false reduced=false
+/// @type.symbol symbol=HasTitle source="type HasTitle = \"title\" extends keyof Person ? true : false" type=false
+/// @definition.type symbol=HasTitle source="type HasTitle = \"title\" extends keyof Person ? true : false" value=false
 /// @resolution.name source=Person target=Person
 
 const name: HasName = true;
-/// @type.symbol symbol=name source=name type=HasName reduced=true
+/// @type.symbol symbol=name source=name type=true
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=HasName target=HasName
 
 const title: HasTitle = false;
-/// @type.symbol symbol=title source=title type=HasTitle reduced=false
+/// @type.symbol symbol=title source=title type=false
 /// @resolution.pattern source=title kind=binding target=title
 /// @resolution.name source=HasTitle target=HasTitle
 "#,
@@ -637,9 +632,9 @@ type HasUnionLeft = "left" extends keyof (Left | Right) ? true : false;
 type HasUnionShared = "shared" extends keyof (Left | Right) ? true : false;
 type HasIntersectionLeft = "left" extends keyof (Left & Right) ? true : false;
 
-const unionLeft: HasUnionLeft = false;
-const unionShared: HasUnionShared = true;
-const intersectionLeft: HasIntersectionLeft = true;
+const unionLeft: false = false;
+const unionShared: true = true;
+const intersectionLeft: true = true;
 
 === checked ===
 type Left = { shared: string; left: int32 };
@@ -651,35 +646,35 @@ type Right = { shared: string; right: int32 };
 /// @definition.type symbol=Right source="type Right = { shared: string; right: int32 }" value={ shared: string; right: int32 }
 
 type HasUnionLeft = "left" extends keyof (Left | Right) ? true : false;
-/// @type.symbol symbol=HasUnionLeft source="type HasUnionLeft = \"left\" extends keyof (Left | Right) ? true : false" type="left" extends keyof Left | Right ? true : false reduced=false
-/// @definition.type symbol=HasUnionLeft source="type HasUnionLeft = \"left\" extends keyof (Left | Right) ? true : false" value="left" extends keyof Left | Right ? true : false reduced=false
+/// @type.symbol symbol=HasUnionLeft source="type HasUnionLeft = \"left\" extends keyof (Left | Right) ? true : false" type=false
+/// @definition.type symbol=HasUnionLeft source="type HasUnionLeft = \"left\" extends keyof (Left | Right) ? true : false" value=false
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right
 
 type HasUnionShared = "shared" extends keyof (Left | Right) ? true : false;
-/// @type.symbol symbol=HasUnionShared source="type HasUnionShared = \"shared\" extends keyof (Left | Right) ? true : false" type="shared" extends keyof Left | Right ? true : false reduced=true
-/// @definition.type symbol=HasUnionShared source="type HasUnionShared = \"shared\" extends keyof (Left | Right) ? true : false" value="shared" extends keyof Left | Right ? true : false reduced=true
+/// @type.symbol symbol=HasUnionShared source="type HasUnionShared = \"shared\" extends keyof (Left | Right) ? true : false" type=true
+/// @definition.type symbol=HasUnionShared source="type HasUnionShared = \"shared\" extends keyof (Left | Right) ? true : false" value=true
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right
 
 type HasIntersectionLeft = "left" extends keyof (Left & Right) ? true : false;
-/// @type.symbol symbol=HasIntersectionLeft source="type HasIntersectionLeft = \"left\" extends keyof (Left & Right) ? true : false" type="left" extends keyof Left & Right ? true : false reduced=true
-/// @definition.type symbol=HasIntersectionLeft source="type HasIntersectionLeft = \"left\" extends keyof (Left & Right) ? true : false" value="left" extends keyof Left & Right ? true : false reduced=true
+/// @type.symbol symbol=HasIntersectionLeft source="type HasIntersectionLeft = \"left\" extends keyof (Left & Right) ? true : false" type=true
+/// @definition.type symbol=HasIntersectionLeft source="type HasIntersectionLeft = \"left\" extends keyof (Left & Right) ? true : false" value=true
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right
 
 const unionLeft: HasUnionLeft = false;
-/// @type.symbol symbol=unionLeft source=unionLeft type=HasUnionLeft reduced=false
+/// @type.symbol symbol=unionLeft source=unionLeft type=false
 /// @resolution.pattern source=unionLeft kind=binding target=unionLeft
 /// @resolution.name source=HasUnionLeft target=HasUnionLeft
 
 const unionShared: HasUnionShared = true;
-/// @type.symbol symbol=unionShared source=unionShared type=HasUnionShared reduced=true
+/// @type.symbol symbol=unionShared source=unionShared type=true
 /// @resolution.pattern source=unionShared kind=binding target=unionShared
 /// @resolution.name source=HasUnionShared target=HasUnionShared
 
 const intersectionLeft: HasIntersectionLeft = true;
-/// @type.symbol symbol=intersectionLeft source=intersectionLeft type=HasIntersectionLeft reduced=true
+/// @type.symbol symbol=intersectionLeft source=intersectionLeft type=true
 /// @resolution.pattern source=intersectionLeft kind=binding target=intersectionLeft
 /// @resolution.name source=HasIntersectionLeft target=HasIntersectionLeft
 "#,

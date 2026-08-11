@@ -54,6 +54,7 @@ struct WideMeta {}
 
 class Segment {
 /// @type.symbol symbol=Segment type=Segment
+/// @static.symbol symbol=Segment value=Segment
 /// @definition.class symbol=Segment
 /// @definition.field symbol=Segment.narrow source="narrow: NarrowMeta = NarrowMeta {}" key=narrow type=NarrowMeta
 /// @definition.field symbol=Segment.value source="value: int32 = 0" key=value type=int32
@@ -147,6 +148,7 @@ struct WideMeta {}
 
 class Segment {
 /// @type.symbol symbol=Segment type=Segment
+/// @static.symbol symbol=Segment value=Segment
 /// @definition.class symbol=Segment
 /// @definition.field symbol=Segment.narrow source="narrow: NarrowMeta = NarrowMeta {}" key=narrow type=NarrowMeta
 /// @definition.field symbol=Segment.value source="value: int32 = 0" key=value type=int32
@@ -232,6 +234,7 @@ struct TextMeta {}
 class Packet<T> {
 /// @generic.template symbol=Packet parameters=(in out T)
 /// @type.symbol symbol=Packet type=Packet
+/// @static.symbol symbol=Packet value=Packet
 /// @definition.class symbol=Packet template=(in out T)
 /// @definition.field symbol=Packet.value source="value: T" key=value type=T
 /// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=(T) => this

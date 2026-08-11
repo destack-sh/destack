@@ -62,7 +62,6 @@ extension of User {
 }
 "#,
         r#"
-
 "#,
     );
 }

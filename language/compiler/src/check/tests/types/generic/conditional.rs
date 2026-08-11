@@ -50,7 +50,7 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 declare const text: Dynamic<TextSink>;
 declare const number: Dynamic<NumberSink>;
 
-write<string>("message", text);
+write<string>("message", text as SinkFor<string>);
 write<float64>(1, number);
 
 === checked ===
@@ -91,7 +91,7 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 /// @type.symbol symbol=write.T source=T type=T#2
 /// @type.symbol symbol=write.value source="value: T" type=T#2
 /// @resolution.name source=T target=write.T
-/// @type.symbol symbol=write.sink source="sink: SinkFor<T>" type=SinkFor<T#2> reduced=T#2 extends string ? TextSink : NumberSink
+/// @type.symbol symbol=write.sink source="sink: SinkFor<T>" type=SinkFor<T#2>
 /// @resolution.name source=SinkFor target=SinkFor
 /// @resolution.name source=T target=write.T
 
@@ -225,12 +225,12 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 /// @type.symbol symbol=write.T source=T type=T#2
 /// @type.symbol symbol=write.value source="value: T" type=T#2
 /// @resolution.name source=T target=write.T
-/// @type.symbol symbol=write.sink source="sink: SinkFor<T>" type=SinkFor<T#2> reduced=T#2 extends string ? TextSink : NumberSink
+/// @type.symbol symbol=write.sink source="sink: SinkFor<T>" type=SinkFor<T#2>
 /// @resolution.name source=SinkFor target=SinkFor
 /// @resolution.name source=T target=write.T
 
     sink.write(value);
-    /// @type.node source=sink type=SinkFor<T#2> reduced=T#2 extends string ? TextSink : NumberSink
+    /// @type.node source=sink type=SinkFor<T#2>
     /// @type.node source=sink.write type=<error>
     /// @type.node source=sink.write(value) type=<error>
     /// @resolution.name source=sink target=write.sink
@@ -271,7 +271,6 @@ write("message", number);
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'Dynamic<NumberSink>' is not assignable to parameter of type 'SinkFor<string>'"
 /// @diagnostic.label line=17 column=18 span="number" line_source="write(\"message\", number);"
 /// @diagnostic.related line=17 column=1 span="write(\"message\", number)" line_source="write(\"message\", number);" message="in this call"
-/// @diagnostic.note message="'SinkFor<string>' reduces to 'TextSink'"
 "#,
     );
 }

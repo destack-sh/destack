@@ -32,13 +32,13 @@ if (value is string) {
 /// @type.node source="value is string" type=boolean
 /// @type.node source=value type=Dynamic<unknown>
 /// @resolution.name source=value target=value
-/// @resolution.guard source="value is string" kind=is value=Dynamic<unknown> target=string predicate="Dynamic<unknown> is string" narrowed=string projection=dynamic.payload(string)
+/// @resolution.guard source="value is string" kind=is value=Dynamic<unknown> target=string predicate="Dynamic<unknown> is string" narrowed=Narrow<Dynamic<unknown>, string> projection=dynamic.payload(string)
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 
     value satisfies string;
-    /// @type.node source="value satisfies string" type=string
-    /// @type.node source=value type=string
+    /// @type.node source="value satisfies string" type=Narrow<Dynamic<unknown>, string>
+    /// @type.node source=value type=Narrow<Dynamic<unknown>, string>
     /// @resolution.name source=value target=value
     /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=value root=value
@@ -82,11 +82,8 @@ if (value is { name: string }) {
 /// @resolution.guard source="value is { name: string }" kind=is value=Dynamic<unknown> target={ name: string } predicate="Dynamic<unknown> is never"
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-/// @generic.instance source=value id=Dynamic<unknown>
 
 }
-
-/// @generic.instance id=Dynamic<unknown> template=memory.dynamic.Dynamic arguments=(unknown)
 "#,
         r#"
 /// @diagnostic.error id=runtime-predicate-not-testable message="type '{ name: string }' cannot be tested at runtime"
@@ -131,13 +128,13 @@ if (value is string) {
 /// @type.node source="value is string" type=boolean
 /// @type.node source=value type=string | int32
 /// @resolution.name source=value target=value
-/// @resolution.guard source="value is string" kind=is value=string | int32 target=string predicate="string | int32 is string" narrowed=string
+/// @resolution.guard source="value is string" kind=is value=string | int32 target=string predicate="string | int32 is string" narrowed=Narrow<string | int32, string>
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 
     value satisfies string;
-    /// @type.node source="value satisfies string" type=string
-    /// @type.node source=value type=string
+    /// @type.node source="value satisfies string" type=Narrow<string | int32, string>
+    /// @type.node source=value type=Narrow<string | int32, string>
     /// @resolution.name source=value target=value
     /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=value root=value
@@ -185,7 +182,7 @@ if (value is int32) {
 /// @type.node source="value is int32" type=boolean
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
-/// @resolution.guard source="value is int32" kind=is value=string target=int32 predicate="string is int32" narrowed=never
+/// @resolution.guard source="value is int32" kind=is value=string target=int32 predicate="string is int32" narrowed=Narrow<string, int32>
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 
@@ -248,20 +245,20 @@ if (value is &readonly Node) {
 /// @type.node source="value is &readonly Node" type=boolean
 /// @type.node source=value type=Dynamic<unknown>
 /// @resolution.name source=value target=value
-/// @resolution.guard source="value is &readonly Node" kind=is value=Dynamic<unknown> target=&'frame readonly Node predicate="dynamic.type(reflect.type.Type<unknown>) is type(&'frame readonly Node)" narrowed=&'frame readonly Node projection="dynamic.payload(&'frame readonly Node)"
+/// @resolution.guard source="value is &readonly Node" kind=is value=Dynamic<unknown> target=&'frame readonly Node predicate="dynamic.type(reflect.type.Type<unknown>) is type(&'frame readonly Node)" narrowed=Narrow<Dynamic<unknown>, &'frame readonly Node> projection="dynamic.payload(&'frame readonly Node)"
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.name source=Node target=Node
 
     value.id satisfies int32;
     /// @type.node source="value.id satisfies int32" type=int32
-    /// @type.node source=value type=&'frame readonly Node
+    /// @type.node source=value type=Narrow<Dynamic<unknown>, &'frame readonly Node>
     /// @type.node source=value.id type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.member source=value.id receiver=&'frame readonly Node type=int32 kind=field target_receiver=&'frame readonly Node key=id target=Node.id target_type=int32
-    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+    /// @resolution.member source=value.id receiver=Narrow<Dynamic<unknown>, &'frame readonly Node> type=int32 kind=field target_receiver=Narrow<Dynamic<unknown>, &'frame readonly Node> key=id target=Node.id target_type=int32
+    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=value root=value
-    /// @resolution.place source=value.id placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=value.id placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=value.id root=value keys=[id]
 
 }

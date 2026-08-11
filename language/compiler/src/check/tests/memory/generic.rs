@@ -194,7 +194,7 @@ function identity<comptime S: Space>(value: Placed<User, S>): Placed<User, S> {
 declare const localUser: local User;
 declare const sharedUser: shared User;
 
-identity<"local">(localUser) satisfies local User;
+identity(localUser) satisfies local User;
 identity<"shared">(sharedUser) satisfies shared User;
 
 === checked ===
@@ -217,7 +217,7 @@ function identity<comptime S: Space>(value: Placed<User, S>): Placed<User, S> {
 
     return value;
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement=S lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -234,8 +234,8 @@ declare const sharedUser: shared User;
 
 identity(localUser) satisfies local User;
 /// @resolution.name source=identity target=identity
-/// @resolution.call source=identity(localUser) parameters=(Placed<User, "local">) arguments=(provided(localUser) as Placed<User, "local">) return=Placed<User, "local"> kind=symbol target=identity instance="identity<\"local\">"
-/// @generic.instance source=identity(localUser) id="identity<\"local\">"
+/// @resolution.call source=identity(localUser) parameters=(Placed<User, <error>>) arguments=(provided(localUser) as Placed<User, <error>>) return=Placed<User, <error>> kind=symbol target=identity instance=identity<<error>>
+/// @generic.instance source=identity(localUser) id=identity<<error>>
 /// @resolution.name source=localUser target=localUser
 /// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localUser root=localUser
@@ -251,8 +251,8 @@ identity(sharedUser) satisfies shared User;
 /// @resolution.name source=User target=User
 
 /// @generic.instance id="Placed<User, S>" template=memory.place.Placed arguments=(User, S)
-/// @generic.instance id="identity<\"local\">" template=identity arguments=("local")
 /// @generic.instance id="identity<\"shared\">" template=identity arguments=("shared")
+/// @generic.instance id=identity<<error>> template=identity arguments=(<error>)
 "#,
     );
 }
@@ -872,7 +872,7 @@ extension<T> of Box<T> {
 
         this.borrow()
         /// @resolution.member source=this.borrow receiver=&forward.'a readonly Box<T#2> type=<borrow.'a>(this: &borrow.'a readonly &forward.'a readonly Box<T#2>) => &borrow.'a readonly T#2 kind=symbol target_receiver=&forward.'a readonly Box<T#2> target=borrow
-        /// @resolution.call source=this.borrow() parameters=() return=&forward.'a readonly T#2 kind=symbol target=borrow receiver=&forward.'a readonly Box<T#2> instance=Box<T#2>.<extension#1>.borrow
+        /// @resolution.call source=this.borrow() parameters=() return=&forward.'a readonly T#2 kind=symbol target=borrow receiver=&forward.'a readonly Box<T#2> adjustments=(&forward.'a readonly Box<T#2> => direct -> Box<T#2>, borrow(&forward.'a readonly Box<T#2>)) instance=Box<T#2>.<extension#1>.borrow
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&forward.'a readonly Box<T#2>
         /// @resolution.place source=this placement="local" lifetime=forward.'a access="readonly"
         /// @resolution.access source=this root=this

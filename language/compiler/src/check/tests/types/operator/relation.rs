@@ -21,25 +21,25 @@ const no: IsNumber = false;
 type IsString = "id" extends string;
 type IsNumber = int32 extends number;
 
-const yes: IsString = true;
-const no: IsNumber = false;
+const yes: true = true;
+const no: false = false;
 
 === checked ===
 type IsString = "id" extends string;
-/// @type.symbol symbol=IsString source="type IsString = \"id\" extends string" type="id" extends string ? true : false reduced=true
-/// @definition.type symbol=IsString source="type IsString = \"id\" extends string" value="id" extends string ? true : false reduced=true
+/// @type.symbol symbol=IsString source="type IsString = \"id\" extends string" type=true
+/// @definition.type symbol=IsString source="type IsString = \"id\" extends string" value=true
 
 type IsNumber = int32 extends number;
-/// @type.symbol symbol=IsNumber source="type IsNumber = int32 extends number" type=int32 extends float64 ? true : false reduced=false
-/// @definition.type symbol=IsNumber source="type IsNumber = int32 extends number" value=int32 extends float64 ? true : false reduced=false
+/// @type.symbol symbol=IsNumber source="type IsNumber = int32 extends number" type=false
+/// @definition.type symbol=IsNumber source="type IsNumber = int32 extends number" value=false
 
 const yes: IsString = true;
-/// @type.symbol symbol=yes source=yes type=IsString reduced=true
+/// @type.symbol symbol=yes source=yes type=true
 /// @resolution.pattern source=yes kind=binding target=yes
 /// @resolution.name source=IsString target=IsString
 
 const no: IsNumber = false;
-/// @type.symbol symbol=no source=no type=IsNumber reduced=false
+/// @type.symbol symbol=no source=no type=false
 /// @resolution.pattern source=no kind=binding target=no
 /// @resolution.name source=IsNumber target=IsNumber
 "#,
@@ -66,25 +66,25 @@ const right: UnitExtendsVoid = true;
 type VoidExtendsUnit = void extends ();
 type UnitExtendsVoid = () extends void;
 
-const left: VoidExtendsUnit = true;
-const right: UnitExtendsVoid = true;
+const left: true = true;
+const right: true = true;
 
 === checked ===
 type VoidExtendsUnit = void extends ();
-/// @type.symbol symbol=VoidExtendsUnit source="type VoidExtendsUnit = void extends ()" type=void extends () ? true : false reduced=true
-/// @definition.type symbol=VoidExtendsUnit source="type VoidExtendsUnit = void extends ()" value=void extends () ? true : false reduced=true
+/// @type.symbol symbol=VoidExtendsUnit source="type VoidExtendsUnit = void extends ()" type=true
+/// @definition.type symbol=VoidExtendsUnit source="type VoidExtendsUnit = void extends ()" value=true
 
 type UnitExtendsVoid = () extends void;
-/// @type.symbol symbol=UnitExtendsVoid source="type UnitExtendsVoid = () extends void" type=() extends void ? true : false reduced=true
-/// @definition.type symbol=UnitExtendsVoid source="type UnitExtendsVoid = () extends void" value=() extends void ? true : false reduced=true
+/// @type.symbol symbol=UnitExtendsVoid source="type UnitExtendsVoid = () extends void" type=true
+/// @definition.type symbol=UnitExtendsVoid source="type UnitExtendsVoid = () extends void" value=true
 
 const left: VoidExtendsUnit = true;
-/// @type.symbol symbol=left source=left type=VoidExtendsUnit reduced=true
+/// @type.symbol symbol=left source=left type=true
 /// @resolution.pattern source=left kind=binding target=left
 /// @resolution.name source=VoidExtendsUnit target=VoidExtendsUnit
 
 const right: UnitExtendsVoid = true;
-/// @type.symbol symbol=right source=right type=UnitExtendsVoid reduced=true
+/// @type.symbol symbol=right source=right type=true
 /// @resolution.pattern source=right kind=binding target=right
 /// @resolution.name source=UnitExtendsVoid target=UnitExtendsVoid
 "#,
@@ -111,25 +111,25 @@ const right: NeverExtendsUnit = true;
 type NeverExtendsVoid = never extends void;
 type NeverExtendsUnit = never extends ();
 
-const left: NeverExtendsVoid = true;
-const right: NeverExtendsUnit = true;
+const left: true = true;
+const right: true = true;
 
 === checked ===
 type NeverExtendsVoid = never extends void;
-/// @type.symbol symbol=NeverExtendsVoid source="type NeverExtendsVoid = never extends void" type=never extends void ? true : false reduced=true
-/// @definition.type symbol=NeverExtendsVoid source="type NeverExtendsVoid = never extends void" value=never extends void ? true : false reduced=true
+/// @type.symbol symbol=NeverExtendsVoid source="type NeverExtendsVoid = never extends void" type=true
+/// @definition.type symbol=NeverExtendsVoid source="type NeverExtendsVoid = never extends void" value=true
 
 type NeverExtendsUnit = never extends ();
-/// @type.symbol symbol=NeverExtendsUnit source="type NeverExtendsUnit = never extends ()" type=never extends () ? true : false reduced=true
-/// @definition.type symbol=NeverExtendsUnit source="type NeverExtendsUnit = never extends ()" value=never extends () ? true : false reduced=true
+/// @type.symbol symbol=NeverExtendsUnit source="type NeverExtendsUnit = never extends ()" type=true
+/// @definition.type symbol=NeverExtendsUnit source="type NeverExtendsUnit = never extends ()" value=true
 
 const left: NeverExtendsVoid = true;
-/// @type.symbol symbol=left source=left type=NeverExtendsVoid reduced=true
+/// @type.symbol symbol=left source=left type=true
 /// @resolution.pattern source=left kind=binding target=left
 /// @resolution.name source=NeverExtendsVoid target=NeverExtendsVoid
 
 const right: NeverExtendsUnit = true;
-/// @type.symbol symbol=right source=right type=NeverExtendsUnit reduced=true
+/// @type.symbol symbol=right source=right type=true
 /// @resolution.pattern source=right kind=binding target=right
 /// @resolution.name source=NeverExtendsUnit target=NeverExtendsUnit
 "#,
@@ -156,25 +156,25 @@ const right: UnitExtendsNever = false;
 type VoidExtendsNever = void extends never;
 type UnitExtendsNever = () extends never;
 
-const left: VoidExtendsNever = false;
-const right: UnitExtendsNever = false;
+const left: false = false;
+const right: false = false;
 
 === checked ===
 type VoidExtendsNever = void extends never;
-/// @type.symbol symbol=VoidExtendsNever source="type VoidExtendsNever = void extends never" type=void extends never ? true : false reduced=false
-/// @definition.type symbol=VoidExtendsNever source="type VoidExtendsNever = void extends never" value=void extends never ? true : false reduced=false
+/// @type.symbol symbol=VoidExtendsNever source="type VoidExtendsNever = void extends never" type=false
+/// @definition.type symbol=VoidExtendsNever source="type VoidExtendsNever = void extends never" value=false
 
 type UnitExtendsNever = () extends never;
-/// @type.symbol symbol=UnitExtendsNever source="type UnitExtendsNever = () extends never" type=() extends never ? true : false reduced=false
-/// @definition.type symbol=UnitExtendsNever source="type UnitExtendsNever = () extends never" value=() extends never ? true : false reduced=false
+/// @type.symbol symbol=UnitExtendsNever source="type UnitExtendsNever = () extends never" type=false
+/// @definition.type symbol=UnitExtendsNever source="type UnitExtendsNever = () extends never" value=false
 
 const left: VoidExtendsNever = false;
-/// @type.symbol symbol=left source=left type=VoidExtendsNever reduced=false
+/// @type.symbol symbol=left source=left type=false
 /// @resolution.pattern source=left kind=binding target=left
 /// @resolution.name source=VoidExtendsNever target=VoidExtendsNever
 
 const right: UnitExtendsNever = false;
-/// @type.symbol symbol=right source=right type=UnitExtendsNever reduced=false
+/// @type.symbol symbol=right source=right type=false
 /// @resolution.pattern source=right kind=binding target=right
 /// @resolution.name source=UnitExtendsNever target=UnitExtendsNever
 "#,
@@ -229,8 +229,8 @@ struct PlainPoint {
 type IsDrawn = DrawnPoint implements Drawable;
 type IsPlain = PlainPoint implements Drawable;
 
-const drawn: IsDrawn = true;
-const plain: IsPlain = false;
+const drawn: true = true;
+const plain: false = false;
 
 === checked ===
 interface Drawable {
@@ -273,24 +273,24 @@ struct PlainPoint {
 }
 
 type IsDrawn = DrawnPoint implements Drawable;
-/// @type.symbol symbol=IsDrawn source="type IsDrawn = DrawnPoint implements Drawable" type=DrawnPoint extends Drawable ? true : false reduced=true
-/// @definition.type symbol=IsDrawn source="type IsDrawn = DrawnPoint implements Drawable" value=DrawnPoint extends Drawable ? true : false reduced=true
+/// @type.symbol symbol=IsDrawn source="type IsDrawn = DrawnPoint implements Drawable" type=true
+/// @definition.type symbol=IsDrawn source="type IsDrawn = DrawnPoint implements Drawable" value=true
 /// @resolution.name source=DrawnPoint target=DrawnPoint
 /// @resolution.name source=Drawable target=Drawable
 
 type IsPlain = PlainPoint implements Drawable;
-/// @type.symbol symbol=IsPlain source="type IsPlain = PlainPoint implements Drawable" type=PlainPoint extends Drawable ? true : false reduced=false
-/// @definition.type symbol=IsPlain source="type IsPlain = PlainPoint implements Drawable" value=PlainPoint extends Drawable ? true : false reduced=false
+/// @type.symbol symbol=IsPlain source="type IsPlain = PlainPoint implements Drawable" type=false
+/// @definition.type symbol=IsPlain source="type IsPlain = PlainPoint implements Drawable" value=false
 /// @resolution.name source=PlainPoint target=PlainPoint
 /// @resolution.name source=Drawable target=Drawable
 
 const drawn: IsDrawn = true;
-/// @type.symbol symbol=drawn source=drawn type=IsDrawn reduced=true
+/// @type.symbol symbol=drawn source=drawn type=true
 /// @resolution.pattern source=drawn kind=binding target=drawn
 /// @resolution.name source=IsDrawn target=IsDrawn
 
 const plain: IsPlain = false;
-/// @type.symbol symbol=plain source=plain type=IsPlain reduced=false
+/// @type.symbol symbol=plain source=plain type=false
 /// @resolution.pattern source=plain kind=binding target=plain
 /// @resolution.name source=IsPlain target=IsPlain
 "#,
