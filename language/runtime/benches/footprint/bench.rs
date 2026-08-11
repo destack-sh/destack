@@ -47,9 +47,9 @@ fn bench_footprint(criterion: &mut Criterion) {
         )
     });
 
-    group.bench_function("launch.empty", |bencher| {
+    group.bench_function("execution.empty", |bencher| {
         bencher.iter(|| {
-            runtime.launch();
+            runtime.execute();
 
             black_box(())
         })

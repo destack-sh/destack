@@ -4,7 +4,7 @@ use destack_artifact::ConditionSet;
 use destack_core::CaptureMode;
 use destack_heap as heap;
 use destack_program as program;
-use destack_repository::{Environment, RuntimeOptions};
+use destack_repository::{Environment, RuntimeOptions, WorldOptions};
 use destack_vm as vm;
 
 use crate::binding::BindingTable;
@@ -33,7 +33,9 @@ impl TestWorld {
     /// Build one test world.
     pub(crate) fn build(options: &RuntimeOptions, program: TestProgram) -> Self {
         let environment = Arc::new(Environment::default());
-        let mut world = World::new(options, environment.clone()).expect("world should build");
+        let world_options = WorldOptions::default();
+        let mut world =
+            World::new(&world_options, environment.clone()).expect("world should build");
         let program = Arc::new(program.build());
         let engine = Self::engine(program);
         let runtime_id = world
@@ -208,11 +210,11 @@ impl TestWorld {
         stop
     }
 
-    /// Continue one stopped world runnable and fail loudly on runtime errors.
-    pub(crate) fn run_continue(&mut self) -> RunOutcome {
+    /// Resume one exact stopped Worker and fail loudly on runtime errors.
+    pub(crate) fn resume(&mut self, stop: Stop) -> RunOutcome {
         self.world
-            .run(Run::Continue)
-            .expect("world continue should succeed")
+            .resume(stop.runtime_id, stop.worker_id)
+            .expect("world resume should succeed")
     }
 
     /// Allocate one shared test block and publish its allocation cache.
@@ -336,7 +338,7 @@ impl TestWorld {
             .roots_snapshot()
     }
 
-    /// Advance one idle worker GC operation.
+    /// Run one idle worker GC operation.
     pub(crate) fn advance_gc(&mut self) -> Option<(WorkerId, heap::GcAdvance)> {
         let world = &mut self.world;
         let runtime = world

@@ -125,7 +125,7 @@ fn print_allocations(runtime: &RuntimeSetup, vm: VmSetup) {
         ("world.new", ALLOCATOR.measure(|| runtime.world())),
         ("runtime.spawn.empty.vm", runtime_spawn),
         ("worker.spawn.empty.vm", worker_spawn),
-        ("launch.empty", ALLOCATOR.measure(|| runtime.launch())),
+        ("execution.empty", ALLOCATOR.measure(|| runtime.execute())),
         ("vm.machine.build", ALLOCATOR.measure(|| vm.build_machine())),
         ("vm.machine.new", machine_new),
         ("vm.machine.run", machine_run),

@@ -161,8 +161,8 @@ impl World {
         Ok(worker_id)
     }
 
-    /// Run one entrypoint on one stored runtime.
-    pub fn run_entrypoint(
+    /// Invoke one entrypoint on one stored Runtime.
+    pub fn invoke(
         &mut self,
         runtime_id: RuntimeId,
         entry: &Entry,
@@ -198,7 +198,7 @@ impl World {
     }
 
     /// Borrow one stored runtime mutably.
-    pub fn runtime_mut(&mut self, runtime_id: RuntimeId) -> RuntimeResult<&mut Runtime> {
+    pub(crate) fn runtime_mut(&mut self, runtime_id: RuntimeId) -> RuntimeResult<&mut Runtime> {
         self.runtimes
             .get_mut(&runtime_id)
             .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())

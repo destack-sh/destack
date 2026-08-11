@@ -1,5 +1,8 @@
+use destack_heap as heap;
+use destack_program as program;
 use serde::{Deserialize, Serialize};
 
+use super::ObservationScope;
 use crate::host::ResourceId;
 use crate::scheduler::RunnableId;
 use crate::worker::WorkerId;
@@ -7,10 +10,6 @@ use crate::world::policy::RuleId;
 use crate::world::time::Instant;
 use crate::world::topology::{EdgeId, EdgeKind, EntityId, EntityKind};
 use crate::world::{ProbeId, RuntimeId};
-use destack_heap as heap;
-use destack_program as program;
-
-use super::ObservationScope;
 
 /// One emitted observable fact.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -128,16 +127,6 @@ pub enum Observation {
         /// Removed breakpoint identifier.
         breakpoint_id: program::BreakpointId,
     },
-    /// runtime.debug.breakpoint.enabled
-    BreakpointEnabled {
-        /// Enabled breakpoint identifier.
-        breakpoint_id: program::BreakpointId,
-    },
-    /// runtime.debug.breakpoint.disabled
-    BreakpointDisabled {
-        /// Disabled breakpoint identifier.
-        breakpoint_id: program::BreakpointId,
-    },
     /// runtime.debug.watchpoint.added
     WatchpointAdded {
         /// Added watchpoint identifier.
@@ -151,16 +140,6 @@ pub enum Observation {
     /// runtime.debug.watchpoint.removed
     WatchpointRemoved {
         /// Removed watchpoint identifier.
-        watchpoint_id: program::WatchpointId,
-    },
-    /// runtime.debug.watchpoint.enabled
-    WatchpointEnabled {
-        /// Enabled watchpoint identifier.
-        watchpoint_id: program::WatchpointId,
-    },
-    /// runtime.debug.watchpoint.disabled
-    WatchpointDisabled {
-        /// Disabled watchpoint identifier.
         watchpoint_id: program::WatchpointId,
     },
     /// runtime.debug.probe.added
@@ -178,15 +157,20 @@ pub enum Observation {
         /// Removed probe identifier.
         probe_id: ProbeId,
     },
-    /// runtime.debug.probe.enabled
-    ProbeEnabled {
-        /// Enabled probe identifier.
+    /// runtime.debug.probe.hit
+    ProbeHit {
+        /// Matching probe identifier.
         probe_id: ProbeId,
-    },
-    /// runtime.debug.probe.disabled
-    ProbeDisabled {
-        /// Disabled probe identifier.
-        probe_id: ProbeId,
+        /// Durable matching-event count after this hit.
+        count: u64,
+        /// Runtime that produced the event.
+        runtime_id: RuntimeId,
+        /// Worker that produced the event.
+        worker_id: WorkerId,
+        /// Fiber that produced the event when execution has one.
+        fiber_id: Option<program::FiberId>,
+        /// Matched Program execution event.
+        event: program::Event,
     },
 
     // scheduler
@@ -208,22 +192,22 @@ pub enum Observation {
         /// Microtask runnable identifier.
         microtask_id: RunnableId,
     },
-    /// runtime.task.continued
-    TaskContinued {
+    /// runtime.task.resumed
+    TaskResumed {
         /// Runtime that owns the worker.
         runtime_id: RuntimeId,
-        /// Worker that continued the task.
+        /// Worker that resumed the task.
         worker_id: WorkerId,
-        /// Continued task runnable identifier.
+        /// Resumed task runnable identifier.
         task_id: RunnableId,
     },
-    /// runtime.microtask.continued
-    MicrotaskContinued {
+    /// runtime.microtask.resumed
+    MicrotaskResumed {
         /// Runtime that owns the worker.
         runtime_id: RuntimeId,
-        /// Worker that continued the microtask.
+        /// Worker that resumed the microtask.
         worker_id: WorkerId,
-        /// Continued microtask runnable identifier.
+        /// Resumed microtask runnable identifier.
         microtask_id: RunnableId,
     },
 
@@ -344,12 +328,12 @@ impl Observation {
                 worker_id,
                 ..
             }
-            | Self::TaskContinued {
+            | Self::TaskResumed {
                 runtime_id,
                 worker_id,
                 ..
             }
-            | Self::MicrotaskContinued {
+            | Self::MicrotaskResumed {
                 runtime_id,
                 worker_id,
                 ..
@@ -384,6 +368,18 @@ impl Observation {
                 worker_id: Some(worker_id),
                 ..
             } => ObservationScope::worker(Some(*runtime_id), *worker_id),
+            Self::ProbeHit {
+                runtime_id,
+                worker_id,
+                fiber_id: Some(fiber_id),
+                ..
+            } => ObservationScope::fiber(*runtime_id, *worker_id, *fiber_id),
+            Self::ProbeHit {
+                runtime_id,
+                worker_id,
+                fiber_id: None,
+                ..
+            } => ObservationScope::worker(Some(*runtime_id), *worker_id),
             Self::WorkerRemoved { worker_id } => ObservationScope::worker(None, *worker_id),
             Self::EntityUpserted { entity_id } | Self::EntityRemoved { entity_id } => {
                 ObservationScope::entity(entity_id.as_str())
@@ -404,18 +400,12 @@ impl Observation {
             | Self::BreakpointAdded { .. }
             | Self::BreakpointUpdated { .. }
             | Self::BreakpointRemoved { .. }
-            | Self::BreakpointEnabled { .. }
-            | Self::BreakpointDisabled { .. }
             | Self::WatchpointAdded { .. }
             | Self::WatchpointUpdated { .. }
             | Self::WatchpointRemoved { .. }
-            | Self::WatchpointEnabled { .. }
-            | Self::WatchpointDisabled { .. }
             | Self::ProbeAdded { .. }
             | Self::ProbeUpdated { .. }
             | Self::ProbeRemoved { .. }
-            | Self::ProbeEnabled { .. }
-            | Self::ProbeDisabled { .. }
             | Self::IngressDelivered { .. }
             | Self::TimeAdvanced { .. } => ObservationScope::world(),
             Self::SharedGcStepped {
@@ -453,18 +443,12 @@ impl Observation {
                     | Self::BreakpointAdded { .. }
                     | Self::BreakpointUpdated { .. }
                     | Self::BreakpointRemoved { .. }
-                    | Self::BreakpointEnabled { .. }
-                    | Self::BreakpointDisabled { .. }
                     | Self::WatchpointAdded { .. }
                     | Self::WatchpointUpdated { .. }
                     | Self::WatchpointRemoved { .. }
-                    | Self::WatchpointEnabled { .. }
-                    | Self::WatchpointDisabled { .. }
                     | Self::ProbeAdded { .. }
                     | Self::ProbeUpdated { .. }
                     | Self::ProbeRemoved { .. }
-                    | Self::ProbeEnabled { .. }
-                    | Self::ProbeDisabled { .. }
                     | Self::IngressDelivered { .. }
                     | Self::TimeAdvanced { .. }
             ),
@@ -477,6 +461,12 @@ impl Observation {
             ObservationScope::RuntimeWorker(scope) => {
                 self.runtime_id() == Some(scope.runtime_id)
                     && self.worker_id() == Some(scope.worker_id)
+                    && self.fiber_id().is_none()
+            }
+            ObservationScope::Fiber(scope) => {
+                self.runtime_id() == Some(scope.runtime_id)
+                    && self.worker_id() == Some(scope.worker_id)
+                    && self.fiber_id() == Some(scope.fiber_id)
             }
             ObservationScope::Entity(entity_id) => self.entity_id() == Some(entity_id.as_str()),
             ObservationScope::Edge(edge_id) => self.edge_id() == Some(edge_id.as_str()),
@@ -492,8 +482,9 @@ impl Observation {
             | Self::WorkerSpawned { runtime_id, .. }
             | Self::TaskRan { runtime_id, .. }
             | Self::MicrotaskRan { runtime_id, .. }
-            | Self::TaskContinued { runtime_id, .. }
-            | Self::MicrotaskContinued { runtime_id, .. }
+            | Self::TaskResumed { runtime_id, .. }
+            | Self::MicrotaskResumed { runtime_id, .. }
+            | Self::ProbeHit { runtime_id, .. }
             | Self::StopReached { runtime_id, .. }
             | Self::LocalGcStarted { runtime_id, .. }
             | Self::LocalGcStepped { runtime_id, .. }
@@ -512,8 +503,9 @@ impl Observation {
             | Self::WorkerRemoved { worker_id }
             | Self::TaskRan { worker_id, .. }
             | Self::MicrotaskRan { worker_id, .. }
-            | Self::TaskContinued { worker_id, .. }
-            | Self::MicrotaskContinued { worker_id, .. }
+            | Self::TaskResumed { worker_id, .. }
+            | Self::MicrotaskResumed { worker_id, .. }
+            | Self::ProbeHit { worker_id, .. }
             | Self::StopReached { worker_id, .. }
             | Self::LocalGcStarted { worker_id, .. }
             | Self::LocalGcStepped { worker_id, .. }
@@ -528,6 +520,14 @@ impl Observation {
             }
             | Self::ResourceAttached { worker_id, .. }
             | Self::ResourceDetached { worker_id, .. } => Some(*worker_id),
+            _ => None,
+        }
+    }
+
+    /// Return the fiber id for this observation when present.
+    pub const fn fiber_id(&self) -> Option<program::FiberId> {
+        match self {
+            Self::ProbeHit { fiber_id, .. } => *fiber_id,
             _ => None,
         }
     }
@@ -585,22 +585,17 @@ impl Observation {
             Self::BreakpointAdded { .. } => "runtime.debug.breakpoint.added",
             Self::BreakpointUpdated { .. } => "runtime.debug.breakpoint.updated",
             Self::BreakpointRemoved { .. } => "runtime.debug.breakpoint.removed",
-            Self::BreakpointEnabled { .. } => "runtime.debug.breakpoint.enabled",
-            Self::BreakpointDisabled { .. } => "runtime.debug.breakpoint.disabled",
             Self::WatchpointAdded { .. } => "runtime.debug.watchpoint.added",
             Self::WatchpointUpdated { .. } => "runtime.debug.watchpoint.updated",
             Self::WatchpointRemoved { .. } => "runtime.debug.watchpoint.removed",
-            Self::WatchpointEnabled { .. } => "runtime.debug.watchpoint.enabled",
-            Self::WatchpointDisabled { .. } => "runtime.debug.watchpoint.disabled",
             Self::ProbeAdded { .. } => "runtime.debug.probe.added",
             Self::ProbeUpdated { .. } => "runtime.debug.probe.updated",
             Self::ProbeRemoved { .. } => "runtime.debug.probe.removed",
-            Self::ProbeEnabled { .. } => "runtime.debug.probe.enabled",
-            Self::ProbeDisabled { .. } => "runtime.debug.probe.disabled",
+            Self::ProbeHit { .. } => "runtime.debug.probe.hit",
             Self::TaskRan { .. } => "runtime.task.ran",
             Self::MicrotaskRan { .. } => "runtime.microtask.ran",
-            Self::TaskContinued { .. } => "runtime.task.continued",
-            Self::MicrotaskContinued { .. } => "runtime.microtask.continued",
+            Self::TaskResumed { .. } => "runtime.task.resumed",
+            Self::MicrotaskResumed { .. } => "runtime.microtask.resumed",
             Self::StopReached { .. } => "runtime.stop.reached",
             Self::IngressDelivered { .. } => "runtime.ingress.delivered",
             Self::TimeAdvanced { .. } => "runtime.time.advanced",

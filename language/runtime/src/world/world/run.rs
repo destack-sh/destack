@@ -1,10 +1,13 @@
 use std::collections::BTreeMap;
+use std::thread;
 
 use destack_heap as heap;
 use destack_program as program;
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::poller::HostPoller;
+use crate::host::poller::Poller;
 use crate::host::time::TimerClock;
 use crate::runtime::RuntimeRunOutcome;
 use crate::scheduler::{ScheduledTimer, TimerWake, Wake};
@@ -14,23 +17,19 @@ use crate::world::time::{ClockSource, Instant};
 
 use super::{Moment, RuntimeId, WorkerWake, World, WorldState};
 
-/// Event-loop work to run in one world.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// One bounded World execution operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Run {
     /// Run one pending microtask.
     Microtask,
     /// Drain pending microtasks.
-    Microtasks,
-    /// Resume the first retained runtime stop.
-    Continue,
+    MicrotaskCheckpoint,
     /// Run one task.
     Task,
-    /// Run event-loop work until the world becomes idle.
-    UntilIdle,
 }
 
-/// Outcome from one world run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Outcome from one bounded World execution operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum RunOutcome {
     /// One task, microtask, wake, or GC step made progress.
     Progressed,
@@ -47,8 +46,8 @@ pub enum RunOutcome {
     },
 }
 
-/// Runtime stop visible at the world boundary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Runtime stop visible at the World boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Stop {
     /// Lineage coordinate where execution stopped.
     pub moment: Moment,
@@ -60,13 +59,13 @@ pub struct Stop {
     pub reason: program::StopReason,
 }
 
-/// Runtime work kind visible in the world timeline.
+/// Runtime work kind visible in the World timeline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RunStep {
     /// One microtask ran.
     Microtask,
-    /// One retained stop continued.
-    Continue,
+    /// One retained stop resumed.
+    Resume,
     /// One task ran.
     Task,
 }
@@ -90,13 +89,13 @@ impl RunStep {
         progress: RunnableProgress,
     ) -> Observation {
         match (self, progress) {
-            (Self::Continue, RunnableProgress::Task { task_id }) => Observation::TaskContinued {
+            (Self::Resume, RunnableProgress::Task { task_id }) => Observation::TaskResumed {
                 runtime_id,
                 worker_id,
                 task_id,
             },
-            (Self::Continue, RunnableProgress::Microtask { microtask_id }) => {
-                Observation::MicrotaskContinued {
+            (Self::Resume, RunnableProgress::Microtask { microtask_id }) => {
+                Observation::MicrotaskResumed {
                     runtime_id,
                     worker_id,
                     microtask_id,
@@ -140,14 +139,49 @@ impl World {
             .collect()
     }
 
-    /// Run event-loop work in this world.
+    /// Run the selected bounded World execution operation.
     pub fn run(&mut self, run: Run) -> RuntimeResult<RunOutcome> {
         match run {
             Run::Microtask => self.run_microtask(),
-            Run::Microtasks => self.run_microtasks(),
-            Run::Continue => self.run_continue(),
+            Run::MicrotaskCheckpoint => self.run_microtasks(),
             Run::Task => self.run_task(),
-            Run::UntilIdle => self.run_until_idle(),
+        }
+    }
+
+    /// Resume one exact debugger-stopped Worker.
+    pub fn resume(
+        &mut self,
+        runtime_id: RuntimeId,
+        worker_id: WorkerId,
+    ) -> RuntimeResult<RunOutcome> {
+        let world = &mut self.state;
+        let runtime = self
+            .runtimes
+            .get_mut(&runtime_id)
+            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
+        let outcome = runtime.resume(world, self.host.as_ref(), &self.host_queue, worker_id)?;
+
+        // project the exact Worker outcome into World time
+        world.run_runtime_outcome(runtime_id, outcome, RunStep::Resume)
+    }
+
+    /// Drain event-loop work until this World becomes idle or stops.
+    pub fn drain(&mut self) -> RuntimeResult<RunOutcome> {
+        loop {
+            // drain the microtask checkpoint before selecting another task
+            let outcome = self.run(Run::MicrotaskCheckpoint)?;
+            let outcome = if outcome == RunOutcome::Idle {
+                self.run(Run::Task)?
+            } else {
+                outcome
+            };
+
+            // keep progressing until the World stops or becomes idle
+            match outcome {
+                RunOutcome::Background => thread::yield_now(),
+                RunOutcome::Idle | RunOutcome::Stopped { .. } => return Ok(outcome),
+                RunOutcome::Progressed | RunOutcome::AdvancedTime => {}
+            }
         }
     }
 
@@ -166,11 +200,11 @@ impl World {
             runtimes.iter_mut().enumerate().skip(start_index)
         {
             let outcome = runtime.run_microtask(world, self.host.as_ref(), &self.host_queue)?;
-            let Some(outcome) =
-                world.run_runtime_outcome(*runtime_id, outcome, RunStep::Microtask)?
-            else {
+            let outcome = world.run_runtime_outcome(*runtime_id, outcome, RunStep::Microtask)?;
+            if outcome == RunOutcome::Idle {
                 continue;
-            };
+            }
+
             self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
 
             return Ok(outcome);
@@ -181,11 +215,11 @@ impl World {
             runtimes.iter_mut().enumerate().take(start_index)
         {
             let outcome = runtime.run_microtask(world, self.host.as_ref(), &self.host_queue)?;
-            let Some(outcome) =
-                world.run_runtime_outcome(*runtime_id, outcome, RunStep::Microtask)?
-            else {
+            let outcome = world.run_runtime_outcome(*runtime_id, outcome, RunStep::Microtask)?;
+            if outcome == RunOutcome::Idle {
                 continue;
-            };
+            }
+
             self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
 
             return Ok(outcome);
@@ -215,49 +249,6 @@ impl World {
         }
     }
 
-    /// Continue one retained runtime stop in scheduler order.
-    fn run_continue(&mut self) -> RuntimeResult<RunOutcome> {
-        let runtime_count = self.runtimes.len();
-        if runtime_count == 0 {
-            return Ok(RunOutcome::Idle);
-        }
-        let start_index = self.next_runtime_cursor % runtime_count;
-        let world = &mut self.state;
-        let runtimes = &mut self.runtimes;
-
-        // scan retained stops after the scheduler cursor
-        for (runtime_index, (runtime_id, runtime)) in
-            runtimes.iter_mut().enumerate().skip(start_index)
-        {
-            let outcome = runtime.continue_stop(world, self.host.as_ref(), &self.host_queue)?;
-            let Some(outcome) =
-                world.run_runtime_outcome(*runtime_id, outcome, RunStep::Continue)?
-            else {
-                continue;
-            };
-            self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
-
-            return Ok(outcome);
-        }
-
-        // wrap retained stops around to runtimes before the scheduler cursor
-        for (runtime_index, (runtime_id, runtime)) in
-            runtimes.iter_mut().enumerate().take(start_index)
-        {
-            let outcome = runtime.continue_stop(world, self.host.as_ref(), &self.host_queue)?;
-            let Some(outcome) =
-                world.run_runtime_outcome(*runtime_id, outcome, RunStep::Continue)?
-            else {
-                continue;
-            };
-            self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
-
-            return Ok(outcome);
-        }
-
-        Ok(RunOutcome::Idle)
-    }
-
     /// Run one task or scheduler event across the stored runtimes.
     fn run_task(&mut self) -> RuntimeResult<RunOutcome> {
         let host_events = self.host_queue.poll(self.host.as_ref(), Some(0))?;
@@ -284,10 +275,11 @@ impl World {
             self.runtimes.iter_mut().enumerate().skip(start_index)
         {
             let outcome = runtime.run_task(world, self.host.as_ref(), &self.host_queue)?;
-            let Some(outcome) = world.run_runtime_outcome(*runtime_id, outcome, RunStep::Task)?
-            else {
+            let outcome = world.run_runtime_outcome(*runtime_id, outcome, RunStep::Task)?;
+            if outcome == RunOutcome::Idle {
                 continue;
-            };
+            }
+
             self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
 
             return Ok(outcome);
@@ -298,10 +290,11 @@ impl World {
             self.runtimes.iter_mut().enumerate().take(start_index)
         {
             let outcome = runtime.run_task(world, self.host.as_ref(), &self.host_queue)?;
-            let Some(outcome) = world.run_runtime_outcome(*runtime_id, outcome, RunStep::Task)?
-            else {
+            let outcome = world.run_runtime_outcome(*runtime_id, outcome, RunStep::Task)?;
+            if outcome == RunOutcome::Idle {
                 continue;
-            };
+            }
+
             self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
 
             return Ok(outcome);
@@ -404,7 +397,7 @@ impl World {
         };
 
         // advance runtime-controlled time
-        self.advance_time(deadline)?;
+        self.advance(deadline)?;
         let world = &mut self.state;
 
         // collect due worker timers across runtimes
@@ -433,8 +426,8 @@ impl World {
         Ok(RunOutcome::AdvancedTime)
     }
 
-    /// Advance runtime-controlled world time to one wall-clock deadline.
-    pub fn advance_time(&mut self, deadline: Instant) -> RuntimeResult<Instant> {
+    /// Advance runtime-controlled World time to one wall-clock deadline.
+    pub fn advance(&mut self, deadline: Instant) -> RuntimeResult<Instant> {
         if self.state.clock.source() != ClockSource::Runtime {
             return Err(RuntimeError::host_time_advance().boxed());
         }
@@ -447,37 +440,6 @@ impl World {
         self.state.observe(Observation::TimeAdvanced { deadline })?;
 
         Ok(deadline)
-    }
-
-    /// Run event-loop work until no runtime can make progress.
-    fn run_until_idle(&mut self) -> RuntimeResult<RunOutcome> {
-        loop {
-            // drain the microtask checkpoint before selecting another task
-            let outcome = self.run(Run::Microtasks)?;
-            let outcome = if outcome == RunOutcome::Idle {
-                self.run(Run::Task)?
-            } else {
-                outcome
-            };
-
-            // keep yielding while background work is still draining
-            if outcome == RunOutcome::Background {
-                std::thread::yield_now();
-                continue;
-            }
-
-            // stop when execution reaches an explicit stop point
-            if let RunOutcome::Stopped { .. } = outcome {
-                return Ok(outcome);
-            }
-
-            // stop when the scheduler cannot make further progress
-            if outcome == RunOutcome::Idle {
-                break;
-            }
-        }
-
-        Ok(RunOutcome::Idle)
     }
 
     /// Return the deterministic ordering key for one timer wake.
@@ -660,7 +622,7 @@ impl WorldState {
         runtime_id: RuntimeId,
         outcome: RuntimeRunOutcome,
         step: RunStep,
-    ) -> RuntimeResult<Option<RunOutcome>> {
+    ) -> RuntimeResult<RunOutcome> {
         match outcome {
             RuntimeRunOutcome::Progressed {
                 worker_id,
@@ -669,9 +631,9 @@ impl WorldState {
                 self.advance_moment()?;
                 self.observe(step.observation(runtime_id, worker_id, progress))?;
 
-                Ok(Some(RunOutcome::Progressed))
+                Ok(RunOutcome::Progressed)
             }
-            RuntimeRunOutcome::Idle => Ok(None),
+            RuntimeRunOutcome::Idle => Ok(RunOutcome::Idle),
             RuntimeRunOutcome::Stopped { worker_id, reason } => {
                 let moment = self.advance_moment()?;
                 let stop = Stop {
@@ -686,7 +648,7 @@ impl WorldState {
                     reason,
                 })?;
 
-                Ok(Some(RunOutcome::Stopped { stop }))
+                Ok(RunOutcome::Stopped { stop })
             }
             RuntimeRunOutcome::Paused { worker_id, reason } => {
                 let stop = Stop {
@@ -696,7 +658,7 @@ impl WorldState {
                     reason,
                 };
 
-                Ok(Some(RunOutcome::Stopped { stop }))
+                Ok(RunOutcome::Stopped { stop })
             }
         }
     }

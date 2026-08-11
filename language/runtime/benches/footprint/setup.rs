@@ -8,20 +8,21 @@ use destack_heap::{
     Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits, SharedHeapOptions,
     SharedMarkWorker,
 };
-use destack_memory::MemoryMap;
+use destack_memory::{MemoryMap, MemoryRange};
 use destack_mir as mir;
 use destack_program as program;
 use destack_program::{Activation, FunctionId, Memory, Outcome, StaticSpace, Value};
-use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
+use destack_repository::{Environment, RuntimeOptions, WorldOptions};
 use destack_runtime::binding::BindingTable;
-use destack_runtime::launch::Launch;
 use destack_runtime::machine::{Engine, Entry};
 use destack_runtime::worker::WorkerOptions;
-use destack_runtime::world::{RuntimeId, World};
+use destack_runtime::world::{RunOutcome, RuntimeId, World};
 use destack_source::{DiagnosticSeverity, File, FileId, FileType, ModuleId, PackageId, Uri};
 use destack_vm::{Error, Machine, MachineLimits, Result};
 
+/// Exported entrypoint measured by the footprint benchmarks.
 const ENTRY: &str = "bench.entry";
+/// Minimal Program executed by the footprint benchmarks.
 const PROGRAM: &str = r#"
 export function bench.entry(): void {
 entry:
@@ -32,11 +33,13 @@ entry:
 /// Runtime-level footprint setup.
 #[derive(Debug, Clone)]
 pub(crate) struct RuntimeSetup {
+    /// World options shared by every run.
+    world_options: WorldOptions,
     /// Runtime options shared by every run.
-    options: RuntimeOptions,
+    runtime_options: RuntimeOptions,
     /// Runtime conditions shared by every run.
     conditions: Arc<ConditionSet>,
-    /// Ambient launch environment.
+    /// Ambient runtime environment.
     environment: Arc<Environment>,
 }
 
@@ -62,6 +65,8 @@ pub(crate) struct VmMachine {
     local_static: StaticSpace,
     /// Runtime shared static byte space.
     shared_static: StaticSpace,
+    /// Runtime immortal object byte space.
+    immortal_space: StaticSpace,
     /// Worker-local heap.
     heap: Heap,
     /// Runtime shared heap.
@@ -75,13 +80,9 @@ pub(crate) struct VmMachine {
 impl RuntimeSetup {
     /// Create one default runtime footprint setup.
     pub(crate) fn new() -> Self {
-        let options = RuntimeOptions {
-            mode: ExecutionMode::Strict,
-            ..Default::default()
-        };
-
         Self {
-            options,
+            world_options: WorldOptions::default(),
+            runtime_options: RuntimeOptions::default(),
             conditions: Arc::new(ConditionSet {
                 modes: Default::default(),
                 roles: Default::default(),
@@ -102,7 +103,8 @@ impl RuntimeSetup {
 
     /// Create one empty world.
     pub(crate) fn world(&self) -> World {
-        World::new(&self.options, self.environment.clone()).expect("footprint world should build")
+        World::new(&self.world_options, self.environment.clone())
+            .expect("footprint world should build")
     }
 
     /// Spawn one VM runtime into an existing world.
@@ -110,7 +112,7 @@ impl RuntimeSetup {
         world
             .spawn_runtime(
                 self.environment.clone(),
-                &self.options,
+                &self.runtime_options,
                 self.conditions.clone(),
                 Arc::new(BindingTable::new()),
                 engine,
@@ -134,18 +136,15 @@ impl RuntimeSetup {
             .expect("footprint worker should spawn");
     }
 
-    /// Launch one empty VM runtime and drain it.
-    pub(crate) fn launch(&self) {
-        Launch::new(
-            self.options.clone(),
-            self.conditions.clone(),
-            self.environment.clone(),
-            Arc::new(BindingTable::new()),
-            self.engine(),
-            Entry::new(ENTRY),
-        )
-        .run()
-        .expect("footprint launch should run");
+    /// Execute one empty VM runtime and drain its World.
+    pub(crate) fn execute(&self) {
+        let (mut world, runtime_id) = self.world_with_runtime();
+        world
+            .invoke(runtime_id, &Entry::new(ENTRY), &[])
+            .expect("footprint entrypoint should run");
+
+        let outcome = world.drain().expect("footprint World should drain");
+        assert_eq!(outcome, RunOutcome::Idle);
     }
 
     /// Build one durable runtime program.
@@ -184,7 +183,7 @@ impl VmMachine {
         let program = setup.program();
         let memory = setup.memory();
         let heap = setup.heap(memory.clone());
-        let shared = setup.shared_heap(memory.clone());
+        let mut shared = setup.shared_heap(memory.clone());
         let shared_mark_worker = shared.register_mark_worker();
         let shared_cache = shared.allocation_cache();
         let local_static = program
@@ -193,6 +192,13 @@ impl VmMachine {
         let shared_static = program
             .materialize_shared_statics(memory.clone())
             .expect("footprint shared statics should build");
+        let immortal_space = program
+            .materialize_immortals(memory.clone())
+            .expect("footprint immortals should build");
+        shared.set_immortal_range(MemoryRange {
+            offset: immortal_space.offset(),
+            byte_len: immortal_space.byte_len(),
+        });
         let allocation_plans = program
             .plan_allocations(heap.options(), shared.options())
             .expect("footprint allocation plans should build")
@@ -215,6 +221,7 @@ impl VmMachine {
             runtime: VmRuntime,
             local_static,
             shared_static,
+            immortal_space,
             heap,
             shared,
             shared_cache,
@@ -236,6 +243,7 @@ impl VmMachine {
                 shared_mark_worker: &self.shared_mark_worker,
                 local_statics: &mut self.local_static,
                 shared_statics: &mut self.shared_static,
+                immortals: &self.immortal_space,
                 constants: self.program.constants(),
             },
         };
@@ -283,7 +291,7 @@ impl program::Runtime for VmRuntime {
         &mut self,
         _memory: Memory<'_>,
         _context: program::Context,
-        _fiber: program::Fiber,
+        _fiber_id: Option<program::FiberId>,
         _binding: &program::Binding,
         _arguments: &[program::Word],
         _result: &mut [program::Word],
@@ -292,18 +300,18 @@ impl program::Runtime for VmRuntime {
     }
 
     /// Reject fiber parks outside the runtime scheduler.
-    fn park(&mut self, fiber: program::Fiber) -> Result<program::Park> {
-        Err(program::Error::UndefinedFiber { fiber }.into())
+    fn park(&mut self, fiber_id: program::FiberId) -> Result<program::Park> {
+        Err(program::Error::UndefinedFiber { fiber_id }.into())
     }
 
     /// Reject detach boundaries outside the runtime scheduler.
-    fn detach(&mut self) -> Result<program::Fiber> {
+    fn detach(&mut self) -> Result<program::FiberId> {
         unreachable!("footprint execution does not detach")
     }
 
     /// Reject boundary retirement outside the runtime scheduler.
-    fn retire(&mut self, fiber: program::Fiber) -> Result<()> {
-        Err(program::Error::UndefinedFiber { fiber }.into())
+    fn retire(&mut self, fiber_id: program::FiberId) -> Result<()> {
+        Err(program::Error::UndefinedFiber { fiber_id }.into())
     }
 }
 
@@ -366,9 +374,9 @@ impl VmSetup {
         };
 
         // complete physical layouts required by object emission
-        let mut tree = lowered.tree;
+        let tree = lowered.tree;
         let mut layouts = lowered.layouts;
-        let mut builder = LayoutBuilder::new(module, &mut tree, &mut layouts, lowered.target);
+        let mut builder = LayoutBuilder::new(module, &tree, &mut layouts, lowered.target);
         builder
             .layout_reachable_types()
             .expect("footprint MIR layouts should build");

@@ -2,7 +2,7 @@ use destack_core::CaptureMode;
 use destack_heap as heap;
 use destack_mir::TraceMap;
 use destack_program as program;
-use destack_repository::{ExecutionMode, RuntimeOptions};
+use destack_repository::RuntimeOptions;
 
 use crate::binding::BindingTable;
 use crate::diagnostic::RuntimeError;
@@ -105,10 +105,7 @@ entry:
 /// Execute one shared allocation's destructor before reclamation.
 #[test]
 fn test_collect_reclaims_shared_allocation_after_drop() {
-    let options = RuntimeOptions {
-        mode: ExecutionMode::Strict,
-        ..RuntimeOptions::default()
-    };
+    let options = RuntimeOptions::default();
     let program = TestProgram::mir(
         r#"
 function Item.destruct(v0: ref<int32, borrowed, exclusive, shared>): void {
