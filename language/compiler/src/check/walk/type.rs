@@ -864,6 +864,17 @@ impl WalkState<'_, '_> {
                 .filter(|argument| argument.name.is_none())
                 .map(|argument| argument.ty)
                 .collect::<Vec<_>>();
+
+            // build carrier applications as their canonical memory forms
+            if let Some(item) = self.check.language_item(symbol)?
+                && item.is_memory_carrier()
+            {
+                let ty = self.carrier_type(source, item, symbol, &positional)?;
+
+                return self.apply_named_refinements(ty, applied);
+            }
+
+            // keep every other head symbolic
             let arguments = self.intern_type_ids(&positional)?;
             let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
                 symbol,
@@ -997,6 +1008,15 @@ impl WalkState<'_, '_> {
 
         let arguments = substitution.arguments().collect::<Vec<_>>();
 
+        // build carrier applications as their canonical memory forms
+        if let Some(item) = self.check.language_item(symbol)?
+            && item.is_memory_carrier()
+        {
+            let ty = self.carrier_type(source, item, symbol, &arguments)?;
+
+            return self.apply_named_refinements(ty, applied);
+        }
+
         // build the application before attaching its argument checks
         let argument_list = self.intern_type_ids(&arguments)?;
         let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
@@ -1006,6 +1026,92 @@ impl WalkState<'_, '_> {
         let ty = self.apply_named_refinements(ty, applied)?;
 
         Ok(ty)
+    }
+
+    /// Build one written carrier application as its canonical memory form.
+    fn carrier_type(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        item: dir::LanguageItem,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // require the payload the carrier stores
+        let Some(value) = arguments.first().copied() else {
+            let name = self.check.format_symbol(symbol);
+            self.check
+                .report_wrong_generic_arity(self.module, source, name, 1, 0);
+
+            return self.intern_type(dir::Type::Error);
+        };
+
+        // anchor the written components at the application node
+        let origin = Origin::Node(
+            source.into_global(self.module),
+            self.flow().template_scope(),
+        );
+
+        // build the form the item constructs
+        let form = match item {
+            // take the plain forms the item names
+            dir::LanguageItem::Managed => dir::Form::Managed,
+            dir::LanguageItem::Owned => dir::Form::Owned,
+            dir::LanguageItem::Raw => dir::Form::Raw,
+            dir::LanguageItem::Readonly => dir::Form::Readonly,
+            // carry the written borrow components, eliding like the `&T` sugar
+            dir::LanguageItem::Borrowed => {
+                let lifetime = match arguments.get(1).copied() {
+                    Some(lifetime) => self.check.normalize_memory_component(
+                        origin,
+                        lifetime,
+                        dir::MemoryParameter::Lifetime,
+                    )?,
+                    None => self.elided_borrow_lifetime(source)?,
+                };
+                let access = match arguments.get(2).copied() {
+                    Some(access) => self.check.normalize_memory_component(
+                        origin,
+                        access,
+                        dir::MemoryParameter::Access,
+                    )?,
+                    None => self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
+                        dir::Access::Mutable,
+                    )))?,
+                };
+
+                self.intern_borrow(lifetime, access)?
+            }
+            // carry the written place
+            dir::LanguageItem::Placed => {
+                let Some(place) = arguments.get(1).copied() else {
+                    let name = self.check.format_symbol(symbol);
+                    self.check.report_wrong_generic_arity(
+                        self.module,
+                        source,
+                        name,
+                        2,
+                        arguments.len(),
+                    );
+
+                    return self.intern_type(dir::Type::Error);
+                };
+                let place = self.check.normalize_memory_component(
+                    origin,
+                    place,
+                    dir::MemoryParameter::Place,
+                )?;
+
+                dir::Form::Placed { place }
+            }
+            // fail on every other head
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "carrier build entered a non-carrier language item".to_string(),
+                });
+            }
+        };
+
+        self.intern_type(dir::Type::Form(dir::FormType { form, value }))
     }
 
     /// Wrap one application with its named refinements in canonical key order.

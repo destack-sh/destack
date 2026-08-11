@@ -70,24 +70,6 @@ impl CheckState<'_> {
                 self.reduce_unsigned_application(origin, module, instance)
             }
             dir::LanguageItem::Awaited => self.reduce_awaited_application(origin, module, instance),
-            dir::LanguageItem::Readonly => {
-                self.reduce_form_constructor(origin, module, instance, dir::Form::Readonly)
-            }
-
-            // reduce memory aliases to canonical written forms
-            dir::LanguageItem::Managed => {
-                self.reduce_form_constructor(origin, module, instance, dir::Form::Managed)
-            }
-            dir::LanguageItem::Owned => {
-                self.reduce_form_constructor(origin, module, instance, dir::Form::Owned)
-            }
-            dir::LanguageItem::Raw => {
-                self.reduce_form_constructor(origin, module, instance, dir::Form::Raw)
-            }
-            dir::LanguageItem::Borrowed => {
-                self.reduce_borrowed_constructor(origin, module, instance)
-            }
-            dir::LanguageItem::Placed => self.reduce_placed_constructor(origin, module, instance),
 
             // evaluate memory accessors over closed form chains
             dir::LanguageItem::PayloadOf

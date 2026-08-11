@@ -340,7 +340,7 @@ impl CheckState<'_> {
         Ok(origin)
     }
 
-    /// Normalize one anonymous computation or carrier head, keeping names and forms rigid.
+    /// Normalize one anonymous computation head, keeping names and forms rigid.
     pub(in crate::check) fn normalize_computation(
         &mut self,
         origin: Origin,
@@ -350,18 +350,12 @@ impl CheckState<'_> {
         match self.ty(id)? {
             // reduce meta heads, which name computations
             dir::Type::Member(_) | dir::Type::Operation(_) => self.normalize(origin, id),
-            // reduce written carrier constructors, which name memory forms
+            // reduce memory accessor applications, which name computations over forms
             dir::Type::Application(instance)
                 if self.language_item(instance.symbol)?.is_some_and(|item| {
                     matches!(
                         item,
-                        dir::LanguageItem::Managed
-                            | dir::LanguageItem::Owned
-                            | dir::LanguageItem::Raw
-                            | dir::LanguageItem::Borrowed
-                            | dir::LanguageItem::Placed
-                            | dir::LanguageItem::Readonly
-                            | dir::LanguageItem::WithBase
+                        dir::LanguageItem::WithBase
                             | dir::LanguageItem::WithOwnership
                             | dir::LanguageItem::WithPlace
                             | dir::LanguageItem::WithSpace

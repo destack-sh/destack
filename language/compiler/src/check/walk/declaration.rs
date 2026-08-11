@@ -1637,10 +1637,20 @@ impl WalkState<'_, '_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::ExtensionTarget> {
-        // root written carrier applications at their payload's family
+        // root written memory forms at their payload's family
         let mut payload = ty;
         let mut carrier = None;
         loop {
+            // peel form heads, keeping the outermost constructor as the root fallback
+            if let dir::Type::Form(form) = self.check.ty(payload)? {
+                let symbol = self.check.language_symbol(form.form.language_item())?;
+                carrier.get_or_insert(symbol);
+                payload = form.value;
+
+                continue;
+            }
+
+            // peel memory accessor applications to their inspected target
             let dir::Type::Application(instance) = self.check.ty(payload)? else {
                 break;
             };
@@ -1649,13 +1659,7 @@ impl WalkState<'_, '_> {
             };
             if !matches!(
                 item,
-                dir::LanguageItem::Managed
-                    | dir::LanguageItem::Owned
-                    | dir::LanguageItem::Raw
-                    | dir::LanguageItem::Borrowed
-                    | dir::LanguageItem::Placed
-                    | dir::LanguageItem::Readonly
-                    | dir::LanguageItem::WithBase
+                dir::LanguageItem::WithBase
                     | dir::LanguageItem::WithOwnership
                     | dir::LanguageItem::WithPlace
                     | dir::LanguageItem::WithSpace
