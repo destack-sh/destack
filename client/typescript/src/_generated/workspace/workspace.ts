@@ -3,6 +3,7 @@
 import type { Call, Decoder, Encoder, Method, RequestValue, RpcResponse } from "../../rpc/index.js";
 import { Connection } from "../../rpc/index.js";
 import * as artifactPayload from "../artifact/payload.js";
+import * as coreBlob from "../core/blob.js";
 import * as repositoryCommit from "../repository/commit.js";
 import * as repositoryRevision from "../repository/revision.js";
 import * as workspaceArtifactExport from "./artifact/export.js";
@@ -84,7 +85,7 @@ const artifactMethodResponse: Decoder<artifactPayload.ArtifactPayload> = {
 const artifactMethod: Method<workspaceServiceArtifact.ArtifactRequest, artifactPayload.ArtifactPayload, never, never> = {
     service: 5221210015570525267n,
     method: 10319401099963147929n,
-    fingerprint: 328786122890663887039953912284577023779n,
+    fingerprint: 40187970385626066357730589452890243615n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: artifactMethodRequest,
@@ -119,6 +120,29 @@ const benchMethod: Method<workspaceServiceCommand.BenchRequest, workspaceCommand
     request: benchMethodRequest,
     response: benchMethodResponse,
     output: benchMethodOutput,
+};
+
+const blobMethodRequest: Encoder<workspaceServiceArtifact.ArtifactRequest> = {
+    encode(writer, value: workspaceServiceArtifact.ArtifactRequest): void {
+        workspaceServiceArtifact.encodeArtifactRequest(writer, value);
+    },
+};
+
+const blobMethodResponse: Decoder<coreBlob.Blob> = {
+    decode(reader): coreBlob.Blob {
+        return coreBlob.decodeBlob(reader);
+    },
+};
+
+/** Descriptor for the blob RPC method. */
+const blobMethod: Method<workspaceServiceArtifact.ArtifactRequest, coreBlob.Blob, never, never> = {
+    service: 5221210015570525267n,
+    method: 14685706198550658862n,
+    fingerprint: 18787069691208606977824613915032895073n,
+    kind: "unary",
+    idempotency: "idempotent",
+    request: blobMethodRequest,
+    response: blobMethodResponse,
 };
 
 const buildMethodRequest: Encoder<workspaceServiceCommand.BuildRequest> = {
@@ -789,6 +813,7 @@ export class WorkspaceClient {
         connection.bind(applySourceUpdateMethod);
         connection.bind(artifactMethod);
         connection.bind(benchMethod);
+        connection.bind(blobMethod);
         connection.bind(buildMethod);
         connection.bind(cacheMethod);
         connection.bind(checkMethod);
@@ -833,6 +858,11 @@ export class WorkspaceClient {
     /** Call the bench workspace method. */
     bench(request: RequestValue<workspaceServiceCommand.BenchRequest>): Call<workspaceCommandOutput.BenchOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(benchMethod, request);
+    }
+
+    /** Call the blob workspace method. */
+    blob(request: RequestValue<workspaceServiceArtifact.ArtifactRequest>): Promise<RpcResponse<coreBlob.Blob>> {
+        return this.#connection.call(blobMethod, request);
     }
 
     /** Call the build workspace method. */

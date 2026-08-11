@@ -2,7 +2,9 @@
 
 import type { Decoder, Encoder, Method, RequestValue, RpcResponse } from "../../rpc/index.js";
 import { Connection } from "../../rpc/index.js";
+import * as runtimeServiceWorld from "../runtime/service/world.js";
 import * as daemonServiceWorkspace from "./service/workspace.js";
+import * as daemonServiceWorld from "./service/world.js";
 
 /** Stable destack.daemon.Daemon RPC service identifier. */
 export const daemonService = 6560093225869906995n;
@@ -30,6 +32,73 @@ const closeWorkspaceMethod: Method<daemonServiceWorkspace.CloseWorkspaceRequest,
     response: closeWorkspaceMethodResponse,
 };
 
+const closeWorldMethodRequest: Encoder<daemonServiceWorld.CloseWorldRequest> = {
+    encode(writer, value: daemonServiceWorld.CloseWorldRequest): void {
+        daemonServiceWorld.encodeCloseWorldRequest(writer, value);
+    },
+};
+
+const closeWorldMethodResponse: Decoder<null> = {
+    decode(): null {
+        return null;
+    },
+};
+
+/** Descriptor for the closeWorld RPC method. */
+const closeWorldMethod: Method<daemonServiceWorld.CloseWorldRequest, null, never, never> = {
+    service: 6560093225869906995n,
+    method: 2569757404058803524n,
+    fingerprint: 173645898881855901467624620042184249465n,
+    kind: "unary",
+    idempotency: "idempotent",
+    request: closeWorldMethodRequest,
+    response: closeWorldMethodResponse,
+};
+
+const createWorldMethodRequest: Encoder<daemonServiceWorld.CreateWorldRequest> = {
+    encode(writer, value: daemonServiceWorld.CreateWorldRequest): void {
+        daemonServiceWorld.encodeCreateWorldRequest(writer, value);
+    },
+};
+
+const createWorldMethodResponse: Decoder<runtimeServiceWorld.WorldId> = {
+    decode(reader): runtimeServiceWorld.WorldId {
+        return runtimeServiceWorld.decodeWorldId(reader);
+    },
+};
+
+/** Descriptor for the createWorld RPC method. */
+const createWorldMethod: Method<daemonServiceWorld.CreateWorldRequest, runtimeServiceWorld.WorldId, never, never> = {
+    service: 6560093225869906995n,
+    method: 10527819133726055521n,
+    fingerprint: 126964278073898670116899550390598238989n,
+    kind: "unary",
+    idempotency: "unknown",
+    request: createWorldMethodRequest,
+    response: createWorldMethodResponse,
+};
+
+const listWorldsMethodRequest: Encoder<null> = {
+    encode(): void {},
+};
+
+const listWorldsMethodResponse: Decoder<ReadonlyArray<runtimeServiceWorld.WorldId>> = {
+    decode(reader): ReadonlyArray<runtimeServiceWorld.WorldId> {
+        return (() => { const length0 = reader.readNumber(); const items0: Array<runtimeServiceWorld.WorldId> = []; for (let index = 0; index < length0; index += 1) { items0.push(runtimeServiceWorld.decodeWorldId(reader)); } return items0; })();
+    },
+};
+
+/** Descriptor for the listWorlds RPC method. */
+const listWorldsMethod: Method<null, ReadonlyArray<runtimeServiceWorld.WorldId>, never, never> = {
+    service: 6560093225869906995n,
+    method: 5826142494269261576n,
+    fingerprint: 175427452216559265330337608367438742771n,
+    kind: "unary",
+    idempotency: "noSideEffects",
+    request: listWorldsMethodRequest,
+    response: listWorldsMethodResponse,
+};
+
 const openWorkspaceMethodRequest: Encoder<daemonServiceWorkspace.OpenWorkspaceRequest> = {
     encode(writer, value: daemonServiceWorkspace.OpenWorkspaceRequest): void {
         daemonServiceWorkspace.encodeOpenWorkspaceRequest(writer, value);
@@ -51,6 +120,29 @@ const openWorkspaceMethod: Method<daemonServiceWorkspace.OpenWorkspaceRequest, d
     idempotency: "idempotent",
     request: openWorkspaceMethodRequest,
     response: openWorkspaceMethodResponse,
+};
+
+const restoreWorldMethodRequest: Encoder<daemonServiceWorld.RestoreWorldRequest> = {
+    encode(writer, value: daemonServiceWorld.RestoreWorldRequest): void {
+        daemonServiceWorld.encodeRestoreWorldRequest(writer, value);
+    },
+};
+
+const restoreWorldMethodResponse: Decoder<runtimeServiceWorld.WorldId> = {
+    decode(reader): runtimeServiceWorld.WorldId {
+        return runtimeServiceWorld.decodeWorldId(reader);
+    },
+};
+
+/** Descriptor for the restoreWorld RPC method. */
+const restoreWorldMethod: Method<daemonServiceWorld.RestoreWorldRequest, runtimeServiceWorld.WorldId, never, never> = {
+    service: 6560093225869906995n,
+    method: 10296679611125971660n,
+    fingerprint: 99810476080010324484727475119181581593n,
+    kind: "unary",
+    idempotency: "unknown",
+    request: restoreWorldMethodRequest,
+    response: restoreWorldMethodResponse,
 };
 
 const shutdownMethodRequest: Encoder<null> = {
@@ -82,7 +174,11 @@ export class DaemonClient {
     constructor(connection: Connection) {
         this.#connection = connection;
         connection.bind(closeWorkspaceMethod);
+        connection.bind(closeWorldMethod);
+        connection.bind(createWorldMethod);
+        connection.bind(listWorldsMethod);
         connection.bind(openWorkspaceMethod);
+        connection.bind(restoreWorldMethod);
         connection.bind(shutdownMethod);
     }
 
@@ -91,9 +187,29 @@ export class DaemonClient {
         return this.#connection.call(closeWorkspaceMethod, request);
     }
 
+    /** Call the closeWorld daemon method. */
+    closeWorld(request: RequestValue<daemonServiceWorld.CloseWorldRequest>): Promise<RpcResponse<null>> {
+        return this.#connection.call(closeWorldMethod, request);
+    }
+
+    /** Call the createWorld daemon method. */
+    createWorld(request: RequestValue<daemonServiceWorld.CreateWorldRequest>): Promise<RpcResponse<runtimeServiceWorld.WorldId>> {
+        return this.#connection.call(createWorldMethod, request);
+    }
+
+    /** Call the listWorlds daemon method. */
+    listWorlds(request: RequestValue<null>): Promise<RpcResponse<ReadonlyArray<runtimeServiceWorld.WorldId>>> {
+        return this.#connection.call(listWorldsMethod, request);
+    }
+
     /** Call the openWorkspace daemon method. */
     openWorkspace(request: RequestValue<daemonServiceWorkspace.OpenWorkspaceRequest>): Promise<RpcResponse<daemonServiceWorkspace.OpenWorkspaceResponse>> {
         return this.#connection.call(openWorkspaceMethod, request);
+    }
+
+    /** Call the restoreWorld daemon method. */
+    restoreWorld(request: RequestValue<daemonServiceWorld.RestoreWorldRequest>): Promise<RpcResponse<runtimeServiceWorld.WorldId>> {
+        return this.#connection.call(restoreWorldMethod, request);
     }
 
     /** Call the shutdown daemon method. */

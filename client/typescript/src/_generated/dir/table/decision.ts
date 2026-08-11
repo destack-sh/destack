@@ -95,6 +95,11 @@ export type Decision =
           readonly kind: "assignPattern";
           readonly assign_pattern: AssignPatternDecision;
       }
+    /** Rejected node with its retained best-attempt decision. */
+    | {
+          readonly kind: "attempted";
+          readonly attempted: Decision;
+      }
     /** Rejected node with reported diagnostics. */
     | {
           readonly kind: "rejected";
@@ -169,6 +174,11 @@ export const Decision = {
     /** Resolved assignment pattern meaning. */
     assignPattern(assign_pattern: AssignPatternDecision): Decision {
         return { kind: "assignPattern", assign_pattern };
+    },
+
+    /** Rejected node with its retained best-attempt decision. */
+    attempted(attempted: Decision): Decision {
+        return { kind: "attempted", attempted };
     },
 
     /** Rejected node with reported diagnostics. */
@@ -257,11 +267,15 @@ export function encodeDecision(writer: BinaryWriter, value: Decision): void {
             writer.writeUnsigned(12);
             encodeAssignPatternDecision(writer, value.assign_pattern);
             return;
-        case "rejected":
+        case "attempted":
             writer.writeUnsigned(13);
+            encodeDecision(writer, value.attempted);
+            return;
+        case "rejected":
+            writer.writeUnsigned(14);
             return;
         case "poisoned":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(15);
             return;
     }
 
@@ -339,9 +353,14 @@ export function decodeDecision(reader: BinaryReader): Decision {
             return { kind: "assignPattern", assign_pattern };
         }
         case 13: {
-            return { kind: "rejected" };
+            const attempted = decodeDecision(reader);
+
+            return { kind: "attempted", attempted };
         }
         case 14: {
+            return { kind: "rejected" };
+        }
+        case 15: {
             return { kind: "poisoned" };
         }
     }
@@ -416,6 +435,11 @@ export function toJsonDecision(value: Decision): Json {
             return {
                 kind: "assignPattern",
                 assign_pattern: toJsonAssignPatternDecision(value.assign_pattern),
+            };
+        case "attempted":
+            return {
+                kind: "attempted",
+                attempted: toJsonDecision(value.attempted),
             };
         case "rejected":
             return {
@@ -500,6 +524,11 @@ export function fromJsonDecision(value: Json): Decision {
             return {
                 kind,
                 assign_pattern: fromJsonAssignPatternDecision(jsonField(object, "assign_pattern")),
+            };
+        case "attempted":
+            return {
+                kind,
+                attempted: fromJsonDecision(jsonField(object, "attempted")),
             };
         case "rejected":
             return {

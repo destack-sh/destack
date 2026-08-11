@@ -4,6 +4,7 @@ import { BinaryReader, BinaryWriter, Json, SerdeError, compareBytes, jsonArray, 
 import type { StringId } from "../../core/string.js";
 import type { StaticKey } from "../symbol/key.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
+import type { AutoInterface } from "./auto.js";
 import type { MemberSpace } from "./member.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { FunctionRole } from "../tree/property.js";
@@ -20,6 +21,7 @@ import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../symbol/key.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
+import { decodeAutoInterface, encodeAutoInterface, fromJsonAutoInterface, toJsonAutoInterface } from "./auto.js";
 import { decodeMemberSpace, encodeMemberSpace, fromJsonMemberSpace, toJsonMemberSpace } from "./member.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeFunctionRole, encodeFunctionRole, fromJsonFunctionRole, toJsonFunctionRole } from "../tree/property.js";
@@ -616,6 +618,8 @@ export type ClassDefinition = {
     readonly extends?: NominalHeritage;
     /** The implemented interfaces. */
     readonly implements: ReadonlyArray<NominalConformance>;
+    /** The written derive list replacing the auto set, if any. */
+    readonly derives?: ReadonlyArray<AutoInterface>;
     /** The class's direct construct candidates. */
     readonly constructors: ReadonlyArray<ClassConstructorDefinition>;
     /** The members in declaration order. */
@@ -662,13 +666,19 @@ export function encodeClassDefinition(writer: BinaryWriter, value: ClassDefiniti
     for (const item6 of value.implements) {
         encodeNominalConformance(writer, item6);
     }
+    writer.writeOption(value.derives, (value7) => {
+        writer.writeUnsigned(value7.length);
+        for (const item8 of value7) {
+            encodeAutoInterface(writer, item8);
+        }
+    });
     writer.writeUnsigned(value.constructors.length);
-    for (const item7 of value.constructors) {
-        encodeClassConstructorDefinition(writer, item7);
+    for (const item8 of value.constructors) {
+        encodeClassConstructorDefinition(writer, item8);
     }
     writer.writeUnsigned(value.members.length);
-    for (const item8 of value.members) {
-        encodeDefinitionMember(writer, item8);
+    for (const item9 of value.members) {
+        encodeDefinitionMember(writer, item9);
     }
 }
 
@@ -681,8 +691,9 @@ export function decodeClassDefinition(reader: BinaryReader): ClassDefinition {
     const isFinal = reader.readBool();
     const extends_ = reader.readOption(() => decodeNominalHeritage(reader));
     const implements_ = (() => { const length6 = reader.readNumber(); const items6: Array<NominalConformance> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeNominalConformance(reader)); } return items6; })();
-    const constructors = (() => { const length7 = reader.readNumber(); const items7: Array<ClassConstructorDefinition> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeClassConstructorDefinition(reader)); } return items7; })();
-    const members = (() => { const length8 = reader.readNumber(); const items8: Array<DefinitionMember> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeDefinitionMember(reader)); } return items8; })();
+    const derives = reader.readOption(() => (() => { const length8 = reader.readNumber(); const items8: Array<AutoInterface> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeAutoInterface(reader)); } return items8; })());
+    const constructors = (() => { const length8 = reader.readNumber(); const items8: Array<ClassConstructorDefinition> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeClassConstructorDefinition(reader)); } return items8; })();
+    const members = (() => { const length9 = reader.readNumber(); const items9: Array<DefinitionMember> = []; for (let index = 0; index < length9; index += 1) { items9.push(decodeDefinitionMember(reader)); } return items9; })();
 
     return {
         ...(space === undefined ? {} : { space }),
@@ -692,6 +703,7 @@ export function decodeClassDefinition(reader: BinaryReader): ClassDefinition {
         isFinal,
         ...(extends_ === undefined ? {} : { extends: extends_ }),
         implements: implements_,
+        ...(derives === undefined ? {} : { derives }),
         constructors,
         members,
     };
@@ -707,6 +719,7 @@ export function toJsonClassDefinition(value: ClassDefinition): Json {
         isFinal: value.isFinal,
         ...(value.extends === undefined ? {} : { extends: toJsonNominalHeritage(value.extends) }),
         implements: value.implements.map((item0) => toJsonNominalConformance(item0)),
+        ...(value.derives === undefined ? {} : { derives: value.derives.map((item0) => toJsonAutoInterface(item0)) }),
         constructors: value.constructors.map((item0) => toJsonClassConstructorDefinition(item0)),
         members: value.members.map((item0) => toJsonDefinitionMember(item0)),
     };
@@ -724,6 +737,7 @@ export function fromJsonClassDefinition(value: Json): ClassDefinition {
         isFinal: jsonBool(jsonField(object, "isFinal")),
         extends: jsonOptional(object, "extends", (value) => fromJsonNominalHeritage(value)),
         implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonNominalConformance(item0)),
+        derives: jsonOptional(object, "derives", (value) => jsonArray(value).map((item0) => fromJsonAutoInterface(item0))),
         constructors: jsonArray(jsonField(object, "constructors")).map((item0) => fromJsonClassConstructorDefinition(item0)),
         members: jsonArray(jsonField(object, "members")).map((item0) => fromJsonDefinitionMember(item0)),
     };
@@ -1485,6 +1499,8 @@ export type EnumDefinition = {
     readonly backing: EnumBackingType;
     /** The implemented interfaces. */
     readonly implements: ReadonlyArray<NominalConformance>;
+    /** The written derive list replacing the auto set, if any. */
+    readonly derives?: ReadonlyArray<AutoInterface>;
     /** The members in declaration order. */
     readonly members: ReadonlyArray<DefinitionMember>;
 };
@@ -1525,9 +1541,15 @@ export function encodeEnumDefinition(writer: BinaryWriter, value: EnumDefinition
     for (const item4 of value.implements) {
         encodeNominalConformance(writer, item4);
     }
+    writer.writeOption(value.derives, (value5) => {
+        writer.writeUnsigned(value5.length);
+        for (const item6 of value5) {
+            encodeAutoInterface(writer, item6);
+        }
+    });
     writer.writeUnsigned(value.members.length);
-    for (const item5 of value.members) {
-        encodeDefinitionMember(writer, item5);
+    for (const item6 of value.members) {
+        encodeDefinitionMember(writer, item6);
     }
 }
 
@@ -1538,7 +1560,8 @@ export function decodeEnumDefinition(reader: BinaryReader): EnumDefinition {
     const representation = decodeRepresentation(reader);
     const backing = decodeEnumBackingType(reader);
     const implements_ = (() => { const length4 = reader.readNumber(); const items4: Array<NominalConformance> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeNominalConformance(reader)); } return items4; })();
-    const members = (() => { const length5 = reader.readNumber(); const items5: Array<DefinitionMember> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeDefinitionMember(reader)); } return items5; })();
+    const derives = reader.readOption(() => (() => { const length6 = reader.readNumber(); const items6: Array<AutoInterface> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeAutoInterface(reader)); } return items6; })());
+    const members = (() => { const length6 = reader.readNumber(); const items6: Array<DefinitionMember> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeDefinitionMember(reader)); } return items6; })();
 
     return {
         ...(space === undefined ? {} : { space }),
@@ -1546,6 +1569,7 @@ export function decodeEnumDefinition(reader: BinaryReader): EnumDefinition {
         representation,
         backing,
         implements: implements_,
+        ...(derives === undefined ? {} : { derives }),
         members,
     };
 }
@@ -1558,6 +1582,7 @@ export function toJsonEnumDefinition(value: EnumDefinition): Json {
         representation: toJsonRepresentation(value.representation),
         backing: toJsonEnumBackingType(value.backing),
         implements: value.implements.map((item0) => toJsonNominalConformance(item0)),
+        ...(value.derives === undefined ? {} : { derives: value.derives.map((item0) => toJsonAutoInterface(item0)) }),
         members: value.members.map((item0) => toJsonDefinitionMember(item0)),
     };
 }
@@ -1572,6 +1597,7 @@ export function fromJsonEnumDefinition(value: Json): EnumDefinition {
         representation: fromJsonRepresentation(jsonField(object, "representation")),
         backing: fromJsonEnumBackingType(jsonField(object, "backing")),
         implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonNominalConformance(item0)),
+        derives: jsonOptional(object, "derives", (value) => jsonArray(value).map((item0) => fromJsonAutoInterface(item0))),
         members: jsonArray(jsonField(object, "members")).map((item0) => fromJsonDefinitionMember(item0)),
     };
 }
@@ -1993,6 +2019,8 @@ export type FieldDefinition = {
     readonly isAbstract: boolean;
     /** Whether the field overrides an inherited member. */
     readonly isOverride: boolean;
+    /** The overridden base member, selected while checking. */
+    readonly overrides?: GlobalSymbolId;
 };
 
 export const FieldDefinition = {
@@ -2031,6 +2059,9 @@ export function encodeFieldDefinition(writer: BinaryWriter, value: FieldDefiniti
     writer.writeBool(value.isDefinite);
     writer.writeBool(value.isAbstract);
     writer.writeBool(value.isOverride);
+    writer.writeOption(value.overrides, (value10) => {
+        encodeGlobalSymbolId(writer, value10);
+    });
 }
 
 /** Decode one FieldDefinition. */
@@ -2045,6 +2076,7 @@ export function decodeFieldDefinition(reader: BinaryReader): FieldDefinition {
     const isDefinite = reader.readBool();
     const isAbstract = reader.readBool();
     const isOverride = reader.readBool();
+    const overrides = reader.readOption(() => decodeGlobalSymbolId(reader));
 
     return {
         space,
@@ -2057,6 +2089,7 @@ export function decodeFieldDefinition(reader: BinaryReader): FieldDefinition {
         isDefinite,
         isAbstract,
         isOverride,
+        ...(overrides === undefined ? {} : { overrides }),
     };
 }
 
@@ -2073,6 +2106,7 @@ export function toJsonFieldDefinition(value: FieldDefinition): Json {
         isDefinite: value.isDefinite,
         isAbstract: value.isAbstract,
         isOverride: value.isOverride,
+        ...(value.overrides === undefined ? {} : { overrides: toJsonGlobalSymbolId(value.overrides) }),
     };
 }
 
@@ -2091,6 +2125,7 @@ export function fromJsonFieldDefinition(value: Json): FieldDefinition {
         isDefinite: jsonBool(jsonField(object, "isDefinite")),
         isAbstract: jsonBool(jsonField(object, "isAbstract")),
         isOverride: jsonBool(jsonField(object, "isOverride")),
+        overrides: jsonOptional(object, "overrides", (value) => fromJsonGlobalSymbolId(value)),
     };
 }
 
@@ -2364,6 +2399,8 @@ export type MethodDefinition = {
     readonly abstraction: MethodAbstraction;
     /** Whether the method overrides an inherited member. */
     readonly isOverride: boolean;
+    /** The overridden base member, selected while checking. */
+    readonly overrides?: GlobalSymbolId;
     /** How the method receives its implementation. */
     readonly implementation: MethodImplementation;
 };
@@ -2401,6 +2438,9 @@ export function encodeMethodDefinition(writer: BinaryWriter, value: MethodDefini
     });
     encodeMethodAbstraction(writer, value.abstraction);
     writer.writeBool(value.isOverride);
+    writer.writeOption(value.overrides, (value7) => {
+        encodeGlobalSymbolId(writer, value7);
+    });
     encodeMethodImplementation(writer, value.implementation);
 }
 
@@ -2413,6 +2453,7 @@ export function decodeMethodDefinition(reader: BinaryReader): MethodDefinition {
     const role = reader.readOption(() => decodeFunctionRole(reader));
     const abstraction = decodeMethodAbstraction(reader);
     const isOverride = reader.readBool();
+    const overrides = reader.readOption(() => decodeGlobalSymbolId(reader));
     const implementation = decodeMethodImplementation(reader);
 
     return {
@@ -2423,6 +2464,7 @@ export function decodeMethodDefinition(reader: BinaryReader): MethodDefinition {
         ...(role === undefined ? {} : { role }),
         abstraction,
         isOverride,
+        ...(overrides === undefined ? {} : { overrides }),
         implementation,
     };
 }
@@ -2437,6 +2479,7 @@ export function toJsonMethodDefinition(value: MethodDefinition): Json {
         ...(value.role === undefined ? {} : { role: toJsonFunctionRole(value.role) }),
         abstraction: toJsonMethodAbstraction(value.abstraction),
         isOverride: value.isOverride,
+        ...(value.overrides === undefined ? {} : { overrides: toJsonGlobalSymbolId(value.overrides) }),
         implementation: toJsonMethodImplementation(value.implementation),
     };
 }
@@ -2453,6 +2496,7 @@ export function fromJsonMethodDefinition(value: Json): MethodDefinition {
         role: jsonOptional(object, "role", (value) => fromJsonFunctionRole(value)),
         abstraction: fromJsonMethodAbstraction(jsonField(object, "abstraction")),
         isOverride: jsonBool(jsonField(object, "isOverride")),
+        overrides: jsonOptional(object, "overrides", (value) => fromJsonGlobalSymbolId(value)),
         implementation: fromJsonMethodImplementation(jsonField(object, "implementation")),
     };
 }
@@ -2619,6 +2663,8 @@ export type NewtypeDefinition = {
     readonly constructors: ReadonlyArray<NewtypeConstructor>;
     /** The property discriminating derived Tagged variants, filled while checking. */
     readonly discriminator?: StaticKey;
+    /** The written derive list replacing the auto set, if any. */
+    readonly derives?: ReadonlyArray<AutoInterface>;
     /** The members in declaration order. */
     readonly members: ReadonlyArray<DefinitionMember>;
 };
@@ -2666,9 +2712,15 @@ export function encodeNewtypeDefinition(writer: BinaryWriter, value: NewtypeDefi
     writer.writeOption(value.discriminator, (value7) => {
         encodeStaticKey(writer, value7);
     });
+    writer.writeOption(value.derives, (value8) => {
+        writer.writeUnsigned(value8.length);
+        for (const item9 of value8) {
+            encodeAutoInterface(writer, item9);
+        }
+    });
     writer.writeUnsigned(value.members.length);
-    for (const item8 of value.members) {
-        encodeDefinitionMember(writer, item8);
+    for (const item9 of value.members) {
+        encodeDefinitionMember(writer, item9);
     }
 }
 
@@ -2682,7 +2734,8 @@ export function decodeNewtypeDefinition(reader: BinaryReader): NewtypeDefinition
     const taggedOptions = reader.readOption(() => decodeTaggedOptionsDefinition(reader));
     const constructors = (() => { const length6 = reader.readNumber(); const items6: Array<NewtypeConstructor> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeNewtypeConstructor(reader)); } return items6; })();
     const discriminator = reader.readOption(() => decodeStaticKey(reader));
-    const members = (() => { const length8 = reader.readNumber(); const items8: Array<DefinitionMember> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeDefinitionMember(reader)); } return items8; })();
+    const derives = reader.readOption(() => (() => { const length9 = reader.readNumber(); const items9: Array<AutoInterface> = []; for (let index = 0; index < length9; index += 1) { items9.push(decodeAutoInterface(reader)); } return items9; })());
+    const members = (() => { const length9 = reader.readNumber(); const items9: Array<DefinitionMember> = []; for (let index = 0; index < length9; index += 1) { items9.push(decodeDefinitionMember(reader)); } return items9; })();
 
     return {
         ...(space === undefined ? {} : { space }),
@@ -2693,6 +2746,7 @@ export function decodeNewtypeDefinition(reader: BinaryReader): NewtypeDefinition
         ...(taggedOptions === undefined ? {} : { taggedOptions }),
         constructors,
         ...(discriminator === undefined ? {} : { discriminator }),
+        ...(derives === undefined ? {} : { derives }),
         members,
     };
 }
@@ -2708,6 +2762,7 @@ export function toJsonNewtypeDefinition(value: NewtypeDefinition): Json {
         ...(value.taggedOptions === undefined ? {} : { taggedOptions: toJsonTaggedOptionsDefinition(value.taggedOptions) }),
         constructors: value.constructors.map((item0) => toJsonNewtypeConstructor(item0)),
         ...(value.discriminator === undefined ? {} : { discriminator: toJsonStaticKey(value.discriminator) }),
+        ...(value.derives === undefined ? {} : { derives: value.derives.map((item0) => toJsonAutoInterface(item0)) }),
         members: value.members.map((item0) => toJsonDefinitionMember(item0)),
     };
 }
@@ -2725,6 +2780,7 @@ export function fromJsonNewtypeDefinition(value: Json): NewtypeDefinition {
         taggedOptions: jsonOptional(object, "taggedOptions", (value) => fromJsonTaggedOptionsDefinition(value)),
         constructors: jsonArray(jsonField(object, "constructors")).map((item0) => fromJsonNewtypeConstructor(item0)),
         discriminator: jsonOptional(object, "discriminator", (value) => fromJsonStaticKey(value)),
+        derives: jsonOptional(object, "derives", (value) => jsonArray(value).map((item0) => fromJsonAutoInterface(item0))),
         members: jsonArray(jsonField(object, "members")).map((item0) => fromJsonDefinitionMember(item0)),
     };
 }
@@ -3181,6 +3237,8 @@ export type StructDefinition = {
     readonly representation: Representation;
     /** The implemented interfaces. */
     readonly implements: ReadonlyArray<NominalConformance>;
+    /** The written derive list replacing the auto set, if any. */
+    readonly derives?: ReadonlyArray<AutoInterface>;
     /** The members in declaration order. */
     readonly members: ReadonlyArray<DefinitionMember>;
 };
@@ -3220,9 +3278,15 @@ export function encodeStructDefinition(writer: BinaryWriter, value: StructDefini
     for (const item3 of value.implements) {
         encodeNominalConformance(writer, item3);
     }
+    writer.writeOption(value.derives, (value4) => {
+        writer.writeUnsigned(value4.length);
+        for (const item5 of value4) {
+            encodeAutoInterface(writer, item5);
+        }
+    });
     writer.writeUnsigned(value.members.length);
-    for (const item4 of value.members) {
-        encodeDefinitionMember(writer, item4);
+    for (const item5 of value.members) {
+        encodeDefinitionMember(writer, item5);
     }
 }
 
@@ -3232,13 +3296,15 @@ export function decodeStructDefinition(reader: BinaryReader): StructDefinition {
     const template = reader.readOption(() => decodeLocalGenericTemplateId(reader));
     const representation = decodeRepresentation(reader);
     const implements_ = (() => { const length3 = reader.readNumber(); const items3: Array<NominalConformance> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeNominalConformance(reader)); } return items3; })();
-    const members = (() => { const length4 = reader.readNumber(); const items4: Array<DefinitionMember> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeDefinitionMember(reader)); } return items4; })();
+    const derives = reader.readOption(() => (() => { const length5 = reader.readNumber(); const items5: Array<AutoInterface> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeAutoInterface(reader)); } return items5; })());
+    const members = (() => { const length5 = reader.readNumber(); const items5: Array<DefinitionMember> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeDefinitionMember(reader)); } return items5; })();
 
     return {
         ...(space === undefined ? {} : { space }),
         ...(template === undefined ? {} : { template }),
         representation,
         implements: implements_,
+        ...(derives === undefined ? {} : { derives }),
         members,
     };
 }
@@ -3250,6 +3316,7 @@ export function toJsonStructDefinition(value: StructDefinition): Json {
         ...(value.template === undefined ? {} : { template: toJsonLocalGenericTemplateId(value.template) }),
         representation: toJsonRepresentation(value.representation),
         implements: value.implements.map((item0) => toJsonNominalConformance(item0)),
+        ...(value.derives === undefined ? {} : { derives: value.derives.map((item0) => toJsonAutoInterface(item0)) }),
         members: value.members.map((item0) => toJsonDefinitionMember(item0)),
     };
 }
@@ -3263,6 +3330,7 @@ export function fromJsonStructDefinition(value: Json): StructDefinition {
         template: jsonOptional(object, "template", (value) => fromJsonLocalGenericTemplateId(value)),
         representation: fromJsonRepresentation(jsonField(object, "representation")),
         implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonNominalConformance(item0)),
+        derives: jsonOptional(object, "derives", (value) => jsonArray(value).map((item0) => fromJsonAutoInterface(item0))),
         members: jsonArray(jsonField(object, "members")).map((item0) => fromJsonDefinitionMember(item0)),
     };
 }
