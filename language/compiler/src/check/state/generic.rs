@@ -66,13 +66,13 @@ impl CheckState<'_> {
 
         // scan the working and declared rows of the checked module
         if self.is_own_module(module) {
-            let working = self
-                .module
-                .generics
-                .iter_templates()
-                .find_map(|(local, template)| {
-                    (template.symbol == Some(symbol)).then(|| local.into_global(module))
-                });
+            let working =
+                self.module
+                    .generics_tail
+                    .iter_templates()
+                    .find_map(|(local, template)| {
+                        (template.symbol == Some(symbol)).then(|| local.into_global(module))
+                    });
             if working.is_some() {
                 return working;
             }
@@ -106,7 +106,7 @@ impl CheckState<'_> {
 
         // scan the working rows, then the declared stage
         let allocated = working
-            .generics
+            .generics_tail
             .iter_templates()
             .find_map(|(local, template)| {
                 (template.source == source).then(|| local.into_global(module))
@@ -134,13 +134,13 @@ impl CheckState<'_> {
 
         // scan the working and declared rows of the checked module
         if self.is_own_module(module) {
-            let working = self
-                .module
-                .generics
-                .iter_parameters()
-                .find_map(|(local, binding)| {
-                    (binding.symbol == Some(symbol)).then(|| local.into_global(module))
-                });
+            let working =
+                self.module
+                    .generics_tail
+                    .iter_parameters()
+                    .find_map(|(local, binding)| {
+                        (binding.symbol == Some(symbol)).then(|| local.into_global(module))
+                    });
             if working.is_some() {
                 return working;
             }
@@ -171,7 +171,7 @@ impl CheckState<'_> {
     ) -> Option<&dir::GenericTemplate> {
         // read working templates before declared-stage templates
         if let Some(module) = self.module_maybe(id.module_id) {
-            if let Some(template) = module.generics.get_local_template(id.local_id) {
+            if let Some(template) = module.generics_tail.get_local_template(id.local_id) {
                 return Some(template);
             }
 
@@ -197,7 +197,7 @@ impl CheckState<'_> {
     ) -> Option<&dir::GenericParameterBinding> {
         // read working parameters before declared-stage parameters
         if let Some(module) = self.module_maybe(id.module_id) {
-            if let Some(parameter) = module.generics.get_local_parameter(id.local_id) {
+            if let Some(parameter) = module.generics_tail.get_local_parameter(id.local_id) {
                 return Some(parameter);
             }
 
@@ -314,7 +314,17 @@ impl CheckState<'_> {
         parameters: &[GenericParameterId],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
-        if parameters.len() != arguments.len() {
+        // drop lifetime slots from erased instance identities
+        let lifetimes = parameters
+            .iter()
+            .map(|parameter| {
+                self.generic_parameter(*parameter).is_some_and(|binding| {
+                    binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+                })
+            })
+            .collect::<Vec<_>>();
+        let values = lifetimes.iter().filter(|lifetime| !**lifetime).count();
+        if arguments.len() != parameters.len() && arguments.len() != values {
             return Err(CompilerError::Internal {
                 message: format!(
                     "generic argument count {} does not match parameter count {}",
@@ -324,17 +334,21 @@ impl CheckState<'_> {
             });
         }
 
-        let mut bindings = Vec::with_capacity(parameters.len());
-        for (parameter, argument) in parameters.iter().copied().zip(arguments.iter().copied()) {
-            // lifetimes are proof-only and erase from instance identity,
-            //  though their arguments still settle like every other slot
-            let argument = self.generic_argument(parameter, argument)?;
-            let is_lifetime = self.generic_parameter(parameter).is_some_and(|binding| {
-                binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
-            });
+        // slot written lifetime arguments and skip them in the instance identity
+        let written = arguments.len() == parameters.len();
+        let mut bindings = Vec::with_capacity(values);
+        let mut cursor = 0usize;
+        for (parameter, is_lifetime) in parameters.iter().copied().zip(lifetimes) {
             if is_lifetime {
+                if written {
+                    self.generic_argument(parameter, arguments[cursor])?;
+                    cursor += 1;
+                }
                 continue;
             }
+
+            let argument = self.generic_argument(parameter, arguments[cursor])?;
+            cursor += 1;
             bindings.push(dir::GenericArgumentBinding::new(parameter, argument));
         }
 
@@ -367,7 +381,7 @@ impl CheckState<'_> {
         parameter: GenericParameterId,
         argument: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let argument = self.shallow_resolve(argument)?;
+        let argument = self.resolve_head(argument)?;
         let Some(variable) = self.root_variable(argument)? else {
             return Ok(argument);
         };
@@ -412,8 +426,7 @@ impl CheckState<'_> {
             .owner
             .map(|symbol| symbol.into_global(module_id));
 
-        // only a symbol's own declaration template governs it: induced
-        //  templates inside its scope stay anonymous
+        // keep only a symbol's own declaration template, leaving induced ones anonymous
         let symbol = symbol.filter(|symbol| {
             self.module(module_id)
                 .symbol_declaration_node(symbol.local_id)
@@ -423,7 +436,7 @@ impl CheckState<'_> {
         // require one template per lexical scope
         let previous = self
             .module_maybe(module_id)
-            .and_then(|module| module.generics.template_by_scope(scope));
+            .and_then(|module| module.generics_tail.template_by_scope(scope));
         if let Some(previous) = previous {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -439,7 +452,7 @@ impl CheckState<'_> {
                 message: format!("check module {module_id:?} has no generic segment"),
             })?;
         let local = module
-            .generics
+            .generics_tail
             .push_template(dir::GenericTemplate::new(source, scope, symbol));
         let id = local.into_global(module_id);
 
@@ -468,7 +481,7 @@ impl CheckState<'_> {
                 message: format!("check module {module:?} has no working generics"),
             });
         }
-        let local = dir::LocalGenericParameterId::new(self.module.generics.parameter_count());
+        let local = dir::LocalGenericParameterId::new(self.module.generics_tail.parameter_count());
         let id = local.into_global(module);
         let ty = self
             .module
@@ -491,7 +504,7 @@ impl CheckState<'_> {
         };
 
         // allocate the parameter in its template's working segment
-        let local = self.module.generics.push_template_parameter(binding);
+        let local = self.module.generics_tail.push_template_parameter(binding);
         if local != id.local_id {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -563,8 +576,7 @@ impl CheckState<'_> {
             });
         };
 
-        // claim the parameter this site already induced, in this run or
-        //  during declaration
+        // claim the parameter this site already induced
         if let Some(parameter) = self.claim_induced_parameter(template, site, kind) {
             return Ok(parameter);
         }
@@ -691,8 +703,12 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
-        // skip parameters the declared stage settled, they keep their constraints
-        let Some(binding) = working.generics.get_local_parameter_mut(parameter.local_id) else {
+
+        // skip parameters the declared stage settled
+        let Some(binding) = working
+            .generics_tail
+            .get_local_parameter_mut(parameter.local_id)
+        else {
             return Ok(());
         };
         binding.constraint = constraint;
@@ -716,8 +732,12 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
-        // skip templates the declared stage settled, they keep their predicates
-        let Some(declared) = working.generics.get_local_template_mut(template.local_id) else {
+
+        // skip templates the declared stage settled
+        let Some(declared) = working
+            .generics_tail
+            .get_local_template_mut(template.local_id)
+        else {
             return Ok(());
         };
 
@@ -1062,9 +1082,6 @@ impl CheckState<'_> {
     }
 
     /// Return the nearest scope carrying assumptions at one origin.
-    ///
-    /// Templates without parameters or predicates assume exactly their
-    /// parent's environment, so assumption-keyed facts share their entries.
     pub(in crate::check) fn assuming_scope(
         &mut self,
         origin: Origin,
@@ -1095,11 +1112,14 @@ impl CheckState<'_> {
                 self.module_maybe(template_id.module_id)
                     .and_then(|module| {
                         // read the working template before the declared-stage one
-                        module.generics.template_by_scope(current.id).or_else(|| {
-                            module.declared.as_ref().and_then(|declared| {
-                                declared.generics.template_by_scope(current.id)
+                        module
+                            .generics_tail
+                            .template_by_scope(current.id)
+                            .or_else(|| {
+                                module.declared.as_ref().and_then(|declared| {
+                                    declared.generics.template_by_scope(current.id)
+                                })
                             })
-                        })
                     })
                     .map(|id| id.into_global(template_id.module_id))
             } else {
@@ -1159,10 +1179,9 @@ impl CheckState<'_> {
     ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
         let mut bindings = Vec::with_capacity(applied.len());
         for applied in applied {
-            // lifetimes are proof-only and erase from instance identity,
-            //  though their arguments still settle like every other slot
+            // skip lifetime arguments, which erase from instance identity
             let parameter = applied.parameter;
-            let argument = self.shallow_resolve(applied.argument)?;
+            let argument = self.resolve_head(applied.argument)?;
             let binding = self.require_generic_parameter(parameter)?;
             let is_lifetime = binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime);
             if is_lifetime {

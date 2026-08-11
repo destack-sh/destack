@@ -208,8 +208,7 @@ impl CheckState<'_> {
                 Ok(Verdict::decided(holds))
             }
 
-            // other values satisfy through assignability,
-            //  or sit inside a union target as a member
+            // satisfy other values through assignability or union membership
             (None, _) => {
                 // check-only relations read structural pairs covariantly
                 if let (
@@ -352,7 +351,7 @@ impl CheckState<'_> {
             _ => return Ok(None),
         };
 
-        // only a struct application declares construction fields
+        // read construction fields from a struct application only
         let dir::Type::Application(target_instance) = self.ty(target)? else {
             return Ok(None);
         };
@@ -392,7 +391,7 @@ impl CheckState<'_> {
             _ => return Ok(None),
         };
 
-        // only a struct application declares construction fields
+        // read construction fields from a struct application only
         let dir::Type::Application(target_instance) = self.ty(target)? else {
             return Ok(None);
         };
@@ -418,7 +417,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[dir::TypeProperty; 8]>> {
         // read the nominal application beneath the target's memory forms
-        let receiver = self.reduce_type_head(origin, target)?;
+        let receiver = target;
         let chain = self.form_chain(origin, receiver)?;
         let target = chain.base();
         let dir::Type::Application(instance) = self.ty(target)? else {
@@ -436,7 +435,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<SmallVec<[dir::TypeProperty; 8]>> {
         // read the struct declaration behind the target's instance fields
         let mut fields = self.struct_fields(origin, target)?;
-        let receiver = self.reduce_type_head(origin, target)?;
+        let receiver = target;
         let chain = self.form_chain(origin, receiver)?;
         let target = chain.base();
         let dir::Type::Application(instance) = self.ty(target)? else {
@@ -697,13 +696,40 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<HeritageClosure> {
-        // read the root application the closure grows from
-        let (instance_module, instance) = self.nominal_application(ty)?;
+        // read the root application the closure grows from, resolving aliases to their nominal
+        let is_alias = match self.nominal_application_maybe(ty)? {
+            Some((_, instance)) => matches!(
+                self.definition(instance.symbol)?,
+                Some(dir::Definition::TypeAlias(_))
+            ),
+            None => true,
+        };
+        let ty = if is_alias {
+            self.normalize(origin, ty)?
+        } else {
+            ty
+        };
+
+        // close a structural entry over an empty heritage
+        let Some((instance_module, instance)) = self.nominal_application_maybe(ty)? else {
+            return Ok(HeritageClosure::default());
+        };
+
+        self.instance_heritage_closure(origin, ty, instance_module, instance)
+    }
+
+    /// Build the heritage closure from one nominal instance.
+    pub(in crate::check) fn instance_heritage_closure(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        instance_module: ModuleId,
+        instance: dir::GenericApplication,
+    ) -> CompilerResult<HeritageClosure> {
         let mut closure = HeritageClosure::default();
         let mut active = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
 
-        // extensions implement each application independently, so
-        //  same-symbol instantiations dispatch by form
+        // dispatch same-symbol extension instantiations by form
         let independent = matches!(
             self.definition(instance.symbol)?,
             Some(dir::Definition::Extension(_))
@@ -737,15 +763,20 @@ impl CheckState<'_> {
         active: &mut SmallVec<[dir::GlobalSymbolId; 8]>,
         closure: &mut HeritageClosure,
     ) -> CompilerResult<()> {
-        // read the declaration this application instantiates
-        let definition =
-            self.definition(instance.symbol)?
-                .ok_or_else(|| CompilerError::Internal {
+        // read the declaration this application instantiates, staying symbolic while declaring
+        let declaring = self.is_declaration();
+        let definition = match self.definition(instance.symbol)? {
+            Some(definition) => definition,
+            None if declaring => return Ok(()),
+            None => {
+                return Err(CompilerError::Internal {
                     message: format!(
                         "heritage application {:?} has no checked definition",
                         instance.symbol
                     ),
-                })?;
+                });
+            }
+        };
 
         // bases and implemented interfaces are both heritage edges
         let mut heritages = definition
@@ -781,8 +812,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // duplicate applications must use the same arguments,
-            //  except under declarations that implement each independently
+            // require duplicate applications to use the same arguments
             if let Some(previous) = closure.application(instance.symbol, self)? {
                 if independent {
                     continue;

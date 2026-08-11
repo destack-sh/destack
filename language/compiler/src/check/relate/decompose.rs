@@ -13,32 +13,34 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>>> {
         let pair_lists = match (self.ty(source)?, self.ty(target)?) {
-            // nominal applications decompose by declaration
+            // nominal applications decompose by declaration with kind-aware slots
             (dir::Type::Application(source_type), dir::Type::Application(target_type))
                 if source_type.symbol == target_type.symbol =>
             {
                 let source = self.type_ids(source.module_id, source_type.arguments)?;
                 let target = self.type_ids(target.module_id, target_type.arguments)?;
+                let Some(slots) = self.slot_application_arguments(source, target)? else {
+                    return Ok(None);
+                };
 
-                (SmallVec::from_slice(source), SmallVec::from_slice(target))
+                return Ok(Some(slots));
             }
 
-            // member projections decompose by key, owner, arguments, and qualifier
+            // member projections decompose by key, owner, arguments, and qualifier declaration
             (dir::Type::Member(source_type), dir::Type::Member(target_type))
                 if let source_type = self.type_member(source.module_id, source_type)?
                     && let target_type = self.type_member(target.module_id, target_type)?
                     && source_type.key == target_type.key
-                    && source_type.qualifier.is_some() == target_type.qualifier.is_some() =>
+                    && self
+                        .qualifier_roots_agree(source_type.qualifier, target_type.qualifier)? =>
             {
                 let mut source_slots = SmallVec::from_slice(&[source_type.owner]);
                 source_slots
                     .extend_from_slice(self.type_ids(source.module_id, source_type.arguments)?);
-                source_slots.extend(source_type.qualifier);
 
                 let mut target_slots = SmallVec::from_slice(&[target_type.owner]);
                 target_slots
                     .extend_from_slice(self.type_ids(target.module_id, target_type.arguments)?);
-                target_slots.extend(target_type.qualifier);
 
                 (source_slots, target_slots)
             }
@@ -53,8 +55,7 @@ impl CheckState<'_> {
                 )
             }
 
-            // memory forms decompose by constructor: borrow lifetimes,
-            //  accesses, and places are type-valued fixed slots
+            // memory forms decompose by constructor into their fixed type-valued slots
             (dir::Type::Form(source_type), dir::Type::Form(target_type)) => {
                 match (source_type.form, target_type.form) {
                     (dir::Form::Borrowed(source_borrow), dir::Form::Borrowed(target_borrow)) => {
@@ -382,6 +383,37 @@ impl CheckState<'_> {
         Ok(true)
     }
 
+    /// Return whether two projection qualifiers name the same declaration.
+    fn qualifier_roots_agree(
+        &self,
+        source: Option<dir::GlobalTypeId>,
+        target: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<bool> {
+        let (Some(source), Some(target)) = (source, target) else {
+            return Ok(source.is_none() && target.is_none());
+        };
+
+        Ok(self.qualifier_root(source)? == self.qualifier_root(target)?)
+    }
+
+    /// Return the declaration one projection qualifier names.
+    fn qualifier_root(
+        &self,
+        qualifier: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let qualifier = self.resolve_head(qualifier)?;
+        match self.ty(qualifier)? {
+            dir::Type::Reference(reference) => Ok(Some(reference.symbol)),
+            dir::Type::Application(instance) => Ok(Some(instance.symbol)),
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(qualifier.module_id, refined)?;
+
+                self.qualifier_root(refined.base)
+            }
+            _ => Ok(None),
+        }
+    }
+
     /// Match one generic type pattern without opening inference variables.
     fn match_generic_type(
         &mut self,
@@ -392,35 +424,27 @@ impl CheckState<'_> {
         actual: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // bind direct parameters before reducing the authored argument
-        let pattern = self.shallow_resolve(pattern)?;
+        let pattern = self.resolve_head(pattern)?;
         if let dir::Type::Parameter(parameter) = self.ty(pattern)? {
-            // an already-bound rigid parameter defers open actuals to
-            //  the relation, which judges them after matching
+            // defer open actuals under an already-bound rigid parameter to the relation
             if !parameters.contains(&parameter) {
-                let actual = self.shallow_resolve(actual)?;
+                let actual = self.resolve_head(actual)?;
                 if self.root_variable(actual)?.is_some() {
                     return Ok(true);
                 }
             }
             // bind open extension parameters directly
             else {
-                let actual = self.shallow_resolve(actual)?;
+                let actual = self.resolve_head(actual)?;
 
                 return self.bind_generic_argument(origin, substitution, parameter, actual);
             }
         }
 
-        // expose one constructor while preserving its authored child types
-        let pattern = self.reduce_type_head(origin, pattern)?;
-        let actual = self.shallow_resolve(actual)?;
-        let actual = if self.root_variable(actual)?.is_some() {
-            actual
-        } else {
-            self.reduce_type_head(origin, actual)?
-        };
+        // match written faces, the stuck retry reduces heads once matching fails
+        let actual = self.resolve_head(actual)?;
 
-        // an open actual leaves parameter-free patterns to the relation,
-        //  which constrains it after matching
+        // leave parameter-free patterns over an open actual to the relation
         if self.root_variable(actual)?.is_some() && !self.type_flags(pattern)?.has_parameter() {
             return Ok(true);
         }
@@ -429,8 +453,7 @@ impl CheckState<'_> {
         let pattern_type = self.ty(pattern)?;
         let actual_type = self.ty(actual)?;
 
-        // lifetime slots collect components and verify outlives on MIR,
-        //  so an elided implementation lifetime serves any required spread
+        // accept any lifetime slot pair, since MIR verifies outlives
         if self.is_lifetime_slot(&pattern_type)? && self.is_lifetime_slot(&actual_type)? {
             return Ok(true);
         }
@@ -466,7 +489,7 @@ impl CheckState<'_> {
             );
         }
 
-        // a union actual binds through whichever arm the pattern matches
+        // bind a union actual through whichever arm the pattern matches
         if !matches!(pattern_type, dir::Type::Union(_))
             && let dir::Type::Union(actual_union) = actual_type
         {
@@ -491,7 +514,25 @@ impl CheckState<'_> {
             return self.match_generic_arguments(origin, parameters, substitution, &pairs);
         }
 
-        Ok(pattern_type == actual_type)
+        // accept two heads that already name the same constructor
+        if pattern_type == actual_type {
+            return Ok(true);
+        }
+
+        // retry a stuck match once over reduced heads
+        let reduced_pattern = self.normalize_stuck(origin, pattern)?;
+        let reduced_actual = self.normalize_stuck(origin, actual)?;
+        if reduced_pattern == pattern && reduced_actual == actual {
+            return Ok(false);
+        }
+
+        self.match_generic_type(
+            origin,
+            parameters,
+            substitution,
+            reduced_pattern,
+            reduced_actual,
+        )
     }
 
     /// Match two unordered type sets wherever each pattern has one viable target.
@@ -546,6 +587,70 @@ impl CheckState<'_> {
         }
 
         Ok(true)
+    }
+
+    /// Slot two applied argument lists by kind, collecting lifetimes proof-only.
+    pub(in crate::check) fn slot_application_arguments(
+        &self,
+        source: &[dir::GlobalTypeId],
+        target: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>>> {
+        // pair positionally whenever both lists carry the same slots
+        if source.len() == target.len() {
+            return Ok(Some(
+                source.iter().copied().zip(target.iter().copied()).collect(),
+            ));
+        }
+
+        // collect the type slots the source lists, dropping its lifetimes
+        let mut source_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        for argument in source {
+            if !self.is_lifetime_slot_type(*argument)? {
+                source_types.push(*argument);
+            }
+        }
+
+        // mirror that partition over the target arguments
+        let mut target_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        for argument in target {
+            if !self.is_lifetime_slot_type(*argument)? {
+                target_types.push(*argument);
+            }
+        }
+
+        // reject lists whose type slots fail to pair one for one
+        if source_types.len() != target_types.len() {
+            return Ok(None);
+        }
+
+        Ok(Some(
+            source_types
+                .iter()
+                .copied()
+                .zip(target_types.iter().copied())
+                .collect(),
+        ))
+    }
+
+    /// Return whether one type occupies a lifetime slot.
+    pub(in crate::check) fn is_lifetime_slot_type(
+        &self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // treat a union as a lifetime slot once every member is one
+        if let dir::Type::Union(union) = self.ty(id)? {
+            let elements =
+                SmallVec::<[_; 4]>::from_slice(self.type_ids(id.module_id, union.elements)?);
+            for element in elements {
+                if !self.is_lifetime_slot_type(element)? {
+                    return Ok(false);
+                }
+            }
+
+            return Ok(true);
+        }
+
+        self.is_lifetime_slot(&self.ty(id)?)
     }
 
     /// Return whether one matched slot is lifetime-shaped.

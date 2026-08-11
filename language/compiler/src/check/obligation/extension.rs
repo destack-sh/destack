@@ -255,7 +255,7 @@ impl CheckState<'_> {
         let Some(state) = self.module_maybe(other.module_id) else {
             return true;
         };
-        let Some(other_source) = state.definitions.definition_source_maybe(other) else {
+        let Some(other_source) = state.definition_source_maybe(other) else {
             return true;
         };
         if other_source.module_id != source.module_id {
@@ -272,6 +272,7 @@ impl BodyState<'_, '_> {
         &mut self,
         obligation: &ExtensionCoherenceObligation,
     ) -> CompilerResult<ObligationCheck> {
+        // read the extension being checked
         let extension_symbol = obligation.symbol;
         let module = extension_symbol.module_id;
         let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)? else {
@@ -284,74 +285,78 @@ impl BodyState<'_, '_> {
         let extension = extension.clone();
         let mut failures = Vec::new();
 
-        {
-            let origin = Origin::Symbol(extension_symbol);
+        // collect the properties this extension declares
+        let declared = self.property_members(&extension.members)?;
+        if declared.is_empty() {
+            return Ok(ObligationCheck::holds());
+        }
 
-            let declared = self.property_members(origin, &extension.members)?;
-            if declared.is_empty() {
-                return Ok(ObligationCheck::holds());
+        // render the target once for the failure reports
+        let target = self.format_type(extension.target.r#type());
+
+        // gather competitors sharing the target root or ground head
+        let root = extension.target.root();
+        let competitors = match root {
+            Some(root) => self.visible_extensions(module, root)?,
+            None => self.visible_blanket_extensions(module)?,
+        };
+        let ground = match root {
+            Some(_) => None,
+            None => match self.ty(extension.target.r#type())? {
+                dir::Type::Primitive(primitive) => Some(primitive),
+                // leave parameterized blanket overlap to use sites
+                _ => return Ok(ObligationCheck::holds()),
+            },
+        };
+
+        // report every property a competing extension already declares
+        for competitor_symbol in competitors {
+            // leave same-module collisions to source order
+            if competitor_symbol == extension_symbol || competitor_symbol.module_id == module {
+                continue;
             }
-            let target = self.format_type(extension.target.r#type());
-
-            // gather competitors sharing the target root or ground head
-            let root = extension.target.root();
-            let competitors = match root {
-                Some(root) => self.visible_extensions(module, root)?,
-                None => self.visible_blanket_extensions(module)?,
+            // require the competitor to extend the same target
+            let Some(dir::Definition::Extension(competitor)) =
+                self.definition(competitor_symbol)?
+            else {
+                continue;
             };
-            let ground = match root {
-                Some(_) => None,
-                None => match self.ty(extension.target.r#type())? {
-                    dir::Type::Primitive(primitive) => Some(primitive),
-                    // leave parameterized blanket overlap to use sites
-                    _ => return Ok(ObligationCheck::holds()),
-                },
+            let competes = match root {
+                Some(root) => competitor.target.root() == Some(root),
+                None => competitor.target.is_blanket(),
             };
+            if !competes {
+                continue;
+            }
 
-            for competitor_symbol in competitors {
-                // leave same-module collisions to source order
-                if competitor_symbol == extension_symbol || competitor_symbol.module_id == module {
-                    continue;
-                }
-                let Some(dir::Definition::Extension(competitor)) =
-                    self.definition(competitor_symbol)?
-                else {
-                    continue;
-                };
-                let competes = match root {
-                    Some(root) => competitor.target.root() == Some(root),
-                    None => competitor.target.is_blanket(),
-                };
-                if !competes {
-                    continue;
-                }
-                let competitor_target = competitor.target.r#type();
-                let members = competitor.members.clone();
-                if ground.is_some()
-                    && !matches!(
-                        self.ty(competitor_target)?,
-                        dir::Type::Primitive(primitive) if Some(primitive) == ground
-                    )
-                {
-                    continue;
-                }
+            // require a blanket competitor to share the ground head
+            let competitor_target = competitor.target.r#type();
+            let members = competitor.members.clone();
+            if ground.is_some()
+                && !matches!(
+                    self.ty(competitor_target)?,
+                    dir::Type::Primitive(primitive) if Some(primitive) == ground
+                )
+            {
+                continue;
+            }
 
-                let other = self.property_members(origin, &members)?;
-                for member in &declared {
-                    let duplicated = other.iter().any(|candidate| {
-                        candidate.key == member.key
-                            && candidate.space == member.space
-                            && candidate.form == member.form
-                            && ((candidate.reads && member.reads)
-                                || (candidate.writes && member.writes))
+            // report each declared property the competitor also declares
+            let other = self.property_members(&members)?;
+            for member in &declared {
+                let duplicated = other.iter().any(|candidate| {
+                    candidate.key == member.key
+                        && candidate.space == member.space
+                        && candidate.form == member.form
+                        && ((candidate.reads && member.reads)
+                            || (candidate.writes && member.writes))
+                });
+                if duplicated {
+                    failures.push(ObligationFailure::DuplicateExtensionMember {
+                        source: member.source,
+                        member: member.key,
+                        target: target.clone(),
                     });
-                    if duplicated {
-                        failures.push(ObligationFailure::DuplicateExtensionMember {
-                            source: member.source,
-                            member: member.key,
-                            target: target.clone(),
-                        });
-                    }
                 }
             }
         }
@@ -362,7 +367,6 @@ impl BodyState<'_, '_> {
     /// Collect the property members one extension declares.
     fn property_members(
         &mut self,
-        origin: Origin,
         members: &[dir::DefinitionMember],
     ) -> CompilerResult<Vec<PropertyMember>> {
         let mut properties = Vec::new();
@@ -386,7 +390,7 @@ impl BodyState<'_, '_> {
             let this = self
                 .signature_head(ty)?
                 .and_then(|signature| signature.this_parameter);
-            let Some(form) = self.property_receiver(origin, this)? else {
+            let Some(form) = self.property_receiver(this)? else {
                 continue;
             };
 
@@ -406,19 +410,17 @@ impl BodyState<'_, '_> {
     /// Return the comparable declared receiver of one property member.
     fn property_receiver(
         &mut self,
-        origin: Origin,
         this: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<PropertyReceiver>> {
         let Some(this) = this else {
             return Ok(Some(PropertyReceiver::Default));
         };
-        let head = self.reduce_type_head(origin, this)?;
-        let form = match self.ty(head)? {
+        let form = match self.ty(this)? {
             dir::Type::Form(form) => match form.form {
                 // borrows compare by their access value
                 dir::Form::Borrowed(borrow) => {
-                    let borrow = self.check.type_borrow(head.module_id, borrow)?;
-                    let access = self.reduce_type_head(origin, borrow.access)?;
+                    let borrow = self.check.type_borrow(this.module_id, borrow)?;
+                    let access = borrow.access;
                     let access = match self.ty(access)? {
                         dir::Type::Literal(dir::ScalarLiteral::String(name)) => Some(name),
                         _ => None,

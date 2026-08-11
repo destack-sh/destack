@@ -181,7 +181,7 @@ impl CheckState<'_> {
             for (target_index, target_type) in target.iter().copied().enumerate() {
                 let is_target_open = !self.type_variables(target_type)?.is_empty();
                 if is_source_open || is_target_open {
-                    if self.shallow_resolve(source_type)? == self.shallow_resolve(target_type)? {
+                    if self.resolve_head(source_type)? == self.resolve_head(target_type)? {
                         matched = Some(target_index);
                     }
                 } else if self.decide_relation(origin, Relation::Equal, source_type, target_type)? {
@@ -199,7 +199,7 @@ impl CheckState<'_> {
             }
         }
 
-        // one residual pair gives an unambiguous equation
+        // equate one residual pair, which is unambiguous
         if let ([source], [target]) = (source.as_slice(), target.as_slice()) {
             return self.constrain_type(origin, cause, Relation::Equal, *source, *target);
         }

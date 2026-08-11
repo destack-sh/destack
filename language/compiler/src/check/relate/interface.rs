@@ -231,7 +231,7 @@ impl CheckState<'_> {
         }))?;
         for implemented in interfaces {
             // fill elided arguments before matching
-            let declared = self.shallow_resolve(*implemented)?;
+            let declared = self.resolve_head(*implemented)?;
             let declared = match self.ty(declared)? {
                 dir::Type::Application(instance) => {
                     match self.fill_elided_application(declared.module_id, &instance)? {
@@ -256,7 +256,7 @@ impl CheckState<'_> {
 
             // apply the fresh bindings to the declared interface
             let implemented = self.substitute_type(declared, &scratch)?;
-            let implemented = self.shallow_resolve(implemented)?;
+            let implemented = self.resolve_head(implemented)?;
 
             // select the implemented application naming the requested interface
             let (implemented_module, implemented_instance) =
@@ -368,8 +368,8 @@ impl CheckState<'_> {
 
             // reject conflicting source bindings
             if let (Some(written), Some(declared)) = (written, declared) {
-                let written = self.reduce_type(origin, written)?;
-                let declared = self.reduce_type(origin, declared)?;
+                let written = self.deeply_normalize(origin, written)?;
+                let declared = self.deeply_normalize(origin, declared)?;
                 if !self.decide_equal(origin, written, declared)? {
                     return Ok(None);
                 }
@@ -443,6 +443,7 @@ impl CheckState<'_> {
             };
 
             // relate the found member against the requirement by its role
+            let member_type = self.resolve_head(member_type)?;
             let access = self.property_access(member.role, member_type, member.is_readonly)?;
             let member_decision = match access {
                 // properties relate their complete read and write operations
@@ -465,9 +466,12 @@ impl CheckState<'_> {
                         access: required,
                         is_optional: member.is_optional,
                     };
-                    let Some(relations) =
-                        self.shape_property_relations(Relation::Assignable, &source, &target)
-                    else {
+                    let Some(relations) = self.shape_property_relations(
+                        Relation::Assignable,
+                        false,
+                        &source,
+                        &target,
+                    ) else {
                         return Ok(false);
                     };
 
@@ -577,7 +581,7 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Decide whether one source's signature surface satisfies a required signature.
+    /// Decide whether one source satisfies a required signature.
     fn decide_signature_requirement(
         &mut self,
         origin: Origin,
@@ -585,35 +589,35 @@ impl CheckState<'_> {
         required: dir::GlobalTypeId,
         family: SignatureFamily,
     ) -> CompilerResult<bool> {
-        // read the source's reduced head
-        let head = self.reduce_type_head(origin, source)?;
-
         // relate function-typed sources through their own signature
-        let is_function = match self.ty(head)? {
+        let is_function = match self.ty(source)? {
             dir::Type::FunctionSignature(_)
             | dir::Type::Function(_)
             | dir::Type::FunctionPointer(_) => true,
             dir::Type::Application(callable) => self.is_function_language_item(callable.symbol)?,
             _ => false,
         };
-
         if is_function {
             return match family {
-                SignatureFamily::Call => {
-                    self.decide_method_relation(origin, Relation::Assignable, head, required, None)
-                }
+                SignatureFamily::Call => self.decide_method_relation(
+                    origin,
+                    Relation::Assignable,
+                    source,
+                    required,
+                    None,
+                ),
                 SignatureFamily::Construct => Ok(false),
             };
         }
 
         // relate other sources through their apparent signatures
-        let constraint = match self.ty(head)? {
+        let constraint = match self.ty(source)? {
             dir::Type::Dynamic(dynamic) => dynamic.constraint,
-            dir::Type::Application(_) => head,
+            dir::Type::Application(_) => source,
             _ => return Ok(false),
         };
 
-        // one apparent signature accepting the requirement is enough
+        // accept one apparent signature satisfying the requirement
         let signatures = self.apparent_signatures(origin, constraint, family)?;
         for signature in signatures {
             let satisfied = self.decide_method_relation(
@@ -715,8 +719,7 @@ impl CheckState<'_> {
         constraint: dir::GlobalTypeId,
         family: SignatureFamily,
     ) -> CompilerResult<SmallVec<[InterfaceSignature; 2]>> {
-        // only an applied interface declares signatures
-        let constraint = self.reduce_type_head(origin, constraint)?;
+        // read signatures from an applied interface only
         if self.nominal_application_maybe(constraint)?.is_none() {
             return Ok(SmallVec::new());
         }
@@ -822,7 +825,7 @@ impl CheckState<'_> {
         interface: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::TypeProperty>>> {
-        // only an interface application carries instance properties
+        // read instance properties from an interface application only
         let (_, instance) = self.nominal_application(interface)?;
         if !matches!(
             self.symbol_kind(instance.symbol)?,
@@ -861,6 +864,7 @@ impl CheckState<'_> {
             let Some(ty) = member.ty else {
                 continue;
             };
+            let ty = self.resolve_head(ty)?;
             let Some(access) = self.property_access(member.role, ty, member.is_readonly)? else {
                 continue;
             };

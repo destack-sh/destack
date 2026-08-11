@@ -42,7 +42,6 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let ty = self.reduce_type_head(origin, ty)?;
         if self.is_representation_proven(origin, ty, dir::AutoInterface::Concrete)? {
             return Ok(true);
         }
@@ -70,14 +69,12 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let ty = self.reduce_type_head(origin, ty)?;
         if self.is_representation_proven(origin, ty, dir::AutoInterface::SharedSafe)? {
             return Ok(true);
         }
 
         // reject intrinsically local declarations
         let value = self.strip_form(origin, ty)?;
-        let value = self.reduce_type_head(origin, value)?;
         let symbol = match self.ty(value)? {
             dir::Type::Application(instance) => Some(instance.symbol),
             dir::Type::Reference(reference) => Some(reference.symbol),
@@ -118,7 +115,6 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<ObligationCheck> {
-        let ty = self.reduce_type_head(origin, ty)?;
         if let Some(key) = self.storage_key(origin, ty)?
             && self.storable.contains(&key)
         {
@@ -187,8 +183,7 @@ impl CheckState<'_> {
                 ObligationFailure::LocalReferenceInSharedStorage { source }
             }
             None => {
-                // fields report at their own declaration, so that site
-                //  proves nothing for other uses of the type
+                // prove storage away from the field's own declaration site
                 if !is_declaration_site {
                     self.prove_storage(origin, ty)?;
                 }
@@ -237,10 +232,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Key one proven storable representation by its assuming scope.
-    ///
-    /// Open types prove nothing durable: their properties depend on the
-    /// inference state, so they have no key.
+    /// Key one proven storable representation by its assuming scope, for closed types only.
     fn storage_key(
         &mut self,
         origin: Origin,
@@ -259,10 +251,7 @@ impl CheckState<'_> {
         Ok(Some((ty, scope)))
     }
 
-    /// Key one representation interface by its assuming scope.
-    ///
-    /// Open types prove nothing durable: their properties depend on the
-    /// inference state, so they have no key.
+    /// Key one representation interface by its assuming scope, for closed types only.
     fn representation_key(
         &mut self,
         origin: Origin,
@@ -286,12 +275,12 @@ impl CheckState<'_> {
     fn representation_failure(
         &mut self,
         origin: Origin,
-        ty: dir::GlobalTypeId,
+        mut ty: dir::GlobalTypeId,
         source: dir::GlobalNodeIdAny,
         check: RepresentationCheck,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<RepresentationFailure>> {
-        let mut ty = self.reduce_type_head(origin, ty)?;
+        // project the type into the place a shared check stores it
         let check = match check {
             RepresentationCheck::Concrete { interface } => {
                 RepresentationCheck::Concrete { interface }
@@ -317,8 +306,7 @@ impl CheckState<'_> {
             }
         };
 
-        // reuse per-node proofs: concrete and finite walks are place
-        //  independent, so a proven subtree never re-walks
+        // reuse per-node proofs, since concrete and finite walks are place independent
         match check {
             RepresentationCheck::Concrete { .. } => {
                 if self.is_representation_proven(origin, ty, dir::AutoInterface::Concrete)? {

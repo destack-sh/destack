@@ -15,7 +15,7 @@ impl CheckState<'_> {
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_head(ty)?;
         let signature = match self.ty(ty)? {
             dir::Type::Function(function) => Some(function.signature),
             dir::Type::FunctionPointer(function) => Some(function.signature),
@@ -35,7 +35,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         let holds = self.constrain_type(origin, cause, relation, source, target)?;
-        let check = self.complete_constraint_check(origin, relation, source, target, holds)?;
+        let check = self.complete_constraint_check(relation, source, target, holds)?;
 
         match check {
             CheckOutcome::Holds => Ok(()),
@@ -57,7 +57,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<CheckOutcome> {
         let holds = self.constrain_type(origin, cause, relation, source, target)?;
-        let check = self.complete_constraint_check(origin, relation, source, target, holds)?;
+        let check = self.complete_constraint_check(relation, source, target, holds)?;
 
         Ok(check)
     }
@@ -65,7 +65,6 @@ impl CheckState<'_> {
     /// Return the completed check for one closed constraint.
     pub(in crate::check) fn complete_constraint_check(
         &mut self,
-        origin: Origin,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -74,7 +73,7 @@ impl CheckState<'_> {
         // property relations explain themselves through their first bad field
         let is_property_relation = matches!(relation, Relation::Assignable | Relation::Satisfies);
         let check = match (holds, is_property_relation) {
-            // successful relations are complete
+            // complete successful relations
             (true, _) => CheckOutcome::Holds,
             // report a failed non-property relation as the relation failure
             (false, false) => CheckOutcome::Fails(CheckFailure::Relation),
@@ -90,7 +89,7 @@ impl CheckState<'_> {
                 } else if let Some(key) = self.first_excess_struct_field(source, target)? {
                     CheckOutcome::Fails(CheckFailure::ExcessProperty { key })
                 } else if is_nominal_source
-                    && let Some(signature) = self.first_writable_index_signature(origin, target)?
+                    && let Some(signature) = self.first_writable_index_signature(target)?
                 {
                     CheckOutcome::Fails(CheckFailure::WritableIndexRequiresIndexSet { signature })
                 } else {
@@ -116,8 +115,7 @@ impl CheckState<'_> {
         Ok(holds)
     }
 
-    /// Constrain one relation, binding through open variables: ambiguity
-    /// is a verdict.
+    /// Constrain one relation, binding through open variables, where ambiguity is a verdict.
     pub(in crate::check) fn constrain_relation(
         &mut self,
         origin: Origin,
@@ -141,8 +139,8 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // substitute solved variables before comparing
-        let source = self.shallow_resolve(source)?;
-        let target = self.shallow_resolve(target)?;
+        let source = self.resolve_head(source)?;
+        let target = self.resolve_head(target)?;
         if source == target {
             return Ok(true);
         }
@@ -161,8 +159,7 @@ impl CheckState<'_> {
             return Ok(true);
         }
 
-        // lifetime extents never decide assignability: check infers
-        //  them and verify enforces them on MIR, like rustc regions
+        // accept lifetime extent pairs, since MIR verification enforces them
         if source_variable.is_none()
             && target_variable.is_none()
             && self.is_lifetime_extent(source)?
@@ -178,8 +175,7 @@ impl CheckState<'_> {
 
                 Ok(true)
             }
-            // unify one open side with a closed type, or record the
-            //  equation as a bound until its composite closes
+            // unify one open side with a closed type, or record the equation as a bound
             (Some(variable), None, Relation::Equal) => {
                 if self.type_variables(target)?.is_empty() {
                     self.commit_solution(variable, target)?;
@@ -241,10 +237,6 @@ impl CheckState<'_> {
                     relation => relation,
                 };
 
-                // reduce aliases and intrinsic operations at each root
-                let source = self.reduce_type_head(origin, source)?;
-                let target = self.reduce_type_head(origin, target)?;
-
                 // rigid parameters contribute their declared relation clauses
                 if relation != Relation::Equal
                     && let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) =
@@ -255,14 +247,16 @@ impl CheckState<'_> {
                         .into_iter()
                         .map(|bound| (bound, target))
                         .collect::<SmallVec<[_; 4]>>();
-                    if !candidates.is_empty()
-                        && self.constrain_any_relation(origin, cause, relation, &candidates)?
-                    {
-                        return Ok(true);
+                    if !candidates.is_empty() {
+                        let held =
+                            self.constrain_any_relation(origin, cause, relation, &candidates)?;
+                        if held {
+                            return Ok(true);
+                        }
                     }
                 }
 
-                // this contributes the interface clauses active at its origin
+                // relate this through the interface clauses active at its origin
                 if relation != Relation::Equal && matches!(self.ty(source)?, dir::Type::This) {
                     let candidates = self
                         .this_bounds(origin)?
@@ -291,13 +285,39 @@ impl CheckState<'_> {
                     && let Some(decided) =
                         self.constrain_open_relation(origin, cause, structural, source, target)?
                 {
-                    return Ok(decided);
+                    if decided {
+                        return Ok(true);
+                    }
+
+                    return self.constrain_stuck(origin, cause, relation, source, target);
                 }
 
                 // dispatch known constructors while their children remain open
-                self.decide_relation(origin, relation, source, target)
+                if self.decide_relation(origin, relation, source, target)? {
+                    return Ok(true);
+                }
+
+                self.constrain_stuck(origin, cause, relation, source, target)
             }
         }
+    }
+
+    /// Retry one stuck relation over reduced heads once the written ones fail to relate.
+    fn constrain_stuck(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        relation: Relation,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let reduced_source = self.normalize_stuck(origin, source)?;
+        let reduced_target = self.normalize_stuck(origin, target)?;
+        if reduced_source == source && reduced_target == target {
+            return Ok(false);
+        }
+
+        self.constrain_type(origin, cause, relation, reduced_source, reduced_target)
     }
 
     /// Relate types containing open variables through their known constructors.
@@ -312,8 +332,7 @@ impl CheckState<'_> {
         // same-symbol applications constrain arguments under their default handle context
         let same_symbol = match (self.ty(source)?, self.ty(target)?) {
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
-                if source_instance.symbol == target_instance.symbol
-                    && source_instance.arguments.len() == target_instance.arguments.len() =>
+                if source_instance.symbol == target_instance.symbol =>
             {
                 let source = SmallVec::<[_; 4]>::from_slice(
                     self.type_ids(source.module_id, source_instance.arguments)?,
@@ -327,6 +346,12 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some((symbol, source, target)) = same_symbol {
+            // slot arguments by kind, collecting elided lifetimes proof-only
+            let Some(slots) = self.slot_application_arguments(&source, &target)? else {
+                return Ok(Some(false));
+            };
+            let (source, target): (SmallVec<[_; 4]>, SmallVec<[_; 4]>) =
+                slots.iter().copied().unzip();
             let form = self.default_variance_form(symbol)?;
 
             return Ok(Some(self.relate_type_arguments(
@@ -340,7 +365,7 @@ impl CheckState<'_> {
             )?));
         }
 
-        // memory forms own placement and readonly views
+        // decide memory forms through their placement and readonly views
         if matches!(relation, Relation::Assignable | Relation::Widens)
             && let Some(decision) =
                 self.constrain_form_assignable(origin, cause, relation, source, target)?
@@ -437,7 +462,7 @@ impl CheckState<'_> {
             ); 4],
         >::new();
         match (self.ty(source)?, self.ty(target)?) {
-            // mutable collections alias their elements and stay invariant
+            // keep mutable collection elements invariant, since they alias
             (dir::Type::Array(source_array), dir::Type::Array(target_array)) => {
                 pairs.push((
                     None,
@@ -522,8 +547,9 @@ impl CheckState<'_> {
                     if self.template_piece_text(span)?.is_some() {
                         continue;
                     }
+
                     // repeated spans must capture identical text
-                    let root = self.shallow_resolve(span)?;
+                    let root = self.resolve_head(span)?;
                     if let Some((_, previous)) = seen.iter().find(|(other, _)| *other == root) {
                         if *previous != captured {
                             return Ok(Some(false));
@@ -543,7 +569,7 @@ impl CheckState<'_> {
                 if let dir::TypeOperation::TemplateLiteral(template) =
                     self.type_operation(target.module_id, operation)? =>
             {
-                // only unconstraining open patterns absorb the string domain
+                // absorb the string domain into unconstraining open patterns only
                 for segment in self.template_strings(target.module_id, template.strings)? {
                     if !self.strings().get(*segment).is_empty() {
                         return Ok(Some(false));
@@ -559,6 +585,7 @@ impl CheckState<'_> {
                 dir::Type::Shape(source_shape) | dir::Type::Object(source_shape),
                 dir::Type::Shape(target_shape) | dir::Type::Object(target_shape),
             ) => {
+                let is_constructed = matches!(self.ty(source)?, dir::Type::Object(_));
                 let source_fields =
                     self.shape_properties(source.module_id, source_shape.properties)?;
                 let target_fields =
@@ -571,9 +598,12 @@ impl CheckState<'_> {
 
                     match source_field {
                         Some(source_field) => {
-                            let Some(relations) =
-                                self.shape_property_relations(relation, source_field, target_field)
-                            else {
+                            let Some(relations) = self.shape_property_relations(
+                                relation,
+                                is_constructed,
+                                source_field,
+                                target_field,
+                            ) else {
                                 return Ok(Some(false));
                             };
                             for (field_relation, source_ty, target_ty) in relations {
@@ -615,10 +645,17 @@ impl CheckState<'_> {
             {
                 pairs.push((None, relation, source, target));
             }
-            (
-                dir::Type::FunctionSignature(source_function),
-                dir::Type::FunctionSignature(target_function),
-            ) => {
+            (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
+                // pair splatted signature slots positionally
+                let source = self.normalize(origin, source)?;
+                let target = self.normalize(origin, target)?;
+                let (
+                    dir::Type::FunctionSignature(source_function),
+                    dir::Type::FunctionSignature(target_function),
+                ) = (self.ty(source)?, self.ty(target)?)
+                else {
+                    return Ok(None);
+                };
                 let source_function = self.type_signature(source.module_id, source_function)?;
                 let target_function = self.type_signature(target.module_id, target_function)?;
                 let source_parameters =
@@ -641,10 +678,8 @@ impl CheckState<'_> {
                         source_parameter.ty,
                     ));
                 }
-                // a callable value adopts its contextual signature, rustc's
-                //  closure signature deduction: the return slot equates so
-                //  the body's return sites convert into the contextual
-                //  return, keeping the compiled representation exact
+
+                // equate the return slots so a callable value adopts its contextual signature
                 if let (Some(source_return), Some(target_return)) =
                     (source_function.return_type, target_function.return_type)
                 {
@@ -762,7 +797,7 @@ impl CheckState<'_> {
         relation: Relation,
         candidates: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
     ) -> CompilerResult<bool> {
-        // a single alternative requires no speculative selection
+        // take a single alternative without speculative selection
         if let [candidate] = candidates {
             return self.constrain_type(origin, cause, relation, candidate.0, candidate.1);
         }
@@ -787,11 +822,7 @@ impl CheckState<'_> {
             }
         }
 
-        // arms viable only by binding an open variable tie: the arm
-        //  whose constructor matches the source disambiguates first,
-        //  like TS union inference matching members by shape, and a
-        //  sole naked variable arm collects the rest, TS's naked type
-        //  parameter rule
+        // disambiguate tied arms by matching constructors first
         if viables.len() > 1 {
             let matching = viables
                 .iter()
@@ -831,8 +862,7 @@ impl CheckState<'_> {
             return self.constrain_type(origin, cause, relation, selected.0, selected.1);
         }
 
-        // open variables must close before otherwise applicable arms
-        //  disambiguate: the ambiguity witness retries once they solve
+        // wait for open variables to close before disambiguating applicable arms
         let open = self.open_type_variables(
             candidates
                 .iter()
@@ -847,9 +877,6 @@ impl CheckState<'_> {
     }
 
     /// Return whether one closed type denotes a lifetime extent.
-    ///
-    /// Extents are lifetime literals, lifetime parameters, and unions of
-    /// extents: region least upper bounds verify against MIR flow.
     pub(in crate::check) fn is_lifetime_extent(
         &self,
         id: dir::GlobalTypeId,
@@ -880,8 +907,8 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let source = self.shallow_resolve(source)?;
-        let target = self.shallow_resolve(target)?;
+        let source = self.resolve_head(source)?;
+        let target = self.resolve_head(target)?;
 
         match (self.ty(source)?, self.ty(target)?) {
             (dir::Type::Form(source), dir::Type::Form(target)) => {
@@ -917,7 +944,7 @@ impl CheckState<'_> {
     }
 
     /// Return the root after substituting solved inference variables.
-    pub(in crate::check) fn shallow_resolve(
+    pub(in crate::check) fn resolve_head(
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -964,9 +991,26 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::LocalNodeIdAny> {
         match origin {
             Origin::Node(node, _) => Ok(node.local_id),
-            Origin::Symbol(symbol) => self
-                .module(symbol.module_id)
-                .symbol_declaration_node(symbol.local_id),
+            Origin::Symbol(symbol) => {
+                if let Some(module) = self.module_maybe(symbol.module_id) {
+                    return module.symbol_declaration_node(symbol.local_id);
+                }
+
+                // read foreign declarations from the imported external tables
+                let external = self
+                    .external_modules
+                    .get(&symbol.module_id)
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!("origin symbol {symbol:?} has no loaded module"),
+                    })?;
+                let binding = external.bindings.get_symbol(symbol.local_id);
+                binding
+                    .declaration
+                    .map(|declaration| declaration.local_id)
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!("origin symbol {symbol:?} has no declaration node"),
+                    })
+            }
         }
     }
 }

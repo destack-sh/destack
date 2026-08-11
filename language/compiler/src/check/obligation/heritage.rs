@@ -90,8 +90,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<ObligationCheck> {
         let source = self.origin_source(origin)?;
         let instance = self.declaration_instance(symbol)?;
-        let ty = self.intern_type(dir::Type::Application(instance))?;
-        let closure = self.heritage_closure(origin, ty)?;
+        let ty = self.intern_type(dir::Type::Application(instance.clone()))?;
+        let closure = self.instance_heritage_closure(origin, ty, symbol.module_id, instance)?;
 
         // report graph errors before class member rules
         let mut failures = Vec::new();
@@ -284,7 +284,8 @@ impl CheckState<'_> {
                 if required.iter().any(|(key, _)| *key == member.key) {
                     continue;
                 }
-                // the closest occurrence decides whether the key is abstract
+
+                // let the closest occurrence decide whether the key is abstract
                 required.push((member.key, member.is_abstract));
             }
 

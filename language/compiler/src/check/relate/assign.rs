@@ -22,9 +22,8 @@ impl CheckState<'_> {
             // top and error types absorb everything
             (dir::Type::Error, _) | (_, dir::Type::Error) => true,
             // collect lifetimes without deciding, leaving outlives to Verify on MIR
-            (source_head, target_head)
-                if self.is_lifetime_slot(&source_head)?
-                    && self.is_lifetime_slot(&target_head)? =>
+            (_, _)
+                if self.is_lifetime_slot_type(source)? && self.is_lifetime_slot_type(target)? =>
             {
                 true
             }
@@ -58,7 +57,7 @@ impl CheckState<'_> {
                 if let dir::TypeOperation::TemplateLiteral(template) =
                     self.type_operation(target.module_id, operation)? =>
             {
-                self.decide_string_inhabits_template(origin, target.module_id, &template)?
+                self.decide_string_inhabits_template(target.module_id, &template)?
             }
             // template patterns compare span-wise through their pieces
             (dir::Type::Operation(source_operation), dir::Type::Operation(target_operation))
@@ -86,33 +85,38 @@ impl CheckState<'_> {
                 true
             }
 
-            // memory forms own placement and readonly views
+            // decide memory forms through their placement and readonly views
             _ if let Some(decision) =
                 self.constrain_form_assignable_rooted(origin, relation, source, target)? =>
             {
                 decision
             }
 
-            // reject widening into or out of a union
+            // widen literal and constructed values into a union target by membership
+            (dir::Type::Literal(_) | dir::Type::Object(_), dir::Type::Union(union)) if widens => {
+                let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+
+                self.decide_any_target(origin, relation, source, &elements)?
+            }
+            // reject every other widening into or out of a union
             (dir::Type::Union(_), _) | (_, dir::Type::Union(_)) if widens => false,
 
-            // union sources need every element assignable
+            // require every element of a union source to assign
             (dir::Type::Union(union), _) => {
                 let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
 
                 self.decide_all_sources(origin, relation, &elements, target)?
             }
-            // parameters and erased arguments assign through their
-            //  constraints, or sit inside a union target
+            // assign parameters and erased arguments through their constraints or a union target
             (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
                 let decision =
                     self.decide_parameter_relation(origin, relation, parameter, target)?;
 
                 self.decide_union_membership(origin, relation, decision, source, target)?
             }
-            // erased arguments are existential and do not accept concrete writes
+            // reject concrete writes into an existential erased target
             (_, dir::Type::Erased(_)) => false,
-            // this assigns through its enclosing interface hypotheses, or sits inside a union target
+            // assign this through its enclosing interface hypotheses or a union target
             (dir::Type::This, _) => {
                 let decision = self.decide_this_relation(origin, Relation::Assignable, target)?;
 
@@ -139,13 +143,13 @@ impl CheckState<'_> {
 
                 self.decide_any_source(origin, relation, &elements, target)?
             }
-            // union targets need one viable element
+            // accept a union target when one element is viable
             (_, dir::Type::Union(union)) => {
                 let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
 
                 self.decide_any_target(origin, relation, source, &elements)?
             }
-            // intersection targets need every element
+            // require every element of an intersection target
             (_, dir::Type::Intersection(intersection)) => {
                 let elements = self
                     .type_ids(target.module_id, intersection.elements)?
@@ -185,7 +189,7 @@ impl CheckState<'_> {
                 self.decide_relation(origin, relation, member.owner, target)?
             }
 
-            // mutable collections alias their elements and stay invariant
+            // keep mutable collection elements invariant, since they alias
             (dir::Type::Array(source), dir::Type::Array(target)) => {
                 self.decide_relation(origin, Relation::Equal, source.element, target.element)?
             }
@@ -196,7 +200,7 @@ impl CheckState<'_> {
             (dir::Type::Slice(source), dir::Type::Slice(target)) => {
                 self.decide_relation(origin, Relation::Equal, source.element, target.element)?
             }
-            // value containers copy without a rebuild: elements only widen
+            // widen value container elements, since the container copies whole
             (dir::Type::FixedArray(source), dir::Type::FixedArray(target)) => {
                 let element =
                     self.decide_relation(origin, Relation::Widens, source.element, target.element)?;
@@ -209,7 +213,7 @@ impl CheckState<'_> {
             (dir::Type::FixedArray(source), dir::Type::Slice(target)) if !widens => {
                 self.decide_relation(origin, Relation::Equal, source.element, target.element)?
             }
-            // growing into a managed array allocates and copies: explicit only
+            // reject growing into a managed array, which allocates and copies
             (dir::Type::FixedArray(_), dir::Type::Array(_)) => false,
             (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
                 self.decide_tuple_assignable(origin, relation, source, target)?
@@ -320,7 +324,7 @@ impl CheckState<'_> {
             _ => source,
         };
 
-        // only erasable values may be boxed behind a dynamic constraint
+        // box erasable values only behind a dynamic constraint
         if !self.satisfies_auto_interface(origin, source, dir::AutoInterface::DynamicSafe)? {
             return Ok(false);
         }

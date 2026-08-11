@@ -12,7 +12,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<bool> {
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_head(ty)?;
         if active.contains(&ty) {
             return Ok(true);
         }
@@ -31,8 +31,6 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<bool> {
-        let ty = self.reduce_type_head(origin, ty)?;
-
         match self.ty(ty)? {
             // open variables fail as ambiguity until they solve
             dir::Type::Variable(_) => Ok(false),
@@ -55,7 +53,7 @@ impl CheckState<'_> {
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
-                    self.body().access_is_readonly(origin, access)
+                    self.body().access_is_readonly(access)
                 }
                 dir::Form::Owned => self.type_is_immutable(origin, form.value, active),
                 dir::Form::Raw | dir::Form::Managed | dir::Form::Placed { .. } => Ok(false),

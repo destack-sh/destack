@@ -6,13 +6,6 @@ use crate::check::{
 use crate::{CompilerError, CompilerResult};
 
 /// Assignment target selected by a source expression.
-///
-/// Examples:
-/// ```ds
-/// value = next
-/// object.field = next
-/// values[index] = next
-/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(in crate::check) struct AssignmentSelection {
     /// The selected read, when the source reads before writing.
@@ -94,7 +87,7 @@ impl CheckState<'_> {
             dir::WriteResolution::Subscript(subscript) => {
                 self.check_writable_subscript(origin, source, subscript, mode)
             }
-            // a dereferenced place is writable through its own borrow
+            // write a dereferenced place through its own borrow
             dir::WriteResolution::Dereference(_) => Ok(ObligationCheck::holds()),
         }
     }
@@ -107,7 +100,7 @@ impl CheckState<'_> {
         member: &dir::MemberDecision,
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
-        // every access along the resolved chain must be writable
+        // require every access along the resolved chain to be writable
         for access in member.iter() {
             let check = self.check_writable_member_access(origin, source, access, mode)?;
             match check {
@@ -142,9 +135,9 @@ impl CheckState<'_> {
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
         match target {
-            // a field write needs both a writable projection and a writable slot
+            // require a writable projection and a writable slot for a field write
             dir::MemberTarget::Field(field) => {
-                if self.body().receiver_projects_readonly(origin, receiver)? {
+                if self.body().receiver_projects_readonly(receiver)? {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
                         source,
                         member: target.clone(),
@@ -155,7 +148,7 @@ impl CheckState<'_> {
 
                 self.check_writable_field(source, field, mode)
             }
-            // an intersected target is writable only through every arm
+            // write an intersected target through every arm
             dir::MemberTarget::Intersection(targets) => {
                 for target in targets {
                     let check =
@@ -170,11 +163,11 @@ impl CheckState<'_> {
 
                 Ok(ObligationCheck::holds())
             }
-            // a setter call owns its own write rules
+            // leave a setter call to its own write rules
             dir::MemberTarget::Call(_) => Ok(ObligationCheck::holds()),
-            // an index write needs both a writable projection and writable fields
+            // require a writable projection and writable fields for an index write
             dir::MemberTarget::Index(index) => {
-                if self.body().receiver_projects_readonly(origin, receiver)? {
+                if self.body().receiver_projects_readonly(receiver)? {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
                         source,
                         member: target.clone(),
@@ -201,7 +194,7 @@ impl CheckState<'_> {
         subscript: &dir::SubscriptDecision,
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
-        // every access along the resolved chain must be writable
+        // require every access along the resolved chain to be writable
         for subscript in subscript.iter() {
             let check = match &subscript.target {
                 dir::SubscriptTarget::Member(member) => {
@@ -229,13 +222,12 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<ObligationCheck> {
-        // an exclusive receiver cannot be observed mid-overwrite
-        if self.is_exclusive_receiver(origin, receiver)? {
+        // accept an exclusive receiver, which nothing observes mid-overwrite
+        if self.is_exclusive_receiver(receiver)? {
             return Ok(ObligationCheck::holds());
         }
 
-        // a shared receiver demands a value that overwrites atomically
-        let ty = self.reduce_type_head(origin, ty)?;
+        // require a value that overwrites atomically for a shared receiver
         if self.satisfies_auto_interface(origin, ty, dir::AutoInterface::OverwriteStable)? {
             return Ok(ObligationCheck::holds());
         }
@@ -246,13 +238,8 @@ impl CheckState<'_> {
     }
 
     /// Return whether one receiver grants exclusive access.
-    fn is_exclusive_receiver(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    fn is_exclusive_receiver(&mut self, receiver: dir::GlobalTypeId) -> CompilerResult<bool> {
         // read the access a borrowed receiver carries
-        let receiver = self.reduce_type_head(origin, receiver)?;
         let access = match self.ty(receiver)? {
             dir::Type::Variable(variable) => {
                 return Err(CompilerError::Internal {
@@ -272,7 +259,6 @@ impl CheckState<'_> {
         };
 
         // exclusive access is the only access that excludes other readers
-        let access = self.reduce_type_head(origin, access)?;
         let is_exclusive = matches!(
             self.ty(access)?,
             dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive))
@@ -449,8 +435,8 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         index: &dir::IndexResolution,
     ) -> CompilerResult<ObligationCheck> {
-        // a structural index writes into the fields of its own receiver
-        let receiver = self.reduce_type_head(origin, index.receiver.ty())?;
+        // write a structural index into the fields of its own receiver
+        let receiver = self.normalize(origin, index.receiver.ty())?;
         let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = self.ty(receiver)? else {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -472,7 +458,7 @@ impl CheckState<'_> {
             });
         }
 
-        // every field the key domain reaches must be writable
+        // require every field the key domain reaches to be writable
         let properties = self.shape_properties(receiver.module_id, shape.properties)?;
         let mut is_readonly = false;
         for key in keys {

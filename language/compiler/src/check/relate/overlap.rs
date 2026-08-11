@@ -25,8 +25,9 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<(dir::GlobalTypeId, dir::GlobalTypeId)>,
     ) -> CompilerResult<bool> {
-        let source = self.reduce_type_head(origin, source)?;
-        let target = self.reduce_type_head(origin, target)?;
+        // expose the value domains of computation heads before comparing
+        let source = self.normalize_computation(origin, source)?;
+        let target = self.normalize_computation(origin, target)?;
 
         if source == target {
             return Ok(true);

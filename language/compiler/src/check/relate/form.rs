@@ -1,5 +1,6 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{Cause, CauseId, CauseKind, CheckState, Origin, Relation, VarianceForm};
@@ -33,7 +34,7 @@ impl CheckState<'_> {
             // readonly borrows remove the write path through their payload
             dir::Form::Borrowed(borrow) => {
                 let access = self.type_borrow(module, borrow)?.access;
-                if self.body().access_is_readonly(origin, access)? {
+                if self.body().access_is_readonly(access)? {
                     self.constrain_variance(
                         origin,
                         cause,
@@ -87,7 +88,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         match (self.ty(source)?, self.ty(target)?) {
-            // nominal arguments use the declaration's variance in this form
+            // relate nominal arguments by the declaration's variance in this form
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol =>
             {
@@ -109,7 +110,7 @@ impl CheckState<'_> {
                 )
             }
 
-            // independently mutable sequence storage remains invariant
+            // keep independently mutable sequence storage invariant
             (dir::Type::Array(source_array), dir::Type::Array(target_array))
                 if form != VarianceForm::Readonly =>
             {
@@ -165,7 +166,7 @@ impl CheckState<'_> {
                 )
             }
 
-            // other values preserve their established representation
+            // preserve the established representation of other values
             _ => self.constrain_type(origin, cause, relation, source, target),
         }
     }
@@ -192,15 +193,11 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<bool>> {
-        // reduce both sides to their heads before dispatching on form
-        let source = self.reduce_type_head(origin, source)?;
-        let target = self.reduce_type_head(origin, target)?;
-
         // classify explicit placement before structural dispatch
-        let source_place = self.form_space(origin, source)?;
-        let target_place = self.form_space(origin, target)?;
+        let source_place = self.form_space(source)?;
+        let target_place = self.form_space(target)?;
 
-        // bare values are local, so local placement on one side is transparent
+        // treat local placement on one side as transparent, since bare values are local
         if relation != Relation::Widens
             && let dir::Type::Form(target_form) = self.ty(target)?
             && target_place == Some(dir::Space::Local)
@@ -215,7 +212,7 @@ impl CheckState<'_> {
             )?));
         }
 
-        // relate placement on the direct value, not on references stored inside
+        // relate placement on the direct value
         if let dir::Type::Form(target_form) = self.ty(target)?
             && matches!(target_form.form, dir::Form::Placed { .. })
         {
@@ -234,6 +231,23 @@ impl CheckState<'_> {
         // let union targets select their arm, re-entering form logic per arm
         if matches!(self.ty(target)?, dir::Type::Union(_)) {
             return Ok(None);
+        }
+
+        // see through readonly value views on bare targets
+        let source_chain = self.form_chain(origin, source)?;
+        if source_chain.is_readonly()
+            && source_chain.ownership_form().is_none()
+            && matches!(self.ty(source)?, dir::Type::Form(_))
+            && !matches!(self.ty(target)?, dir::Type::Form(_))
+            && self.type_is_immutable(origin, source_chain.base(), &mut SmallVec::new())?
+        {
+            return Ok(Some(self.constrain_type(
+                origin,
+                cause,
+                relation,
+                source_chain.base(),
+                target,
+            )?));
         }
 
         match (self.ty(source)?, self.ty(target)?) {
@@ -255,7 +269,7 @@ impl CheckState<'_> {
                 )?))
             }
 
-            // copyable readonly views read out as their payload value
+            // read copyable readonly views out as their payload value
             (dir::Type::Form(source_form), _) if source_form.form == dir::Form::Readonly => {
                 Ok(Some(self.constrain_copyable_read_out(
                     origin,
@@ -265,7 +279,7 @@ impl CheckState<'_> {
                 )?))
             }
 
-            // values can flow into readonly forms by dropping write access
+            // flow values into readonly forms by dropping write access
             (_, dir::Type::Form(target_form)) if target_form.form == dir::Form::Readonly => {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
@@ -414,7 +428,7 @@ impl CheckState<'_> {
                     }
                 }
 
-                // everything else has to copy into the destination storage
+                // copy everything else into the destination storage
                 let copyable =
                     self.satisfies_auto_interface(origin, source, dir::AutoInterface::Copy)?;
                 if !copyable {
@@ -430,7 +444,7 @@ impl CheckState<'_> {
                 )?))
             }
 
-            // managed and local storage reads back as its payload
+            // read managed and local storage back as its payload
             (dir::Type::Form(source_form), _)
                 if matches!(source_form.form, dir::Form::Managed)
                     || source_place == Some(dir::Space::Local) =>
@@ -444,15 +458,15 @@ impl CheckState<'_> {
                 )?))
             }
 
-            // owned values transfer into the destination type's default form
+            // transfer owned values into the destination type's default form
             (dir::Type::Form(source_form), _)
                 if relation != Relation::Widens && source_form.form == dir::Form::Owned =>
             {
-                // managed defaults keep their handle, so an owned value cannot land there
+                // keep the handle for managed defaults
                 if self.defaults_to_managed(origin, source_form.value)? {
                     Ok(Some(false))
                 }
-                // every other default takes the payload directly
+                // take the payload directly for every other default
                 else {
                     Ok(Some(self.constrain_type(
                         origin,
@@ -464,7 +478,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // other placements keep their references; values copy out
+            // keep references at other placements and copy values out
             (dir::Type::Form(source_form), _)
                 if matches!(source_form.form, dir::Form::Placed { .. }) =>
             {
@@ -479,7 +493,7 @@ impl CheckState<'_> {
                     )?));
                 }
 
-                // references keep their placement instead of copying out
+                // keep references at their placement
                 let is_reference = self.type_is_reference(origin, source)?;
                 if is_reference {
                     return Ok(Some(false));
@@ -510,27 +524,19 @@ impl CheckState<'_> {
     }
 
     /// Return the concrete space of one type's outer placement.
-    fn form_space(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::Space>> {
+    fn form_space(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<Option<dir::Space>> {
         let dir::Type::Form(form) = self.ty(ty)? else {
             return Ok(None);
         };
         let dir::Form::Placed { place } = form.form else {
             return Ok(None);
         };
-        let place = self.reduce_type_head(origin, place)?;
         let space = self.place_space(place)?;
 
         Ok(space)
     }
 
-    /// Constrain one copyable payload read out of a view or borrow.
-    ///
-    /// A copy read out of a view never lends past readonly, since writes into the
-    /// hidden copy would miss the viewed storage.
+    /// Constrain one copyable payload read out of a view or borrow, never lending past readonly.
     fn constrain_copyable_read_out(
         &mut self,
         origin: Origin,
@@ -538,7 +544,7 @@ impl CheckState<'_> {
         payload: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // preserve views over reference carriers instead of copying their handles
+        // preserve views over reference carriers
         let is_reference = self.type_is_reference(origin, payload)?;
         if is_reference {
             return Ok(false);
@@ -554,7 +560,7 @@ impl CheckState<'_> {
             }
         }
 
-        // only copyable payloads may be read out of the view
+        // read copyable payloads out of the view only
         let copyable = self.satisfies_auto_interface(origin, payload, dir::AutoInterface::Copy)?;
         if !copyable {
             return Ok(false);
@@ -625,8 +631,6 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let source = self.reduce_type_head(origin, source)?;
-        let target = self.reduce_type_head(origin, target)?;
         let source =
             self.normalize_memory_component(origin, source, dir::MemoryParameter::Access)?;
         let target =
@@ -655,7 +659,7 @@ impl CheckState<'_> {
                 Ok(decision)
             }
 
-            // one accepted target access is sufficient
+            // accept one target access
             (_, dir::Type::Union(union)) => {
                 let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
                 let mut decision = false;
@@ -693,8 +697,8 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let source = self.shallow_resolve(source)?;
-        let target = self.shallow_resolve(target)?;
+        let source = self.resolve_head(source)?;
+        let target = self.resolve_head(target)?;
         if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 

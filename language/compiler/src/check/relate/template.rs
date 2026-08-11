@@ -21,12 +21,12 @@ impl CheckState<'_> {
         origin: Origin,
         span: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let span = self.shallow_resolve(span)?;
+        let span = self.resolve_head(span)?;
         if self.root_variable(span)?.is_some() {
             return Ok(span);
         }
 
-        self.reduce_type_head(origin, span)
+        self.normalize(origin, span)
     }
 
     /// Return one template's literal segments as owned text.
@@ -65,11 +65,10 @@ impl CheckState<'_> {
     /// Decide whether the whole string domain inhabits one template pattern.
     pub(in crate::check) fn decide_string_inhabits_template(
         &mut self,
-        origin: Origin,
         template_module: ModuleId,
         template: &dir::TemplateLiteralType,
     ) -> CompilerResult<bool> {
-        // only fully unconstraining patterns absorb every string
+        // absorb every string into fully unconstraining patterns only
         for segment in self.template_strings(template_module, template.strings)? {
             if !self.strings().get(*segment).is_empty() {
                 return Ok(false);
@@ -80,7 +79,6 @@ impl CheckState<'_> {
             return Ok(false);
         }
         for span in spans {
-            let span = self.reduce_type_head(origin, span)?;
             if !matches!(
                 self.ty(span)?,
                 dir::Type::Primitive(dir::PrimitiveType::String)
@@ -132,22 +130,19 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Return the bound type captured for one open template span, or none
-    /// when the text falls outside the span's numeric constraint.
+    /// Return the bound type captured for one open template span, or none outside its constraint.
     pub(in crate::check) fn template_capture_bound(
         &mut self,
         origin: Origin,
         span: dir::GlobalTypeId,
         text: &str,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // numeric parameter constraints capture numeric literals only;
-        //  aliasing can root the span under a plain hole, so the span's
-        //  own variable answers before its component root
+        // answer from the span's own variable before its component root
         let immediate = match self.ty(span)? {
             dir::Type::Variable(variable) => Some(variable),
             _ => None,
         };
-        let root = self.root_variable(self.shallow_resolve(span)?)?;
+        let root = self.root_variable(self.resolve_head(span)?)?;
         let mut hint = None;
         for variable in [immediate, root].into_iter().flatten() {
             hint = self
@@ -162,7 +157,7 @@ impl CheckState<'_> {
         }
         let module = origin.module();
         if let Some(hint) = hint
-            && let Ok(head) = self.reduce_type_head(origin, hint)
+            && let Ok(head) = self.normalize(origin, hint)
             && let Ok(kind) = self.ty(head)
         {
             match self.numeric_template_capture(module, &kind, text)? {
@@ -192,7 +187,7 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some(constraint) = constraint
-            && let Ok(head) = self.reduce_type_head(origin, constraint)
+            && let Ok(head) = self.normalize(origin, constraint)
             && let Ok(kind) = self.ty(head)
             && let NumericCapture::Captured(literal) =
                 self.numeric_template_capture(module, &kind, text)?
@@ -547,6 +542,7 @@ impl CheckState<'_> {
                     {
                         return Ok(true);
                     }
+
                     // splitting inside a text piece hands its suffix onward
                     if let Some(TemplatePiece::Text(text)) = pieces.get(stop) {
                         for split in 0..=text.len() {

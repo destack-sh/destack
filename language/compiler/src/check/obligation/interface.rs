@@ -32,6 +32,7 @@ impl CheckState<'_> {
             | dir::Definition::Interface(_)
             | dir::Definition::Newtype(_) => return Ok(ObligationCheck::Holds),
         };
+
         // read the declared members and the interfaces they must satisfy
         let members = definition.members().to_vec();
         let implementations = definition
@@ -58,7 +59,7 @@ impl CheckState<'_> {
         let is_unsafe_extension = extension_target.is_some()
             && self
                 .module(source.module_id)
-                .decorators
+                .decorators_tail
                 .applications_for_owner(source)
                 .any(|application| {
                     application.resolution.target.language_item() == Some(dir::LanguageItem::Unsafe)
@@ -222,9 +223,7 @@ impl CheckState<'_> {
         // read the members, signatures, and inherited interfaces it demands
         let mut requirements = self.interface_requirements(interface, target)?;
 
-        // project interface-owner members through this implementation's
-        //  refinements: every plain spelling of the implemented application
-        //  names this same conformance
+        // project interface-owner members through this implementation's refinements
         let mut base = interface;
         while let Some(refined) = self.refined_head(base)? {
             base = refined.base;
@@ -296,6 +295,7 @@ impl CheckState<'_> {
 
             // match typed requirements and accept abstract requirements by presence
             let member = if let Some(required) = requirement.ty {
+                let required = self.substitute_type(required, &substitution)?;
                 let mut selected = None;
                 for (symbol, found) in candidates {
                     let Some(found) = found else {
@@ -414,7 +414,7 @@ impl CheckState<'_> {
             requirement.key,
         )?;
 
-        // a nominal implementation only ever yields declaration candidates
+        // yield declaration candidates for a nominal implementation
         let candidates = match lookup {
             MemberLookup::Missing => Vec::new(),
             MemberLookup::Found(candidates) => candidates,
@@ -442,13 +442,11 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<ObligationCheck> {
-        // read the subject's reduced head
-        let ty = self.reduce_type_head(origin, ty)?;
-
         // hold without checking once an operand already reported an error
         if self.any_error_operand(&[ty])? {
             return Ok(ObligationCheck::holds());
         }
+
         // decide the interface's own conformance rule
         if self.satisfies_auto_interface(origin, ty, interface)? {
             return Ok(ObligationCheck::holds());

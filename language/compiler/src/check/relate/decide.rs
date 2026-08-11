@@ -1,4 +1,4 @@
-use destack_core::ensure_sufficient_stack;
+use destack_core::{FxIndexSet, ensure_sufficient_stack};
 use destack_dir as dir;
 
 use crate::CompilerResult;
@@ -47,17 +47,35 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // read solved variables through their committed rows
+        let mut source = self.resolve_head(source)?;
+        if self.type_flags(source)?.has_variable() {
+            source = self.resolve_committed_type(source, &FxIndexSet::default())?;
+        }
+        let mut target = self.resolve_head(target)?;
+        if self.type_flags(target)?.has_variable() {
+            target = self.resolve_committed_type(target, &FxIndexSet::default())?;
+        }
+
+        // decide the written heads first
         let holds = ensure_sufficient_stack(|| {
             self.decide_relation_recursive(origin, relation, source, target)
         })?;
+        if holds {
+            return Ok(true);
+        }
 
-        Ok(holds)
+        // retry a stuck decision once over reduced heads
+        let reduced_source = self.normalize_stuck(origin, source)?;
+        let reduced_target = self.normalize_stuck(origin, target)?;
+        if reduced_source == source && reduced_target == target {
+            return Ok(false);
+        }
+
+        self.decide_relation(origin, relation, reduced_source, reduced_target)
     }
 
-    /// Classify one judged outcome.
-    ///
-    /// Failure over an open head is ambiguity, and failed predicates classify through their
-    /// own evaluation.
+    /// Classify one judged outcome, where failure over an open head is ambiguity.
     pub(in crate::check) fn verdict(
         &mut self,
         holds: bool,
@@ -70,9 +88,9 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        // an open head retries the judgment once it solves
-        let source = self.shallow_resolve(source)?;
-        let target = self.shallow_resolve(target)?;
+        // retry the judgment once an open head solves
+        let source = self.resolve_head(source)?;
+        let target = self.resolve_head(target)?;
         if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
             return Ok(Verdict::Ambiguous);
         }
@@ -93,10 +111,6 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // reduce both roots before comparing them
-        let source = self.reduce_type_head(origin, source)?;
-        let target = self.reduce_type_head(origin, target)?;
-
         // identity mapped targets over an open variable bind it whole
         if let Some(variable) = self.reverse_mapped_variable(target)? {
             return self.decide_relation(origin, relation, source, variable);
@@ -153,8 +167,7 @@ impl CheckState<'_> {
             return Ok(source_key == target_key);
         }
 
-        // key parameter and this queries by their assuming scope;
-        //  variable-free decisions hold for the whole module
+        // key parameter and this queries by their assuming scope
         let flags = self.type_flags(source)? | self.type_flags(target)?;
         let durable = !flags.has_variable();
         let scope = if flags.has_parameter() || flags.has_this() {
@@ -163,8 +176,7 @@ impl CheckState<'_> {
             None
         };
 
-        // reuse decided relations and in-flight decisions, treating active
-        //  pairs as recursive cycles
+        // reuse decided relations, treating in-flight pairs as recursive cycles
         let key = (relation, source, target, scope);
         if let Some(holds) = self.relates.get(&key) {
             self.counters.judge_hits += 1;
@@ -201,7 +213,7 @@ impl CheckState<'_> {
                 Relation::Satisfies | Relation::Extends => {
                     let verdict = self.decide_satisfies(origin, relation, source, target)?;
 
-                    // an ambiguous predicate degrades to false without memoizing
+                    // degrade an ambiguous predicate to false without memoizing
                     if verdict == Verdict::Ambiguous {
                         self.infer.relations.cancel(attempt);
 
@@ -251,8 +263,8 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        // the constraint iterates an open variable's keys
-        let constraint = self.shallow_resolve(mapped.parameter.constraint)?;
+        // iterate an open variable's keys
+        let constraint = self.resolve_head(mapped.parameter.constraint)?;
         let dir::Type::Operation(constraint) = self.ty(constraint)? else {
             return Ok(None);
         };
@@ -260,22 +272,22 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
-        let variable = self.shallow_resolve(keys.target)?;
+        let variable = self.resolve_head(keys.target)?;
         if !matches!(self.ty(variable)?, dir::Type::Variable(_)) {
             return Ok(None);
         }
 
-        // the value projects the iterated key back out of the variable
-        let value = self.shallow_resolve(mapped.value)?;
+        // project the iterated key back out of the variable
+        let value = self.resolve_head(mapped.value)?;
         let dir::Type::Operation(value) = self.ty(value)? else {
             return Ok(None);
         };
         let dir::TypeOperation::Index(index) = self.type_operation(target.module_id, value)? else {
             return Ok(None);
         };
-        let is_identity = self.shallow_resolve(index.left)? == variable
+        let is_identity = self.resolve_head(index.left)? == variable
             && matches!(
-                self.ty(self.shallow_resolve(index.index)?)?,
+                self.ty(self.resolve_head(index.index)?)?,
                 dir::Type::Parameter(parameter) if parameter == mapped.parameter.parameter
             );
 
@@ -381,7 +393,7 @@ impl CheckState<'_> {
                 if let dir::TypeOperation::TemplateLiteral(template) =
                     self.type_operation(target.module_id, operation)? =>
             {
-                self.decide_string_inhabits_template(origin, target.module_id, &template)?
+                self.decide_string_inhabits_template(target.module_id, &template)?
             }
             (dir::Type::Operation(source_operation), dir::Type::Operation(target_operation))
                 if let dir::TypeOperation::TemplateLiteral(source_template) =

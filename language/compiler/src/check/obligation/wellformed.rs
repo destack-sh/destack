@@ -15,9 +15,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<ObligationCheck> {
         // explicit placement must agree with an intrinsically placed nominal base
         if let Some(written) = self.type_place(obligation.ty)? {
-            let written = self.reduce_type_head(origin, written)?;
             let value = self.strip_form(origin, obligation.ty)?;
-            let value = self.reduce_type_head(origin, value)?;
             let symbol = match self.ty(value)? {
                 dir::Type::Application(instance) => Some(instance.symbol),
                 dir::Type::Reference(reference) => Some(reference.symbol),
@@ -56,8 +54,7 @@ impl CheckState<'_> {
         };
         let reduction = self.reduce_index(origin, &index)?;
         let invalid = match reduction {
-            // parameter receivers index as their bound would; other rigid
-            //  keys must prove membership in the receiver's key set
+            // index parameter receivers as their bound would, other rigid keys prove membership
             OperationReduction::Rigid => {
                 let bound = match self.ty(index.left)? {
                     dir::Type::Parameter(parameter) => self

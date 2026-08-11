@@ -67,10 +67,11 @@ impl CheckState<'_> {
         let value = self.strip_form(origin, value)?;
 
         // match untagged newtypes through their backing
-        if self.variant_discriminant_domain(origin, value)?.is_none()
+        if self.variant_discriminant_domain(value)?.is_none()
             && let Some(instance) = self.decompose_newtype(origin, value)?
         {
             let backing = instance.backing;
+
             return self.decide_patterns_cover(origin, patterns, backing);
         }
 
@@ -88,7 +89,7 @@ impl CheckState<'_> {
         }
 
         // cover variant domains case by case
-        if let Some(domain) = self.variant_discriminant_domain(origin, value)? {
+        if let Some(domain) = self.variant_discriminant_domain(value)? {
             for discriminant in domain {
                 if !self.decide_patterns_cover_variant_case(patterns, discriminant)? {
                     return Ok(false);
@@ -128,10 +129,11 @@ impl CheckState<'_> {
         let value = self.strip_form(origin, value)?;
 
         // test untagged newtypes through their backing
-        if self.variant_discriminant_domain(origin, value)?.is_none()
+        if self.variant_discriminant_domain(value)?.is_none()
             && let Some(instance) = self.decompose_newtype(origin, value)?
         {
             let backing = instance.backing;
+
             return self.uncovered_value(origin, patterns, backing);
         }
 
@@ -149,20 +151,19 @@ impl CheckState<'_> {
         }
 
         // name the first uncovered variant case
-        let variant_domain = self.variant_discriminant_domain(origin, value)?;
+        let variant_domain = self.variant_discriminant_domain(value)?;
         if let Some(domain) = variant_domain {
             for discriminant in domain {
                 if !self.decide_patterns_cover_variant_case(patterns, discriminant)? {
                     if let Some(key) = self.enum_case_key_from_discriminant(value, discriminant)? {
                         return Ok(UncoveredValue::VariantCase { ty: value, key });
                     }
-                    if let Some(key) =
-                        self.tagged_case_key_from_type(origin, value, discriminant)?
-                    {
+                    if let Some(key) = self.tagged_case_key_from_type(value, discriminant)? {
                         return Ok(UncoveredValue::VariantCase { ty: value, key });
                     }
 
                     let literal = self.intern_type(dir::Type::Literal(discriminant))?;
+
                     return Ok(UncoveredValue::Type(literal));
                 }
             }
@@ -369,7 +370,7 @@ impl CheckState<'_> {
             } => {
                 let (start, end, end_kind) = (*start, *end, *end_kind);
 
-                self.decide_range_pattern_covers(origin, module, start, end, end_kind, value)
+                self.decide_range_pattern_covers(module, start, end, end_kind, value)
             }
             // field patterns must each cover their projections
             dir::Pattern::Tuple { fields }
@@ -390,6 +391,7 @@ impl CheckState<'_> {
                     .ok_or_else(|| CompilerError::Internal {
                         message: format!("nominal coverage pattern {pattern:?} has no resolution"),
                     })?;
+
                 // tagged variants decide through their selected predicate and payload
                 if let dir::PatternDecision::Variant(variant) = &resolution {
                     if !self.decide_predicate_covers(origin, &variant.predicate, value)? {
@@ -418,13 +420,12 @@ impl CheckState<'_> {
                     });
                 };
 
-                // one constructor covers every instantiation of its symbol
-                let value_head = self.reduce_type_head(origin, value)?;
-                match self.ty(value_head)? {
+                // cover every instantiation of a symbol with one constructor
+                match self.ty(value)? {
                     dir::Type::Application(value_instance) => {
                         // inherited constructors cover through heritage
                         if value_instance.symbol != nominal.symbol {
-                            let closure = self.heritage_closure(origin, value_head)?;
+                            let closure = self.heritage_closure(origin, value)?;
                             let mut inherits = false;
                             for application in &closure.applications {
                                 let (_, instance) = self.nominal_application(application.ty)?;
@@ -443,7 +444,7 @@ impl CheckState<'_> {
 
                 // project the newtype payload behind the tag when present
                 let payload = match self.decompose_newtype(origin, value)? {
-                    Some(instance) => self.reduce_type_head(origin, instance.backing)?,
+                    Some(instance) => instance.backing,
                     None => value,
                 };
 
@@ -497,9 +498,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         match &predicate.test {
-            dir::PredicateTest::Unary(unary) => {
-                self.decide_unary_predicate_covers(origin, unary, value)
-            }
+            dir::PredicateTest::Unary(unary) => self.decide_unary_predicate_covers(unary, value),
             dir::PredicateTest::Any(predicates) => {
                 for predicate in predicates {
                     if self.decide_predicate_covers(origin, predicate, value)? {
@@ -516,11 +515,9 @@ impl CheckState<'_> {
     /// Decide whether one unary predicate-backed pattern covers one closed value.
     fn decide_unary_predicate_covers(
         &mut self,
-        origin: Origin,
         predicate: &dir::PredicateUnaryTest,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let value = self.reduce_type_head(origin, value)?;
         let decision = match &predicate.condition {
             dir::PredicateCondition::Always => true,
             dir::PredicateCondition::Never => false,
@@ -681,7 +678,6 @@ impl CheckState<'_> {
             // expression patterns cover literal points
             dir::Pattern::Expression { value } => {
                 let ty = self.require_node_type(value.into_global_any(module))?;
-                let ty = self.reduce_type_head(origin, ty)?;
                 self.type_scalar_literal(ty)?.map(|literal| {
                     IntervalCoverage::Intervals(vec![dir::RangeType {
                         start: Some(literal),
@@ -697,7 +693,7 @@ impl CheckState<'_> {
                 end_kind,
             } => {
                 let Some(range) =
-                    self.static_range_pattern_interval(origin, module, start, end, end_kind)?
+                    self.static_range_pattern_interval(module, start, end, end_kind)?
                 else {
                     return Ok(None);
                 };
@@ -737,7 +733,6 @@ impl CheckState<'_> {
     /// Decide whether one range pattern covers one scalar value type.
     fn decide_range_pattern_covers(
         &mut self,
-        origin: Origin,
         module: ModuleId,
         start: Option<dir::LocalNodeId<dir::Expression>>,
         end: Option<dir::LocalNodeId<dir::Expression>>,
@@ -750,9 +745,7 @@ impl CheckState<'_> {
         };
 
         // closed range patterns can be used for static coverage
-        let Some(range) =
-            self.static_range_pattern_interval(origin, module, start, end, end_kind)?
-        else {
+        let Some(range) = self.static_range_pattern_interval(module, start, end, end_kind)? else {
             return Ok(false);
         };
 
@@ -764,16 +757,15 @@ impl CheckState<'_> {
     /// Return one statically known range pattern interval.
     fn static_range_pattern_interval(
         &mut self,
-        origin: Origin,
         module: ModuleId,
         start: Option<dir::LocalNodeId<dir::Expression>>,
         end: Option<dir::LocalNodeId<dir::Expression>>,
         end_kind: dir::RangeEnd,
     ) -> CompilerResult<Option<dir::RangeType>> {
-        let Some(start) = self.static_range_bound(origin, module, start)? else {
+        let Some(start) = self.static_range_bound(module, start)? else {
             return Ok(None);
         };
-        let Some(end) = self.static_range_bound(origin, module, end)? else {
+        let Some(end) = self.static_range_bound(module, end)? else {
             return Ok(None);
         };
 
@@ -785,7 +777,6 @@ impl CheckState<'_> {
     /// Return one statically known range pattern bound.
     fn static_range_bound(
         &mut self,
-        origin: Origin,
         module: ModuleId,
         bound: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<Option<StaticRangeBound>> {
@@ -794,8 +785,8 @@ impl CheckState<'_> {
         };
         let ty = self.require_node_type(bound.into_global_any(module))?;
 
-        let reduced = self.reduce_type_head(origin, ty)?;
-        match self.ty(reduced)? {
+        // read a statically known bound from a scalar literal only
+        match self.ty(ty)? {
             dir::Type::Literal(literal) => Ok(Some(StaticRangeBound::Literal(literal))),
             _ => Ok(None),
         }

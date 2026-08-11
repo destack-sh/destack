@@ -819,7 +819,7 @@ impl CheckState<'_> {
         Ok(measured)
     }
 
-    /// dumps show.
+    /// Derive the parameter variances of every definition in one module.
     pub(in crate::check) fn derive_module_variances(
         &mut self,
         module: ModuleId,
@@ -827,7 +827,6 @@ impl CheckState<'_> {
         // derive each declared definition parameter at its own context
         let symbols = self
             .module(module)
-            .definitions
             .iter_definitions()
             .map(|(symbol, _)| symbol)
             .collect::<Vec<_>>();
@@ -866,7 +865,7 @@ impl CheckState<'_> {
         // record the derivations on the checked tail
         for (parameter, modifier) in filled {
             self.module_mut(module)
-                .generics
+                .generics_tail
                 .set_derived_variance(parameter, modifier);
         }
 
@@ -880,7 +879,7 @@ impl CheckState<'_> {
         parameter: dir::LocalGenericParameterId,
     ) -> Option<dir::VarianceModifier> {
         let state = self.module_maybe(module)?;
-        if let Some(modifier) = state.generics.derived_variance(parameter) {
+        if let Some(modifier) = state.generics_tail.derived_variance(parameter) {
             return Some(modifier);
         }
         if let Some(elaborated) = &state.elaborated

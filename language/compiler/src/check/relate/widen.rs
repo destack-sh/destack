@@ -19,7 +19,7 @@ impl CheckState<'_> {
         // resolve bounds through solved variables
         let mut resolved = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for bound in bounds {
-            let bound = self.shallow_resolve(*bound).map_err(|error| {
+            let bound = self.resolve_head(*bound).map_err(|error| {
                 CompilerError::Internal {
                     message: format!(
                         "best_common bound resolution failed for {variable:?} bounds={bounds:?}: {error:?}"
@@ -246,7 +246,7 @@ impl CheckState<'_> {
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // self-referential solutions keep their recursive leaves
-        let id = self.shallow_resolve(id)?;
+        let id = self.resolve_head(id)?;
         if !active.insert(id) {
             return Ok(None);
         }
@@ -322,7 +322,7 @@ impl CheckState<'_> {
                 );
                 let mut changed = false;
                 for element in &mut elements {
-                    let ty = self.shallow_resolve(element.ty)?;
+                    let ty = self.resolve_head(element.ty)?;
                     if let Some(widened) = self.widen_tree(module, ty, active)? {
                         element.ty = widened;
                         changed = true;
@@ -348,7 +348,7 @@ impl CheckState<'_> {
                 let mut widened = Vec::with_capacity(elements.len());
                 let mut changed = false;
                 for element in elements {
-                    let element = self.shallow_resolve(element)?;
+                    let element = self.resolve_head(element)?;
                     match self.widen_tree(module, element, active)? {
                         Some(wide) => {
                             widened.push(wide);
@@ -437,7 +437,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<(dir::GlobalTypeId, bool)> {
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_head(ty)?;
 
         match self.widen_tree(module, ty, active)? {
             Some(widened) => Ok((widened, true)),
