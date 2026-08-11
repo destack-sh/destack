@@ -1,5 +1,5 @@
 use destack_program as program;
-use destack_repository::{ExecutionMode, ReplayPayloadMode};
+use destack_repository::ExecutionMode;
 
 use crate::binding::ReplayPayload;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -15,10 +15,10 @@ pub struct BindingAccess {
 
 impl BindingAccess {
     /// Create worker binding access.
-    pub fn new(mode: ExecutionMode, replay_payload: ReplayPayloadMode) -> Self {
+    pub const fn new(mode: ExecutionMode, replay_payload: ReplayPayload) -> Self {
         Self {
             mode,
-            default_replay_payload: replay_payload.into(),
+            default_replay_payload: replay_payload,
         }
     }
 
@@ -45,16 +45,6 @@ impl BindingAccess {
             ExecutionMode::Record | ExecutionMode::Replay => {
                 !matches!(binding.replay, program::BindingReplay::Forbidden)
             }
-        }
-    }
-}
-
-impl From<ReplayPayloadMode> for ReplayPayload {
-    /// Convert workspace replay payload mode to binding replay payload policy.
-    fn from(mode: ReplayPayloadMode) -> Self {
-        match mode {
-            ReplayPayloadMode::ResultsOnly => Self::Results,
-            ReplayPayloadMode::ArgumentsAndResults => Self::ArgumentsAndResults,
         }
     }
 }

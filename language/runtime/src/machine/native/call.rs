@@ -316,15 +316,11 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         let context = *call.activation.context;
 
         // the native tier carries no detach boundaries; the mounted fiber is current
-        let fiber = call
-            .activation
-            .runtime
-            .current_fiber()
-            .unwrap_or(program::Fiber::NONE);
+        let fiber_id = call.activation.runtime.fiber_id();
         if let Err(error) = call
             .activation
             .runtime
-            .call_binding(memory, context, fiber, binding, arguments, result)
+            .call_binding(memory, context, fiber_id, binding, arguments, result)
         {
             call.fail_boxed(error);
         }

@@ -25,12 +25,14 @@ pub struct Runtime {
     pub(super) options: Arc<RuntimeOptions>,
     /// The active runtime conditions.
     pub(crate) conditions: Arc<ConditionSet>,
+
     /// Durable program instantiated by this runtime.
     pub(crate) program: Arc<program::Program>,
     /// Immutable execution engine shared by all workers.
     pub(crate) engine: Engine,
     /// Runtime binding implementations shared by all workers.
     pub(crate) binding_table: Arc<BindingTable>,
+
     /// Runtime-owned shared heap.
     pub(crate) shared_heap: Arc<heap::SharedHeap>,
     /// Collection state for the runtime-owned shared heap.
@@ -43,6 +45,7 @@ pub struct Runtime {
     pub(crate) immortal_space: program::StaticSpace,
     /// Runtime-owned shared static space.
     pub(crate) shared_static: program::StaticSpace,
+
     /// All active workers keyed by identifier.
     pub(crate) workers: BTreeMap<WorkerId, Worker>,
     /// Default worker used by convenience accessors.

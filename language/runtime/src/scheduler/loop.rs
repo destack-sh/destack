@@ -64,19 +64,19 @@ impl EventLoop {
     }
 
     /// Insert one running fiber and return its identity.
-    pub(crate) fn insert_fiber(&mut self) -> program::Fiber {
+    pub(crate) fn insert_fiber(&mut self) -> program::FiberId {
         self.fibers.insert()
     }
 
     /// Park one running fiber with its retained execution.
     pub(crate) fn park_fiber(
         &mut self,
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
         execution: vm::Fiber,
     ) -> RuntimeResult<()> {
         // a wake that raced the park settles the fiber immediately
-        if let Some(value) = self.fibers.park(fiber, execution)? {
-            self.enqueue_microtask(Invocation::wake(fiber, value));
+        if let Some(value) = self.fibers.park(fiber_id, execution)? {
+            self.enqueue_microtask(Invocation::wake(fiber_id, value));
         }
 
         Ok(())
@@ -85,32 +85,32 @@ impl EventLoop {
     /// Take one wake buffered before the running fiber parked.
     pub(crate) fn take_pending_wake(
         &mut self,
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
     ) -> RuntimeResult<Option<program::Value>> {
-        self.fibers.take_pending(fiber)
+        self.fibers.take_pending(fiber_id)
     }
 
     /// Deliver one wake, buffering it until the target fiber parks.
     pub(crate) fn wake_fiber(
         &mut self,
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
         value: program::Value,
     ) -> RuntimeResult<()> {
-        if let Some(value) = self.fibers.wake(fiber, value)? {
-            self.enqueue_microtask(Invocation::wake(fiber, value));
+        if let Some(value) = self.fibers.wake(fiber_id, value)? {
+            self.enqueue_microtask(Invocation::wake(fiber_id, value));
         }
 
         Ok(())
     }
 
     /// Take one woken fiber's execution for resumption.
-    pub(crate) fn resume_fiber(&mut self, fiber: program::Fiber) -> RuntimeResult<vm::Fiber> {
-        self.fibers.resume(fiber)
+    pub(crate) fn resume_fiber(&mut self, fiber_id: program::FiberId) -> RuntimeResult<vm::Fiber> {
+        self.fibers.resume(fiber_id)
     }
 
     /// Remove one completed fiber and release any undelivered wake.
-    pub(crate) fn retire_fiber(&mut self, fiber: program::Fiber) -> RuntimeResult<()> {
-        if let Some(pending) = self.fibers.remove(fiber)? {
+    pub(crate) fn retire_fiber(&mut self, fiber_id: program::FiberId) -> RuntimeResult<()> {
+        if let Some(pending) = self.fibers.remove(fiber_id)? {
             self.release(pending);
         }
 

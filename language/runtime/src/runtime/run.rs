@@ -39,17 +39,17 @@ pub(crate) enum RuntimeRunOutcome {
     },
 }
 
-impl RuntimeRunOutcome {
-    /// Convert a worker run outcome when work happened.
-    fn from_worker(worker_id: WorkerId, outcome: WorkerRunOutcome) -> Option<Self> {
+impl From<(WorkerId, WorkerRunOutcome)> for RuntimeRunOutcome {
+    /// Add one Worker identity to its run outcome.
+    fn from((worker_id, outcome): (WorkerId, WorkerRunOutcome)) -> Self {
         match outcome {
-            WorkerRunOutcome::Progressed { progress } => Some(Self::Progressed {
+            WorkerRunOutcome::Progressed { progress } => Self::Progressed {
                 worker_id,
                 progress,
-            }),
-            WorkerRunOutcome::Idle => None,
-            WorkerRunOutcome::Stopped { reason } => Some(Self::Stopped { worker_id, reason }),
-            WorkerRunOutcome::Paused { reason } => Some(Self::Paused { worker_id, reason }),
+            },
+            WorkerRunOutcome::Idle => Self::Idle,
+            WorkerRunOutcome::Stopped { reason } => Self::Stopped { worker_id, reason },
+            WorkerRunOutcome::Paused { reason } => Self::Paused { worker_id, reason },
         }
     }
 }
@@ -112,7 +112,8 @@ impl Runtime {
                 host,
                 host_queue,
             )?;
-            if let Some(outcome) = RuntimeRunOutcome::from_worker(worker.id, outcome) {
+            let outcome = RuntimeRunOutcome::from((worker.id, outcome));
+            if outcome != RuntimeRunOutcome::Idle {
                 self.next_worker_cursor = (worker_index + 1) % worker_count;
 
                 return Ok(outcome);
@@ -129,7 +130,8 @@ impl Runtime {
                 host,
                 host_queue,
             )?;
-            if let Some(outcome) = RuntimeRunOutcome::from_worker(worker.id, outcome) {
+            let outcome = RuntimeRunOutcome::from((worker.id, outcome));
+            if outcome != RuntimeRunOutcome::Idle {
                 self.next_worker_cursor = worker_index + 1;
 
                 return Ok(outcome);
@@ -139,65 +141,42 @@ impl Runtime {
         Ok(RuntimeRunOutcome::Idle)
     }
 
-    /// Continue one stopped worker in scheduler order.
-    pub(crate) fn continue_stop(
+    /// Resume one exact debugger-stopped Worker.
+    pub(crate) fn resume(
         &mut self,
         world: &mut WorldState,
         host: &dyn Host,
         host_queue: &HostQueue,
+        worker_id: WorkerId,
     ) -> RuntimeResult<RuntimeRunOutcome> {
-        let worker_count = self.workers.len();
-        if worker_count == 0 {
-            return Ok(RuntimeRunOutcome::Idle);
-        }
-        let start_index = self.next_worker_cursor % worker_count;
         let collection = &self.shared_collection;
         let shared_static = &mut self.shared_static;
         let immortal_space = &self.immortal_space;
         let constant_space = &self.constant_space;
-        let workers = &mut self.workers;
+        let worker = self
+            .workers
+            .get_mut(&worker_id)
+            .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
+        let outcome = worker.resume(
+            world,
+            collection,
+            shared_static,
+            immortal_space,
+            constant_space,
+            host,
+            host_queue,
+        )?;
 
-        // scan retained stops after the scheduler cursor
-        for (worker_index, (worker_id, worker)) in workers.iter_mut().enumerate().skip(start_index)
-        {
-            let outcome = worker.continue_stop(
-                world,
-                collection,
-                shared_static,
-                immortal_space,
-                constant_space,
-                host,
-                host_queue,
-            )?;
-            let Some(outcome) = RuntimeRunOutcome::from_worker(*worker_id, outcome) else {
-                continue;
-            };
-            self.next_worker_cursor = (worker_index + 1) % worker_count;
-
-            return Ok(outcome);
+        // reject an impossible idle result from an exact debugger resume
+        let outcome = RuntimeRunOutcome::from((worker_id, outcome));
+        if outcome == RuntimeRunOutcome::Idle {
+            Err(RuntimeError::Internal {
+                message: format!("worker {} resumed without an outcome", worker_id.0),
+            }
+            .boxed())
+        } else {
+            Ok(outcome)
         }
-
-        // wrap retained stops around to workers before the scheduler cursor
-        for (worker_index, (worker_id, worker)) in workers.iter_mut().enumerate().take(start_index)
-        {
-            let outcome = worker.continue_stop(
-                world,
-                collection,
-                shared_static,
-                immortal_space,
-                constant_space,
-                host,
-                host_queue,
-            )?;
-            let Some(outcome) = RuntimeRunOutcome::from_worker(*worker_id, outcome) else {
-                continue;
-            };
-            self.next_worker_cursor = (worker_index + 1) % worker_count;
-
-            return Ok(outcome);
-        }
-
-        Ok(RuntimeRunOutcome::Idle)
     }
 
     /// Run one pending worker task in stable scheduler order.
@@ -231,7 +210,8 @@ impl Runtime {
                 host,
                 host_queue,
             )?;
-            if let Some(outcome) = RuntimeRunOutcome::from_worker(*worker_id, outcome) {
+            let outcome = RuntimeRunOutcome::from((*worker_id, outcome));
+            if outcome != RuntimeRunOutcome::Idle {
                 self.next_worker_cursor = (worker_index + 1) % worker_count;
 
                 return Ok(outcome);
@@ -249,7 +229,8 @@ impl Runtime {
                 host,
                 host_queue,
             )?;
-            if let Some(outcome) = RuntimeRunOutcome::from_worker(*worker_id, outcome) {
+            let outcome = RuntimeRunOutcome::from((*worker_id, outcome));
+            if outcome != RuntimeRunOutcome::Idle {
                 self.next_worker_cursor = worker_index + 1;
 
                 return Ok(outcome);

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_program as program;
-use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
+use destack_repository::{Environment, RuntimeOptions, WorldOptions};
 use destack_vm as vm;
 
 use crate::binding::BindingTable;
@@ -170,7 +170,7 @@ entry(v0: int32):
 
 /// Drain queued tasks until idle.
 #[test]
-fn test_run_until_idle_drains_tasks() {
+fn test_drain_runs_queued_tasks() {
     // create runtime state with one queued task
     let program = TestProgram::mir(
         r#"
@@ -188,7 +188,7 @@ entry(v0: int32):
     runtime.enqueue_task("run", 9);
 
     // run until the queue is drained
-    runtime.run_until_idle();
+    runtime.drain();
 
     assert!(
         !runtime.has_pending_work(),
@@ -293,10 +293,7 @@ entry(v0: int32):
 #[test]
 fn test_runtime_run_advances_virtual_time_before_dispatch() {
     // configure one virtual runtime with one future timer
-    let options = RuntimeOptions {
-        mode: ExecutionMode::Strict,
-        ..Default::default()
-    };
+    let options = RuntimeOptions::default();
     let program = TestProgram::mir(
         r#"
 export function run(v0: int32): int32 {
@@ -369,7 +366,8 @@ entry(v0: int32):
 fn test_world_spawn_runtime_records_observation() {
     // configure one explicit shared world
     let options = RuntimeOptions::default();
-    let mut world = World::new(&options, Environment::default()).expect("world should build");
+    let world_options = WorldOptions::default();
+    let mut world = World::new(&world_options, Environment::default()).expect("world should build");
     let program = Arc::new(TestProgram::mir("").build());
     let before = world.moment();
 
@@ -405,10 +403,7 @@ fn test_world_spawn_runtime_records_observation() {
 #[test]
 fn test_runtime_run_orders_equal_deadline_timers_by_worker_id() {
     // configure one virtual runtime with two workers and one equal deadline
-    let options = RuntimeOptions {
-        mode: ExecutionMode::Strict,
-        ..Default::default()
-    };
+    let options = RuntimeOptions::default();
     let program = TestProgram::mir(
         r#"
 export function run(v0: int32): int32 {

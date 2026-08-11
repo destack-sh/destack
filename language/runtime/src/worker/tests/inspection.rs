@@ -39,7 +39,7 @@ entry(v0: int32):
 
     // resume the same task without selecting another runnable
     let resumed = worker
-        .continue_stop()
+        .resume()
         .expect("retained task should resume to completion");
     assert_eq!(
         resumed,
@@ -91,7 +91,7 @@ entry(v0: int32):
 
     // restore the native frame through bytecode and finish the same task
     let resumed = worker
-        .continue_stop()
+        .resume()
         .expect("retained native task should resume through bytecode");
     assert_eq!(
         resumed,
@@ -138,9 +138,9 @@ entry(v0: int32):
     };
     assert_eq!(point.operation, 0);
 
-    // continue from the following operation without executing the breakpoint again
+    // resume from the following operation without executing the breakpoint again
     let resumed = worker
-        .continue_stop()
+        .resume()
         .expect("native breakpoint should resume through bytecode");
     assert_eq!(
         resumed,

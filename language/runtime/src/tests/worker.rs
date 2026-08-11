@@ -4,7 +4,7 @@ use destack_artifact::{ConditionSet, Host, Platform, Runtime};
 use destack_heap as heap;
 use destack_memory::MemoryRange;
 use destack_program as program;
-use destack_repository::{Environment, RuntimeOptions};
+use destack_repository::{Environment, RuntimeOptions, WorldOptions};
 use destack_vm as vm;
 
 use crate::binding::BindingTable;
@@ -39,6 +39,7 @@ pub(crate) struct TestWorker {
     collection: Arc<SharedCollectionState>,
     /// Immutable program constant space used by the worker.
     constant_space: program::StaticImage,
+    /// Immortal space used by the worker.
     immortal_space: program::StaticSpace,
     /// Runtime-owned shared static bytes used by the worker.
     shared_static: program::StaticSpace,
@@ -77,8 +78,9 @@ impl TestWorker {
         bindings: BindingTable,
         engine: Engine,
     ) -> Self {
-        let mut world =
-            World::new(options, Environment::default()).expect("runtime test world should build");
+        let world_options = WorldOptions::default();
+        let mut world = World::new(&world_options, Environment::default())
+            .expect("runtime test world should build");
 
         // build program and runtime-owned storage
         let local_heap_options = options
@@ -318,9 +320,9 @@ impl TestWorker {
         )
     }
 
-    /// Continue one debugger-stopped runnable.
-    pub(crate) fn continue_stop(&mut self) -> RuntimeResult<WorkerRunOutcome> {
-        self.worker.continue_stop(
+    /// Resume one debugger-stopped runnable.
+    pub(crate) fn resume(&mut self) -> RuntimeResult<WorkerRunOutcome> {
+        self.worker.resume(
             &mut self.world.state,
             &self.collection,
             &mut self.shared_static,
@@ -349,8 +351,8 @@ impl TestWorker {
         )
     }
 
-    /// Run until idle and fail loudly on runtime errors.
-    pub(crate) fn run_until_idle(&mut self) {
+    /// Drain queued work and fail loudly on runtime errors.
+    pub(crate) fn drain(&mut self) {
         while self.run() {}
     }
 

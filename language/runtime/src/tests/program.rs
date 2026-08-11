@@ -130,9 +130,9 @@ impl TestProgram {
 
     /// Complete physical layouts and project optimized MIR for emission.
     fn optimize(&self, module: ModuleId) -> MirOptimized {
-        let mut tree = self.lowered.tree.clone();
+        let tree = self.lowered.tree.clone();
         let mut layouts = self.lowered.layouts.clone();
-        let mut builder = LayoutBuilder::new(module, &mut tree, &mut layouts, self.lowered.target);
+        let mut builder = LayoutBuilder::new(module, &tree, &mut layouts, self.lowered.target);
         builder
             .layout_reachable_types()
             .expect("runtime test MIR layouts should build");

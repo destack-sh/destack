@@ -132,7 +132,7 @@ fn touch(
     _activation: &mut Activation<'_>,
     _memory: program::Memory<'_>,
     _context: program::Context,
-    _fiber: program::Fiber,
+    _fiber_id: Option<program::FiberId>,
     _declaration: &program::Binding,
     arguments: &[program::Word],
     result: &mut [program::Word],

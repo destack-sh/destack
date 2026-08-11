@@ -1,21 +1,18 @@
 use destack_heap as heap;
 use destack_program as program;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::worker::RunnableScope;
 
-/// One repeatable program callback.
+/// One identified event-loop execution.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Callback {
-    /// Function to invoke.
-    function: program::FunctionId,
-    /// Hidden closure environment when one exists.
-    environment: Option<program::Value>,
-    /// Copyable source-level arguments in parameter order.
-    arguments: Vec<program::Value>,
-    /// Dynamically scoped context captured at registration.
-    context: program::Context,
+pub struct Runnable {
+    /// Runnable identifier used for ordering and logging.
+    pub id: RunnableId,
+    /// Function invocation to execute.
+    pub invocation: Invocation,
 }
 
 /// One consumable program invocation.
@@ -34,20 +31,24 @@ pub enum Invocation {
     },
     /// Wake one parked fiber with a delivered value.
     Wake {
-        /// Fiber to resume.
-        fiber: program::Fiber,
+        /// Fiber identity to resume.
+        fiber_id: program::FiberId,
         /// Value delivered to the parked call.
         value: program::Value,
     },
 }
 
-/// One identified event-loop execution.
+/// One repeatable program callback.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Runnable {
-    /// Runnable identifier used for ordering and logging.
-    pub id: RunnableId,
-    /// Function invocation to execute.
-    pub invocation: Invocation,
+pub struct Callback {
+    /// Function to invoke.
+    function: program::FunctionId,
+    /// Hidden closure environment when one exists.
+    environment: Option<program::Value>,
+    /// Copyable source-level arguments in parameter order.
+    arguments: Vec<program::Value>,
+    /// Dynamically scoped context captured at registration.
+    context: program::Context,
 }
 
 /// Runnable retained across one runtime handshake or debugger stop.
@@ -57,15 +58,49 @@ pub struct RetainedRunnable {
     pub id: RunnableId,
     /// Runnable scope active when execution stopped.
     pub scope: RunnableScope,
-    /// Fiber whose execution the worker machine retains.
-    pub fiber: program::Fiber,
+    /// Fiber identity whose execution the worker machine retains.
+    pub fiber_id: program::FiberId,
     /// Debugger stop reason when execution is externally paused.
     pub reason: Option<program::StopReason>,
 }
 
 /// Opaque runnable identifier used by the event loop.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
 pub struct RunnableId(u64);
+
+impl Runnable {
+    /// Create one identified event-loop execution.
+    pub(super) const fn new(id: RunnableId, invocation: Invocation) -> Self {
+        Self { id, invocation }
+    }
+
+    /// Fork this runnable for one forked World.
+    pub(super) fn inherit(&self) -> Self {
+        Self {
+            id: self.id,
+            invocation: self.invocation.inherit(),
+        }
+    }
+
+    /// Visit mutable heap root slots retained by this runnable.
+    pub(crate) fn visit_root_slots(
+        &mut self,
+        program: &program::Program,
+        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        self.invocation.visit_root_slots(program, visit)
+    }
+
+    /// Release the values owned by this runnable.
+    pub(crate) fn release(self) -> Option<program::Value> {
+        match self.invocation {
+            Invocation::Wake { value, .. } => Some(value),
+            Invocation::Function { .. } => None,
+        }
+    }
+}
 
 impl Invocation {
     /// Create one direct function invocation.
@@ -83,8 +118,8 @@ impl Invocation {
     }
 
     /// Create one fiber wake delivery.
-    pub fn wake(fiber: program::Fiber, value: program::Value) -> Self {
-        Self::Wake { fiber, value }
+    pub fn wake(fiber_id: program::FiberId, value: program::Value) -> Self {
+        Self::Wake { fiber_id, value }
     }
 
     /// Fork this invocation for one forked World.
@@ -101,8 +136,8 @@ impl Invocation {
                 arguments: arguments.iter().map(program::Value::fork).collect(),
                 context: *context,
             },
-            Self::Wake { fiber, value } => Self::Wake {
-                fiber: *fiber,
+            Self::Wake { fiber_id, value } => Self::Wake {
+                fiber_id: *fiber_id,
                 value: value.fork(),
             },
         }
@@ -215,50 +250,18 @@ impl Callback {
     }
 }
 
-impl Runnable {
-    /// Create one identified event-loop execution.
-    pub(super) const fn new(id: RunnableId, invocation: Invocation) -> Self {
-        Self { id, invocation }
-    }
-
-    /// Fork this runnable for one forked World.
-    pub(super) fn inherit(&self) -> Self {
-        Self {
-            id: self.id,
-            invocation: self.invocation.inherit(),
-        }
-    }
-
-    /// Visit mutable heap root slots retained by this runnable.
-    pub(crate) fn visit_root_slots(
-        &mut self,
-        program: &program::Program,
-        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
-    ) -> RuntimeResult<()> {
-        self.invocation.visit_root_slots(program, visit)
-    }
-
-    /// Release the values owned by this runnable.
-    pub(crate) fn release(self) -> Option<program::Value> {
-        match self.invocation {
-            Invocation::Wake { value, .. } => Some(value),
-            Invocation::Function { .. } => None,
-        }
-    }
-}
-
 impl RetainedRunnable {
     /// Create one retained runnable.
     pub const fn new(
         id: RunnableId,
         scope: RunnableScope,
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
         reason: Option<program::StopReason>,
     ) -> Self {
         Self {
             id,
             scope,
-            fiber,
+            fiber_id,
             reason,
         }
     }

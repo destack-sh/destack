@@ -48,7 +48,7 @@ fn current(
     _activation: &mut Activation<'_>,
     _memory: Memory<'_>,
     _context: program::Context,
-    fiber: program::Fiber,
+    fiber_id: Option<program::FiberId>,
     _declaration: &program::Binding,
     _arguments: &[Word],
     result: &mut [Word],
@@ -59,7 +59,13 @@ fn current(
         }
         .boxed());
     };
-    *slot = Word::from_bits(fiber.bits());
+    let Some(fiber_id) = fiber_id else {
+        return Err(RuntimeError::Internal {
+            message: "fiber.current requires a logical fiber".to_string(),
+        }
+        .boxed());
+    };
+    *slot = Word::from_bits(fiber_id.bits());
 
     Ok(())
 }
@@ -69,7 +75,7 @@ fn wake(
     activation: &mut Activation<'_>,
     _memory: Memory<'_>,
     _context: program::Context,
-    _fiber: program::Fiber,
+    _fiber_id: Option<program::FiberId>,
     declaration: &program::Binding,
     arguments: &[Word],
     _result: &mut [Word],
@@ -80,7 +86,7 @@ fn wake(
         }
         .boxed());
     };
-    let fiber = program::Fiber::from_bits(fiber.bits());
+    let fiber_id = program::FiberId::from_bits(fiber.bits());
 
     // the second parameter carries the typed wake payload
     let ty = activation
@@ -99,7 +105,7 @@ fn wake(
         .value(ty, words.iter().copied())
         .map_err(Box::<RuntimeError>::from)?;
 
-    activation.wake_fiber(fiber, value)
+    activation.wake_fiber(fiber_id, value)
 }
 
 /// Queue one callback after the active task finishes.
@@ -107,7 +113,7 @@ fn queue_microtask(
     activation: &mut Activation<'_>,
     _memory: Memory<'_>,
     context: program::Context,
-    _fiber: program::Fiber,
+    _fiber_id: Option<program::FiberId>,
     _declaration: &program::Binding,
     arguments: &[Word],
     _result: &mut [Word],
@@ -123,7 +129,7 @@ fn spawn(
     activation: &mut Activation<'_>,
     _memory: Memory<'_>,
     context: program::Context,
-    _fiber: program::Fiber,
+    _fiber_id: Option<program::FiberId>,
     _declaration: &program::Binding,
     arguments: &[Word],
     _result: &mut [Word],

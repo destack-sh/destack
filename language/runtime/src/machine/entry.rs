@@ -1,7 +1,8 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// User-facing runtime entrypoint name.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Entry {
     /// The fully qualified entry name.
     name: String,

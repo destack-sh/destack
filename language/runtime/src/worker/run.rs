@@ -39,7 +39,7 @@ pub(crate) enum WorkerRunOutcome {
 /// Machine outcome paired with the fiber that produced it.
 struct FiberOutcome {
     /// Fiber identity in the scheduler table.
-    fiber: program::Fiber,
+    fiber_id: program::FiberId,
     /// Physical execution owned while the fiber is mounted.
     execution: vm::Fiber,
     /// Outcome produced by the worker machine.
@@ -84,9 +84,9 @@ impl Worker {
         self.refresh_debugger(world);
 
         // execute the entrypoint on one fresh fiber
-        let fiber = self.event_loop.insert_fiber();
+        let fiber_id = self.event_loop.insert_fiber();
         let mut execution = self.machine.reserve_fiber()?;
-        execution.mount(fiber);
+        execution.mount(fiber_id);
         let result = self.drive_entry(
             world,
             collection,
@@ -95,12 +95,12 @@ impl Worker {
             constant_space,
             host,
             host_queue,
-            fiber,
+            fiber_id,
             execution,
             entry,
             args,
         );
-        let retired = self.event_loop.retire_fiber(fiber);
+        let retired = self.event_loop.retire_fiber(fiber_id);
         let value = result?;
         retired?;
 
@@ -118,7 +118,7 @@ impl Worker {
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
         mut execution: vm::Fiber,
         entry: &Entry,
         args: &[program::Value],
@@ -137,7 +137,7 @@ impl Worker {
             host_queue,
             world,
             RunnableScope::empty(),
-            Some(fiber),
+            Some(fiber_id),
             &mut self.event_loop,
             self.handshake.as_ref(),
         );
@@ -221,7 +221,7 @@ impl Worker {
                         host_queue,
                         world,
                         RunnableScope::empty(),
-                        Some(fiber),
+                        Some(fiber_id),
                         &mut self.event_loop,
                         self.handshake.as_ref(),
                     );
@@ -282,8 +282,8 @@ impl Worker {
         )
     }
 
-    /// Continue this worker from a retained runtime stop point.
-    pub(crate) fn continue_stop(
+    /// Resume this Worker from its retained debugger stop.
+    pub(crate) fn resume(
         &mut self,
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
@@ -294,15 +294,12 @@ impl Worker {
         host_queue: &HostQueue,
     ) -> RuntimeResult<WorkerRunOutcome> {
         let Some(retained) = self.retained.take() else {
-            return Ok(WorkerRunOutcome::Idle);
+            return Err(RuntimeError::worker_not_stopped(self.id.0).boxed());
         };
         let Some(reason) = retained.reason else {
             self.retained = Some(retained);
 
-            return Err(RuntimeError::Internal {
-                message: "continue requires a debugger-stopped runnable".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::worker_not_stopped(self.id.0).boxed());
         };
 
         let outcome = self.execute_retained_runnable(
@@ -563,7 +560,7 @@ impl Worker {
         let retained = self.retained.take();
         self.machine.clear();
         if let Some(retained) = retained {
-            self.event_loop.retire_fiber(retained.fiber)?;
+            self.event_loop.retire_fiber(retained.fiber_id)?;
         }
 
         Ok(())
@@ -1036,7 +1033,10 @@ impl Worker {
         stop_reason: Option<program::StopReason>,
     ) -> RuntimeResult<WorkerRunOutcome> {
         let RetainedRunnable {
-            id, scope, fiber, ..
+            id,
+            scope,
+            fiber_id,
+            ..
         } = retained;
         let outcome = self.continue_runnable(
             world,
@@ -1046,7 +1046,7 @@ impl Worker {
             host,
             host_queue,
             scope,
-            fiber,
+            fiber_id,
             stop_reason,
         )?;
 
@@ -1061,31 +1061,31 @@ impl Worker {
         outcome: FiberOutcome,
     ) -> RuntimeResult<WorkerRunOutcome> {
         let FiberOutcome {
-            fiber,
+            fiber_id,
             execution,
             outcome,
         } = outcome;
 
         match outcome {
             Outcome::Completed { value } => {
-                self.event_loop.retire_fiber(fiber)?;
+                self.event_loop.retire_fiber(fiber_id)?;
                 self.event_loop.release(value);
 
                 self.runnable_progress(scope)
             }
             Outcome::Cancelled => {
-                self.event_loop.retire_fiber(fiber)?;
+                self.event_loop.retire_fiber(fiber_id)?;
 
                 self.runnable_progress(scope)
             }
             Outcome::Parked => {
-                self.event_loop.park_fiber(fiber, execution)?;
+                self.event_loop.park_fiber(fiber_id, execution)?;
 
                 self.runnable_progress(scope)
             }
             Outcome::Stopped { reason } => {
                 self.machine.retain_stopped(execution);
-                self.retained = Some(RetainedRunnable::new(id, scope, fiber, Some(reason)));
+                self.retained = Some(RetainedRunnable::new(id, scope, fiber_id, Some(reason)));
 
                 Ok(WorkerRunOutcome::Stopped { reason })
             }
@@ -1098,8 +1098,16 @@ impl Worker {
 
         // park every suffix before surfacing the first failure
         for suffix in execution.take_detached() {
-            let fiber = suffix.current();
-            if let Err(error) = self.event_loop.park_fiber(fiber, suffix) {
+            let Some(fiber_id) = suffix.fiber_id() else {
+                let error = RuntimeError::Internal {
+                    message: "detached execution has no logical fiber".to_string(),
+                }
+                .boxed();
+                failure.get_or_insert(error);
+
+                continue;
+            };
+            if let Err(error) = self.event_loop.park_fiber(fiber_id, suffix) {
                 failure.get_or_insert(error);
             }
         }
@@ -1134,23 +1142,23 @@ impl Worker {
         self.refresh_debugger(world);
 
         // mount one fiber and its physical execution for the invocation
-        let (fiber, mut execution) = match &invocation {
+        let (fiber_id, mut execution) = match &invocation {
             Invocation::Function { .. } => {
-                let fiber = self.event_loop.insert_fiber();
+                let fiber_id = self.event_loop.insert_fiber();
                 let mut execution = match self.machine.reserve_fiber() {
                     Ok(execution) => execution,
                     Err(error) => {
-                        self.event_loop.retire_fiber(fiber)?;
+                        self.event_loop.retire_fiber(fiber_id)?;
 
                         return Err(error);
                     }
                 };
-                execution.mount(fiber);
+                execution.mount(fiber_id);
 
-                (fiber, execution)
+                (fiber_id, execution)
             }
-            Invocation::Wake { fiber, .. } => {
-                let execution = match self.event_loop.resume_fiber(*fiber) {
+            Invocation::Wake { fiber_id, .. } => {
+                let execution = match self.event_loop.resume_fiber(*fiber_id) {
                     Ok(execution) => execution,
                     Err(error) => {
                         if let Invocation::Wake { value, .. } = invocation {
@@ -1161,7 +1169,7 @@ impl Worker {
                     }
                 };
 
-                (*fiber, execution)
+                (*fiber_id, execution)
             }
         };
         let mut context = invocation.context().unwrap_or_else(|| execution.context());
@@ -1179,7 +1187,7 @@ impl Worker {
             host_queue,
             world,
             scope,
-            Some(fiber),
+            Some(fiber_id),
             &mut self.event_loop,
             self.handshake.as_ref(),
         );
@@ -1228,7 +1236,7 @@ impl Worker {
         let outcome = match outcome {
             Ok(outcome) => outcome,
             Err(error) => {
-                self.event_loop.retire_fiber(fiber)?;
+                self.event_loop.retire_fiber(fiber_id)?;
 
                 return Err(error);
             }
@@ -1236,7 +1244,7 @@ impl Worker {
         parked?;
 
         Ok(FiberOutcome {
-            fiber,
+            fiber_id,
             execution,
             outcome,
         })
@@ -1253,7 +1261,7 @@ impl Worker {
         host: &dyn Host,
         host_queue: &HostQueue,
         scope: RunnableScope,
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
         stop_reason: Option<program::StopReason>,
     ) -> RuntimeResult<FiberOutcome> {
         self.refresh_debugger(world);
@@ -1278,7 +1286,7 @@ impl Worker {
             host_queue,
             world,
             scope,
-            Some(fiber),
+            Some(fiber_id),
             &mut self.event_loop,
             self.handshake.as_ref(),
         );
@@ -1311,7 +1319,7 @@ impl Worker {
         let outcome = match outcome {
             Ok(outcome) => outcome,
             Err(error) => {
-                self.event_loop.retire_fiber(fiber)?;
+                self.event_loop.retire_fiber(fiber_id)?;
 
                 return Err(error);
             }
@@ -1319,7 +1327,7 @@ impl Worker {
         parked?;
 
         Ok(FiberOutcome {
-            fiber,
+            fiber_id,
             execution,
             outcome,
         })

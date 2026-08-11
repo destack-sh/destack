@@ -30,15 +30,11 @@ pub trait Runtime {
     }
 
     /// Observe one selected Program execution event.
-    fn observe(
-        &mut self,
-        _fiber_id: Option<FiberId>,
-        _event: Event,
-    ) -> Result<(), Self::Error> {
+    fn observe(&mut self, _fiber_id: Option<FiberId>, _event: Event) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    /// Call one linked runtime binding on one logical fiber.
+    /// Call one linked runtime binding during Program execution.
     fn call_binding(
         &mut self,
         memory: Memory<'_>,

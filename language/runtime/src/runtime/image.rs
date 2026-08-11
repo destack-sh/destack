@@ -9,6 +9,7 @@ use destack_program as program;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use serde::{Deserialize, Serialize};
 
+use crate::binding::ReplayPayload;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::heap::{SharedCollectionState, WorldCollector};
 use crate::machine::{Engine, EngineImage};
@@ -19,7 +20,7 @@ use crate::world::{Entity, RestoreContext, RuntimeId, WorldState};
 /// One captured runtime image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuntimeImage {
-    /// Runtime launch environment.
+    /// Runtime environment.
     pub environment: Arc<Environment>,
     /// The captured runtime options.
     pub options: Arc<RuntimeOptions>,
@@ -150,6 +151,7 @@ impl Runtime {
         &mut self,
         memory: Arc<MemoryMap>,
         execution_mode: ExecutionMode,
+        replay_payload: ReplayPayload,
         collector: Arc<WorldCollector>,
     ) -> RuntimeResult<Option<Self>> {
         let shared_heap = Arc::new(
@@ -168,6 +170,7 @@ impl Runtime {
             let shared_mark_worker = shared_heap.register_mark_worker();
             let Some(worker) = worker.try_fork(
                 execution_mode,
+                replay_payload,
                 &shared_heap,
                 &allocation_plans,
                 shared_mark_worker,

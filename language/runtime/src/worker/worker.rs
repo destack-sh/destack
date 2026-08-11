@@ -7,9 +7,10 @@ use destack_heap as heap;
 use destack_memory::MemoryRange;
 use destack_program as program;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::binding::{BindingAccess, BindingTable};
+use crate::binding::{BindingAccess, BindingTable, ReplayPayload};
 use crate::diagnostic::{DiagnosticImage, DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::resource::ResourceImage;
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
@@ -76,7 +77,9 @@ pub struct Worker {
 }
 
 /// Stable identifier for one world-managed worker.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
 pub struct WorkerId(pub u64);
 
 /// Worker creation options.
@@ -163,7 +166,8 @@ impl Worker {
         let resources = ResourceTable::new(worker_id);
 
         // binding access
-        let binding_access = BindingAccess::new(world.trace.mode(), options.trace.payload);
+        let replay_payload = world.trace.store().header().replay_payload;
+        let binding_access = BindingAccess::new(world.trace.mode(), replay_payload);
         let diagnostics = Arc::new(DiagnosticStore::from_options(&options.diagnostic));
 
         // execution storage
@@ -220,7 +224,7 @@ impl Worker {
         self.environment.as_ref()
     }
 
-    /// Return immutable launch arguments exposed to host bindings.
+    /// Return immutable process arguments exposed to host bindings.
     pub fn arguments(&self) -> &[String] {
         self.environment.args.as_slice()
     }
@@ -420,6 +424,7 @@ impl Worker {
     pub(crate) fn try_fork(
         &mut self,
         execution_mode: ExecutionMode,
+        replay_payload: ReplayPayload,
         shared_heap: &Arc<heap::SharedHeap>,
         allocation_plans: &Arc<[Option<heap::AllocationPlan>]>,
         shared_mark_worker: heap::SharedMarkWorker,
@@ -437,7 +442,7 @@ impl Worker {
         };
 
         // worker execution state over the already-forked world memory
-        let binding_access = BindingAccess::new(execution_mode, self.options.trace.payload);
+        let binding_access = BindingAccess::new(execution_mode, replay_payload);
         let trace_view = self.program.trace_view();
         let heap = self.heap.fork(shared_heap.memory().clone(), trace_view)?;
         let local_static = self.local_static.fork(shared_heap.memory().clone());
@@ -499,7 +504,8 @@ impl Worker {
         let resources = ResourceTable::new(worker_id);
 
         // binding access
-        let binding_access = BindingAccess::new(world.trace.mode(), options.trace.payload);
+        let replay_payload = world.trace.store().header().replay_payload;
+        let binding_access = BindingAccess::new(world.trace.mode(), replay_payload);
 
         // diagnostics and event loop
         let diagnostics = Arc::new(DiagnosticStore::from_options(&options.diagnostic));

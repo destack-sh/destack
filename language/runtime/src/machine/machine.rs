@@ -4,6 +4,7 @@ use std::sync::Arc;
 use destack_heap::{DropReference, GcDrop, HeapResult, RootSlot};
 use destack_memory::MemoryMap;
 use destack_program as program;
+use destack_program::Runtime;
 use destack_vm as vm;
 use program::{Outcome, Value};
 
@@ -339,7 +340,8 @@ impl Machine {
             .target(function)
             .ok_or_else(|| Self::entry_unavailable(format!("function {}", function.index())))?;
         let is_observed = stop_points.is_some_and(|points| !points.is_empty())
-            || watch_points.is_some_and(|points| !points.is_empty());
+            || watch_points.is_some_and(|points| !points.is_empty())
+            || !activation.runtime.events().is_empty();
 
         // execute observed native entries through their canonical bytecode form
         if target == Target::Native && is_observed {

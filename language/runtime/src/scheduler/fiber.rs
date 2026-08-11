@@ -45,7 +45,7 @@ pub(crate) enum FiberState {
 
 impl FiberTable {
     /// Insert one running fiber and return its identity.
-    pub(crate) fn insert(&mut self) -> program::Fiber {
+    pub(crate) fn insert(&mut self) -> program::FiberId {
         let index = if let Some(index) = self.vacant.pop() {
             index
         } else {
@@ -61,7 +61,7 @@ impl FiberTable {
         slot.state = Some(FiberState::Running { pending: None });
         self.len += 1;
 
-        program::Fiber::new(index, slot.generation)
+        program::FiberId::new(index, slot.generation)
     }
 
     /// Park one running fiber with its retained execution.
@@ -70,10 +70,10 @@ impl FiberTable {
     /// the fiber immediately; the returned value must queue its wake runnable.
     pub(crate) fn park(
         &mut self,
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
         execution: vm::Fiber,
     ) -> RuntimeResult<Option<program::Value>> {
-        let slot = self.slot_mut(fiber)?;
+        let slot = self.slot_mut(fiber_id)?;
         match slot.state.take() {
             Some(FiberState::Running { pending: None }) => {
                 slot.state = Some(FiberState::Parked(execution));
@@ -91,7 +91,7 @@ impl FiberTable {
                 slot.state = state;
 
                 Err(Box::<RuntimeError>::from(
-                    program::Error::InvalidFiberState { fiber },
+                    program::Error::InvalidFiberState { fiber_id },
                 ))
             }
         }
@@ -100,13 +100,13 @@ impl FiberTable {
     /// Take one wake buffered before the running fiber parked.
     pub(crate) fn take_pending(
         &mut self,
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
     ) -> RuntimeResult<Option<program::Value>> {
-        let slot = self.slot_mut(fiber)?;
+        let slot = self.slot_mut(fiber_id)?;
         match &mut slot.state {
             Some(FiberState::Running { pending }) => Ok(pending.take()),
             _ => Err(Box::<RuntimeError>::from(
-                program::Error::InvalidFiberState { fiber },
+                program::Error::InvalidFiberState { fiber_id },
             )),
         }
     }
@@ -114,37 +114,37 @@ impl FiberTable {
     /// Deliver one wake, returning whether a wake runnable must be queued.
     pub(crate) fn wake(
         &mut self,
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
         value: program::Value,
     ) -> RuntimeResult<Option<program::Value>> {
-        let slot = self.slot_mut(fiber)?;
-        match &mut slot.state {
+        let slot = self.slot_mut(fiber_id)?;
+        match slot.state.take() {
             // buffer wakes that arrive before the fiber parks
-            Some(FiberState::Running {
-                pending: pending @ None,
-            }) => {
-                *pending = Some(value);
+            Some(FiberState::Running { pending: None }) => {
+                slot.state = Some(FiberState::Running {
+                    pending: Some(value),
+                });
 
                 Ok(None)
             }
-            Some(FiberState::Parked(_)) => {
-                let state = slot.state.take();
-                let Some(FiberState::Parked(execution)) = state else {
-                    unreachable!("parked state matched above");
-                };
+            Some(FiberState::Parked(execution)) => {
                 slot.state = Some(FiberState::Ready(execution));
 
                 Ok(Some(value))
             }
-            _ => Err(Box::<RuntimeError>::from(
-                program::Error::InvalidFiberState { fiber },
-            )),
+            state => {
+                slot.state = state;
+
+                Err(Box::<RuntimeError>::from(
+                    program::Error::InvalidFiberState { fiber_id },
+                ))
+            }
         }
     }
 
     /// Take one ready fiber's execution for resumption.
-    pub(crate) fn resume(&mut self, fiber: program::Fiber) -> RuntimeResult<vm::Fiber> {
-        let slot = self.slot_mut(fiber)?;
+    pub(crate) fn resume(&mut self, fiber_id: program::FiberId) -> RuntimeResult<vm::Fiber> {
+        let slot = self.slot_mut(fiber_id)?;
         match slot.state.take() {
             Some(FiberState::Ready(execution)) => {
                 slot.state = Some(FiberState::Running { pending: None });
@@ -155,7 +155,7 @@ impl FiberTable {
                 slot.state = state;
 
                 Err(Box::<RuntimeError>::from(
-                    program::Error::InvalidFiberState { fiber },
+                    program::Error::InvalidFiberState { fiber_id },
                 ))
             }
         }
@@ -164,12 +164,12 @@ impl FiberTable {
     /// Remove one completed fiber, returning an undelivered buffered wake.
     pub(crate) fn remove(
         &mut self,
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
     ) -> RuntimeResult<Option<program::Value>> {
-        let slot = self.slot_mut(fiber)?;
+        let slot = self.slot_mut(fiber_id)?;
         let Some(state) = slot.state.take() else {
             return Err(Box::<RuntimeError>::from(program::Error::UndefinedFiber {
-                fiber,
+                fiber_id,
             }));
         };
 
@@ -180,12 +180,12 @@ impl FiberTable {
                 slot.state = Some(state);
 
                 return Err(Box::<RuntimeError>::from(
-                    program::Error::InvalidFiberState { fiber },
+                    program::Error::InvalidFiberState { fiber_id },
                 ));
             }
         };
         slot.generation = slot.generation.wrapping_add(1).max(1);
-        self.vacant.push(fiber.index());
+        self.vacant.push(fiber_id.index());
         self.len -= 1;
 
         Ok(pending)
@@ -285,12 +285,12 @@ impl FiberTable {
     }
 
     /// Return one live slot mutably.
-    fn slot_mut(&mut self, fiber: program::Fiber) -> RuntimeResult<&mut FiberSlot> {
-        let slot = self.slots.get_mut(fiber.index() as usize);
+    fn slot_mut(&mut self, fiber_id: program::FiberId) -> RuntimeResult<&mut FiberSlot> {
+        let slot = self.slots.get_mut(fiber_id.index() as usize);
         let slot =
-            slot.filter(|slot| slot.generation == fiber.generation() && slot.state.is_some());
+            slot.filter(|slot| slot.generation == fiber_id.generation() && slot.state.is_some());
 
-        slot.ok_or_else(|| Box::<RuntimeError>::from(program::Error::UndefinedFiber { fiber }))
+        slot.ok_or_else(|| Box::<RuntimeError>::from(program::Error::UndefinedFiber { fiber_id }))
     }
 }
 
@@ -357,13 +357,13 @@ impl FiberTableImage {
     }
 
     /// Iterate every captured parked or ready fiber execution.
-    pub(crate) fn executions(&self) -> impl Iterator<Item = (program::Fiber, &vm::FiberImage)> {
+    pub(crate) fn executions(&self) -> impl Iterator<Item = (program::FiberId, &vm::FiberImage)> {
         self.slots
             .iter()
             .enumerate()
             .filter_map(|(index, slot)| match &slot.state {
                 Some(FiberStateImage::Parked(image) | FiberStateImage::Ready(image)) => {
-                    Some((program::Fiber::new(index as u32, slot.generation), image))
+                    Some((program::FiberId::new(index as u32, slot.generation), image))
                 }
                 _ => None,
             })

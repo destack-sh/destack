@@ -190,6 +190,11 @@ pub enum RuntimeFailure {
     HostTimeAdvance,
     /// Execution stopped outside a stepping or debugging entrypoint.
     ExecutionStopped,
+    /// One worker has no debugger-stopped runnable to resume.
+    WorkerNotStopped {
+        /// Worker that was not stopped.
+        worker_id: u64,
+    },
     /// Coroutine suspension escaped its language-level owner.
     SuspensionEscaped,
     /// Execution was terminated by a worker handshake.
@@ -418,6 +423,7 @@ impl RuntimeFailure {
             Self::ExecutionStopped => 147,
             Self::SuspensionEscaped => 148,
             Self::Terminated => 150,
+            Self::WorkerNotStopped { .. } => 151,
         }
     }
 
@@ -438,6 +444,9 @@ impl RuntimeFailure {
                 "cannot advance virtual time while world uses host time".to_string()
             }
             Self::ExecutionStopped => "execution stopped outside a stepping entrypoint".to_string(),
+            Self::WorkerNotStopped { worker_id } => {
+                format!("worker {worker_id} has no debugger stop to resume")
+            }
             Self::SuspensionEscaped => {
                 "coroutine suspension escaped its language-level owner".to_string()
             }
@@ -764,6 +773,13 @@ impl RuntimeError {
     pub fn execution_stopped() -> Self {
         Self::Runtime {
             reason: RuntimeFailure::ExecutionStopped,
+        }
+    }
+
+    /// Return a worker-not-stopped error.
+    pub fn worker_not_stopped(worker_id: u64) -> Self {
+        Self::Runtime {
+            reason: RuntimeFailure::WorkerNotStopped { worker_id },
         }
     }
 

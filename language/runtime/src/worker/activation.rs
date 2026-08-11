@@ -44,8 +44,8 @@ pub struct Activation<'a> {
     world: &'a mut WorldState,
     /// Currently running task or microtask.
     scope: RunnableScope,
-    /// Fiber mounted by the current invocation.
-    fiber: Option<program::Fiber>,
+    /// Fiber identity mounted by the current invocation.
+    fiber_id: Option<program::FiberId>,
     /// Worker event loop receiving fiber scheduling operations.
     event_loop: &'a mut EventLoop,
     /// Process-local worker execution handshake.
@@ -71,37 +71,54 @@ impl program::Runtime for Activation<'_> {
         Ok(program::Poll::Pause)
     }
 
+    /// Return the Program event categories probed for this Worker.
+    fn events(&self) -> program::EventSet {
+        self.world
+            .debugger
+            .probe_events(self.runtime_id, self.worker_id)
+    }
+
+    /// Process one instrumentable Program execution event.
+    fn observe(
+        &mut self,
+        fiber_id: Option<program::FiberId>,
+        event: program::Event,
+    ) -> RuntimeResult<()> {
+        self.world
+            .probe(self.runtime_id, self.worker_id, fiber_id, event)
+    }
+
     /// Call one linked runtime binding.
     fn call_binding(
         &mut self,
         memory: program::Memory<'_>,
         context: program::Context,
-        fiber: program::Fiber,
+        fiber_id: Option<program::FiberId>,
         binding: &program::Binding,
         arguments: &[program::Word],
         result: &mut [program::Word],
     ) -> RuntimeResult<()> {
         let table = self.binding_table;
 
-        table.call(binding, self, memory, context, fiber, arguments, result)
+        table.call(binding, self, memory, context, fiber_id, arguments, result)
     }
 
     /// Park one logical fiber unless a wake already settled.
-    fn park(&mut self, fiber: program::Fiber) -> RuntimeResult<program::Park> {
-        match self.event_loop.take_pending_wake(fiber)? {
+    fn park(&mut self, fiber_id: program::FiberId) -> RuntimeResult<program::Park> {
+        match self.event_loop.take_pending_wake(fiber_id)? {
             Some(value) => Ok(program::Park::Ready(value)),
             None => Ok(program::Park::Parked),
         }
     }
 
     /// Allocate one detached fiber identity at a task boundary.
-    fn detach(&mut self) -> RuntimeResult<program::Fiber> {
+    fn detach(&mut self) -> RuntimeResult<program::FiberId> {
         Ok(self.event_loop.insert_fiber())
     }
 
-    /// Retire one detached fiber that completed without parking.
-    fn retire(&mut self, fiber: program::Fiber) -> RuntimeResult<()> {
-        self.event_loop.retire_fiber(fiber)
+    /// Retire one running detached fiber.
+    fn retire(&mut self, fiber_id: program::FiberId) -> RuntimeResult<()> {
+        self.event_loop.retire_fiber(fiber_id)
     }
 }
 
@@ -121,7 +138,7 @@ impl<'a> Activation<'a> {
         host_queue: &'a HostQueue,
         world: &'a mut WorldState,
         scope: RunnableScope,
-        fiber: Option<program::Fiber>,
+        fiber_id: Option<program::FiberId>,
         event_loop: &'a mut EventLoop,
         handshake: &'a Handshake,
     ) -> Self {
@@ -138,7 +155,7 @@ impl<'a> Activation<'a> {
             host_queue,
             world,
             scope,
-            fiber,
+            fiber_id,
             event_loop,
             handshake,
             is_process_main: host.is_process_main_context(),
@@ -192,7 +209,7 @@ impl<'a> Activation<'a> {
         );
     }
 
-    /// Borrow immutable launch arguments.
+    /// Borrow immutable process arguments.
     #[inline]
     pub fn arguments(&self) -> &[String] {
         self.environment.args.as_slice()
@@ -219,18 +236,18 @@ impl<'a> Activation<'a> {
         self.scope
     }
 
-    /// Return the fiber mounted by the current invocation.
-    pub const fn current_fiber(&self) -> Option<program::Fiber> {
-        self.fiber
+    /// Return the fiber identity mounted by the current invocation.
+    pub const fn fiber_id(&self) -> Option<program::FiberId> {
+        self.fiber_id
     }
 
     /// Deliver one wake, buffering it until the target fiber parks.
     pub fn wake_fiber(
         &mut self,
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
         value: program::Value,
     ) -> RuntimeResult<()> {
-        self.event_loop.wake_fiber(fiber, value)
+        self.event_loop.wake_fiber(fiber_id, value)
     }
 
     /// Queue one callback to run before the next task.
