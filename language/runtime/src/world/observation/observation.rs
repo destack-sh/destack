@@ -219,6 +219,8 @@ pub enum Observation {
         runtime_id: RuntimeId,
         /// Worker that reached the stop.
         worker_id: WorkerId,
+        /// Fiber that reached the stop.
+        fiber_id: program::FiberId,
         /// Stop reason.
         reason: program::StopReason,
     },
@@ -339,11 +341,6 @@ impl Observation {
                 worker_id,
                 ..
             }
-            | Self::StopReached {
-                runtime_id,
-                worker_id,
-                ..
-            }
             | Self::LocalGcStarted {
                 runtime_id,
                 worker_id,
@@ -369,6 +366,12 @@ impl Observation {
                 worker_id: Some(worker_id),
                 ..
             } => ObservationScope::worker(Some(*runtime_id), *worker_id),
+            Self::StopReached {
+                runtime_id,
+                worker_id,
+                fiber_id,
+                ..
+            } => ObservationScope::fiber(*runtime_id, *worker_id, *fiber_id),
             Self::ProbeHit {
                 runtime_id,
                 worker_id,
@@ -529,6 +532,7 @@ impl Observation {
     pub const fn fiber_id(&self) -> Option<program::FiberId> {
         match self {
             Self::ProbeHit { fiber_id, .. } => *fiber_id,
+            Self::StopReached { fiber_id, .. } => Some(*fiber_id),
             _ => None,
         }
     }

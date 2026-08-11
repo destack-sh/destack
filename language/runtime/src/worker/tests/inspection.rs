@@ -30,11 +30,13 @@ entry(v0: int32):
         .run_task()
         .expect("inspection should retain the active task");
     let WorkerRunOutcome::Stopped {
+        fiber_id,
         reason: program::StopReason::Pause { point },
     } = stopped
     else {
         panic!("inspection should stop at the runtime poll");
     };
+    assert_eq!(fiber_id, program::FiberId::new(0, 1));
     assert_eq!(point.operation, 1);
 
     // resume the same task without selecting another runnable
@@ -82,11 +84,13 @@ entry(v0: int32):
         .run_task()
         .expect("native inspection should retain the active task");
     let WorkerRunOutcome::Stopped {
+        fiber_id,
         reason: program::StopReason::Pause { point },
     } = stopped
     else {
         panic!("native inspection should stop at the runtime poll");
     };
+    assert_eq!(fiber_id, program::FiberId::new(0, 1));
     assert_eq!(point.operation, 1);
 
     // restore the native frame through bytecode and finish the same task
@@ -131,11 +135,13 @@ entry(v0: int32):
         .run_task()
         .expect("native breakpoint should retain the active task");
     let WorkerRunOutcome::Stopped {
+        fiber_id,
         reason: program::StopReason::Instruction { point },
     } = stopped
     else {
         panic!("native breakpoint should stop at its instruction");
     };
+    assert_eq!(fiber_id, program::FiberId::new(0, 1));
     assert_eq!(point.operation, 0);
 
     // resume from the following operation without executing the breakpoint again

@@ -26,11 +26,15 @@ pub(crate) enum WorkerRunOutcome {
     Idle,
     /// Execution stopped at one runtime stop point.
     Stopped {
+        /// Fiber that stopped.
+        fiber_id: program::FiberId,
         /// Reason execution stopped.
         reason: program::StopReason,
     },
     /// Execution is paused at one previously reached stop point.
     Paused {
+        /// Fiber retained at the stop.
+        fiber_id: program::FiberId,
         /// Reason execution stopped.
         reason: program::StopReason,
     },
@@ -365,9 +369,10 @@ impl Worker {
             // always resume retained execution before selecting another runnable
             let outcome = if let Some(retained) = self.retained.take() {
                 if let Some(reason) = retained.reason {
+                    let fiber_id = retained.fiber_id;
                     self.retained = Some(retained);
 
-                    return Ok(WorkerRunOutcome::Paused { reason });
+                    return Ok(WorkerRunOutcome::Paused { fiber_id, reason });
                 }
 
                 self.execute_retained_runnable(
@@ -441,7 +446,10 @@ impl Worker {
             })?;
             retained.reason = reason;
             if let Some(reason) = reason {
-                return Ok(WorkerRunOutcome::Stopped { reason });
+                return Ok(WorkerRunOutcome::Stopped {
+                    fiber_id: retained.fiber_id,
+                    reason,
+                });
             }
         }
     }
@@ -1087,7 +1095,7 @@ impl Worker {
                 self.machine.retain_stopped(execution);
                 self.retained = Some(RetainedRunnable::new(id, scope, fiber_id, Some(reason)));
 
-                Ok(WorkerRunOutcome::Stopped { reason })
+                Ok(WorkerRunOutcome::Stopped { fiber_id, reason })
             }
         }
     }

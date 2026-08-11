@@ -55,6 +55,8 @@ pub struct Stop {
     pub runtime_id: RuntimeId,
     /// Worker that stopped.
     pub worker_id: WorkerId,
+    /// Fiber that stopped.
+    pub fiber_id: program::FiberId,
     /// Reason execution stopped.
     pub reason: program::StopReason,
 }
@@ -634,27 +636,38 @@ impl WorldState {
                 Ok(RunOutcome::Progressed)
             }
             RuntimeRunOutcome::Idle => Ok(RunOutcome::Idle),
-            RuntimeRunOutcome::Stopped { worker_id, reason } => {
+            RuntimeRunOutcome::Stopped {
+                worker_id,
+                fiber_id,
+                reason,
+            } => {
                 let moment = self.advance_moment()?;
                 let stop = Stop {
                     moment,
                     runtime_id,
                     worker_id,
+                    fiber_id,
                     reason,
                 };
                 self.observe(Observation::StopReached {
                     runtime_id,
                     worker_id,
+                    fiber_id,
                     reason,
                 })?;
 
                 Ok(RunOutcome::Stopped { stop })
             }
-            RuntimeRunOutcome::Paused { worker_id, reason } => {
+            RuntimeRunOutcome::Paused {
+                worker_id,
+                fiber_id,
+                reason,
+            } => {
                 let stop = Stop {
                     moment: self.moment(),
                     runtime_id,
                     worker_id,
+                    fiber_id,
                     reason,
                 };
 

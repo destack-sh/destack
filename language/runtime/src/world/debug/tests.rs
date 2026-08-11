@@ -168,6 +168,7 @@ entry(v0: int32):
         Observation::StopReached {
             runtime_id,
             worker_id,
+            fiber_id: stop.fiber_id,
             reason: program::StopReason::Breakpoint {
                 breakpoint_id,
                 point,

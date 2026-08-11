@@ -27,6 +27,8 @@ pub(crate) enum RuntimeRunOutcome {
     Stopped {
         /// Worker that stopped.
         worker_id: WorkerId,
+        /// Fiber that stopped.
+        fiber_id: program::FiberId,
         /// Reason execution stopped.
         reason: program::StopReason,
     },
@@ -34,6 +36,8 @@ pub(crate) enum RuntimeRunOutcome {
     Paused {
         /// Worker that stopped.
         worker_id: WorkerId,
+        /// Fiber retained at the stop.
+        fiber_id: program::FiberId,
         /// Reason execution stopped.
         reason: program::StopReason,
     },
@@ -48,8 +52,16 @@ impl From<(WorkerId, WorkerRunOutcome)> for RuntimeRunOutcome {
                 progress,
             },
             WorkerRunOutcome::Idle => Self::Idle,
-            WorkerRunOutcome::Stopped { reason } => Self::Stopped { worker_id, reason },
-            WorkerRunOutcome::Paused { reason } => Self::Paused { worker_id, reason },
+            WorkerRunOutcome::Stopped { fiber_id, reason } => Self::Stopped {
+                worker_id,
+                fiber_id,
+                reason,
+            },
+            WorkerRunOutcome::Paused { fiber_id, reason } => Self::Paused {
+                worker_id,
+                fiber_id,
+                reason,
+            },
         }
     }
 }
