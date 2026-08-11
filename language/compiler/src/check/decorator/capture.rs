@@ -41,7 +41,7 @@ impl CheckState<'_> {
         let directive = self.decode_capture_directive(value)?;
         let capture = self
             .module_mut(module)
-            .captures
+            .pending_captures
             .iter_mut()
             .find(|capture| capture.symbol == function)
             .ok_or_else(|| CompilerError::Internal {

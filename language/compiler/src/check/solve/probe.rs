@@ -367,7 +367,7 @@ impl CheckState<'_> {
                     self.module_id,
                     ModuleProbeMark {
                         decisions: state.decisions.mark(),
-                        members: state.members.mark(),
+                        members: state.members_tail.mark(),
                         coercions: state.coercions.mark(),
                         diagnostics: state.diagnostics.len(),
                         warnings: state.warnings.len(),
@@ -446,7 +446,7 @@ impl CheckState<'_> {
         for (module, mark) in modules {
             if let Some(state) = self.module_maybe_mut(module) {
                 state.decisions.truncate_to(mark.decisions);
-                state.members.truncate_to(mark.members);
+                state.members_tail.truncate_to(mark.members);
                 state.coercions.truncate_to(mark.coercions);
                 state.diagnostics.truncate(mark.diagnostics);
                 state.warnings.truncate(mark.warnings);

@@ -41,7 +41,9 @@ impl CheckState<'_> {
         let (capture, flow) = self.flow.pop_function();
 
         // record the body's captures on its module
-        self.module_mut(self.module_id).captures.push(capture);
+        self.module_mut(self.module_id)
+            .pending_captures
+            .push(capture);
 
         flow
     }

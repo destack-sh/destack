@@ -42,7 +42,7 @@ impl CheckState<'_> {
         }
 
         // trust earlier-stage gate decisions from the table, never re-judge them
-        if let Some(gate) = self.module(self.module_id).statics_base.presence(decorated) {
+        if let Some(gate) = self.module(self.module_id).statics.presence(decorated) {
             return Ok(gate);
         }
 
@@ -79,7 +79,7 @@ impl CheckState<'_> {
     /// Commit one static gate decision.
     fn commit_static_gate(&mut self, decorated: dir::LocalNodeIdAny, gate: StaticPresence) {
         let module = self.module_mut(self.module_id);
-        module.statics.record_presence(decorated, gate);
+        module.statics_tail.record_presence(decorated, gate);
 
         // retain the decision for repeated decorator walks
         module.static_presence.insert(decorated, gate);

@@ -36,7 +36,7 @@ impl CheckState<'_> {
         };
         let previous = self
             .module(module)
-            .decorators
+            .decorators_tail
             .iter_applications()
             .map(|(_, application)| application)
             .find(|previous| {

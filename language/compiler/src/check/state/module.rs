@@ -48,39 +48,49 @@ pub(in crate::check) struct CheckModuleState {
     /// External modules visible from this module.
     pub(in crate::check) external_modules: FxIndexSet<ModuleId>,
 
-    // open checked state owned by this module
-    /// The committed base type table built once at load.
+    // committed bases built once at load
+    /// The committed base type table.
     pub(in crate::check) types: dir::TypeTable<'static>,
-    /// The committed base static table built once at load.
-    pub(in crate::check) statics_base: dir::StaticTable<'static>,
+    /// The committed base static table.
+    pub(in crate::check) statics: dir::StaticTable<'static>,
+    /// The committed definitions this pass shadows.
+    pub(in crate::check) definitions: Option<Arc<dir::DefinitionSegment>>,
+    /// The committed member rows this pass shadows.
+    pub(in crate::check) members: Option<Arc<dir::MemberSegment>>,
+
+    // open tails this pass writes over the committed bases
     /// Open inference types layered over the committed base.
     pub(in crate::check) types_tail: dir::TypeTail,
-    /// Checked declaration definitions.
-    pub(in crate::check) definitions: dir::DefinitionSegment,
+    /// The static terms this pass evaluated.
+    pub(in crate::check) statics_tail: dir::StaticSegment,
+    /// The definitions this pass declared or rewrote.
+    pub(in crate::check) definitions_tail: dir::DefinitionSegment,
+    /// The member subjects and bindings this pass selected.
+    pub(in crate::check) members_tail: dir::MemberSegment,
+    /// The generic templates and parameters this pass induced.
+    pub(in crate::check) generics_tail: dir::GenericSegment,
+    /// The decorators this pass checked.
+    pub(in crate::check) decorators_tail: dir::DecoratorSegment,
+
+    // pass-only segments with no committed base
     /// Auto-derived implementations.
     pub(in crate::check) auto: dir::AutoSegment,
-    /// Induced generic templates and parameters.
-    pub(in crate::check) generics: dir::GenericSegment,
-    /// Checked static values.
-    pub(in crate::check) statics: dir::StaticSegment,
     /// Checked node resolutions.
     pub(in crate::check) resolutions: dir::ResolutionSegment,
     /// Decisions inference made this pass.
     pub(in crate::check) decisions: dir::DecisionSegment,
-    /// Checked member availability.
-    pub(in crate::check) members: dir::MemberSegment,
     /// Checked implicit coercions.
     pub(in crate::check) coercions: dir::CoercionSegment,
     /// Checked captures.
-    pub(in crate::check) capture_segment: dir::CaptureSegment,
-    /// Checked decorators.
-    pub(in crate::check) decorators: dir::DecoratorSegment,
-    /// Checked diagnostic controls.
+    pub(in crate::check) captures: dir::CaptureSegment,
+    /// Checked diagnostic controls, an owned output seeded from elaborated.
     pub(in crate::check) controls: DiagnosticControlTable,
+
+    // walk state drained during output
     /// Inferred static symbol values written to statics during output.
     pub(in crate::check) static_values: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Captures discovered while walking this module.
-    pub(in crate::check) captures: Vec<Capture>,
+    pub(in crate::check) pending_captures: Vec<Capture>,
     /// Durable flow states discovered while walking this module.
     pub(in crate::check) flows: Vec<FlowPoint>,
     /// Entry flow point for each walked source node occurrence.
@@ -118,7 +128,7 @@ impl CheckModuleState {
         elaborated: Option<Arc<DirElaborated>>,
     ) -> Self {
         // stack this check's overlays over the declared segments, else the expanded base
-        let (bindings, types, statics_base, types_tail, generics, statics, decorators) =
+        let (bindings, types, statics, types_tail, generics_tail, statics_tail, decorators_tail) =
             match &declared {
                 Some(declared) => (
                     match &elaborated {
@@ -167,24 +177,26 @@ impl CheckModuleState {
             };
         let bindings_tail = dir::BindingSegment::from_table(&bindings);
 
-        // adopt the elaborated definitions whole, they key by symbol
+        // shadow the committed definitions and member rows, which key by symbol and site
         let definitions = match (&elaborated, &declared) {
-            (Some(elaborated), _) => (*elaborated.definitions).clone(),
-            (None, Some(declared)) => (*declared.definitions).clone(),
-            (None, None) => dir::DefinitionSegment::new(module.id),
+            (Some(elaborated), _) => Some(elaborated.definitions.clone()),
+            (None, Some(declared)) => Some(declared.definitions.clone()),
+            (None, None) => None,
         };
+        let definitions_tail = dir::DefinitionSegment::new(module.id);
+        let members = match (&elaborated, &declared) {
+            (Some(elaborated), _) => Some(Arc::clone(&elaborated.members)),
+            (None, Some(declared)) => Some(Arc::clone(&declared.members)),
+            (None, None) => None,
+        };
+        let members_tail = dir::MemberSegment::new(module.id);
 
         // open the remaining segments and this module's diagnostic controls
         let auto = dir::AutoSegment::new(module.id);
         let resolutions = dir::ResolutionSegment::new(module.id);
         let decisions = dir::DecisionSegment::new(module.id);
-        let members = match (&elaborated, &declared) {
-            (Some(elaborated), _) => (*elaborated.members).clone(),
-            (None, Some(declared)) => (*declared.members).clone(),
-            (None, None) => dir::MemberSegment::new(module.id),
-        };
         let coercions = dir::CoercionSegment::new(module.id);
-        let capture_segment = dir::CaptureSegment::new(module.id);
+        let captures = dir::CaptureSegment::new(module.id);
         let controls = match &elaborated {
             Some(elaborated) => (*elaborated.controls).clone(),
             None => {
@@ -208,24 +220,26 @@ impl CheckModuleState {
             bindings,
             bindings_tail,
             types,
-            statics_base,
-            types_tail,
-            definitions,
-            auto,
-            generics,
             statics,
+            definitions,
+            members,
+            types_tail,
+            statics_tail,
+            definitions_tail,
+            members_tail,
+            generics_tail,
+            decorators_tail,
+            auto,
             resolutions,
             decisions,
-            members,
             coercions,
-            capture_segment,
-            decorators,
+            captures,
             controls,
             static_values: FxIndexMap::default(),
             static_presence: FxIndexMap::default(),
             absent_symbols: FxIndexSet::default(),
             external_modules: FxIndexSet::default(),
-            captures: Vec::new(),
+            pending_captures: Vec::new(),
             flows: Vec::new(),
             node_flows: FxIndexMap::default(),
             node_scopes: FxIndexMap::default(),
@@ -327,7 +341,11 @@ impl CheckModuleState {
 
     /// Return one local input static visible to check.
     pub(in crate::check) fn r#static(&self, static_id: dir::LocalStaticId) -> &dir::StaticTerm {
-        // read this pass's own terms, then the expanded and bound bases
+        // read this pass's own terms, then the committed and bound bases
+        if let Some(value) = self.statics_tail.get_static_maybe(static_id) {
+            return value;
+        }
+
         if let Some(value) = self.statics.get_static_maybe(static_id) {
             return value;
         }
@@ -342,6 +360,203 @@ impl CheckModuleState {
     /// Return whether one local symbol is an imported alias.
     pub(in crate::check) fn is_import_alias(&self, symbol: dir::LocalSymbolId) -> bool {
         self.resolved.imports.symbol_resolution(symbol).is_some()
+    }
+
+    /// Return one definition, reading the pass tail over the committed base.
+    pub(in crate::check) fn definition(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<&dir::Definition> {
+        // read this pass's own definitions first
+        if let Some(definition) = self.definitions_tail.definition(symbol) {
+            return Some(definition);
+        }
+
+        self.definitions
+            .as_ref()
+            .and_then(|base| base.definition(symbol))
+    }
+
+    /// Return one definition for rewriting, copying the committed base in once.
+    pub(in crate::check) fn definition_mut(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<&mut dir::Definition> {
+        // copy the committed definition into the pass tail on first write
+        if self.definitions_tail.definition(symbol).is_none() {
+            let base = self.definitions.as_ref()?;
+            let definition = base.definition(symbol)?.clone();
+            let source = base.definition_source_maybe(symbol)?;
+            self.definitions_tail
+                .insert_definition(symbol, source, definition);
+        }
+
+        self.definitions_tail.definition_mut(symbol)
+    }
+
+    /// Return one definition's source node through the segments.
+    pub(in crate::check) fn definition_source_maybe(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::GlobalNodeIdAny> {
+        // read this pass's own sources first
+        if let Some(source) = self.definitions_tail.definition_source_maybe(symbol) {
+            return Some(source);
+        }
+
+        self.definitions
+            .as_ref()
+            .and_then(|base| base.definition_source_maybe(symbol))
+    }
+
+    /// Iterate definitions with pass entries shadowing the committed base.
+    pub(in crate::check) fn iter_definitions(
+        &self,
+    ) -> impl Iterator<Item = (dir::GlobalSymbolId, &dir::Definition)> + '_ {
+        // drop the base entries this pass redefined
+        let shadowed = self
+            .definitions
+            .iter()
+            .flat_map(|base| base.iter_definitions())
+            .filter(|(symbol, _)| self.definitions_tail.definition(*symbol).is_none());
+
+        shadowed.chain(self.definitions_tail.iter_definitions())
+    }
+
+    /// Return the extension symbols targeting one symbol across the segments.
+    pub(in crate::check) fn target_extensions(
+        &self,
+        target: dir::GlobalSymbolId,
+    ) -> Vec<dir::GlobalSymbolId> {
+        // collect this pass's symbols, then the base symbols it has not seen
+        let mut symbols: Vec<_> = self.definitions_tail.target_extensions(target).to_vec();
+        for base in self.definitions.iter() {
+            for symbol in base.target_extensions(target) {
+                if !symbols.contains(symbol) {
+                    symbols.push(*symbol);
+                }
+            }
+        }
+
+        symbols
+    }
+
+    /// Return the blanket extension symbols across the segments.
+    pub(in crate::check) fn blanket_extensions(&self) -> Vec<dir::GlobalSymbolId> {
+        // collect this pass's symbols, then the base symbols it has not seen
+        let mut symbols: Vec<_> = self.definitions_tail.blanket_extensions().to_vec();
+        for base in self.definitions.iter() {
+            for symbol in base.blanket_extensions() {
+                if !symbols.contains(symbol) {
+                    symbols.push(*symbol);
+                }
+            }
+        }
+
+        symbols
+    }
+
+    /// Return the member subject selected at one site, reading the pass tail over the committed base.
+    pub(in crate::check) fn member_subject(
+        &self,
+        site: dir::MemberSite,
+    ) -> Option<dir::MemberSubject> {
+        self.members_tail
+            .subject(site)
+            .or_else(|| self.members.as_ref().and_then(|base| base.subject(site)))
+    }
+
+    /// Return the member bindings stored for one subject, reading the pass tail over the committed base.
+    pub(in crate::check) fn member_subject_bindings(
+        &self,
+        subject: &dir::MemberSubject,
+    ) -> Option<&[dir::MemberBinding]> {
+        if let Some(bindings) = self.members_tail.subject_bindings(subject) {
+            return Some(bindings);
+        }
+
+        self.members
+            .as_ref()
+            .and_then(|base| base.subject_bindings(subject))
+    }
+
+    /// Iterate member subjects with pass entries shadowing the committed base.
+    pub(in crate::check) fn iter_member_subjects(
+        &self,
+    ) -> impl Iterator<Item = (dir::MemberSite, dir::MemberSubject)> + '_ {
+        // drop the base entries this pass reselected
+        let shadowed = self
+            .members
+            .iter()
+            .flat_map(|base| base.iter_subjects())
+            .filter(|(site, _)| self.members_tail.subject(*site).is_none());
+
+        shadowed.chain(self.members_tail.iter_subjects())
+    }
+
+    /// Merge the committed base and the pass tail into one settled member segment.
+    pub(in crate::check) fn merged_members(&mut self) -> dir::MemberSegment {
+        // take this pass's tail out of the module state
+        let module = self.members_tail.module_id;
+        let tail = std::mem::replace(&mut self.members_tail, dir::MemberSegment::new(module));
+        let Some(base) = self.members.take() else {
+            return tail;
+        };
+
+        // carry unshadowed base rows beneath the pass entries
+        let mut merged = dir::MemberSegment::new(tail.module_id);
+        for (site, subject) in base.iter_subjects() {
+            if tail.subject(site).is_none() {
+                merged.record_subject(site, subject);
+            }
+        }
+        for (subject, bindings) in base.iter_bindings() {
+            if tail.subject_bindings(subject).is_none() {
+                merged.set_bindings(*subject, bindings.to_vec());
+            }
+        }
+
+        // layer the pass entries over them
+        for (site, subject) in tail.iter_subjects() {
+            merged.record_subject(site, subject);
+        }
+        for (subject, bindings) in tail.iter_bindings() {
+            merged.set_bindings(*subject, bindings.to_vec());
+        }
+
+        merged
+    }
+
+    /// Merge the committed base and the pass tail into one settled definition segment.
+    pub(in crate::check) fn merged_definitions(&mut self) -> dir::DefinitionSegment {
+        // take this pass's tail out of the module state
+        let module = self.definitions_tail.module_id;
+        let tail = std::mem::replace(
+            &mut self.definitions_tail,
+            dir::DefinitionSegment::new(module),
+        );
+        let Some(base) = self.definitions.take() else {
+            return tail;
+        };
+
+        // carry unshadowed base definitions beneath the pass entries
+        let mut merged = dir::DefinitionSegment::new(tail.module_id);
+        for (symbol, definition) in base.iter_definitions() {
+            if tail.definition(symbol).is_none()
+                && let Some(source) = base.definition_source_maybe(symbol)
+            {
+                merged.insert_definition(symbol, source, definition.clone());
+            }
+        }
+
+        // layer the pass entries over them
+        for (symbol, definition) in tail.iter_definitions() {
+            if let Some(source) = tail.definition_source_maybe(symbol) {
+                merged.insert_definition(symbol, source, definition.clone());
+            }
+        }
+
+        merged
     }
 }
 
@@ -413,8 +628,8 @@ impl CheckState<'_> {
         let view = module.view();
         let mut current = Some(node.local_id);
         while let Some(local) = current {
-            if module.statics.contains_absent_root(local)
-                || module.statics_base.contains_absent_root(local)
+            if module.statics_tail.contains_absent_root(local)
+                || module.statics.contains_absent_root(local)
             {
                 return true;
             }
@@ -517,8 +732,7 @@ impl CheckState<'_> {
             // solve a committed hole, or require re-derivations to agree
             if let dir::Type::Variable(variable) = self.ty(previous)? {
                 if self.infer.variable(variable)?.state.is_open() {
-                    // an open derivation equates as a bound until it
-                    //  closes: hole solutions are closed types
+                    // commit a closed derivation and equate an open one as a bound
                     if self.type_variables(ty)?.is_empty() {
                         self.commit_solution(variable, ty)?;
                     } else if let Some(origin) = self.node_origin_maybe(node) {
@@ -530,12 +744,11 @@ impl CheckState<'_> {
 
                     return Ok(());
                 }
-                if self.shallow_resolve(previous)? == self.shallow_resolve(ty)? {
+                if self.resolve_head(previous)? == self.resolve_head(ty)? {
                     return Ok(());
                 }
 
-                // a solved hole and its re-derivation agree through the
-                //  solver, once every operand variable settles
+                // equate a solved hole with its re-derivation through the solver
                 if let Some(origin) = self.node_origin_maybe(node) {
                     let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                     self.register_constraint(Constraint::r#type(
@@ -579,11 +792,7 @@ impl CheckState<'_> {
         Ok(ty)
     }
 
-    /// Return one source node's recorded flow site.
-    /// Enter one source node at the live cursor, recording its site.
-    ///
-    /// The single body traversal mints each node's site as it reaches
-    /// it; deferred work re-reads the recorded maps through node_site.
+    /// Enter one source node at the live cursor, recording its flow site.
     pub(in crate::check) fn visit_site(
         &mut self,
         node: dir::GlobalNodeIdAny,
@@ -609,6 +818,7 @@ impl CheckState<'_> {
         Ok(FlowSite { node, flow, scope })
     }
 
+    /// Return the recorded flow site of one visited node.
     pub(in crate::check) fn node_site(
         &self,
         node: dir::GlobalNodeIdAny,
@@ -793,8 +1003,7 @@ impl CheckState<'_> {
             return Some(ty);
         }
 
-        // read own declared-stage symbol types, a persisted type
-        //  that still carries open holes reads as absent
+        // read own declared-stage symbol types, treating open holes as absent
         if let Some(module) = self.module_maybe(symbol.module_id)
             && let Some(ty) = module.types.get_symbol_type_id(symbol)
             && !self.type_flags(ty).is_ok_and(|flags| flags.has_variable())
@@ -810,7 +1019,7 @@ impl CheckState<'_> {
         None
     }
 
-    /// Return one symbol's checked type, importing its module on demand.
+    /// Return one symbol's checked type, importing its module as needed.
     pub(in crate::check) fn symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -942,7 +1151,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::GlobalStaticId> {
         if let Some(module) = self.module_maybe(symbol.module_id) {
-            let table = module.statics_base.with_tail(&module.statics);
+            let table = module.statics.with_tail(&module.statics_tail);
 
             table.get_symbol_static_id(symbol)
         } else {
@@ -967,7 +1176,7 @@ impl CheckState<'_> {
 
         // read own settled terms through the static table stack
         if let Some(module) = self.module_maybe(symbol.module_id) {
-            let table = module.statics_base.with_tail(&module.statics);
+            let table = module.statics.with_tail(&module.statics_tail);
             let id = table.get_symbol_static_id(symbol)?;
             let term = table.get_static_maybe(id.local_id)?.clone();
 
@@ -1038,7 +1247,7 @@ impl CheckState<'_> {
             return external.bindings.clone();
         }
 
-        // a referenced module's declared artifact depends on its bound tables
+        // read a referenced module's bound tables for its declared artifact
         let bound = self
             .artifacts
             .read_content::<DirBound>((module, self.profile))
@@ -1111,7 +1320,7 @@ impl CheckState<'_> {
         // collect the module's declared nominal owners
         let module = self.module_id;
         let mut owners = Vec::new();
-        for (symbol, definition) in self.module(module).definitions.iter_definitions() {
+        for (symbol, definition) in self.module(module).iter_definitions() {
             let is_nominal = matches!(
                 definition,
                 dir::Definition::Struct(_)
@@ -1152,7 +1361,7 @@ impl CheckState<'_> {
                 };
                 let subject = dir::MemberSubject::new(canonical, canonical, space);
                 self.module_mut(module)
-                    .members
+                    .members_tail
                     .set_bindings(subject, bindings.to_vec());
             }
         }

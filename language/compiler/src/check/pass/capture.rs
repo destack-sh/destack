@@ -10,7 +10,7 @@ use crate::{CompilerError, CompilerResult};
 impl CheckState<'_> {
     /// Write captures into their DIR segment.
     pub(in crate::check) fn write_captures(&mut self, module: ModuleId) -> CompilerResult<()> {
-        let captures = take(&mut self.module_mut(module).captures);
+        let captures = take(&mut self.module_mut(module).pending_captures);
         if captures.is_empty() {
             return Ok(());
         }
@@ -55,7 +55,7 @@ impl CheckState<'_> {
             let capture = self.write_capture(module, capture, directive, &frames)?;
 
             self.module_mut(module)
-                .capture_segment
+                .captures
                 .set_capture(capture.0, capture.1);
         }
 
@@ -135,7 +135,7 @@ impl CheckState<'_> {
             fields,
         };
 
-        Ok(self.module_mut(module).capture_segment.push_frame(frame))
+        Ok(self.module_mut(module).captures.push_frame(frame))
     }
 
     /// Write one function capture.
@@ -198,7 +198,7 @@ impl CheckState<'_> {
         let this = match capture.receiver {
             Some(receiver) => {
                 let mode = self.capture_mode(module, directive.as_ref(), receiver.symbol)?;
-                let ty = self.shallow_resolve(receiver.receiver.ty)?;
+                let ty = self.resolve_head(receiver.receiver.ty)?;
 
                 Some(dir::CapturedReceiver {
                     symbol: receiver.symbol,
@@ -258,7 +258,7 @@ impl CheckState<'_> {
                 ),
             });
         };
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_head(ty)?;
 
         Ok(ty)
     }

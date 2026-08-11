@@ -61,7 +61,7 @@ impl CheckState<'_> {
         }
 
         // persist the decorator application and value
-        let value = self.module_mut(module).statics.push_static(value);
+        let value = self.module_mut(module).statics_tail.push_static(value);
         let application = dir::DecoratorApplication {
             source,
             owner: application.owner,
@@ -70,7 +70,7 @@ impl CheckState<'_> {
             value: value.into_global(module),
         };
         self.module_mut(module)
-            .decorators
+            .decorators_tail
             .insert_application(application);
 
         Ok(())

@@ -92,7 +92,7 @@ impl CheckState<'_> {
         let module = self.module_id;
         let applications = self
             .module(module)
-            .decorators
+            .decorators_tail
             .iter_applications()
             .filter(|(_, application)| {
                 application.resolution.target.language_item() == Some(dir::LanguageItem::Capture)
@@ -103,7 +103,7 @@ impl CheckState<'_> {
         for application in applications {
             let value = self
                 .module(module)
-                .statics_base
+                .statics
                 .get_static(application.value.local_id)
                 .clone();
             self.apply_capture_decorator(module, application.source, application.owner, &value)?;

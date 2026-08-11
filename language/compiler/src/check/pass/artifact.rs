@@ -15,7 +15,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<DirDeclared> {
         // persist walked decorator uses for elaborate to select and evaluate
         for application in std::mem::take(&mut self.decorators) {
-            self.module.decorators.insert_use(dir::DecoratorUse {
+            self.module.decorators_tail.insert_use(dir::DecoratorUse {
                 source: application.expression.decorator.into_global(module),
                 owner: application.owner,
                 target: application.expression.target.into_global(module),
@@ -25,20 +25,20 @@ impl CheckState<'_> {
             });
         }
 
+        let definitions = self.module.merged_definitions();
+        let members = self.module.merged_members();
         let types = self.module.types_tail.finish();
         let CheckModuleState {
             bindings_tail: bindings,
-            decorators,
-            statics,
-            generics,
-            definitions,
+            decorators_tail: decorators,
+            statics_tail: statics,
+            generics_tail: generics,
             resolutions,
             decisions,
-            members,
             ..
         } = self.module;
 
-        // the stored rows recorded their mentions as they interned
+        // collect the foreign modules the stored rows recorded as they interned
         let references = self.module.references.iter().copied().collect::<Vec<_>>();
 
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
@@ -77,22 +77,22 @@ impl CheckState<'_> {
 
     /// Convert flattened state into one elaborated DIR module.
     pub(in crate::check) fn into_elaborated(
-        self,
+        mut self,
         module: ModuleId,
     ) -> CompilerResult<DirElaborated> {
+        let definitions = self.module.merged_definitions();
+        let members = self.module.merged_members();
         let bindings = self.module.bindings_tail;
         let types = self.module.types_tail.finish();
-        let members = self.module.members;
         let auto = self.module.auto;
-        let generics = self.module.generics;
-        let definitions = self.module.definitions;
-        let decorators = self.module.decorators;
-        let statics = self.module.statics;
+        let generics = self.module.generics_tail;
+        let decorators = self.module.decorators_tail;
+        let statics = self.module.statics_tail;
         let controls = self.module.controls;
         let resolutions = self.module.resolutions;
         let decisions = self.module.decisions;
 
-        // the stored rows recorded their mentions as they interned
+        // collect the foreign modules the stored rows recorded as they interned
         let references = self.module.references.iter().copied().collect::<Vec<_>>();
 
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
@@ -134,19 +134,19 @@ impl CheckState<'_> {
     }
 
     /// Convert solved state into one checked DIR module.
-    pub(in crate::check) fn into_checked(self, module: ModuleId) -> CompilerResult<DirChecked> {
+    pub(in crate::check) fn into_checked(mut self, module: ModuleId) -> CompilerResult<DirChecked> {
+        let definitions = self.module.merged_definitions();
         let types = self.module.types_tail.finish();
         let CheckModuleState {
             bindings_tail: bindings,
-            decorators,
+            decorators_tail: decorators,
             controls,
-            statics,
+            statics_tail: statics,
             resolutions,
             decisions,
-            generics,
-            definitions,
+            generics_tail: generics,
             coercions,
-            capture_segment: captures,
+            captures,
             ..
         } = self.module;
 

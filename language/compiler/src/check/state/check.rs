@@ -152,16 +152,15 @@ pub(in crate::check) struct CheckState<'a> {
     /// Canonical member bindings per owner and space.
     pub(in crate::check) bindings:
         FxIndexMap<(dir::GlobalSymbolId, dir::MemberSpace), Option<Arc<Vec<dir::MemberBinding>>>>,
-    /// Extension selections of settled goals, with the winning
-    /// implementation replayed on later hits.
+    /// Extension selections of settled goals, replaying the winning implementation on later hits.
     pub(in crate::check) extensions: FxIndexMap<
         (Relation, dir::GlobalTypeId, dir::GlobalTypeId, Scope),
         (Verdict, Option<dir::GlobalSymbolId>),
     >,
     /// Work counters for the stats sidecar.
     pub(in crate::check) counters: CheckCounters,
-    /// Reduced heads of closed types.
-    pub(in crate::check) reduces: FxIndexMap<(dir::GlobalTypeId, Scope), dir::GlobalTypeId>,
+    /// Normalized heads of closed types.
+    pub(in crate::check) normalizations: FxIndexMap<(dir::GlobalTypeId, Scope), dir::GlobalTypeId>,
     /// Extension member tables of closed subjects, grouped by key.
     pub(in crate::check) members: FxIndexMap<MemberSubject, MemberTable>,
     /// Decided auto interface conformances of closed types.
@@ -208,7 +207,7 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) expected_types: NodeTable,
 
     // walk scheduling
-    /// Declarations already walked, on demand or in root order.
+    /// Declarations already walked, when asked or in root order.
     pub(in crate::check) walked_declarations: FxIndexSet<dir::GlobalNodeIdAny>,
     /// Declarations currently walking, innermost last.
     pub(in crate::check) walking_declarations: Vec<dir::GlobalNodeIdAny>,
@@ -304,7 +303,7 @@ impl<'a> CheckState<'a> {
             bindings: FxIndexMap::default(),
             extensions: FxIndexMap::default(),
             counters: CheckCounters::default(),
-            reduces: FxIndexMap::default(),
+            normalizations: FxIndexMap::default(),
             members: FxIndexMap::default(),
             conforms: FxIndexMap::default(),
             deriving: FxIndexSet::default(),
@@ -352,9 +351,6 @@ impl<'a> CheckState<'a> {
     }
 
     /// Bind the error type to every exported binding without a derived type.
-    ///
-    /// Every export commits a type, so an export whose type inference failed to derive
-    /// reports a diagnostic and binds the error type.
     pub(in crate::check) fn bind_underivable_exports(&mut self) -> CompilerResult<()> {
         // view the module tree with its expansion patches
         let module = self.module_id;
@@ -610,7 +606,7 @@ impl CheckState<'_> {
     }
 
     /// Return one own-module borrow payload, reading the tail over the base.
-    fn borrow_maybe(&self, id: dir::BorrowFormId) -> Option<dir::BorrowForm> {
+    pub(in crate::check) fn borrow_maybe(&self, id: dir::BorrowFormId) -> Option<dir::BorrowForm> {
         self.module
             .types_tail
             .borrow_form(id)
@@ -661,7 +657,7 @@ impl CheckState<'_> {
             child_flags |= self.type_flags(*child)?;
         }
 
-        // record the foreign modules this row mentions as it stores
+        // record the foreign modules this type mentions as it stores
         for child in &children {
             if child.module_id != module {
                 self.module.references.insert(child.module_id);
@@ -681,10 +677,16 @@ impl CheckState<'_> {
             child_flags |= self.type_operation(module, operation)?.own_flags();
         }
 
-        // store the row in this module's working tail
-        let local = self.module.types_tail.intern_type(ty, child_flags);
+        // store the type in this module's working tail
+        let (local, inserted) = self.module.types_tail.intern_type_inserted(ty, child_flags);
+        let id = local.into_global(module);
 
-        Ok(local.into_global(module))
+        // settle each newly born closed head once declarations can load
+        if inserted && !child_flags.has_variable() && self.pass != Pass::Declare {
+            return self.normalize_closed(id);
+        }
+
+        Ok(id)
     }
 
     /// Intern one work origin into the solver.
@@ -1128,7 +1130,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return one definition, importing the symbol's module on demand.
+    /// Return one definition, importing the symbol's module as needed.
     pub(in crate::check) fn definition(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -1163,7 +1165,7 @@ impl CheckState<'_> {
     ) -> Option<&dir::Definition> {
         // read the checked module's working definitions first
         if let Some(module) = self.module_maybe(symbol.module_id)
-            && let Some(definition) = module.definitions.definition(symbol)
+            && let Some(definition) = module.definition(symbol)
         {
             return Some(definition);
         }
@@ -1205,7 +1207,7 @@ impl CheckState<'_> {
                 })?;
 
         working
-            .definitions
+            .definitions_tail
             .insert_definition(symbol, source, definition);
 
         Ok(())
@@ -1217,7 +1219,6 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> Option<&mut dir::Definition> {
         self.module_maybe_mut(symbol.module_id)?
-            .definitions
             .definition_mut(symbol)
     }
 
@@ -1232,13 +1233,11 @@ impl CheckState<'_> {
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("nominal declaration {symbol:?} is not in the checked module"),
                 })?;
-        let definition =
-            module
-                .definitions
-                .definition_mut(symbol)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("nominal declaration {symbol:?} has no definition"),
-                })?;
+        let definition = module
+            .definition_mut(symbol)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("nominal declaration {symbol:?} has no definition"),
+            })?;
         if !definition.set_space(space) {
             return Err(CompilerError::Internal {
                 message: format!("definition {symbol:?} cannot carry nominal placement"),
@@ -1541,7 +1540,7 @@ impl CheckState<'_> {
         Ok(ty)
     }
 
-    /// Map one shape row's embedded type ids across a module boundary.
+    /// Map one shape row's embedded type ids from one module into another.
     fn map_shape_row(
         &mut self,
         source: ModuleId,
@@ -1585,7 +1584,7 @@ impl CheckState<'_> {
         Ok(shape)
     }
 
-    /// Map one interned type id list across a module boundary.
+    /// Map one interned type id list from one module into another.
     fn map_type_id_list(
         &mut self,
         source: ModuleId,
@@ -1620,9 +1619,12 @@ impl CheckState<'_> {
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let filled = self.fill_elided_application(module, instance)?;
         if let Some(filled) = filled
-            && let dir::Type::Application(filled) = self.ty(filled)?
+            && let dir::Type::Application(application) = self.ty(filled)?
         {
-            return Ok(self.type_ids(module, filled.arguments)?.to_vec());
+            // read the arguments from the module the filled type interned into
+            return Ok(self
+                .type_ids(filled.module_id, application.arguments)?
+                .to_vec());
         }
 
         Ok(self.type_ids(module, instance.arguments)?.to_vec())
@@ -1660,7 +1662,7 @@ impl CheckState<'_> {
         )
     }
 
-    /// Intern one shape property list into the module's open segment.
+    /// Intern one shape property list into a module's working segment.
     pub(in crate::check) fn intern_properties(
         &mut self,
         values: &[dir::TypeProperty],
