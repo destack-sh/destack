@@ -1,12 +1,15 @@
 use std::borrow::Borrow;
 use std::fmt;
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::worker::WorkerId;
 
 /// Stable identifier for one runtime instance in one world.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
 pub struct RuntimeId(pub u64);
 
 impl RuntimeId {

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Entity, EntityError, RuntimeError, RuntimeResult};
@@ -39,7 +40,9 @@ impl Revision {
 }
 
 /// Revision identifier for one world lineage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
 pub struct RevisionId(u64);
 
 impl RevisionId {

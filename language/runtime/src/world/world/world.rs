@@ -5,12 +5,12 @@ use parking_lot::RwLock;
 
 use destack_heap as heap;
 use destack_memory::MemoryMap;
-use destack_repository::{Environment, ReplayPayloadMode, RuntimeOptions};
+use destack_repository::{Environment, WorldOptions};
 
 use crate::binding::ReplayPayload;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::heap::{WorldCollector, WorldCollectorMode};
-use crate::host::poller::{HostPollerInstance, create_host_poller};
+use crate::host::poller::HostPoller;
 use crate::host::time::HostClockSource;
 use crate::host::{Host, HostError, HostQueue, compile_target};
 use crate::runtime::Runtime;
@@ -23,6 +23,7 @@ use crate::world::time::{Clock, ClockSource, Nanos};
 use crate::world::topology::LabelSet;
 use crate::world::trace::{EntrypointCall, TraceHeader, TraceLog};
 
+use super::constants::WORLD_MEMORY_MAP_SIZE_BYTES;
 use super::topology::Topology;
 pub(crate) use super::topology::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
@@ -37,7 +38,7 @@ pub struct World {
     /// Host events accepted into this world.
     pub(crate) host_queue: HostQueue,
     /// Shared host poller for external resources.
-    pub(crate) poller: HostPollerInstance,
+    pub(crate) poller: HostPoller,
     /// Live runtimes owned by this world.
     pub(crate) runtimes: BTreeMap<RuntimeId, Runtime>,
     /// The next runtime slot to schedule first.
@@ -86,9 +87,9 @@ impl World {
         }
     }
 
-    /// Create one world from explicit runtime seed state.
+    /// Create one world from explicit seed state.
     pub fn new(
-        options: &RuntimeOptions,
+        options: &WorldOptions,
         environment: impl Into<Arc<Environment>>,
     ) -> RuntimeResult<Self> {
         Self::empty(ROOT_BRANCH, options, environment, None)
@@ -97,23 +98,20 @@ impl World {
     /// Create one empty world shell for restore or replay.
     pub(crate) fn empty(
         branch_id: BranchId,
-        options: &RuntimeOptions,
+        options: &WorldOptions,
         environment: impl Into<Arc<Environment>>,
         host_clock_source: Option<Arc<dyn HostClockSource>>,
     ) -> RuntimeResult<Self> {
         let environment = environment.into();
 
         // execution configuration
-        let execution_mode = options.execution_mode();
+        let execution_mode = options.mode;
         let clock_source = ClockSource::from_execution_mode(execution_mode);
         let random_source = RandomSource::from_execution_mode(execution_mode);
-        let replay_payload = match options.replay_payload_mode() {
-            ReplayPayloadMode::ResultsOnly => ReplayPayload::Results,
-            ReplayPayloadMode::ArgumentsAndResults => ReplayPayload::ArgumentsAndResults,
-        };
+        let replay_payload = ReplayPayload::from(options.replay_payload);
 
         // replay header
-        let mut trace_header = TraceHeader {
+        let trace_header = TraceHeader {
             execution_mode,
             clock_source,
             random_source,
@@ -121,12 +119,6 @@ impl World {
             replay_payload,
             ..TraceHeader::new(environment)
         };
-        if let Some(chunk_size_mb) = options.trace_chunk_size_mb() {
-            let chunk_size_bytes = chunk_size_mb.saturating_mul(1024 * 1024);
-            if chunk_size_bytes > 0 {
-                trace_header.max_chunk_size_bytes = chunk_size_bytes;
-            }
-        }
 
         // live state inputs
         let host = compile_target(host_clock_source);
@@ -160,7 +152,7 @@ impl World {
         // reserve one world-relative address map
         let memory = Arc::new(
             MemoryMap::reserve(
-                options.heap.memory_map_size_bytes,
+                WORLD_MEMORY_MAP_SIZE_BYTES,
                 heap::DEFAULT_HEAP_PAGE_SIZE_BYTES,
             )
             .map_err(Box::<RuntimeError>::from)?,
@@ -199,8 +191,7 @@ impl World {
             root_image,
             root_trace_image,
         )));
-        let poller_backend = options.host.poller.backend;
-        let poller = create_host_poller(poller_backend)?;
+        let poller = HostPoller::open()?;
         let world = Self {
             host,
             host_queue: HostQueue::new(),

@@ -1,8 +1,20 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// Nanosecond value used by runtime time internals.
+/// Nanosecond duration on the shared World timeline.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
 )]
 pub struct Nanos(u64);
 

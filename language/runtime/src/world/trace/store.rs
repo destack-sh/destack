@@ -10,7 +10,8 @@ use crate::world::trace::{
     TraceCursor, TraceHeader, TraceTag,
 };
 
-use super::chunk::{TRACE_ENTRY_LENGTH_BYTES, TRACE_ENTRY_TAG_BYTES, TraceChunk};
+use super::chunk::TraceChunk;
+use super::constants::{TRACE_ENTRY_LENGTH_BYTES, TRACE_ENTRY_TAG_BYTES};
 use super::file::TraceFile;
 
 /// Sequence number for entries within a trace log.

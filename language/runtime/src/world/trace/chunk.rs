@@ -1,16 +1,12 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::world::trace::{Trace, TraceTag};
-
-use super::{TraceChunkHeader, TraceSequence};
 use destack_core::{FNV_OFFSET_BASIS_64, fnv1a_64_update};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-/// Byte length of one trace entry length prefix.
-pub(super) const TRACE_ENTRY_LENGTH_BYTES: usize = std::mem::size_of::<u32>();
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::world::trace::{Trace, TraceTag};
 
-/// Byte length of one trace entry tag.
-pub(super) const TRACE_ENTRY_TAG_BYTES: usize = std::mem::size_of::<u8>();
+use super::constants::{TRACE_ENTRY_LENGTH_BYTES, TRACE_ENTRY_TAG_BYTES};
+use super::{TraceChunkHeader, TraceSequence};
 
 /// Trace chunk payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]

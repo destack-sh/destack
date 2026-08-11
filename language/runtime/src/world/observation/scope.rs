@@ -1,5 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use destack_program as program;
+
 use crate::host::ResourceId;
 use crate::worker::WorkerId;
 use crate::world::RuntimeId;
@@ -21,6 +23,8 @@ pub enum ObservationScope {
     },
     /// One runtime-worker-scoped observation.
     RuntimeWorker(Box<RuntimeWorkerScope>),
+    /// One fiber-scoped observation.
+    Fiber(Box<FiberScope>),
     /// One topology entity-scoped observation.
     Entity(Box<String>),
     /// One topology edge-scoped observation.
@@ -36,6 +40,17 @@ pub struct RuntimeWorkerScope {
     pub runtime_id: RuntimeId,
     /// Worker identifier for this scope.
     pub worker_id: WorkerId,
+}
+
+/// Fiber observation scope payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FiberScope {
+    /// Runtime identifier for this scope.
+    pub runtime_id: RuntimeId,
+    /// Worker identifier for this scope.
+    pub worker_id: WorkerId,
+    /// Fiber identifier for this scope.
+    pub fiber_id: program::FiberId,
 }
 
 /// Serialized observation-scope record.
@@ -59,6 +74,15 @@ enum ObservationScopeRecord {
         runtime_id: RuntimeId,
         /// Worker identifier for this scope.
         worker_id: WorkerId,
+    },
+    /// One fiber-scoped observation.
+    Fiber {
+        /// Runtime identifier for this scope.
+        runtime_id: RuntimeId,
+        /// Worker identifier for this scope.
+        worker_id: WorkerId,
+        /// Fiber identifier for this scope.
+        fiber_id: program::FiberId,
     },
     /// One topology entity-scoped observation.
     Entity {
@@ -94,6 +118,11 @@ impl Serialize for ObservationScope {
                 runtime_id: scope.runtime_id,
                 worker_id: scope.worker_id,
             },
+            Self::Fiber(scope) => ObservationScopeRecord::Fiber {
+                runtime_id: scope.runtime_id,
+                worker_id: scope.worker_id,
+                fiber_id: scope.fiber_id,
+            },
             Self::Entity(entity_id) => ObservationScopeRecord::Entity {
                 entity_id: entity_id.as_str().to_string(),
             },
@@ -125,6 +154,15 @@ impl<'de> Deserialize<'de> for ObservationScope {
             } => Self::RuntimeWorker(Box::new(RuntimeWorkerScope {
                 runtime_id,
                 worker_id,
+            })),
+            ObservationScopeRecord::Fiber {
+                runtime_id,
+                worker_id,
+                fiber_id,
+            } => Self::Fiber(Box::new(FiberScope {
+                runtime_id,
+                worker_id,
+                fiber_id,
             })),
             ObservationScopeRecord::Entity { entity_id } => Self::Entity(Box::new(entity_id)),
             ObservationScopeRecord::Edge { edge_id } => Self::Edge(Box::new(edge_id)),
@@ -159,6 +197,15 @@ impl ObservationScope {
         }
     }
 
+    /// Create one fiber scope.
+    pub fn fiber(runtime_id: RuntimeId, worker_id: WorkerId, fiber_id: program::FiberId) -> Self {
+        Self::Fiber(Box::new(FiberScope {
+            runtime_id,
+            worker_id,
+            fiber_id,
+        }))
+    }
+
     /// Create one entity scope.
     pub fn entity(entity_id: impl Into<String>) -> Self {
         let entity_id = Box::new(entity_id.into());
@@ -183,6 +230,7 @@ impl ObservationScope {
         match self {
             Self::Runtime { runtime_id } => Some(*runtime_id),
             Self::RuntimeWorker(scope) => Some(scope.runtime_id),
+            Self::Fiber(scope) => Some(scope.runtime_id),
             _ => None,
         }
     }
@@ -192,7 +240,16 @@ impl ObservationScope {
         match self {
             Self::Worker { worker_id, .. } => Some(*worker_id),
             Self::RuntimeWorker(scope) => Some(scope.worker_id),
+            Self::Fiber(scope) => Some(scope.worker_id),
             Self::Resource(resource_id) => Some(resource_id.worker_id),
+            _ => None,
+        }
+    }
+
+    /// Return the fiber id for this scope when present.
+    pub const fn fiber_id(&self) -> Option<program::FiberId> {
+        match self {
+            Self::Fiber(scope) => Some(scope.fiber_id),
             _ => None,
         }
     }

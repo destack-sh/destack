@@ -1,94 +1,27 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::world::World;
+use crate::world::{RestoreContext, World, WorldImage};
 
 use super::{
-    Branch, BranchId, Divergence, Event, EventQuery, EventSet, Moment, MomentSequence,
-    WorldEventQuery, WorldView,
+    Branch, BranchId, Checkpoint, CheckpointId, Event, EventQuery, EventSet, Moment,
+    MomentSequence, WorldEventQuery,
 };
 
-/// One eager branch-query result.
-#[derive(Debug, Clone)]
-pub struct BranchSet {
-    /// The branches produced by the query.
-    branches: Vec<Branch>,
+/// One committed-lineage query root over shared lineage.
+#[derive(Debug, Clone, Copy)]
+pub struct LineageQuery<'a> {
+    /// The world that owns the shared lineage.
+    world: &'a World,
 }
 
-impl BranchSet {
-    /// Create one branch set from one eager branch vector.
-    fn new(mut branches: Vec<Branch>) -> Self {
-        branches.sort_by_key(|branch| branch.id);
-        Self { branches }
-    }
-
-    /// Return the number of branches in this set.
-    pub fn len(&self) -> usize {
-        self.branches.len()
-    }
-
-    /// Report whether this set is empty.
-    pub fn is_empty(&self) -> bool {
-        self.branches.is_empty()
-    }
-
-    /// Return the branches in stable query order.
-    pub fn as_slice(&self) -> &[Branch] {
-        &self.branches
-    }
-
-    /// Consume this set and return its branches.
-    pub fn into_vec(self) -> Vec<Branch> {
-        self.branches
-    }
-
-    /// Return the branch identifiers in stable query order.
-    pub fn ids(&self) -> Vec<BranchId> {
-        self.branches.iter().map(|branch| branch.id).collect()
-    }
-}
-
-/// One eager moment-query result.
-#[derive(Debug, Clone)]
-pub struct MomentSet {
-    /// The moments produced by the query.
-    moments: Vec<Moment>,
-}
-
-impl MomentSet {
-    /// Create one moment set from one eager moment vector.
-    fn new(mut moments: Vec<Moment>) -> Self {
-        moments.sort_by_key(|moment| (moment.branch_id, moment.sequence));
-        Self { moments }
-    }
-
-    /// Return the number of moments in this set.
-    pub fn len(&self) -> usize {
-        self.moments.len()
-    }
-
-    /// Report whether this set is empty.
-    pub fn is_empty(&self) -> bool {
-        self.moments.is_empty()
-    }
-
-    /// Return the moments in stable query order.
-    pub fn as_slice(&self) -> &[Moment] {
-        &self.moments
-    }
-
-    /// Consume this set and return its moments.
-    pub fn into_vec(self) -> Vec<Moment> {
-        self.moments
-    }
-
-    /// Return the first moment in this set by value.
-    pub fn start(&self) -> Option<Moment> {
-        self.moments.first().copied()
-    }
-
-    /// Return the last moment in this set by value.
-    pub fn end(&self) -> Option<Moment> {
-        self.moments.last().copied()
-    }
+/// One branch divergence between two committed branch heads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Divergence {
+    /// The shared base Moment before the branches diverged.
+    pub base: Moment,
+    /// The committed head Moment on the left branch.
+    pub left: Moment,
+    /// The committed head Moment on the right branch.
+    pub right: Moment,
 }
 
 /// One lineage-rooted committed moment query.
@@ -96,30 +29,6 @@ impl MomentSet {
 pub struct MomentQuery<'a> {
     /// The lineage query root that owns the query.
     lineage: LineageQuery<'a>,
-}
-
-impl<'a> MomentQuery<'a> {
-    /// Return every committed moment visible on one branch.
-    pub fn branch(self, branch_id: BranchId) -> RuntimeResult<MomentSet> {
-        self.lineage.moments_on(branch_id)
-    }
-
-    /// Return every committed moment up to one target moment.
-    pub fn up_to(self, moment: Moment) -> RuntimeResult<MomentSet> {
-        self.lineage.moments_up_to(moment)
-    }
-
-    /// Return every committed moment in one exact branch-local range.
-    pub fn between(self, start: Moment, end: Moment) -> RuntimeResult<MomentSet> {
-        self.lineage.moments_between(start, end)
-    }
-}
-
-/// One committed-lineage query root over shared lineage.
-#[derive(Debug, Clone, Copy)]
-pub struct LineageQuery<'a> {
-    /// The world that owns the shared lineage.
-    world: &'a World,
 }
 
 impl<'a> LineageQuery<'a> {
@@ -130,11 +39,32 @@ impl<'a> LineageQuery<'a> {
     }
 
     /// Return every known branch in stable lineage order.
-    pub fn branches(self) -> BranchSet {
+    pub fn branches(self) -> Vec<Branch> {
         let lineage = self.world.lineage.read();
-        let branches = lineage.branches.values().cloned().collect();
+        let mut branches = lineage.branches.values().cloned().collect::<Vec<_>>();
+        branches.sort_by_key(|branch| branch.id);
 
-        BranchSet::new(branches)
+        branches
+    }
+
+    /// Return metadata for one checkpoint.
+    pub fn checkpoint(self, checkpoint_id: CheckpointId) -> RuntimeResult<Checkpoint> {
+        let lineage = self.world.lineage.read();
+        let checkpoint = lineage
+            .checkpoints
+            .get(&checkpoint_id)
+            .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
+
+        Ok(checkpoint.clone())
+    }
+
+    /// Return every known checkpoint in stable lineage order.
+    pub fn checkpoints(self) -> Vec<Checkpoint> {
+        let lineage = self.world.lineage.read();
+        let mut checkpoints = lineage.checkpoints.values().cloned().collect::<Vec<_>>();
+        checkpoints.sort_by_key(|checkpoint| checkpoint.id);
+
+        checkpoints
     }
 
     /// Return one committed moment query root.
@@ -148,44 +78,34 @@ impl<'a> LineageQuery<'a> {
     }
 
     /// Return every branch that descends from one ancestor branch.
-    pub fn descendants_of(self, branch_id: BranchId) -> RuntimeResult<BranchSet> {
+    pub fn descendants_of(self, branch_id: BranchId) -> RuntimeResult<Vec<Branch>> {
         let lineage = self.world.lineage.read();
-        let branches = lineage.descendant_branches(branch_id)?;
+        let mut branches = lineage.descendant_branches(branch_id)?;
+        branches.sort_by_key(|branch| branch.id);
 
-        Ok(BranchSet::new(branches))
+        Ok(branches)
     }
 
-    /// Return the branch-origin moment for one branch.
-    pub fn branch_origin_moment(self, branch_id: BranchId) -> RuntimeResult<Moment> {
+    /// Return one Branch origin Moment.
+    pub fn origin(self, branch_id: BranchId) -> RuntimeResult<Moment> {
         let lineage = self.world.lineage.read();
         lineage.branch_origin_moment(branch_id)
     }
 
-    /// Return the committed head moment for one branch.
-    pub fn branch_head_moment(self, branch_id: BranchId) -> RuntimeResult<Moment> {
+    /// Return one Branch head Moment.
+    pub fn head(self, branch_id: BranchId) -> RuntimeResult<Moment> {
         let lineage = self.world.lineage.read();
         lineage.branch_head_moment(branch_id)
     }
 
-    /// Return one exact committed world view at one moment.
-    pub fn view(self, moment: Moment) -> RuntimeResult<WorldView> {
+    /// Materialize one exact committed Moment as a World image.
+    pub fn image(self, moment: Moment, restore: RestoreContext<'_>) -> RuntimeResult<WorldImage> {
         self.require_committed_query_range(
             Moment::new(moment.branch_id, MomentSequence::new(0)),
             moment,
         )?;
 
-        let image = self.world.image_at_moment(moment)?;
-
-        Ok(WorldView::new(moment, image))
-    }
-
-    /// Return the committed divergence moment shared by two branches.
-    pub fn divergence_moment(
-        self,
-        left_branch_id: BranchId,
-        right_branch_id: BranchId,
-    ) -> RuntimeResult<Moment> {
-        Ok(self.divergence(left_branch_id, right_branch_id)?.base)
+        self.world.image_at_moment(moment, restore)
     }
 
     /// Return one committed branch divergence summary.
@@ -207,40 +127,40 @@ impl<'a> LineageQuery<'a> {
     }
 
     /// Return every committed moment visible on one branch.
-    pub fn moments_on(self, branch_id: BranchId) -> RuntimeResult<MomentSet> {
-        let end = self.branch_head_moment(branch_id)?;
+    pub(super) fn moments_on(self, branch_id: BranchId) -> RuntimeResult<Vec<Moment>> {
+        let end = self.head(branch_id)?;
         self.moments_between(Moment::new(branch_id, MomentSequence::new(0)), end)
     }
 
     /// Return every committed moment up to one target moment.
-    pub fn moments_up_to(self, moment: Moment) -> RuntimeResult<MomentSet> {
+    pub(super) fn moments_up_to(self, moment: Moment) -> RuntimeResult<Vec<Moment>> {
         let start = Moment::new(moment.branch_id, MomentSequence::new(0));
         self.moments_between(start, moment)
     }
 
     /// Return every committed moment in one exact branch-local range.
-    pub fn moments_between(self, start: Moment, end: Moment) -> RuntimeResult<MomentSet> {
+    pub(super) fn moments_between(self, start: Moment, end: Moment) -> RuntimeResult<Vec<Moment>> {
         self.require_committed_query_range(start, end)?;
 
         let moments = (start.sequence.get()..=end.sequence.get())
             .map(|sequence| Moment::new(start.branch_id, MomentSequence::new(sequence)))
             .collect();
 
-        Ok(MomentSet::new(moments))
+        Ok(moments)
     }
 
     /// Return every committed query event visible on one branch.
-    pub fn events_on(self, branch_id: BranchId) -> RuntimeResult<EventSet> {
-        let end = self.branch_head_moment(branch_id)?;
+    pub(super) fn events_on(self, branch_id: BranchId) -> RuntimeResult<EventSet> {
+        let end = self.head(branch_id)?;
         self.events_between(Moment::new(branch_id, MomentSequence::new(0)), end)
     }
 
     /// Return every committed query event visible on one branch and its descendants.
-    pub fn events_descendants_of(self, branch_id: BranchId) -> RuntimeResult<EventSet> {
+    pub(super) fn events_descendants_of(self, branch_id: BranchId) -> RuntimeResult<EventSet> {
         let descendants = self.descendants_of(branch_id)?;
         let mut events = Vec::new();
 
-        for branch in descendants.into_vec() {
+        for branch in descendants {
             let branch_events = self.events_on(branch.id)?;
             events.extend(branch_events.into_vec());
         }
@@ -249,13 +169,13 @@ impl<'a> LineageQuery<'a> {
     }
 
     /// Return every committed query event up to one target moment.
-    pub fn events_up_to(self, moment: Moment) -> RuntimeResult<EventSet> {
+    pub(super) fn events_up_to(self, moment: Moment) -> RuntimeResult<EventSet> {
         let start = Moment::new(moment.branch_id, MomentSequence::new(0));
         self.events_between(start, moment)
     }
 
     /// Return every committed query event in one exact branch-local range.
-    pub fn events_between(self, start: Moment, end: Moment) -> RuntimeResult<EventSet> {
+    pub(super) fn events_between(self, start: Moment, end: Moment) -> RuntimeResult<EventSet> {
         self.require_committed_query_range(start, end)?;
 
         let events = self.observation_events_between(start, end)?;
@@ -281,7 +201,7 @@ impl<'a> LineageQuery<'a> {
             .boxed());
         }
 
-        let committed_head = self.branch_head_moment(end.branch_id)?;
+        let committed_head = self.head(end.branch_id)?;
         if end.sequence.get() > committed_head.sequence.get() {
             return Err(
                 RuntimeError::moment_not_found(end.branch_id.get(), end.sequence.get()).boxed(),
@@ -300,6 +220,23 @@ impl<'a> LineageQuery<'a> {
     }
 }
 
+impl<'a> MomentQuery<'a> {
+    /// Return every committed moment visible on one branch.
+    pub fn branch(self, branch_id: BranchId) -> RuntimeResult<Vec<Moment>> {
+        self.lineage.moments_on(branch_id)
+    }
+
+    /// Return every committed moment up to one target moment.
+    pub fn up_to(self, moment: Moment) -> RuntimeResult<Vec<Moment>> {
+        self.lineage.moments_up_to(moment)
+    }
+
+    /// Return every committed moment in one exact branch-local range.
+    pub fn between(self, start: Moment, end: Moment) -> RuntimeResult<Vec<Moment>> {
+        self.lineage.moments_between(start, end)
+    }
+}
+
 impl World {
     /// Return one live branch-local event query root.
     pub fn events(&self) -> WorldEventQuery<'_> {
@@ -312,7 +249,7 @@ impl World {
     }
 
     /// Return every query event after one start moment and up to one end moment.
-    pub fn events_between(&self, start: Moment, end: Moment) -> RuntimeResult<EventSet> {
+    pub(super) fn events_between(&self, start: Moment, end: Moment) -> RuntimeResult<EventSet> {
         self.require_query_range(start, end)?;
 
         let events = self.observation_events_between(start, end)?;
@@ -321,7 +258,7 @@ impl World {
     }
 
     /// Return every query event up to one target moment.
-    pub fn events_up_to(&self, moment: Moment) -> RuntimeResult<EventSet> {
+    pub(super) fn events_up_to(&self, moment: Moment) -> RuntimeResult<EventSet> {
         let start = Moment::new(moment.branch_id, MomentSequence::new(0));
         self.events_between(start, moment)
     }

@@ -5,6 +5,8 @@ use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use destack_serde::{Reflect, Schema, Type};
+
 /// One runtime label key-value pair.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Label {
@@ -19,6 +21,16 @@ pub struct Label {
 pub struct LabelSet {
     /// Stored labels when this set is non-empty.
     labels: Option<Box<Labels>>,
+}
+
+impl Reflect for LabelSet {
+    /// Reflect the serialized label map.
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Map {
+            key: Box::new(String::reflect(schema)),
+            value: Box::new(String::reflect(schema)),
+        }
+    }
 }
 
 /// Non-empty label payload.

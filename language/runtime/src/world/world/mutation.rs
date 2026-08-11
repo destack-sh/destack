@@ -1,16 +1,17 @@
-use destack_program as program;
-use destack_repository::ExecutionMode;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
+
+use destack_program as program;
+use destack_repository::ExecutionMode;
+use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::runtime::RuntimeImage;
 use crate::worker::{WorkerId, WorkerImage};
 use crate::world::debug::{
-    Breakpoint, BreakpointTarget, Probe, ProbeAction, ProbeId, ProbeTarget, Watchpoint,
+    Breakpoint, MemoryFilter, PointFilter, Probe, ProbeAction, ProbeFilter, ProbeId, Watchpoint,
 };
 use crate::world::observation::Observation;
 use crate::world::policy::{Policy, Rule, RuleId};
@@ -122,16 +123,6 @@ pub enum Mutation {
         /// Breakpoint identifier to remove.
         breakpoint_id: program::BreakpointId,
     },
-    /// Enable one debugger breakpoint.
-    EnableBreakpoint {
-        /// Breakpoint identifier to enable.
-        breakpoint_id: program::BreakpointId,
-    },
-    /// Disable one debugger breakpoint.
-    DisableBreakpoint {
-        /// Breakpoint identifier to disable.
-        breakpoint_id: program::BreakpointId,
-    },
     /// Add one debugger watchpoint.
     AddWatchpoint {
         /// Watchpoint to add.
@@ -147,16 +138,6 @@ pub enum Mutation {
         /// Watchpoint identifier to remove.
         watchpoint_id: program::WatchpointId,
     },
-    /// Enable one debugger watchpoint.
-    EnableWatchpoint {
-        /// Watchpoint identifier to enable.
-        watchpoint_id: program::WatchpointId,
-    },
-    /// Disable one debugger watchpoint.
-    DisableWatchpoint {
-        /// Watchpoint identifier to disable.
-        watchpoint_id: program::WatchpointId,
-    },
     /// Add one debugger probe.
     AddProbe {
         /// Probe to add.
@@ -170,16 +151,6 @@ pub enum Mutation {
     /// Remove one debugger probe.
     RemoveProbe {
         /// Probe identifier to remove.
-        probe_id: ProbeId,
-    },
-    /// Enable one debugger probe.
-    EnableProbe {
-        /// Probe identifier to enable.
-        probe_id: ProbeId,
-    },
-    /// Disable one debugger probe.
-    DisableProbe {
-        /// Probe identifier to disable.
         probe_id: ProbeId,
     },
 
@@ -330,18 +301,6 @@ impl PartialEq for Mutation {
                     breakpoint_id: other,
                 },
             ) => breakpoint_id == other,
-            (
-                Self::EnableBreakpoint { breakpoint_id },
-                Self::EnableBreakpoint {
-                    breakpoint_id: other,
-                },
-            ) => breakpoint_id == other,
-            (
-                Self::DisableBreakpoint { breakpoint_id },
-                Self::DisableBreakpoint {
-                    breakpoint_id: other,
-                },
-            ) => breakpoint_id == other,
             (Self::AddWatchpoint { watchpoint }, Self::AddWatchpoint { watchpoint: other }) => {
                 watchpoint == other
             }
@@ -355,30 +314,11 @@ impl PartialEq for Mutation {
                     watchpoint_id: other,
                 },
             ) => watchpoint_id == other,
-            (
-                Self::EnableWatchpoint { watchpoint_id },
-                Self::EnableWatchpoint {
-                    watchpoint_id: other,
-                },
-            ) => watchpoint_id == other,
-            (
-                Self::DisableWatchpoint { watchpoint_id },
-                Self::DisableWatchpoint {
-                    watchpoint_id: other,
-                },
-            ) => watchpoint_id == other,
             (Self::AddProbe { probe }, Self::AddProbe { probe: other }) => probe == other,
             (Self::UpdateProbe { probe }, Self::UpdateProbe { probe: other }) => probe == other,
             (Self::RemoveProbe { probe_id }, Self::RemoveProbe { probe_id: other }) => {
                 probe_id == other
             }
-            (Self::EnableProbe { probe_id }, Self::EnableProbe { probe_id: other }) => {
-                probe_id == other
-            }
-            (Self::DisableProbe { probe_id }, Self::DisableProbe { probe_id: other }) => {
-                probe_id == other
-            }
-
             // topology
             (Self::DefineEntityKind { kind }, Self::DefineEntityKind { kind: other }) => {
                 kind == other
@@ -429,18 +369,12 @@ impl Mutation {
             Self::AddBreakpoint { .. } => "runtime.debug.breakpoint.add",
             Self::UpdateBreakpoint { .. } => "runtime.debug.breakpoint.update",
             Self::RemoveBreakpoint { .. } => "runtime.debug.breakpoint.remove",
-            Self::EnableBreakpoint { .. } => "runtime.debug.breakpoint.enable",
-            Self::DisableBreakpoint { .. } => "runtime.debug.breakpoint.disable",
             Self::AddWatchpoint { .. } => "runtime.debug.watchpoint.add",
             Self::UpdateWatchpoint { .. } => "runtime.debug.watchpoint.update",
             Self::RemoveWatchpoint { .. } => "runtime.debug.watchpoint.remove",
-            Self::EnableWatchpoint { .. } => "runtime.debug.watchpoint.enable",
-            Self::DisableWatchpoint { .. } => "runtime.debug.watchpoint.disable",
             Self::AddProbe { .. } => "runtime.debug.probe.add",
             Self::UpdateProbe { .. } => "runtime.debug.probe.update",
             Self::RemoveProbe { .. } => "runtime.debug.probe.remove",
-            Self::EnableProbe { .. } => "runtime.debug.probe.enable",
-            Self::DisableProbe { .. } => "runtime.debug.probe.disable",
 
             // topology
             Self::DefineEntityKind { .. } => "runtime.topology.entity.kind.define",
@@ -519,12 +453,6 @@ impl Mutation {
             Self::RemoveBreakpoint { breakpoint_id } => Observation::BreakpointRemoved {
                 breakpoint_id: *breakpoint_id,
             },
-            Self::EnableBreakpoint { breakpoint_id } => Observation::BreakpointEnabled {
-                breakpoint_id: *breakpoint_id,
-            },
-            Self::DisableBreakpoint { breakpoint_id } => Observation::BreakpointDisabled {
-                breakpoint_id: *breakpoint_id,
-            },
             Self::AddWatchpoint { watchpoint } => Observation::WatchpointAdded {
                 watchpoint_id: watchpoint.id,
             },
@@ -534,21 +462,9 @@ impl Mutation {
             Self::RemoveWatchpoint { watchpoint_id } => Observation::WatchpointRemoved {
                 watchpoint_id: *watchpoint_id,
             },
-            Self::EnableWatchpoint { watchpoint_id } => Observation::WatchpointEnabled {
-                watchpoint_id: *watchpoint_id,
-            },
-            Self::DisableWatchpoint { watchpoint_id } => Observation::WatchpointDisabled {
-                watchpoint_id: *watchpoint_id,
-            },
             Self::AddProbe { probe } => Observation::ProbeAdded { probe_id: probe.id },
             Self::UpdateProbe { probe } => Observation::ProbeUpdated { probe_id: probe.id },
             Self::RemoveProbe { probe_id } => Observation::ProbeRemoved {
-                probe_id: *probe_id,
-            },
-            Self::EnableProbe { probe_id } => Observation::ProbeEnabled {
-                probe_id: *probe_id,
-            },
-            Self::DisableProbe { probe_id } => Observation::ProbeDisabled {
                 probe_id: *probe_id,
             },
 
@@ -679,24 +595,6 @@ impl World {
                     return Err(Self::missing_debugger_entry("breakpoint"));
                 }
             }
-            Mutation::EnableBreakpoint { breakpoint_id } => {
-                if !self
-                    .state
-                    .debugger
-                    .set_breakpoint_enabled(breakpoint_id, true)
-                {
-                    return Err(Self::missing_debugger_entry("breakpoint"));
-                }
-            }
-            Mutation::DisableBreakpoint { breakpoint_id } => {
-                if !self
-                    .state
-                    .debugger
-                    .set_breakpoint_enabled(breakpoint_id, false)
-                {
-                    return Err(Self::missing_debugger_entry("breakpoint"));
-                }
-            }
             Mutation::AddWatchpoint { watchpoint } => {
                 self.state.debugger.add_watchpoint(watchpoint);
             }
@@ -710,24 +608,6 @@ impl World {
                     return Err(Self::missing_debugger_entry("watchpoint"));
                 }
             }
-            Mutation::EnableWatchpoint { watchpoint_id } => {
-                if !self
-                    .state
-                    .debugger
-                    .set_watchpoint_enabled(watchpoint_id, true)
-                {
-                    return Err(Self::missing_debugger_entry("watchpoint"));
-                }
-            }
-            Mutation::DisableWatchpoint { watchpoint_id } => {
-                if !self
-                    .state
-                    .debugger
-                    .set_watchpoint_enabled(watchpoint_id, false)
-                {
-                    return Err(Self::missing_debugger_entry("watchpoint"));
-                }
-            }
             Mutation::AddProbe { probe } => {
                 self.state.debugger.add_probe(probe);
             }
@@ -738,16 +618,6 @@ impl World {
             }
             Mutation::RemoveProbe { probe_id } => {
                 if !self.state.debugger.remove_probe(probe_id) {
-                    return Err(Self::missing_debugger_entry("probe"));
-                }
-            }
-            Mutation::EnableProbe { probe_id } => {
-                if !self.state.debugger.set_probe_enabled(probe_id, true) {
-                    return Err(Self::missing_debugger_entry("probe"));
-                }
-            }
-            Mutation::DisableProbe { probe_id } => {
-                if !self.state.debugger.set_probe_enabled(probe_id, false) {
                     return Err(Self::missing_debugger_entry("probe"));
                 }
             }
@@ -877,12 +747,9 @@ impl World {
     }
 
     /// Add one debugger breakpoint.
-    pub fn add_breakpoint(
-        &mut self,
-        target: BreakpointTarget,
-    ) -> RuntimeResult<program::BreakpointId> {
+    pub fn add_breakpoint(&mut self, filter: PointFilter) -> RuntimeResult<program::BreakpointId> {
         let breakpoint_id = self.state.debugger.allocate_breakpoint_id();
-        let breakpoint = Breakpoint::new(breakpoint_id, target);
+        let breakpoint = Breakpoint::new(breakpoint_id, filter);
 
         self.mutate(Mutation::AddBreakpoint { breakpoint })?;
 
@@ -899,29 +766,10 @@ impl World {
         self.mutate(Mutation::RemoveBreakpoint { breakpoint_id })
     }
 
-    /// Enable one debugger breakpoint.
-    pub fn enable_breakpoint(&mut self, breakpoint_id: program::BreakpointId) -> RuntimeResult<()> {
-        self.mutate(Mutation::EnableBreakpoint { breakpoint_id })
-    }
-
-    /// Disable one debugger breakpoint.
-    pub fn disable_breakpoint(
-        &mut self,
-        breakpoint_id: program::BreakpointId,
-    ) -> RuntimeResult<()> {
-        self.mutate(Mutation::DisableBreakpoint { breakpoint_id })
-    }
-
     /// Add one debugger watchpoint.
-    pub fn add_watchpoint(
-        &mut self,
-        runtime_id: Option<RuntimeId>,
-        worker_id: Option<WorkerId>,
-        access: program::MemoryAccess,
-        target: program::MemoryTarget,
-    ) -> RuntimeResult<program::WatchpointId> {
+    pub fn add_watchpoint(&mut self, filter: MemoryFilter) -> RuntimeResult<program::WatchpointId> {
         let watchpoint_id = self.state.debugger.allocate_watchpoint_id();
-        let watchpoint = Watchpoint::new(watchpoint_id, runtime_id, worker_id, access, target);
+        let watchpoint = Watchpoint::new(watchpoint_id, filter);
 
         self.mutate(Mutation::AddWatchpoint { watchpoint })?;
 
@@ -938,27 +786,14 @@ impl World {
         self.mutate(Mutation::RemoveWatchpoint { watchpoint_id })
     }
 
-    /// Enable one debugger watchpoint.
-    pub fn enable_watchpoint(&mut self, watchpoint_id: program::WatchpointId) -> RuntimeResult<()> {
-        self.mutate(Mutation::EnableWatchpoint { watchpoint_id })
-    }
-
-    /// Disable one debugger watchpoint.
-    pub fn disable_watchpoint(
-        &mut self,
-        watchpoint_id: program::WatchpointId,
-    ) -> RuntimeResult<()> {
-        self.mutate(Mutation::DisableWatchpoint { watchpoint_id })
-    }
-
     /// Add one debugger probe.
     pub fn add_probe(
         &mut self,
-        target: ProbeTarget,
+        filter: ProbeFilter,
         action: ProbeAction,
     ) -> RuntimeResult<ProbeId> {
         let probe_id = self.state.debugger.allocate_probe_id();
-        let probe = Probe::new(probe_id, target, action);
+        let probe = Probe::new(probe_id, filter, action);
 
         self.mutate(Mutation::AddProbe { probe })?;
 
@@ -973,16 +808,6 @@ impl World {
     /// Remove one debugger probe.
     pub fn remove_probe(&mut self, probe_id: ProbeId) -> RuntimeResult<()> {
         self.mutate(Mutation::RemoveProbe { probe_id })
-    }
-
-    /// Enable one debugger probe.
-    pub fn enable_probe(&mut self, probe_id: ProbeId) -> RuntimeResult<()> {
-        self.mutate(Mutation::EnableProbe { probe_id })
-    }
-
-    /// Disable one debugger probe.
-    pub fn disable_probe(&mut self, probe_id: ProbeId) -> RuntimeResult<()> {
-        self.mutate(Mutation::DisableProbe { probe_id })
     }
 
     /// Define one world entity kind.

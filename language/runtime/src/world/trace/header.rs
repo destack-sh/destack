@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_repository::{Environment, ExecutionMode};
 use serde::{Deserialize, Serialize};
 
 use crate::binding::ReplayPayload;
@@ -7,16 +8,10 @@ use crate::world::random::RandomSource;
 use crate::world::time::ClockSource;
 use crate::world::trace::TraceSequence;
 use crate::world::{BranchId, CheckpointId, RevisionId};
-use destack_repository::{Environment, ExecutionMode};
 
-/// Current trace format version.
-pub const TRACE_FORMAT_VERSION: u32 = 1;
-
-/// Default maximum number of entries in one trace chunk.
-pub const TRACE_DEFAULT_MAX_ENTRIES_PER_CHUNK: u32 = 1024;
-
-/// Default maximum byte length of one trace chunk.
-pub const TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES: u64 = 4 * 1024 * 1024;
+use super::{
+    TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES, TRACE_DEFAULT_MAX_ENTRIES_PER_CHUNK, TRACE_FORMAT_VERSION,
+};
 
 /// Trace header describing the execution environment.
 #[derive(Debug, Clone, Serialize, Deserialize)]

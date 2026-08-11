@@ -1,10 +1,22 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::Nanos;
 
 /// Absolute instant on the shared world timeline.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
 )]
 pub struct Instant(Nanos);
 

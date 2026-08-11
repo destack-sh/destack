@@ -1,3 +1,4 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -5,9 +6,38 @@ use crate::world::World;
 
 use super::{BranchId, RevisionId};
 
+/// Precise lineage coordinate over one branch and one moment sequence.
+///
+/// This is not a clock timestamp.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
+pub struct Moment {
+    /// The branch that owns this lineage coordinate.
+    pub branch_id: BranchId,
+    /// The moment sequence reached at this coordinate.
+    pub sequence: MomentSequence,
+}
+
 /// Sequence number for moments within one branch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
 pub struct MomentSequence(u64);
+
+/// Sequence number for one worker execution stream.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct WorkerSequence(u64);
+
+impl Moment {
+    /// Create one lineage coordinate from one branch and sequence.
+    pub const fn new(branch_id: BranchId, sequence: MomentSequence) -> Self {
+        Self {
+            branch_id,
+            sequence,
+        }
+    }
+}
 
 impl MomentSequence {
     /// Create one moment sequence.
@@ -33,10 +63,6 @@ impl MomentSequence {
     }
 }
 
-/// Sequence number for one worker execution stream.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct WorkerSequence(u64);
-
 impl WorkerSequence {
     /// Create one worker sequence.
     pub const fn new(value: u64) -> Self {
@@ -58,27 +84,6 @@ impl WorkerSequence {
         })?;
 
         Ok(Self(value))
-    }
-}
-
-/// Precise lineage coordinate over one branch and one moment sequence.
-///
-/// This is not a clock timestamp.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct Moment {
-    /// The branch that owns this lineage coordinate.
-    pub branch_id: BranchId,
-    /// The moment sequence reached at this coordinate.
-    pub sequence: MomentSequence,
-}
-
-impl Moment {
-    /// Create one lineage coordinate from one branch and sequence.
-    pub const fn new(branch_id: BranchId, sequence: MomentSequence) -> Self {
-        Self {
-            branch_id,
-            sequence,
-        }
     }
 }
 

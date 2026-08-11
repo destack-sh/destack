@@ -23,7 +23,7 @@ impl Clock {
         options: &ClockOptions,
         default_epoch_nanos: u64,
     ) -> Self {
-        let epoch_nanos = match options.epoch_ns {
+        let epoch_nanos = match options.epoch_nanos {
             Some(epoch_nanos) => epoch_nanos,
             None => default_epoch_nanos,
         };

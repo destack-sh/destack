@@ -1,3 +1,5 @@
+use destack_program as program;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::worker::WorkerId;
@@ -111,6 +113,50 @@ impl WorldState {
     /// Emit one observation at the current execution coordinate.
     pub(crate) fn observe(&self, observation: Observation) -> RuntimeResult<ObservationSequence> {
         self.observations.record_at(self.moment(), observation)
+    }
+
+    /// Process one instrumentable Program execution event.
+    pub(crate) fn probe(
+        &mut self,
+        runtime_id: RuntimeId,
+        worker_id: WorkerId,
+        fiber_id: Option<program::FiberId>,
+        event: program::Event,
+    ) -> RuntimeResult<()> {
+        let branch_id = self.branch_id;
+        let sequence = &mut self.moment;
+        let observations = &self.observations;
+        let mut observation_moment = None;
+
+        self.debugger
+            .probe(runtime_id, worker_id, fiber_id, event, |probe_id, count| {
+                // allocate one shared Moment only when this event emits
+                let moment = match observation_moment {
+                    Some(moment) => moment,
+                    None => {
+                        *sequence = sequence.next()?;
+                        let moment = Moment::new(branch_id, *sequence);
+                        observation_moment = Some(moment);
+
+                        moment
+                    }
+                };
+
+                // record this exact Probe hit
+                observations
+                    .record_at(
+                        moment,
+                        Observation::ProbeHit {
+                            probe_id,
+                            count,
+                            runtime_id,
+                            worker_id,
+                            fiber_id,
+                            event,
+                        },
+                    )
+                    .map(|_| ())
+            })
     }
 
     /// Allocate one runtime identifier.

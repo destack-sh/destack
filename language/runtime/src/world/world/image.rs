@@ -3,17 +3,24 @@ use std::sync::Arc;
 
 use destack_core::{CaptureMode, fnv1a_128};
 use destack_memory::MemoryImage;
-use serde::{Deserialize, Serialize};
+use destack_program as program;
+use destack_serde as serde;
+
+use ::serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::runtime::{Runtime, RuntimeImage};
 use crate::worker::{WorkerId, WorkerImage};
+use crate::world::Frame;
 use crate::world::debug::Debugger;
 use crate::world::policy::Policy;
 use crate::world::random::RandomImage;
 use crate::world::time::ClockImage;
-use crate::world::topology::{Edge, Entity, LabelSet, RuntimeId, Topology};
+use crate::world::topology::{
+    Edge, EdgeDefinition, EdgeKind, Entity, EntityDefinition, EntityKind, LabelSet, RuntimeId,
+    Topology,
+};
 
 use super::{MomentSequence, RestoreContext, World};
 
@@ -70,6 +77,16 @@ impl WorldImage {
     /// Return the captured workers keyed by worker id.
     pub fn workers(&self) -> &BTreeMap<WorkerId, Arc<WorkerImage>> {
         &self.workers
+    }
+
+    /// Return all captured Runtime identifiers.
+    pub fn runtime_ids(&self) -> impl Iterator<Item = RuntimeId> + '_ {
+        self.runtimes.keys().copied()
+    }
+
+    /// Return all captured Worker identifiers.
+    pub fn worker_ids(&self) -> impl Iterator<Item = WorkerId> + '_ {
+        self.workers.keys().copied()
     }
 
     /// Return the number of captured runtimes.
@@ -130,6 +147,13 @@ impl WorldImage {
             .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())
     }
 
+    /// Return the Program instantiated by one captured Runtime.
+    pub fn program(&self, runtime_id: RuntimeId) -> RuntimeResult<&program::Program> {
+        let runtime = self.runtime(runtime_id)?;
+
+        Ok(runtime.program.as_ref())
+    }
+
     /// Return labels for one runtime image.
     pub fn runtime_labels(&self, runtime_id: RuntimeId) -> RuntimeResult<&LabelSet> {
         let entity_id = runtime_id.entity_id();
@@ -159,6 +183,27 @@ impl WorldImage {
             .get(&worker_id)
             .map(Arc::as_ref)
             .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())
+    }
+
+    /// Return all captured Frames.
+    pub fn frames(&self) -> RuntimeResult<Vec<Frame>> {
+        let mut frames = Vec::new();
+
+        // preserve Worker order while resolving every referenced Runtime loudly
+        for worker in self.workers.values() {
+            let runtime = self.runtime(worker.runtime_id)?;
+            frames.extend(worker.frames(runtime, self.memory())?);
+        }
+
+        Ok(frames)
+    }
+
+    /// Return all captured Frames for one Worker.
+    pub fn worker_frames(&self, worker_id: WorkerId) -> RuntimeResult<Vec<Frame>> {
+        let worker = self.worker(worker_id)?;
+        let runtime = self.runtime(worker.runtime_id)?;
+
+        worker.frames(runtime, self.memory())
     }
 
     /// Return labels for one worker image.
@@ -191,11 +236,9 @@ impl WorldImage {
 
     /// Return the owning runtime for one captured worker.
     pub fn worker_runtime_id(&self, worker_id: WorkerId) -> RuntimeResult<RuntimeId> {
-        self.runtimes
-            .keys()
-            .copied()
-            .find(|runtime_id| self.runtime_owns_worker(*runtime_id, worker_id))
-            .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())
+        let worker = self.worker(worker_id)?;
+
+        Ok(worker.runtime_id)
     }
 
     /// Return one topology entity by id.
@@ -203,13 +246,38 @@ impl WorldImage {
         self.topology.entities().get(entity_id)
     }
 
+    /// Return all captured topology entity kinds.
+    pub fn entity_kinds(&self) -> BTreeMap<EntityKind, EntityDefinition> {
+        self.topology.entity_kinds()
+    }
+
+    /// Return one captured topology entity kind when present.
+    pub fn entity_kind(&self, kind_id: &str) -> Option<&EntityDefinition> {
+        self.topology.entity_kind(kind_id)
+    }
+
     /// Return one topology edge by id.
     pub fn edge(&self, edge_id: &str) -> Option<&Edge> {
         self.topology.edges().get(edge_id)
     }
+
+    /// Return all captured topology edge kinds.
+    pub fn edge_kinds(&self) -> BTreeMap<EdgeKind, EdgeDefinition> {
+        self.topology.edge_kinds()
+    }
+
+    /// Return one captured topology edge kind when present.
+    pub fn edge_kind(&self, kind_id: &str) -> Option<&EdgeDefinition> {
+        self.topology.edge_kind(kind_id)
+    }
 }
 
 impl World {
+    /// Capture the current World as one materialized image.
+    pub fn image(&mut self) -> RuntimeResult<WorldImage> {
+        self.capture_image(CaptureMode::Suspend)
+    }
+
     /// Capture one materialized world image while the world is under exclusive access.
     pub(crate) fn capture_image(&mut self, mode: CaptureMode) -> RuntimeResult<WorldImage> {
         self.quiesce_shared_gc();
@@ -305,7 +373,7 @@ impl World {
 
     /// Return the encoded size and hash for one image.
     pub(crate) fn image_size_and_hash(image: &WorldImage) -> RuntimeResult<(u64, u128)> {
-        let bytes = destack_serde::to_vec(image).map_err(|_| {
+        let bytes = serde::to_vec(image).map_err(|_| {
             RuntimeError::inconsistent_image("failed to encode world image".to_string()).boxed()
         })?;
         let size_bytes = bytes.len() as u64;

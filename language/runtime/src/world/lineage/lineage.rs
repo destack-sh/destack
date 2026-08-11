@@ -12,25 +12,13 @@ use crate::world::topology::LabelSet;
 use crate::world::trace::{TraceImage, TraceSequence};
 use crate::world::{RuntimeId, WorldImage};
 
+use super::constants::{
+    INITIAL_BRANCH_ID, INITIAL_CHECKPOINT_ID, INITIAL_IMAGE_ID, INITIAL_REVISION_ID,
+};
 use super::{
     Branch, BranchId, BranchOrigin, Checkpoint, CheckpointId, ImageId, Moment, MomentSequence,
-    Revision, RevisionId,
+    ROOT_BRANCH, ROOT_IMAGE_ID, ROOT_REVISION, Revision, RevisionId,
 };
-
-/// First active branch identifier for one new world.
-pub(crate) const ROOT_BRANCH: BranchId = BranchId::new(0);
-/// First active revision for one new world.
-pub(crate) const ROOT_REVISION: RevisionId = RevisionId::new(0);
-/// Root image identifier for one new world.
-pub(crate) const ROOT_IMAGE_ID: ImageId = ImageId::new(0);
-/// First allocated branch identifier after the root branch.
-const INITIAL_BRANCH_ID: u64 = 1;
-/// First allocated revision identifier after the root revision.
-const INITIAL_REVISION_ID: u64 = 1;
-/// First allocated checkpoint identifier.
-const INITIAL_CHECKPOINT_ID: u64 = 1;
-/// First allocated image identifier after the root image.
-const INITIAL_IMAGE_ID: u64 = 1;
 
 /// Lineage-root metadata and durable restore metadata.
 #[derive(Debug)]
@@ -752,11 +740,6 @@ impl Lineage {
     /// Return whether one retained image payload exists.
     pub(crate) fn contains_image(&self, image_id: ImageId) -> bool {
         self.images.contains_key(&image_id)
-    }
-
-    /// Return identifiers for all retained images in stable order.
-    pub(crate) fn image_ids(&self) -> Vec<ImageId> {
-        self.images.keys().copied().collect()
     }
 
     /// Canonicalize retained runtime and worker images inside one world image.

@@ -10,4 +10,5 @@ mod world;
 
 pub use debug::*;
 pub use policy::*;
+pub use time::*;
 pub use world::*;

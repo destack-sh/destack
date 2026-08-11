@@ -1,20 +1,21 @@
-use serde::{Deserialize, Serialize};
+use destack_repository::{ExecutionMode, ReplayPayloadMode, WorldOptions};
+use destack_serde as serde;
 
-use crate::binding::ReplayPayload;
+use ::serde::{Deserialize, Serialize};
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::lineage::{
     CheckpointId, ImageId, Lineage, LineageSnapshot, Revision, RevisionId,
 };
-use destack_repository::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 
-use super::{RestoreContext, World, WorldImage};
+use super::{RestoreContext, WORLD_SNAPSHOT_FORMAT_VERSION, World, WorldImage};
 
 /// Serialized snapshot for one world image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorldSnapshot {
     /// The snapshot format version.
     pub format_version: u32,
-    /// Runtime options for the restored world.
+    /// World options for the restored World.
     pub options: SnapshotOptions,
     /// The revision selected for restore from this snapshot.
     pub revision_id: RevisionId,
@@ -30,7 +31,7 @@ impl WorldSnapshot {
         lineage: LineageSnapshot,
     ) -> Self {
         Self {
-            format_version: 1,
+            format_version: WORLD_SNAPSHOT_FORMAT_VERSION,
             options,
             revision_id,
             lineage,
@@ -57,72 +58,56 @@ impl WorldSnapshot {
 
     /// Encode one snapshot into bytes.
     pub fn encode(&self) -> RuntimeResult<Vec<u8>> {
-        destack_serde::to_vec(self).map_err(|_| {
+        serde::to_vec(self).map_err(|_| {
             RuntimeError::inconsistent_image("failed to encode world snapshot".to_string()).boxed()
         })
     }
 
     /// Decode one snapshot from bytes.
     pub fn decode(bytes: &[u8]) -> RuntimeResult<Self> {
-        destack_serde::from_slice(bytes).map_err(|_| {
+        let snapshot: Self = serde::from_slice(bytes).map_err(|_| {
             RuntimeError::inconsistent_image("failed to decode world snapshot".to_string()).boxed()
-        })
+        })?;
+
+        // reject snapshots with incompatible runtime structure
+        if snapshot.format_version != WORLD_SNAPSHOT_FORMAT_VERSION {
+            return Err(RuntimeError::inconsistent_image(format!(
+                "unsupported world snapshot format version {}",
+                snapshot.format_version
+            ))
+            .boxed());
+        }
+
+        Ok(snapshot)
     }
 }
 
-/// Runtime options needed to rebuild one world from a snapshot.
+/// Options needed to rebuild one World from a snapshot.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnapshotOptions {
     /// Execution mode for the rebuilt world.
-    pub execution: ExecutionMode,
+    pub mode: ExecutionMode,
     /// Replay payload policy used for the trace.
     pub replay_payload: ReplayPayloadMode,
-    /// Trace chunk sizing in megabytes, when configured.
-    pub replay_chunk_size_mb: Option<u64>,
 }
 
 impl World {
     /// Build snapshot restore options from the live world.
     fn snapshot_options(&self) -> SnapshotOptions {
         let header = self.state.trace.store().header();
-        let replay_payload = match header.replay_payload {
-            ReplayPayload::Results => ReplayPayloadMode::ResultsOnly,
-            ReplayPayload::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,
-        };
-        let replay_chunk_size_mb = if header.max_chunk_size_bytes == 0 {
-            None
-        } else {
-            Some(header.max_chunk_size_bytes / (1024 * 1024))
-        };
-
         SnapshotOptions {
-            execution: self.state.trace.mode(),
-            replay_payload,
-            replay_chunk_size_mb,
+            mode: self.state.trace.mode(),
+            replay_payload: header.replay_payload.into(),
         }
     }
 
-    /// Build runtime options for one serialized world snapshot.
-    fn runtime_options_from_snapshot(snapshot: &WorldSnapshot) -> RuntimeOptions {
-        let mut options = RuntimeOptions::default();
-
-        options.mode = snapshot.options.execution;
-        options.trace.chunk_size_mb = snapshot.options.replay_chunk_size_mb;
-        options.trace.payload = snapshot.options.replay_payload;
-
-        options
-    }
-
-    /// Return metadata for one stored image.
-    pub fn image_info(&self, image_id: ImageId) -> RuntimeResult<WorldImage> {
-        let image = self.lineage.read().image(image_id)?;
-
-        Ok(image.as_ref().clone())
-    }
-
-    /// Return identifiers for all stored images in stable order.
-    pub fn image_ids(&self) -> Vec<ImageId> {
-        self.lineage.read().image_ids()
+    /// Build world options for one serialized world snapshot.
+    fn world_options_from_snapshot(snapshot: &WorldSnapshot) -> WorldOptions {
+        WorldOptions {
+            mode: snapshot.options.mode,
+            replay_payload: snapshot.options.replay_payload,
+            ..Default::default()
+        }
     }
 
     /// Return the revision that owns one stored image.
@@ -177,13 +162,14 @@ impl World {
     pub fn snapshot(&self, image_id: ImageId) -> RuntimeResult<WorldSnapshot> {
         let revision = self.revision_for_image(image_id)?;
 
-        self.snapshot_revision(revision)
+        self.snapshot_revision(revision, RestoreContext::empty())
     }
 
     /// Create one lineage-wide serialized snapshot from one specific revision.
     pub fn snapshot_lineage_revision(
         &self,
         revision_id: RevisionId,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<WorldSnapshot> {
         let revision = {
             let lineage = self.lineage.read();
@@ -208,7 +194,7 @@ impl World {
             &base_revision,
             &image,
             &trace_image,
-            RestoreContext::empty(),
+            restore,
         )?;
         let mut lineage_snapshot = self.lineage.read().full_snapshot()?;
         lineage_snapshot.images.insert(revision.image_id, image);
@@ -221,7 +207,11 @@ impl World {
     }
 
     /// Create one exact serialized snapshot from one specific revision.
-    pub fn snapshot_revision(&self, revision_id: RevisionId) -> RuntimeResult<WorldSnapshot> {
+    pub fn snapshot_revision(
+        &self,
+        revision_id: RevisionId,
+        restore: RestoreContext<'_>,
+    ) -> RuntimeResult<WorldSnapshot> {
         let (image, trace_image) = {
             let lineage = self.lineage.read();
             let revision = lineage.revision(revision_id)?;
@@ -248,7 +238,7 @@ impl World {
                     &base_revision,
                     &image,
                     &trace_image,
-                    RestoreContext::empty(),
+                    restore,
                 )?;
 
                 (image, trace_image.as_ref().clone())
@@ -281,7 +271,7 @@ impl World {
             checkpoint.revision_id
         };
 
-        self.snapshot_lineage_revision(revision)
+        self.snapshot_lineage_revision(revision, RestoreContext::empty())
     }
 
     /// Create one exact serialized snapshot from one stored checkpoint.
@@ -296,7 +286,7 @@ impl World {
             checkpoint.revision_id
         };
 
-        self.snapshot_revision(revision)
+        self.snapshot_revision(revision, RestoreContext::empty())
     }
 
     /// Build one fresh world from one serialized snapshot.
@@ -304,7 +294,7 @@ impl World {
         snapshot: &WorldSnapshot,
         restore: RestoreContext<'_>,
     ) -> RuntimeResult<Self> {
-        let options = Self::runtime_options_from_snapshot(snapshot);
+        let options = Self::world_options_from_snapshot(snapshot);
         let revision = snapshot.revision()?;
         let trace_image = snapshot
             .lineage

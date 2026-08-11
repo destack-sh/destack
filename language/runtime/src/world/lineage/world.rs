@@ -1,24 +1,23 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::binding::ReplayPayload;
+use destack_core::CaptureMode;
+use destack_repository::{ExecutionMode, WorldOptions};
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostQueue;
-use crate::host::poller::create_host_poller;
+use crate::host::poller::HostPoller;
 use crate::world::observation::ObservationLog;
 use crate::world::random::Random;
 use crate::world::time::Instant;
 use crate::world::trace::{Trace, TraceHeader, TraceImage, TraceLog, TraceSequence};
-use destack_core::CaptureMode;
-use destack_repository::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
-
 use crate::world::{RestoreContext, World, WorldImage, WorldSnapshot, WorldState};
 
 use super::{BranchId, Checkpoint, Moment, MomentSequence, Revision, RevisionId};
 
 impl World {
     /// Restore this branch to one specific moment.
-    pub fn rewind(&mut self, moment: Moment) -> RuntimeResult<()> {
+    pub fn rewind(&mut self, moment: Moment, restore: RestoreContext<'_>) -> RuntimeResult<()> {
         if moment.branch_id != self.state.branch_id {
             return Err(RuntimeError::moment_branch_mismatch(
                 moment.branch_id.get(),
@@ -45,23 +44,23 @@ impl World {
             (anchor_revision_id, target_revision, base_revision, image)
         };
 
-        let image = self.moment_image(moment, &base_revision, &image, RestoreContext::empty())?;
+        let image = self.moment_image(moment, &base_revision, &image, restore)?;
         let trace_image = self
             .state
             .trace
             .capture_image_through(target_revision.trace_sequence)?;
 
-        self.restore_revision_image(
-            anchor_revision,
-            &image,
-            &trace_image,
-            RestoreContext::empty(),
-        )
+        self.restore_revision_image(anchor_revision, &image, &trace_image, restore)
     }
 
     /// Fork one child world from one specific moment.
-    pub fn fork(&mut self, moment: Moment, name: impl Into<String>) -> RuntimeResult<World> {
-        self.fork_from_moment(moment, name.into())
+    pub fn fork(
+        &mut self,
+        moment: Moment,
+        name: impl Into<String>,
+        restore: RestoreContext<'_>,
+    ) -> RuntimeResult<World> {
+        self.fork_from_moment(moment, name.into(), restore)
     }
 
     /// Commit one new revision for the active branch.
@@ -135,7 +134,7 @@ impl World {
     pub fn hibernate_snapshot(&mut self) -> RuntimeResult<WorldSnapshot> {
         let revision = self.commit(CaptureMode::Hibernate, None)?.0;
 
-        self.snapshot_revision(revision)
+        self.snapshot_revision(revision, RestoreContext::empty())
     }
 
     /// Restore one specific revision image and update branch lineage.
@@ -157,7 +156,12 @@ impl World {
     }
 
     /// Fork one child world from one stored moment.
-    fn fork_from_moment(&mut self, moment: Moment, name: String) -> RuntimeResult<World> {
+    fn fork_from_moment(
+        &mut self,
+        moment: Moment,
+        name: String,
+        restore: RestoreContext<'_>,
+    ) -> RuntimeResult<World> {
         // resolve the retained fork point before mutating lineage
         let (anchor_revision_id, target_revision, base_revision, image, head_revision) = {
             let lineage = self.lineage.read();
@@ -182,8 +186,7 @@ impl World {
                 head_revision,
             )
         };
-        let mut image =
-            self.moment_image(moment, &base_revision, &image, RestoreContext::empty())?;
+        let mut image = self.moment_image(moment, &base_revision, &image, restore)?;
         let trace_image = self
             .state
             .trace
@@ -227,34 +230,21 @@ impl World {
         let mut child = self.fork_child_world(child_branch.id, moment.sequence, trace_header)?;
 
         // restore the child to the fork moment
-        child.restore_image(&image, RestoreContext::empty())?;
+        child.restore_image(&image, restore)?;
         child.state.trace.restore_image(&trace_image)?;
         child.state.trace.set_branch_id(child.state.branch_id);
 
         Ok(child)
     }
 
-    /// Build replay options for one suffix-replay world.
-    fn replay_runtime_options(&self) -> RuntimeOptions {
+    /// Build options for one suffix-replay world.
+    fn replay_world_options(&self) -> WorldOptions {
         let header = self.state.trace.store().header();
-        let replay_payload = match header.replay_payload {
-            ReplayPayload::Results => ReplayPayloadMode::ResultsOnly,
-            ReplayPayload::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,
-        };
-        let replay_chunk_size_mb = if header.max_chunk_size_bytes == 0 {
-            None
-        } else {
-            Some(header.max_chunk_size_bytes / (1024 * 1024))
-        };
-
-        let mut options = RuntimeOptions {
+        WorldOptions {
             mode: ExecutionMode::Replay,
+            replay_payload: header.replay_payload.into(),
             ..Default::default()
-        };
-        options.trace.chunk_size_mb = replay_chunk_size_mb;
-        options.trace.payload = replay_payload;
-
-        options
+        }
     }
 
     /// Restore one exact image for one committed revision.
@@ -272,7 +262,7 @@ impl World {
             return Ok(image.clone());
         }
 
-        let options = self.replay_runtime_options();
+        let options = self.replay_world_options();
         let environment = self.state.trace.store().header().environment.clone();
         let mut replay_world =
             World::empty(target_revision.branch_id, &options, environment, None)?;
@@ -307,7 +297,7 @@ impl World {
             return Ok(image.clone());
         }
 
-        let options = self.replay_runtime_options();
+        let options = self.replay_world_options();
         let environment = self.state.trace.store().header().environment.clone();
         let mut replay_world = World::empty(moment.branch_id, &options, environment, None)?;
         replay_world.restore_image(image, restore)?;
@@ -326,7 +316,11 @@ impl World {
     }
 
     /// Materialize one exact image for one committed moment.
-    pub(crate) fn image_at_moment(&self, moment: Moment) -> RuntimeResult<WorldImage> {
+    pub(crate) fn image_at_moment(
+        &self,
+        moment: Moment,
+        restore: RestoreContext<'_>,
+    ) -> RuntimeResult<WorldImage> {
         let (_anchor_revision, base_revision, image) = {
             let lineage = self.lineage.read();
             let head_revision = lineage.head_revision(moment.branch_id)?;
@@ -344,7 +338,7 @@ impl World {
             (anchor_revision, base_revision, image)
         };
 
-        self.moment_image(moment, &base_revision, &image, RestoreContext::empty())
+        self.moment_image(moment, &base_revision, &image, restore)
     }
 
     /// Replay one trace through one requested sequence boundary.
@@ -364,7 +358,7 @@ impl World {
                     self.apply_mutation_with_restore(*mutation, restore)?;
                 }
                 Trace::Entrypoint(invocation) => {
-                    let _ = self.execute_entrypoint(
+                    self.execute_entrypoint(
                         invocation.runtime_id,
                         &invocation.entry,
                         &invocation.args,
@@ -418,8 +412,7 @@ impl World {
             observations: ObservationLog::default(),
         };
 
-        let poller_backend = self.poller.backend();
-        let poller = create_host_poller(poller_backend)?;
+        let poller = HostPoller::open()?;
 
         Ok(World {
             host: self.host.clone(),
@@ -449,11 +442,16 @@ impl World {
 
             // direct live fork still requires all runtimes to be quiescent
             let execution_mode = self.state.trace.mode();
+            let replay_payload = trace_header.replay_payload;
             let collector = self.collector.clone();
             let mut runtimes = BTreeMap::new();
             for (runtime_id, runtime) in &mut self.runtimes {
-                let Some(runtime) =
-                    runtime.try_fork(memory.clone(), execution_mode, collector.clone())?
+                let Some(runtime) = runtime.try_fork(
+                    memory.clone(),
+                    execution_mode,
+                    replay_payload,
+                    collector.clone(),
+                )?
                 else {
                     return Ok(None);
                 };
@@ -483,8 +481,7 @@ impl World {
                 observations: ObservationLog::default(),
             };
 
-            let poller_backend = self.poller.backend();
-            let poller = create_host_poller(poller_backend)?;
+            let poller = HostPoller::open()?;
 
             Ok(Some(World {
                 host: self.host.clone(),

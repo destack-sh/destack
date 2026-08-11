@@ -1,3 +1,4 @@
+mod constants;
 mod image;
 mod mutation;
 mod restore;
@@ -11,6 +12,7 @@ mod world;
 pub use crate::world::lineage::*;
 pub(crate) use crate::world::topology;
 pub use crate::world::topology::*;
+pub use constants::WORLD_SNAPSHOT_FORMAT_VERSION;
 pub use image::*;
 pub use mutation::*;
 pub use restore::*;
