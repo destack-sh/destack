@@ -1,5 +1,6 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
@@ -279,7 +280,8 @@ impl BodyState<'_, '_> {
             dir::Type::Form(_) => dir::PredicateCondition::Type(target),
             dir::Type::Shape(_) | dir::Type::Object(_) => return Ok(None),
             dir::Type::Union(union) => {
-                let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(target.module_id, union.elements)?.into();
                 let mut alternatives = Vec::with_capacity(elements.len());
                 for element in elements {
                     let Some(predicate) = self.runtime_predicate(origin, value, element)? else {
@@ -333,7 +335,8 @@ impl BodyState<'_, '_> {
 
             // tagged unions can still test their known arms
             dir::Type::Union(union) => {
-                let elements = self.type_ids(value.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(value.module_id, union.elements)?.into();
                 let mut alternatives = Vec::with_capacity(elements.len());
                 for element in elements {
                     let satisfies =

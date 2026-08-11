@@ -658,9 +658,9 @@ impl BodyState<'_, '_> {
             return_type: Some(return_type),
             is_generator: false,
         })?;
-        let parameters = self
+        let parameters: SmallVec<[_; 4]> = self
             .signature_parameters(callable_type.module_id, parameters)?
-            .to_vec();
+            .into();
         let arguments = parameters
             .iter()
             .zip(sources)
@@ -849,9 +849,9 @@ impl BodyState<'_, '_> {
         shape: &dir::ShapeType,
     ) -> CompilerResult<Option<SubscriptSelection>> {
         // index signatures accept matching key types
-        let index_signatures = self
+        let index_signatures: SmallVec<[_; 4]> = self
             .shape_index_signatures(lookup_receiver.module_id, shape.index_signatures)?
-            .to_vec();
+            .into();
         for (position, signature) in index_signatures.into_iter().enumerate() {
             let accepts =
                 self.evaluate_relation(origin, Relation::Assignable, index, signature.key_type)?;
@@ -877,9 +877,9 @@ impl BodyState<'_, '_> {
         }))?;
         let accepts = self.evaluate_relation(origin, Relation::Assignable, index, key_domain)?;
         if accepts {
-            let fields = self
+            let fields: SmallVec<[_; 4]> = self
                 .shape_properties(lookup_receiver.module_id, shape.properties)?
-                .to_vec();
+                .into();
             let mut keys = Vec::new();
             let mut write_types = Vec::new();
             for field in fields {
@@ -1235,9 +1235,9 @@ impl BodyState<'_, '_> {
         };
 
         // select each substituted parameter in the receiver placement
-        let parameter_types = self
+        let parameter_types: SmallVec<[_; 4]> = self
             .signature_parameters(callable.module_id, signature.parameters)?
-            .to_vec();
+            .into();
         let substitution = TypeSubstitution::default();
         let receiver = match &candidate.receiver {
             dir::MemberReceiver::Direct(receiver) => receiver.ty(),

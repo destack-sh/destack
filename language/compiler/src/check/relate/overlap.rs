@@ -1,5 +1,6 @@
 use destack_core::FxIndexSet;
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{CheckState, Origin, Relation, Variance};
@@ -66,12 +67,14 @@ impl CheckState<'_> {
 
         // split unions on either side
         if let dir::Type::Union(union) = source_type {
-            let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
+            let elements: SmallVec<[_; 8]> =
+                self.type_ids(source.module_id, union.elements)?.into();
 
             return self.any_type_arm_may_overlap(origin, elements, target, active);
         }
         if let dir::Type::Union(union) = target_type {
-            let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+            let elements: SmallVec<[_; 8]> =
+                self.type_ids(target.module_id, union.elements)?.into();
 
             return self.any_type_arm_may_overlap(origin, elements, source, active);
         }
@@ -213,9 +216,9 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<(dir::GlobalTypeId, dir::GlobalTypeId)>,
     ) -> CompilerResult<bool> {
-        let fields = self
+        let fields: SmallVec<[_; 4]> = self
             .shape_properties(source.module_id, shape.properties)?
-            .to_vec();
+            .into();
 
         // incompatible required properties make the intersection empty
         for field in fields {
@@ -272,12 +275,12 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         // compare instantiations of one declaration by their argument domains
         if source_instance.symbol == target_instance.symbol {
-            let source_arguments = self
+            let source_arguments: SmallVec<[_; 8]> = self
                 .type_ids(source.module_id, source_instance.arguments)?
-                .to_vec();
-            let target_arguments = self
+                .into();
+            let target_arguments: SmallVec<[_; 8]> = self
                 .type_ids(target.module_id, target_instance.arguments)?
-                .to_vec();
+                .into();
             if source_arguments.len() != target_arguments.len() {
                 return Ok(false);
             }

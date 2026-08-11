@@ -93,7 +93,7 @@ impl CheckState<'_> {
         };
 
         // relate the source against any one element
-        let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+        let elements: SmallVec<[_; 8]> = self.type_ids(target.module_id, union.elements)?.into();
         for element in elements {
             if self.constrain_type(origin, cause, relation, source, element)? {
                 return Ok(true);

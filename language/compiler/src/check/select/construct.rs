@@ -536,7 +536,7 @@ impl BodyState<'_, '_> {
             }
         };
         let module = origin.module();
-        let arguments = self.type_ids(extends_module, instance.arguments)?.to_vec();
+        let arguments: SmallVec<[_; 8]> = self.type_ids(extends_module, instance.arguments)?.into();
         let arguments = self.intern_type_ids(&arguments)?;
         let instance = dir::GenericApplication {
             arguments,
@@ -781,7 +781,8 @@ impl BodyState<'_, '_> {
         forms: &[dir::Form],
     ) -> CompilerResult<dir::GlobalTypeId> {
         let generic_arguments = if signature.generic_arguments.is_empty() {
-            let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
+            let arguments: SmallVec<[_; 8]> =
+                self.type_ids(instance_module, instance.arguments)?.into();
 
             self.symbol_generic_argument_bindings(instance.symbol, &arguments)?
         } else {
@@ -1118,7 +1119,8 @@ impl BodyState<'_, '_> {
 
         // bind generic arguments from the base instance when inference stayed closed
         let generic_arguments = if signature.generic_arguments.is_empty() {
-            let arguments = self.type_ids(base_module, instance.arguments)?.to_vec();
+            let arguments: SmallVec<[_; 8]> =
+                self.type_ids(base_module, instance.arguments)?.into();
 
             self.symbol_generic_argument_bindings(instance.symbol, &arguments)?
         } else {

@@ -727,12 +727,13 @@ impl CheckState<'_> {
             self.substitute_children(id.module_id, target, ty, rule, marks, substituting)?;
         let rebuilt = match substituted {
             dir::Type::Union(union) => {
-                let elements = self.type_ids(target, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> = self.type_ids(target, union.elements)?.into();
 
                 self.normalized_union_type(elements)
             }
             dir::Type::Intersection(intersection) => {
-                let elements = self.type_ids(target, intersection.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(target, intersection.elements)?.into();
 
                 self.normalized_intersection_type(elements)
             }

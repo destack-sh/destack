@@ -1,5 +1,6 @@
 use destack_core::{FxIndexSet, ensure_sufficient_stack};
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{Cause, CauseId, CauseKind, CheckState, Origin, Relation};
@@ -365,26 +366,28 @@ impl CheckState<'_> {
 
             // union and intersection inclusion
             (dir::Type::Union(union), _) => {
-                let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(source.module_id, union.elements)?.into();
 
                 self.relate_all_sources(origin, cause, Relation::Subtype, &elements, target)?
             }
             (_, dir::Type::Union(union)) => {
-                let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(target.module_id, union.elements)?.into();
 
                 self.relate_any_target(origin, cause, Relation::Subtype, source, &elements)?
             }
             (dir::Type::Intersection(intersection), _) => {
-                let elements = self
+                let elements: SmallVec<[_; 8]> = self
                     .type_ids(source.module_id, intersection.elements)?
-                    .to_vec();
+                    .into();
 
                 self.relate_any_source(origin, cause, Relation::Subtype, &elements, target)?
             }
             (_, dir::Type::Intersection(intersection)) => {
-                let elements = self
+                let elements: SmallVec<[_; 8]> = self
                     .type_ids(target.module_id, intersection.elements)?
-                    .to_vec();
+                    .into();
 
                 self.relate_all_targets(origin, cause, Relation::Subtype, source, &elements)?
             }
@@ -417,7 +420,7 @@ impl CheckState<'_> {
 
                 // bind open spans to the text they capture
                 let mut is_open = false;
-                for span in self.type_ids(target.module_id, template.spans)?.to_vec() {
+                for &span in self.type_ids(target.module_id, template.spans)? {
                     is_open = is_open || self.type_flags(span)?.has_variable();
                 }
                 if is_open {

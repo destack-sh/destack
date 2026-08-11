@@ -52,7 +52,7 @@ impl CheckState<'_> {
         template: &dir::TemplateLiteralType,
     ) -> CompilerResult<bool> {
         let segments = self.template_segments(template_module, template.strings)?;
-        let spans = self.type_ids(template_module, template.spans)?.to_vec();
+        let spans: SmallVec<[_; 8]> = self.type_ids(template_module, template.spans)?.into();
 
         // reduce span heads once so alternatives compare structurally
         let mut heads = Vec::with_capacity(spans.len());
@@ -119,7 +119,7 @@ impl CheckState<'_> {
         module: ModuleId,
         template: &dir::TemplateLiteralType,
     ) -> CompilerResult<bool> {
-        let spans = self.type_ids(module, template.spans)?.to_vec();
+        let spans: SmallVec<[_; 8]> = self.type_ids(module, template.spans)?.into();
 
         // decide closed patterns by inhabitation
         let mut is_open = false;
@@ -159,7 +159,7 @@ impl CheckState<'_> {
                 return Ok(false);
             }
         }
-        let spans = self.type_ids(template_module, template.spans)?.to_vec();
+        let spans: SmallVec<[_; 8]> = self.type_ids(template_module, template.spans)?.into();
         if spans.is_empty() {
             return Ok(false);
         }
@@ -371,7 +371,8 @@ impl CheckState<'_> {
             dir::Type::Null => text == "null",
             dir::Type::Undefined => text == "undefined",
             dir::Type::Union(union) => {
-                let elements = self.type_ids(span.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(span.module_id, union.elements)?.into();
                 let mut matched = false;
                 for element in elements {
                     if self.match_template_span(origin, text, element)? {
@@ -417,7 +418,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         // flatten the source into literal text and span pieces
         let segments = self.template_segments(source_module, source.strings)?;
-        let spans = self.type_ids(source_module, source.spans)?.to_vec();
+        let spans: SmallVec<[_; 8]> = self.type_ids(source_module, source.spans)?.into();
         let mut pieces = Vec::new();
         for (index, segment) in segments.iter().enumerate() {
             if !segment.is_empty() {
@@ -435,7 +436,7 @@ impl CheckState<'_> {
         // flatten the target into its own segments and reduced spans
         let target_segments = self.template_segments(target_module, target.strings)?;
         let mut target_spans = Vec::new();
-        for span in self.type_ids(target_module, target.spans)?.to_vec() {
+        for span in SmallVec::<[_; 8]>::from(self.type_ids(target_module, target.spans)?) {
             target_spans.push(self.template_span_head(origin, span)?);
         }
 
@@ -452,7 +453,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<Vec<(dir::GlobalTypeId, String)>>> {
         let segments = self.template_segments(template_module, template.strings)?;
         let mut spans = Vec::new();
-        for span in self.type_ids(template_module, template.spans)?.to_vec() {
+        for span in SmallVec::<[_; 8]>::from(self.type_ids(template_module, template.spans)?) {
             spans.push(self.template_span_head(origin, span)?);
         }
 

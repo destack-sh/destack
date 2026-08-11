@@ -95,16 +95,16 @@ impl CheckState<'_> {
         let families = match self.ty(root)? {
             // union alternatives contribute every possible family
             dir::Type::Union(union) => {
-                let elements = self.type_ids(root.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(root.module_id, union.elements)?.into();
 
                 self.union_scalar_families(origin, &elements, use_, parameters)?
             }
 
             // intersection conjuncts retain only shared scalar families
             dir::Type::Intersection(intersection) => {
-                let elements = self
-                    .type_ids(root.module_id, intersection.elements)?
-                    .to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(root.module_id, intersection.elements)?.into();
 
                 self.intersect_scalar_families(origin, &elements, use_, parameters)?
             }
@@ -309,7 +309,8 @@ impl CheckState<'_> {
 
             // recurse through every possible union arm
             dir::Type::Union(union) => {
-                let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(target.module_id, union.elements)?.into();
                 for element in elements {
                     self.collect_builtin_scalar_formats(
                         origin, element, families, parameters, formats,
@@ -319,9 +320,9 @@ impl CheckState<'_> {
 
             // recurse through every conjunctive bound
             dir::Type::Intersection(intersection) => {
-                let elements = self
+                let elements: SmallVec<[_; 8]> = self
                     .type_ids(target.module_id, intersection.elements)?
-                    .to_vec();
+                    .into();
                 for element in elements {
                     self.collect_builtin_scalar_formats(
                         origin, element, families, parameters, formats,

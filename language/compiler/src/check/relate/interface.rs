@@ -120,12 +120,12 @@ impl CheckState<'_> {
 
         // compare the selected interface arguments by their declared variance
         if let Some((application_module, application)) = application {
-            let source_arguments = self
+            let source_arguments: SmallVec<[_; 8]> = self
                 .type_ids(application_module, application.arguments)?
-                .to_vec();
-            let target_arguments = self
+                .into();
+            let target_arguments: SmallVec<[_; 8]> = self
                 .type_ids(target.module_id, target_instance.arguments)?
-                .to_vec();
+                .into();
             let form = self.default_variance_form(target_instance.symbol)?;
             let argument_relation = match relation {
                 Relation::Subtype => relation,
@@ -216,9 +216,8 @@ impl CheckState<'_> {
         interface: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // compare each declared implemented interface
-        let interface_arguments = self
-            .type_ids(interface_module, interface.arguments)?
-            .to_vec();
+        let interface_arguments: SmallVec<[_; 8]> =
+            self.type_ids(interface_module, interface.arguments)?.into();
         let arguments = self.intern_type_ids(&interface_arguments)?;
         let interface_type = self.intern_type(dir::Type::Application(dir::GenericApplication {
             symbol: interface.symbol,
@@ -272,7 +271,8 @@ impl CheckState<'_> {
             // relate the instance arguments under the declared variance
             let is_matched = match instance {
                 Some((instance_module, instance)) => {
-                    let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
+                    let arguments: SmallVec<[_; 8]> =
+                        self.type_ids(instance_module, instance.arguments)?.into();
                     let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                     let form = self.default_variance_form(interface.symbol)?;
 

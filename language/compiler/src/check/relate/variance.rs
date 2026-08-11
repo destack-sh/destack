@@ -412,9 +412,9 @@ impl CheckState<'_> {
         };
 
         // statically dispatched calls type against the copy, not the origin
-        let parameters = self
+        let parameters: SmallVec<[_; 4]> = self
             .signature_parameters(ty.module_id, signature.parameters)?
-            .to_vec();
+            .into();
         positions.extend(
             parameters
                 .iter()
@@ -473,9 +473,9 @@ impl CheckState<'_> {
                         parameter,
                     )?);
                 }
-                let inputs = self
+                let inputs: SmallVec<[_; 4]> = self
                     .signature_parameters(ty.module_id, function.parameters)?
-                    .to_vec();
+                    .into();
                 for input in inputs {
                     measured = measured.join(self.measure_type(
                         input.ty,
@@ -502,7 +502,8 @@ impl CheckState<'_> {
 
             // applications compose with the base parameter variances
             dir::Type::Application(instance) => {
-                let arguments = self.type_ids(ty.module_id, instance.arguments)?.to_vec();
+                let arguments: SmallVec<[_; 8]> =
+                    self.type_ids(ty.module_id, instance.arguments)?.into();
 
                 self.measure_application(instance.symbol, &arguments, position, form, parameter)?
             }
@@ -520,7 +521,8 @@ impl CheckState<'_> {
                 self.measure_type(array.element, position, form, parameter)?
             }
             dir::Type::Tuple(tuple) => {
-                let elements = self.tuple_elements(ty.module_id, tuple.elements)?.to_vec();
+                let elements: SmallVec<[_; 4]> =
+                    self.tuple_elements(ty.module_id, tuple.elements)?.into();
                 let mut measured = Variance::Bivariant;
                 for element in elements {
                     measured =
@@ -532,9 +534,9 @@ impl CheckState<'_> {
 
             // structural shapes measure reads forward and writes backward
             dir::Type::Shape(shape) | dir::Type::Object(shape) => {
-                let fields = self
+                let fields: SmallVec<[_; 4]> = self
                     .shape_properties(ty.module_id, shape.properties)?
-                    .to_vec();
+                    .into();
                 let mut measured = Variance::Bivariant;
                 for field in fields {
                     if let Some(read) = field.access.read() {
@@ -560,9 +562,9 @@ impl CheckState<'_> {
                     measured =
                         measured.join(self.measure_type(signature, position, form, parameter)?);
                 }
-                let index_signatures = self
+                let index_signatures: SmallVec<[_; 4]> = self
                     .shape_index_signatures(ty.module_id, shape.index_signatures)?
-                    .to_vec();
+                    .into();
                 for signature in index_signatures {
                     measured = measured.join(self.measure_type(
                         signature.value_type,
@@ -594,7 +596,7 @@ impl CheckState<'_> {
             // algebraic composites keep their position
             dir::Type::Union(dir::UnionType { elements })
             | dir::Type::Intersection(dir::IntersectionType { elements }) => {
-                let elements = self.type_ids(ty.module_id, elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> = self.type_ids(ty.module_id, elements)?.into();
                 let mut measured = Variance::Bivariant;
                 for element in elements {
                     measured =
@@ -609,7 +611,8 @@ impl CheckState<'_> {
                 let member = self.type_member(ty.module_id, member)?;
                 let mut measured =
                     self.measure_type(member.owner, Variance::Invariant, form, parameter)?;
-                let arguments = self.type_ids(ty.module_id, member.arguments)?.to_vec();
+                let arguments: SmallVec<[_; 8]> =
+                    self.type_ids(ty.module_id, member.arguments)?.into();
                 for argument in arguments {
                     measured = measured.join(self.measure_type(
                         argument,

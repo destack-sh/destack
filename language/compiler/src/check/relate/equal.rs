@@ -57,12 +57,12 @@ impl CheckState<'_> {
             (dir::Type::Range(source), dir::Type::Range(target)) => source == target,
             // unions and intersections compare as unordered type sets
             (dir::Type::Union(source_union), dir::Type::Union(target_union)) => {
-                let source = self
+                let source: SmallVec<[_; 8]> = self
                     .type_ids(source.module_id, source_union.elements)?
-                    .to_vec();
-                let target = self
+                    .into();
+                let target: SmallVec<[_; 8]> = self
                     .type_ids(target.module_id, target_union.elements)?
-                    .to_vec();
+                    .into();
 
                 self.relate_type_sets_equal(origin, cause, &source, &target)?
             }
@@ -70,12 +70,12 @@ impl CheckState<'_> {
                 dir::Type::Intersection(source_intersection),
                 dir::Type::Intersection(target_intersection),
             ) => {
-                let source = self
+                let source: SmallVec<[_; 8]> = self
                     .type_ids(source.module_id, source_intersection.elements)?
-                    .to_vec();
-                let target = self
+                    .into();
+                let target: SmallVec<[_; 8]> = self
                     .type_ids(target.module_id, target_intersection.elements)?
-                    .to_vec();
+                    .into();
 
                 self.relate_type_sets_equal(origin, cause, &source, &target)?
             }

@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::check::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
@@ -80,7 +81,8 @@ impl CheckState<'_> {
         let declared_backing = definition.backing;
 
         // apply the written arguments to the declared backing
-        let arguments = self.type_ids(value.module_id, instance.arguments)?.to_vec();
+        let arguments: SmallVec<[_; 8]> =
+            self.type_ids(value.module_id, instance.arguments)?.into();
         let substitution = self
             .instance_substitution(value.module_id, &instance)?
             .with_receiver(value);

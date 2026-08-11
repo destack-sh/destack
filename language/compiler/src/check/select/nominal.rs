@@ -175,7 +175,7 @@ impl BodyState<'_, '_> {
 
         // project declared fields off the matched declaration
         let (fields, rest) = self.project_named_fields(node, origin, flow, scope, tag, fields)?;
-        let arguments = self.type_ids(tag.module_id, instance.arguments)?.to_vec();
+        let arguments: SmallVec<[_; 8]> = self.type_ids(tag.module_id, instance.arguments)?.into();
         let generic_arguments =
             self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;
         self.commit_pattern(

@@ -444,8 +444,10 @@ impl CheckState<'_> {
             (dir::Type::Application(pattern), dir::Type::Application(actual))
                 if pattern.symbol == actual.symbol =>
             {
-                let pattern_arguments = self.type_ids(pattern_module, pattern.arguments)?.to_vec();
-                let actual_arguments = self.type_ids(actual_module, actual.arguments)?.to_vec();
+                let pattern_arguments: SmallVec<[_; 8]> =
+                    self.type_ids(pattern_module, pattern.arguments)?.into();
+                let actual_arguments: SmallVec<[_; 8]> =
+                    self.type_ids(actual_module, actual.arguments)?.into();
 
                 self.match_infer_instance_arguments(
                     origin,
@@ -472,12 +474,11 @@ impl CheckState<'_> {
                 if pattern.form == actual.form
                     && pattern.elements.len() == actual.elements.len() =>
             {
-                let pattern_elements = self
+                let pattern_elements: SmallVec<[_; 4]> = self
                     .tuple_elements(pattern_module, pattern.elements)?
-                    .to_vec();
-                let actual_elements = self
-                    .tuple_elements(actual_module, actual.elements)?
-                    .to_vec();
+                    .into();
+                let actual_elements: SmallVec<[_; 4]> =
+                    self.tuple_elements(actual_module, actual.elements)?.into();
 
                 self.match_infer_tuple(
                     origin,
@@ -494,9 +495,7 @@ impl CheckState<'_> {
                 | dir::Type::Application(dir::GenericApplication { symbol, .. }),
             ) => {
                 let reference = dir::TypeReference { symbol };
-                let candidates = self
-                    .reference_construct_signatures(origin, reference)?
-                    .to_vec();
+                let candidates = self.reference_construct_signatures(origin, reference)?;
                 let mut matched = false;
                 for candidate in candidates {
                     matched = matched
@@ -590,12 +589,12 @@ impl CheckState<'_> {
         actual_module: ModuleId,
         actual: dir::ShapeType,
     ) -> CompilerResult<bool> {
-        let pattern_fields = self
+        let pattern_fields: SmallVec<[_; 4]> = self
             .shape_properties(pattern_module, pattern.properties)?
-            .to_vec();
-        let actual_fields = self
+            .into();
+        let actual_fields: SmallVec<[_; 4]> = self
             .shape_properties(actual_module, actual.properties)?
-            .to_vec();
+            .into();
         let fields = self.match_infer_shape_fields(
             origin,
             captures,
@@ -607,24 +606,23 @@ impl CheckState<'_> {
             return Ok(fields);
         }
 
-        let pattern_calls = self
+        let pattern_calls: SmallVec<[_; 8]> = self
             .type_ids(pattern_module, pattern.call_signatures)?
-            .to_vec();
-        let actual_calls = self
-            .type_ids(actual_module, actual.call_signatures)?
-            .to_vec();
+            .into();
+        let actual_calls: SmallVec<[_; 8]> =
+            self.type_ids(actual_module, actual.call_signatures)?.into();
         let calls =
             self.match_infer_arguments(origin, captures, variance, &pattern_calls, &actual_calls)?;
         if !calls {
             return Ok(calls);
         }
 
-        let pattern_constructs = self
+        let pattern_constructs: SmallVec<[_; 8]> = self
             .type_ids(pattern_module, pattern.construct_signatures)?
-            .to_vec();
-        let actual_constructs = self
+            .into();
+        let actual_constructs: SmallVec<[_; 8]> = self
             .type_ids(actual_module, actual.construct_signatures)?
-            .to_vec();
+            .into();
         let constructs = self.match_infer_arguments(
             origin,
             captures,
@@ -636,12 +634,12 @@ impl CheckState<'_> {
             return Ok(constructs);
         }
 
-        let pattern_indexes = self
+        let pattern_indexes: SmallVec<[_; 4]> = self
             .shape_index_signatures(pattern_module, pattern.index_signatures)?
-            .to_vec();
-        let actual_indexes = self
+            .into();
+        let actual_indexes: SmallVec<[_; 4]> = self
             .shape_index_signatures(actual_module, actual.index_signatures)?
-            .to_vec();
+            .into();
         self.match_infer_index_signatures(
             origin,
             captures,
@@ -825,12 +823,12 @@ impl CheckState<'_> {
         }
 
         // match runtime parameters, including tuple capture from rest patterns
-        let pattern_parameters = self
+        let pattern_parameters: SmallVec<[_; 4]> = self
             .signature_parameters(pattern_module, pattern.parameters)?
-            .to_vec();
-        let actual_parameters = self
+            .into();
+        let actual_parameters: SmallVec<[_; 4]> = self
             .signature_parameters(actual_module, actual.parameters)?
-            .to_vec();
+            .into();
         let parameters = self.match_infer_function_parameters(
             origin,
             captures,

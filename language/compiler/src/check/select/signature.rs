@@ -242,11 +242,7 @@ impl BodyState<'_, '_> {
 
         // rebuild positional parameters from the tuple elements
         let mut expanded = parameters[..rest_index].to_vec();
-        let elements = self
-            .check
-            .tuple_elements(rest.module_id, tuple.elements)?
-            .to_vec();
-        for element in elements {
+        for element in self.check.tuple_elements(rest.module_id, tuple.elements)? {
             expanded.push(dir::FunctionParameterType {
                 name: None,
                 ty: element.ty,
@@ -421,9 +417,8 @@ impl BodyState<'_, '_> {
                     item,
                     Some(dir::LanguageItem::Array | dir::LanguageItem::ReadonlyArray)
                 );
-                let arguments = self
-                    .type_ids(reduced.module_id, instance.arguments)?
-                    .to_vec();
+                let arguments: SmallVec<[_; 8]> =
+                    self.type_ids(reduced.module_id, instance.arguments)?.into();
 
                 match (is_array, arguments.as_slice()) {
                     (true, [element, ..]) => Ok(Some(*element)),

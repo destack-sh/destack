@@ -1,5 +1,6 @@
 use destack_dir as dir;
 use indexmap::IndexMap;
+use smallvec::SmallVec;
 
 use crate::check::{
     BodyState, Cause, CauseKind, CheckAttempt, CheckFailure, CheckOutcome, Expectation, FlowSite,
@@ -191,9 +192,9 @@ impl BodyState<'_, '_> {
         let dir::Type::Object(shape) = self.ty(ty)? else {
             return Ok(ty);
         };
-        let target_fields = self
+        let target_fields: SmallVec<[_; 4]> = self
             .shape_properties(ty.module_id, shape.properties)?
-            .to_vec();
+            .into();
         for (key, source) in sources {
             let Some(target) = target_fields.iter().find(|field| field.key == key) else {
                 continue;

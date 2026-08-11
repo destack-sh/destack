@@ -96,15 +96,15 @@ impl CheckState<'_> {
                 {
                     return Ok(false);
                 }
-                let fields = self
+                let fields: SmallVec<[_; 4]> = self
                     .shape_properties(ty.module_id, shape.properties)?
-                    .to_vec();
+                    .into();
                 if fields.iter().any(|field| field.access.is_writable()) {
                     return Ok(false);
                 }
-                let signatures = self
+                let signatures: SmallVec<[_; 4]> = self
                     .shape_index_signatures(ty.module_id, shape.index_signatures)?
-                    .to_vec();
+                    .into();
                 if signatures.iter().any(|signature| !signature.is_readonly) {
                     return Ok(false);
                 }

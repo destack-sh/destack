@@ -16,7 +16,8 @@ impl CheckState<'_> {
 
         // filter union alternatives independently by their declared member sets
         if let dir::Type::Union(union) = self.ty(receiver)? {
-            let elements = self.type_ids(receiver.module_id, union.elements)?.to_vec();
+            let elements: SmallVec<[_; 8]> =
+                self.type_ids(receiver.module_id, union.elements)?.into();
             let mut narrowed = Vec::with_capacity(elements.len());
             for element in elements {
                 let element = self.narrow_membership_receiver(origin, element, key)?;

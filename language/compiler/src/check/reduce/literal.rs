@@ -62,10 +62,10 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         template: &dir::TemplateLiteralType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let strings = self
+        let strings: SmallVec<[_; 4]> = self
             .template_strings(id.module_id, template.strings)?
-            .to_vec();
-        let spans = self.type_ids(id.module_id, template.spans)?.to_vec();
+            .into();
+        let spans: SmallVec<[_; 8]> = self.type_ids(id.module_id, template.spans)?.into();
 
         // close every interpolated span to its printable choices
         let mut printed: Vec<Vec<String>> = Vec::with_capacity(spans.len());
@@ -80,7 +80,8 @@ impl CheckState<'_> {
             // union spans distribute their printable alternatives
             let choices = match self.ty(span)? {
                 dir::Type::Union(union) => {
-                    let elements = self.type_ids(span.module_id, union.elements)?.to_vec();
+                    let elements: SmallVec<[_; 8]> =
+                        self.type_ids(span.module_id, union.elements)?.into();
                     let mut choices = Vec::with_capacity(elements.len());
                     for element in elements {
                         let element = self.normalize(origin, element)?;

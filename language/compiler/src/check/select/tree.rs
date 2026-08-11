@@ -155,10 +155,10 @@ impl BodyState<'_, '_> {
                     let ty = self.infer_node_type(child_site, PlaceUse::Read)?;
                     let elements = match self.check.ty(ty)? {
                         dir::Type::Tuple(tuple) => {
-                            let elements = self
+                            let elements: SmallVec<[_; 4]> = self
                                 .check
                                 .tuple_elements(ty.module_id, tuple.elements)?
-                                .to_vec();
+                                .into();
 
                             elements
                                 .iter()

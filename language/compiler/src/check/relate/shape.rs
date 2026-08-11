@@ -891,9 +891,9 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         // accept when any overload of an intersected callable satisfies it
         if let dir::Type::Intersection(intersection) = self.ty(source)? {
-            let elements = self
+            let elements: SmallVec<[_; 8]> = self
                 .type_ids(source.module_id, intersection.elements)?
-                .to_vec();
+                .into();
             for element in elements {
                 if self.relate_method(origin, cause, relation, element, target, receiver)? {
                     return Ok(true);

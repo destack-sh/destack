@@ -95,12 +95,12 @@ impl CheckState<'_> {
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol =>
             {
-                let source_arguments = self
+                let source_arguments: SmallVec<[_; 8]> = self
                     .type_ids(source.module_id, source_instance.arguments)?
-                    .to_vec();
-                let target_arguments = self
+                    .into();
+                let target_arguments: SmallVec<[_; 8]> = self
                     .type_ids(target.module_id, target_instance.arguments)?
-                    .to_vec();
+                    .into();
 
                 // complete an elided side so the slots align with the declared parameters
                 if source_arguments.len() < target_arguments.len()
@@ -649,7 +649,8 @@ impl CheckState<'_> {
 
             // require every possible source access to grant the requirement
             (dir::Type::Union(union), _) => {
-                let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(source.module_id, union.elements)?.into();
                 let mut decision = true;
                 for element in elements {
                     decision = self.relate_access_assignable(origin, element, target)?;
@@ -663,7 +664,8 @@ impl CheckState<'_> {
 
             // accept one target access
             (_, dir::Type::Union(union)) => {
-                let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(target.module_id, union.elements)?.into();
                 let mut decision = false;
                 for element in elements {
                     decision = self.relate_access_assignable(origin, source, element)?;

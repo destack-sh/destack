@@ -38,7 +38,7 @@ impl CheckState<'_> {
             return match survivors.as_slice() {
                 [] => self.intern_type(dir::Type::Never),
                 [single] => Ok(*single),
-                _ => self.normalized_union_type(survivors.to_vec()),
+                _ => self.normalized_union_type(survivors.iter().copied()),
             };
         }
 
@@ -345,7 +345,7 @@ impl CheckState<'_> {
             }
             // unions widen each member and collapse the duplicates
             dir::Type::Union(union) => {
-                let elements = self.type_ids(module, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> = self.type_ids(module, union.elements)?.into();
                 let mut widened = Vec::with_capacity(elements.len());
                 let mut changed = false;
                 for element in elements {

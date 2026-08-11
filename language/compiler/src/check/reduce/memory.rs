@@ -1025,7 +1025,7 @@ impl CheckState<'_> {
         instance: &dir::GenericApplication,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let arguments = self.type_ids(module, instance.arguments)?.to_vec();
+        let arguments: SmallVec<[_; 8]> = self.type_ids(module, instance.arguments)?.into();
         let Some(ownership) = arguments.get(1).copied() else {
             return Ok(None);
         };

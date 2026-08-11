@@ -74,9 +74,9 @@ impl CheckState<'_> {
             return Ok(ty);
         };
         let signature = self.type_signature(ty.module_id, id)?;
-        let parameters = self
+        let parameters: SmallVec<[_; 4]> = self
             .signature_parameters(ty.module_id, signature.parameters)?
-            .to_vec();
+            .into();
 
         // store each written parameter like a walked parameter declaration
         let mut stored = Vec::with_capacity(parameters.len());
@@ -159,7 +159,8 @@ impl CheckState<'_> {
         // normalize composite storage through its elements
         match self.ty(ty)? {
             dir::Type::Union(union) => {
-                let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(ty.module_id, union.elements)?.into();
                 let mut normalized = Vec::with_capacity(elements.len());
                 for element in elements {
                     normalized.push(self.normalize_storage_type(origin, element, aliases)?);
@@ -224,7 +225,7 @@ impl CheckState<'_> {
         tuple: dir::TupleType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // locate the rest element among the written positions
-        let elements = self.tuple_elements(id.module_id, tuple.elements)?.to_vec();
+        let elements: SmallVec<[_; 4]> = self.tuple_elements(id.module_id, tuple.elements)?.into();
         let Some(rest_index) = elements.iter().position(|element| element.is_rest) else {
             return Ok(None);
         };
@@ -236,7 +237,7 @@ impl CheckState<'_> {
         };
 
         // splice the spread elements in place
-        let mut spliced = elements[..rest_index].to_vec();
+        let mut spliced: SmallVec<[_; 4]> = elements[..rest_index].into();
         spliced.extend(
             self.tuple_elements(rest.module_id, spread.elements)?
                 .iter()
@@ -259,9 +260,9 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         signature: dir::FunctionSignatureType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let parameters = self
+        let parameters: SmallVec<[_; 4]> = self
             .signature_parameters(id.module_id, signature.parameters)?
-            .to_vec();
+            .into();
         let Some((rest_index, rest)) = parameters
             .iter()
             .enumerate()
@@ -276,11 +277,8 @@ impl CheckState<'_> {
         };
 
         // rebuild positional parameters from the tuple elements
-        let mut rebuilt = parameters[..rest_index].to_vec();
-        for element in self
-            .tuple_elements(rest_ty.module_id, tuple.elements)?
-            .to_vec()
-        {
+        let mut rebuilt: SmallVec<[_; 4]> = parameters[..rest_index].into();
+        for element in self.tuple_elements(rest_ty.module_id, tuple.elements)? {
             rebuilt.push(dir::FunctionParameterType {
                 name: None,
                 ty: element.ty,
@@ -526,7 +524,7 @@ impl CheckState<'_> {
             dir::Type::Reference(reference) => {
                 // keep bare names of generic symbols with required parameters symbolic
                 if let Some(template) = self.symbol_template(reference.symbol)? {
-                    let parameters = self.generic_template_parameters(template)?.to_vec();
+                    let parameters = self.generic_template_parameters(template)?;
                     for parameter in parameters {
                         let Some(binding) = self.generic_parameter(parameter).copied() else {
                             continue;
@@ -555,7 +553,8 @@ impl CheckState<'_> {
 
             // unions normalize their canonical elements in place
             dir::Type::Union(union) => {
-                let elements = self.type_ids(id.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(id.module_id, union.elements)?.into();
                 let normalized = self.normalized_union_type(elements)?;
                 if normalized == id {
                     return Ok(id);
@@ -821,7 +820,7 @@ impl CheckState<'_> {
         })?;
         let rebuilt = match ty {
             dir::Type::Union(union) => {
-                let elements = self.type_ids(target, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> = self.type_ids(target, union.elements)?.into();
 
                 self.normalized_union_type(elements)?
             }

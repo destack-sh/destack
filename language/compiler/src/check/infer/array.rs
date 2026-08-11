@@ -294,9 +294,9 @@ impl BodyState<'_, '_> {
 
         // convert authored fields into the selected tuple slots
         if let Some((target_id, target)) = target {
-            let target_fields = self
+            let target_fields: SmallVec<[_; 4]> = self
                 .tuple_elements(target_id.module_id, target.elements)?
-                .to_vec();
+                .into();
             for (source, target) in sources.into_iter().zip(target_fields) {
                 if target.is_rest {
                     continue;
@@ -515,9 +515,9 @@ impl BodyState<'_, '_> {
             return Ok(CheckAttempt::NotApplicable);
         }
 
-        let tuple_elements = self
+        let tuple_elements: SmallVec<[_; 4]> = self
             .tuple_elements(target_value.module_id, tuple.elements)?
-            .to_vec();
+            .into();
         let mut source_elements = Vec::with_capacity(elements.len());
         let mut check = CheckOutcome::Holds;
 

@@ -279,9 +279,8 @@ impl BodyState<'_, '_> {
         excluded: Option<dir::GlobalSymbolId>,
     ) -> CompilerResult<Verdict> {
         // intern the requested interface application in this module
-        let arguments = self
-            .type_ids(interface_module, interface.arguments)?
-            .to_vec();
+        let arguments: SmallVec<[_; 8]> =
+            self.type_ids(interface_module, interface.arguments)?.into();
         let arguments = self.intern_type_ids(&arguments)?;
         let module = self.module_id;
         let mut instance = dir::GenericApplication {
@@ -719,7 +718,8 @@ impl BodyState<'_, '_> {
             // composite receivers implement through their element scopes
             dir::Type::Union(dir::UnionType { elements, .. })
             | dir::Type::Intersection(dir::IntersectionType { elements, .. }) => {
-                let elements = self.type_ids(receiver.module_id, elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(receiver.module_id, elements)?.into();
                 for element in elements {
                     self.collect_implementation_extensions(
                         origin, module, element, parameters, symbols,

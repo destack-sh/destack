@@ -514,7 +514,8 @@ impl BodyState<'_, '_> {
 
             // unions join member lookups across their elements
             dir::Type::Union(union) => {
-                let elements = self.type_ids(subject.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(subject.module_id, union.elements)?.into();
 
                 self.lookup_union_member(
                     origin, module, receiver, subject, &elements, space, key, extensions, active,
@@ -523,9 +524,9 @@ impl BodyState<'_, '_> {
 
             // intersections expose each element's members
             dir::Type::Intersection(intersection) => {
-                let elements = self
+                let elements: SmallVec<[_; 8]> = self
                     .type_ids(subject.module_id, intersection.elements)?
-                    .to_vec();
+                    .into();
                 let mut lookups = Vec::with_capacity(elements.len());
                 for element in elements {
                     let element = self.shallow_resolve(element)?;
@@ -858,8 +859,8 @@ impl BodyState<'_, '_> {
             for heritage in heritages {
                 let heritage = self.substitute_type(heritage, &applied)?;
                 let (heritage_module, instance) = self.nominal_application(heritage)?;
-                let heritage_arguments =
-                    self.type_ids(heritage_module, instance.arguments)?.to_vec();
+                let heritage_arguments: SmallVec<[_; 8]> =
+                    self.type_ids(heritage_module, instance.arguments)?.into();
                 let lookup = self.lookup_inherent_declaration_member(
                     origin,
                     receiver,
@@ -1395,7 +1396,8 @@ impl BodyState<'_, '_> {
             None => {
                 let application = self.declaration_instance(symbol)?;
                 let module = self.module_id;
-                let arguments = self.type_ids(module, application.arguments)?.to_vec();
+                let arguments: SmallVec<[_; 8]> =
+                    self.type_ids(module, application.arguments)?.into();
                 let instance = ApparentInstance {
                     symbol,
                     arguments: arguments.into_iter().collect(),
@@ -1772,7 +1774,7 @@ impl BodyState<'_, '_> {
             // composite subjects expose the keys of every element
             dir::Type::Union(dir::UnionType { elements })
             | dir::Type::Intersection(dir::IntersectionType { elements }) => {
-                let elements = self.type_ids(subject.module_id, elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> = self.type_ids(subject.module_id, elements)?.into();
                 for element in elements {
                     self.collect_subject_keys(origin, module, element, space, keys, visited)?;
                 }

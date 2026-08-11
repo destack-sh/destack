@@ -38,7 +38,7 @@ impl CheckState<'_> {
 
                 // bind open spans to the text they capture
                 let mut is_open = false;
-                for span in self.type_ids(target.module_id, template.spans)?.to_vec() {
+                for &span in self.type_ids(target.module_id, template.spans)? {
                     is_open = is_open || self.type_flags(span)?.has_variable();
                 }
                 if is_open {
@@ -110,24 +110,26 @@ impl CheckState<'_> {
 
             // widen union representations only through exact set equality
             (dir::Type::Union(source_union), dir::Type::Union(target_union)) if widens => {
-                let source_elements = self
+                let source_elements: SmallVec<[_; 8]> = self
                     .type_ids(source.module_id, source_union.elements)?
-                    .to_vec();
-                let target_elements = self
+                    .into();
+                let target_elements: SmallVec<[_; 8]> = self
                     .type_ids(target.module_id, target_union.elements)?
-                    .to_vec();
+                    .into();
 
                 self.relate_type_sets_equal(origin, cause, &source_elements, &target_elements)?
             }
             // distribute a union source over its elements, which widen one by one
             (dir::Type::Union(union), _) if widens => {
-                let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(source.module_id, union.elements)?.into();
 
                 self.relate_all_sources(origin, cause, relation, &elements, target)?
             }
             // widen literal and constructed values into a union target by membership
             (dir::Type::Literal(_) | dir::Type::Object(_), dir::Type::Union(union)) if widens => {
-                let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(target.module_id, union.elements)?.into();
 
                 self.relate_any_target(origin, cause, relation, source, &elements)?
             }
@@ -136,7 +138,8 @@ impl CheckState<'_> {
 
             // require every element of a union source to assign
             (dir::Type::Union(union), _) => {
-                let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(source.module_id, union.elements)?.into();
 
                 self.relate_all_sources(origin, cause, relation, &elements, target)?
             }
@@ -170,23 +173,24 @@ impl CheckState<'_> {
             }
             // intersection sources assign through any element
             (dir::Type::Intersection(intersection), _) => {
-                let elements = self
+                let elements: SmallVec<[_; 8]> = self
                     .type_ids(source.module_id, intersection.elements)?
-                    .to_vec();
+                    .into();
 
                 self.relate_any_source(origin, cause, relation, &elements, target)?
             }
             // accept a union target when one element is viable
             (_, dir::Type::Union(union)) => {
-                let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(target.module_id, union.elements)?.into();
 
                 self.relate_any_target(origin, cause, relation, source, &elements)?
             }
             // require every element of an intersection target
             (_, dir::Type::Intersection(intersection)) => {
-                let elements = self
+                let elements: SmallVec<[_; 8]> = self
                     .type_ids(target.module_id, intersection.elements)?
-                    .to_vec();
+                    .into();
 
                 self.relate_all_targets(origin, cause, relation, source, &elements)?
             }

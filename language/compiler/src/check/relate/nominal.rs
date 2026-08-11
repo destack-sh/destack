@@ -113,7 +113,8 @@ impl CheckState<'_> {
 
         // union sources must satisfy the target through every element
         if let dir::Type::Union(union) = self.ty(source)? {
-            let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
+            let elements: SmallVec<[_; 8]> =
+                self.type_ids(source.module_id, union.elements)?.into();
             let holds = self.relate_all_sources(origin, cause, relation, &elements, target)?;
 
             return Ok(Verdict::decided(holds));
@@ -121,7 +122,8 @@ impl CheckState<'_> {
 
         // union targets accept when any element accepts the source
         if let dir::Type::Union(union) = self.ty(target)? {
-            let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+            let elements: SmallVec<[_; 8]> =
+                self.type_ids(target.module_id, union.elements)?.into();
             let holds = self.relate_any_target(origin, cause, relation, source, &elements)?;
 
             return Ok(Verdict::decided(holds));
@@ -157,9 +159,9 @@ impl CheckState<'_> {
 
         // intersection targets require every element under the same relation
         if let dir::Type::Intersection(intersection) = self.ty(target)? {
-            let elements = self
+            let elements: SmallVec<[_; 8]> = self
                 .type_ids(target.module_id, intersection.elements)?
-                .to_vec();
+                .into();
             let holds = self.relate_all_targets(origin, cause, relation, source, &elements)?;
 
             return Ok(Verdict::decided(holds));
@@ -167,9 +169,9 @@ impl CheckState<'_> {
 
         // intersection sources satisfy through any element
         if let dir::Type::Intersection(intersection) = self.ty(source)? {
-            let elements = self
+            let elements: SmallVec<[_; 8]> = self
                 .type_ids(source.module_id, intersection.elements)?
-                .to_vec();
+                .into();
             let holds = self.relate_any_source(origin, cause, relation, &elements, target)?;
 
             return Ok(Verdict::decided(holds));
@@ -285,12 +287,12 @@ impl CheckState<'_> {
 
         // compare every nominal path through one argument relation
         if let Some((application_module, application)) = application {
-            let source_arguments = self
+            let source_arguments: SmallVec<[_; 8]> = self
                 .type_ids(application_module, application.arguments)?
-                .to_vec();
-            let target_arguments = self
+                .into();
+            let target_arguments: SmallVec<[_; 8]> = self
                 .type_ids(target.module_id, target_instance.arguments)?
-                .to_vec();
+                .into();
             let form = self.default_variance_form(target_instance.symbol)?;
 
             let arguments = if relation == Relation::Subtype {
@@ -660,8 +662,9 @@ impl CheckState<'_> {
                     .iter()
                     .map(|field| (field.key, field.access.store(), field.is_optional))
                     .collect::<SmallVec<[_; 4]>>(),
-                self.shape_index_signatures(target.module_id, shape.index_signatures)?
-                    .to_vec(),
+                SmallVec::<[_; 4]>::from(
+                    self.shape_index_signatures(target.module_id, shape.index_signatures)?,
+                ),
             ),
             _ => return Ok(false),
         };
@@ -967,7 +970,8 @@ impl CheckState<'_> {
         instance: &dir::GenericApplication,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // adopt the arguments into this module before interning
-        let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
+        let arguments: SmallVec<[_; 8]> =
+            self.type_ids(instance_module, instance.arguments)?.into();
         let arguments = self.intern_type_ids(&arguments)?;
         let instance = dir::GenericApplication {
             symbol: instance.symbol,

@@ -477,7 +477,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<SmallVec<[CallableArm; 2]>> {
         // distribute runtime union alternatives into independent arms
         if let dir::Type::Union(union) = self.ty(ty)? {
-            let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
+            let elements: SmallVec<[_; 8]> = self.type_ids(ty.module_id, union.elements)?.into();
             let mut arms = SmallVec::with_capacity(elements.len());
             for element in elements {
                 let nested = self.callable_value_arms(origin, element)?;
@@ -506,7 +506,8 @@ impl BodyState<'_, '_> {
 
         // flatten intersection signatures into one declaration alternative set
         if let dir::Type::Intersection(intersection) = self.ty(ty)? {
-            let elements = self.type_ids(ty.module_id, intersection.elements)?.to_vec();
+            let elements: SmallVec<[_; 8]> =
+                self.type_ids(ty.module_id, intersection.elements)?.into();
             let mut overloads = SmallVec::with_capacity(elements.len());
             for element in elements {
                 let nested = self.callable_value_overloads(origin, element)?;

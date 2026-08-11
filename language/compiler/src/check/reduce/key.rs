@@ -409,9 +409,9 @@ impl CheckState<'_> {
         let Some(domain) = self.index_key_domain(key)? else {
             return Ok(None);
         };
-        let signatures = self
+        let signatures: SmallVec<[_; 4]> = self
             .shape_index_signatures(shape_id.module_id, shape.index_signatures)?
-            .to_vec();
+            .into();
 
         // match the first signature covering the key domain
         for signature in signatures {
@@ -498,15 +498,15 @@ impl CheckState<'_> {
             // structural object keys come from fields and index signatures
             dir::Type::Shape(shape) | dir::Type::Object(shape) => {
                 let mut set = KeySet::default();
-                let fields = self
+                let fields: SmallVec<[_; 4]> = self
                     .shape_properties(target.module_id, shape.properties)?
-                    .to_vec();
+                    .into();
                 for field in fields {
                     set.insert_key(field.key);
                 }
-                let index_signatures = self
+                let index_signatures: SmallVec<[_; 4]> = self
                     .shape_index_signatures(target.module_id, shape.index_signatures)?
-                    .to_vec();
+                    .into();
                 for signature in index_signatures {
                     self.insert_index_key_type(origin, &mut set, signature.key_type)?;
                 }
@@ -531,10 +531,9 @@ impl CheckState<'_> {
 
             // keep the union keys present in every arm
             dir::Type::Union(union) => {
-                let mut elements = self
-                    .type_ids(target.module_id, union.elements)?
-                    .to_vec()
-                    .into_iter();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(target.module_id, union.elements)?.into();
+                let mut elements = elements.into_iter();
                 let Some(first) = elements.next() else {
                     return Ok(Some(KeySet::default()));
                 };
@@ -556,9 +555,9 @@ impl CheckState<'_> {
             // collect intersection keys from any constituent
             dir::Type::Intersection(intersection) => {
                 let mut keys = KeySet::default();
-                let elements = self
+                let elements: SmallVec<[_; 8]> = self
                     .type_ids(target.module_id, intersection.elements)?
-                    .to_vec();
+                    .into();
                 for element in elements {
                     let element = self.normalize(origin, element)?;
                     let Some(other) = self.keyof_set(origin, element)? else {
@@ -573,9 +572,9 @@ impl CheckState<'_> {
             // key tuples by element index, widening rest tails to the index domain
             dir::Type::Tuple(tuple) => {
                 let mut set = KeySet::default();
-                let elements = self
+                let elements: SmallVec<[_; 4]> = self
                     .tuple_elements(target.module_id, tuple.elements)?
-                    .to_vec();
+                    .into();
                 for (index, element) in elements.iter().enumerate() {
                     if element.is_rest {
                         set.insert_domain(KeyDomain::Usize);
@@ -700,7 +699,8 @@ impl CheckState<'_> {
         match self.ty(key_type)? {
             // union key domains contribute every alternative
             dir::Type::Union(union) => {
-                let elements = self.type_ids(key_type.module_id, union.elements)?.to_vec();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(key_type.module_id, union.elements)?.into();
                 for element in elements {
                     self.insert_index_key_type(origin, keys, element)?;
                 }
