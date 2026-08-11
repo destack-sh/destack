@@ -9,7 +9,7 @@ use crate::diagnostic::{
     HostErrorContext, HostErrorContextKind, RuntimeError, RuntimeResult, io_error_code_from_errno,
 };
 use crate::host::poller::{
-    HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
+    HostHandle, HostPollerFlags, PollInterest, Poller, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
 use crate::host::{HostError, ResourceId, get_errno, timeout_deadline};
@@ -83,7 +83,7 @@ impl Drop for UnixPoller {
     }
 }
 
-impl HostPoller for UnixPoller {
+impl Poller for UnixPoller {
     fn register(
         &mut self,
         resource_id: ResourceId,
@@ -509,7 +509,7 @@ fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
 mod tests {
     use super::{UnixPoller, close_fd, pipe_fds, write_fd};
     use crate::host::ResourceId;
-    use crate::host::poller::{HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerToken};
+    use crate::host::poller::{HostHandle, HostPollerFlags, PollInterest, Poller, PollerToken};
     use crate::worker::WorkerId;
 
     const TEST_WORKER_ID: WorkerId = WorkerId(1);

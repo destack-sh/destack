@@ -1,3 +1,4 @@
+mod constants;
 mod event;
 mod host;
 #[allow(
@@ -18,6 +19,7 @@ mod unix;
 )]
 mod windows;
 
+pub(crate) use constants::*;
 pub(crate) use event::*;
 pub(crate) use host::*;
 pub(crate) use poller::*;

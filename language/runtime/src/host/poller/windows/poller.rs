@@ -9,7 +9,7 @@ use windows_sys::Win32::Networking::WinSock::{
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::poller::{
-    HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
+    HostHandle, HostPollerFlags, PollInterest, Poller, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
 use crate::host::{HostError, ResourceId, windows};
@@ -221,7 +221,7 @@ impl WindowsPoller {
     }
 }
 
-impl HostPoller for WindowsPoller {
+impl Poller for WindowsPoller {
     fn register(
         &mut self,
         resource_id: ResourceId,

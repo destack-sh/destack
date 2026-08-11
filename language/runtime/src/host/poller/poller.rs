@@ -1,13 +1,11 @@
-use super::PollerEvent;
-use crate::diagnostic::RuntimeResult;
-use crate::host::ResourceId;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-/// Kernel user-data value reserved for poller wake events.
-pub(crate) const WAKE_TOKEN_BITS: u64 = u64::MAX;
-/// Kernel user-data value reserved for poller timeout events.
-pub(crate) const TIMEOUT_TOKEN_BITS: u64 = u64::MAX - 1;
+use serde::{Deserialize, Serialize};
+
+use crate::diagnostic::RuntimeResult;
+use crate::host::ResourceId;
+
+use super::{PollerEvent, TIMEOUT_TOKEN_BITS, WAKE_TOKEN_BITS};
 
 /// Opaque token used by the poller for event routing.
 #[repr(transparent)]
@@ -140,7 +138,7 @@ pub(crate) trait PollerWakeHandle: Send + Sync {
 }
 
 /// Host poller interface for OS-level events.
-pub(crate) trait HostPoller: Send {
+pub(crate) trait Poller: Send {
     /// Register a resource handle with the poller.
     fn register(
         &mut self,

@@ -8,7 +8,7 @@ use crate::diagnostic::{
     HostErrorContext, HostErrorContextKind, RuntimeError, RuntimeResult, io_error_code_from_errno,
 };
 use crate::host::poller::{
-    HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
+    HostHandle, HostPollerFlags, PollInterest, Poller, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
     TIMEOUT_TOKEN_BITS, WAKE_TOKEN_BITS,
 };
@@ -250,7 +250,7 @@ impl Drop for IoUringPoller {
     }
 }
 
-impl HostPoller for IoUringPoller {
+impl Poller for IoUringPoller {
     fn register(
         &mut self,
         resource_id: ResourceId,

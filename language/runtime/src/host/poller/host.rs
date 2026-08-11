@@ -1,124 +1,9 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::HostError;
-#[cfg(any(
-    test,
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "dragonfly"
-))]
-use crate::host::HostErrorCode;
-use destack_repository::PollerBackend;
+use std::fmt;
+use std::sync::Arc;
 
-#[cfg(target_os = "linux")]
-use super::EpollPoller;
-use super::HostPoller;
-#[cfg(target_os = "linux")]
-use super::IoUringPoller;
-#[cfg(any(
-    target_os = "macos",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "dragonfly"
-))]
-use super::KqueuePoller;
-#[cfg(unix)]
-use super::UnixPoller;
-#[cfg(windows)]
-use super::WindowsPoller;
+use crate::diagnostic::RuntimeResult;
+use crate::host::ResourceId;
 
-/// Host poller paired with its concrete backend descriptor.
-pub(crate) struct HostPollerInstance {
-    /// Concrete poller backend.
-    backend: PollerBackend,
-    /// Platform poller implementation.
-    poller: Box<dyn HostPoller>,
-}
-
-impl HostPollerInstance {
-    /// Create one host poller instance.
-    pub(crate) fn new(backend: PollerBackend, poller: Box<dyn HostPoller>) -> Self {
-        Self { backend, poller }
-    }
-
-    /// Return the concrete poller backend.
-    pub(crate) const fn backend(&self) -> PollerBackend {
-        self.backend
-    }
-}
-
-impl std::fmt::Debug for HostPollerInstance {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("HostPollerInstance")
-            .field("backend", &self.backend)
-            .field("poller", &"<host poller>")
-            .finish()
-    }
-}
-
-impl HostPoller for HostPollerInstance {
-    fn register(
-        &mut self,
-        resource_id: crate::host::ResourceId,
-        handle: super::HostHandle,
-        token: super::PollerToken,
-        interests: super::PollInterest,
-        flags: super::HostPollerFlags,
-    ) -> RuntimeResult<()> {
-        self.poller
-            .register(resource_id, handle, token, interests, flags)
-    }
-
-    fn update(
-        &mut self,
-        resource_id: crate::host::ResourceId,
-        token: super::PollerToken,
-        interests: super::PollInterest,
-        flags: super::HostPollerFlags,
-    ) -> RuntimeResult<()> {
-        self.poller.update(resource_id, token, interests, flags)
-    }
-
-    fn deregister(&mut self, resource_id: crate::host::ResourceId) -> RuntimeResult<()> {
-        self.poller.deregister(resource_id)
-    }
-
-    fn wake_handle(&self) -> Option<std::sync::Arc<dyn super::PollerWakeHandle>> {
-        self.poller.wake_handle()
-    }
-
-    fn wake(&mut self) -> RuntimeResult<()> {
-        self.poller.wake()
-    }
-
-    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<super::PollerEvent>> {
-        self.poller.poll(timeout_nanos)
-    }
-}
-
-/// Create one host poller from a canonical backend selector.
-pub(crate) fn create_host_poller(backend: PollerBackend) -> RuntimeResult<HostPollerInstance> {
-    match backend {
-        PollerBackend::Auto => create_auto_poller(),
-        _ => Ok(HostPollerInstance::new(backend, open_host_poller(backend)?)),
-    }
-}
-
-/// Return one standardized backend unsupported error.
-fn poller_not_supported(backend: PollerBackend) -> RuntimeResult<Box<dyn HostPoller>> {
-    let backend = backend_label(backend);
-
-    Err(RuntimeError::from(HostError::not_supported(format!(
-        "poller backend {backend} is not supported on this platform"
-    )))
-    .boxed())
-}
-
-/// Return one standardized backend unsupported error for poller instances.
 #[cfg(not(any(
     target_os = "linux",
     target_os = "macos",
@@ -128,45 +13,18 @@ fn poller_not_supported(backend: PollerBackend) -> RuntimeResult<Box<dyn HostPol
     target_os = "dragonfly",
     windows
 )))]
-fn poller_instance_not_supported(backend: PollerBackend) -> RuntimeResult<HostPollerInstance> {
-    let backend = backend_label(backend);
-
-    Err(RuntimeError::from(HostError::not_supported(format!(
-        "poller backend {backend} is not supported on this platform"
-    )))
-    .boxed())
-}
-
-/// Return one stable backend label for diagnostics.
-const fn backend_label(backend: PollerBackend) -> &'static str {
-    match backend {
-        PollerBackend::Auto => "auto",
-        PollerBackend::IoUring => "io_uring",
-        PollerBackend::Epoll => "epoll",
-        PollerBackend::Kqueue => "kqueue",
-        PollerBackend::Poll => "poll",
-        PollerBackend::Windows => "windows",
-    }
-}
-
-/// Return whether one runtime error reports notSupported.
-#[cfg(any(
-    test,
+use crate::diagnostic::RuntimeError;
+#[cfg(not(any(
     target_os = "linux",
     target_os = "macos",
     target_os = "freebsd",
     target_os = "netbsd",
     target_os = "openbsd",
-    target_os = "dragonfly"
-))]
-fn is_not_supported_error(error: &RuntimeError) -> bool {
-    match error.host_error() {
-        Some(error) => error.code == HostErrorCode::NotSupported,
-        None => false,
-    }
-}
+    target_os = "dragonfly",
+    windows
+)))]
+use crate::host::HostError;
 
-/// Try one explicit backend and only suppress notSupported errors.
 #[cfg(any(
     target_os = "linux",
     target_os = "macos",
@@ -175,109 +33,114 @@ fn is_not_supported_error(error: &RuntimeError) -> bool {
     target_os = "openbsd",
     target_os = "dragonfly"
 ))]
-fn try_open_host_poller(backend: PollerBackend) -> RuntimeResult<Option<HostPollerInstance>> {
-    match open_host_poller(backend) {
-        Ok(poller) => Ok(Some(HostPollerInstance::new(backend, poller))),
-        Err(error) => {
-            if is_not_supported_error(error.as_ref()) {
-                Ok(None)
-            } else {
-                Err(error)
-            }
-        }
+use crate::host::HostErrorCode;
+
+use super::{
+    HostHandle, HostPollerFlags, PollInterest, Poller, PollerEvent, PollerToken, PollerWakeHandle,
+};
+
+#[cfg(target_os = "linux")]
+use super::{EpollPoller, IoUringPoller};
+
+#[cfg(any(
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly"
+))]
+use super::KqueuePoller;
+
+#[cfg(unix)]
+use super::UnixPoller;
+
+#[cfg(windows)]
+use super::WindowsPoller;
+
+/// One platform host poller.
+pub(crate) struct HostPoller {
+    /// Platform poller implementation.
+    poller: Box<dyn Poller>,
+}
+
+impl HostPoller {
+    /// Create one host poller.
+    fn new(poller: Box<dyn Poller>) -> Self {
+        Self { poller }
+    }
+
+    /// Open the preferred host poller for this platform.
+    pub(crate) fn open() -> RuntimeResult<Self> {
+        PollerBackend::open_preferred()
     }
 }
 
-/// Open one explicitly selected host poller backend.
-fn open_host_poller(backend: PollerBackend) -> RuntimeResult<Box<dyn HostPoller>> {
-    match backend {
-        PollerBackend::Auto => poller_not_supported(PollerBackend::Auto),
-        PollerBackend::IoUring => {
-            #[cfg(target_os = "linux")]
-            {
-                Ok(Box::new(IoUringPoller::new()?))
-            }
-
-            #[cfg(not(target_os = "linux"))]
-            {
-                poller_not_supported(PollerBackend::IoUring)
-            }
-        }
-        PollerBackend::Epoll => {
-            #[cfg(target_os = "linux")]
-            {
-                Ok(Box::new(EpollPoller::new()?))
-            }
-
-            #[cfg(not(target_os = "linux"))]
-            {
-                poller_not_supported(PollerBackend::Epoll)
-            }
-        }
-        PollerBackend::Kqueue => {
-            #[cfg(any(
-                target_os = "macos",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd",
-                target_os = "dragonfly"
-            ))]
-            {
-                Ok(Box::new(KqueuePoller::new()?))
-            }
-
-            #[cfg(not(any(
-                target_os = "macos",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd",
-                target_os = "dragonfly"
-            )))]
-            {
-                poller_not_supported(PollerBackend::Kqueue)
-            }
-        }
-        PollerBackend::Poll => {
-            #[cfg(unix)]
-            {
-                Ok(Box::new(UnixPoller::new()?))
-            }
-
-            #[cfg(not(unix))]
-            {
-                poller_not_supported(PollerBackend::Poll)
-            }
-        }
-        PollerBackend::Windows => {
-            #[cfg(windows)]
-            {
-                Ok(Box::new(WindowsPoller::new()?))
-            }
-
-            #[cfg(not(windows))]
-            {
-                poller_not_supported(PollerBackend::Windows)
-            }
-        }
+impl fmt::Debug for HostPoller {
+    /// Format one host poller without traversing backend state.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("HostPoller")
+            .field("poller", &"<host poller>")
+            .finish()
     }
 }
 
-/// Create one automatic host poller for this target.
-fn create_auto_poller() -> RuntimeResult<HostPollerInstance> {
+impl Poller for HostPoller {
+    /// Register one host resource interest.
+    fn register(
+        &mut self,
+        resource_id: ResourceId,
+        handle: HostHandle,
+        token: PollerToken,
+        interests: PollInterest,
+        flags: HostPollerFlags,
+    ) -> RuntimeResult<()> {
+        self.poller
+            .register(resource_id, handle, token, interests, flags)
+    }
+
+    /// Update one registered host resource interest.
+    fn update(
+        &mut self,
+        resource_id: ResourceId,
+        token: PollerToken,
+        interests: PollInterest,
+        flags: HostPollerFlags,
+    ) -> RuntimeResult<()> {
+        self.poller.update(resource_id, token, interests, flags)
+    }
+
+    /// Remove one registered host resource.
+    fn deregister(&mut self, resource_id: ResourceId) -> RuntimeResult<()> {
+        self.poller.deregister(resource_id)
+    }
+
+    /// Return the handle that wakes one blocking poll.
+    fn wake_handle(&self) -> Option<Arc<dyn PollerWakeHandle>> {
+        self.poller.wake_handle()
+    }
+
+    /// Wake one blocking poll.
+    fn wake(&mut self) -> RuntimeResult<()> {
+        self.poller.wake()
+    }
+
+    /// Poll for ready host events.
+    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
+        self.poller.poll(timeout_nanos)
+    }
+}
+
+/// One concrete host poller backend.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PollerBackend {
+    /// Linux io_uring.
     #[cfg(target_os = "linux")]
-    {
-        // prefer io_uring, then epoll, then poll on Linux
-        if let Some(poller) = try_open_host_poller(PollerBackend::IoUring)? {
-            return Ok(poller);
-        }
-        if let Some(poller) = try_open_host_poller(PollerBackend::Epoll)? {
-            return Ok(poller);
-        }
-        let poller = open_host_poller(PollerBackend::Poll)?;
-
-        Ok(HostPollerInstance::new(PollerBackend::Poll, poller))
-    }
-
+    IoUring,
+    /// Linux epoll.
+    #[cfg(target_os = "linux")]
+    Epoll,
+    /// BSD or macOS kqueue.
     #[cfg(any(
         target_os = "macos",
         target_os = "freebsd",
@@ -285,81 +148,150 @@ fn create_auto_poller() -> RuntimeResult<HostPollerInstance> {
         target_os = "openbsd",
         target_os = "dragonfly"
     ))]
-    {
-        // prefer kqueue, then poll on BSD family targets
-        if let Some(poller) = try_open_host_poller(PollerBackend::Kqueue)? {
-            return Ok(poller);
-        }
-        let poller = open_host_poller(PollerBackend::Poll)?;
-
-        Ok(HostPollerInstance::new(PollerBackend::Poll, poller))
-    }
-
+    Kqueue,
+    /// Unix poll.
+    #[cfg(unix)]
+    Poll,
+    /// Windows readiness polling.
     #[cfg(windows)]
-    {
-        // use the Windows backend on Windows hosts
-        let poller = open_host_poller(PollerBackend::Windows)?;
+    Windows,
+}
 
-        Ok(HostPollerInstance::new(PollerBackend::Windows, poller))
+impl PollerBackend {
+    /// Open the preferred host poller for this platform.
+    fn open_preferred() -> RuntimeResult<HostPoller> {
+        #[cfg(target_os = "linux")]
+        {
+            // prefer io_uring, then epoll, then poll on Linux
+            if let Some(poller) = Self::IoUring.open_maybe()? {
+                return Ok(poller);
+            }
+            if let Some(poller) = Self::Epoll.open_maybe()? {
+                return Ok(poller);
+            }
+
+            Self::Poll.open()
+        }
+
+        #[cfg(any(
+            target_os = "macos",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd",
+            target_os = "dragonfly"
+        ))]
+        {
+            // prefer kqueue, then poll on BSD family targets
+            if let Some(poller) = Self::Kqueue.open_maybe()? {
+                return Ok(poller);
+            }
+
+            Self::Poll.open()
+        }
+
+        #[cfg(windows)]
+        {
+            Self::Windows.open()
+        }
+
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd",
+            target_os = "dragonfly",
+            windows
+        )))]
+        {
+            Err(RuntimeError::from(HostError::not_supported(
+                "host polling is not supported on this platform".to_string(),
+            ))
+            .boxed())
+        }
     }
 
-    #[cfg(not(any(
+    /// Open this exact host poller backend.
+    fn open(self) -> RuntimeResult<HostPoller> {
+        let poller: Box<dyn Poller> = match self {
+            #[cfg(target_os = "linux")]
+            Self::IoUring => Box::new(IoUringPoller::new()?),
+            #[cfg(target_os = "linux")]
+            Self::Epoll => Box::new(EpollPoller::new()?),
+            #[cfg(any(
+                target_os = "macos",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd",
+                target_os = "dragonfly"
+            ))]
+            Self::Kqueue => Box::new(KqueuePoller::new()?),
+            #[cfg(unix)]
+            Self::Poll => Box::new(UnixPoller::new()?),
+            #[cfg(windows)]
+            Self::Windows => Box::new(WindowsPoller::new()?),
+        };
+
+        Ok(HostPoller::new(poller))
+    }
+
+    /// Try this backend and suppress only an unsupported-backend failure.
+    #[cfg(any(
         target_os = "linux",
         target_os = "macos",
         target_os = "freebsd",
         target_os = "netbsd",
         target_os = "openbsd",
-        target_os = "dragonfly",
-        windows
-    )))]
-    {
-        poller_instance_not_supported(PollerBackend::Auto)
+        target_os = "dragonfly"
+    ))]
+    fn open_maybe(self) -> RuntimeResult<Option<HostPoller>> {
+        match self.open() {
+            Ok(poller) => Ok(Some(poller)),
+            Err(error)
+                if error
+                    .host_error()
+                    .is_some_and(|error| error.code == HostErrorCode::NotSupported) =>
+            {
+                Ok(None)
+            }
+            Err(error) => Err(error),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use std::sync::{Arc, Mutex, mpsc};
     use std::time::{Duration, Instant};
 
     use super::*;
 
-    /// Reject runtime poll backend `poll` on Windows hosts.
-    #[cfg(windows)]
-    #[test]
-    fn test_runtime_poll_backend_poll_is_not_supported_on_windows() {
-        let result = create_host_poller(PollerBackend::Poll);
-        assert!(result.is_err());
-        let error = result.err().expect("poll backend should fail");
-        let host = error
-            .host_error()
-            .expect("error should contain one host error");
-        assert_eq!(host.code, HostErrorCode::NotSupported);
-    }
-
     /// Wake one blocking io poller wait through one shared wake handle.
     #[test]
     fn test_io_poller_wake_handle_interrupts_blocking_poll() {
-        let poller =
-            create_host_poller(PollerBackend::Auto).expect("auto poller should initialize");
+        let poller = HostPoller::open().expect("host poller should initialize");
         let wake_handle = poller
             .wake_handle()
             .expect("io poller should expose one wake handle");
 
         let poller = Arc::new(Mutex::new(poller));
         let poller_for_thread = Arc::clone(&poller);
+        let (started, wait_for_start) = mpsc::sync_channel(0);
         let started_at = Instant::now();
 
         let waiter = std::thread::spawn(move || {
             let mut poller = poller_for_thread
                 .lock()
                 .expect("poller lock should not be poisoned");
+            started.send(()).expect("poll waiter should signal startup");
             poller
                 .poll(Some(2_000_000_000))
                 .expect("poll should unblock after wake");
         });
 
-        std::thread::sleep(Duration::from_millis(25));
+        wait_for_start
+            .recv()
+            .expect("poll waiter should signal startup");
         wake_handle.wake().expect("wake should succeed");
         waiter.join().expect("wait thread should join");
 
