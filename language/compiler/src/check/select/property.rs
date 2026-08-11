@@ -112,11 +112,11 @@ impl BodyState<'_, '_> {
                 .with_scope(site.scope)
                 .with_key_type(key_type);
             self.module_mut(module)
-                .members
+                .members_tail
                 .record_subject(dir::MemberSite::Node(node.into_any()), subject);
         }
 
-        // the construct's write obligation owns every field check
+        // leave every field check to the construct's write obligation
         let write_cause = target.map(|_| {
             self.check.intern_cause(Cause::root(
                 origin,
@@ -184,6 +184,7 @@ impl BodyState<'_, '_> {
                         self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
                         let source = self.commit_error_node(node.into_any())?;
                         let target = target.unwrap_or(source);
+
                         return Ok(ValueCheck {
                             source,
                             outcome: CheckOutcome::Fails(CheckFailure::Relation),
@@ -198,7 +199,7 @@ impl BodyState<'_, '_> {
                             .with_scope(site.scope)
                             .with_key_type(key_type);
                     self.module_mut(module)
-                        .members
+                        .members_tail
                         .record_subject(dir::MemberSite::Node(property), subject);
 
                     for field in spread_fields {
@@ -301,21 +302,20 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::TypeProperty>>> {
-        // reduce the spread source before merging fields
-        let root = self.reduce_type_head(origin, ty)?;
-        if let Some(variable) = self.root_variable(root)? {
+        // require a settled spread source before merging its fields
+        if let Some(variable) = self.root_variable(ty)? {
             return Err(CompilerError::Internal {
                 message: format!("spread source {ty:?} has open variable {variable:?}"),
             });
         }
 
         // peel managed forms down to the value they hold
-        let mut current = root;
+        let mut current = ty;
         while let dir::Type::Form(form) = self.ty(current)? {
             if form.form != dir::Form::Managed {
                 break;
             }
-            current = self.shallow_resolve(form.value)?;
+            current = self.resolve_head(form.value)?;
         }
 
         match self.ty(current)? {

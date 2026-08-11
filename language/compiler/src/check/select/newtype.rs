@@ -133,7 +133,6 @@ impl BodyState<'_, '_> {
         let template = self.symbol_template(symbol)?;
         let type_arguments = if type_arguments.is_empty() {
             self.expected_newtype_arguments(
-                origin,
                 symbol,
                 expectation.map(|expectation| expectation.target),
             )?
@@ -152,8 +151,7 @@ impl BodyState<'_, '_> {
         }))?;
 
         // build one signature candidate per backing alternative
-        let candidates =
-            self.newtype_candidates(origin, backing, return_type, template, overload)?;
+        let candidates = self.newtype_candidates(backing, return_type, template, overload)?;
 
         // select according to the construction's ambiguity rule
         let is_single_candidate = candidates.len() == 1;
@@ -374,7 +372,7 @@ impl BodyState<'_, '_> {
             &signature.selection.generic_arguments,
         ));
 
-        // one open variable keeps the whole selection open
+        // keep the whole selection open for one open variable
         for ty in types {
             if self.type_flags(ty)?.has_variable() {
                 return Ok(false);
@@ -387,7 +385,6 @@ impl BodyState<'_, '_> {
     /// Derive and record one newtype's constructable backing alternatives.
     pub(in crate::check) fn derive_newtype_constructors(
         &mut self,
-        origin: Origin,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<ObligationCheck> {
         // read the raw declared row without forcing a tagged derivation
@@ -419,13 +416,8 @@ impl BodyState<'_, '_> {
         }))?;
 
         // derive one constructor per backing alternative in selection order
-        let candidates = self.newtype_candidates(
-            origin,
-            backing,
-            return_type,
-            template,
-            NewtypeOverload::Ordered,
-        )?;
+        let candidates =
+            self.newtype_candidates(backing, return_type, template, NewtypeOverload::Ordered)?;
         let constructors = candidates
             .iter()
             .map(|candidate| dir::NewtypeConstructor {
@@ -445,13 +437,11 @@ impl BodyState<'_, '_> {
     /// Build argument matching candidates from one newtype backing.
     fn newtype_candidates(
         &mut self,
-        origin: Origin,
         backing: dir::GlobalTypeId,
         return_type: dir::GlobalTypeId,
         template: Option<dir::GlobalGenericTemplateId>,
         overload: NewtypeOverload,
     ) -> CompilerResult<SmallVec<[NewtypeCandidate; 2]>> {
-        let backing = self.reduce_type_head(origin, backing)?;
         let mut backings = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[backing]);
 
         // try each union arm before the complete union domain
@@ -461,9 +451,7 @@ impl BodyState<'_, '_> {
             );
             backings.clear();
             backings.reserve(elements.len() + 1);
-            for element in elements {
-                backings.push(self.reduce_type_head(origin, element)?);
-            }
+            backings.extend(elements);
             if overload == NewtypeOverload::Ordered {
                 backings.push(backing);
             }
@@ -541,14 +529,12 @@ impl BodyState<'_, '_> {
     /// Return implicit newtype arguments from a same-symbol expected result.
     fn expected_newtype_arguments(
         &mut self,
-        origin: Origin,
         symbol: dir::GlobalSymbolId,
         expected_return: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let Some(expected_return) = expected_return else {
             return Ok(Vec::new());
         };
-        let expected_return = self.reduce_type_head(origin, expected_return)?;
         let dir::Type::Application(instance) = self.ty(expected_return)? else {
             return Ok(Vec::new());
         };
@@ -575,7 +561,7 @@ impl CheckState<'_> {
 
         // derive rows beside each declared newtype
         let mut newtypes = Vec::new();
-        for (symbol, definition) in self.module(module).definitions.iter_definitions() {
+        for (symbol, definition) in self.module(module).iter_definitions() {
             if matches!(definition, dir::Definition::Newtype(_)) {
                 newtypes.push(symbol);
             }
@@ -583,8 +569,7 @@ impl CheckState<'_> {
 
         // NOTE #Suspicious: the derived check is discarded, so its failures never reach a report
         for symbol in newtypes {
-            self.body()
-                .derive_newtype_constructors(Origin::Symbol(symbol), symbol)?;
+            self.body().derive_newtype_constructors(symbol)?;
         }
 
         Ok(())

@@ -16,6 +16,9 @@ impl CheckState<'_> {
             state.import_external_modules()?;
             state.derive_tagged_definitions()?;
 
+            // translate the declared types into the semantic tables
+            state.translate_declared_types()?;
+
             state.flatten_declared_owners()?;
             state.check_decorators()?;
 
@@ -34,7 +37,6 @@ impl CheckState<'_> {
     fn check_declarations(&mut self, module: ModuleId) -> CompilerResult<()> {
         let symbols = self
             .module(module)
-            .definitions
             .iter_definitions()
             .map(|(symbol, definition)| {
                 let is_extension = matches!(definition, dir::Definition::Extension(_));

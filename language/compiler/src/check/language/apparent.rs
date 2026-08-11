@@ -1,8 +1,7 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, TypeSubstitution};
+use crate::check::{BodyState, CheckState, Origin, TypeSubstitution};
 use crate::{CompilerError, CompilerResult};
 
 /// One declaration instance used for apparent member lookup.
@@ -18,7 +17,6 @@ impl ApparentInstance {
     /// Intern this instance into the checked module.
     pub(in crate::check) fn intern(
         &self,
-        _module: ModuleId,
         check: &mut CheckState<'_>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let arguments = check.intern_type_ids(&self.arguments)?;
@@ -56,14 +54,13 @@ impl CheckState<'_> {
     /// Intern the type used for apparent member lookup into the checked module.
     pub(in crate::check) fn intern_apparent_type(
         &mut self,
-        module: ModuleId,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let Some(instance) = self.apparent_instance(receiver)? else {
             return Ok(receiver);
         };
 
-        instance.intern(module, self)
+        instance.intern(self)
     }
 
     /// Return the declaration instance that owns one receiver's apparent members.
@@ -115,5 +112,134 @@ impl CheckState<'_> {
         };
 
         Ok(Some(instance))
+    }
+}
+
+impl BodyState<'_, '_> {
+    /// Return the apparent object members one construction target accepts.
+    pub(in crate::check) fn apparent_object_members(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<
+        Option<(
+            SmallVec<[dir::TypeProperty; 8]>,
+            SmallVec<[dir::TypeIndexSignature; 2]>,
+        )>,
+    > {
+        match self.ty(target)? {
+            // read fields and index signatures straight off a structural target
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+                let fields = SmallVec::from_slice(
+                    self.shape_properties(target.module_id, shape.properties)?,
+                );
+                let indexes = SmallVec::from_slice(
+                    self.shape_index_signatures(target.module_id, shape.index_signatures)?,
+                );
+
+                Ok(Some((fields, indexes)))
+            }
+
+            // read fields accepted by nominal struct construction
+            dir::Type::Application(instance)
+                if matches!(
+                    self.definition(instance.symbol)?,
+                    Some(dir::Definition::Struct(_))
+                ) =>
+            {
+                let fields = self.struct_constructor_fields(origin, target)?;
+
+                Ok(Some((fields, SmallVec::new())))
+            }
+
+            // read fields from structural interfaces
+            dir::Type::Application(instance)
+                if matches!(
+                    self.definition(instance.symbol)?,
+                    Some(dir::Definition::Interface(interface)) if !interface.is_nominal
+                ) =>
+            {
+                let fields = self.check.interface_instance_fields(target, target)?;
+                let fields = fields.map(|fields| (SmallVec::from_vec(fields), SmallVec::new()));
+
+                Ok(fields)
+            }
+
+            // merge the fields accepted by every intersection arm
+            dir::Type::Intersection(intersection) => {
+                let elements = self
+                    .check
+                    .type_ids(target.module_id, intersection.elements)?
+                    .to_vec();
+                let mut fields = SmallVec::<[dir::TypeProperty; 8]>::new();
+                let mut indexes = SmallVec::new();
+                for element in elements {
+                    // read the members this arm accepts
+                    let element = self.check.normalize_stuck(origin, element)?;
+                    let Some((arm_fields, arm_indexes)) =
+                        self.apparent_object_members(origin, element)?
+                    else {
+                        return Ok(None);
+                    };
+
+                    // merge each arm field into the collected set
+                    for field in arm_fields {
+                        let Some(existing) =
+                            fields.iter().position(|existing| existing.key == field.key)
+                        else {
+                            fields.push(field);
+                            continue;
+                        };
+                        fields[existing] = self.intersect_type_property(fields[existing], field)?;
+                    }
+                    indexes.extend(arm_indexes);
+                }
+
+                Ok(Some((fields, indexes)))
+            }
+
+            // reject object literal fields for every other target
+            _ => Ok(None),
+        }
+    }
+
+    /// Merge one duplicate field into its collected intersection field.
+    fn intersect_type_property(
+        &mut self,
+        existing: dir::TypeProperty,
+        field: dir::TypeProperty,
+    ) -> CompilerResult<dir::TypeProperty> {
+        let read = self.intersect_access_values(existing.access.read(), field.access.read())?;
+        let write = self.intersect_access_values(existing.access.write(), field.access.write())?;
+        let access = match (read, write) {
+            (Some(read), Some(write)) => dir::PropertyAccess::ReadWrite { read, write },
+            (Some(read), None) => dir::PropertyAccess::Read(read),
+            (None, Some(write)) => dir::PropertyAccess::Write(write),
+            (None, None) => existing.access,
+        };
+
+        Ok(dir::TypeProperty {
+            key: existing.key,
+            access,
+            is_optional: existing.is_optional && field.is_optional,
+        })
+    }
+
+    /// Intersect two optional access value types into one.
+    fn intersect_access_values(
+        &mut self,
+        left: Option<dir::GlobalTypeId>,
+        right: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        match (left, right) {
+            (Some(left), Some(right)) if left != right => {
+                let elements = self.check.intern_type_ids(&[left, right])?;
+                let ty = dir::Type::Intersection(dir::IntersectionType { elements });
+
+                Ok(Some(self.check.intern_type(ty)?))
+            }
+            (Some(left), _) => Ok(Some(left)),
+            (None, right) => Ok(right),
+        }
     }
 }

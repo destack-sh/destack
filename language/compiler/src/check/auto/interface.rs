@@ -25,6 +25,7 @@ impl CheckState<'_> {
         ) {
             let (module, application) = self.nominal_application(target)?;
             let arguments = self.type_ids(module, application.arguments)?;
+
             // read an elided argument as the receiver itself
             let other = match arguments {
                 [] => None,
@@ -41,16 +42,14 @@ impl CheckState<'_> {
             };
             if let Some(other) = other {
                 // read argument solutions settled since the bound was queued
-                let other = self.shallow_resolve(other)?;
+                let other = self.resolve_head(other)?;
                 let substitution = TypeSubstitution::default().with_receiver(ty);
                 let other = self.substitute_type(other, &substitution)?;
 
                 // allow numeric scalars to compare across their exact domains
-                let reduced_ty = self.reduce_type_head(origin, ty)?;
-                let reduced_other = self.reduce_type_head(origin, other)?;
                 let domains = (
-                    self.ty(reduced_ty)?.scalar_domain(),
-                    self.ty(reduced_other)?.scalar_domain(),
+                    self.ty(ty)?.scalar_domain(),
+                    self.ty(other)?.scalar_domain(),
                 );
                 let numeric = matches!(
                     domains,
@@ -64,7 +63,7 @@ impl CheckState<'_> {
                 let receiver_holds =
                     numeric || self.decide_relation(origin, Relation::Equal, ty, other)?;
                 if !receiver_holds {
-                    // an open argument leaves the receiver rule undecided
+                    // leave the receiver rule undecided for an open argument
                     if !self.open_type_variables([ty, other])?.is_empty() {
                         return Ok(Verdict::Ambiguous);
                     }
@@ -77,6 +76,11 @@ impl CheckState<'_> {
         // decide the interface's own conformance rule
         let holds = self.satisfies_auto_interface(origin, ty, interface)?;
 
+        // leave the rule undecided for an open variable inside the subject
+        if !holds && !self.open_type_variables([ty])?.is_empty() {
+            return Ok(Verdict::Ambiguous);
+        }
+
         Ok(Verdict::decided(holds))
     }
 
@@ -88,7 +92,6 @@ impl CheckState<'_> {
         interface: dir::AutoInterface,
     ) -> CompilerResult<bool> {
         // conformance over settled types is a durable fact
-        let ty = self.reduce_type_head(origin, ty)?;
         let flags = self.type_flags(ty)?;
         let key = if flags.has_variable() {
             None
@@ -138,19 +141,19 @@ impl CheckState<'_> {
         // dispatch compiler-known conformance rules
         let mut active = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         let holds = match interface {
-            dir::AutoInterface::AtomicSafe => self.satisfies_atomic_safe(origin, ty),
+            dir::AutoInterface::AtomicSafe => self.satisfies_atomic_safe(ty),
             dir::AutoInterface::DynamicSafe => self.satisfies_dynamic_safe(origin, ty, &mut active),
             dir::AutoInterface::OverwriteStable => {
                 self.satisfies_overwrite_stable(origin, ty, &mut active)
             }
             dir::AutoInterface::Integer => {
-                self.satisfies_scalar_representation(origin, ty, dir::ScalarDomain::Integer)
+                self.satisfies_scalar_representation(ty, dir::ScalarDomain::Integer)
             }
             dir::AutoInterface::IntegerDomain => {
                 self.satisfies_scalar_domain(origin, ty, dir::ScalarDomain::Integer)
             }
             dir::AutoInterface::Float => {
-                self.satisfies_scalar_representation(origin, ty, dir::ScalarDomain::Float)
+                self.satisfies_scalar_representation(ty, dir::ScalarDomain::Float)
             }
             dir::AutoInterface::FloatDomain => {
                 self.satisfies_scalar_domain(origin, ty, dir::ScalarDomain::Float)
@@ -167,15 +170,11 @@ impl CheckState<'_> {
             | dir::AutoInterface::Display
             | dir::AutoInterface::Hash => self.satisfies_derivable(origin, ty, interface),
             // order scalars intrinsically
-            dir::AutoInterface::Compare | dir::AutoInterface::PartialCompare => {
-                let reduced = self.reduce_type_head(origin, ty)?;
-
-                Ok(self
-                    .ty(reduced)?
-                    .scalar_domain()
-                    .and_then(|domain| domain.conforms_to(interface))
-                    .unwrap_or(false))
-            }
+            dir::AutoInterface::Compare | dir::AutoInterface::PartialCompare => Ok(self
+                .ty(ty)?
+                .scalar_domain()
+                .and_then(|domain| domain.conforms_to(interface))
+                .unwrap_or(false)),
             // leave defaults and serialization to written derives
             dir::AutoInterface::Default
             | dir::AutoInterface::Serialize
@@ -197,7 +196,8 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<Option<bool>> {
-        let ty = self.shallow_resolve(ty)?;
+        // read the settled head of the subject
+        let ty = self.resolve_head(ty)?;
 
         // select the bounds owned by each generic form
         let decision = match self.ty(ty)? {
@@ -227,11 +227,9 @@ impl CheckState<'_> {
     /// Decide whether one type has one builtin scalar representation.
     fn satisfies_scalar_representation(
         &mut self,
-        origin: Origin,
         ty: dir::GlobalTypeId,
         domain: dir::ScalarDomain,
     ) -> CompilerResult<bool> {
-        let ty = self.reduce_type_head(origin, ty)?;
         let holds = matches!(
             self.ty(ty)?,
             dir::Type::Primitive(primitive) if primitive.scalar_domain() == domain
@@ -260,7 +258,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         // collect every concrete nominal declaration in the module
         let mut nominals = Vec::new();
-        for (symbol, definition) in self.module(module).definitions.iter_definitions() {
+        for (symbol, definition) in self.module(module).iter_definitions() {
             let is_nominal = matches!(
                 definition,
                 dir::Definition::Struct(_)

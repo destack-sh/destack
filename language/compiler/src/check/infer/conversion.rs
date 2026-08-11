@@ -53,8 +53,8 @@ impl BodyState<'_, '_> {
         mode: InferMode,
     ) -> CompilerResult<ValueConversion> {
         // resolve both sides and collect the variables they still hold open
-        source.ty = self.shallow_resolve(source.ty)?;
-        let mut target = self.shallow_resolve(target)?;
+        source.ty = self.resolve_head(source.ty)?;
+        let mut target = self.resolve_head(target)?;
         let mut variables = self.type_variables(source.ty)?;
         variables.extend(self.type_variables(target)?);
 
@@ -72,8 +72,8 @@ impl BodyState<'_, '_> {
 
             // open conversions finish once the enclosing inference closes
             if holds {
-                source.ty = self.shallow_resolve(source.ty)?;
-                target = self.shallow_resolve(target)?;
+                source.ty = self.resolve_head(source.ty)?;
+                target = self.resolve_head(target)?;
                 variables = self.type_variables(source.ty)?;
                 variables.extend(self.type_variables(target)?);
                 if !variables.is_empty() {
@@ -95,14 +95,16 @@ impl BodyState<'_, '_> {
                         coercion: None,
                     });
                 }
-                // at the statement close, the conversion settles its own variables
+
+                // settle the conversion's own variables at the statement close
                 if !variables.is_empty() {
                     self.resolve_variables(&variables)?;
-                    source.ty = self.shallow_resolve(source.ty)?;
-                    target = self.shallow_resolve(target)?;
+                    source.ty = self.resolve_head(source.ty)?;
+                    target = self.resolve_head(target)?;
                     variables = self.type_variables(source.ty)?;
                     variables.extend(self.type_variables(target)?);
                 }
+
                 // unsolvable conversions report and poison the source
                 if !variables.is_empty() {
                     let mut reported = FxIndexSet::default();
@@ -127,8 +129,7 @@ impl BodyState<'_, '_> {
 
         // complete a relation that participated in inference
         if let Some(holds) = inferred {
-            let outcome =
-                self.complete_constraint_check(origin, relation, source.ty, target, holds)?;
+            let outcome = self.complete_constraint_check(relation, source.ty, target, holds)?;
             if outcome != CheckOutcome::Holds
                 || relation != Relation::Assignable
                 || !use_.requires_runtime_coercion()
@@ -141,13 +142,12 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // closed logical checks require no runtime coercion
+        // skip runtime coercion for closed logical checks
         if inferred.is_none()
             && (relation != Relation::Assignable || !use_.requires_runtime_coercion())
         {
             let holds = self.constrain_conversion(site, cause, relation, source, target, use_)?;
-            let outcome =
-                self.complete_constraint_check(origin, relation, source.ty, target, holds)?;
+            let outcome = self.complete_constraint_check(relation, source.ty, target, holds)?;
 
             return Ok(ValueConversion {
                 outcome,
@@ -191,7 +191,7 @@ impl BodyState<'_, '_> {
             return self.constrain_borrow(origin, cause, Relation::Assignable, source, &conversion);
         }
 
-        // every other check-only relation compares types without requiring a value place
+        // compare types for every other check-only relation, without a value place
         if relation != Relation::Assignable || !use_.requires_runtime_coercion() {
             return self.constrain_type(origin, cause, relation, source.ty, target);
         }
@@ -282,11 +282,15 @@ impl BodyState<'_, '_> {
             return Ok(access);
         }
 
-        // relate the stored value through the selected borrowed form
-        let source_value = conversion
-            .source
-            .ownership_form()
-            .map_or(conversion.source.base(), |form| form.value);
+        // lend the borrow itself on a handle acquisition, its payload on a reborrow
+        let source_value = match (
+            conversion.acquires_handle,
+            conversion.source.ownership_form(),
+        ) {
+            (true, Some(form)) => self.intern_type(dir::Type::Form(form))?,
+            (_, Some(form)) => form.value,
+            (_, None) => conversion.source.base(),
+        };
 
         self.constrain_form_value(
             origin,
@@ -309,15 +313,17 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         use_: ValueUse,
     ) -> CompilerResult<Result<Option<Box<dir::Coercion>>, CheckFailure>> {
-        let source_type = self.reduce_named_head(origin, source.ty)?;
+        // shed redundant forms from both sides before converting
+        let source_type = self.resolve_head(source.ty)?;
+        let source_type = self.reduce_redundant_forms(origin, source_type)?;
         let source = Value {
             ty: source_type,
             ..source
         };
-        let target = self.reduce_named_head(origin, target)?;
+        let target = self.resolve_head(target)?;
+        let target = self.reduce_redundant_forms(origin, target)?;
 
-        // a scalar singleton widens first: materialization leads the chain,
-        //  and the widened runtime value converts like any other
+        // widen a scalar singleton first, then convert the widened runtime value
         let source_value = self.strip_form(origin, source.ty)?;
         if let dir::Type::Literal(literal) = self.ty(source_value)? {
             let base = self.strip_form(origin, target)?;
@@ -349,8 +355,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // a generic callable reference instantiates first: the selection leads
-        //  the chain, and the instantiated runtime value converts like any other
+        // instantiate a generic callable reference first, then convert the instantiated value
         let required = self.strip_form(origin, target)?;
         if let Some(instantiation) = self.instantiate_signature(origin, source_value, required)?
             && let Some(arguments) = instantiation.arguments
@@ -389,14 +394,14 @@ impl BodyState<'_, '_> {
         // stored positions convert into the target's storage representation
         let target = match use_.requires_storage() {
             true => {
-                let target = self.reduce_type(origin, target)?;
+                let target = self.deeply_normalize(origin, target)?;
 
                 self.storage_type(origin, target)?
             }
             false => target,
         };
 
-        // identical and unreachable values need no adjustment
+        // skip adjustment for identical and unreachable values
         if self.decide_relation(origin, Relation::Equal, source.ty, target)? {
             return Ok(Ok(None));
         }
@@ -474,6 +479,16 @@ impl BodyState<'_, '_> {
                 dir::Coercion::union(source.ty, target, cases, dir::CastOrigin::Implicit);
 
             return Ok(Ok(Some(Box::new(coercion))));
+        }
+
+        // inject one singular source through a stuck aliased union head
+        if matches!(self.ty(target)?, dir::Type::Application(_))
+            && self.union_arms(origin, target)?.is_none()
+        {
+            let head = self.normalize_stuck(origin, target)?;
+            if head != target && self.union_arms(origin, head)?.is_some() {
+                return self.convert_closed_value(site, origin, cause, source, head, use_);
+            }
         }
 
         // inject one singular source into its selected target union case
@@ -602,7 +617,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Result<Option<Box<dir::Coercion>>, CheckFailure>> {
         let relation = Relation::Assignable;
         let holds = self.constrain_conversion(site, cause, relation, source, target, use_)?;
-        let outcome = self.complete_constraint_check(origin, relation, source.ty, target, holds)?;
+        let outcome = self.complete_constraint_check(relation, source.ty, target, holds)?;
         if let CheckOutcome::Fails(failure) = outcome {
             return Ok(Err(failure));
         }
@@ -673,7 +688,7 @@ impl BodyState<'_, '_> {
             {
                 Some(dir::CoercionAdjustment::Carrier { target })
             }
-            // every remaining accepted distinction preserves representation
+            // accept every remaining distinction, which preserves representation
             else {
                 None
             }

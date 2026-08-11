@@ -21,7 +21,7 @@ impl CheckState<'_> {
         }
 
         // close recursive structural types coinductively
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_head(ty)?;
         if active.contains(&ty) {
             return Ok(true);
         }
@@ -41,7 +41,6 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<bool> {
-        let ty = self.reduce_type_head(origin, ty)?;
         let kind = self.ty(ty)?;
 
         // decide each stored representation

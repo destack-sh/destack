@@ -120,6 +120,7 @@ impl BodyState<'_, '_> {
         let dir::AssignPattern::Place { expression: target } = self.module(module).view().get(left)
         else {
             self.report_invalid_assignment_target(module, left.into_any());
+
             return self.reject_assignment_expression(node, left_node);
         };
         let target = *target;
@@ -141,13 +142,11 @@ impl BodyState<'_, '_> {
         if let Ok(operator) = dir::BinaryOperator::try_from(operator) {
             let right_site = self.visit_site(right_node)?;
             let right_type = self.infer_node_type(right_site, PlaceUse::Read)?;
-            let left_type = self.reduce_type_head(site.origin(), read_type)?;
-            let right_type =
-                self.reduce_type_head(Origin::Node(right_node, site.scope), right_type)?;
+            let right_type = self.normalize(Origin::Node(right_node, site.scope), right_type)?;
             let () = self.select_binary_operation(
                 site,
                 operator,
-                left_type,
+                read_type,
                 right_type,
                 target.into_global_any(module),
                 right_node,

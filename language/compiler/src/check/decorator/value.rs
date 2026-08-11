@@ -123,7 +123,7 @@ impl CheckState<'_> {
         };
 
         // evaluate the selected backing alternative
-        let backing = self.shallow_resolve(backing)?;
+        let backing = self.resolve_head(backing)?;
         let value = if matches!(self.ty(backing)?, dir::Type::Tuple(_)) {
             dir::StaticTerm::Tuple { elements }
         } else {
@@ -236,7 +236,7 @@ impl CheckState<'_> {
 
     /// Evaluate one static type selected as an inserted argument.
     fn evaluate_static_type(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<dir::StaticTerm> {
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_head(ty)?;
         let value = match self.ty(ty)? {
             dir::Type::Literal(value) => value.into(),
             dir::Type::Static(value) => self.r#static(value).clone(),
@@ -405,7 +405,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Result<dir::StaticTerm, StaticError>> {
         let source = value.into_global_any(module);
         let ty = self.require_node_type(source)?;
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_head(ty)?;
 
         Ok(Ok(dir::StaticTerm::Type { ty }))
     }
@@ -421,7 +421,7 @@ impl CheckState<'_> {
             return Ok(Err(StaticError::NotStatic(expression)));
         };
         let term = if let Some(value) = self.static_value(symbol) {
-            let value = self.shallow_resolve(value)?;
+            let value = self.resolve_head(value)?;
 
             match self.ty(value)? {
                 dir::Type::Literal(value) => dir::StaticTerm::ScalarLiteral { value },
@@ -429,14 +429,13 @@ impl CheckState<'_> {
                 _ => return Ok(Err(StaticError::NotStatic(expression))),
             }
         }
-        // otherwise read a type declaration as a first-class value,
-        //  skipping foreign kinds while declaring
+        // otherwise read a type declaration as a first-class value, skipping unread kinds
         else if self
             .symbol_kind_maybe(symbol)?
             .is_some_and(|kind| kind.can_be_used_as_type())
         {
             let ty = self.require_node_type(source)?;
-            let ty = self.shallow_resolve(ty)?;
+            let ty = self.resolve_head(ty)?;
 
             dir::StaticTerm::Type { ty }
         }

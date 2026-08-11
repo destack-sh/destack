@@ -38,7 +38,7 @@ impl BodyState<'_, '_> {
                 ..
             }
         ) {
-            let Some(expected) = self.expected_construct_target(origin, expected)? else {
+            let Some(expected) = self.expected_construct_target(expected)? else {
                 self.report_cannot_infer_node(site.node)?;
                 let error = self.intern_type(dir::Type::Error)?;
 
@@ -49,7 +49,7 @@ impl BodyState<'_, '_> {
             return Ok(expected);
         }
 
-        // a uniquely matching contextual arm supplies omitted generic arguments
+        // supply omitted generic arguments from a uniquely matching contextual arm
         if let dir::TypeExpression::Reference {
             generic_arguments, ..
         } = self.module(module).view().get(ty)
@@ -57,7 +57,7 @@ impl BodyState<'_, '_> {
             && let Some(expected) = expected
             && let Some(resolution) = self.resolutions(source.module_id).name_resolution(source)
             && let [symbol] = resolution.symbols()
-            && let Some(expected) = self.expected_construct_instance(origin, expected, *symbol)?
+            && let Some(expected) = self.expected_construct_instance(expected, *symbol)?
         {
             self.commit_node_type(source, expected)?;
 
@@ -148,16 +148,14 @@ impl BodyState<'_, '_> {
     /// Return the expected target after peeling construction forms.
     fn expected_construct_target(
         &mut self,
-        origin: Origin,
         expected: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(expected) = expected else {
             return Ok(None);
         };
-        let target = self.reduce_type_head(origin, expected)?;
-        let target = match self.ty(target)? {
+        let target = match self.ty(expected)? {
             dir::Type::Form(form) if form.form == dir::Form::Owned => form.value,
-            _ => target,
+            _ => expected,
         };
 
         Ok(Some(target))
@@ -166,7 +164,6 @@ impl BodyState<'_, '_> {
     /// Return the unique contextual instance of one construct declaration.
     fn expected_construct_instance(
         &mut self,
-        origin: Origin,
         expected: dir::GlobalTypeId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
@@ -175,7 +172,6 @@ impl BodyState<'_, '_> {
 
         // search direct, owned, and union targets for one matching nominal head
         while let Some(candidate) = pending.pop() {
-            let candidate = self.reduce_type_head(origin, candidate)?;
             match self.ty(candidate)? {
                 dir::Type::Application(instance) if instance.symbol == symbol => {
                     if matched.is_some() {
@@ -287,8 +283,7 @@ impl BodyState<'_, '_> {
         let mut forms = SmallVec::<[dir::Form; 2]>::new();
         let mut expected_value = expectation.map(|expectation| expectation.target);
         while let Some(expected) = expected_value {
-            let head = self.reduce_type_head(origin, expected)?;
-            let dir::Type::Form(form) = self.ty(head)? else {
+            let dir::Type::Form(form) = self.ty(expected)? else {
                 break;
             };
             if !matches!(form.form, dir::Form::Owned | dir::Form::Placed { .. }) {
@@ -300,7 +295,6 @@ impl BodyState<'_, '_> {
 
         // select the constructed target
         let target = self.select_construct_target(site, ty, expected_value)?;
-        let target = self.reduce_type_head(origin, target)?;
 
         // construct erased interface values through their apparent signatures
         if let dir::Type::Dynamic(dynamic) = self.ty(target)? {
@@ -599,8 +593,7 @@ impl BodyState<'_, '_> {
         expectation: Option<Expectation>,
         receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<SignatureMatch> {
-        // reduce the constructor shape before matching arguments
-        let function_type = self.reduce_type_head(origin, function_type)?;
+        // read the constructor shape before matching arguments
         let Some(function) = self.signature_head(function_type)? else {
             return Ok(SignatureMatch::Inapplicable(
                 SignatureRejection::Inapplicable,
@@ -630,7 +623,6 @@ impl BodyState<'_, '_> {
             .instance_substitution(instance_module, instance)?
             .with_receiver(target);
         let function_type = self.substitute_type(function_type, &substitution)?;
-        let function_type = self.reduce_type_head(origin, function_type)?;
         let Some(function) = self.signature_head(function_type)? else {
             return Ok(SignatureMatch::Inapplicable(
                 SignatureRejection::Inapplicable,
@@ -654,12 +646,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Select one newtype construction.
-    ///
-    /// Example:
-    /// ```ds
-    /// UserId(1)
-    /// Point(1, 2)
-    /// ```
     pub(in crate::check) fn select_newtype_construct(
         &mut self,
         site: FlowSite,
@@ -755,6 +741,7 @@ impl BodyState<'_, '_> {
             selection,
             signature,
         } = signature;
+
         // commit conversions only after the backing has been selected
         for (source, coercion) in &signature.coercions {
             self.commit_coercion(*source, coercion.clone())?;
@@ -796,6 +783,7 @@ impl BodyState<'_, '_> {
         } else {
             signature.generic_arguments.clone()
         };
+
         // commit conversions only after the constructor has been selected
         for (source, coercion) in &signature.coercions {
             self.commit_coercion(*source, coercion.clone())?;
@@ -1000,7 +988,7 @@ impl BodyState<'_, '_> {
 
         // read the base instance committed on the super callee
         let super_ty = self.require_node_type(callee.into_global_any(module))?;
-        let super_ty = self.reduce_type_head(origin, super_ty)?;
+
         // poison the call when the super type already reported an error
         if matches!(self.ty(super_ty)?, dir::Type::Error) {
             return self.poison_call(node, None);
@@ -1133,7 +1121,7 @@ impl BodyState<'_, '_> {
             signature.generic_arguments.clone()
         };
 
-        // a super call initializes this and produces no value
+        // initialize this through a super call, which produces no value
         let produced = self.intern_type(dir::Type::Void)?;
         let target = dir::ConstructTarget::Class(dir::ClassConstructCandidate {
             symbol: instance.symbol,

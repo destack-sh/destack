@@ -2,25 +2,27 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, Origin};
+use crate::check::CheckState;
 
 impl CheckState<'_> {
     /// Write every commit since the last write into the module tail.
     pub(in crate::check) fn write_back(&mut self) -> CompilerResult<()> {
         let failed = self.failed_generic_applications()?;
 
-        // resolve committed node types and record their reductions
+        // resolve committed node types, storing their reduced heads
         for node in self.node_types.nodes() {
             let ty = self.node_types.get(&node).expect("collected node type");
             let resolved = self.resolve_committed_type(ty, &failed)?;
+            let resolved = match self.is_checking() {
+                true => match self.node_origin_maybe(node) {
+                    Some(origin) => self.deeply_normalize(origin, resolved)?,
+                    None => resolved,
+                },
+                false => resolved,
+            };
             self.node_types.insert(node, resolved);
             if self.module.types.get_node_type_id(node) != Some(resolved) {
                 self.module.types_tail.set_node_type(node, resolved);
-            }
-            if self.is_checking()
-                && let Some(origin) = self.node_origin_maybe(node)
-            {
-                let _ = self.reduce_type(origin, resolved)?;
             }
         }
 
@@ -37,7 +39,7 @@ impl CheckState<'_> {
             }
         }
 
-        // resolve declaration types and record their reductions
+        // resolve declaration types and normalize their declared rows
         for index in 0..self.declaration_types.len() {
             let (symbol, ty) = self
                 .declaration_types
@@ -48,9 +50,6 @@ impl CheckState<'_> {
             self.declaration_types[index] = resolved;
             if self.module.types.get_symbol_type_id(symbol) != Some(resolved) {
                 self.module.types_tail.set_symbol_type(symbol, resolved);
-            }
-            if self.is_checking() {
-                let _ = self.reduce_type(Origin::Symbol(symbol), resolved)?;
             }
         }
 
@@ -92,23 +91,6 @@ impl CheckState<'_> {
             self.module.types_tail.resolve_row(row, content, flags);
         }
 
-        // record reductions for alias values and newtype backings
-        if self.is_checking() {
-            let aliases = self
-                .module
-                .definitions
-                .iter_definitions()
-                .filter_map(|(symbol, definition)| match definition {
-                    dir::Definition::TypeAlias(definition) => Some((symbol, definition.value)),
-                    dir::Definition::Newtype(definition) => Some((symbol, definition.backing)),
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            for (symbol, value) in aliases {
-                let _ = self.reduce_type(Origin::Symbol(symbol), value)?;
-            }
-        }
-
         Ok(())
     }
 
@@ -118,7 +100,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         failed: &FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_head(ty)?;
         if failed.is_empty() && !self.type_flags(ty)?.has_variable() {
             return Ok(ty);
         }
@@ -156,7 +138,7 @@ impl CheckState<'_> {
         let resolved = if let dir::Type::Variable(variable) = ty {
             match self.infer.solution(variable)? {
                 Some(solution) => {
-                    let solution = self.shallow_resolve(solution)?;
+                    let solution = self.resolve_head(solution)?;
 
                     self.resolve_open_type(solution, failed, active)?
                 }
@@ -176,7 +158,20 @@ impl CheckState<'_> {
                     state.resolve_open_type(child, failed, active)
                 })?;
 
-            self.intern_type(rebuilt)?
+            // renormalize solved unions like any other construction
+            match rebuilt {
+                dir::Type::Union(union) => {
+                    let elements = self.type_ids(id.module_id, union.elements)?.to_vec();
+
+                    self.normalized_union_type(elements)?
+                }
+                dir::Type::Intersection(intersection) => {
+                    let elements = self.type_ids(id.module_id, intersection.elements)?.to_vec();
+
+                    self.normalized_intersection_type(elements)?
+                }
+                rebuilt => self.intern_type(rebuilt)?,
+            }
         };
         active.swap_remove(&id);
 

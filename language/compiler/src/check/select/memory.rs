@@ -11,12 +11,6 @@ impl BodyState<'_, '_> {
         input: Value,
         access: dir::Access,
     ) -> CompilerResult<Option<dir::DereferenceResolution>> {
-        let input_type = self.reduce_type_head(origin, input.ty)?;
-        let input = Value {
-            ty: input_type,
-            ..input
-        };
-
         // direct dereference projects physical pointer forms the access grants
         if let dir::Type::Form(form) = self.ty(input.ty)?
             && matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw)
@@ -86,11 +80,8 @@ impl BodyState<'_, '_> {
             else {
                 continue;
             };
-            let ty = self.operator_expression_type(
-                origin,
-                operator_protocol.expression_result,
-                call.return_type,
-            )?;
+            let ty = self
+                .operator_expression_type(operator_protocol.expression_result, call.return_type)?;
 
             let dir::OperationResolution::One(call) = call.resolution else {
                 return Err(CompilerError::Internal {

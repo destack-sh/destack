@@ -143,9 +143,6 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let left = self.reduce_type_head(origin, left)?;
-        let right = self.reduce_type_head(origin, right)?;
-
         // compare transparent newtypes through their backing representations
         if let Some(instance) = self.decompose_newtype(origin, left)? {
             return self.supports_builtin_strict_equality(origin, instance.backing, right);

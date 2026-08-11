@@ -21,7 +21,7 @@ impl CheckState<'_> {
         }
 
         // close recursive structural types coinductively
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_head(ty)?;
         if active.contains(&ty) {
             return Ok(true);
         }
@@ -41,7 +41,6 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<bool> {
-        let ty = self.reduce_type_head(origin, ty)?;
         let kind = self.ty(ty)?;
 
         // decide explicit memory carriers before their payload types
@@ -52,7 +51,7 @@ impl CheckState<'_> {
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
-                    self.body().access_is_readonly(origin, access)
+                    self.body().access_is_readonly(access)
                 }
                 dir::Form::Placed { .. } => self.satisfies_copy(origin, form.value, active),
             };
@@ -75,6 +74,7 @@ impl CheckState<'_> {
                 self.satisfies_copy(origin, refined.base, active)
             }
 
+            // copy owned scalar values directly
             dir::Type::Error
             | dir::Type::Never
             | dir::Type::Void
@@ -84,7 +84,6 @@ impl CheckState<'_> {
             | dir::Type::Memory(_)
             | dir::Type::Static(_)
             | dir::Type::FunctionPointer(_)
-            // owned scalar values copy directly
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Range(_) => Ok(true),

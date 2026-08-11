@@ -38,7 +38,6 @@ impl BodyState<'_, '_> {
             },
             PlaceUse::Read,
         )?;
-        let ty = self.reduce_type_head(origin, ty)?;
 
         // closed literal values select literal predicates
         let literal = match self.ty(ty)? {
@@ -74,7 +73,6 @@ impl BodyState<'_, '_> {
     pub(in crate::check) fn select_range_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
-        origin: Origin,
         flow: FlowPointId,
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
@@ -84,7 +82,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<()> {
         let module = node.module_id;
 
-        // reduce both written bounds to literals
+        // read both written bounds as literals
         let mut bounds = [None, None];
         for (slot, bound) in [start, end].into_iter().enumerate() {
             let Some(bound) = bound else {
@@ -99,7 +97,6 @@ impl BodyState<'_, '_> {
                 },
                 PlaceUse::Read,
             )?;
-            let ty = self.reduce_type_head(origin, ty)?;
             if let dir::Type::Literal(literal) = self.ty(ty)? {
                 bounds[slot] = Some(literal);
             }

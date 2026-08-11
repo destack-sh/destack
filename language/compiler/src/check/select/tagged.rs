@@ -48,7 +48,7 @@ impl BodyState<'_, '_> {
         ty: dir::LocalNodeId<dir::TypeExpression>,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<bool> {
-        let Some((owner, symbol, key)) = self.variant_pattern_owner(origin, module, ty)? else {
+        let Some((owner, symbol, key)) = self.variant_pattern_owner(module, ty)? else {
             return Ok(false);
         };
         let Some(case) = self.variant_case(symbol, key)? else {
@@ -66,7 +66,6 @@ impl BodyState<'_, '_> {
     /// Return the variant family and key named by one pattern.
     fn variant_pattern_owner(
         &mut self,
-        origin: Origin,
         module: ModuleId,
         ty: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::GlobalSymbolId, dir::StaticKey)>> {
@@ -77,7 +76,7 @@ impl BodyState<'_, '_> {
                 let owner = self.require_node_type(left.into_global_any(module))?;
                 let key = dir::StaticKey::Name(name);
 
-                self.variant_family(origin, owner, key)
+                self.variant_family(owner, key)
             }
             dir::TypeExpression::Reference { path, .. } => {
                 let reference = self.module(module).resolved.references.get(source).cloned();
@@ -95,7 +94,7 @@ impl BodyState<'_, '_> {
                 let owner = self.symbol_type(base)?;
                 let key = dir::StaticKey::Name(name);
 
-                self.variant_family(origin, owner, key)
+                self.variant_family(owner, key)
             }
             _ => {
                 let ty = self.require_node_type(source)?;
@@ -103,7 +102,7 @@ impl BodyState<'_, '_> {
                     return Ok(None);
                 };
 
-                self.variant_family(origin, member.owner, member.key)
+                self.variant_family(member.owner, member.key)
             }
         }
     }
@@ -111,11 +110,9 @@ impl BodyState<'_, '_> {
     /// Return one variant family from its owner type and selected key.
     fn variant_family(
         &mut self,
-        origin: Origin,
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
     ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::GlobalSymbolId, dir::StaticKey)>> {
-        let owner = self.reduce_type_head(origin, owner)?;
         let symbol = match self.ty(owner)? {
             dir::Type::Application(instance) => instance.symbol,
             dir::Type::Reference(reference) => reference.symbol,
@@ -218,7 +215,7 @@ impl BodyState<'_, '_> {
             // accept a derived newtype with its checked tagged definition
             Some(dir::Definition::Newtype(value)) if value.is_tagged() => {}
 
-            // every other owner has no variant cases
+            // reject every other owner, which has no variant cases
             _ => return self.reject_pattern(node, origin, owners[0].owner),
         }
 
@@ -319,7 +316,6 @@ impl BodyState<'_, '_> {
                     SmallVec::<[_; 4]>::from_slice(self.type_ids(input.module_id, union.elements)?);
 
                 for arm in arms {
-                    let arm = self.reduce_type_head(origin, arm)?;
                     if let dir::Type::Application(instance) = self.ty(arm)?
                         && instance.symbol == case.owner
                     {
@@ -362,7 +358,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Option<TaggedCaseSelection>> {
         let mut selected = Vec::with_capacity(owners.len());
         for owner in owners {
-            let Some(selected_case) = self.instantiate_tagged_case(origin, owner, case)? else {
+            let Some(selected_case) = self.instantiate_tagged_case(owner, case)? else {
                 return Err(CompilerError::Internal {
                     message: format!(
                         "tagged owner {:?} does not define resolved case {:?}",
@@ -424,8 +420,8 @@ impl BodyState<'_, '_> {
                     else {
                         continue;
                     };
-                    // union arm payloads read the union of their reads; writes
-                    //  survive only when every arm accepts them
+
+                    // join union arm payloads, keeping writes only when every arm accepts
                     let read = self
                         .normalized_union_type([existing.access.store(), field.access.store()])?;
                     let access = match existing.access.is_writable() && field.access.is_writable() {
@@ -497,7 +493,6 @@ impl BodyState<'_, '_> {
     /// Select one tagged variant.
     fn instantiate_tagged_case(
         &mut self,
-        origin: Origin,
         owner: &VariantOwner,
         case: &dir::VariantCase,
     ) -> CompilerResult<Option<TaggedCaseSelection>> {
@@ -530,7 +525,6 @@ impl BodyState<'_, '_> {
             Some(argument) => {
                 let backing = self.substitute_type(variant.backing, &substitution)?;
                 let argument = self.substitute_type(argument, &substitution)?;
-                let argument = self.reduce_type_head(origin, argument)?;
                 let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = self.ty(argument)?
                 else {
                     return Err(CompilerError::Internal {
@@ -712,11 +706,9 @@ impl CheckState<'_> {
     /// Return the selected case key for one Tagged owner type and discriminant.
     pub(in crate::check) fn tagged_case_key_from_type(
         &mut self,
-        origin: Origin,
         owner: dir::GlobalTypeId,
         discriminant: dir::ScalarLiteral,
     ) -> CompilerResult<Option<dir::StaticKey>> {
-        let owner = self.reduce_type_head(origin, owner)?;
         let Some(instance) = self.tagged_domain_instance(owner)? else {
             return Ok(None);
         };
@@ -728,10 +720,8 @@ impl CheckState<'_> {
     /// Return the finite discriminant domain of one Tagged newtype value.
     pub(in crate::check) fn tagged_discriminant_domain(
         &mut self,
-        origin: Origin,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::ScalarLiteral>>> {
-        let value = self.reduce_type_head(origin, value)?;
         let Some(instance) = self.tagged_domain_instance(value)? else {
             return Ok(None);
         };

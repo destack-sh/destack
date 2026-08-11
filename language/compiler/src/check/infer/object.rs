@@ -1,6 +1,5 @@
 use destack_dir as dir;
 use indexmap::IndexMap;
-use smallvec::SmallVec;
 
 use crate::check::{
     BodyState, Cause, CauseKind, CheckAttempt, CheckFailure, CheckOutcome, Expectation, FlowSite,
@@ -98,6 +97,7 @@ impl BodyState<'_, '_> {
 
                     // record the operations exposed by the method
                     let role = MemberRole::from(signature.role);
+                    let ty = self.check.resolve_head(ty)?;
                     let authored_access =
                         self.check
                             .property_access(role, ty, false)?
@@ -147,7 +147,7 @@ impl BodyState<'_, '_> {
                         dir::MemberSubject::new(spread, spread, dir::MemberSpace::Instance)
                             .with_scope(site.scope)
                             .with_key_type(key_type);
-                    self.module_mut(module).members.record_subject(
+                    self.module_mut(module).members_tail.record_subject(
                         dir::MemberSite::Node(property.into_global_any(module)),
                         subject,
                     );
@@ -229,7 +229,7 @@ impl BodyState<'_, '_> {
         let target = expectation.target;
 
         let Some((target_fields, index_signatures)) =
-            self.expected_object_members(origin, target_value)?
+            self.apparent_object_members(origin, target_value)?
         else {
             return Ok(CheckAttempt::NotApplicable);
         };
@@ -241,7 +241,7 @@ impl BodyState<'_, '_> {
                 .with_scope(site.scope)
                 .with_key_type(key_type);
         self.module_mut(node.module_id)
-            .members
+            .members_tail
             .record_subject(dir::MemberSite::Node(node.into_any()), subject);
 
         let mut authored = IndexMap::<dir::StaticKey, dir::PropertyAccess>::new();
@@ -333,7 +333,10 @@ impl BodyState<'_, '_> {
                     ));
                     let target_type = field.access.store();
                     let mode = expectation.mode.descend(!field.access.is_writable());
-                    let mode = self.contextual_literal_mode(target_type, mode)?;
+
+                    // inspect the mode over the field's normalized head
+                    let mode_target = self.check.normalize(site.origin(), target_type)?;
+                    let mode = self.contextual_literal_mode(site.origin(), mode_target, mode)?;
                     let child_expectation = Expectation {
                         target: target_type,
                         cause: field_cause,
@@ -345,6 +348,7 @@ impl BodyState<'_, '_> {
                     // record the slot the checked value commits
                     let source_type = child_check.source;
                     let storage = self.literal_slot_storage(
+                        site.origin(),
                         expectation.relation,
                         target_type,
                         source_type,
@@ -416,6 +420,7 @@ impl BodyState<'_, '_> {
 
                     // record the operations exposed by the method
                     let role = MemberRole::from(signature.role);
+                    let ty = self.check.resolve_head(ty)?;
                     let authored_access =
                         self.check
                             .property_access(role, ty, false)?
@@ -455,11 +460,14 @@ impl BodyState<'_, '_> {
             }));
         }
 
-        // adopt the slot class and memory form only for storage into a concrete object
+        // adopt the slot class and memory form only for storage into a concrete object or intersection
         let is_adopting = expectation.relation != Relation::Satisfies
-            && matches!(self.ty(target_value)?, dir::Type::Object(_));
+            && matches!(
+                self.ty(target_value)?,
+                dir::Type::Object(_) | dir::Type::Intersection(_)
+            );
         let source = match is_adopting {
-            true => self.replace_form_value(origin, target, target_value)?,
+            true => target,
             false => {
                 let fields: Vec<_> = source_fields.into_values().collect();
                 let fields = self.intern_properties(&fields)?;
@@ -522,58 +530,5 @@ impl BodyState<'_, '_> {
         }
 
         Ok(())
-    }
-
-    /// Return the members an object literal target expects.
-    pub(in crate::check) fn expected_object_members(
-        &mut self,
-        origin: Origin,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<
-        Option<(
-            SmallVec<[dir::TypeProperty; 8]>,
-            SmallVec<[dir::TypeIndexSignature; 2]>,
-        )>,
-    > {
-        match self.ty(target)? {
-            // read fields and index signatures straight off a structural target
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
-                let fields = SmallVec::from_slice(
-                    self.shape_properties(target.module_id, shape.properties)?,
-                );
-                let indexes = SmallVec::from_slice(
-                    self.shape_index_signatures(target.module_id, shape.index_signatures)?,
-                );
-
-                Ok(Some((fields, indexes)))
-            }
-            // read fields accepted by nominal struct construction
-            dir::Type::Application(instance)
-                if matches!(
-                    self.definition(instance.symbol)?,
-                    Some(dir::Definition::Struct(_))
-                ) =>
-            {
-                let fields = self.struct_constructor_fields(origin, target)?;
-
-                Ok(Some((fields, SmallVec::new())))
-            }
-
-            // read fields from structural interfaces
-            dir::Type::Application(instance)
-                if matches!(
-                    self.definition(instance.symbol)?,
-                    Some(dir::Definition::Interface(interface)) if !interface.is_nominal
-                ) =>
-            {
-                let fields = self.check.interface_instance_fields(target, target)?;
-                let fields = fields.map(|fields| (SmallVec::from_vec(fields), SmallVec::new()));
-
-                Ok(fields)
-            }
-
-            // other targets do not accept object literal fields
-            _ => Ok(None),
-        }
     }
 }

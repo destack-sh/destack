@@ -391,10 +391,10 @@ impl Compiler {
             )?);
         }
 
-        // write checked DIR tables and report the pass's diagnostics;
-        //  annotations render inside, after the write settles every type
-        let (checked, diagnostics, annotated) =
-            check.finish_check(module, options.emit_checked_types)?;
+        // write checked DIR tables, render annotations, and report the pass's diagnostics
+        let (checked, diagnostics, annotated) = breakdown(context, "check.finish", || {
+            check.finish_check(module, options.emit_checked_types)
+        })?;
         for source in annotated {
             let labels = [
                 ("phase", "check".to_string()),

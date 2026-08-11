@@ -15,10 +15,10 @@ impl CheckState<'_> {
         let state = self.module_mut(module);
         for (symbol, literal) in symbol_literals {
             let id = state
-                .statics
+                .statics_tail
                 .push_static(dir::StaticTerm::ScalarLiteral { value: literal });
             state
-                .statics
+                .statics_tail
                 .set_symbol_static(symbol, id.into_global(module));
         }
 
@@ -34,14 +34,35 @@ impl CheckState<'_> {
         for (symbol, value) in identities {
             let value = self.resolve_committed_type(value, &FxIndexSet::default())?;
             let state = self.module_mut(module);
-            if state.statics.get_symbol_static_id(symbol).is_some() {
+            if state.statics_tail.get_symbol_static_id(symbol).is_some() {
                 continue;
             }
             let id = state
-                .statics
+                .statics_tail
                 .push_static(dir::StaticTerm::Type { ty: value });
             state
-                .statics
+                .statics_tail
+                .set_symbol_static(symbol, id.into_global(module));
+        }
+
+        // expose each class declaration as a type static for its value uses
+        let classes = self
+            .module(module)
+            .iter_definitions()
+            .filter(|(_, definition)| matches!(definition, dir::Definition::Class(_)))
+            .map(|(symbol, _)| symbol)
+            .collect::<Vec<_>>();
+        for symbol in classes {
+            if self.symbol_static_id(symbol).is_some() {
+                continue;
+            }
+
+            // push one type static naming the class
+            let ty = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+            let state = self.module_mut(module);
+            let id = state.statics_tail.push_static(dir::StaticTerm::Type { ty });
+            state
+                .statics_tail
                 .set_symbol_static(symbol, id.into_global(module));
         }
 
@@ -50,12 +71,12 @@ impl CheckState<'_> {
         let state = self.module_mut(module);
 
         for (symbol, term) in constants {
-            if state.statics.get_symbol_static_id(symbol).is_some() {
+            if state.statics_tail.get_symbol_static_id(symbol).is_some() {
                 continue;
             }
-            let id = state.statics.push_static(term);
+            let id = state.statics_tail.push_static(term);
             state
-                .statics
+                .statics_tail
                 .set_symbol_static(symbol, id.into_global(module));
         }
 
@@ -68,24 +89,6 @@ impl CheckState<'_> {
             self.write_member_type_resolutions(module)?;
         }
 
-        // derive each declared symbol type's reduction for the type rows
-        if self.is_checking() {
-            let symbols = self
-                .declaration_types
-                .iter()
-                .chain(self.binding_types.iter())
-                .filter(|(symbol, _)| symbol.module_id == module)
-                .map(|(symbol, ty)| (*symbol, *ty))
-                .collect::<Vec<_>>();
-
-            for (symbol, ty) in symbols {
-                if self.type_flags(ty)?.has_variable() {
-                    continue;
-                }
-                let _ = self.reduce_type(Origin::Symbol(symbol), ty)?;
-            }
-        }
-
         Ok(())
     }
 
@@ -94,8 +97,7 @@ impl CheckState<'_> {
         // collect exact path sites before mutating resolutions
         let sites = self
             .module(module)
-            .members
-            .iter_subjects()
+            .iter_member_subjects()
             .filter_map(|(site, _)| match site {
                 dir::MemberSite::Path { node, segment } => Some((node, segment)),
                 dir::MemberSite::Node(_) => None,
@@ -131,7 +133,7 @@ impl CheckState<'_> {
             let key = dir::StaticKey::Name(name);
 
             // resolve the declaration selected by member lookup
-            let Some(subject) = self.module(module).members.subject(site) else {
+            let Some(subject) = self.module(module).member_subject(site) else {
                 continue;
             };
             let origin = Origin::Node(node, subject.scope);
@@ -158,8 +160,7 @@ impl CheckState<'_> {
         // collect the member type expressions the walk recorded subjects for
         let sites = self
             .module(module)
-            .members
-            .iter_subjects()
+            .iter_member_subjects()
             .filter_map(|(site, _)| match site {
                 dir::MemberSite::Node(node)
                     if node.local_id.ty == dir::NodeType::TypeExpression =>
@@ -185,7 +186,7 @@ impl CheckState<'_> {
             let key = dir::StaticKey::Name(*name);
 
             // resolve the declaration selected by member lookup
-            let Some(subject) = self.module(module).members.subject(site) else {
+            let Some(subject) = self.module(module).member_subject(site) else {
                 continue;
             };
             let origin = Origin::Node(node, subject.scope);
@@ -267,7 +268,7 @@ impl CheckState<'_> {
             return Ok(ty);
         };
 
-        // only a generic declaration has an application to name
+        // name an application for generic declarations only
         let symbol = self.resolve_symbol_alias(reference.symbol)?;
         if self.symbol_template(symbol)?.is_none() {
             return Ok(ty);
@@ -294,7 +295,7 @@ impl CheckState<'_> {
         // keep the symbols whose value settled on a scalar literal
         let mut literals = Vec::new();
         for (symbol, value) in static_values {
-            let value = self.shallow_resolve(value)?;
+            let value = self.resolve_head(value)?;
             if let dir::Type::Literal(literal) = self.ty(value)? {
                 literals.push((symbol, literal));
             }
@@ -303,9 +304,7 @@ impl CheckState<'_> {
         Ok(literals)
     }
 
-    /// Evaluate module-level const initializers into static values.
-    ///
-    /// Initializers that stay runtime store no value.
+    /// Evaluate module-level const initializers into static values, skipping runtime ones.
     fn static_module_constants(
         &mut self,
         module: ModuleId,

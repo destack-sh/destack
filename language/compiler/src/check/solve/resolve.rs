@@ -323,7 +323,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            // the selection derives a member when it shares the variable's node
+            // derive a member when the selection shares the variable's node
             for variable in variables {
                 let origin = self.infer.origin(self.infer.variable(*variable)?.origin);
                 if let Origin::Node(node, _) = origin
@@ -477,6 +477,7 @@ impl CheckState<'_> {
                     BoundDependency::External => {
                         has_external_bound = true;
                         has_open_equation |= bound.relation == Relation::Equal;
+
                         // adopt an open contextual expectation once it closes
                         has_open_context |=
                             matches!(bound.relation, Relation::Widens | Relation::Assignable);
@@ -580,7 +581,8 @@ impl CheckState<'_> {
         };
 
         // expose the chosen solution's named head
-        let solution = self.reduce_named_head(origin, solution)?;
+        let solution = self.resolve_head(solution)?;
+        let solution = self.reduce_redundant_forms(origin, solution)?;
 
         // commit canonical memory literals for memory variables
         let solution = match self.variable_memory_parameter(root)? {
@@ -656,11 +658,11 @@ impl CheckState<'_> {
             return Ok(false);
         };
 
-        let first = self.shallow_resolve(*first)?;
+        let first = self.resolve_head(*first)?;
 
         // compare each remaining candidate with the first
         for ty in &types[1..] {
-            let ty = self.shallow_resolve(*ty)?;
+            let ty = self.resolve_head(*ty)?;
             match self.decide_equal(origin, first, ty)? {
                 true => {}
                 false => return Ok(true),
@@ -727,9 +729,9 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         solution: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        // a committed solution must be closed
+        // require a committed solution to be closed
         let variable = self.infer.alias_root(variable)?;
-        let solution = self.shallow_resolve(solution)?;
+        let solution = self.resolve_head(solution)?;
         if self.root_variable(solution)?.is_some() {
             return Err(CompilerError::Internal {
                 message: format!(

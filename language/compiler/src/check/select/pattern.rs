@@ -59,7 +59,7 @@ impl BodyState<'_, '_> {
                 | dir::AssignPattern::Object { .. }
         );
         let input = if needs_reduced_input {
-            self.reduce_type_head(pattern_origin, input)?
+            self.check.normalize(pattern_origin, input)?
         } else {
             input
         };
@@ -109,7 +109,7 @@ impl BodyState<'_, '_> {
                     },
                     PlaceUse::Read,
                 )?;
-                let input = self.defaulted_pattern_type(pattern_origin, input, default)?;
+                let input = self.defaulted_pattern_type(input, default)?;
 
                 // flow the defaulted input into the nested target
                 self.check_pattern_projection(flow, scope, input, pattern.into_global_any(module))?;
@@ -204,7 +204,7 @@ impl BodyState<'_, '_> {
             dir::Pattern::Wildcard | dir::Pattern::Binding { .. }
         );
         let input = if needs_reduced_input {
-            self.reduce_type_head(origin, input)?
+            self.check.normalize(origin, input)?
         } else {
             input
         };
@@ -248,7 +248,7 @@ impl BodyState<'_, '_> {
                         PlaceUse::Read,
                     )?;
 
-                    self.defaulted_pattern_type(origin, input, default)?
+                    self.defaulted_pattern_type(input, default)?
                 };
 
                 // flow the defaulted input into the nested pattern
@@ -289,7 +289,7 @@ impl BodyState<'_, '_> {
             } => {
                 let (start, end, end_kind) = (*start, *end, *end_kind);
 
-                self.select_range_pattern(node, origin, flow, scope, input, start, end, end_kind)
+                self.select_range_pattern(node, flow, scope, input, start, end, end_kind)
             }
 
             // (a, b)
@@ -675,7 +675,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         source: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // only destructuring patterns over a union select alternatives
+        // select alternatives for destructuring patterns over a union only
         let Some(requirement) = self.destructuring_requirement(node)? else {
             return Ok(source);
         };
@@ -779,7 +779,7 @@ impl BodyState<'_, '_> {
             index_signatures: dir::TypeListId::EMPTY,
         };
 
-        // the required keys constrain the matched value, they are not a class
+        // constrain the matched value through the required keys
         let ty = self.intern_type(dir::Type::Shape(shape))?;
 
         Ok(ty)
@@ -836,11 +836,9 @@ impl BodyState<'_, '_> {
     /// Return the type produced by one defaulted pattern.
     pub(in crate::check) fn defaulted_pattern_type(
         &mut self,
-        origin: Origin,
         input: dir::GlobalTypeId,
         default: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let input = self.reduce_type_head(origin, input)?;
         let mut kept = Vec::new();
         let mut has_undefined = false;
 
@@ -865,8 +863,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // add the default only when it can actually run; a fully absent
-        //  input widens the default's literal contribution
+        // add the default only when it can actually run
         if has_undefined {
             let default = match kept.is_empty() {
                 true => self.widen_type(default)?,

@@ -113,7 +113,7 @@ impl Fulfillment {
 
     /// Allocate one constraint.
     pub(in crate::check) fn allocate_constraint(&mut self, constraint: Constraint) -> ConstraintId {
-        // one check collects one constraint, however often walks repeat it
+        // collect one constraint per check, however often walks repeat it
         if let Some(id) = self.constraints.lookup(&constraint) {
             return id;
         }
@@ -361,9 +361,8 @@ impl CheckState<'_> {
                 expectation.target,
             )?;
 
-            // a failed target with open variables may still solve elsewhere,
-            //  and open union targets hold their arm choice for the same reason
-            let target = self.shallow_resolve(expectation.target)?;
+            // stall failed targets with open variables and open union targets
+            let target = self.resolve_head(expectation.target)?;
             let is_choice = matches!(
                 self.ty(target)?,
                 dir::Type::Union(_) | dir::Type::Intersection(_)
@@ -425,7 +424,7 @@ impl CheckState<'_> {
         let source = self.fulfill.obligations.get(id)?.obligation.source();
         let blocker = match self.committed_node_type(source) {
             Some(ty) => {
-                let ty = self.shallow_resolve(ty)?;
+                let ty = self.resolve_head(ty)?;
 
                 self.root_variable(ty)?.map(Some)
             }
@@ -545,14 +544,14 @@ impl CheckState<'_> {
             constraint.target,
         )?;
 
-        // a decisive final settle reports ambiguous predicates over closed heads
+        // report ambiguous predicates over closed heads at the final settle
         if verdict == Verdict::Ambiguous
             && settle == Settle::Final
             && self
-                .root_variable(self.shallow_resolve(constraint.source)?)?
+                .root_variable(self.resolve_head(constraint.source)?)?
                 .is_none()
             && self
-                .root_variable(self.shallow_resolve(constraint.target)?)?
+                .root_variable(self.resolve_head(constraint.target)?)?
                 .is_none()
         {
             verdict = Verdict::Fails;
@@ -570,7 +569,6 @@ impl CheckState<'_> {
 
         // record the decided verdict against the constraint
         let outcome = self.complete_constraint_check(
-            constraint.origin,
             constraint.relation,
             constraint.source,
             constraint.target,

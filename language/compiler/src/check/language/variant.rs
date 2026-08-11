@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{CheckState, Origin};
+use crate::check::CheckState;
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -272,7 +272,7 @@ impl CheckState<'_> {
         &mut self,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::ScalarLiteral>>> {
-        // the value names an enum declaration instance
+        // require the value to name an enum declaration instance
         let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };
@@ -280,7 +280,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // every variant contributes its checked discriminant value
+        // collect each variant's checked discriminant value
         let domain = definition
             .variants()
             .map(|variant| dir::ScalarLiteral::from(variant.value))
@@ -292,11 +292,8 @@ impl CheckState<'_> {
     /// Return the discriminant domain of one variant-shaped type: enum or tagged.
     pub(in crate::check) fn variant_discriminant_domain(
         &mut self,
-        origin: Origin,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::ScalarLiteral>>> {
-        let value = self.reduce_type_head(origin, value)?;
-
         // case-specific types expose only their selected discriminant
         if let dir::Type::Variant(variant) = self.ty(value)? {
             let discriminant = self.variant_discriminant(&variant)?;
@@ -309,7 +306,7 @@ impl CheckState<'_> {
             return Ok(Some(domain));
         }
 
-        self.tagged_discriminant_domain(origin, value)
+        self.tagged_discriminant_domain(value)
     }
 
     /// Return the discriminant carried by one case-specific type.
@@ -366,7 +363,7 @@ impl CheckState<'_> {
             value = variant.owner;
         }
 
-        // the value names an enum declaration instance
+        // require the value to name an enum declaration instance
         let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };

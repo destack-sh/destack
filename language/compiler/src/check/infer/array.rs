@@ -358,7 +358,7 @@ impl BodyState<'_, '_> {
                 expectation.cause,
             ));
             let mode = expectation.mode.descend(false);
-            let mode = self.contextual_literal_mode(element, mode)?;
+            let mode = self.contextual_literal_mode(site.origin(), element, mode)?;
             let child_expectation = Expectation {
                 target: element,
                 cause,
@@ -366,8 +366,13 @@ impl BodyState<'_, '_> {
                 ..expectation
             };
             let child_check = self.check_node(child_site, child_expectation)?;
-            let storage =
-                self.literal_slot_storage(expectation.relation, element, child_check.source, mode)?;
+            let storage = self.literal_slot_storage(
+                site.origin(),
+                expectation.relation,
+                element,
+                child_check.source,
+                mode,
+            )?;
             source_elements.push((child, storage));
             check = check.and(child_check.outcome);
         }
@@ -438,7 +443,7 @@ impl BodyState<'_, '_> {
             expectation.cause,
         ));
         let mode = expectation.mode.descend(false);
-        let mode = self.contextual_literal_mode(array.element, mode)?;
+        let mode = self.contextual_literal_mode(site.origin(), array.element, mode)?;
         let child_expectation = Expectation {
             target: array.element,
             cause: element_cause,
@@ -514,7 +519,7 @@ impl BodyState<'_, '_> {
                 expectation.cause,
             ));
             let mode = expectation.mode.descend(element.is_readonly);
-            let mode = self.contextual_literal_mode(element.ty, mode)?;
+            let mode = self.contextual_literal_mode(site.origin(), element.ty, mode)?;
             let child_expectation = Expectation {
                 target: element.ty,
                 cause: element_cause,

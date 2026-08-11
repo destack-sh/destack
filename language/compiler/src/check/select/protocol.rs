@@ -268,10 +268,9 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         protocol: &Protocol,
     ) -> CompilerResult<Option<ProtocolMember>> {
-        // reduce the lookup receiver to its apparent type
+        // read the lookup receiver as its apparent type
         let module = origin.module();
-        let lookup_receiver = self.reduce_type_head(origin, lookup_receiver)?;
-        let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
+        let lookup_receiver = self.intern_apparent_type(lookup_receiver)?;
 
         let extension = self.select_extension_protocol_member(
             origin,
@@ -316,8 +315,7 @@ impl BodyState<'_, '_> {
         argument_sources: &[dir::ArgumentSource],
     ) -> CompilerResult<Option<ProtocolCall>> {
         let module = origin.module();
-        let lookup_receiver = self.reduce_type_head(origin, lookup_receiver)?;
-        let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
+        let lookup_receiver = self.intern_apparent_type(lookup_receiver)?;
         let extension = self.select_extension_protocol_call(
             origin,
             module,
@@ -449,8 +447,8 @@ impl BodyState<'_, '_> {
             lookup_receiver,
             protocol.symbol,
         )?;
-        // confirm each candidate in one evaluation: the first accepted
-        //  match commits its own probe, so probe and selection never diverge
+
+        // confirm each candidate in one evaluation, committing the first accepted match
         for extension_symbol in extensions {
             if self.is_absent_symbol(extension_symbol) {
                 continue;
@@ -1015,7 +1013,9 @@ impl BodyState<'_, '_> {
             SignatureMatch::Selected(signature) => signature,
             SignatureMatch::Invalid { .. }
             | SignatureMatch::ReturnMismatch(_)
-            | SignatureMatch::Inapplicable(_) => return Ok(None),
+            | SignatureMatch::Inapplicable(_) => {
+                return Ok(None);
+            }
         };
 
         let arguments = self.bind_argument_sources(origin, &signature, argument_sources)?;

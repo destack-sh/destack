@@ -14,12 +14,6 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         expectation: Expectation,
     ) -> CompilerResult<ValueCheck> {
-        let origin = site.origin();
-
-        // close the contextual head before directing the expression at it
-        // NOTE #Suspicious: the reduced head is discarded, only its reporting matters here
-        self.reduce_type_head(origin, expectation.target)?;
-
         // record the written expectation for tools and lowering
         self.check
             .expected_types
@@ -55,23 +49,11 @@ impl BodyState<'_, '_> {
         expectation: Expectation,
     ) -> CompilerResult<Option<ValueCheck>> {
         let origin = site.origin();
-        let Some(mut members) = self.check.union_arms(origin, expectation.target)? else {
+        let Some(targets) = self.check.union_leaves(origin, expectation.target)? else {
             return Ok(None);
         };
 
-        // expand aliased nested unions into their leaf members
-        let mut targets = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        let mut index = 0;
-        while index < members.len() {
-            let member = members[index];
-            index += 1;
-            let head = self.reduce_type_head(origin, member)?;
-            match self.check.union_arms(origin, head)? {
-                Some(nested) => members.extend(nested),
-                None => targets.push(member),
-            }
-        }
-
+        // track the best candidate and the best undecided fallback
         let mut viable = None;
         let mut is_viable_ambiguous = false;
         let mut indeterminate = None;
@@ -79,7 +61,7 @@ impl BodyState<'_, '_> {
 
         // classify every member without retaining speculative state
         for target in targets {
-            let mode = self.contextual_literal_mode(target, expectation.mode)?;
+            let mode = self.contextual_literal_mode(site.origin(), target, expectation.mode)?;
             let candidate = Expectation {
                 target,
                 mode,
@@ -143,7 +125,7 @@ impl BodyState<'_, '_> {
         };
 
         // confirm the selected member in the owning state
-        let mode = self.contextual_literal_mode(target, expectation.mode)?;
+        let mode = self.contextual_literal_mode(site.origin(), target, expectation.mode)?;
         let candidate = Expectation {
             target,
             mode,
@@ -264,7 +246,6 @@ impl BodyState<'_, '_> {
             | dir::Expression::TupleExpression { .. }
             | dir::Expression::ObjectExpression { .. }) => {
                 // resolve the target head before matching structural literals
-                let target = self.reduce_type_head(origin, target)?;
                 let Some(target_value) = self.construction_value(origin, target)? else {
                     return Ok(CheckAttempt::NotApplicable);
                 };
@@ -304,7 +285,6 @@ impl BodyState<'_, '_> {
                 }
             }
             dir::Expression::StructExpression { ty, properties } => {
-                let target = self.reduce_type_head(origin, target)?;
                 let contextual = self.construction_value(origin, target)?;
                 let construct_target = self.select_construct_target(site, ty, contextual)?;
                 let carrier = match (expectation.relation, contextual) {

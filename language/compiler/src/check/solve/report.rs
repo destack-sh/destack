@@ -32,6 +32,8 @@ impl CheckState<'_> {
                     message: format!("failed constraint {id:?} has a successful result"),
                 });
             };
+
+            // record completed failures as provisional, to re-judge over solved types
             failures.push(FailedCheck {
                 cause: constraint.cause(),
                 relation: constraint.relation(),
@@ -39,7 +41,7 @@ impl CheckState<'_> {
                 source: result.source,
                 target: result.target,
                 failure,
-                is_provisional: false,
+                is_provisional: true,
             });
         }
 

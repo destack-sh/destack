@@ -149,6 +149,8 @@ impl CheckState<'_> {
         };
         let mut preserves_literals = binding.is_const || binding.is_comptime();
         for bound in self.declared_parameter_bounds(parameter)? {
+            // reduce key operations to their literal families before classifying
+            let bound = self.normalize(origin, bound)?;
             if self.scalar_families(origin, bound)?.is_some() {
                 preserves_literals = true;
 
@@ -262,14 +264,14 @@ impl BodyState<'_, '_> {
                 }
             },
             None => match self.decision(left_node).cloned() {
-                // a rejected target rejects the instantiation with it
+                // reject the instantiation with its rejected target
                 Some(dir::Decision::Rejected | dir::Decision::Poisoned) => {
                     self.commit_decision(node, dir::Decision::Rejected)?;
                     self.commit_error_node(node)?;
 
                     return Ok(());
                 }
-                // no other decision names an instantiation target
+                // fail loudly on any other decision, which names no instantiation target
                 Some(other) => {
                     return Err(CompilerError::Internal {
                         message: format!("instantiation target {left_node:?} decided as {other:?}"),

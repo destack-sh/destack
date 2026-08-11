@@ -125,7 +125,7 @@ impl BodyState<'_, '_> {
             expression.is_reference() || matches!(expression, dir::Expression::Member { .. })
         };
         if !uses_callee_decision {
-            // every other callee calls through its function-typed value
+            // call every other callee through its function-typed value
             return self.value_callable_candidates(origin, callee_site, is_optional);
         }
 
@@ -168,7 +168,7 @@ impl BodyState<'_, '_> {
                 let ty = match &target {
                     CallableTarget::Newtype(_) => ty,
                     _ => {
-                        let Some(ty) = self.callable_type(origin, ty)? else {
+                        let Some(ty) = self.callable_type(ty)? else {
                             continue;
                         };
 
@@ -185,6 +185,7 @@ impl BodyState<'_, '_> {
                     generic_arguments: Vec::new(),
                 });
             }
+
             // declaration callees name exactly one runtime callee
             let mut arms = SmallVec::new();
             arms.push(CallableArm {
@@ -244,9 +245,9 @@ impl BodyState<'_, '_> {
             Some(other) => Err(CompilerError::Internal {
                 message: format!("call callee {callee_node:?} decided as {other:?}"),
             }),
-            // an undecided callee resolves or checks in place, then re-dispatches
+            // resolve or check an undecided callee in place, then re-dispatch
             None => {
-                // route an identifier callee through its symbol set, not its value
+                // route an identifier callee through its symbol set
                 if let dir::Expression::Identifier { .. } = self.module(module).view().get(callee) {
                     return match self.decide_reference(callee_node)? {
                         Some(_) => {
@@ -440,10 +441,8 @@ impl BodyState<'_, '_> {
     /// Return the invocable form of one type.
     fn callable_type(
         &mut self,
-        origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let ty = self.reduce_type_head(origin, ty)?;
         let callable = matches!(
             self.ty(ty)?,
             dir::Type::FunctionSignature(_)
@@ -476,8 +475,6 @@ impl BodyState<'_, '_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[CallableArm; 2]>> {
-        let ty = self.reduce_type_head(origin, ty)?;
-
         // distribute runtime union alternatives into independent arms
         if let dir::Type::Union(union) = self.ty(ty)? {
             let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
@@ -504,7 +501,8 @@ impl BodyState<'_, '_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[CallableCandidate; 2]>> {
-        let ty = self.reduce_type_head(origin, ty)?;
+        // read the arm's reduced callable head
+        let ty = self.normalize(origin, ty)?;
 
         // flatten intersection signatures into one declaration alternative set
         if let dir::Type::Intersection(intersection) = self.ty(ty)? {
@@ -541,9 +539,58 @@ impl BodyState<'_, '_> {
             return Ok(overloads);
         }
 
+        // call erased interface values through their apparent signatures
+        if let dir::Type::Dynamic(dynamic) = self.ty(ty)? {
+            let signatures =
+                self.apparent_signatures(origin, dynamic.constraint, SignatureFamily::Call)?;
+            let mut overloads = SmallVec::with_capacity(signatures.len());
+            for signature in signatures {
+                overloads.push(CallableCandidate {
+                    target: CallableTarget::CallSignature {
+                        source: signature.source,
+                        receiver: ty,
+                        constraint: dynamic.constraint,
+                    },
+                    generic_scope: None,
+                    receiver: None,
+                    member_space: None,
+                    ty: signature.ty,
+                    generic_arguments: Vec::new(),
+                });
+            }
+
+            return Ok(overloads);
+        }
+
+        // call interface-typed values through their apparent signatures
+        if let dir::Type::Application(instance) = self.ty(ty)?
+            && self
+                .symbol_kind_maybe(instance.symbol)?
+                .is_some_and(|kind| kind.is_interface())
+        {
+            let signatures = self.apparent_signatures(origin, ty, SignatureFamily::Call)?;
+            let mut overloads = SmallVec::with_capacity(signatures.len());
+            for signature in signatures {
+                overloads.push(CallableCandidate {
+                    target: CallableTarget::CallSignature {
+                        source: signature.source,
+                        receiver: ty,
+                        constraint: ty,
+                    },
+                    generic_scope: None,
+                    receiver: None,
+                    member_space: None,
+                    ty: signature.ty,
+                    generic_arguments: Vec::new(),
+                });
+            }
+
+            return Ok(overloads);
+        }
+
         // retain one candidate for an invocable value representation
         let mut overloads = SmallVec::new();
-        if let Some(ty) = self.callable_type(origin, ty)? {
+        if let Some(ty) = self.callable_type(ty)? {
             overloads.push(CallableCandidate {
                 target: CallableTarget::Expression,
                 generic_scope: None,
@@ -824,7 +871,7 @@ impl BodyState<'_, '_> {
             _ => return Ok(None),
         };
 
-        // the arguments never matched, so the attempt returns an error type
+        // return an error type when no arguments matched
         let return_type = self.intern_type(dir::Type::Error)?;
 
         Ok(Some(dir::OperationResolution::One(dir::Call {
@@ -1023,7 +1070,7 @@ impl BodyState<'_, '_> {
             let callee_type = self.require_node_type(callee_site.node)?;
             let callee_type = self.flow_type_at(callee_site, callee_type)?;
 
-            // poison instead of reporting again when the callee already reported an error
+            // poison a callee that already reported an error
             if self.any_error_operand(&[callee_type])? {
                 return self.poison_call(node, expectation);
             }
@@ -1261,7 +1308,9 @@ impl BodyState<'_, '_> {
 
             return self.reject_call(node, None);
         };
-        let target = self.reduce_type_head(origin, expectation.target)?;
+
+        // require the expected target to name one newtype
+        let target = expectation.target;
         let symbol = match self.ty(target)? {
             dir::Type::Application(instance)
                 if matches!(
@@ -1351,6 +1400,7 @@ impl BodyState<'_, '_> {
                 self.commit_coercion(*source, coercion.clone())?;
             }
         }
+
         // build one call decision per runtime arm
         let mut calls = Vec::with_capacity(overload.candidates.len());
         let mut returns = SmallVec::<[_; 4]>::new();
@@ -1365,6 +1415,7 @@ impl BodyState<'_, '_> {
             returns.push(call.return_type);
             calls.push(call);
         }
+
         // join the arm results into the call's value type
         let return_type = match returns.as_slice() {
             [single] => *single,

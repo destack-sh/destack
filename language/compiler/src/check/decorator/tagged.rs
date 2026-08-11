@@ -59,11 +59,7 @@ struct TaggedVariant {
 }
 
 impl CheckState<'_> {
-    /// Apply every walked derive decorator onto its module declarations.
-    ///
-    /// Derived members belong to the declared module, so this pass runs at the end of the walk
-    /// in declare and check alike and reads only written module-local syntax.
-    /// Checking later validates the derive expressions against their provider declarations.
+    /// Apply every walked derive decorator onto its module declarations at the end of the walk.
     pub(in crate::check) fn apply_derive_decorators(&mut self) -> CompilerResult<()> {
         // select every walked derive application
         let mut applications = Vec::new();
@@ -134,7 +130,7 @@ impl CheckState<'_> {
         // collect the tagged newtypes the walk declared
         let module = self.module_id;
         let mut targets = Vec::new();
-        for (symbol, definition) in self.module(module).definitions.iter_definitions() {
+        for (symbol, definition) in self.module(module).iter_definitions() {
             if let dir::Definition::Newtype(definition) = definition
                 && definition.is_tagged
             {
@@ -301,7 +297,7 @@ impl CheckState<'_> {
             cases.push((dir::StaticKey::Name(name), variant));
         }
 
-        // the derived arms must line up with the declared identities
+        // require the derived arms to line up with the declared identities
         if cases.len() != identities.len() {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -502,8 +498,7 @@ impl CheckState<'_> {
 
         // mark the newtype tagged with its declared variant identities
         let state = self.module_mut(module);
-        let Some(dir::Definition::Newtype(definition)) = state.definitions.definition_mut(symbol)
-        else {
+        let Some(dir::Definition::Newtype(definition)) = state.definition_mut(symbol) else {
             return Err(CompilerError::Internal {
                 message: format!("Tagged owner {symbol:?} lost its newtype definition"),
             });
@@ -595,7 +590,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // every other leaf produces one variant
+            // produce one variant for every other leaf
             _ => Ok(Some(1)),
         }
     }
@@ -607,8 +602,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<Option<Vec<TaggedArm>>> {
-        let ty = self.shallow_resolve(ty)?;
-        let ty = self.reduce_type_head(origin, ty)?;
+        let ty = self.resolve_head(ty)?;
 
         match self.ty(ty)? {
             // flatten direct union arms in declaration order
@@ -771,7 +765,7 @@ impl CheckState<'_> {
             else {
                 return Ok(None);
             };
-            let field_type = self.reduce_type_head(origin, field.access.store())?;
+            let field_type = self.normalize(origin, field.access.store())?;
             let dir::Type::Literal(dir::ScalarLiteral::String(discriminant)) =
                 self.ty(field_type)?
             else {

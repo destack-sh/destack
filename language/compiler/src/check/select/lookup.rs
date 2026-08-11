@@ -141,17 +141,36 @@ impl BodyState<'_, '_> {
         extensions: ExtensionFilter,
         active: &mut FxIndexSet<MemberLookupKey>,
     ) -> CompilerResult<MemberLookup> {
-        // static names read the written declaration before aliases reduce
-        let root = self.shallow_resolve(subject)?;
-        if space == dir::MemberSpace::Static
-            && let dir::Type::Reference(reference) = self.ty(root)?
-        {
-            return self.lookup_declaration_member(
-                origin, module, receiver, reference, space, key, extensions, active,
-            );
+        // read the declaration for static names through reference and application heads
+        let root = self.resolve_head(subject)?;
+        if space == dir::MemberSpace::Static {
+            let named = match self.ty(root)? {
+                dir::Type::Reference(reference) => {
+                    Some((reference.symbol, SmallVec::<[dir::GlobalTypeId; 4]>::new()))
+                }
+                dir::Type::Application(instance) => Some((
+                    instance.symbol,
+                    SmallVec::from_slice(self.type_ids(root.module_id, instance.arguments)?),
+                )),
+                _ => None,
+            };
+            if let Some((symbol, arguments)) = named {
+                return self.lookup_declaration_member(
+                    origin,
+                    module,
+                    receiver,
+                    dir::TypeReference { symbol },
+                    &arguments,
+                    space,
+                    key,
+                    extensions,
+                    active,
+                );
+            }
         }
 
-        let subject = self.reduce_type_head(origin, subject)?;
+        // normalize assumed heads under the scope before resolving members
+        let subject = self.normalize(origin, subject)?;
 
         // stop cyclic paths through constraints, unions, and heritage
         let query = MemberLookupKey {
@@ -166,7 +185,7 @@ impl BodyState<'_, '_> {
             return Ok(MemberLookup::Missing);
         }
 
-        // look the key up in the reduced subject, then leave the path
+        // look the key up in the settled subject, then leave the path
         let lookup = self.lookup_settled_member(
             origin, module, receiver, subject, space, key, extensions, active,
         );
@@ -175,7 +194,7 @@ impl BodyState<'_, '_> {
         lookup
     }
 
-    /// Look one member up in one already reduced subject type.
+    /// Look one member up in one already settled subject type.
     fn lookup_settled_member(
         &mut self,
         origin: Origin,
@@ -219,7 +238,15 @@ impl BodyState<'_, '_> {
 
             // declaration references read static members
             dir::Type::Reference(reference) => self.lookup_declaration_member(
-                origin, module, receiver, reference, space, key, extensions, active,
+                origin,
+                module,
+                receiver,
+                reference,
+                &[],
+                space,
+                key,
+                extensions,
+                active,
             ),
 
             // precise Tagged variants read through their selected backing case
@@ -305,6 +332,24 @@ impl BodyState<'_, '_> {
                 }
 
                 Ok(lookup)
+            }
+
+            // expose the static space of a type held in a static term
+            dir::Type::Static(value) => {
+                let term = self.r#static(value).clone();
+                match term {
+                    dir::StaticTerm::Type { ty } => self.lookup_subject_member(
+                        origin,
+                        module,
+                        receiver,
+                        ty,
+                        dir::MemberSpace::Static,
+                        key,
+                        extensions,
+                        active,
+                    ),
+                    _ => Ok(MemberLookup::Missing),
+                }
             }
 
             // generic parameters look through their bounds
@@ -483,7 +528,7 @@ impl BodyState<'_, '_> {
                     .to_vec();
                 let mut lookups = Vec::with_capacity(elements.len());
                 for element in elements {
-                    let element = self.shallow_resolve(element)?;
+                    let element = self.resolve_head(element)?;
                     match self.lookup_subject_member(
                         origin, module, receiver, element, space, key, extensions, active,
                     )? {
@@ -495,7 +540,7 @@ impl BodyState<'_, '_> {
                     }
                 }
 
-                // a sole element's lookup answers directly
+                // answer directly from a sole element's lookup
                 let lookup = if lookups.is_empty() {
                     MemberLookup::Missing
                 } else if lookups.len() == 1 {
@@ -570,6 +615,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         receiver: dir::GlobalTypeId,
         reference: dir::TypeReference,
+        mut arguments: &[dir::GlobalTypeId],
         space: dir::MemberSpace,
         key: dir::StaticKey,
         extensions: ExtensionFilter,
@@ -581,16 +627,14 @@ impl BodyState<'_, '_> {
 
         let mut symbol = reference.symbol;
 
-        // a type alias names its body's root declaration for statics,
-        //  and the body's own members serve whatever the root lacks;
-        //  head reduction expands the whole alias chain in one step
+        // name a type alias's root declaration for statics, keeping the body for its own members
         let mut alias_body = None;
         if let Some(dir::Definition::TypeAlias(alias)) = self.definition(symbol)? {
-            let value = alias.value;
-            let head = self.reduce_type_head(origin, value)?;
-            alias_body = Some(head);
-            if let Some(named) = self.type_symbol(head)? {
+            let body = alias.value;
+            alias_body = Some(body);
+            if let Some(named) = self.type_symbol(body)? {
                 symbol = named;
+                arguments = &[];
             }
         }
 
@@ -602,7 +646,7 @@ impl BodyState<'_, '_> {
         let mut lookup = MemberLookup::Missing;
         if !self.symbol_kind(symbol)?.is_type_alias() {
             let inherent =
-                self.lookup_inherent_declaration_member(origin, receiver, symbol, key)?;
+                self.lookup_inherent_declaration_member(origin, receiver, symbol, arguments, key)?;
             lookup = match inherent {
                 MemberLookup::Found(_)
                 | MemberLookup::Field(_)
@@ -645,7 +689,7 @@ impl BodyState<'_, '_> {
         let mut lookups = Vec::with_capacity(elements.len());
 
         // runtime receiver unions settle each member under its own arm
-        let is_receiver_union = self.shallow_resolve(receiver)? == self.shallow_resolve(subject)?;
+        let is_receiver_union = self.resolve_head(receiver)? == self.resolve_head(subject)?;
 
         // require every element to expose the member
         for element in elements {
@@ -694,8 +738,7 @@ impl BodyState<'_, '_> {
             self.import_external_module(instance.symbol.module_id)?;
         }
 
-        // search inherent members first: closed subjects derive the asked
-        //  key from the owner's flattened surface, open subjects search live
+        // search inherent members first, from stored bindings for closed subjects
         let closed = !self.type_flags(subject)?.has_variable();
         let inherent = if closed {
             self.stored_member_lookup(origin, receiver, &instance, space, key)?
@@ -725,10 +768,9 @@ impl BodyState<'_, '_> {
                     key,
                 )?;
 
-                // values also match targets naming their apparent owner,
-                //  so primitives reach extensions of their owning class
+                // retry a missing lookup against the receiver's apparent owner
                 if matches!(lookup, MemberLookup::Missing) {
-                    let apparent = self.intern_apparent_type(module, receiver)?;
+                    let apparent = self.intern_apparent_type(receiver)?;
                     if apparent != receiver {
                         return self.lookup_extension_member(
                             origin,
@@ -781,6 +823,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver: dir::GlobalTypeId,
         symbol: dir::GlobalSymbolId,
+        arguments: &[dir::GlobalTypeId],
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
         // read the static members this declaration declares under the key
@@ -791,23 +834,90 @@ impl BodyState<'_, '_> {
             .members_with_key(dir::MemberSpace::Static, key)
             .cloned()
             .collect::<SmallVec<[_; 2]>>();
+
+        // read the heritage roots this declaration inherits statics from
+        let heritages = definition
+            .bases()
+            .iter()
+            .map(|heritage| heritage.ty)
+            .collect::<SmallVec<[_; 2]>>();
+
+        // bind the declaration's template parameters to the applied subject arguments
+        let mut applied = TypeSubstitution::default();
+        if !arguments.is_empty()
+            && let Some(template) = self.symbol_template(symbol)?
+        {
+            let parameters = self.generic_template_parameters(template)?;
+            for (parameter, argument) in parameters.iter().zip(arguments) {
+                applied.bind(*parameter, *argument)?;
+            }
+        }
+
+        // answer inherited statics through substituted heritage applications
         if members.is_empty() {
+            for heritage in heritages {
+                let heritage = self.substitute_type(heritage, &applied)?;
+                let (heritage_module, instance) = self.nominal_application(heritage)?;
+                let heritage_arguments =
+                    self.type_ids(heritage_module, instance.arguments)?.to_vec();
+                let lookup = self.lookup_inherent_declaration_member(
+                    origin,
+                    receiver,
+                    instance.symbol,
+                    &heritage_arguments,
+                    key,
+                )?;
+                match lookup {
+                    MemberLookup::Missing => continue,
+                    lookup => return Ok(lookup),
+                }
+            }
+
             return Ok(MemberLookup::Missing);
         }
 
         // collect visible static declaration members
         let mut candidates = Vec::new();
         for member in members {
+            let key = member.key();
             let Some(member) = self.declared_member(&member)? else {
                 continue;
             };
-            let Some(ty) = member.ty else {
+
+            // project valueless associated members symbolically over the receiver
+            let ty = match member.ty {
+                Some(ty) => Some(ty),
+                None if member.role == MemberRole::Associated
+                    && let Some(key) = key =>
+                {
+                    let arguments = self.check.intern_type_ids(&[])?;
+                    let projection = dir::MemberType {
+                        owner: receiver,
+                        key,
+                        arguments,
+                        qualifier: None,
+                    };
+
+                    Some(self.check.intern_member(projection)?)
+                }
+                None => None,
+            };
+            let Some(ty) = ty else {
                 continue;
             };
 
             let mut ty = ty;
             let mut written = self.static_value(member.symbol);
-            let mut generic_arguments = Vec::new();
+            let mut generic_arguments = applied.bindings.to_vec();
+
+            // substitute callable members over the applied arguments and receiver
+            if member.role.is_callable() {
+                let substitution = applied.clone().with_receiver(receiver);
+                ty = self.substitute_type(ty, &substitution)?;
+                written = written
+                    .map(|written| self.substitute_type(written, &substitution))
+                    .transpose()?;
+            }
 
             // instantiate each direct value at its source use
             if !member.role.is_callable()
@@ -818,7 +928,7 @@ impl BodyState<'_, '_> {
                     origin,
                     &parameters,
                     &[],
-                    TypeSubstitution::default().with_receiver(receiver),
+                    applied.clone().with_receiver(receiver),
                     TypeArgumentInference::Exact,
                 )?
                 else {
@@ -927,11 +1037,7 @@ impl BodyState<'_, '_> {
         Ok(MemberLookup::Missing)
     }
 
-    /// Return one closed subject's inherent members, grouped by key.
-    ///
-    /// Levels walk in declaration preorder, so own members claim their keys first and each
-    /// heritage level serves the keys nearer levels left open.
-    /// This matches the per key search order.
+    /// Return one closed subject's inherent members in declaration preorder, grouped by key.
     pub(in crate::check) fn inherent_member_table(
         &mut self,
         origin: Origin,
@@ -1026,9 +1132,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Build one owner's canonical member bindings with `this` symbolic.
-    ///
-    /// Bindings substitute each heritage level's arguments and leave the receiver symbolic,
-    /// so use sites substitute their own receivers over canonical stored types.
     pub(in crate::check) fn canonical_member_bindings(
         &mut self,
         origin: Origin,
@@ -1082,7 +1185,7 @@ impl BodyState<'_, '_> {
                     // valueless associated members project through receivers
                     None if declared.role == MemberRole::Associated => {
                         let arguments = self.intern_type_ids(&[])?;
-                        let owner = level.intern(origin.module(), self.check)?;
+                        let owner = level.intern(self.check)?;
 
                         self.intern_member(dir::MemberType {
                             owner,
@@ -1096,6 +1199,7 @@ impl BodyState<'_, '_> {
 
                 // apply this level's arguments and read the member's operations
                 let ty = self.substitute_type(ty, &substitution)?;
+                let ty = self.check.resolve_head(ty)?;
                 let callable = declared.callable_type(origin.module(), level.symbol, ty, self)?;
                 let access_type = declared.access_type(self.check, ty)?;
                 let access = match declared.role {
@@ -1126,7 +1230,7 @@ impl BodyState<'_, '_> {
                         .iter()
                         .any(|previous| previous.symbol == declared.symbol);
                     if same_level && !known {
-                        // an accessor pair joins its counterpart's access
+                        // join an accessor pair with its counterpart's access
                         binding.access = match (binding.access.read(), declared.role) {
                             (Some(read), MemberRole::Setter) => {
                                 match binding.access.write().or(access.write()) {
@@ -1159,8 +1263,7 @@ impl BodyState<'_, '_> {
                 ));
             }
 
-            // push substituted heritage levels in reverse for preorder,
-            //  with implemented interfaces serving their default members
+            // push substituted heritage levels in reverse for preorder
             let heritages = definition
                 .bases()
                 .iter()
@@ -1241,7 +1344,7 @@ impl BodyState<'_, '_> {
         Ok(None)
     }
 
-    /// Derive one key's member lookup from the owner's canonical surface.
+    /// Derive one key's member lookup from the owner's canonical member bindings.
     fn stored_member_lookup(
         &mut self,
         origin: Origin,
@@ -1268,10 +1371,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Return one owner's canonical member bindings, memoized per run.
-    ///
-    /// Settled owners read their module's stored surface.
-    /// Unsettled owners build their canonical bindings once, and every later ask is served
-    /// from the memo.
     pub(in crate::check) fn member_bindings(
         &mut self,
         origin: Origin,
@@ -1287,10 +1386,10 @@ impl BodyState<'_, '_> {
 
         self.check.counters.binding_builds += 1;
 
-        // read settled owners from their module's stored surface
+        // read settled owners from their module's stored bindings
         let stored = self.stored_member_bindings(symbol, space).map(Arc::new);
 
-        // build the canonical surface for unsettled owners
+        // build the canonical bindings for unsettled owners
         let bindings = match stored {
             Some(bindings) => Some(bindings),
             None => {
@@ -1307,7 +1406,7 @@ impl BodyState<'_, '_> {
             }
         };
 
-        // memoize the surface for every later ask
+        // memoize the bindings for every later ask
         self.check
             .bindings
             .insert((symbol, space), bindings.clone());
@@ -1316,9 +1415,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Return the stored member bindings of one owner's canonical type.
-    ///
-    /// Each checking module flattens each owner it uses once into its own member segment,
-    /// keyed by the owner's declared canonical type.
     fn stored_member_bindings(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -1335,15 +1431,12 @@ impl BodyState<'_, '_> {
             return Some(bindings.to_vec());
         }
 
-        let bindings = self.check.module.members.subject_bindings(&subject)?;
+        let bindings = self.check.module.member_subject_bindings(&subject)?;
 
         Some(bindings.to_vec())
     }
 
-    /// Return one owner's declared canonical self type.
-    ///
-    /// The declared id keys the stored member bindings, so the settled declared stage answers
-    /// before this pass's re-canonicalized tail.
+    /// Return one owner's declared canonical self type, which keys the stored member bindings.
     fn canonical_owner_type(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalTypeId> {
         if self.check.is_own_module(symbol.module_id) {
             let module = &self.check.module;
@@ -1360,10 +1453,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Derive one stored member binding's candidates for a lookup instance.
-    ///
-    /// Stored access and callable types are canonical: the owner resolved them for its own
-    /// self type, so instances substitute their applied arguments and receiver into the
-    /// stored types.
     fn binding_member_candidates(
         &mut self,
         origin: Origin,
@@ -1383,7 +1472,7 @@ impl BodyState<'_, '_> {
         // build one candidate per declaration behind the key
         let mut candidates = Vec::with_capacity(binding.declarations.len());
         for declaration in &binding.declarations {
-            // carry the declaring heritage level's arguments, not the top instance's
+            // carry the arguments of the declaring heritage level
             let generic_arguments = if declaration.owner == instance.symbol {
                 generic_arguments.clone()
             } else if let Some(level) =
@@ -1481,8 +1570,7 @@ impl BodyState<'_, '_> {
                 continue;
             };
 
-            // project value-less associated types through the receiver while keeping
-            //  defaults conformance-only behind rigid owners
+            // project value-less associated types through the receiver
             let symbol = declared.symbol;
             let is_associated = matches!(member, dir::DefinitionMember::AssociatedType(_));
             let is_rigid = self.is_rigid_projection_owner(receiver)?;
@@ -1535,6 +1623,7 @@ impl BodyState<'_, '_> {
                 receiver: LookupReceiver::Direct(ReceiverSteps::new()),
             });
         }
+
         Ok(candidates)
     }
 
@@ -1569,12 +1658,8 @@ impl BodyState<'_, '_> {
         keys: &mut FxIndexSet<dir::StaticKey>,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
-        // preserve static declaration references before reducing other heads
-        let subject = self.shallow_resolve(subject)?;
-        let subject = match (space, self.ty(subject)?) {
-            (dir::MemberSpace::Static, dir::Type::Reference(_)) => subject,
-            _ => self.reduce_type_head(origin, subject)?,
-        };
+        // resolve the subject head before collecting its keys
+        let subject = self.resolve_head(subject)?;
 
         // stop cyclic paths through bounds, unions, and heritage
         if !visited.insert(subject) {
@@ -1647,8 +1732,7 @@ impl BodyState<'_, '_> {
                     keys.insert(property.key);
                 }
             }
-            // primitives, literals, and built-in collections expose their
-            //  apparent declaration and extension keys through the tables
+            // read primitive, literal, and collection keys from the apparent tables
             dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Array(_)
@@ -1734,13 +1818,11 @@ impl BodyState<'_, '_> {
             _ => None,
         };
 
-        // static aliases expose the keys of their reduced body
+        // expose the keys of a static alias's body
         if space == dir::MemberSpace::Static
             && let Some(alias) = alias
         {
-            let body = self.reduce_type_head(origin, alias)?;
-
-            return self.collect_subject_keys(origin, module, body, space, keys, visited);
+            return self.collect_subject_keys(origin, module, alias, space, keys, visited);
         }
 
         self.collect_symbol_keys(module, symbol, space, keys, visited)
@@ -1759,11 +1841,11 @@ impl BodyState<'_, '_> {
             return Ok(());
         };
 
-        // the inherent table enumerates declaration and heritage keys
+        // enumerate declaration and heritage keys from the inherent table
         let inherent = self.inherent_member_table(origin, subject, &instance, space)?;
         keys.extend(inherent.keys().copied());
 
-        // the extension table enumerates the visible extension keys
+        // enumerate the visible extension keys from the extension table
         let extensions = self.subject_extension_members(
             origin,
             module,

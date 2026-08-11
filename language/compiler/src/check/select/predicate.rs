@@ -21,11 +21,10 @@ impl BodyState<'_, '_> {
         let value_node = value.into_global_any(module);
         let target_node = target.into_global_any(module);
 
-        // reduce the tested value and target types
+        // read the tested value and target types
         let value_site = self.visit_site(value_node)?;
         let value = self.predicate_operand_type(origin, value_site)?;
         let target = self.require_node_type(target_node)?;
-        let target = self.reduce_type_head(origin, target)?;
         let predicate = self.select_guard_predicate(origin, value, target, target_node)?;
 
         let resolution = dir::GuardDecision::Is(dir::IsGuardDecision {
@@ -204,7 +203,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let ty = self.infer_node_type(site, PlaceUse::Read)?;
 
-        self.reduce_type_head(origin, ty)
+        self.normalize(origin, ty)
     }
 
     /// Select the executable predicate for one `is` guard.
@@ -215,9 +214,6 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         target_node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::Predicate> {
-        let target = self.reduce_type_head(origin, target)?;
-        let value = self.reduce_type_head(origin, value)?;
-
         // use executable RTTI predicates when the target names one
         if let Some(predicate) = self.runtime_predicate(origin, value, target)? {
             return Ok(predicate);
@@ -286,7 +282,6 @@ impl BodyState<'_, '_> {
                 let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
                 let mut alternatives = Vec::with_capacity(elements.len());
                 for element in elements {
-                    let element = self.reduce_type_head(origin, element)?;
                     let Some(predicate) = self.runtime_predicate(origin, value, element)? else {
                         return Ok(None);
                     };
@@ -294,7 +289,6 @@ impl BodyState<'_, '_> {
                 }
 
                 let predicate = self.predicate_with_narrowing(
-                    origin,
                     dir::Predicate::new(dir::PredicateTest::Any(alternatives)),
                     value,
                     target,
@@ -342,7 +336,6 @@ impl BodyState<'_, '_> {
                 let elements = self.type_ids(value.module_id, union.elements)?.to_vec();
                 let mut alternatives = Vec::with_capacity(elements.len());
                 for element in elements {
-                    let element = self.reduce_type_head(origin, element)?;
                     let satisfies =
                         self.decide_relation(origin, Relation::Satisfies, element, target)?;
                     let predicate = self.runtime_union_arm_predicate(origin, value, element)?;
@@ -357,7 +350,6 @@ impl BodyState<'_, '_> {
                     }
                     1 => alternatives.remove(0),
                     _ => self.predicate_with_narrowing(
-                        origin,
                         dir::Predicate::new(dir::PredicateTest::Any(alternatives)),
                         value,
                         target,
@@ -411,6 +403,7 @@ impl BodyState<'_, '_> {
         key_type: dir::GlobalTypeId,
         key: Option<dir::StaticKey>,
     ) -> CompilerResult<dir::Predicate> {
+        // test a written key statically and any other key through its type
         let receiver_type = receiver;
         let receiver = dir::PredicateOperand::direct(receiver_type);
         let static_key = key;
@@ -421,6 +414,7 @@ impl BodyState<'_, '_> {
         let test = dir::PredicateMembershipTest { receiver, key };
         let predicate = dir::Predicate::new(dir::PredicateTest::Membership(Box::new(test)));
 
+        // narrow the receiver by a written key on the successful branch
         let Some(key) = static_key else {
             return Ok(predicate);
         };
@@ -437,13 +431,11 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         condition: dir::PredicateCondition,
     ) -> CompilerResult<dir::Predicate> {
-        let value = self.reduce_type_head(origin, value)?;
-        let target = self.reduce_type_head(origin, target)?;
         let operand = self.predicate_operand(origin, value, &condition)?;
         let predicate = dir::Predicate::unary(operand, condition);
         let predicate = match predicate.is_never() {
             true => predicate,
-            false => self.predicate_with_narrowing(origin, predicate, value, target)?,
+            false => self.predicate_with_narrowing(predicate, value, target)?,
         };
 
         Ok(predicate)
@@ -452,7 +444,6 @@ impl BodyState<'_, '_> {
     /// Return one predicate with its successful branch narrowing.
     fn predicate_with_narrowing(
         &mut self,
-        origin: Origin,
         predicate: dir::Predicate,
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -462,8 +453,7 @@ impl BodyState<'_, '_> {
             target,
             is_positive: true,
         }))?;
-        let narrowed = self.reduce_type_head(origin, operation)?;
-        let predicate = predicate.with_narrowed(narrowed);
+        let predicate = predicate.with_narrowed(operation);
         let predicate = match self.predicate_projection(value, target)? {
             Some(projection) => predicate.with_projection(projection),
             None => predicate,

@@ -38,7 +38,7 @@ impl CheckState<'_> {
         path: &dir::AccessPath,
         source: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // the live cursor owns the checked module's flow graph before flushes
+        // read the checked module's flow graph from the live cursor before flushes
         let module_id = self.module_id;
         let module = self.module(site.node.module_id);
         let flows = &module.flows;
@@ -312,12 +312,11 @@ impl CheckState<'_> {
         value: dir::GlobalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let ty = self.require_node_type(value.into_any())?;
-        let ty = self.reduce_type_head(origin, ty)?;
         if self.is_singleton_type(ty)? {
             return Ok(Some(ty));
         }
         if let Some(instance) = self.decompose_newtype(origin, ty)? {
-            let backing = self.reduce_type_head(origin, instance.backing)?;
+            let backing = instance.backing;
             if self.is_singleton_type(backing)? {
                 return Ok(Some(ty));
             }
@@ -342,7 +341,7 @@ impl CheckState<'_> {
 
         // reduce the narrowing through the normal type operation path
         let narrowed = self.intern_operation(operation)?;
-        let narrowed = self.reduce_type_head(site.origin(), narrowed)?;
+        let narrowed = self.normalize(site.origin(), narrowed)?;
 
         Ok(Some(narrowed))
     }
@@ -484,7 +483,7 @@ impl CheckState<'_> {
             index_signatures: dir::TypeListId::EMPTY,
         };
 
-        // the tested field constrains its receiver, it is not a class
+        // constrain the receiver through the tested field
         self.intern_type(dir::Type::Shape(shape))
     }
 }

@@ -47,7 +47,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        // only expressions designate storage
+        // designate storage from expressions only
         if site.node.local_id.ty != dir::NodeType::Expression {
             return Ok(());
         }
@@ -124,6 +124,7 @@ impl BodyState<'_, '_> {
         let Some(symbol) = self.reference_symbol(site.node) else {
             return Ok(None);
         };
+
         // foreign symbols never denote body places
         if self
             .symbol_kind_maybe(symbol)?
@@ -161,6 +162,7 @@ impl BodyState<'_, '_> {
         )))?;
         let lifetime =
             self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(lifetime)))?;
+
         // owned storage stays unique even in shared space
         let exclusive = match space {
             dir::Space::Local => true,
@@ -245,9 +247,8 @@ impl BodyState<'_, '_> {
 
         // project explicit placement
         if let Some(placement) = chain.place() {
-            let root = self.reduce_type_head(origin, placement)?;
             if !matches!(
-                self.ty(root)?,
+                self.ty(placement)?,
                 dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Relative))
             ) {
                 place.placement = placement;
@@ -257,7 +258,7 @@ impl BodyState<'_, '_> {
                     chain.ownership_form().map(|form| form.form),
                     Some(dir::Form::Owned)
                 );
-                if self.place_space(root)? == Some(dir::Space::Shared) && !is_owned {
+                if self.place_space(placement)? == Some(dir::Space::Shared) && !is_owned {
                     place.access = self.intern_type(dir::Type::Memory(
                         dir::MemoryLiteral::Access(dir::Access::Mutable),
                     ))?;
@@ -278,7 +279,7 @@ impl BodyState<'_, '_> {
             )))?;
         }
 
-        // the projected value can further qualify its storage view
+        // let the projected value qualify its storage view further
         if qualifier != ty {
             return self.project_place(origin, ty, ty, place);
         }
@@ -297,8 +298,7 @@ impl BodyState<'_, '_> {
                 return Ok(());
             }
 
-            // keep the first resolution: lifetime and access are proofs, and
-            //  independent settlements of one node may pick distinct proofs
+            // keep the first resolution, since lifetime and access are proofs
             if previous.placement == place.placement {
                 return Ok(());
             }
@@ -370,11 +370,9 @@ impl BodyState<'_, '_> {
                     self.report_possibly_nullish(origin, split.rejected.label().to_string())?;
                     receiver = split.value;
                 }
-                let receiver = self.reduce_type_head(origin, receiver)?;
 
-                // a place projected through a readonly view stays readonly for writes
-                let receiver =
-                    self.readonly_write_receiver(origin, use_, receiver, receiver_place)?;
+                // keep a place projected through a readonly view readonly for writes
+                let receiver = self.readonly_write_receiver(use_, receiver, receiver_place)?;
                 let receiver_value = Value {
                     ty: receiver,
                     ..receiver_value
@@ -423,9 +421,8 @@ impl BodyState<'_, '_> {
                 let receiver_value = self.expression_value(receiver_site, receiver)?;
                 let receiver_place = self.value_place(receiver_site.origin(), receiver_value)?;
 
-                // a place projected through a readonly view stays readonly for writes
-                let receiver =
-                    self.readonly_write_receiver(origin, use_, receiver, receiver_place)?;
+                // keep a place projected through a readonly view readonly for writes
+                let receiver = self.readonly_write_receiver(use_, receiver, receiver_place)?;
                 let receiver_value = Value {
                     ty: receiver,
                     ..receiver_value
@@ -449,6 +446,7 @@ impl BodyState<'_, '_> {
                 else {
                     return Ok(None);
                 };
+
                 // require one key conversion across every selected runtime arm
                 if !self.check_subscript_key(index_site, index, selection.key_types())? {
                     return Ok(None);
@@ -487,7 +485,7 @@ impl BodyState<'_, '_> {
                 let Some(write) =
                     self.select_dereference(origin, receiver_value, dir::Access::Mutable)?
                 else {
-                    // a readable place that rejects writes lacks the access
+                    // report the missing mutable access on a readable place
                     if self
                         .select_dereference(origin, receiver_value, dir::Access::Readonly)?
                         .is_some()
@@ -663,7 +661,7 @@ impl BodyState<'_, '_> {
             return Ok(None);
         }
 
-        // a field writes its own storage directly
+        // write a field into its own storage directly
         if let Some(field) = fields.into_iter().next() {
             let read_type = field.read_type(origin.module(), self)?;
             let read = match (use_, read_type) {
@@ -775,12 +773,11 @@ impl BodyState<'_, '_> {
     /// Return one write receiver, keeping the readonly view its place projects through.
     fn readonly_write_receiver(
         &mut self,
-        origin: Origin,
         use_: PlaceUse,
         receiver: dir::GlobalTypeId,
         place: dir::PlaceResolution,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if use_ == PlaceUse::Read || !self.access_is_readonly(origin, place.access)? {
+        if use_ == PlaceUse::Read || !self.access_is_readonly(place.access)? {
             return Ok(receiver);
         }
 
@@ -815,6 +812,7 @@ impl BodyState<'_, '_> {
 
                     return Ok(None);
                 };
+
                 // decide the place name and record its capture
                 if self
                     .resolutions(source.module_id)

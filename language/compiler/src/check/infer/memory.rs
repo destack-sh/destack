@@ -36,13 +36,12 @@ impl BodyState<'_, '_> {
                 .report_borrow_access_not_granted(origin, requested, granted, value.ty)?;
         }
 
-        // wrap the borrowed value and reduce redundant memory forms
+        // wrap the borrowed value in its borrow form
         let form = self.intern_borrow(lifetime, access)?;
         let borrowed = self.intern_type(dir::Type::Form(dir::FormType {
             form,
             value: value.ty,
         }))?;
-        let borrowed = self.reduce_type_head(site.origin(), borrowed)?;
         self.commit_node_type(node.into_any(), borrowed)?;
 
         Ok(())

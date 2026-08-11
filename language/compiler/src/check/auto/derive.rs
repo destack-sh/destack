@@ -19,7 +19,7 @@ impl CheckState<'_> {
         }
 
         // close recursive types coinductively across conformance re-entry
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_head(ty)?;
         if !self.deriving.insert((ty, interface)) {
             return Ok(true);
         }
@@ -38,8 +38,8 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<bool> {
-        // read the reduced head of the subject
-        let ty = self.reduce_type_head(origin, ty)?;
+        // read the head structure of the subject
+        let ty = self.resolve_head(ty)?;
         let kind = self.ty(ty)?;
 
         // decide explicit memory carriers before their payload types
@@ -64,12 +64,8 @@ impl CheckState<'_> {
 
         // decide the remaining structural forms
         match kind {
-            // fail loudly on variables that survived resolution
-            dir::Type::Variable(variable) => Err(CompilerError::Internal {
-                message: format!(
-                    "unsolved type variable {variable:?} reached structural derivability"
-                ),
-            }),
+            // FUGU #Suspicious: open variables optimistically conform
+            dir::Type::Variable(_) => Ok(true),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;

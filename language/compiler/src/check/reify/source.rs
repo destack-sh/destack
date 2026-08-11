@@ -113,7 +113,7 @@ impl CheckState<'_> {
             };
             if matches!(self.ty(ty)?, dir::Type::Member(_) | dir::Type::Operation(_)) {
                 let reduced =
-                    self.reduce_type(Origin::Symbol(symbol.into_global(module_id)), ty)?;
+                    self.deeply_normalize(Origin::Symbol(symbol.into_global(module_id)), ty)?;
                 reductions.insert(ty, reduced);
             }
         }
@@ -130,7 +130,7 @@ struct SourceReifier<'a, 'b> {
     state: &'a CheckModuleState,
     /// The type-expression reifier writing synthesized nodes.
     types: TypeReifier<'a, 'b>,
-    /// Reductions shown for added annotations, keyed by surface type.
+    /// Reductions shown for added annotations, keyed by written type.
     annotation_reductions: FxHashMap<dir::GlobalTypeId, dir::GlobalTypeId>,
 }
 
@@ -169,12 +169,6 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     }
 
     /// Reify type expression holes from their solved check results.
-    ///
-    /// Example:
-    /// ```ds
-    /// const values: [_; 3] = [1, 2, 3];
-    /// // renders as `const values: [float64; 3] = [1, 2, 3];`
-    /// ```
     fn reify_type_expressions(&mut self) -> CompilerResult<()> {
         let module_id = self.state.module.id;
         let view = dir::View::new(self.state.source_tree());
@@ -684,11 +678,11 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         };
 
         // look through function values to their signature
-        let mut signature = self.check.shallow_resolve(ty)?;
+        let mut signature = self.check.resolve_head(ty)?;
         loop {
             match self.check.ty(signature)? {
                 dir::Type::Function(function) => {
-                    signature = self.check.shallow_resolve(function.signature)?;
+                    signature = self.check.resolve_head(function.signature)?;
                 }
                 dir::Type::FunctionSignature(_) => break,
                 _ => return Ok(None),
@@ -736,6 +730,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             if node.local_id.ty != dir::NodeType::Expression {
                 continue;
             }
+
             // keep numeric literal widening implicit
             let renders = coercion
                 .adjustments

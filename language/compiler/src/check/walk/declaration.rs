@@ -70,11 +70,6 @@ impl CheckState<'_> {
 
 impl WalkState<'_, '_> {
     /// Walk generic headers introduced by one expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// class Box<T> {}
-    /// ```
     pub(in crate::check) fn visit_expression_templates(
         &mut self,
         _id: dir::LocalNodeId<dir::Expression>,
@@ -90,11 +85,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk generic headers introduced by one declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// function value<T>(input: T): T { input }
-    /// ```
     fn visit_declaration_templates(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
@@ -204,8 +194,7 @@ impl WalkState<'_, '_> {
         if pass == TemplatePass::Declare {
             let template = self.open_generic_template(source, parameters)?;
 
-            // hypotheses need a template: where clauses, heritage
-            //  assumptions, and interfaces assuming their own application
+            // open a template for where clauses, heritage assumptions, and interfaces
             let assumes = !where_clauses.is_empty()
                 || self.check.symbol_kind(symbol)?.is_interface()
                 || self
@@ -304,17 +293,12 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// struct User { name: string }
-    /// ```
     pub(in crate::check) fn walk_declaration(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
     ) -> CompilerResult<()> {
-        // each declaration walks exactly once, on demand or in root order
+        // walk each declaration exactly once, when asked or in root order
         let node = id.into_global_any(self.module);
         if !self.check.walked_declarations.insert(node) {
             return Ok(());
@@ -384,11 +368,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one type declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// type Id<T> = T
-    /// ```
     fn walk_type_declaration(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
@@ -414,6 +393,7 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::Intrinsic
         ) {
             self.walk_intrinsic_type_declaration(id, declaration, symbol, template)?;
+
             return Ok(());
         }
 
@@ -591,11 +571,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one struct declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// struct Point { x: number, y: number }
-    /// ```
     fn walk_struct_declaration(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
@@ -657,11 +632,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one class declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// class User extends Entity { name: string }
-    /// ```
     fn walk_class_declaration(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
@@ -799,6 +769,7 @@ impl WalkState<'_, '_> {
 
                 continue;
             }
+
             // members assume this satisfies the implemented interface
             if let Some(template) = template {
                 self.push_this_heritage_predicate(source, template, ty)?;
@@ -878,11 +849,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one enum declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// enum Option<T> { Some(T), None }
-    /// ```
     fn walk_enum_declaration(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
@@ -1003,11 +969,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one interface declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// interface Reader { read(): string }
-    /// ```
     fn walk_interface_declaration(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
@@ -1082,11 +1043,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one extension declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// extension string { len(): number }
-    /// ```
     fn walk_extension_declaration(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
@@ -1130,7 +1086,7 @@ impl WalkState<'_, '_> {
             let ty = self.walk_type_expression(*implemented_type)?;
             self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
-                // skip kind validation on foreign symbols while declaring, checking reads their kind
+                // skip kind validation on foreign symbols, checking reads their kind
                 if self
                     .check
                     .symbol_kind_maybe(instance.symbol)?
@@ -1193,11 +1149,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one function declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// function id<T>(value: T): T { value }
-    /// ```
     fn walk_function_item_declaration(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
@@ -1257,11 +1208,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one enum field and return its scalar variant.
-    ///
-    /// Example:
-    /// ```ds
-    /// enum Status { Ready = 1 }
-    /// ```
     fn walk_enum_field(
         &mut self,
         id: dir::LocalNodeId<dir::EnumField>,
@@ -1310,7 +1256,7 @@ impl WalkState<'_, '_> {
                     expression.into_global_any(self.module),
                     self.flow().template_scope(),
                 );
-                let static_type = self.check.reduce_type_head(origin, static_type)?;
+                let static_type = self.check.normalize(origin, static_type)?;
                 let value = match self.check.ty(static_type)? {
                     dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
                         dir::EnumVariantValue::Integer(value)
@@ -1367,16 +1313,7 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Walk one where clause onto its declaring template.
-    ///
-    /// Instantiation sites prove recorded predicates and the template's
-    /// own scope assumes them.
-    /// Clauses without a template check satisfaction at the declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// where T: Copy
-    /// ```
+    /// Walk one where clause onto its declaring template, or check it at the declaration.
     pub(in crate::check) fn walk_where_clause(
         &mut self,
         template: Option<GenericTemplateId>,
@@ -1388,7 +1325,7 @@ impl WalkState<'_, '_> {
         let left = self.walk_type_expression(left)?;
         let right = self.walk_type_expression(right)?;
 
-        // a lifetime outlives one lifetime; a union bound has no sound reading
+        // require a lifetime bound to name exactly one lifetime
         if self.check.is_lifetime_term(left)?
             && matches!(self.check.ty(right)?, dir::Type::Union(_))
         {
@@ -1430,11 +1367,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one function signature without entering the function body.
-    ///
-    /// Example:
-    /// ```ds
-    /// <T>(value: T): T where T: Copy
-    /// ```
     pub(in crate::check) fn walk_function_signature(
         &mut self,
         template: Option<GenericTemplateId>,
@@ -1509,11 +1441,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the receiver introduced by one `this` parameter.
-    ///
-    /// Example:
-    /// ```ds
-    /// function method(this: Box): number { 1 }
-    /// ```
     pub(in crate::check) fn this_parameter_receiver_binding(
         &mut self,
         parameter: dir::LocalNodeId<dir::Parameter>,
@@ -1583,11 +1510,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one function return annotation or open its inferred result.
-    ///
-    /// Example:
-    /// ```ds
-    /// function value(): number { 1 }
-    /// ```
     pub(in crate::check) fn walk_function_result_type(
         &mut self,
         source: dir::LocalNodeIdAny,
@@ -1643,11 +1565,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Return one nominal declaration receiver scope.
-    ///
-    /// Example:
-    /// ```ds
-    /// struct Box { value: number }
-    /// ```
     pub(in crate::check) fn nominal_receiver(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -1720,13 +1637,55 @@ impl WalkState<'_, '_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::ExtensionTarget> {
-        // prefer the concrete nominal beneath memory forms
-        let target_instance = self.check.apparent_instance(ty)?;
-        let chain = self.check.form_chain(origin, ty)?;
-        let value_instance = self.check.apparent_instance(chain.base())?;
-        if let Some(instance) = value_instance.or(target_instance) {
-            let root = instance.symbol;
+        // root written carrier applications at their payload's family
+        let mut payload = ty;
+        let mut carrier = None;
+        loop {
+            let dir::Type::Application(instance) = self.check.ty(payload)? else {
+                break;
+            };
+            let Some(item) = self.check.language_item(instance.symbol)? else {
+                break;
+            };
+            if !matches!(
+                item,
+                dir::LanguageItem::Managed
+                    | dir::LanguageItem::Owned
+                    | dir::LanguageItem::Raw
+                    | dir::LanguageItem::Borrowed
+                    | dir::LanguageItem::Placed
+                    | dir::LanguageItem::Readonly
+                    | dir::LanguageItem::WithBase
+                    | dir::LanguageItem::WithOwnership
+                    | dir::LanguageItem::WithPlace
+                    | dir::LanguageItem::WithSpace
+                    | dir::LanguageItem::WithLifetime
+                    | dir::LanguageItem::WithAccess
+            ) {
+                break;
+            }
+            let Some(carried) = self
+                .check
+                .type_ids(payload.module_id, instance.arguments)?
+                .first()
+                .copied()
+            else {
+                break;
+            };
 
+            carrier.get_or_insert(instance.symbol);
+            payload = carried;
+        }
+
+        // prefer the concrete nominal beneath memory forms
+        let target_instance = self.check.apparent_instance(payload)?;
+        let chain = self.check.form_chain(origin, payload)?;
+        let value_instance = self.check.apparent_instance(chain.base())?;
+        if let Some(root) = value_instance
+            .or(target_instance)
+            .map(|instance| instance.symbol)
+            .or(carrier)
+        {
             return Ok(dir::ExtensionTarget::Rooted { root, ty });
         }
         let coverage = self.blanket_coverage(origin, ty)?;

@@ -19,7 +19,7 @@ impl BodyState<'_, '_> {
             // try the current step speculatively
             let related = self.confirm_candidate(|state| {
                 let cause = state.intern_cause(Cause::root(origin, CauseKind::Expression));
-                let head = state.reduce_type_head(origin, receiver.ty)?;
+                let head = state.normalize(origin, receiver.ty)?;
                 let projects_form = matches!(
                     state.ty(head)?,
                     dir::Type::Form(form) if form.form.ownership().is_none()
@@ -37,6 +37,7 @@ impl BodyState<'_, '_> {
                         receiver,
                         &conversion,
                     )?;
+
                     return match acquired {
                         true => {
                             let borrowed = state.intern_type(dir::Type::Form(dir::FormType {
@@ -90,12 +91,9 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::ReceiverAdjustment>> {
-        let head = self.reduce_type_head(origin, receiver)?;
-
         // dereference one memory form
-        if let dir::Type::Form(form) = self.ty(head)? {
-            // stop at an owned value whose family defaults to managed,
-            //  stepping to the managed form would allocate
+        if let dir::Type::Form(form) = self.ty(receiver)? {
+            // stop at an owned value whose family defaults to managed
             if form.form == dir::Form::Owned
                 && self.check.defaults_to_managed(origin, form.value)?
             {
@@ -104,7 +102,7 @@ impl BodyState<'_, '_> {
 
             return Ok(Some(dir::ReceiverAdjustment::Dereference(
                 dir::Dereference {
-                    receiver: head,
+                    receiver,
                     target: dir::DereferenceTarget::Direct,
                     ty: form.value,
                 },
@@ -112,10 +110,16 @@ impl BodyState<'_, '_> {
         }
 
         // project one newtype to its backing
-        if let Some(instance) = self.newtype_payload(origin, head)? {
+        if let Some(instance) = self.newtype_payload(origin, receiver)? {
             let backing = instance.backing;
 
             return Ok(Some(instance.into_receiver_adjustment(backing)));
+        }
+
+        // step through a stuck named head that carries a memory form
+        let head = self.check.normalize_stuck(origin, receiver)?;
+        if head != receiver && matches!(self.ty(head)?, dir::Type::Form(_)) {
+            return self.receiver_step(origin, head);
         }
 
         Ok(None)

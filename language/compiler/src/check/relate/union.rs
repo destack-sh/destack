@@ -29,6 +29,46 @@ impl CheckState<'_> {
         Ok(Some(arms))
     }
 
+    /// Return the leaf members of one union target, expanding stuck named heads.
+    pub(in crate::check) fn union_leaves(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<SmallVec<[dir::GlobalTypeId; 4]>>> {
+        // reduce a stuck named head, which may still hide a union
+        let mut arms = self.union_arms(origin, target)?;
+        if arms.is_none() {
+            let head = self.normalize_stuck(origin, target)?;
+            if head != target {
+                arms = self.union_arms(origin, head)?;
+            }
+        }
+
+        let Some(mut members) = arms else {
+            return Ok(None);
+        };
+
+        // expand nested and aliased unions into their leaf members
+        let mut leaves = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        let mut index = 0;
+        while index < members.len() {
+            let member = members[index];
+            index += 1;
+            match self.union_arms(origin, member)? {
+                Some(nested) => members.extend(nested),
+                None => {
+                    let head = self.normalize_stuck(origin, member)?;
+                    match self.union_arms(origin, head)? {
+                        Some(nested) => members.extend(nested),
+                        None => leaves.push(member),
+                    }
+                }
+            }
+        }
+
+        Ok(Some(leaves))
+    }
+
     /// Decide a union target by membership when direct proof fell short.
     pub(in crate::check) fn decide_union_membership(
         &mut self,

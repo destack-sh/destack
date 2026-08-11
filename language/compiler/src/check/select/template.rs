@@ -15,11 +15,10 @@ impl BodyState<'_, '_> {
         let node = node.into_any();
         let origin = site.origin();
 
-        // reduce the tag's callable shape
+        // read the tag's callable shape
         let tag_node = tag.into_global_any(module);
         let tag_site = self.visit_site(tag_node)?;
         let tag_type = self.infer_node_type(tag_site, PlaceUse::Read)?;
-        let tag_type = self.reduce_type_head(origin, tag_type)?;
         let signature = match self.ty(tag_type)? {
             dir::Type::FunctionSignature(_) => Some(tag_type),
             _ => self.callable_signature(tag_type)?,

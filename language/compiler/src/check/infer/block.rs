@@ -49,7 +49,7 @@ impl BodyState<'_, '_> {
             }
             let site = self.check.visit_site(node)?;
 
-            // each statement owns the inference it opens
+            // let each statement own the inference it opens
             let scope = InferenceScope::open(
                 self.check.infer.variable_count(),
                 self.check.infer.trail.len(),
@@ -59,10 +59,9 @@ impl BodyState<'_, '_> {
             // inference closes at the statement that opened it
             self.check.close_statement(scope)?;
 
-            // a never-typed statement makes the block end unreachable,
-            //  unbound jumps are already reported and complete as statements
+            // end the block unreachable on a never-typed statement, excluding unbound jumps
             if let Some(ty) = self.check.committed_node_type(node) {
-                let ty = self.check.shallow_resolve(ty)?;
+                let ty = self.check.resolve_head(ty)?;
                 if matches!(self.check.ty(ty)?, dir::Type::Never)
                     && !self.check.flow.is_unbound_jump(node.local_id)
                 {

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{BodyState, Relation, VariableRole, Widening};
+use crate::check::{BodyState, Origin, Relation, VariableRole, Widening};
 
 /// Inference mode for literal expressions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -42,7 +42,8 @@ impl InferMode {
 impl BodyState<'_, '_> {
     /// Select the literal inference mode at one contextual type position.
     pub(in crate::check) fn contextual_literal_mode(
-        &self,
+        &mut self,
+        origin: Origin,
         target: dir::GlobalTypeId,
         default_mode: InferMode,
     ) -> CompilerResult<InferMode> {
@@ -59,10 +60,10 @@ impl BodyState<'_, '_> {
             visited.push(target);
 
             match self.ty(target)? {
-                // take the mode the open target position demands
+                // take the mode the open target position requires
                 dir::Type::Variable(variable) => {
                     let mode = match self.infer.variable_role(variable)? {
-                        // take the mode the bound generic parameter demands
+                        // take the mode the bound generic parameter requires
                         VariableRole::Instantiation { parameter } => {
                             let binding = self.require_generic_parameter(parameter)?;
                             if binding.is_const {
@@ -89,8 +90,26 @@ impl BodyState<'_, '_> {
 
                     selected = Some(mode);
                 }
+                // consume the literal exactly at a literal target position
+                dir::Type::Literal(_) => {
+                    let mode = InferMode::Exact;
+                    if selected.is_some_and(|selected| selected != mode) {
+                        return Ok(default_mode);
+                    }
+
+                    selected = Some(mode);
+                }
                 // look through the form to its value
                 dir::Type::Form(form) => pending.push(form.value),
+                // look through alias, member, and newtype heads to their values
+                dir::Type::Application(_) | dir::Type::Member(_) => {
+                    let reduced = self.normalize(origin, target)?;
+                    if reduced != target {
+                        pending.push(reduced);
+                    } else if let Some(instance) = self.newtype_payload(origin, target)? {
+                        pending.push(instance.backing);
+                    }
+                }
                 // visit every alternative of a union
                 dir::Type::Union(union) => {
                     pending.extend(
@@ -135,6 +154,7 @@ impl BodyState<'_, '_> {
     /// Return the type one literal slot stores.
     pub(in crate::check) fn literal_slot_storage(
         &mut self,
+        origin: Origin,
         relation: Relation,
         slot: dir::GlobalTypeId,
         source: dir::GlobalTypeId,
@@ -148,6 +168,14 @@ impl BodyState<'_, '_> {
         // let an open slot take the inferred candidate
         if self.type_flags(slot)?.has_variable() {
             return self.inference_candidate_type(source, mode);
+        }
+
+        // keep the selected member in a union slot under exact mode
+        if mode == InferMode::Exact && matches!(self.ty(source)?, dir::Type::Literal(_)) {
+            let head = self.normalize_stuck(origin, slot)?;
+            if matches!(self.ty(head)?, dir::Type::Union(_)) {
+                return Ok(source);
+            }
         }
 
         Ok(slot)

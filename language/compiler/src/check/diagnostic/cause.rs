@@ -181,8 +181,8 @@ impl CheckState<'_> {
         }
 
         // reduce both sides before pairing their slots
-        let source = self.reduce_type(origin, source)?;
-        let target = self.reduce_type(origin, target)?;
+        let source = self.deeply_normalize(origin, source)?;
+        let target = self.deeply_normalize(origin, target)?;
 
         // descend into the first slot whose relation fails
         for (slot, child_relation, child_source, child_target) in
@@ -248,7 +248,7 @@ impl CheckState<'_> {
                         continue;
                     };
                     let Some(relations) =
-                        self.shape_property_relations(relation, source_field, &target_field)
+                        self.shape_property_relations(relation, false, source_field, &target_field)
                     else {
                         continue;
                     };
@@ -371,8 +371,7 @@ impl CheckState<'_> {
                 pairs.push((None, relation, source_form.value, target_form.value));
             }
 
-            // blame each source union element against the target;
-            //  equations relate unions whole instead
+            // blame each source union element against the target
             (dir::Type::Union(elements), _) if relation != Relation::Equal => {
                 let elements = self.type_ids(source.module_id, elements.elements)?.to_vec();
                 for element in elements {

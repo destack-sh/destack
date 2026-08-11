@@ -81,7 +81,7 @@ impl FieldLookup {
             return Ok(Some(read));
         }
 
-        // an optional property reads as its type or undefined
+        // read an optional property as its type or undefined
         let undefined = body.intern_type(dir::Type::Undefined)?;
         let read = body.normalized_union_type([read, undefined])?;
 
@@ -577,7 +577,7 @@ impl MemberCandidate {
             return Ok(Some(self.access_type));
         }
 
-        // an optional member reads as its type or undefined
+        // read an optional member as its type or undefined
         let undefined = body.intern_type(dir::Type::Undefined)?;
         let ty = body.normalized_union_type([self.access_type, undefined])?;
 
@@ -641,15 +641,13 @@ impl BodyState<'_, '_> {
         receiver_node: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<(dir::MemberSubject, Option<NullishPart>)> {
-        // split the nullish part off before reducing the receiver
+        // split the nullish part off the receiver
         let split = self.split_nullish_type(origin, receiver)?;
         let rejected = split.map(|split| split.rejected);
         let receiver = split.map_or(receiver, |split| split.value);
-        let receiver = self.reduce_type_head(origin, receiver)?;
 
-        // an open receiver settles its value variables before member lookup,
-        //  leaving memory inference open for its own settle points
-        let receiver = if self.type_flags(receiver)?.has_variable() {
+        // settle an open receiver's value variables before member lookup
+        if self.type_flags(receiver)?.has_variable() {
             let mut variables = self.type_variables(receiver)?;
             variables.retain(|variable| {
                 !matches!(
@@ -658,11 +656,8 @@ impl BodyState<'_, '_> {
                 )
             });
             self.resolve_variables(&variables)?;
+        }
 
-            self.reduce_type_head(origin, receiver)?
-        } else {
-            receiver
-        };
         // look the member up in the receiver's own space by default
         let mut space = self.member_receiver_space(receiver_node, receiver)?;
         let mut subject = receiver;
@@ -839,9 +834,8 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         subject: dir::MemberSubject,
     ) -> CompilerResult<Vec<dir::MemberBinding>> {
-        // nominal subjects compose the owner's memoized surface with extensions
-        let reduced = self.reduce_type_head(origin, subject.target)?;
-        if let Some(instance) = self.apparent_instance(reduced)? {
+        // compose the owner's memoized bindings with extensions for nominal subjects
+        if let Some(instance) = self.apparent_instance(subject.target)? {
             let inherent = self
                 .member_bindings(origin, instance.symbol, subject.space)?
                 .map(|bindings| bindings.to_vec())
@@ -850,7 +844,7 @@ impl BodyState<'_, '_> {
                 origin,
                 module,
                 subject.receiver,
-                reduced,
+                subject.target,
                 instance.symbol,
                 subject.space,
             )?;
@@ -1080,7 +1074,7 @@ impl BodyState<'_, '_> {
         _origin: Origin,
         accesses: Vec<dir::MemberAccess>,
     ) -> CompilerResult<dir::MemberAccess> {
-        // a lone access needs no intersection
+        // take a lone access without intersecting
         if accesses.len() == 1 {
             let mut accesses = accesses;
 
@@ -1126,7 +1120,7 @@ impl BodyState<'_, '_> {
             ..receiver
         };
 
-        // a getter takes no arguments
+        // call a getter without arguments
         let arguments = SmallVec::<[CallableArgument; 4]>::new();
         let callable = candidate.callable.ok_or_else(|| CompilerError::Internal {
             message: format!("getter {symbol:?} has no callable type"),
@@ -1142,7 +1136,7 @@ impl BodyState<'_, '_> {
             None,
         )?;
 
-        // a rejecting receiver skips to the next declared candidate
+        // skip a rejecting receiver to the next declared candidate
         let SignatureMatch::Selected(signature) = selected else {
             return Ok(None);
         };
@@ -1172,7 +1166,7 @@ impl BodyState<'_, '_> {
             ..receiver
         };
 
-        // a setter takes the written value as its sole argument
+        // pass the written value as a setter's sole argument
         let sources = [dir::ArgumentSource::Write];
         let source = self
             .origin_source_node(origin)?
@@ -1221,7 +1215,7 @@ impl BodyState<'_, '_> {
         let node = node.into_any();
         let origin = site.origin();
 
-        // reduce the receiver before member lookup
+        // infer the receiver before member lookup
         let receiver_node = left.into_global_any(module);
         let receiver_site = self.visit_site(receiver_node)?;
         let written_receiver = self.infer_node_type(receiver_site, PlaceUse::Read)?;
@@ -1242,7 +1236,7 @@ impl BodyState<'_, '_> {
 
         // retain the lookup subject at this source site
         self.module_mut(module)
-            .members
+            .members_tail
             .record_subject(dir::MemberSite::Node(node), subject);
 
         // commit an error for an omitted member name
@@ -1320,10 +1314,7 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Defer one member access until its receiver value settles.
-    ///
-    /// The node commits an open hole so enclosing checks proceed.
-    /// The deferred re-selection solves the hole once the receiver closes.
+    /// Defer one member access until its receiver value settles, committing an open hole.
     fn defer_member_selection(
         &mut self,
         site: FlowSite,
@@ -1394,37 +1385,33 @@ impl BodyState<'_, '_> {
         let ty = self.project_member_place(origin, receiver, ty)?;
 
         // readonly receivers project deep readonly views onto stored fields
-        if !self.receiver_projects_readonly(origin, receiver)? {
+        if !self.receiver_projects_readonly(receiver)? {
             return Ok(ty);
         }
-
-        let ty = self.reduce_type_head(origin, ty)?;
         if matches!(self.ty(ty)?, dir::Type::Form(form) if form.form == dir::Form::Readonly) {
             return Ok(ty);
         }
-
         if !self.type_projects_readonly(origin, ty)? {
             return Ok(ty);
         }
 
+        // wrap the projected field in the readonly view
         let projected = self.intern_type(dir::Type::Form(dir::FormType {
             form: dir::Form::Readonly,
             value: ty,
         }))?;
 
-        self.reduce_type_head(origin, projected)
+        self.normalize(origin, projected)
     }
 
     /// Return whether one receiver projects stored fields as readonly.
     pub(in crate::check) fn receiver_projects_readonly(
         &mut self,
-        origin: Origin,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let mut current = receiver;
 
         loop {
-            current = self.reduce_type_head(origin, current)?;
             let form = match self.ty(current)? {
                 dir::Type::Form(form) => form,
                 _ => return Ok(false),
@@ -1438,7 +1425,7 @@ impl BodyState<'_, '_> {
             // readonly borrows expose only readonly stored fields
             if let dir::Form::Borrowed(borrow) = form.form
                 && let access = self.type_borrow(current.module_id, borrow)?.access
-                && self.access_is_readonly(origin, access)?
+                && self.access_is_readonly(access)?
             {
                 return Ok(true);
             }
@@ -1466,6 +1453,7 @@ impl BodyState<'_, '_> {
             && !self.is_rigid_projection_owner(member.owner)?
         {
             let (base, _) = self.refinement_bindings(qualifier)?;
+
             return match self.ty(base)? {
                 dir::Type::Application(_) => self.project_selected_member(origin, member, base),
                 // project the lexical extension scope's own associated member
@@ -1477,7 +1465,7 @@ impl BodyState<'_, '_> {
         }
 
         // resolve remaining projections through member lookup
-        let module = origin.module();
+        let module = self.module_id;
         let subject = dir::MemberSubject::new(member.owner, member.owner, dir::MemberSpace::Static);
         let lookup = self.lookup_member(origin, module, subject, member.key)?;
         let projected = match lookup {
@@ -1496,7 +1484,7 @@ impl BodyState<'_, '_> {
         qualifier: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // read the qualifying interface application
-        let module = origin.module();
+        let module = self.module_id;
         let (interface_module, interface) = self.nominal_application(qualifier)?;
         let owner = member.owner;
 
@@ -1518,7 +1506,7 @@ impl BodyState<'_, '_> {
         }
 
         // enumerate candidate extensions by receiver family
-        let apparent = self.intern_apparent_type(module, owner)?;
+        let apparent = self.intern_apparent_type(owner)?;
         let extensions =
             self.visible_implementation_extensions(origin, module, apparent, interface.symbol)?;
         for extension_symbol in extensions {
@@ -1581,8 +1569,7 @@ impl BodyState<'_, '_> {
                 continue;
             };
 
-            // project the extension's own declared value with the member's
-            //  arguments bound, falling back to the interface default
+            // project the extension's own declared value, falling back to the interface default
             let projected =
                 self.project_declared_associated_member(origin, member, &members, &substitution)?;
             if projected.is_some() {
@@ -1616,8 +1603,7 @@ impl BodyState<'_, '_> {
                     &interface,
                 )?;
                 if matched.is_some() {
-                    // project the declaring owner's own value with the member's
-                    //  arguments bound, falling back to the interface default
+                    // project the owner's own declared value, falling back to the interface default
                     let projected = self.project_declared_associated_member(
                         origin,
                         member,
@@ -1649,8 +1635,7 @@ impl BodyState<'_, '_> {
             });
         };
 
-        // bind an extension scope's parameters through its matched target;
-        //  the projection reads the owner value beneath any receiver form
+        // bind an extension scope's parameters through its matched target
         let substitution = match &definition {
             dir::Definition::Extension(extension) => {
                 let template = self.symbol_template(scope)?;
@@ -1774,7 +1759,7 @@ impl BodyState<'_, '_> {
                         return Ok(Some(ty));
                     }
 
-                    // a member projecting back onto itself stays symbolic
+                    // keep a member projecting back onto itself symbolic
                     if let Some(projected) = self.member_head(candidate.access_type)?
                         && projected.owner == member.owner
                         && projected.key == member.key
@@ -1822,7 +1807,7 @@ impl BodyState<'_, '_> {
             return Ok(None);
         }
 
-        // only a qualified projection names the interface holding the default
+        // read the interface holding the default from a qualified projection only
         let Some(qualifier) = member.qualifier else {
             return Ok(None);
         };
@@ -1891,7 +1876,7 @@ impl BodyState<'_, '_> {
         &self,
         owner: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let owner = self.shallow_resolve(owner)?;
+        let owner = self.resolve_head(owner)?;
         let is_rigid = matches!(self.ty(owner)?, dir::Type::Parameter(_) | dir::Type::This);
 
         Ok(is_rigid)
@@ -1928,7 +1913,6 @@ impl BodyState<'_, '_> {
         // retain only interfaces declaring this associated member
         let mut qualifier = None;
         for interface in interfaces {
-            let interface = self.reduce_type_head(origin, interface)?;
             let Some((_, instance)) = self.nominal_application_maybe(interface)? else {
                 continue;
             };
@@ -1974,8 +1958,7 @@ impl BodyState<'_, '_> {
         };
 
         for bound in self.parameter_bounds(origin, parameter)? {
-            // only interface bounds can declare projected members
-            let bound = self.reduce_type_head(origin, bound)?;
+            // read projected members from interface bounds only
             let dir::Type::Application(instance) = self.ty(bound)? else {
                 continue;
             };
@@ -2016,13 +1999,13 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(place) = self.receiver_projected_place(origin, receiver)? else {
+        let Some(place) = self.receiver_projected_place(receiver)? else {
             return Ok(ty);
         };
 
         let ty = self.place_relative_type(origin, place, ty)?;
 
-        self.reduce_type_head(origin, ty)
+        self.normalize(origin, ty)
     }
 
     /// Resolve one relative member type in a projected receiver place.
@@ -2033,8 +2016,7 @@ impl BodyState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // bare members of local receivers stay bare
-        let root = self.reduce_type_head(origin, place)?;
-        if self.check.place_space(root)? == Some(dir::Space::Local) {
+        if self.check.place_space(place)? == Some(dir::Space::Local) {
             return Ok(ty);
         }
 
@@ -2044,12 +2026,10 @@ impl BodyState<'_, '_> {
     /// Return the place projected by one receiver type.
     pub(in crate::check) fn receiver_projected_place(
         &mut self,
-        origin: Origin,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let mut current = receiver;
         loop {
-            current = self.reduce_type_head(origin, current)?;
             let dir::Type::Form(form) = self.ty(current)? else {
                 // bare nominal instances live in their declared or inherited space
                 if let dir::Type::Application(instance) = self.ty(current)?
@@ -2078,8 +2058,6 @@ impl BodyState<'_, '_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let ty = self.reduce_type_head(origin, ty)?;
-
         // retain readonly access over every safe reference carrier
         if self.type_is_reference(origin, ty)? {
             return Ok(true);
@@ -2149,10 +2127,8 @@ impl BodyState<'_, '_> {
     /// Return whether one memory access component is readonly.
     pub(in crate::check) fn access_is_readonly(
         &mut self,
-        origin: Origin,
         access: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let access = self.reduce_type_head(origin, access)?;
         let is_readonly = matches!(
             self.ty(access)?,
             dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))

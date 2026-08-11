@@ -9,14 +9,6 @@ use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
     /// Walk one type annotation and record its type.
-    ///
-    /// Resolve reference annotations to symbols, allocate memory forms, and
-    /// allocate type operations.
-    ///
-    /// Example:
-    /// ```ds
-    /// readonly Box<T>
-    /// ```
     pub(in crate::check) fn walk_type_expression(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
@@ -102,7 +94,7 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::Lifetime { name } => {
                 let name = *name;
 
-                // the reserved tick names spell the lifetime literals
+                // read the lifetime literals from the reserved tick names
                 let literal = match self.check.strings().get(name) {
                     "'static" => Some(dir::Lifetime::Static),
                     "'frame" => Some(dir::Lifetime::Frame),
@@ -140,7 +132,7 @@ impl WalkState<'_, '_> {
                     .copied()
                     .collect::<SmallVec<[_; 4]>>();
 
-                // this projections bind to their declaring scope
+                // bind this projections to their declaring scope
                 let qualifier = match self.tree.get(*left) {
                     dir::TypeExpression::This => {
                         let receiver = self.flow().current_receiver();
@@ -157,10 +149,13 @@ impl WalkState<'_, '_> {
                 // retain the lookup subject even when the written member is incomplete
                 let subject = dir::MemberSubject::new(owner, owner, dir::MemberSpace::Static)
                     .with_scope(self.flow().template_scope());
-                self.check.module_mut(self.module).members.record_subject(
-                    dir::MemberSite::Node(id.into_global_any(self.module)),
-                    subject,
-                );
+                self.check
+                    .module_mut(self.module)
+                    .members_tail
+                    .record_subject(
+                        dir::MemberSite::Node(id.into_global_any(self.module)),
+                        subject,
+                    );
 
                 self.intern_member(dir::MemberType {
                     owner,
@@ -316,6 +311,7 @@ impl WalkState<'_, '_> {
             } => {
                 let (extends_type, then_type, else_type) = (*extends_type, *then_type, *else_type);
                 let left = self.walk_type_expression(*left)?;
+
                 // distribute only naked parameter scrutinees over unions
                 let is_distributive = matches!(self.check.ty(left)?, dir::Type::Parameter(_));
                 let right = self.walk_type_expression(extends_type)?;
@@ -567,7 +563,7 @@ impl WalkState<'_, '_> {
                 Ok(true)
             }
 
-            // a namespace alone fails at the type query site
+            // fail at the type query site on a bare namespace
             Some(dir::Reference::Namespace { .. }) => {
                 self.check
                     .report_invalid_type_query(self.module, id.into_any());
@@ -584,7 +580,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         self.check.visit_site(id.into_global_any(self.module))?;
 
-        // an inferred hole names no construct target
+        // skip an inferred hole, which names no construct target
         if matches!(
             self.tree.get(id),
             dir::TypeExpression::Infer {
@@ -944,8 +940,7 @@ impl WalkState<'_, '_> {
                 });
             };
 
-            // slot only written lifetimes into lifetime parameters,
-            //  other arguments skip the whole lifetime group
+            // slot only written lifetimes into lifetime parameters
             let wants_lifetime = binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime);
             let next_is_lifetime = cursor < written.len()
                 && self
@@ -1084,7 +1079,7 @@ impl WalkState<'_, '_> {
                 .with_scope(self.flow().template_scope());
             self.check
                 .module_mut(self.module)
-                .members
+                .members_tail
                 .record_subject(site, subject);
 
             ty = self.intern_member(dir::MemberType {
@@ -1174,6 +1169,7 @@ impl WalkState<'_, '_> {
                     )?;
 
                     let role = MemberRole::from(signature.role);
+                    let ty = self.check.resolve_head(ty)?;
                     let access = self
                         .check
                         .property_access(role, ty, false)?
@@ -1431,8 +1427,7 @@ impl WalkState<'_, '_> {
             None => self.intern_type(dir::Type::Unknown)?,
         };
 
-        // find the source behind a keyof constraint, written directly
-        //  or reached through the key parameter's bound
+        // find the source behind a keyof constraint, directly or through the key parameter's bound
         let modifiers_type = match self.check.ty(constraint)? {
             dir::Type::Operation(operation)
                 if let dir::TypeOperation::KeyOf(unary) =

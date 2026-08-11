@@ -181,17 +181,15 @@ impl BodyState<'_, '_> {
 
         // collect extensions declared beside the looking module
         if let Some(state) = self.module_maybe(module) {
-            let definitions = &state.definitions;
-            symbols.extend(definitions.target_extensions(target).iter().copied());
-            symbols.extend(definitions.blanket_extensions().iter().copied());
+            symbols.extend(state.target_extensions(target));
+            symbols.extend(state.blanket_extensions());
         }
 
         // collect inherent extensions beside the target declaration
         if target.module_id != module {
             if let Some(state) = self.module_maybe(target.module_id) {
-                let definitions = &state.definitions;
-                symbols.extend(definitions.target_extensions(target).iter().copied());
-                symbols.extend(definitions.blanket_extensions().iter().copied());
+                symbols.extend(state.target_extensions(target));
+                symbols.extend(state.blanket_extensions());
             }
 
             if let Some(external) = self.external_modules.get(&target.module_id) {
@@ -770,7 +768,7 @@ impl BodyState<'_, '_> {
 
         // collect local blanket extensions
         if let Some(state) = self.module_maybe(module) {
-            symbols.extend(state.definitions.blanket_extensions().iter().copied());
+            symbols.extend(state.blanket_extensions());
         }
 
         // collect the implicit open blanket extension symbols

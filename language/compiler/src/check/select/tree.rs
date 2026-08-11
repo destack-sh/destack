@@ -64,7 +64,7 @@ impl BodyState<'_, '_> {
         expectation: Option<&Expectation>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let target = match expectation {
-            Some(expectation) => self.reduce_type_head(origin, expectation.target)?,
+            Some(expectation) => expectation.target,
             // literals without context read the profile's default builder
             None => {
                 let Some(symbol) = self.check.environment_bound.tree else {
@@ -83,7 +83,7 @@ impl BodyState<'_, '_> {
             }
         };
 
-        // the expected type is the builder when it implements the protocol
+        // take the expected type as the builder when it implements the protocol
         let protocol = self.check.language_protocol(
             origin.module(),
             dir::LanguageItem::TreeBuilder,
@@ -153,7 +153,6 @@ impl BodyState<'_, '_> {
                 dir::TreeChild::Spread { value } => {
                     let child_site = self.visit_site(value.into_global_any(module))?;
                     let ty = self.infer_node_type(child_site, PlaceUse::Read)?;
-                    let ty = self.reduce_type_head(origin, ty)?;
                     let elements = match self.check.ty(ty)? {
                         dir::Type::Tuple(tuple) => {
                             let elements = self
@@ -299,7 +298,6 @@ impl BodyState<'_, '_> {
                 left: tags.ty,
                 index: tag_type,
             }))?;
-        let row = self.reduce_type_head(origin, row)?;
         let Some(bindings) = self.check_tree_attributes(site, row, attributes, None)? else {
             return self.check.intern_type(dir::Type::Error);
         };
@@ -414,7 +412,7 @@ impl BodyState<'_, '_> {
                     });
 
                     // spread rows contribute their enumerable members
-                    let Some((fields, _)) = self.expected_object_members(origin, ty)? else {
+                    let Some((fields, _)) = self.apparent_object_members(origin, ty)? else {
                         // unenumerable spreads leave the row requirements open
                         is_open = true;
 
@@ -447,7 +445,7 @@ impl BodyState<'_, '_> {
         }
 
         // require every non-optional row attribute
-        if !is_open && let Some((fields, _)) = self.expected_object_members(origin, row)? {
+        if !is_open && let Some((fields, _)) = self.apparent_object_members(origin, row)? {
             for field in fields {
                 if !field.is_optional && !present.contains(&field.key) {
                     self.check.report_missing_tree_attribute(
@@ -508,7 +506,7 @@ impl BodyState<'_, '_> {
                 index,
             }))?;
 
-        self.reduce_type_head(origin, property)
+        self.normalize(origin, property)
     }
 
     /// Check one nodeless attribute value against its row property.
@@ -663,7 +661,7 @@ impl BodyState<'_, '_> {
             return_type: selection.return_type,
         };
 
-        // the component's result feeds the surrounding builder context
+        // feed the component's result into the surrounding builder context
         let ty = selection.return_type;
         let resolution = dir::TreeDecision {
             builder,
@@ -921,6 +919,7 @@ impl BodyState<'_, '_> {
             &[],
             argument_sources,
         )?;
+
         // conformance proved the statics upstream, selection cannot reject
         let Some((_, call)) = selected else {
             return Err(CompilerError::Internal {

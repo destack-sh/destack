@@ -334,17 +334,15 @@ impl BodyState<'_, '_> {
         let index_site = self.visit_site(index_node)?;
         let index = self.infer_node_type(index_site, PlaceUse::Read)?;
 
-        // reduce both operands before selection
-        let receiver = self.reduce_type_head(origin, receiver)?;
+        // read the receiver's value, apparent type, and member space
         let receiver_value = Value {
             ty: receiver,
             ..receiver_value
         };
         let receiver_type = self.readable_value(receiver)?;
         let space = self.member_receiver_space(receiver_node, receiver)?;
-        let index = self.reduce_type_head(origin, index)?;
 
-        // select the subscript operation for the reduced operands
+        // select the subscript operation for both operands
         let Some(selection) = self.select_subscript(
             origin,
             module,
@@ -394,7 +392,8 @@ impl BodyState<'_, '_> {
         index_node: dir::GlobalNodeIdAny,
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SubscriptSelection>> {
-        let receiver_type = self.reduce_type_head(origin, receiver_type)?;
+        // inspect the receiver's reduced shape for subscripts
+        let receiver_type = self.check.normalize(origin, receiver_type)?;
 
         // unions select one exact subscript operation for every runtime arm
         if let Some(arms) = self.union_arms(origin, receiver_type)? {
@@ -507,7 +506,6 @@ impl BodyState<'_, '_> {
         index_node: dir::GlobalNodeIdAny,
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SubscriptSelection>> {
-        let constraint = self.reduce_type_head(origin, constraint)?;
         let dir::Type::Application(instance) = self.ty(constraint)? else {
             return Ok(None);
         };
@@ -699,7 +697,6 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Option<dir::ProjectionResolution>> {
         let index_node = index_site.node;
         let index = self.infer_node_type(index_site, PlaceUse::Read)?;
-        let index = self.reduce_type_head(origin, index)?;
         let receiver_type = self.readable_value(receiver)?;
         let space = dir::MemberSpace::Instance;
 
@@ -891,12 +888,14 @@ impl BodyState<'_, '_> {
                     continue;
                 }
                 keys.push(field.key);
+
                 // read-only fields accept no index writes
                 write_types.extend(field.access.write());
             }
             if keys.is_empty() {
                 return Ok(None);
             }
+
             // writes need every overlapping field writable
             if use_ != PlaceUse::Read && write_types.len() != keys.len() {
                 return Ok(None);
@@ -979,7 +978,7 @@ impl BodyState<'_, '_> {
         let key = method.key(self.strings());
 
         // classify candidates against the checked key while still flowing context into it
-        let index = self.shallow_resolve(index)?;
+        let index = self.resolve_head(index)?;
         let Some((_protocol, call)) = self.select_language_protocol_call(
             origin,
             receiver,
@@ -1032,7 +1031,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         call: dir::Call,
     ) -> CompilerResult<dir::Subscript> {
-        let return_type = self.reduce_type_head(origin, call.return_type)?;
+        let return_type = call.return_type;
         let arms = match self.ty(return_type)? {
             dir::Type::Union(union) => SmallVec::<[_; 4]>::from_slice(
                 self.type_ids(return_type.module_id, union.elements)?,
@@ -1042,9 +1041,19 @@ impl BodyState<'_, '_> {
         let mut borrowed = None;
         let mut missing = SmallVec::<[dir::GlobalTypeId; 2]>::new();
 
-        // separate the required borrow from any declared missing cases
+        // separate the required borrow arm from any declared missing cases
         for arm in arms {
-            let chain = self.form_chain(origin, arm)?;
+            let mut arm = self.check.normalize(origin, arm)?;
+
+            // absorb the forms a stuck head still hides
+            let chain = loop {
+                let chain = self.form_chain(origin, arm)?;
+                let head = self.check.normalize_stuck(origin, chain.base())?;
+                if head == chain.base() || !matches!(self.ty(head)?, dir::Type::Form(_)) {
+                    break chain;
+                }
+                arm = self.check.replace_form_value(origin, arm, head)?;
+            };
             if let Some(candidate) = chain
                 .ownership_form()
                 .filter(|form| matches!(form.form, dir::Form::Borrowed(_)))
@@ -1125,7 +1134,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Option<SubscriptSelection>> {
         let method = SubscriptProtocol::IndexSet;
         let key = method.key(self.strings());
-        let index = self.shallow_resolve(index)?;
+        let index = self.resolve_head(index)?;
         let Some((_protocol, member)) = self.select_language_protocol_member(
             origin,
             receiver.ty,

@@ -4,6 +4,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Cause, CauseId, CauseKind, CheckState, GenericTemplateId, Origin, Relation, TypeSubstitution,
+    Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -44,65 +45,24 @@ pub(in crate::check) struct Constraint {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum ValueUse {
     /// Value assigned into a storage or pattern target.
-    ///
-    /// Examples:
-    /// ```ds
-    /// const value: int32 = 1
-    /// target = source
-    /// const [first] = values
-    /// ```
     Store,
 
     /// Value assigned into a call or subscript parameter.
-    ///
-    /// Examples:
-    /// ```ds
-    /// print(value)
-    /// list[index]
-    /// ```
     Argument,
 
     /// Value observed by a compiler-defined operator.
-    ///
-    /// Examples:
-    /// ```ds
-    /// left === right
-    /// value + increment
-    /// ```
     Operand,
 
     /// Value evaluated as compile-time decorator data.
-    ///
-    /// Example:
-    /// ```ds
-    /// @repr("C")
-    /// ```
     Comptime,
 
     /// Function body value assigned into a return or yield result.
-    ///
-    /// Examples:
-    /// ```ds
-    /// return value
-    /// yield value
-    /// ```
     Output,
 
     /// Control-flow condition assigned to boolean.
-    ///
-    /// Examples:
-    /// ```ds
-    /// if (condition) {}
-    /// while (condition) {}
-    /// ```
     Condition,
 
     /// Value related against a written type without taking it.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value satisfies Shape
-    /// ```
     Satisfies,
 }
 
@@ -203,7 +163,8 @@ impl ConstraintTable {
     pub(in crate::check) fn truncate(&mut self, count: usize) {
         self.constraints.truncate(count);
         self.results.truncate(count);
-        // every id interns one entry in allocation order, so the tables truncate together
+
+        // truncate the tables together, since every id interns one entry in order
         self.interned.truncate(count);
     }
 
@@ -309,9 +270,6 @@ pub(in crate::check) struct FailedCheck {
     /// The failure reason.
     pub(in crate::check) failure: CheckFailure,
     /// Whether an open variable was load-bearing when the check judged.
-    ///
-    /// Provisional failures re-judge at report over solved types; only
-    /// a failure that still fails is a verdict.
     pub(in crate::check) is_provisional: bool,
 }
 
@@ -332,15 +290,22 @@ impl CheckState<'_> {
 
         // require every substituted declaration constraint
         for constraint in constraints {
-            let mut satisfied = self.decide_relation(
+            let holds = self.decide_relation(
                 constraint.origin,
                 constraint.relation,
                 constraint.source,
                 constraint.target,
             )?;
+            let verdict = self.verdict(
+                holds,
+                constraint.origin,
+                constraint.relation,
+                constraint.source,
+                constraint.target,
+            )?;
+            let mut satisfied = verdict != Verdict::Fails;
 
-            // try to prove rigid arguments through their declared bounds,
-            //  only for relations transitive through an upper bound
+            // try rigid arguments through their declared bounds for transitive relations
             if !satisfied
                 && constraint.relation == Relation::Satisfies
                 && let dir::Type::Parameter(parameter) = self.ty(constraint.source)?
@@ -443,6 +408,7 @@ impl CheckState<'_> {
         substitution: &TypeSubstitution,
     ) -> CompilerResult<SmallVec<[Constraint; 2]>> {
         let mut constraints = SmallVec::new();
+
         // receiver predicates govern declarations, not their type applications
         for predicate in self.template_predicates(Some(template)) {
             let requires_receiver = self.type_flags(predicate.left)?.has_this()

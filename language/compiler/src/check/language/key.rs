@@ -26,7 +26,6 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<bool> {
-        let ty = self.reduce_type_head(origin, ty)?;
         if !active.insert(ty) {
             return Ok(false);
         }
@@ -224,8 +223,7 @@ impl CheckState<'_> {
             return self.static_key_from_type(value);
         }
 
-        // key unique symbol variables by their declaration identity;
-        //  unreadable foreign kinds yield no key
+        // key unique symbol variables by their declaration identity
         if self.symbol_kind_maybe(symbol)? != Some(dir::SymbolKind::Variable) {
             return Ok(None);
         }

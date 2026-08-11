@@ -30,7 +30,6 @@ impl BodyState<'_, '_> {
 
         // resolve the written nominal tag like a construction head
         let tag = self.written_construct_tag(origin, module, ty)?;
-        let tag = self.reduce_type_head(origin, tag)?;
         let Some(instance) = self.newtype_payload(origin, tag)? else {
             return self.reject_pattern(node, origin, tag);
         };
@@ -145,7 +144,6 @@ impl BodyState<'_, '_> {
 
         // resolve the written nominal tag like a construction head
         let tag = self.written_construct_tag(origin, module, ty)?;
-        let tag = self.reduce_type_head(origin, tag)?;
         let instance = match self.ty(tag)? {
             dir::Type::Application(instance) => instance,
             _ => return self.reject_pattern(node, origin, tag),
@@ -157,7 +155,7 @@ impl BodyState<'_, '_> {
         let mut matched = input;
         if let Some(instance) = self.decompose_newtype(origin, input)? {
             let backing = instance.backing;
-            matched = self.reduce_type_head(origin, backing)?;
+            matched = backing;
         }
         let arms: SmallVec<[dir::GlobalTypeId; 4]> = match self.ty(matched)? {
             dir::Type::Union(union) => {
@@ -166,7 +164,6 @@ impl BodyState<'_, '_> {
             _ => SmallVec::from_slice(&[matched]),
         };
         for arm in arms {
-            let arm = self.reduce_type_head(origin, arm)?;
             if let dir::Type::Application(arm_instance) = self.ty(arm)?
                 && arm_instance.symbol == instance.symbol
             {
