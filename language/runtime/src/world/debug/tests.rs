@@ -1,11 +1,13 @@
+use std::num::NonZeroU64;
+
 use destack_program as program;
 use destack_repository::RuntimeOptions;
 
 use crate::tests::{TestProgram, TestWorld};
 use crate::world::observation::{Observation, ObservationScope};
 use crate::world::{
-    Breakpoint, BreakpointTarget, FrameSource, InstructionProbe, Probe, ProbeAction, ProbeTarget,
-    RunOutcome, View, Watchpoint,
+    Breakpoint, EventFilter, FrameSource, MemoryFilter, PointFilter, Probe, ProbeAction,
+    ProbeFilter, RunOutcome, Watchpoint,
 };
 
 /// Runs one task to an explicit bytecode breakpoint and resumes it explicitly.
@@ -47,11 +49,11 @@ entry(v0: int32):
     assert_eq!(runtime.moment(), retained_before);
 
     // inspect the canonical stopped frame through its program layout
-    let view = runtime
+    let image = runtime
         .world_mut()
-        .view(View::Now)
+        .image()
         .expect("current world should be inspectable");
-    let frames = view
+    let frames = image
         .worker_frames(worker_id)
         .expect("stopped worker should be inspectable");
     let mut frames = frames.into_iter();
@@ -62,17 +64,23 @@ entry(v0: int32):
         frames.next().is_none(),
         "stopped worker should retain one frame"
     );
-    assert_eq!(frame.source, FrameSource::Retained { runnable_id });
-    let program = view
+    assert_eq!(
+        frame.source,
+        FrameSource::Retained {
+            runnable_id,
+            fiber_id: program::FiberId::new(0, 1),
+        }
+    );
+    let program = image
         .program(frame.runtime_id)
         .expect("stopped runtime should retain its program");
     let state = program
-        .frame_state(frame.frame_state())
+        .frame_state(frame.frame_state)
         .expect("stopped frame state should exist");
     // the stop names the breakpoint, while the frame names its resume operation
     assert_eq!(
         program
-            .frame_point(frame.frame_state())
+            .frame_point(frame.frame_state)
             .expect("stopped frame point should exist"),
         program::FramePoint::operation(runtime.point("stop", 1))
     );
@@ -81,7 +89,7 @@ entry(v0: int32):
         .expect("stopped frame layout should exist");
     let slots = program.frame_slots(layout);
     assert_eq!(slots[0].offset, 0);
-    let bytes = frame.bytes();
+    let bytes = frame.bytes.as_slice();
     let value = i32::from_le_bytes(
         bytes
             .try_into()
@@ -89,9 +97,9 @@ entry(v0: int32):
     );
     assert_eq!(value, 313);
 
-    // continuing the stop should complete the retained execution
-    assert_eq!(runtime.run_continue(), RunOutcome::Progressed);
-    assert_eq!(runtime.run_continue(), RunOutcome::Idle);
+    // resume the stop to complete the retained execution
+    assert_eq!(runtime.resume(stop), RunOutcome::Progressed);
+    assert_eq!(runtime.run_task(), RunOutcome::Idle);
 }
 
 /// Runs one task to a runtime breakpoint and resumes it explicitly.
@@ -114,7 +122,7 @@ entry(v0: int32):
     let point = runtime.point("run", 0);
     let breakpoint_id = runtime
         .world_mut()
-        .add_breakpoint(BreakpointTarget {
+        .add_breakpoint(PointFilter {
             runtime_id: Some(runtime_id),
             worker_id: Some(worker_id),
             point,
@@ -168,9 +176,9 @@ entry(v0: int32):
     );
     assert_eq!(after_stop[0].moment, stop.moment);
 
-    // continuing the stop skips the same breakpoint once and completes
-    assert_eq!(runtime.run_continue(), RunOutcome::Progressed);
-    assert_eq!(runtime.run_continue(), RunOutcome::Idle);
+    // resume after the breakpoint without stopping at it again
+    assert_eq!(runtime.resume(stop), RunOutcome::Progressed);
+    assert_eq!(runtime.run_task(), RunOutcome::Idle);
 }
 
 /// Ignores a disabled runtime breakpoint while running the selected point.
@@ -190,17 +198,20 @@ entry(v0: int32):
     let runtime_id = runtime.runtime_id();
     let worker_id = runtime.default_worker_id();
     let point = runtime.point("run", 0);
+    let selector = PointFilter {
+        runtime_id: Some(runtime_id),
+        worker_id: Some(worker_id),
+        point,
+    };
     let breakpoint_id = runtime
         .world_mut()
-        .add_breakpoint(BreakpointTarget {
-            runtime_id: Some(runtime_id),
-            worker_id: Some(worker_id),
-            point,
-        })
+        .add_breakpoint(selector)
         .expect("breakpoint should add");
+    let mut breakpoint = Breakpoint::new(breakpoint_id, selector);
+    breakpoint.is_enabled = false;
     runtime
         .world_mut()
-        .disable_breakpoint(breakpoint_id)
+        .update_breakpoint(breakpoint)
         .expect("breakpoint should disable");
 
     // enqueue work that would hit the breakpoint if it were enabled
@@ -230,7 +241,7 @@ entry(v0: int32):
     let point = runtime.point("run", 0);
     runtime
         .world_mut()
-        .add_breakpoint(BreakpointTarget {
+        .add_breakpoint(PointFilter {
             runtime_id: Some(runtime_id),
             worker_id: Some(other_worker_id),
             point,
@@ -269,7 +280,7 @@ entry(v0: int32):
     let other = runtime.point("other", 0);
     let breakpoint_id = runtime
         .world_mut()
-        .add_breakpoint(BreakpointTarget {
+        .add_breakpoint(PointFilter {
             runtime_id: Some(runtime_id),
             worker_id: Some(worker_id),
             point: other,
@@ -281,7 +292,7 @@ entry(v0: int32):
         .world_mut()
         .update_breakpoint(Breakpoint::new(
             breakpoint_id,
-            BreakpointTarget {
+            PointFilter {
                 runtime_id: Some(runtime_id),
                 worker_id: Some(worker_id),
                 point,
@@ -321,7 +332,7 @@ entry(v0: int32):
     let point = runtime.point("run", 0);
     let breakpoint_id = runtime
         .world_mut()
-        .add_breakpoint(BreakpointTarget {
+        .add_breakpoint(PointFilter {
             runtime_id: Some(runtime_id),
             worker_id: Some(worker_id),
             point,
@@ -358,7 +369,7 @@ entry(v0: int32):
     let point = runtime.point("run", 0);
     let first_breakpoint_id = runtime
         .world_mut()
-        .add_breakpoint(BreakpointTarget {
+        .add_breakpoint(PointFilter {
             runtime_id: Some(runtime_id),
             worker_id: Some(worker_id),
             point,
@@ -366,7 +377,7 @@ entry(v0: int32):
         .expect("breakpoint should add");
     let _second_breakpoint_id = runtime
         .world_mut()
-        .add_breakpoint(BreakpointTarget {
+        .add_breakpoint(PointFilter {
             runtime_id: Some(runtime_id),
             worker_id: Some(worker_id),
             point,
@@ -384,8 +395,8 @@ entry(v0: int32):
             point,
         }
     );
-    assert_eq!(runtime.run_continue(), RunOutcome::Progressed);
-    assert_eq!(runtime.run_continue(), RunOutcome::Idle);
+    assert_eq!(runtime.resume(stop), RunOutcome::Progressed);
+    assert_eq!(runtime.run_task(), RunOutcome::Idle);
 }
 
 /// Applies debugger mutations symmetrically.
@@ -409,7 +420,7 @@ entry(v0: int32):
     // add the three debugger nouns
     let breakpoint_id = runtime
         .world_mut()
-        .add_breakpoint(BreakpointTarget {
+        .add_breakpoint(PointFilter {
             runtime_id: Some(runtime_id),
             worker_id: Some(worker_id),
             point,
@@ -417,71 +428,73 @@ entry(v0: int32):
         .expect("breakpoint should add");
     let watchpoint_id = runtime
         .world_mut()
-        .add_watchpoint(
-            Some(runtime_id),
-            Some(worker_id),
-            program::MemoryAccess::Write,
-            program::MemoryTarget::Any,
-        )
+        .add_watchpoint(MemoryFilter {
+            runtime_id: Some(runtime_id),
+            worker_id: Some(worker_id),
+            access: program::MemoryAccess::Write,
+            target: program::MemoryTarget::Any,
+        })
         .expect("watchpoint should add");
     let probe_id = runtime
         .world_mut()
         .add_probe(
-            ProbeTarget::Instruction(InstructionProbe {
+            ProbeFilter {
                 runtime_id: Some(runtime_id),
                 worker_id: Some(worker_id),
-                point,
-            }),
+                fiber_id: None,
+                event: EventFilter::Point { point: Some(point) },
+            },
             ProbeAction::Count,
         )
         .expect("probe should add");
 
-    // update and disable each noun through the same mutation path
+    // update and disable each debugger rule through one mutation
+    let mut breakpoint = Breakpoint::new(
+        breakpoint_id,
+        PointFilter {
+            runtime_id: None,
+            worker_id: Some(worker_id),
+            point,
+        },
+    );
+    breakpoint.is_enabled = false;
     runtime
         .world_mut()
-        .update_breakpoint(Breakpoint::new(
-            breakpoint_id,
-            BreakpointTarget {
-                runtime_id: None,
-                worker_id: Some(worker_id),
-                point,
-            },
-        ))
+        .update_breakpoint(breakpoint)
         .expect("breakpoint should update");
+
+    let mut watchpoint = Watchpoint::new(
+        watchpoint_id,
+        MemoryFilter {
+            runtime_id: None,
+            worker_id: Some(worker_id),
+            access: program::MemoryAccess::Read,
+            target: program::MemoryTarget::Any,
+        },
+    );
+    watchpoint.is_enabled = false;
     runtime
         .world_mut()
-        .update_watchpoint(Watchpoint::new(
-            watchpoint_id,
-            None,
-            Some(worker_id),
-            program::MemoryAccess::Read,
-            program::MemoryTarget::Any,
-        ))
+        .update_watchpoint(watchpoint)
         .expect("watchpoint should update");
+
+    let mut probe = Probe::new(
+        probe_id,
+        ProbeFilter {
+            runtime_id: None,
+            worker_id: Some(worker_id),
+            fiber_id: None,
+            event: EventFilter::Point { point: Some(point) },
+        },
+        ProbeAction::Observe {
+            interval: NonZeroU64::MIN,
+        },
+    );
+    probe.is_enabled = false;
     runtime
         .world_mut()
-        .update_probe(Probe::new(
-            probe_id,
-            ProbeTarget::Instruction(InstructionProbe {
-                runtime_id: None,
-                worker_id: Some(worker_id),
-                point,
-            }),
-            ProbeAction::Observe,
-        ))
+        .update_probe(probe)
         .expect("probe should update");
-    runtime
-        .world_mut()
-        .disable_breakpoint(breakpoint_id)
-        .expect("breakpoint should disable");
-    runtime
-        .world_mut()
-        .disable_watchpoint(watchpoint_id)
-        .expect("watchpoint should disable");
-    runtime
-        .world_mut()
-        .disable_probe(probe_id)
-        .expect("probe should disable");
 
     // remove all three and verify durable debugger state is empty
     runtime
@@ -498,4 +511,100 @@ entry(v0: int32):
         .expect("probe should remove");
 
     assert!(runtime.world().debugger().is_empty());
+}
+
+/// Counts every selected event and emits observations at the configured interval.
+#[test]
+fn test_run_point_probes() {
+    let options = RuntimeOptions::default();
+    let program = TestProgram::mir(
+        r#"
+export function run(v0: int32): int32 {
+entry(v0: int32):
+    return v0
+}
+"#,
+    )
+    .compile_native();
+    let mut runtime = TestWorld::build(&options, program);
+    let runtime_id = runtime.runtime_id();
+    let worker_id = runtime.default_worker_id();
+    let point = runtime.point("run", 0);
+    let filter = ProbeFilter {
+        runtime_id: Some(runtime_id),
+        worker_id: Some(worker_id),
+        fiber_id: None,
+        event: EventFilter::Point { point: Some(point) },
+    };
+    let count_probe = runtime
+        .world_mut()
+        .add_probe(filter, ProbeAction::Count)
+        .expect("count probe should add");
+    let observe_probe = runtime
+        .world_mut()
+        .add_probe(
+            filter,
+            ProbeAction::Observe {
+                interval: NonZeroU64::new(2).expect("probe interval should be nonzero"),
+            },
+        )
+        .expect("observation probe should add");
+    let after_probe = runtime
+        .world()
+        .observations()
+        .records_after(None)
+        .into_iter()
+        .last()
+        .expect("probe mutation should emit an observation");
+
+    // execute the selected point twice through the native fallback path
+    let first_task = runtime.enqueue_task(worker_id, "run", 1);
+    let second_task = runtime.enqueue_task(worker_id, "run", 2);
+    assert_eq!(runtime.run_task(), RunOutcome::Progressed);
+    assert_eq!(runtime.run_task(), RunOutcome::Progressed);
+
+    // retain exact counts for both actions in captured World state
+    let image = runtime
+        .world_mut()
+        .image()
+        .expect("probed World should be capturable");
+    let probe_counts = image
+        .debugger()
+        .probes()
+        .iter()
+        .map(|probe| (probe.id, probe.hit_count))
+        .collect::<Vec<_>>();
+    assert_eq!(probe_counts, vec![(count_probe, 2), (observe_probe, 2)]);
+
+    // emit only the second selected point at the configured interval
+    let observations = runtime
+        .world()
+        .observations()
+        .records_after(Some(after_probe.sequence))
+        .into_iter()
+        .map(|entry| entry.observation)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        observations,
+        vec![
+            Observation::TaskRan {
+                runtime_id,
+                worker_id,
+                task_id: first_task,
+            },
+            Observation::ProbeHit {
+                probe_id: observe_probe,
+                count: 2,
+                runtime_id,
+                worker_id,
+                fiber_id: Some(program::FiberId::new(0, 2)),
+                event: program::Event::Point { point },
+            },
+            Observation::TaskRan {
+                runtime_id,
+                worker_id,
+                task_id: second_task,
+            },
+        ]
+    );
 }

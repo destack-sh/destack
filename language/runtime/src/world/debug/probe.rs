@@ -1,125 +1,253 @@
 use std::num::NonZeroU64;
 
 use destack_program as program;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::worker::WorkerId;
 use crate::world::RuntimeId;
 
-/// Runtime probe identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ProbeId(u64);
-
-/// Runtime probe definition.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// One installed runtime Probe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Probe {
     /// Stable probe identifier.
     pub id: ProbeId,
-    /// Runtime event selected by this probe.
-    pub target: ProbeTarget,
+    /// Runtime activity selected by this probe.
+    pub filter: ProbeFilter,
     /// Action to perform when this probe matches.
     pub action: ProbeAction,
     /// Whether this probe can currently match.
     pub is_enabled: bool,
+    /// Number of Program execution events matched by this Probe.
+    pub hit_count: u64,
 }
 
-/// Runtime event selected by one probe.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ProbeTarget {
-    /// Executable program point selected by the probe.
-    Instruction(InstructionProbe),
-    /// Memory access selected by the probe.
-    Memory(MemoryProbe),
-    /// Allocation event selected by the probe.
-    Allocation(AllocationProbe),
-    /// Frame event selected by the probe.
-    Frame(FrameProbe),
-    /// Binding call selected by the probe.
-    Binding(BindingProbe),
+/// One filtered Program execution event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ProbeFilter {
+    /// Runtime selected by the filter, or every Runtime when absent.
+    pub runtime_id: Option<RuntimeId>,
+    /// Worker selected by the filter, or every Worker when absent.
+    pub worker_id: Option<WorkerId>,
+    /// Fiber selected by the filter, or every execution when absent.
+    pub fiber_id: Option<program::FiberId>,
+    /// Program execution event selected by the filter.
+    pub event: EventFilter,
 }
 
 /// Probe action.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ProbeAction {
-    /// Emit one observation for each matching hit.
-    Observe,
+    /// Emit observations at one matching-hit interval.
+    Observe {
+        /// The number of matching hits between observations.
+        interval: NonZeroU64,
+    },
     /// Count matching hits.
     Count,
-    /// Sample matching hits.
-    Sample {
-        /// Sampling interval in matching hits.
-        interval: NonZeroU64,
+}
+
+/// One Program execution event filter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum EventFilter {
+    /// Program points, optionally restricted to one exact point.
+    Point {
+        /// The selected Program point, or every point when absent.
+        point: Option<program::ProgramPoint>,
+    },
+    /// Control-flow edge events.
+    Edge {
+        /// The selected source point, or every source when absent.
+        source: Option<program::ProgramPoint>,
+        /// The selected target point, or every target when absent.
+        target: Option<program::ProgramPoint>,
+    },
+    /// Function call events.
+    Call {
+        /// The selected Program point, or every call point when absent.
+        point: Option<program::ProgramPoint>,
+        /// The selected callee, or every callee when absent.
+        function: Option<program::FunctionId>,
+    },
+    /// Frame events.
+    Frame {
+        /// The selected frame event, or every frame event when absent.
+        event: Option<program::FrameEvent>,
+        /// The selected function, or every function when absent.
+        function: Option<program::FunctionId>,
+    },
+    /// Allocation events.
+    Allocation {
+        /// The selected Program point, or every allocation point when absent.
+        point: Option<program::ProgramPoint>,
+        /// The selected result type, or every allocation type when absent.
+        result_type: Option<program::TypeId>,
+    },
+    /// Memory access events.
+    Memory {
+        /// The selected memory access operation.
+        access: program::MemoryAccess,
+        /// The selected memory target.
+        target: program::MemoryTarget,
+    },
+    /// Runtime binding events.
+    Binding {
+        /// The selected binding event, or every binding event when absent.
+        event: Option<program::BindingEvent>,
+        /// The selected binding, or every binding when absent.
+        binding_id: Option<program::BindingId>,
+    },
+    /// Language panic events.
+    Panic {
+        /// The selected Program point, or every panic point when absent.
+        point: Option<program::ProgramPoint>,
+        /// The selected value type, or every panic type when absent.
+        ty: Option<program::TypeId>,
     },
 }
 
-/// Instruction probe target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct InstructionProbe {
-    /// Runtime that owns the executing program.
-    pub runtime_id: Option<RuntimeId>,
-    /// Worker that executes the program point.
-    pub worker_id: Option<WorkerId>,
-    /// Program point selected by the probe.
-    pub point: program::ProgramPoint,
+/// Runtime probe identifier.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
+pub struct ProbeId(u64);
+
+impl Probe {
+    /// Create one enabled probe.
+    pub const fn new(id: ProbeId, filter: ProbeFilter, action: ProbeAction) -> Self {
+        Self {
+            id,
+            filter,
+            action,
+            is_enabled: true,
+            hit_count: 0,
+        }
+    }
 }
 
-/// Memory probe target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct MemoryProbe {
-    /// Runtime that owns the executing program.
-    pub runtime_id: Option<RuntimeId>,
-    /// Worker that executes the memory access.
-    pub worker_id: Option<WorkerId>,
-    /// Memory access operation selected by the probe.
-    pub access: program::MemoryAccess,
-    /// Memory target selected by the probe.
-    pub target: program::MemoryTarget,
+impl ProbeFilter {
+    /// Return whether this filter selects one execution event.
+    pub fn selects(
+        &self,
+        runtime_id: RuntimeId,
+        worker_id: WorkerId,
+        fiber_id: Option<program::FiberId>,
+        event: program::Event,
+    ) -> bool {
+        let runtime_matches = self
+            .runtime_id
+            .is_none_or(|selected| selected == runtime_id);
+        let worker_matches = self.worker_id.is_none_or(|selected| selected == worker_id);
+        let fiber_matches = self
+            .fiber_id
+            .is_none_or(|selected| Some(selected) == fiber_id);
+
+        runtime_matches && worker_matches && fiber_matches && self.event.selects(event)
+    }
+
+    /// Return whether this filter can select events from one Worker.
+    pub fn selects_worker(&self, runtime_id: RuntimeId, worker_id: WorkerId) -> bool {
+        let runtime_matches = self
+            .runtime_id
+            .is_none_or(|selected| selected == runtime_id);
+        let worker_matches = self.worker_id.is_none_or(|selected| selected == worker_id);
+
+        runtime_matches && worker_matches
+    }
 }
 
-/// Allocation probe target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct AllocationProbe {
-    /// Runtime that owns the executing program.
-    pub runtime_id: Option<RuntimeId>,
-    /// Worker that performs the allocation.
-    pub worker_id: Option<WorkerId>,
-    /// Program point selected by this probe.
-    pub point: Option<program::ProgramPoint>,
-    /// Allocation type selected by this probe.
-    pub ty: Option<program::TypeId>,
-}
+impl EventFilter {
+    /// Return this filter's Program execution event category.
+    pub const fn kind(self) -> program::EventKind {
+        match self {
+            Self::Point { .. } => program::EventKind::Point,
+            Self::Edge { .. } => program::EventKind::Edge,
+            Self::Call { .. } => program::EventKind::Call,
+            Self::Frame { .. } => program::EventKind::Frame,
+            Self::Allocation { .. } => program::EventKind::Allocation,
+            Self::Memory { .. } => program::EventKind::Memory,
+            Self::Binding { .. } => program::EventKind::Binding,
+            Self::Panic { .. } => program::EventKind::Panic,
+        }
+    }
 
-/// Frame probe target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct FrameProbe {
-    /// Runtime that owns the executing program.
-    pub runtime_id: Option<RuntimeId>,
-    /// Worker that owns the frame.
-    pub worker_id: Option<WorkerId>,
-    /// Frame event selected by this probe.
-    pub event: FrameEvent,
-    /// Function selected by this probe.
-    pub function: Option<program::FunctionId>,
-}
+    /// Return whether this filter selects one Program execution event.
+    pub fn selects(self, event: program::Event) -> bool {
+        match (self, event) {
+            (Self::Point { point }, program::Event::Point { point: actual }) => {
+                point.is_none_or(|selected| selected == actual)
+            }
+            (Self::Edge { source, target }, program::Event::Edge { site }) => {
+                let source_matches = source.is_none_or(|selected| selected == site.source);
+                let target_matches = target.is_none_or(|selected| selected == site.target);
 
-/// Binding probe target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct BindingProbe {
-    /// Runtime that owns the executing program.
-    pub runtime_id: Option<RuntimeId>,
-    /// Worker that calls the binding.
-    pub worker_id: Option<WorkerId>,
-    /// Binding selected by this probe.
-    pub binding_id: Option<program::BindingId>,
-}
+                source_matches && target_matches
+            }
+            (
+                Self::Call { point, function },
+                program::Event::Call {
+                    site,
+                    function: actual,
+                },
+            ) => {
+                let point_matches = point.is_none_or(|selected| selected == site.point);
+                let function_matches = function.is_none_or(|selected| selected == actual);
 
-/// Frame event selected by one probe.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum FrameEvent {
-    /// Frame entered execution.
-    Enter,
-    /// Frame returned normally.
-    Return,
+                point_matches && function_matches
+            }
+            (
+                Self::Frame { event, function },
+                program::Event::Frame {
+                    event: actual,
+                    function: actual_function,
+                },
+            ) => {
+                let event_matches = event.is_none_or(|selected| selected == actual);
+                let function_matches = function.is_none_or(|selected| selected == actual_function);
+
+                event_matches && function_matches
+            }
+            (Self::Allocation { point, result_type }, program::Event::Allocation { site, .. }) => {
+                let point_matches = point.is_none_or(|selected| selected == site.point);
+                let type_matches = result_type.is_none_or(|selected| selected == site.result_type);
+
+                point_matches && type_matches
+            }
+            (
+                Self::Memory { access, target },
+                program::Event::Memory {
+                    site,
+                    access: actual,
+                    range,
+                },
+            ) => access.selects(actual) && target.selects(site, range),
+            (
+                Self::Binding { event, binding_id },
+                program::Event::Binding {
+                    event: actual,
+                    binding_id: actual_binding,
+                },
+            ) => {
+                let event_matches = event.is_none_or(|selected| selected == actual);
+                let binding_matches = binding_id.is_none_or(|selected| selected == actual_binding);
+
+                event_matches && binding_matches
+            }
+            (
+                Self::Panic { point, ty },
+                program::Event::Panic {
+                    point: actual,
+                    ty: actual_type,
+                },
+            ) => {
+                let point_matches = point.is_none_or(|selected| selected == actual);
+                let type_matches = ty.is_none_or(|selected| Some(selected) == actual_type);
+
+                point_matches && type_matches
+            }
+            _ => false,
+        }
+    }
 }
 
 impl ProbeId {
@@ -131,17 +259,5 @@ impl ProbeId {
     /// Return the raw probe identifier value.
     pub const fn get(self) -> u64 {
         self.0
-    }
-}
-
-impl Probe {
-    /// Create one enabled probe.
-    pub const fn new(id: ProbeId, target: ProbeTarget, action: ProbeAction) -> Self {
-        Self {
-            id,
-            target,
-            action,
-            is_enabled: true,
-        }
     }
 }

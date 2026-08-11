@@ -2,12 +2,13 @@ use serde::{Deserialize, Serialize};
 
 use destack_program as program;
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::worker::WorkerId;
 use crate::world::{ProbeId, RuntimeId};
 
-use super::{Breakpoint, Probe, Watchpoint};
+use super::{Breakpoint, Probe, ProbeAction, Watchpoint};
 
-/// Debugger configuration for one world.
+/// Debugger state for one World.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Debugger {
     /// Active breakpoints.
@@ -110,23 +111,7 @@ impl Debugger {
             return false;
         };
 
-        self.breakpoints.swap_remove(index);
-        self.advance_generation();
-
-        true
-    }
-
-    /// Set one breakpoint enabled state.
-    pub fn set_breakpoint_enabled(&mut self, id: program::BreakpointId, is_enabled: bool) -> bool {
-        let Some(breakpoint) = self
-            .breakpoints
-            .iter_mut()
-            .find(|breakpoint| breakpoint.id == id)
-        else {
-            return false;
-        };
-
-        breakpoint.is_enabled = is_enabled;
+        self.breakpoints.remove(index);
         self.advance_generation();
 
         true
@@ -164,23 +149,7 @@ impl Debugger {
             return false;
         };
 
-        self.watchpoints.swap_remove(index);
-        self.advance_generation();
-
-        true
-    }
-
-    /// Set one watchpoint enabled state.
-    pub fn set_watchpoint_enabled(&mut self, id: program::WatchpointId, is_enabled: bool) -> bool {
-        let Some(watchpoint) = self
-            .watchpoints
-            .iter_mut()
-            .find(|watchpoint| watchpoint.id == id)
-        else {
-            return false;
-        };
-
-        watchpoint.is_enabled = is_enabled;
+        self.watchpoints.remove(index);
         self.advance_generation();
 
         true
@@ -214,19 +183,7 @@ impl Debugger {
             return false;
         };
 
-        self.probes.swap_remove(index);
-        self.advance_generation();
-
-        true
-    }
-
-    /// Set one probe enabled state.
-    pub fn set_probe_enabled(&mut self, id: ProbeId, is_enabled: bool) -> bool {
-        let Some(probe) = self.probes.iter_mut().find(|probe| probe.id == id) else {
-            return false;
-        };
-
-        probe.is_enabled = is_enabled;
+        self.probes.remove(index);
         self.advance_generation();
 
         true
@@ -241,15 +198,15 @@ impl Debugger {
             if !breakpoint.is_enabled {
                 continue;
             }
-            if !breakpoint.target.selects(runtime_id, worker_id) {
+            if !breakpoint.filter.selects_worker(runtime_id, worker_id) {
                 continue;
             }
 
             instructions.push(program::StopPoint::new(
-                breakpoint.target.point,
+                breakpoint.filter.point,
                 program::StopReason::Breakpoint {
                     breakpoint_id: breakpoint.id,
-                    point: breakpoint.target.point,
+                    point: breakpoint.filter.point,
                 },
             ));
         }
@@ -266,7 +223,7 @@ impl Debugger {
             if !watchpoint.is_enabled {
                 continue;
             }
-            if !watchpoint.selects(runtime_id, worker_id) {
+            if !watchpoint.filter.selects_worker(runtime_id, worker_id) {
                 continue;
             }
 
@@ -274,6 +231,56 @@ impl Debugger {
         }
 
         program::WatchSet::new(memory)
+    }
+
+    /// Return the Program event categories probed for one Worker.
+    pub fn probe_events(&self, runtime_id: RuntimeId, worker_id: WorkerId) -> program::EventSet {
+        let mut events = program::EventSet::default();
+
+        // collect enabled Probe categories for this exact Worker
+        for probe in &self.probes {
+            let probe = *probe;
+            if !probe.is_enabled || !probe.filter.selects_worker(runtime_id, worker_id) {
+                continue;
+            }
+
+            events.insert(probe.filter.event.kind());
+        }
+
+        events
+    }
+
+    /// Process one instrumentable Program execution event.
+    pub fn probe(
+        &mut self,
+        runtime_id: RuntimeId,
+        worker_id: WorkerId,
+        fiber_id: Option<program::FiberId>,
+        event: program::Event,
+        mut observe: impl FnMut(ProbeId, u64) -> RuntimeResult<()>,
+    ) -> RuntimeResult<()> {
+        for probe in &mut self.probes {
+            if !probe.is_enabled || !probe.filter.selects(runtime_id, worker_id, fiber_id, event) {
+                continue;
+            }
+
+            // advance the durable hit count for cadence and inspection
+            probe.hit_count = probe.hit_count.checked_add(1).ok_or_else(|| {
+                RuntimeError::Internal {
+                    message: format!("Probe {} matching-event count exhausted", probe.id.get()),
+                }
+                .boxed()
+            })?;
+
+            // materialize only observations selected by the configured cadence
+            if let ProbeAction::Observe { interval } = probe.action
+                && probe.hit_count % interval.get() == 0
+            {
+                observe(probe.id, probe.hit_count)?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Advance the debugger generation after one configuration mutation.
