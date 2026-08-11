@@ -2,7 +2,6 @@ use std::fmt;
 
 use destack_memory::MemoryImage;
 use destack_program as program;
-use destack_program::FrameStateId;
 use destack_serde::Reflect;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
@@ -15,48 +14,48 @@ use crate::worker::{WorkerId, WorkerImage};
 /// One captured execution frame.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Frame {
+    /// Frame identity.
+    pub id: FrameId,
+    /// Retained Runnable that owns the frame, when execution is stopped.
+    pub runnable_id: Option<RunnableId>,
+    /// Captured frame state identifier.
+    pub frame_state_id: program::FrameStateId,
+    /// Canonical frame bytes.
+    pub bytes: Vec<u8>,
+}
+
+/// Stable identity of one captured execution frame at one Moment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct FrameId {
     /// Runtime that owns the frame.
     pub runtime_id: RuntimeId,
     /// Worker that owns the frame.
     pub worker_id: WorkerId,
-    /// Retained execution source for the frame.
-    pub source: FrameSource,
-    /// Captured frame state.
-    pub frame_state: FrameStateId,
-    /// Canonical live frame bytes.
-    pub bytes: Vec<u8>,
-}
-
-/// Retained execution source for one frame.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum FrameSource {
-    /// Execution retained at one handshake or debugger stop.
-    Retained {
-        /// Retained runnable identifier.
-        runnable_id: RunnableId,
-        /// Fiber identity whose execution is retained.
-        fiber_id: program::FiberId,
-    },
-    /// Fiber parked or woken in the scheduler.
-    Fiber {
-        /// Scheduler fiber identity.
-        fiber_id: program::FiberId,
-    },
+    /// Fiber that owns the frame.
+    pub fiber_id: program::FiberId,
+    /// Frame depth from the active frame.
+    pub depth: u32,
 }
 
 impl Frame {
     /// Create one captured Frame.
     fn new(
         worker: &WorkerImage,
-        source: FrameSource,
-        frame_state: FrameStateId,
+        fiber_id: program::FiberId,
+        depth: u32,
+        runnable_id: Option<RunnableId>,
+        frame_state_id: program::FrameStateId,
         bytes: Vec<u8>,
     ) -> Self {
         Self {
-            runtime_id: worker.runtime_id,
-            worker_id: worker.worker_id,
-            source,
-            frame_state,
+            id: FrameId {
+                runtime_id: worker.runtime_id,
+                worker_id: worker.worker_id,
+                fiber_id,
+                depth,
+            },
+            runnable_id,
+            frame_state_id,
             bytes,
         }
     }
@@ -67,10 +66,9 @@ impl fmt::Debug for Frame {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Frame")
-            .field("runtime_id", &self.runtime_id)
-            .field("worker_id", &self.worker_id)
-            .field("source", &self.source)
-            .field("frame_state", &self.frame_state)
+            .field("id", &self.id)
+            .field("runnable_id", &self.runnable_id)
+            .field("frame_state_id", &self.frame_state_id)
             .finish()
     }
 }
@@ -95,18 +93,20 @@ impl WorkerImage {
                 ))
                 .boxed());
             };
-            let source = FrameSource::Retained {
-                runnable_id: retained.id,
-                fiber_id: retained.fiber_id,
-            };
-            self.append_fiber_frames(&machine, memory, source, image, &mut frames)?;
+            self.append_fiber_frames(
+                &machine,
+                memory,
+                retained.fiber_id,
+                Some(retained.id),
+                image,
+                &mut frames,
+            )?;
         }
 
         // expose every parked or woken scheduler fiber
         if let Some(snapshot) = self.event_loop.active() {
             for (fiber_id, image) in snapshot.fibers().executions() {
-                let source = FrameSource::Fiber { fiber_id };
-                self.append_fiber_frames(&machine, memory, source, image, &mut frames)?;
+                self.append_fiber_frames(&machine, memory, fiber_id, None, image, &mut frames)?;
             }
         }
 
@@ -118,7 +118,8 @@ impl WorkerImage {
         &self,
         machine: &vm::Machine,
         memory: &MemoryImage,
-        source: FrameSource,
+        fiber_id: program::FiberId,
+        runnable_id: Option<RunnableId>,
         image: &vm::FiberImage,
         frames: &mut Vec<Frame>,
     ) -> RuntimeResult<()> {
@@ -127,8 +128,17 @@ impl WorkerImage {
             .project_frames(image, &mut read)
             .map_err(Box::<RuntimeError>::from)?;
 
-        for (state, bytes) in projected {
-            frames.push(Frame::new(self, source, state, bytes));
+        for (depth, (frame_state_id, bytes)) in projected.into_iter().rev().enumerate() {
+            let depth = u32::try_from(depth)
+                .map_err(|_| RuntimeError::inconsistent_image("fiber frame depth exceeds u32"))?;
+            frames.push(Frame::new(
+                self,
+                fiber_id,
+                depth,
+                runnable_id,
+                frame_state_id,
+                bytes,
+            ));
         }
 
         Ok(())

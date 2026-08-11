@@ -6,8 +6,8 @@ use destack_repository::RuntimeOptions;
 use crate::tests::{TestProgram, TestWorld};
 use crate::world::observation::{Observation, ObservationScope};
 use crate::world::{
-    Breakpoint, EventFilter, FrameSource, MemoryFilter, PointFilter, Probe, ProbeAction,
-    ProbeFilter, RunOutcome, Watchpoint,
+    Breakpoint, EventFilter, MemoryFilter, PointFilter, Probe, ProbeAction, ProbeFilter,
+    RunOutcome, Watchpoint,
 };
 
 /// Runs one task to an explicit bytecode breakpoint and resumes it explicitly.
@@ -64,23 +64,18 @@ entry(v0: int32):
         frames.next().is_none(),
         "stopped worker should retain one frame"
     );
-    assert_eq!(
-        frame.source,
-        FrameSource::Retained {
-            runnable_id,
-            fiber_id: program::FiberId::new(0, 1),
-        }
-    );
+    assert_eq!(frame.id.fiber_id, program::FiberId::new(0, 1));
+    assert_eq!(frame.runnable_id, Some(runnable_id));
     let program = image
-        .program(frame.runtime_id)
+        .program(frame.id.runtime_id)
         .expect("stopped runtime should retain its program");
     let state = program
-        .frame_state(frame.frame_state)
+        .frame_state(frame.frame_state_id)
         .expect("stopped frame state should exist");
     // the stop names the breakpoint, while the frame names its resume operation
     assert_eq!(
         program
-            .frame_point(frame.frame_state)
+            .frame_point(frame.frame_state_id)
             .expect("stopped frame point should exist"),
         program::FramePoint::operation(runtime.point("stop", 1))
     );

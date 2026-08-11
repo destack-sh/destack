@@ -1,5 +1,6 @@
 mod breakpoint;
 mod debugger;
+mod frame;
 mod probe;
 mod watchpoint;
 
@@ -8,5 +9,6 @@ mod tests;
 
 pub use breakpoint::*;
 pub use debugger::*;
+pub use frame::*;
 pub use probe::*;
 pub use watchpoint::*;
