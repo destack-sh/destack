@@ -10,7 +10,7 @@ use super::timer::TimerQueue;
 use super::{Callback, EventLoop, Runnable, ScheduledTimer, Wake, WakeKey};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 
-/// Durable event-loop state captured at one checkpoint.
+/// Durable event-loop state captured in one World image.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct EventLoopImage {
     /// Next runnable identifier to issue.

@@ -1,5 +1,5 @@
 /// Current World snapshot format version.
-pub const WORLD_SNAPSHOT_FORMAT_VERSION: u32 = 1;
+pub const WORLD_SNAPSHOT_FORMAT_VERSION: u32 = 2;
 
 /// The virtual byte capacity reserved for one 64-bit World memory map.
 #[cfg(target_pointer_width = "64")]

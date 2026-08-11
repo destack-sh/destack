@@ -1,5 +1,5 @@
 /// Current trace format version.
-pub const TRACE_FORMAT_VERSION: u32 = 1;
+pub const TRACE_FORMAT_VERSION: u32 = 2;
 
 /// Default maximum number of entries in one trace chunk.
 pub const TRACE_DEFAULT_MAX_ENTRIES_PER_CHUNK: u32 = 1024;

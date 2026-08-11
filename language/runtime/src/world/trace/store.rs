@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::BranchId;
 use crate::world::trace::{
-    TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES, TRACE_DEFAULT_MAX_ENTRIES_PER_CHUNK, TraceCheckpointIndex,
-    TraceCursor, TraceHeader, TraceTag,
+    TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES, TRACE_DEFAULT_MAX_ENTRIES_PER_CHUNK, TraceCursor,
+    TraceHeader, TraceImageIndex, TraceTag,
 };
 
 use super::chunk::TraceChunk;
@@ -47,8 +47,8 @@ impl TraceSequence {
 pub(super) struct TraceState {
     /// Trace log header metadata.
     header: TraceHeader,
-    /// Checkpoints anchored in this trace.
-    checkpoints: Vec<TraceCheckpointIndex>,
+    /// Images anchored in this trace.
+    images: Vec<TraceImageIndex>,
     /// Next sequence number to assign.
     next_sequence: TraceSequence,
     /// Completed chunks in trace order.
@@ -145,7 +145,7 @@ impl TraceStore {
         Self {
             state: Arc::new(Mutex::new(TraceState {
                 header,
-                checkpoints: Vec::new(),
+                images: Vec::new(),
                 next_sequence,
                 sealed: Vec::new(),
                 active: TraceChunk::new(next_sequence),
@@ -186,11 +186,7 @@ impl TraceStore {
         let next_sequence = state.next_sequence;
         state.seal_active_chunk(next_sequence);
 
-        TraceFile::new(
-            state.header.clone(),
-            state.chunks(),
-            state.checkpoints.clone(),
-        )
+        TraceFile::new(state.header.clone(), state.chunks(), state.images.clone())
     }
 
     /// Restore one full trace file.
@@ -200,11 +196,11 @@ impl TraceStore {
         let mut current = self.state.lock();
         let next_sequence = file.next_sequence()?;
         let (header, chunks, trailer) = file.into_parts();
-        let checkpoints = trailer.checkpoints;
+        let images = trailer.images;
 
         *current = TraceState {
             header,
-            checkpoints,
+            images,
             next_sequence,
             sealed: chunks,
             active: TraceChunk::new(next_sequence),
@@ -266,19 +262,16 @@ impl TraceStore {
         Ok(sequence)
     }
 
-    /// Record a checkpoint index entry with an explicit sequence boundary.
-    pub(crate) fn record_checkpoint_exact(
-        &self,
-        checkpoint: TraceCheckpointIndex,
-    ) -> RuntimeResult<()> {
-        let sequence = checkpoint.sequence.get();
+    /// Record one Image index entry with an explicit sequence boundary.
+    pub(crate) fn record_image_exact(&self, image: TraceImageIndex) -> RuntimeResult<()> {
+        let sequence = image.sequence.get();
 
-        // append the checkpoint entry in sequence order
+        // append the image entry in sequence order
         let mut state = self.state.lock();
         let insert_index = state
-            .checkpoints
+            .images
             .partition_point(|entry| entry.sequence.get() <= sequence);
-        state.checkpoints.insert(insert_index, checkpoint);
+        state.images.insert(insert_index, image);
 
         Ok(())
     }

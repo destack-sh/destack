@@ -17,9 +17,7 @@ use crate::scheduler::{Callback, Invocation, RunnableId, ScheduledTimer, TimerDe
 use crate::tests::{TestProgram, TestWorker};
 use crate::worker::{Worker, WorkerId, WorkerOptions};
 use crate::world::time::Nanos;
-use crate::world::{
-    CheckpointId, Moment, RestoreContext, Run, RunOutcome, Stop, World, WorldSnapshot,
-};
+use crate::world::{ImageId, Moment, RestoreContext, Run, RunOutcome, Stop, World, WorldSnapshot};
 
 /// One world fixture with a selected runtime.
 #[derive(Debug)]
@@ -437,18 +435,19 @@ impl TestWorld {
             .expect("shared test allocation should write");
     }
 
-    /// Create one named world checkpoint.
-    pub(crate) fn checkpoint(&mut self, name: &str) -> CheckpointId {
+    /// Capture one named World image.
+    pub(crate) fn image(&mut self, name: &str) -> ImageId {
         self.world
-            .checkpoint(name)
-            .expect("world checkpoint should capture")
+            .capture(name)
+            .expect("world image should capture")
+            .id
     }
 
-    /// Create one exact snapshot for a checkpoint.
-    pub(crate) fn snapshot(&self, checkpoint: CheckpointId) -> WorldSnapshot {
+    /// Create one exact Snapshot for a retained Image.
+    pub(crate) fn snapshot(&self, image: ImageId) -> WorldSnapshot {
         self.world
-            .snapshot_checkpoint(checkpoint)
-            .expect("world checkpoint should serialize")
+            .snapshot_image(image)
+            .expect("world image should serialize")
     }
 
     /// Restore one exact world snapshot.

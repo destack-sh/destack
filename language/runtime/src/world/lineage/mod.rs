@@ -1,5 +1,4 @@
 mod branch;
-mod checkpoint;
 mod constants;
 mod event;
 mod image;
@@ -13,7 +12,6 @@ mod world;
 mod tests;
 
 pub use branch::*;
-pub use checkpoint::*;
 pub(crate) use constants::*;
 pub use event::*;
 pub use image::*;

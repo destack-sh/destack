@@ -146,11 +146,6 @@ pub enum Entity {
         /// Revision identifier.
         revision_id: u64,
     },
-    /// Durable checkpoint.
-    Checkpoint {
-        /// Checkpoint identifier.
-        checkpoint_id: u64,
-    },
     /// World image.
     Image {
         /// Image identifier.
@@ -365,7 +360,6 @@ impl Entity {
             Self::Resource { .. } => 103,
             Self::Branch { .. } => 115,
             Self::Revision { .. } => 116,
-            Self::Checkpoint { .. } => 117,
             Self::Image { .. } => 118,
             Self::Runtime { .. } => 127,
             Self::Worker { .. } => 128,
@@ -397,7 +391,6 @@ impl Entity {
             }
             Self::Branch { branch_id } => format!("branch {branch_id}"),
             Self::Revision { revision_id } => format!("revision {revision_id}"),
-            Self::Checkpoint { checkpoint_id } => format!("checkpoint {checkpoint_id}"),
             Self::Image { image_id } => format!("image {image_id}"),
             Self::Moment {
                 branch_id,
@@ -616,13 +609,6 @@ impl RuntimeError {
     pub fn revision_not_found(revision_id: u64) -> Self {
         Self::Entity {
             reason: EntityError::NotFound(Entity::Revision { revision_id }),
-        }
-    }
-
-    /// Return a checkpoint-not-found error.
-    pub fn checkpoint_not_found(checkpoint_id: u64) -> Self {
-        Self::Entity {
-            reason: EntityError::NotFound(Entity::Checkpoint { checkpoint_id }),
         }
     }
 

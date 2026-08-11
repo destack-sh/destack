@@ -108,17 +108,19 @@ impl World {
         };
 
         let lineage = self.lineage.read();
-        let image = lineage
-            .image(revision.image_id)
-            .map_err(|error| match error.as_ref() {
-                RuntimeError::Entity {
-                    reason: EntityError::NotFound(Entity::Image { .. }),
-                } => {
-                    RuntimeError::revision_image_missing(revision_id.get(), revision.image_id.get())
-                        .boxed()
-                }
-                _ => error,
-            })?;
+        let image =
+            lineage
+                .world_image(revision.image_id)
+                .map_err(|error| match error.as_ref() {
+                    RuntimeError::Entity {
+                        reason: EntityError::NotFound(Entity::Image { .. }),
+                    } => RuntimeError::revision_image_missing(
+                        revision_id.get(),
+                        revision.image_id.get(),
+                    )
+                    .boxed(),
+                    _ => error,
+                })?;
         let trace_image = lineage.trace_image(revision_id)?;
 
         Ok((revision, image, trace_image))

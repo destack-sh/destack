@@ -2,8 +2,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::{RestoreContext, World, WorldImage};
 
 use super::{
-    Branch, BranchId, Checkpoint, CheckpointId, Event, EventQuery, EventSet, Moment,
-    MomentSequence, WorldEventQuery,
+    Branch, BranchId, Event, EventQuery, EventSet, Image, ImageId, Moment, MomentSequence,
+    WorldEventQuery,
 };
 
 /// One committed-lineage query root over shared lineage.
@@ -47,24 +47,20 @@ impl<'a> LineageQuery<'a> {
         branches
     }
 
-    /// Return metadata for one checkpoint.
-    pub fn checkpoint(self, checkpoint_id: CheckpointId) -> RuntimeResult<Checkpoint> {
+    /// Return one retained Image.
+    pub fn image(self, image_id: ImageId) -> RuntimeResult<Image> {
         let lineage = self.world.lineage.read();
-        let checkpoint = lineage
-            .checkpoints
-            .get(&checkpoint_id)
-            .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
-
-        Ok(checkpoint.clone())
+        lineage.image(image_id)
     }
 
-    /// Return every known checkpoint in stable lineage order.
-    pub fn checkpoints(self) -> Vec<Checkpoint> {
+    /// Return every retained Image in stable lineage order.
+    pub fn images(self) -> Vec<Image> {
         let lineage = self.world.lineage.read();
-        let mut checkpoints = lineage.checkpoints.values().cloned().collect::<Vec<_>>();
-        checkpoints.sort_by_key(|checkpoint| checkpoint.id);
-
-        checkpoints
+        lineage
+            .images
+            .values()
+            .map(|entry| entry.image.clone())
+            .collect()
     }
 
     /// Return one committed moment query root.
@@ -99,7 +95,11 @@ impl<'a> LineageQuery<'a> {
     }
 
     /// Materialize one exact committed Moment as a World image.
-    pub fn image(self, moment: Moment, restore: RestoreContext<'_>) -> RuntimeResult<WorldImage> {
+    pub fn materialize(
+        self,
+        moment: Moment,
+        restore: RestoreContext<'_>,
+    ) -> RuntimeResult<WorldImage> {
         self.require_committed_query_range(
             Moment::new(moment.branch_id, MomentSequence::new(0)),
             moment,

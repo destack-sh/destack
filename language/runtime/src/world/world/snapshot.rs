@@ -1,14 +1,25 @@
+use destack_core::Blob;
+use destack_program as program;
 use destack_repository::{ExecutionMode, ReplayPayloadMode, WorldOptions};
 use destack_serde as serde;
+use destack_serde::Reflect;
 
 use ::serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::lineage::{
-    CheckpointId, ImageId, Lineage, LineageSnapshot, Revision, RevisionId,
+    Image, ImageEntry, ImageId, Lineage, LineageSnapshot, Revision, RevisionId,
 };
+use crate::world::topology::LabelSet;
 
 use super::{RestoreContext, WORLD_SNAPSHOT_FORMAT_VERSION, World, WorldImage};
+
+/// Serialized World image stored as one Blob.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct Snapshot {
+    /// Encoded snapshot payload.
+    pub blob: Blob,
+}
 
 /// Serialized snapshot for one world image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,14 +57,30 @@ impl WorldSnapshot {
             .ok_or_else(|| RuntimeError::revision_not_found(self.revision_id.get()).boxed())
     }
 
-    /// Return the captured image metadata.
-    pub fn image(&self) -> RuntimeResult<&WorldImage> {
+    /// Return the selected captured World image.
+    pub fn world_image(&self) -> RuntimeResult<&WorldImage> {
         let revision = self.revision()?;
 
-        self.lineage.images.get(&revision.image_id).ok_or_else(|| {
-            RuntimeError::revision_image_missing(self.revision_id.get(), revision.image_id.get())
+        self.lineage
+            .images
+            .get(&revision.image_id)
+            .map(|entry| entry.world_image.as_ref())
+            .ok_or_else(|| {
+                RuntimeError::revision_image_missing(
+                    self.revision_id.get(),
+                    revision.image_id.get(),
+                )
                 .boxed()
-        })
+            })
+    }
+
+    /// Iterate over Programs retained by every World image in this Snapshot.
+    pub fn programs(&self) -> impl Iterator<Item = &program::Program> {
+        self.lineage
+            .images
+            .values()
+            .flat_map(|entry| entry.world_image.runtimes().values())
+            .map(|runtime| runtime.program.as_ref())
     }
 
     /// Encode one snapshot into bytes.
@@ -113,16 +140,7 @@ impl World {
     /// Return the revision that owns one stored image.
     pub fn revision_for_image(&self, image_id: ImageId) -> RuntimeResult<RevisionId> {
         let lineage = self.lineage.read();
-        lineage.image(image_id)?;
-        let revision = lineage.revision_for_image_id(image_id).ok_or_else(|| {
-            RuntimeError::inconsistent_image(format!(
-                "image {} does not belong to one revision",
-                image_id.get()
-            ))
-            .boxed()
-        })?;
-
-        Ok(revision)
+        lineage.image_revision(image_id)
     }
 
     /// Create one lineage-wide serialized snapshot from one stored image.
@@ -131,7 +149,7 @@ impl World {
             let revision = self.revision_for_image(image_id)?;
             let lineage = self.lineage.read();
 
-            (revision, lineage.full_snapshot()?)
+            (revision, lineage.full_snapshot())
         };
 
         Ok(WorldSnapshot::new(
@@ -196,8 +214,20 @@ impl World {
             &trace_image,
             restore,
         )?;
-        let mut lineage_snapshot = self.lineage.read().full_snapshot()?;
-        lineage_snapshot.images.insert(revision.image_id, image);
+        let mut lineage_snapshot = self.lineage.read().full_snapshot();
+        lineage_snapshot.images.insert(
+            revision.image_id,
+            ImageEntry::new(
+                Image {
+                    id: revision.image_id,
+                    moment: revision.moment(),
+                    name: None,
+                    labels: LabelSet::new(),
+                },
+                revision_id,
+                image.into(),
+            ),
+        );
 
         Ok(WorldSnapshot::new(
             self.snapshot_options(),
@@ -217,7 +247,7 @@ impl World {
             let revision = lineage.revision(revision_id)?;
 
             if lineage.contains_image(revision.image_id) {
-                let image = lineage.image(revision.image_id)?;
+                let image = lineage.world_image(revision.image_id)?;
                 let trace_image = lineage.trace_image(revision_id)?;
 
                 (image.as_ref().clone(), trace_image.as_ref().clone())
@@ -256,35 +286,16 @@ impl World {
         ))
     }
 
-    /// Create one lineage-wide serialized snapshot from one stored checkpoint.
-    pub fn snapshot_lineage_checkpoint(
-        &self,
-        checkpoint_id: CheckpointId,
-    ) -> RuntimeResult<WorldSnapshot> {
-        let revision = {
-            let lineage = self.lineage.read();
-            let checkpoint = lineage
-                .checkpoints
-                .get(&checkpoint_id)
-                .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
-
-            checkpoint.revision_id
-        };
+    /// Create one lineage-wide serialized Snapshot from one retained Image.
+    pub fn snapshot_lineage_image(&self, image_id: ImageId) -> RuntimeResult<WorldSnapshot> {
+        let revision = self.revision_for_image(image_id)?;
 
         self.snapshot_lineage_revision(revision, RestoreContext::empty())
     }
 
-    /// Create one exact serialized snapshot from one stored checkpoint.
-    pub fn snapshot_checkpoint(&self, checkpoint_id: CheckpointId) -> RuntimeResult<WorldSnapshot> {
-        let revision = {
-            let lineage = self.lineage.read();
-            let checkpoint = lineage
-                .checkpoints
-                .get(&checkpoint_id)
-                .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
-
-            checkpoint.revision_id
-        };
+    /// Create one exact serialized Snapshot from one retained Image.
+    pub fn snapshot_image(&self, image_id: ImageId) -> RuntimeResult<WorldSnapshot> {
+        let revision = self.revision_for_image(image_id)?;
 
         self.snapshot_revision(revision, RestoreContext::empty())
     }

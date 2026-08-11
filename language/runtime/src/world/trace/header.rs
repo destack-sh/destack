@@ -7,7 +7,7 @@ use crate::binding::ReplayPayload;
 use crate::world::random::RandomSource;
 use crate::world::time::ClockSource;
 use crate::world::trace::TraceSequence;
-use crate::world::{BranchId, CheckpointId, RevisionId};
+use crate::world::{BranchId, ImageId, RevisionId};
 
 use super::{
     TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES, TRACE_DEFAULT_MAX_ENTRIES_PER_CHUNK, TRACE_FORMAT_VERSION,
@@ -87,32 +87,32 @@ pub struct TraceChunkIndex {
 pub struct TraceTrailer {
     /// Index entries for chunks in the log.
     pub chunks: Vec<TraceChunkIndex>,
-    /// Index entries for external checkpoints.
-    pub checkpoints: Vec<TraceCheckpointIndex>,
+    /// Index entries for external Images.
+    pub images: Vec<TraceImageIndex>,
     /// Hash of the entire log stream.
     pub log_hash: u128,
 }
 
-/// Index entry referencing an external checkpoint.
+/// Index entry referencing one external World Image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TraceCheckpointIndex {
-    /// Checkpoint identifier.
-    pub checkpoint_id: CheckpointId,
-    /// Revision identifier anchored by this checkpoint.
+pub struct TraceImageIndex {
+    /// Image identifier.
+    pub image_id: ImageId,
+    /// Revision identifier anchored by this Image.
     pub revision_id: RevisionId,
-    /// Sequence number associated with the checkpoint.
+    /// Sequence number associated with the Image.
     pub sequence: TraceSequence,
-    /// Path to the checkpoint file.
+    /// Path to the Image file.
     pub path: String,
-    /// Hash of the checkpoint payload.
+    /// Hash of the Image payload.
     pub hash: u128,
-    /// Size of the checkpoint payload in bytes.
+    /// Size of the Image payload in bytes.
     pub size_bytes: u64,
 }
 
-impl TraceCheckpointIndex {
-    /// Return the in-memory checkpoint path for one checkpoint identifier.
-    pub fn memory_path(checkpoint_id: CheckpointId) -> String {
-        format!("memory://checkpoint/{}", checkpoint_id.get())
+impl TraceImageIndex {
+    /// Return the in-memory path for one Image identifier.
+    pub fn memory_path(image_id: ImageId) -> String {
+        format!("memory://image/{}", image_id.get())
     }
 }

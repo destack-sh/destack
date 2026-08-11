@@ -10,10 +10,21 @@ use crate::host::poller::HostPoller;
 use crate::world::observation::ObservationLog;
 use crate::world::random::Random;
 use crate::world::time::Instant;
+use crate::world::topology::LabelSet;
 use crate::world::trace::{Trace, TraceHeader, TraceImage, TraceLog, TraceSequence};
 use crate::world::{RestoreContext, World, WorldImage, WorldSnapshot, WorldState};
 
-use super::{BranchId, Checkpoint, Moment, MomentSequence, Revision, RevisionId};
+use super::{BranchId, Image, Moment, MomentSequence, Revision, RevisionId};
+
+/// One committed World revision and its captured state.
+pub(super) struct Commit {
+    /// Committed revision identifier.
+    pub revision_id: RevisionId,
+    /// Retained Image when the captured state remains materialized.
+    pub image: Option<Image>,
+    /// Captured World state.
+    pub world_image: Arc<WorldImage>,
+}
 
 impl World {
     /// Restore this branch to one specific moment.
@@ -67,20 +78,20 @@ impl World {
     pub(super) fn commit(
         &mut self,
         mode: CaptureMode,
-        checkpoint_name: Option<String>,
-    ) -> RuntimeResult<(RevisionId, Revision, Arc<WorldImage>, Option<Checkpoint>)> {
+        name: Option<String>,
+    ) -> RuntimeResult<Commit> {
         // capture one exact world image first
         let image = self.capture_image(mode)?;
         let trace_image = self.state.trace.capture_image();
 
         // commit the revision in one authoritative lineage update
-        let retain_image = self.state.trace.mode() != ExecutionMode::Record
-            || checkpoint_name.is_some()
+        let is_retained = self.state.trace.mode() != ExecutionMode::Record
+            || name.is_some()
             || !matches!(mode, CaptureMode::Suspend);
         let image_id = self.lineage.write().allocate_image_id()?;
         let mut image = image;
 
-        if retain_image {
+        if is_retained {
             self.lineage
                 .write()
                 .retain_image_payloads(self.state.branch_id, &mut image)?;
@@ -88,7 +99,7 @@ impl World {
 
         let image = Arc::new(image);
         let trace_image = Arc::new(trace_image);
-        let (revision_id, revision, checkpoint) = {
+        let (revision_id, revision) = {
             let mut lineage = self.lineage.write();
             lineage.commit_revision(
                 self.state.branch_id,
@@ -97,14 +108,24 @@ impl World {
                 trace_image.next_sequence()?,
                 Instant::from_nanos(self.wall()),
                 Instant::from_nanos(self.mono()),
-                checkpoint_name,
             )?
+        };
+
+        let retained_image = if is_retained {
+            Some(Image {
+                id: image_id,
+                moment: revision.moment(),
+                name,
+                labels: LabelSet::new(),
+            })
+        } else {
+            None
         };
 
         {
             let mut lineage = self.lineage.write();
-            if retain_image {
-                lineage.insert_image(image_id, image.clone());
+            if let Some(retained_image) = retained_image.clone() {
+                lineage.insert_image(retained_image, revision_id, image.clone());
             }
 
             lineage.insert_trace_image(revision_id, trace_image);
@@ -120,19 +141,23 @@ impl World {
             lineage.record_observations(self.state.branch_id, observations);
         }
 
-        Ok((revision_id, revision, image, checkpoint))
+        Ok(Commit {
+            revision_id,
+            image: retained_image,
+            world_image: image,
+        })
     }
 
     /// Capture one suspendable live revision for later local resume.
     pub fn suspend(&mut self) -> RuntimeResult<RevisionId> {
         let committed = self.commit(CaptureMode::Suspend, None)?;
 
-        Ok(committed.0)
+        Ok(committed.revision_id)
     }
 
     /// Capture one hibernation snapshot for durable restore.
     pub fn hibernate_snapshot(&mut self) -> RuntimeResult<WorldSnapshot> {
-        let revision = self.commit(CaptureMode::Hibernate, None)?.0;
+        let revision = self.commit(CaptureMode::Hibernate, None)?.revision_id;
 
         self.snapshot_revision(revision, RestoreContext::empty())
     }

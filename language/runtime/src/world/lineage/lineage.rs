@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::mem;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -6,17 +7,15 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::{RuntimeId, RuntimeImage};
 use crate::worker::{WorkerId, WorkerImage};
+use crate::world::WorldImage;
 use crate::world::observation::{ObservationChunk, ObservationEntry};
 use crate::world::time::Instant;
 use crate::world::topology::LabelSet;
 use crate::world::trace::{TraceImage, TraceSequence};
-use crate::world::WorldImage;
 
-use super::constants::{
-    INITIAL_BRANCH_ID, INITIAL_CHECKPOINT_ID, INITIAL_IMAGE_ID, INITIAL_REVISION_ID,
-};
+use super::constants::{INITIAL_BRANCH_ID, INITIAL_IMAGE_ID, INITIAL_REVISION_ID};
 use super::{
-    Branch, BranchId, BranchOrigin, Checkpoint, CheckpointId, ImageId, Moment, MomentSequence,
+    Branch, BranchId, BranchOrigin, Image, ImageEntry, ImageId, Moment, MomentSequence,
     ROOT_BRANCH, ROOT_IMAGE_ID, ROOT_REVISION, Revision, RevisionId,
 };
 
@@ -27,18 +26,14 @@ pub(crate) struct Lineage {
     pub next_branch_id: u64,
     /// The next revision identifier to allocate.
     pub next_revision_id: u64,
-    /// The next checkpoint identifier to allocate.
-    pub next_checkpoint_id: u64,
     /// The next image identifier to allocate.
     pub next_image_id: u64,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
     pub revisions: BTreeMap<RevisionId, Revision>,
-    /// The known checkpoint metadata records.
-    pub checkpoints: BTreeMap<CheckpointId, Checkpoint>,
-    /// The known image payloads keyed by image identifier.
-    pub images: BTreeMap<ImageId, Arc<WorldImage>>,
+    /// The retained Images keyed by identifier.
+    pub images: BTreeMap<ImageId, ImageEntry>,
     /// The known trace image payloads keyed by trace image identifier.
     pub trace_images: BTreeMap<RevisionId, Arc<TraceImage>>,
     /// The canonical retained runtime image payloads.
@@ -56,18 +51,14 @@ pub struct LineageSnapshot {
     pub next_branch_id: u64,
     /// The next revision identifier to allocate.
     pub next_revision_id: u64,
-    /// The next checkpoint identifier to allocate.
-    pub next_checkpoint_id: u64,
     /// The next image identifier to allocate.
     pub next_image_id: u64,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
     pub revisions: BTreeMap<RevisionId, Revision>,
-    /// The known checkpoint metadata records.
-    pub checkpoints: BTreeMap<CheckpointId, Checkpoint>,
-    /// The known image payloads keyed by image identifier.
-    pub images: BTreeMap<ImageId, WorldImage>,
+    /// The retained Images keyed by identifier.
+    pub(crate) images: BTreeMap<ImageId, ImageEntry>,
     /// The known trace image payloads keyed by trace image identifier.
     pub trace_images: BTreeMap<RevisionId, TraceImage>,
     /// The committed observation lineage keyed by branch.
@@ -76,27 +67,21 @@ pub struct LineageSnapshot {
 
 impl Lineage {
     /// Capture one durable lineage snapshot for all retained lineage.
-    pub(crate) fn full_snapshot(&self) -> RuntimeResult<LineageSnapshot> {
-        Ok(LineageSnapshot {
+    pub(crate) fn full_snapshot(&self) -> LineageSnapshot {
+        LineageSnapshot {
             next_branch_id: self.next_branch_id,
             next_revision_id: self.next_revision_id,
-            next_checkpoint_id: self.next_checkpoint_id,
             next_image_id: self.next_image_id,
             branches: self.branches.clone(),
             revisions: self.revisions.clone(),
-            checkpoints: self.checkpoints.clone(),
-            images: self
-                .images
-                .iter()
-                .map(|(image_id, image)| (*image_id, image.as_ref().clone()))
-                .collect(),
+            images: self.images.clone(),
             trace_images: self
                 .trace_images
                 .iter()
                 .map(|(revision_id, trace_image)| (*revision_id, trace_image.as_ref().clone()))
                 .collect(),
             observations: self.observations.clone(),
-        })
+        }
     }
 
     /// Capture one durable lineage snapshot for one exact revision closure.
@@ -116,16 +101,25 @@ impl Lineage {
             ..branch
         };
         let image_id = revision.image_id;
+        let moment = revision.moment();
         let revision = Revision {
             parent_revision_id: None,
             ..revision
         };
-        let checkpoints = self
-            .checkpoints
-            .iter()
-            .filter(|(_, checkpoint)| checkpoint.revision_id == revision_id)
-            .map(|(checkpoint_id, checkpoint)| (*checkpoint_id, checkpoint.clone()))
-            .collect();
+
+        // preserve retained metadata or describe the newly materialized image
+        let retained_image = if let Some(entry) = self.images.get(&image_id) {
+            entry.image.clone()
+        } else {
+            Image {
+                id: image_id,
+                moment,
+                name: None,
+                labels: LabelSet::new(),
+            }
+        };
+
+        // retain observations through the selected revision
         let observations = self
             .observations
             .get(&revision.branch_id)
@@ -149,12 +143,13 @@ impl Lineage {
         Ok(LineageSnapshot {
             next_branch_id: self.next_branch_id,
             next_revision_id: self.next_revision_id,
-            next_checkpoint_id: self.next_checkpoint_id,
             next_image_id: self.next_image_id,
             branches: BTreeMap::from([(branch.id, branch)]),
             revisions: BTreeMap::from([(revision_id, revision)]),
-            checkpoints,
-            images: BTreeMap::from([(image_id, image.clone())]),
+            images: BTreeMap::from([(
+                image_id,
+                ImageEntry::new(retained_image, revision_id, Arc::new(image.clone())),
+            )]),
             trace_images: BTreeMap::from([(revision_id, trace_image.clone())]),
             observations,
         })
@@ -175,7 +170,19 @@ impl Lineage {
         let mut trace_images = BTreeMap::new();
         let observations = BTreeMap::new();
 
-        images.insert(ROOT_IMAGE_ID, image);
+        images.insert(
+            ROOT_IMAGE_ID,
+            ImageEntry::new(
+                Image {
+                    id: ROOT_IMAGE_ID,
+                    moment: Moment::new(ROOT_BRANCH, sequence),
+                    name: None,
+                    labels: LabelSet::new(),
+                },
+                ROOT_REVISION,
+                image,
+            ),
+        );
         trace_images.insert(ROOT_REVISION, trace_image);
 
         revisions.insert(
@@ -206,11 +213,9 @@ impl Lineage {
         Self {
             next_branch_id: INITIAL_BRANCH_ID,
             next_revision_id: INITIAL_REVISION_ID,
-            next_checkpoint_id: INITIAL_CHECKPOINT_ID,
             next_image_id: INITIAL_IMAGE_ID,
             branches,
             revisions,
-            checkpoints: BTreeMap::new(),
             images,
             trace_images,
             runtime_images: Vec::new(),
@@ -221,11 +226,6 @@ impl Lineage {
 
     /// Rebuild lineage state from one durable lineage snapshot.
     pub(crate) fn from_snapshot(snapshot: LineageSnapshot) -> RuntimeResult<Self> {
-        let images = snapshot
-            .images
-            .into_iter()
-            .map(|(image_id, image)| Ok((image_id, Arc::new(image))))
-            .collect::<RuntimeResult<_>>()?;
         let trace_images = snapshot
             .trace_images
             .into_iter()
@@ -235,12 +235,10 @@ impl Lineage {
         let mut lineage = Self {
             next_branch_id: snapshot.next_branch_id,
             next_revision_id: snapshot.next_revision_id,
-            next_checkpoint_id: snapshot.next_checkpoint_id,
             next_image_id: snapshot.next_image_id,
             branches: snapshot.branches,
             revisions: snapshot.revisions,
-            checkpoints: snapshot.checkpoints,
-            images,
+            images: snapshot.images,
             trace_images,
             observations: snapshot.observations,
             runtime_images: Vec::new(),
@@ -275,19 +273,6 @@ impl Lineage {
         })?;
 
         Ok(revision)
-    }
-
-    /// Allocate one new checkpoint identifier.
-    pub(crate) fn allocate_checkpoint_id(&mut self) -> RuntimeResult<CheckpointId> {
-        let checkpoint_id = CheckpointId::new(self.next_checkpoint_id);
-        self.next_checkpoint_id = self.next_checkpoint_id.checked_add(1).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: "checkpoint identifier space exhausted".to_string(),
-            }
-            .boxed()
-        })?;
-
-        Ok(checkpoint_id)
     }
 
     /// Allocate one new image identifier.
@@ -363,11 +348,24 @@ impl Lineage {
             mono,
             labels: LabelSet::new(),
         };
+        let moment = revision.moment();
 
         // insert the branch and its initial revision atomically under this lock
         self.branches.insert(branch_id, branch.clone());
         self.revisions.insert(revision_id, revision);
-        self.images.insert(image_id, image);
+        self.images.insert(
+            image_id,
+            ImageEntry::new(
+                Image {
+                    id: image_id,
+                    moment,
+                    name: None,
+                    labels: LabelSet::new(),
+                },
+                revision_id,
+                image,
+            ),
+        );
         self.trace_images.insert(revision_id, trace_image);
 
         Ok(branch)
@@ -382,8 +380,7 @@ impl Lineage {
         trace_sequence: TraceSequence,
         wall: Instant,
         mono: Instant,
-        checkpoint_name: Option<String>,
-    ) -> RuntimeResult<(RevisionId, Revision, Option<Checkpoint>)> {
+    ) -> RuntimeResult<(RevisionId, Revision)> {
         let parent_branch = self
             .branches
             .get(&branch_id)
@@ -407,32 +404,10 @@ impl Lineage {
             ..parent_branch
         };
 
-        let checkpoint = checkpoint_name
-            .map(|name| {
-                Ok::<Checkpoint, Box<RuntimeError>>(Checkpoint {
-                    id: self.allocate_checkpoint_id()?,
-                    revision_id,
-                    name,
-                    labels: LabelSet::new(),
-                })
-            })
-            .transpose()?;
-
         self.revisions.insert(revision_id, revision.clone());
         self.branches.insert(branch_id, branch);
 
-        if let Some(checkpoint) = checkpoint.clone() {
-            self.checkpoints.insert(checkpoint.id, checkpoint);
-        }
-
-        Ok((revision_id, revision, checkpoint))
-    }
-
-    /// Return the revision that owns one image identifier.
-    pub(crate) fn revision_for_image_id(&self, image_id: ImageId) -> Option<RevisionId> {
-        self.revisions.iter().find_map(|(revision_id, revision)| {
-            (revision.image_id == image_id).then_some(*revision_id)
-        })
+        Ok((revision_id, revision))
     }
 
     /// Return the nearest materialized revision at or before one target revision.
@@ -707,9 +682,15 @@ impl Lineage {
         Ok(revision_id)
     }
 
-    /// Insert one retained image payload.
-    pub(crate) fn insert_image(&mut self, image_id: ImageId, image: Arc<WorldImage>) {
-        self.images.insert(image_id, image);
+    /// Insert one retained Image and its captured World image.
+    pub(crate) fn insert_image(
+        &mut self,
+        image: Image,
+        revision_id: RevisionId,
+        world_image: Arc<WorldImage>,
+    ) {
+        self.images
+            .insert(image.id, ImageEntry::new(image, revision_id, world_image));
     }
 
     /// Insert one retained trace image payload.
@@ -721,11 +702,27 @@ impl Lineage {
         self.trace_images.insert(revision_id, trace_image);
     }
 
-    /// Return one retained image payload.
-    pub(crate) fn image(&self, image_id: ImageId) -> RuntimeResult<Arc<WorldImage>> {
+    /// Return one retained Image.
+    pub(crate) fn image(&self, image_id: ImageId) -> RuntimeResult<Image> {
         self.images
             .get(&image_id)
-            .cloned()
+            .map(|entry| entry.image.clone())
+            .ok_or_else(|| RuntimeError::image_not_found(image_id.get()).boxed())
+    }
+
+    /// Return one captured World image.
+    pub(crate) fn world_image(&self, image_id: ImageId) -> RuntimeResult<Arc<WorldImage>> {
+        self.images
+            .get(&image_id)
+            .map(|entry| entry.world_image.clone())
+            .ok_or_else(|| RuntimeError::image_not_found(image_id.get()).boxed())
+    }
+
+    /// Return the Revision anchored by one retained Image.
+    pub(crate) fn image_revision(&self, image_id: ImageId) -> RuntimeResult<RevisionId> {
+        self.images
+            .get(&image_id)
+            .map(|entry| entry.revision_id)
             .ok_or_else(|| RuntimeError::image_not_found(image_id.get()).boxed())
     }
 
@@ -737,7 +734,7 @@ impl Lineage {
             .ok_or_else(|| RuntimeError::revision_trace_image_missing(revision_id.get()).boxed())
     }
 
-    /// Return whether one retained image payload exists.
+    /// Return whether one retained Image exists.
     pub(crate) fn contains_image(&self, image_id: ImageId) -> bool {
         self.images.contains_key(&image_id)
     }
@@ -772,18 +769,17 @@ impl Lineage {
 
     /// Rebuild the canonical runtime and worker image tables from retained images.
     fn rebuild_image_tables(&mut self) {
-        let image_ids = self.images.keys().copied().collect::<Vec<_>>();
+        let images = mem::take(&mut self.images);
 
         // canonicalize the retained images in stable image order
-        for image_id in image_ids {
-            let Some(image) = self.images.get(&image_id).cloned() else {
-                continue;
-            };
-
-            let mut image = image.as_ref().clone();
+        for (image_id, entry) in images {
+            let mut image = entry.world_image.as_ref().clone();
             self.rebuild_runtime_image_entries(&mut image);
             self.rebuild_worker_image_entries(&mut image);
-            self.images.insert(image_id, Arc::new(image));
+            self.images.insert(
+                image_id,
+                ImageEntry::new(entry.image, entry.revision_id, Arc::new(image)),
+            );
         }
     }
 
@@ -802,7 +798,10 @@ impl Lineage {
             return Err(RuntimeError::revision_not_found(retained_revision.get()).boxed());
         };
 
-        Ok(self.images.get(&revision.image_id).cloned())
+        Ok(self
+            .images
+            .get(&revision.image_id)
+            .map(|entry| entry.world_image.clone()))
     }
 
     /// Return one canonical runtime image for one retained runtime payload.

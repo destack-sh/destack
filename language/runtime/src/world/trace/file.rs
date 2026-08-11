@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 
 use super::chunk::TraceChunk;
-use super::{TraceCheckpointIndex, TraceChunkIndex, TraceHeader, TraceSequence, TraceTrailer};
+use super::{TraceChunkIndex, TraceHeader, TraceImageIndex, TraceSequence, TraceTrailer};
 
 /// Flat trace file captured for image storage and durable replay.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,13 +18,13 @@ pub(super) struct TraceFile {
 }
 
 impl TraceFile {
-    /// Create one flat trace file from ordered chunks and checkpoints.
+    /// Create one flat trace file from ordered chunks and Images.
     pub(super) fn new(
         header: TraceHeader,
         chunks: Vec<TraceChunk>,
-        checkpoints: Vec<TraceCheckpointIndex>,
+        images: Vec<TraceImageIndex>,
     ) -> Self {
-        let trailer = TraceTrailer::build(&chunks, checkpoints);
+        let trailer = TraceTrailer::build(&chunks, images);
 
         Self {
             header,
@@ -53,16 +53,16 @@ impl TraceFile {
 
     /// Validate this file against its stored trailer.
     pub(super) fn validate(&self) -> RuntimeResult<()> {
-        let expected = TraceTrailer::build(&self.chunks, self.trailer.checkpoints.clone());
+        let expected = TraceTrailer::build(&self.chunks, self.trailer.images.clone());
 
-        // require ordered checkpoints for incremental inserts
+        // require ordered images for incremental inserts
         if self
             .trailer
-            .checkpoints
+            .images
             .windows(2)
             .any(|pair| pair[0].sequence > pair[1].sequence)
         {
-            return Err(RuntimeError::trace_mismatch("checkpoints".to_string()).boxed());
+            return Err(RuntimeError::trace_mismatch("images".to_string()).boxed());
         }
 
         // verify chunk index entries
@@ -85,8 +85,8 @@ impl TraceFile {
 }
 
 impl TraceTrailer {
-    /// Build one trailer from ordered chunks and checkpoint metadata.
-    fn build(chunks: &[TraceChunk], checkpoints: Vec<TraceCheckpointIndex>) -> Self {
+    /// Build one trailer from ordered chunks and Image metadata.
+    fn build(chunks: &[TraceChunk], images: Vec<TraceImageIndex>) -> Self {
         // build chunk index entries in file order
         let mut offset = 0u64;
         let chunks = chunks
@@ -104,18 +104,18 @@ impl TraceTrailer {
             })
             .collect::<Vec<_>>();
 
-        // bind chunk and checkpoint indexes
-        let log_hash = Self::hash(&chunks, &checkpoints);
+        // bind chunk and image indexes
+        let log_hash = Self::hash(&chunks, &images);
 
         Self {
             chunks,
-            checkpoints,
+            images,
             log_hash,
         }
     }
 
     /// Compute the stable hash for one trailer index.
-    fn hash(chunks: &[TraceChunkIndex], checkpoints: &[TraceCheckpointIndex]) -> u128 {
+    fn hash(chunks: &[TraceChunkIndex], images: &[TraceImageIndex]) -> u128 {
         let mut hash = FNV_OFFSET_BASIS_128;
         for chunk in chunks {
             hash = fnv1a_128_update(hash, &chunk.offset.to_le_bytes());
@@ -123,13 +123,13 @@ impl TraceTrailer {
             hash = fnv1a_128_update(hash, &chunk.checksum.to_le_bytes());
         }
 
-        for checkpoint in checkpoints {
-            hash = fnv1a_128_update(hash, &checkpoint.checkpoint_id.get().to_le_bytes());
-            hash = fnv1a_128_update(hash, &checkpoint.revision_id.get().to_le_bytes());
-            hash = fnv1a_128_update(hash, &checkpoint.sequence.get().to_le_bytes());
-            hash = fnv1a_128_update(hash, &checkpoint.size_bytes.to_le_bytes());
-            hash = fnv1a_128_update(hash, &checkpoint.hash.to_le_bytes());
-            hash = fnv1a_128_update(hash, checkpoint.path.as_bytes());
+        for image in images {
+            hash = fnv1a_128_update(hash, &image.image_id.get().to_le_bytes());
+            hash = fnv1a_128_update(hash, &image.revision_id.get().to_le_bytes());
+            hash = fnv1a_128_update(hash, &image.sequence.get().to_le_bytes());
+            hash = fnv1a_128_update(hash, &image.size_bytes.to_le_bytes());
+            hash = fnv1a_128_update(hash, &image.hash.to_le_bytes());
+            hash = fnv1a_128_update(hash, image.path.as_bytes());
         }
 
         hash
