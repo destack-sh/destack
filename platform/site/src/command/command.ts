@@ -7,7 +7,6 @@ export const commandEvents = {
     copyMarkdown: "destack:copy-md",
     copyText: "destack:copy-txt",
     open: "destack:search",
-    toggleTheme: "destack:theme",
 } as const;
 
 /// One action selectable from the command palette.
@@ -59,15 +58,7 @@ export type HighlightPart = {
 
 /// Build the commands available to the current page.
 export function commandsFor(entries: readonly SearchEntry[], source?: PageFormats): readonly Command[] {
-    const commands: Command[] = [
-        eventCommand(
-            "theme",
-            "appearance",
-            "Cycle color theme",
-            "system dark light theme appearance",
-            commandEvents.toggleTheme,
-        ),
-    ];
+    const commands: Command[] = [];
 
     if (source != undefined) {
         commands.push(

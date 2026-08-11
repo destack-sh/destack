@@ -1,6 +1,5 @@
 import type { JSX } from "solid-js";
 
-import { Footer } from "../navigation/footer";
 import { KeyboardShortcuts } from "../navigation/shortcut";
 import { TopBar } from "../navigation/topbar";
 
@@ -20,7 +19,6 @@ export function Shell(props: ShellProps) {
             <KeyboardShortcuts />
             <TopBar />
             <main class="site-main grid">{props.children}</main>
-            <Footer />
         </div>
     );
 }

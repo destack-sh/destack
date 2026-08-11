@@ -1,8 +1,6 @@
 import { CommandPalette } from "../command/palette";
 import { SiteLink } from "./link";
 import { primaryLinks } from "./navigation";
-import { ShortcutLabel } from "./shortcut";
-import { ThemeToggle } from "./theme";
 
 /// Render the global site navigation.
 export function TopBar() {
@@ -10,7 +8,7 @@ export function TopBar() {
         <header class="site-topbar">
             <div class="site-topbar__body">
                 <SiteLink class="site-topbar__brand" href="/" shortcut="h" title="Alt+H: home">
-                    <ShortcutLabel brackets={false} label="destack.sh" shortcut="h" />
+                    destack.sh
                 </SiteLink>
 
                 <nav aria-label="Primary navigation" class="site-topbar__primary">
@@ -20,14 +18,13 @@ export function TopBar() {
                             shortcut={shortcut}
                             title={`Alt+${shortcut.toUpperCase()}: ${label}`}
                         >
-                            <ShortcutLabel label={label} shortcut={shortcut} />
+                            {label}
                         </SiteLink>
                     ))}
                 </nav>
 
                 <div class="site-topbar__actions">
                     <CommandPalette />
-                    <ThemeToggle />
                 </div>
             </div>
         </header>

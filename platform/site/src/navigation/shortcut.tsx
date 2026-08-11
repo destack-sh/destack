@@ -1,38 +1,4 @@
-import { createMemo, onCleanup, onMount } from "solid-js";
-
-type ShortcutLabelProps = {
-    /// Whether to surround the label with square brackets.
-    brackets?: boolean;
-
-    /// The visible label.
-    label: string;
-
-    /// The case-insensitive mnemonic character.
-    shortcut: string;
-};
-
-/// Render a label with its keyboard mnemonic underlined.
-export function ShortcutLabel(props: ShortcutLabelProps) {
-    const index = createMemo(() => {
-        const index = props.label.toLowerCase().indexOf(props.shortcut.toLowerCase());
-        if (props.shortcut.length !== 1 || index < 0) {
-            throw new Error(`shortcut ${props.shortcut} is not present in ${props.label}`);
-        }
-
-        return index;
-    });
-    const before = () => props.label.slice(0, index());
-    const mnemonic = () => props.label.slice(index(), index() + 1);
-    const after = () => props.label.slice(index() + 1);
-
-    return (
-        <>
-            {props.brackets !== false && "["}
-            {before()}<u>{mnemonic()}</u>{after()}
-            {props.brackets !== false && "]"}
-        </>
-    );
-}
+import { onCleanup, onMount } from "solid-js";
 
 /// Activate visible mnemonic controls through Alt plus their highlighted key.
 export function KeyboardShortcuts() {

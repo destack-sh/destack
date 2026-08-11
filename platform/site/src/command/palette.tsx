@@ -112,7 +112,7 @@ export function CommandPalette() {
                 title="Search"
                 type="button"
             >
-                [/]
+                search
             </button>
 
             <Portal>
@@ -150,7 +150,7 @@ export function CommandPalette() {
                                 value={query()}
                             />
                             <button aria-label="Close search" onClick={() => dialog?.close()} type="button">
-                                [esc]
+                                close
                             </button>
                         </label>
 
@@ -176,7 +176,7 @@ export function CommandPalette() {
                                                 {selected() === index() ? ">" : ""}
                                             </span>
                                             <span class="command-palette__context">
-                                                [<Highlight match={match} text={match.command.context} />]
+                                                <Highlight match={match} text={match.command.context} />
                                             </span>
                                             <span class="command-palette__result">
                                                 <strong>
