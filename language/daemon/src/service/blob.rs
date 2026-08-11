@@ -27,7 +27,7 @@ pub trait BlobService {
     /// Store one streamed Blob.
     #[rpc(
         name = "Put",
-        request_stream = BlobChunk,
+        request_stream(Vec<u8>),
         idempotency = "idempotent"
     )]
     fn put(request: ()) -> Blob;
@@ -35,7 +35,7 @@ pub trait BlobService {
     /// Read one streamed Blob range.
     #[rpc(
         name = "Read",
-        response_stream = BlobChunk,
+        response_stream(Vec<u8>),
         idempotency = "no_side_effects"
     )]
     fn read(request: ReadBlobRequest) -> ();

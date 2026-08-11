@@ -54,25 +54,25 @@ pub trait WorkspaceService {
     /// Check source state.
     #[rpc(
         name = "Check",
-        response_stream = ProgressEvent,
+        response_stream(ProgressEvent),
         idempotency = "no_side_effects"
     )]
     fn check(request: CheckRequest) -> CheckOutput;
 
     /// Format source files or content.
-    #[rpc(name = "Format", response_stream = ProgressEvent)]
+    #[rpc(name = "Format", response_stream(ProgressEvent))]
     fn format(request: FormatRequest) -> FormatOutput;
 
     /// Query source files with one structural pattern.
     #[rpc(
         name = "Query",
-        response_stream = ProgressEvent,
+        response_stream(ProgressEvent),
         idempotency = "no_side_effects"
     )]
     fn query(request: QueryRequest) -> QueryOutput;
 
     /// Rewrite source files with one structural pattern.
-    #[rpc(name = "Rewrite", response_stream = ProgressEvent)]
+    #[rpc(name = "Rewrite", response_stream(ProgressEvent))]
     fn rewrite(request: RewriteRequest) -> RewriteOutput;
 
     // =============================================================================
@@ -80,19 +80,19 @@ pub trait WorkspaceService {
     // =============================================================================
 
     /// Build target artifacts.
-    #[rpc(name = "Build", response_stream = ProgressEvent)]
+    #[rpc(name = "Build", response_stream(ProgressEvent))]
     fn build(request: BuildRequest) -> BuildOutput;
 
     /// Run workspace tests.
-    #[rpc(name = "Test", response_stream = ProgressEvent)]
+    #[rpc(name = "Test", response_stream(ProgressEvent))]
     fn test(request: TestRequest) -> TestOutput;
 
     /// Generate workspace documentation.
-    #[rpc(name = "Doc", response_stream = ProgressEvent)]
+    #[rpc(name = "Doc", response_stream(ProgressEvent))]
     fn doc(request: DocRequest) -> DocOutput;
 
     /// Run workspace benchmarks.
-    #[rpc(name = "Bench", response_stream = ProgressEvent)]
+    #[rpc(name = "Bench", response_stream(ProgressEvent))]
     fn bench(request: BenchRequest) -> BenchOutput;
 
     // =============================================================================
@@ -102,7 +102,7 @@ pub trait WorkspaceService {
     /// Return workspace information.
     #[rpc(
         name = "Info",
-        response_stream = ProgressEvent,
+        response_stream(ProgressEvent),
         idempotency = "no_side_effects"
     )]
     fn info(request: InfoRequest) -> InfoOutput;
@@ -110,7 +110,7 @@ pub trait WorkspaceService {
     /// Return configured targets.
     #[rpc(
         name = "Targets",
-        response_stream = ProgressEvent,
+        response_stream(ProgressEvent),
         idempotency = "no_side_effects"
     )]
     fn targets(request: TargetsRequest) -> TargetsOutput;
@@ -118,7 +118,7 @@ pub trait WorkspaceService {
     /// Return cache locations.
     #[rpc(
         name = "Cache",
-        response_stream = ProgressEvent,
+        response_stream(ProgressEvent),
         idempotency = "no_side_effects"
     )]
     fn cache(request: CacheRequest) -> CacheOutput;
@@ -126,7 +126,7 @@ pub trait WorkspaceService {
     /// Return resolved settings.
     #[rpc(
         name = "Settings",
-        response_stream = ProgressEvent,
+        response_stream(ProgressEvent),
         idempotency = "no_side_effects"
     )]
     fn settings(request: SettingsRequest) -> SettingsOutput;
@@ -134,7 +134,7 @@ pub trait WorkspaceService {
     /// Diagnose workspace configuration and state.
     #[rpc(
         name = "Doctor",
-        response_stream = ProgressEvent,
+        response_stream(ProgressEvent),
         idempotency = "no_side_effects"
     )]
     fn doctor(request: DoctorRequest) -> DoctorOutput;
@@ -144,11 +144,11 @@ pub trait WorkspaceService {
     // =============================================================================
 
     /// Execute configured workspace tasks.
-    #[rpc(name = "Task", response_stream = ProgressEvent)]
+    #[rpc(name = "Task", response_stream(ProgressEvent))]
     fn task(request: TaskRequest) -> TaskOutput;
 
     /// Clean generated workspace state.
-    #[rpc(name = "Clean", response_stream = ProgressEvent)]
+    #[rpc(name = "Clean", response_stream(ProgressEvent))]
     fn clean(request: CleanRequest) -> CleanOutput;
 
     // =============================================================================
@@ -184,6 +184,6 @@ pub trait WorkspaceService {
     // =============================================================================
 
     /// Watch one workspace root until cancellation.
-    #[rpc(name = "Watch", response_stream = WatchEvent)]
+    #[rpc(name = "Watch", response_stream(WatchEvent))]
     fn watch(request: WatchRequest) -> ();
 }

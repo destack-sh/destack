@@ -12,7 +12,7 @@ trait GeneratedArithmeticService {
     fn double(request: NumberRequest) -> NumberResponse;
 
     /// Accumulate caller values and return every intermediate total.
-    #[rpc(name = "Sum", request_stream = u32, response_stream = u32)]
+    #[rpc(name = "Sum", request_stream(u32), response_stream(u32))]
     fn sum(request: NumberRequest) -> NumberResponse;
 }
 

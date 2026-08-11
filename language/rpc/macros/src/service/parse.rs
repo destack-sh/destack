@@ -285,11 +285,12 @@ fn optional_type(options: &Punctuated<Meta, Token![,]>, name: &str) -> syn::Resu
         if value.is_some() {
             return Err(syn::Error::new_spanned(option, "duplicate RPC option"));
         }
-        let Meta::NameValue(option) = option else {
-            return Err(syn::Error::new_spanned(option, "expected `name = Type`"));
+        let Meta::List(option) = option else {
+            let message = format!("expected `{name}(Type)`");
+
+            return Err(syn::Error::new_spanned(option, message));
         };
-        let expression = &option.value;
-        value = Some(syn::parse2(quote::quote!(#expression))?);
+        value = Some(syn::parse2(option.tokens.clone())?);
     }
 
     Ok(value)
