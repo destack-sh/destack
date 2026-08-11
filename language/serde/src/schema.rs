@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::hash::BuildHasher;
-use std::num::NonZeroU32;
+use std::num::{NonZeroU32, NonZeroU64};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -370,6 +370,12 @@ impl<T: Reflect + ?Sized> Reflect for Box<T> {
 impl Reflect for NonZeroU32 {
     fn reflect(_schema: &mut Schema) -> Type {
         Type::Unsigned { bits: 32 }
+    }
+}
+
+impl Reflect for NonZeroU64 {
+    fn reflect(_schema: &mut Schema) -> Type {
+        Type::Unsigned { bits: 64 }
     }
 }
 
