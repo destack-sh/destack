@@ -16,6 +16,8 @@ use super::{RuntimeCall, TestBinding, TestProgram, TestRuntime};
 
 const MEMORY_BYTES: usize = 512 * 1024 * 1024;
 const MEMORY_FRAME_BYTES: usize = 16 * 1024 * 1024;
+/// Logical fiber identity mounted by fresh test executions.
+pub(crate) const TEST_FIBER_ID: program::FiberId = program::FiberId::new(u32::MAX, 1);
 
 /// One bytecode machine fixture backed by a linked Program.
 pub(crate) struct TestMachine {
@@ -146,6 +148,11 @@ impl TestMachine {
     ) -> Result<program::Outcome<Vec<Word>>> {
         let function = FunctionId(function);
 
+        // mount the test scheduler's root identity on fresh execution
+        if self.fiber.is_idle() {
+            self.fiber.mount(TEST_FIBER_ID);
+        }
+
         self.activation(stop_points, watch_points, profile, None)
             .run(function, arguments)
             .map_err(ExecutionError::into_error)
@@ -154,6 +161,21 @@ impl TestMachine {
     /// Return and clear exact runtime boundary calls.
     pub(crate) fn take_runtime_calls(&mut self) -> Vec<RuntimeCall> {
         self.runtime.take_calls()
+    }
+
+    /// Select Program execution event categories.
+    pub(crate) fn select_events(&mut self, kinds: impl IntoIterator<Item = program::EventKind>) {
+        self.runtime.select_events(kinds);
+    }
+
+    /// Return and clear exact Program execution events.
+    pub(crate) fn take_events(&mut self) -> Vec<program::Event> {
+        self.runtime.take_events()
+    }
+
+    /// Return and clear Program events with their logical fiber identities.
+    pub(crate) fn take_observations(&mut self) -> Vec<(Option<program::FiberId>, program::Event)> {
+        self.runtime.take_observations()
     }
 
     /// Request one runtime poll action.

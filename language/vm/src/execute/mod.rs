@@ -13,6 +13,7 @@ mod float;
 mod function;
 mod integer;
 mod memory;
+mod observe;
 mod panic;
 mod profile;
 mod reference;

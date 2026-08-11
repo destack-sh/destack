@@ -4,8 +4,8 @@ use std::ptr;
 use destack_bytecode::{CodeOffset, Instruction, Operands, RegisterId, RegisterSpan};
 use destack_program as program;
 use destack_program::{
-    Completion, FrameStateId, FunctionId, Outcome, Profile, ProgramPoint, ResumeSkip, Runtime,
-    StopSet, WatchSet, Word,
+    Completion, EventSet, FrameStateId, FunctionId, Outcome, Profile, ProgramPoint, ResumeSkip,
+    Runtime, StopSet, WatchSet, Word,
 };
 
 use crate::diagnostic::{
@@ -35,6 +35,8 @@ where
     pub(crate) stop_points: Option<&'run StopSet>,
     /// Active memory watchpoints.
     pub(crate) watch_points: Option<&'run WatchSet>,
+    /// Program event categories selected for observation.
+    pub(crate) events: EventSet,
     /// Profile receiving execution measurements.
     pub(crate) profile: Option<&'run mut Profile>,
     /// One retained stop skipped on continued execution.
@@ -48,11 +50,13 @@ where
     R: Runtime + ?Sized,
 {
     /// Bind one activation to a machine and fiber.
-    pub(crate) const fn new(
+    pub(crate) fn new(
         machine: &'machine mut Machine,
         fiber: &'machine mut Fiber,
         activation: program::Activation<'run, 'run, R>,
     ) -> Self {
+        let events = activation.runtime.events();
+
         Self {
             machine,
             fiber,
@@ -62,6 +66,7 @@ where
             pc: CodeOffset(0),
             stop_points: None,
             watch_points: None,
+            events,
             profile: None,
             resume_skip: None,
             panic: None,
@@ -110,24 +115,34 @@ where
         if let Callee::Binding(binding) =
             Callee::resolve(&self.machine.program, self.machine.bytecode, function)?
         {
+            let binding = *binding;
+
             // park points require an active frame to receive the wake value
             if binding.is_park() {
                 return Err(Error::invalid_instruction().into());
             }
             let result_count = self.binding_result_word_count(function)?;
             let mut result = vec![Word::ZERO; result_count];
+            self.observe(program::Event::Binding {
+                event: program::BindingEvent::Enter,
+                binding_id: binding.id,
+            })?;
             let memory = self.activation.memory.reborrow();
             self.activation
                 .runtime
                 .call_binding(
                     memory,
                     *self.activation.context,
-                    self.fiber.current,
-                    binding,
+                    self.fiber.fiber_id,
+                    &binding,
                     arguments,
                     &mut result,
                 )
                 .map_err(ExecutionError::runtime)?;
+            self.observe(program::Event::Binding {
+                event: program::BindingEvent::Exit,
+                binding_id: binding.id,
+            })?;
 
             return Ok(Outcome::Completed { value: result });
         }
@@ -148,13 +163,14 @@ where
 
         let is_stopping = self.stop_points.is_some_and(|points| !points.is_empty());
         let is_watching = self.watch_points.is_some_and(|points| !points.is_empty());
+        let is_observing = !self.events.is_empty();
         let is_profiling = self.profile.is_some();
         let is_bounded = self.machine.limits.max_instructions.is_some();
 
         let result = if is_bounded {
-            self.select_dispatch::<true>(is_stopping, is_watching, is_profiling)
+            self.select_dispatch::<true>(is_stopping, is_watching, is_observing, is_profiling)
         } else {
-            self.select_dispatch::<false>(is_stopping, is_watching, is_profiling)
+            self.select_dispatch::<false>(is_stopping, is_watching, is_observing, is_profiling)
         };
 
         result.map_err(|error| match error {
@@ -171,20 +187,29 @@ where
         &mut self,
         is_stopping: bool,
         is_watching: bool,
+        is_observing: bool,
         is_profiling: bool,
     ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error>
     where
         R::Error: From<Error>,
     {
-        match (is_stopping, is_watching, is_profiling) {
-            (false, false, false) => self.dispatch::<false, false, false, BOUNDED>(),
-            (false, false, true) => self.dispatch::<false, false, true, BOUNDED>(),
-            (false, true, false) => self.dispatch::<false, true, false, BOUNDED>(),
-            (false, true, true) => self.dispatch::<false, true, true, BOUNDED>(),
-            (true, false, false) => self.dispatch::<true, false, false, BOUNDED>(),
-            (true, false, true) => self.dispatch::<true, false, true, BOUNDED>(),
-            (true, true, false) => self.dispatch::<true, true, false, BOUNDED>(),
-            (true, true, true) => self.dispatch::<true, true, true, BOUNDED>(),
+        match (is_stopping, is_watching, is_observing, is_profiling) {
+            (false, false, false, false) => self.dispatch::<false, false, false, false, BOUNDED>(),
+            (false, false, false, true) => self.dispatch::<false, false, false, true, BOUNDED>(),
+            (false, false, true, false) => self.dispatch::<false, false, true, false, BOUNDED>(),
+            (false, false, true, true) => self.dispatch::<false, false, true, true, BOUNDED>(),
+            (false, true, false, false) => self.dispatch::<false, true, false, false, BOUNDED>(),
+            (false, true, false, true) => self.dispatch::<false, true, false, true, BOUNDED>(),
+            (false, true, true, false) => self.dispatch::<false, true, true, false, BOUNDED>(),
+            (false, true, true, true) => self.dispatch::<false, true, true, true, BOUNDED>(),
+            (true, false, false, false) => self.dispatch::<true, false, false, false, BOUNDED>(),
+            (true, false, false, true) => self.dispatch::<true, false, false, true, BOUNDED>(),
+            (true, false, true, false) => self.dispatch::<true, false, true, false, BOUNDED>(),
+            (true, false, true, true) => self.dispatch::<true, false, true, true, BOUNDED>(),
+            (true, true, false, false) => self.dispatch::<true, true, false, false, BOUNDED>(),
+            (true, true, false, true) => self.dispatch::<true, true, false, true, BOUNDED>(),
+            (true, true, true, false) => self.dispatch::<true, true, true, false, BOUNDED>(),
+            (true, true, true, true) => self.dispatch::<true, true, true, true, BOUNDED>(),
         }
     }
 
@@ -218,6 +243,10 @@ where
         }
         self.fiber.frames.push(frame);
         self.activate();
+        self.observe(program::Event::Frame {
+            event: program::FrameEvent::Enter,
+            function,
+        })?;
 
         Ok(())
     }
@@ -253,6 +282,8 @@ where
         if let Callee::Binding(binding) =
             Callee::resolve(&self.machine.program, self.machine.bytecode, function)?
         {
+            let binding = *binding;
+
             // boundaries and destructors enter bodies, never bindings
             let Return::Call {
                 registers, normal, ..
@@ -267,17 +298,25 @@ where
             }
             let result_count = registers.word_count as usize;
             let frame = self.frame();
+            self.observe(program::Event::Binding {
+                event: program::BindingEvent::Enter,
+                binding_id: binding.id,
+            })?;
             Self::call_binding(
                 frame,
                 &self.fiber.stack,
                 &mut self.machine.binding_buffer,
                 &mut self.activation,
-                self.fiber.current,
-                binding,
+                self.fiber.fiber_id,
+                &binding,
                 environment,
                 arguments,
                 result_count,
             )?;
+            self.observe(program::Event::Binding {
+                event: program::BindingEvent::Exit,
+                binding_id: binding.id,
+            })?;
 
             // publish binding results directly into the caller frame
             for index in 0..result_count {
@@ -308,6 +347,10 @@ where
         self.save_position();
         self.fiber.frames.push(frame);
         self.activate();
+        self.observe(program::Event::Frame {
+            event: program::FrameEvent::Enter,
+            function,
+        })?;
 
         Ok(None)
     }
@@ -325,34 +368,41 @@ where
             _ => return Err(self.invalid_instruction().into()),
         };
         let function = self.function_id(self.read(thunk.start.0))?;
+        self.observe_call(self.frame(), pc, function)?;
 
         // mount one detached logical fiber under the boundary
-        let fiber = self
+        let caller_fiber_id = self.fiber_id()?;
+        let fiber_id = self
             .activation
             .runtime
             .detach()
             .map_err(ExecutionError::runtime)?;
         let return_to = Return::Detach {
             pc,
-            saved: self.fiber.current,
+            caller_fiber_id,
             context: *self.activation.context,
         };
         let arguments = RegisterSpan::new(RegisterId(0), 0);
+        self.fiber.fiber_id = Some(fiber_id);
         match self.call(function, arguments, environment, return_to, None, None) {
             // boundary calls enter bodies and never publish an outcome
-            Ok(None) => {
-                self.fiber.current = fiber;
-
-                Ok(None)
-            }
+            Ok(None) => Ok(None),
             Ok(Some(_)) => {
-                let _ = self.activation.runtime.retire(fiber);
+                self.fiber.fiber_id = Some(caller_fiber_id);
+                self.activation
+                    .runtime
+                    .retire(fiber_id)
+                    .map_err(ExecutionError::runtime)?;
 
                 Err(self.invalid_instruction().into())
             }
             Err(error) => {
                 // release the unused identity so the boundary fails atomically
-                let _ = self.activation.runtime.retire(fiber);
+                self.fiber.fiber_id = Some(caller_fiber_id);
+                self.activation
+                    .runtime
+                    .retire(fiber_id)
+                    .map_err(ExecutionError::runtime)?;
 
                 Err(error)
             }
@@ -365,10 +415,11 @@ where
         registers: RegisterSpan,
         normal: Option<CodeOffset>,
     ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
+        let fiber_id = self.fiber_id()?;
         let park = self
             .activation
             .runtime
-            .park(self.fiber.current)
+            .park(fiber_id)
             .map_err(ExecutionError::runtime)?;
         match park {
             // deliver an already settled wake like ordinary binding results
@@ -401,18 +452,23 @@ where
                     .iter()
                     .rposition(|frame| matches!(frame.return_to, Return::Detach { .. }));
                 if let Some(boundary) = boundary {
-                    let Return::Detach { saved, context, .. } =
-                        self.fiber.frames[boundary].return_to
+                    let Return::Detach {
+                        caller_fiber_id,
+                        context,
+                        ..
+                    } = self.fiber.frames[boundary].return_to
                     else {
                         unreachable!("boundary position matched a detach return");
                     };
-                    let detached = self.fiber.current;
                     let split = self.machine.split(self.fiber, boundary, registers);
-                    self.fiber.current = saved;
+                    self.fiber.fiber_id = Some(caller_fiber_id);
                     *self.activation.context = context;
                     if let Err(error) = split {
                         // release the orphaned identity so the failure stays atomic
-                        let _ = self.activation.runtime.retire(detached);
+                        self.activation
+                            .runtime
+                            .retire(fiber_id)
+                            .map_err(ExecutionError::runtime)?;
 
                         return Err(error.into());
                     }
@@ -435,7 +491,7 @@ where
         pc: CodeOffset,
         caller_state: FrameStateId,
         frame_count: u16,
-    ) -> Result<()> {
+    ) -> ExecutionResult<(), R::Error> {
         let Some(_caller) = self.fiber.frames.last().copied() else {
             unreachable!("destructors require an active caller");
         };
@@ -456,6 +512,10 @@ where
         self.save_position();
         self.fiber.frames.push(frame);
         self.activate();
+        self.observe(program::Event::Frame {
+            event: program::FrameEvent::Enter,
+            function,
+        })?;
 
         Ok(())
     }
@@ -471,22 +531,32 @@ where
         let argument_start = current.range(arguments);
         let callee = Callee::resolve(&self.machine.program, self.machine.bytecode, function)?;
         if let Callee::Binding(binding) = callee {
+            let binding = *binding;
+
             // park points are never emitted in tail position
             if binding.is_park() {
                 return Err(self.invalid_instruction().into());
             }
             let result_count = self.binding_result_word_count(function)?;
+            self.observe(program::Event::Binding {
+                event: program::BindingEvent::Enter,
+                binding_id: binding.id,
+            })?;
             Self::call_binding(
                 current,
                 &self.fiber.stack,
                 &mut self.machine.binding_buffer,
                 &mut self.activation,
-                self.fiber.current,
-                binding,
+                self.fiber.fiber_id,
+                &binding,
                 environment,
                 arguments,
                 result_count,
             )?;
+            self.observe(program::Event::Binding {
+                event: program::BindingEvent::Exit,
+                binding_id: binding.id,
+            })?;
             let Ok(result_word_count) = u16::try_from(result_count) else {
                 return Err(self.invalid_instruction().into());
             };
@@ -537,6 +607,12 @@ where
         }
         self.fiber.stack.truncate(end);
 
+        // leave the replaced frame before entering its tail-called successor
+        self.observe(program::Event::Frame {
+            event: program::FrameEvent::Exit,
+            function: current.function,
+        })?;
+
         // retain only the original caller transition
         let frame = Frame::new(
             function,
@@ -547,6 +623,10 @@ where
         );
         self.cursor.replace_frame(frame);
         self.activate();
+        self.observe(program::Event::Frame {
+            event: program::FrameEvent::Enter,
+            function,
+        })?;
 
         Ok(None)
     }
@@ -557,7 +637,7 @@ where
         stack: &super::Stack,
         words: &mut Vec<Word>,
         activation: &mut program::Activation<'run, 'run, R>,
-        fiber: program::Fiber,
+        fiber_id: Option<program::FiberId>,
         binding: &program::Binding,
         environment: Option<Word>,
         arguments: RegisterSpan,
@@ -582,7 +662,7 @@ where
             .call_binding(
                 memory,
                 *activation.context,
-                fiber,
+                fiber_id,
                 binding,
                 arguments,
                 result,
@@ -613,6 +693,10 @@ where
             unreachable!("bytecode returns require an active frame");
         };
         let result_start = frame.range(results);
+        self.observe(program::Event::Frame {
+            event: program::FrameEvent::Exit,
+            function: frame.function,
+        })?;
         if !self.fiber.frames.is_empty() {
             self.activate();
         }
@@ -656,12 +740,16 @@ where
             }
 
             // settle one detach boundary that completed without parking
-            Return::Detach { saved, context, .. } => {
+            Return::Detach {
+                caller_fiber_id,
+                context,
+                ..
+            } => {
                 if results.word_count != 0 {
                     return Err(self.invalid_instruction().into());
                 }
-                let retired = self.fiber.current;
-                self.fiber.current = saved;
+                let retired = self.fiber_id()?;
+                self.fiber.fiber_id = Some(caller_fiber_id);
                 *self.activation.context = context;
                 self.activation
                     .runtime
@@ -689,7 +777,17 @@ where
                     let Some(first) = self.fiber.frames.get(first_frame).copied() else {
                         return Err(self.invalid_instruction().into());
                     };
-                    self.fiber.frames.truncate(first_frame);
+
+                    // publish and remove retained frames from innermost to outermost
+                    while self.fiber.frames.len() > first_frame {
+                        let Some(frame) = self.fiber.frames.pop() else {
+                            return Err(self.invalid_instruction().into());
+                        };
+                        self.observe(program::Event::Frame {
+                            event: program::FrameEvent::Exit,
+                            function: frame.function,
+                        })?;
+                    }
 
                     first.byte_offset()
                 };
@@ -707,6 +805,13 @@ where
     #[inline(always)]
     pub(crate) fn frame(&self) -> Frame {
         self.cursor.frame()
+    }
+
+    /// Return the mounted logical fiber identity.
+    pub(crate) fn fiber_id(&self) -> Result<program::FiberId> {
+        self.fiber
+            .fiber_id
+            .ok_or_else(|| self.invalid_instruction())
     }
 
     /// Save the live instruction offset in the active canonical frame.

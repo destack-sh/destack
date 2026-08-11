@@ -108,10 +108,16 @@ function f0 {
 #[test]
 fn test_stop_at_watchpoint() {
     let point = TestProgram::point(0, 1);
-    let site = TestProgram::memory_site(
+    let store = TestProgram::memory_site(
         0,
         1,
         MemoryAccess::Write,
+        Some(Storage::Global(GlobalStorage::Local)),
+    );
+    let load = TestProgram::memory_site(
+        0,
+        2,
+        MemoryAccess::Read,
         Some(Storage::Global(GlobalStorage::Local)),
     );
     let watch = TestProgram::watchpoint(0, 1, 11, MemoryAccess::Write);
@@ -126,11 +132,10 @@ function f0 {
     return r2
 }
 "#,
-        TestProgram::words().local_global().memory([site]).frame(
-            0,
-            2,
-            [(RegisterSpan::new(RegisterId(15), 1), 0)],
-        ),
+        TestProgram::words()
+            .local_global()
+            .memory([store, load])
+            .frame(0, 2, [(RegisterSpan::new(RegisterId(15), 1), 0)]),
     );
 
     // execute the selected write before retaining the machine

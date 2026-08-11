@@ -1,5 +1,5 @@
 use destack_bytecode::{Instruction, Opcode};
-use destack_program::{Runtime, TypeId};
+use destack_program::{Event, FrameEvent, Runtime, TypeId};
 
 use crate::diagnostic::{Error, ExecutionError, ExecutionResult, Panic, Trap};
 use crate::machine::{Activation, Return};
@@ -13,8 +13,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if self.panic.is_some() {
             return Err(Error::trap(Trap::Abort).into());
         }
-        let panic = match instruction.opcode() {
-            Opcode::PANIC => Panic::empty(),
+        let (panic, ty) = match instruction.opcode() {
+            Opcode::PANIC => (Panic::empty(), None),
             Opcode::PANIC_VALUE => {
                 let mut operands = self.operands(instruction);
                 let ty = TypeId(operands.u32()?);
@@ -22,10 +22,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 let start = self.frame().range(range);
                 let words = self.fiber.stack.words(start, range.word_count as usize);
 
-                Panic::new(ty, words)
+                (Panic::new(ty, words), Some(ty))
             }
             _ => unreachable!("panic dispatch selects one panic opcode"),
         };
+        let point = self.point(self.frame(), self.pc)?;
+        self.observe(Event::Panic { point, ty })?;
+
         let panic = self.locate(Error::panic(panic));
         self.panic = Some(panic);
 
@@ -48,6 +51,10 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 unreachable!("panic unwinding requires an active frame");
             };
             self.fiber.stack.truncate(frame.byte_offset());
+            self.observe(Event::Frame {
+                event: FrameEvent::Exit,
+                function: frame.function,
+            })?;
 
             // report the panic after the entry frame leaves the machine
             let Some(_caller) = self.fiber.frames.last().copied() else {
@@ -64,9 +71,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 Return::Call { unwind, .. } => unwind,
                 Return::Exit { .. } | Return::Drop { .. } => None,
                 // lowered thunks catch their own panics before the boundary
-                Return::Detach { saved, context, .. } => {
-                    let retired = self.fiber.current;
-                    self.fiber.current = saved;
+                Return::Detach {
+                    caller_fiber_id,
+                    context,
+                    ..
+                } => {
+                    let retired = self.fiber_id()?;
+                    self.fiber.fiber_id = Some(caller_fiber_id);
                     *self.activation.context = context;
                     self.activation
                         .runtime

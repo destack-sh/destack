@@ -1,5 +1,5 @@
 use destack_bytecode::{AtomicOperation, MemoryOperation, Opcode, VectorOperation};
-use destack_program::{MemoryAccess, Outcome, Poll, Runtime, StopReason, Word};
+use destack_program::{Event, EventKind, MemoryAccess, Outcome, Poll, Runtime, StopReason, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Trap};
 use crate::machine::Activation;
@@ -10,6 +10,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     pub(crate) fn dispatch<
         const STOP: bool,
         const WATCH: bool,
+        const OBSERVE: bool,
         const PROFILE: bool,
         const BOUNDED: bool,
     >(
@@ -19,6 +20,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         R::Error: From<Error>,
     {
         let mut position = self.cursor.position();
+        let is_observing_point = OBSERVE && self.events.contains(EventKind::Point);
+        let is_observing_memory = OBSERVE && self.events.contains(EventKind::Memory);
+        let is_observing_edge = OBSERVE && self.events.contains(EventKind::Edge);
 
         loop {
             // retain the exact location before instruction handlers advance
@@ -51,10 +55,17 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             if let Some(outcome) = stopped {
                 return Ok(outcome);
             }
+
+            // publish the point immediately before executing its instruction
+            if is_observing_point {
+                let frame = self.frame();
+                let point = self.point(frame, operation_pc)?;
+                self.observe(Event::Point { point })?;
+            }
             position.advance(instruction.byte_len());
 
             // expose the completed operation position to observed execution
-            if WATCH {
+            if WATCH || OBSERVE {
                 self.cursor.set_position(position);
             }
 
@@ -71,10 +82,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     Opcode::VARIANT_TAG_LOAD
                     | Opcode::VARIANT_TAG_LOAD_CONSTANT
                     | Opcode::VARIANT_TAG_LOAD_POINTER => {
-                        let needs_range = WATCH
-                            && self
-                                .watch_points
-                                .is_some_and(|points| points.requires_memory_range());
+                        let needs_range = is_observing_memory
+                            || (WATCH
+                                && self
+                                    .watch_points
+                                    .is_some_and(|points| points.requires_memory_range()));
                         let address = if needs_range {
                             Some(self.variant_tag_address(instruction)?)
                         } else {
@@ -82,10 +94,20 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         };
                         self.execute_aggregate(instruction)?;
 
+                        if is_observing_memory {
+                            self.observe_memory(
+                                self.frame(),
+                                operation_pc,
+                                0,
+                                MemoryAccess::Read,
+                                address,
+                            )?;
+                        }
                         if WATCH
                             && let Some(outcome) = self.watch_after(
                                 self.frame(),
                                 operation_pc,
+                                0,
                                 MemoryAccess::Read,
                                 address,
                             )?
@@ -153,10 +175,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         } else {
                             MemoryAccess::Write
                         };
-                        let needs_range = WATCH
-                            && self
-                                .watch_points
-                                .is_some_and(|points| points.requires_memory_range());
+                        let needs_range = is_observing_memory
+                            || (WATCH
+                                && self
+                                    .watch_points
+                                    .is_some_and(|points| points.requires_memory_range()));
                         let address = if needs_range {
                             Some(self.value_address(instruction, is_load)?)
                         } else {
@@ -164,9 +187,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         };
                         self.execute_value_memory(instruction)?;
 
+                        if is_observing_memory {
+                            self.observe_memory(self.frame(), operation_pc, 0, access, address)?;
+                        }
                         if WATCH
                             && let Some(outcome) =
-                                self.watch_after(self.frame(), operation_pc, access, address)?
+                                self.watch_after(self.frame(), operation_pc, 0, access, address)?
                         {
                             return Ok(outcome);
                         }
@@ -187,14 +213,23 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     Opcode::JUMP | Opcode::BRANCH => {
                         let displacement = self.execute_control(instruction)?;
                         position.branch(displacement);
+                        if is_observing_edge {
+                            self.observe_edge(self.frame(), operation_pc, position.pc())?;
+                        }
                     }
                     Opcode::SWITCH => {
                         let displacement = self.execute_switch(instruction)?;
                         position.branch(displacement);
+                        if is_observing_edge {
+                            self.observe_edge(self.frame(), operation_pc, position.pc())?;
+                        }
                     }
                     Opcode::CHECK_NULLISH | Opcode::CHECK_EXACT_TYPE | Opcode::CHECK_SUBTYPE => {
                         if let Some(displacement) = self.execute_runtime_check(instruction)? {
                             position.branch(displacement);
+                        }
+                        if is_observing_edge {
+                            self.observe_edge(self.frame(), operation_pc, position.pc())?;
                         }
                     }
 
@@ -208,7 +243,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     Opcode::CONTEXT_CURRENT
                     | Opcode::CONTEXT_REPLACE
                     | Opcode::CONTEXT_BIND
-                    | Opcode::CONTEXT_GET => self.execute_context::<PROFILE>(instruction)?,
+                    | Opcode::CONTEXT_GET => {
+                        self.execute_context::<OBSERVE, PROFILE>(instruction)?
+                    }
 
                     // dynamic values and calls
                     Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_TYPE => {
@@ -333,10 +370,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         MemoryOperation::Load => MemoryAccess::Read,
                         MemoryOperation::Store => MemoryAccess::Write,
                     };
-                    let needs_range = WATCH
-                        && self
-                            .watch_points
-                            .is_some_and(|points| points.requires_memory_range());
+                    let needs_range = is_observing_memory
+                        || (WATCH
+                            && self
+                                .watch_points
+                                .is_some_and(|points| points.requires_memory_range()));
                     let memory_range = if needs_range {
                         Some(self.memory_address(instruction, operation, address, scalar)?)
                     } else {
@@ -344,9 +382,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     };
                     self.execute_memory(instruction, operation, address, scalar, is_volatile)?;
 
+                    if is_observing_memory {
+                        self.observe_memory(self.frame(), operation_pc, 0, access, memory_range)?;
+                    }
                     if WATCH
                         && let Some(outcome) =
-                            self.watch_after(self.frame(), operation_pc, access, memory_range)?
+                            self.watch_after(self.frame(), operation_pc, 0, access, memory_range)?
                     {
                         return Ok(outcome);
                     }
@@ -360,10 +401,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         AtomicOperation::Store => MemoryAccess::Write,
                         _ => MemoryAccess::ReadWrite,
                     };
-                    let needs_range = WATCH
-                        && self
-                            .watch_points
-                            .is_some_and(|points| points.requires_memory_range());
+                    let needs_range = is_observing_memory
+                        || (WATCH
+                            && self
+                                .watch_points
+                                .is_some_and(|points| points.requires_memory_range()));
                     let memory_range = if needs_range {
                         Some(self.atomic_address(instruction, operation, address, scalar)?)
                     } else {
@@ -371,9 +413,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     };
                     self.execute_atomic(instruction, operation, address, scalar)?;
 
+                    if is_observing_memory {
+                        self.observe_memory(self.frame(), operation_pc, 0, access, memory_range)?;
+                    }
                     if WATCH
                         && let Some(outcome) =
-                            self.watch_after(self.frame(), operation_pc, access, memory_range)?
+                            self.watch_after(self.frame(), operation_pc, 0, access, memory_range)?
                     {
                         return Ok(outcome);
                     }
@@ -384,7 +429,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                             unreachable!("linked new opcodes carry one exact operation");
                         };
                         self.cursor.set_position(position);
-                        self.execute_new::<PROFILE>(instruction, operation)?;
+                        self.execute_new::<OBSERVE, PROFILE>(instruction, operation)?;
                         position = self.cursor.position();
                     }
                     0x20..=0x9f => {
@@ -396,6 +441,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         {
                             position.branch(displacement);
                         }
+                        if is_observing_edge {
+                            self.observe_edge(self.frame(), operation_pc, position.pc())?;
+                        }
                     }
                     0xa0..=0xff => {
                         let Some((comparison, scalar)) = opcode.comparison() else {
@@ -404,6 +452,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         let displacement =
                             self.execute_comparison(instruction, comparison, scalar)?;
                         position.branch(displacement);
+                        if is_observing_edge {
+                            self.observe_edge(self.frame(), operation_pc, position.pc())?;
+                        }
                     }
                     _ => unreachable!("masked operation codes fit one byte"),
                 },
@@ -416,11 +467,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         VectorOperation::Store => Some(MemoryAccess::Write),
                         _ => None,
                     };
-                    let needs_range = WATCH
-                        && access.is_some()
-                        && self
-                            .watch_points
-                            .is_some_and(|points| points.requires_memory_range());
+                    let needs_range = access.is_some()
+                        && (is_observing_memory
+                            || (WATCH
+                                && self
+                                    .watch_points
+                                    .is_some_and(|points| points.requires_memory_range())));
                     let address = if needs_range {
                         Some(self.vector_address(instruction, operation)?)
                     } else {
@@ -428,10 +480,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     };
                     self.execute_vector(instruction, operation)?;
 
+                    if is_observing_memory && let Some(access) = access {
+                        self.observe_memory(self.frame(), operation_pc, 0, access, address)?;
+                    }
                     if WATCH
                         && let Some(access) = access
                         && let Some(outcome) =
-                            self.watch_after(self.frame(), operation_pc, access, address)?
+                            self.watch_after(self.frame(), operation_pc, 0, access, address)?
                     {
                         return Ok(outcome);
                     }
@@ -440,17 +495,20 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     let Some(operation) = opcode.tensor_operation() else {
                         unreachable!("linked tensor opcodes carry one exact operation");
                     };
-                    let access = self.execute_tensor(instruction, operation)?;
+                    let access = self.execute_tensor::<OBSERVE>(instruction, operation)?;
+                    if is_observing_memory && let Some((access, address)) = access {
+                        self.observe_memory(self.frame(), operation_pc, 0, access, Some(address))?;
+                    }
                     if WATCH
                         && let Some((access, address)) = access
                         && let Some(outcome) =
-                            self.watch_after(self.frame(), operation_pc, access, Some(address))?
+                            self.watch_after(self.frame(), operation_pc, 0, access, Some(address))?
                     {
                         return Ok(outcome);
                     }
                 }
                 0x0f => {
-                    let accesses = if WATCH {
+                    let accesses = if WATCH || is_observing_memory {
                         self.byte_accesses(instruction)?
                     } else {
                         [None, None]
@@ -477,11 +535,29 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         return Err(Error::unsupported_opcode(opcode.code()).into());
                     }
 
-                    if WATCH {
-                        for (access, address) in accesses.into_iter().flatten() {
+                    if WATCH || is_observing_memory {
+                        let accesses = accesses
+                            .into_iter()
+                            .enumerate()
+                            .filter_map(|(index, access)| access.map(|access| (index, access)));
+                        for (site_index, (access, address)) in accesses {
+                            if is_observing_memory {
+                                self.observe_memory(
+                                    self.frame(),
+                                    operation_pc,
+                                    site_index,
+                                    access,
+                                    Some(address),
+                                )?;
+                            }
+                            if !WATCH {
+                                continue;
+                            }
+
                             let outcome = self.watch_after(
                                 self.frame(),
                                 operation_pc,
+                                site_index,
                                 access,
                                 Some(address),
                             )?;

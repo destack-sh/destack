@@ -52,8 +52,8 @@ pub(crate) enum Return {
     Detach {
         /// Caller program counter that entered the boundary.
         pc: CodeOffset,
-        /// Logical fiber restored on the caller.
-        saved: program::Fiber,
+        /// Logical fiber identity restored on the caller.
+        caller_fiber_id: program::FiberId,
         /// Execution context restored on the caller after a split.
         context: Context,
     },

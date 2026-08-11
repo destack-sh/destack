@@ -89,7 +89,8 @@ function f3 {
 /// Execute vector memory through the observed loop and stop after the write.
 #[test]
 fn test_watch_vector_memory() {
-    let site = TestProgram::memory_site(0, 0, MemoryAccess::Write, None);
+    let store = TestProgram::memory_site(0, 0, MemoryAccess::Write, None);
+    let load = TestProgram::memory_site(0, 1, MemoryAccess::Read, None);
     let watch = TestProgram::watchpoint(0, 0, 17, MemoryAccess::Write);
     let watchpoint_id = watch.watchpoint_id;
     let watches = WatchSet::new(vec![watch]);
@@ -101,9 +102,11 @@ function f0 {
     return r3:r4
 }
 "#,
-        TestProgram::words()
-            .memory([site])
-            .frame(0, 1, [(RegisterSpan::new(RegisterId(0), 1), 0)]),
+        TestProgram::words().memory([store, load]).frame(
+            0,
+            1,
+            [(RegisterSpan::new(RegisterId(0), 1), 0)],
+        ),
     );
     let mut storage = [0_u32; 4];
     let pointer = Word::from_bits(storage.as_mut_ptr() as u64);

@@ -22,7 +22,7 @@ pub struct Fiber {
     /// The parked call's result registers awaiting one wake value.
     pub(crate) wake_to: Option<RegisterSpan>,
     /// The logical fiber executing here; detach boundaries nest inner identities.
-    pub(crate) current: program::Fiber,
+    pub(crate) fiber_id: Option<program::FiberId>,
     /// Executions split off at detach boundaries, drained after every run.
     pub(crate) detached: Vec<Fiber>,
 }
@@ -37,7 +37,7 @@ impl Fiber {
             frames: Vec::new(),
             context: Context::default(),
             wake_to: None,
-            current: program::Fiber::NONE,
+            fiber_id: None,
             detached: Vec::new(),
         })
     }
@@ -54,7 +54,7 @@ impl Fiber {
             frames: self.frames.clone(),
             context: self.context,
             wake_to: self.wake_to,
-            current: self.current,
+            fiber_id: self.fiber_id,
             detached: Vec::new(),
         }
     }
@@ -74,17 +74,17 @@ impl Fiber {
         self.frames.clear();
         self.stack.clear();
         self.wake_to = None;
-        self.current = program::Fiber::NONE;
+        self.fiber_id = None;
     }
 
     /// Mount one logical fiber identity on this execution.
-    pub fn mount(&mut self, fiber: program::Fiber) {
-        self.current = fiber;
+    pub fn mount(&mut self, fiber_id: program::FiberId) {
+        self.fiber_id = Some(fiber_id);
     }
 
-    /// Return the logical fiber executing here.
-    pub fn current(&self) -> program::Fiber {
-        self.current
+    /// Return the logical fiber executing here when mounted.
+    pub fn fiber_id(&self) -> Option<program::FiberId> {
+        self.fiber_id
     }
 
     /// Drain the executions split off at detach boundaries.
@@ -115,7 +115,7 @@ impl Fiber {
             frames: self.frames.clone(),
             context: self.context,
             wake_to: self.wake_to,
-            current: self.current,
+            fiber_id: self.fiber_id,
         }
     }
 
@@ -150,7 +150,7 @@ impl Fiber {
             frames: image.frames.clone(),
             context: image.context,
             wake_to: image.wake_to,
-            current: image.current,
+            fiber_id: image.fiber_id,
             detached: Vec::new(),
         })
     }
@@ -170,5 +170,5 @@ pub struct FiberImage {
     /// The parked call's result registers awaiting one wake value.
     pub(crate) wake_to: Option<RegisterSpan>,
     /// The logical fiber executing here.
-    pub(crate) current: program::Fiber,
+    pub(crate) fiber_id: Option<program::FiberId>,
 }

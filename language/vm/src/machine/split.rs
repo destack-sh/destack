@@ -48,7 +48,7 @@ impl Machine {
         suffix.frames = frames;
         suffix.context = fiber.context;
         suffix.wake_to = Some(wake_to);
-        suffix.current = fiber.current;
+        suffix.fiber_id = fiber.fiber_id;
 
         // rebase moved frame addresses at the exact park state
         let active = suffix

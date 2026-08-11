@@ -3,7 +3,7 @@ use destack_heap::{HeapEdge, HeapReference, SharedHeapReference};
 use destack_mir as mir;
 use destack_program::{FunctionId, Runtime, Word};
 
-use crate::diagnostic::{Error, Result};
+use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::Activation;
 
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
@@ -71,7 +71,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         &mut self,
         pc: CodeOffset,
         instruction: Instruction<'_>,
-    ) -> Result<()> {
+    ) -> ExecutionResult<(), R::Error> {
         let mut operands = self.operands(instruction);
         let value = operands.span()?;
         let function = FunctionId(operands.u32()?);

@@ -158,6 +158,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         &mut self,
         frame: Frame,
         pc: CodeOffset,
+        site_index: usize,
         access: MemoryAccess,
         address: Option<(usize, usize)>,
     ) -> Result<Option<Outcome<Vec<Word>>>> {
@@ -170,35 +171,38 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .program
             .sites()
             .memory(self.machine.program.sections(), point);
-
-        // select the first matching site and watchpoint deterministically
-        for &site in sites {
-            let range = if watch_points.requires_memory_range() {
-                let (address, byte_len) = address.ok_or_else(Error::invalid_instruction)?;
-
-                Some(self.memory_range(site.storage.get(), address, byte_len)?)
-            } else {
-                None
-            };
-            let Some(watchpoint_id) = watch_points.watchpoint_at(site, access, range) else {
-                continue;
-            };
-
-            // retain the stopped frames in place for later continuation
-            self.retain_stop(frame.pc);
-            let reason = StopReason::Watchpoint {
-                watchpoint_id,
-                point,
-            };
-
-            return Ok(Some(Outcome::Stopped { reason }));
+        let site = sites
+            .get(site_index)
+            .copied()
+            .ok_or_else(|| self.invalid_instruction())?;
+        if site.access != access {
+            return Err(self.invalid_instruction());
         }
 
-        Ok(None)
+        // resolve the range only when one configured watchpoint requires it
+        let range = if watch_points.requires_memory_range() {
+            let (address, byte_len) = address.ok_or_else(Error::invalid_instruction)?;
+
+            Some(self.executed_memory_range(site.storage.get(), address, byte_len)?)
+        } else {
+            None
+        };
+        let Some(watchpoint_id) = watch_points.watchpoint_at(site, access, range) else {
+            return Ok(None);
+        };
+
+        // retain the stopped frames in place for later continuation
+        self.retain_stop(frame.pc);
+        let reason = StopReason::Watchpoint {
+            watchpoint_id,
+            point,
+        };
+
+        Ok(Some(Outcome::Stopped { reason }))
     }
 
     /// Project one native byte range into its program storage.
-    fn memory_range(
+    pub(crate) fn executed_memory_range(
         &self,
         storage: Option<Storage>,
         address: usize,

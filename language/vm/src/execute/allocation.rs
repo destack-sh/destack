@@ -6,16 +6,16 @@ use destack_heap::{AllocationPlan, HeapEdge, HeapError, Payload};
 use destack_mir as mir;
 use destack_program::{AllocationSiteId, LayoutId, LayoutShape, Runtime, VirtualTableId, Word};
 
-use crate::diagnostic::{Error, Result};
+use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::Activation;
 
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one local or shared heap allocation.
-    pub(crate) fn execute_new<const PROFILE: bool>(
+    pub(crate) fn execute_new<const OBSERVE: bool, const PROFILE: bool>(
         &mut self,
         instruction: Instruction<'_>,
         operation: New,
-    ) -> Result<()> {
+    ) -> ExecutionResult<(), R::Error> {
         // decode the allocation operands and optional branches
         let mut operands = self.operands(instruction);
         let results = if operation.kind == NewKind::Slice {
@@ -61,7 +61,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 | (bytecode::Space::SHARED, mir::Space::Shared)
         );
         if !is_expected_space {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         }
 
         // derive repeated storage only for variable-length slice allocation
@@ -94,7 +94,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                 return Ok(());
             }
-            (Err(error), _) => return Err(Error::heap(error)),
+            (Err(error), _) => return Err(Error::heap(error).into()),
             (Ok(reference), None) => reference,
         };
 
@@ -116,6 +116,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             };
 
             profile.record_allocation(site_id, plan.byte_len);
+        }
+        if OBSERVE {
+            self.observe_allocation(site_id, reference, plan.byte_len())?;
         }
 
         Ok(())

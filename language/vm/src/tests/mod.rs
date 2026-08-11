@@ -3,6 +3,7 @@ mod allocation;
 mod call;
 mod control;
 mod dynamic;
+mod event;
 mod float;
 mod function;
 mod integer;

@@ -5,21 +5,25 @@ use destack_heap::{HeapEdge, HeapReference, Payload};
 use destack_mir as mir;
 use destack_program::{AllocationSiteId, Context, ContextNode, Runtime, Word};
 
-use crate::diagnostic::{Error, Result};
+use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::Activation;
 
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one execution context operation.
-    pub(crate) fn execute_context<const PROFILE: bool>(
+    pub(crate) fn execute_context<const OBSERVE: bool, const PROFILE: bool>(
         &mut self,
         instruction: Instruction<'_>,
-    ) -> Result<()> {
+    ) -> ExecutionResult<(), R::Error> {
         match instruction.opcode() {
-            Opcode::CONTEXT_CURRENT => self.execute_context_current(instruction),
-            Opcode::CONTEXT_REPLACE => self.execute_context_replace(instruction),
-            Opcode::CONTEXT_BIND => self.execute_context_bind::<PROFILE>(instruction),
-            Opcode::CONTEXT_GET => self.execute_context_get(instruction),
-            _ => Err(self.invalid_instruction()),
+            Opcode::CONTEXT_CURRENT => self
+                .execute_context_current(instruction)
+                .map_err(Into::into),
+            Opcode::CONTEXT_REPLACE => self
+                .execute_context_replace(instruction)
+                .map_err(Into::into),
+            Opcode::CONTEXT_BIND => self.execute_context_bind::<OBSERVE, PROFILE>(instruction),
+            Opcode::CONTEXT_GET => self.execute_context_get(instruction).map_err(Into::into),
+            _ => Err(self.invalid_instruction().into()),
         }
     }
 
@@ -49,10 +53,10 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     }
 
     /// Allocate and initialize one immutable context node.
-    fn execute_context_bind<const PROFILE: bool>(
+    fn execute_context_bind<const OBSERVE: bool, const PROFILE: bool>(
         &mut self,
         instruction: Instruction<'_>,
-    ) -> Result<()> {
+    ) -> ExecutionResult<(), R::Error> {
         let mut operands = self.operands(instruction);
         let result = operands.register()?;
         let site_id = AllocationSiteId(operands.u32()?);
@@ -68,7 +72,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .copied()
             .ok_or_else(|| self.invalid_instruction())?;
         if site.space != mir::Space::Local {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         }
         let plan = self
             .activation
@@ -86,7 +90,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             )
             .map_err(Error::heap)?;
         let HeapEdge::Local(reference) = edge else {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         };
         let address = self.activation.memory.address(edge);
         let node = ContextNode {
@@ -123,6 +127,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 unreachable!("profiled dispatch requires an active profile");
             };
             profile.record_allocation(site_id, plan.byte_len);
+        }
+        if OBSERVE {
+            self.observe_allocation(site_id, edge, plan.byte_len())?;
         }
 
         Ok(())

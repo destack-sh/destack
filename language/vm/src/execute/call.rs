@@ -35,6 +35,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if Self::is_tail_call(opcode) {
             let callee = self.callee(opcode, &mut operands)?;
             let arguments = operands.span()?;
+            self.observe_call(self.frame(), pc, callee.function)?;
 
             return self.tail_call(callee.function, arguments, callee.environment);
         }
@@ -51,6 +52,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         } else {
             (None, None)
         };
+        self.observe_call(self.frame(), pc, callee.function)?;
 
         self.call(
             callee.function,

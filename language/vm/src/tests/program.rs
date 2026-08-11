@@ -8,10 +8,10 @@ use destack_mir::{
 use destack_program as program;
 use destack_program::{
     AllocationSite, BreakpointId, CallDispatch, CallMode, CallSite, CounterId, CounterSite,
-    DynamicEntry, DynamicTableBuilder, FunctionId, LayoutId, LayoutShapeBuilder, MemoryAccess,
-    MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder, ProgramPoint, ReferenceLayout,
-    SampleSite, SamplerId, ScalarFormat, Signature, SignatureId, SiteTableBuilder, StopPoint,
-    StopReason, TensorDimension, TensorLayoutBuilder, TensorViewLayoutBuilder, TypeId,
+    DynamicEntry, DynamicTableBuilder, EdgeSite, FunctionId, LayoutId, LayoutShapeBuilder,
+    MemoryAccess, MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder, ProgramPoint,
+    ReferenceLayout, SampleSite, SamplerId, ScalarFormat, Signature, SignatureId, SiteTableBuilder,
+    StopPoint, StopReason, TensorDimension, TensorLayoutBuilder, TensorViewLayoutBuilder, TypeId,
     VirtualTableBuilder, WatchpointId, Word,
 };
 
@@ -207,6 +207,22 @@ impl TestProgram {
         }
     }
 
+    /// Create one direct tail call site.
+    pub(crate) const fn tail_call(function: u32, operation: u32, target: u32) -> CallSite {
+        CallSite {
+            point: Self::point(function, operation),
+            resume: Optional::none(),
+            unwind: Optional::none(),
+            mode: CallMode::Tail,
+            dispatch: CallDispatch::Direct,
+            space: Optional::none(),
+            target: Optional::some(FunctionId(target)),
+            dispatch_type: Optional::none(),
+            signature: SignatureId(0),
+            slot: Optional::none(),
+        }
+    }
+
     /// Create one runtime breakpoint.
     pub(crate) const fn breakpoint(function: u32, operation: u32, breakpoint: u64) -> StopPoint {
         let point = Self::point(function, operation);
@@ -336,6 +352,13 @@ impl TestProgram {
     /// Set function call sites.
     pub(crate) fn calls(mut self, sites: impl IntoIterator<Item = CallSite>) -> Self {
         self.sites = self.sites.calls(sites);
+
+        self
+    }
+
+    /// Set control-flow edge sites.
+    pub(crate) fn edges(mut self, sites: impl IntoIterator<Item = EdgeSite>) -> Self {
+        self.sites = self.sites.edges(sites);
 
         self
     }

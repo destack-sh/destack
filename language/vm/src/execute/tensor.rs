@@ -14,7 +14,7 @@ use destack_program::{
 };
 use mir::{TensorDimensionOrder, TensorFormat, TraceMap};
 
-use crate::diagnostic::{Error, Result, Trap};
+use crate::diagnostic::{Error, ExecutionResult, Result, Trap};
 use crate::machine::Activation;
 
 use super::arithmetic::Arithmetic;
@@ -33,6 +33,19 @@ struct Execution<'program, 'memory, 'registers, 'profile> {
     registers: &'registers mut [Word],
     /// Optional allocation profile.
     profile: Option<&'profile mut Profile>,
+    /// Allocation completed by this instruction when present.
+    allocation: Option<Allocation>,
+}
+
+/// One allocation completed by a tensor instruction.
+#[derive(Clone, Copy)]
+struct Allocation {
+    /// The executed allocation site.
+    site_id: AllocationSiteId,
+    /// The allocated heap edge.
+    edge: HeapEdge,
+    /// The allocated byte length.
+    byte_len: usize,
 }
 
 /// One tensor resolved against live execution memory.
@@ -408,30 +421,45 @@ impl TensorExecutor {
         instruction: Instruction<'_>,
         operation: TensorOperation,
     ) -> Result<Option<(MemoryAccess, (usize, usize))>> {
-        Execution {
+        let mut execution = Execution {
             program,
             memory,
             registers,
             profile,
-        }
-        .execute(instruction, operation)
+            allocation: None,
+        };
+
+        execution.execute(instruction, operation)
     }
 }
 
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one tensor instruction over the active register window.
-    pub(crate) fn execute_tensor(
+    pub(crate) fn execute_tensor<const OBSERVE: bool>(
         &mut self,
         instruction: Instruction<'_>,
         operation: TensorOperation,
-    ) -> Result<Option<(MemoryAccess, (usize, usize))>> {
+    ) -> ExecutionResult<Option<(MemoryAccess, (usize, usize))>, R::Error> {
         let frame = self.frame();
         let program = &self.machine.program;
         let memory = self.activation.memory.reborrow();
         let registers = self.cursor.registers(frame.register_count);
         let profile = self.profile.as_deref_mut();
+        let mut execution = Execution {
+            program,
+            memory,
+            registers,
+            profile,
+            allocation: None,
+        };
+        let access = execution.execute(instruction, operation)?;
+        let allocation = execution.allocation;
 
-        TensorExecutor::execute(program, memory, registers, profile, instruction, operation)
+        if OBSERVE && let Some(allocation) = allocation {
+            self.observe_allocation(allocation.site_id, allocation.edge, allocation.byte_len)?;
+        }
+
+        Ok(access)
     }
 }
 
@@ -2459,6 +2487,11 @@ impl Execution<'_, '_, '_, '_> {
         if let Some(profile) = self.profile.as_deref_mut() {
             profile.record_allocation(site_id, plan.byte_len);
         }
+        self.allocation = Some(Allocation {
+            site_id,
+            edge,
+            byte_len: plan.byte_len(),
+        });
         let address = base
             .checked_add(header_byte_len)
             .ok_or_else(|| self.invalid_instruction())?;

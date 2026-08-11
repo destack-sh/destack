@@ -27,21 +27,21 @@ pub(crate) enum RuntimeCall {
     /// Park one logical fiber.
     Park {
         /// The parked fiber identity.
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
     },
     /// Allocate one detached fiber identity.
     Detach {
         /// The issued identity.
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
     },
-    /// Retire one detached fiber that never parked.
+    /// Retire one running detached fiber.
     Retire {
         /// The retired identity.
-        fiber: program::Fiber,
+        fiber_id: program::FiberId,
     },
 }
 
-/// Strict runtime probe used by bytecode execution tests.
+/// Strict runtime used by bytecode execution tests.
 #[derive(Debug, Default)]
 pub(crate) struct TestRuntime {
     /// Binding implementations keyed by stable identity.
@@ -52,6 +52,10 @@ pub(crate) struct TestRuntime {
     poll: Option<program::Poll>,
     /// Runtime calls in execution order.
     calls: Vec<RuntimeCall>,
+    /// Program event categories selected for execution.
+    selected_events: program::EventSet,
+    /// Program execution events with their logical fiber identities.
+    observations: Vec<(Option<program::FiberId>, program::Event)>,
     /// Next detached fiber slot to issue.
     next_fiber: u32,
 }
@@ -66,6 +70,26 @@ impl TestRuntime {
     /// Return and clear recorded runtime calls.
     pub(crate) fn take_calls(&mut self) -> Vec<RuntimeCall> {
         mem::take(&mut self.calls)
+    }
+
+    /// Select Program execution event categories.
+    pub(crate) fn select_events(&mut self, kinds: impl IntoIterator<Item = program::EventKind>) {
+        for kind in kinds {
+            self.selected_events.insert(kind);
+        }
+    }
+
+    /// Return and clear recorded Program execution events.
+    pub(crate) fn take_events(&mut self) -> Vec<program::Event> {
+        mem::take(&mut self.observations)
+            .into_iter()
+            .map(|(_, event)| event)
+            .collect()
+    }
+
+    /// Return and clear Program events with their logical fiber identities.
+    pub(crate) fn take_observations(&mut self) -> Vec<(Option<program::FiberId>, program::Event)> {
+        mem::take(&mut self.observations)
     }
 
     /// Request one runtime poll action.
@@ -90,12 +114,24 @@ impl program::Runtime for TestRuntime {
         Ok(action)
     }
 
+    /// Return Program event categories selected for observation.
+    fn events(&self) -> program::EventSet {
+        self.selected_events
+    }
+
+    /// Record one selected Program execution event.
+    fn observe(&mut self, fiber_id: Option<program::FiberId>, event: program::Event) -> Result<()> {
+        self.observations.push((fiber_id, event));
+
+        Ok(())
+    }
+
     /// Call one registered binding implementation.
     fn call_binding(
         &mut self,
         memory: program::Memory<'_>,
         _context: program::Context,
-        _fiber: program::Fiber,
+        _fiber_id: Option<program::FiberId>,
         binding: &program::Binding,
         arguments: &[program::Word],
         result: &mut [program::Word],
@@ -112,8 +148,8 @@ impl program::Runtime for TestRuntime {
     }
 
     /// Park one logical fiber or deliver one queued wake.
-    fn park(&mut self, fiber: program::Fiber) -> Result<program::Park> {
-        self.calls.push(RuntimeCall::Park { fiber });
+    fn park(&mut self, fiber_id: program::FiberId) -> Result<program::Park> {
+        self.calls.push(RuntimeCall::Park { fiber_id });
 
         // deliver one queued wake immediately when present
         if self.wakes.is_empty() {
@@ -124,17 +160,17 @@ impl program::Runtime for TestRuntime {
     }
 
     /// Allocate one detached fiber identity.
-    fn detach(&mut self) -> Result<program::Fiber> {
-        let fiber = program::Fiber::new(self.next_fiber, 1);
+    fn detach(&mut self) -> Result<program::FiberId> {
+        let fiber_id = program::FiberId::new(self.next_fiber, 1);
         self.next_fiber += 1;
-        self.calls.push(RuntimeCall::Detach { fiber });
+        self.calls.push(RuntimeCall::Detach { fiber_id });
 
-        Ok(fiber)
+        Ok(fiber_id)
     }
 
-    /// Retire one detached fiber that never parked.
-    fn retire(&mut self, fiber: program::Fiber) -> Result<()> {
-        self.calls.push(RuntimeCall::Retire { fiber });
+    /// Retire one running detached fiber.
+    fn retire(&mut self, fiber_id: program::FiberId) -> Result<()> {
+        self.calls.push(RuntimeCall::Retire { fiber_id });
 
         Ok(())
     }
