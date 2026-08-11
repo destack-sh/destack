@@ -38,9 +38,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect compiler-defined comparisons
     for expression_id in module.operator_expressions() {
         let expression_id = expression_id?;
-        let Some((operator, [left_operand, right_operand])) =
-            module.builtin_binary(expression_id)?
-        else {
+        let Some((operator, _)) = module.builtin_binary(expression_id)? else {
             continue;
         };
         if !operator.is_comparison() {
