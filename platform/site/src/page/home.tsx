@@ -1,195 +1,28 @@
-import { createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { A } from "@solidjs/router";
+import { createMemo } from "solid-js";
 
+import { commandEvents } from "../command/command";
 import { type HomeExample, homeExamples, installCommand } from "../content/site";
-import { Seo } from "../site/seo";
+import { SiteLink } from "../navigation/link";
+import { socialLinks } from "../navigation/navigation";
 import { highlightExample } from "../site/highlight";
+import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
-import { createSweep } from "../site/sweep";
+import "../style/home.css";
 
-/// The ordered Destack-token luminance ramp for the planet surface.
-const surfaceGlyphRamp = ".:-|=+*&%#@";
-
-/// The ordered Destack-token luminance ramp for the planet ring.
-const ringGlyphRamp = "-=>";
-
-/// The ordered luminance ramp for the sparse star field.
-const starGlyphRamp = ".+*";
-
-/// One slow deterministic ASCII twinkle cycle.
-const starTwinkleCycle = "........+*+.........";
-
-/// The directional Destack tokens repeated through successive ring rows.
-const ringPatterns = ["->", "=>", ">>", ">>>"] as const;
-
-/// The width of the moving ASCII light.
-const asciiLightWidth = 14;
-
-/// The horizontal light offset added per row.
-const asciiLightSlope = 0.35;
-
-/// The interval between ASCII light steps.
-const asciiLightIntervalMilliseconds = 220;
-
-/// The first shared sweep column.
-const firstSweepColumn = -asciiLightWidth;
-
-/// The horizontal planet offset within the shared sweep.
-const planetSweepOffset = 18;
-
-/// The width of the planet and star coordinate field.
-const planetFieldWidth = 64;
-
-/// The height of the planet and star coordinate field.
-const planetFieldHeight = 32;
-
-/// The final shared sweep column.
-const lastSweepColumn = planetSweepOffset + planetFieldWidth + asciiLightWidth;
-
-/// One fixed star in the planet coordinate field.
-type Star = {
-    /// The horizontal star coordinate.
-    column: number;
-
-    /// The star's offset within the shared twinkle cycle.
-    phase: number;
-
-    /// The vertical star coordinate.
-    row: number;
-};
-
-/// The sparse deterministic stars surrounding the planet.
-const stars: readonly Star[] = [
-    { column: 5, phase: 0, row: 5 },
-    { column: 16, phase: 5, row: 5 },
-    { column: 8, phase: 10, row: 7 },
-    { column: 3, phase: 15, row: 9 },
-    { column: 7, phase: 3, row: 11 },
-    { column: 3, phase: 8, row: 13 },
-    { column: 5, phase: 13, row: 15 },
-    { column: 1, phase: 18, row: 17 },
-    { column: 61, phase: 1, row: 20 },
-    { column: 57, phase: 6, row: 22 },
-    { column: 3, phase: 11, row: 24 },
-    { column: 58, phase: 16, row: 25 },
-];
-
-/// Properties supplied to the selected example preview.
-type ExamplePreviewProps = {
-    /// The selected example.
+/// Properties supplied to one numbered product chapter.
+type ChapterProps = {
+    /// The example shown by this chapter.
     example: HomeExample;
+
+    /// The zero-based chapter index.
+    index: number;
 };
-
-/// One public action identifier.
-type Action = (typeof homeExamples)[number]["action"];
-
-/// The first action shown when the URL does not select one.
-const defaultExample = homeExamples[0];
-
-/// The real Destack mark sampled into a fixed-width luminance field.
-const planet = [
-    "",
-    "",
-    "",
-    "",
-    "",
-    "                          .::-------:..",
-    "                     .:-+*#########****+=:.",
-    "                   :=*########*************+-.",
-    "                 :+############***************-........",
-    "               .=############******************+*%##%###**=:",
-    "              .*##############***********++++++++*######*#%%=.",
-    "             .+++****************+++++++++++++++++=-==:=*:+@#:",
-    "           . +******+++++++++++++++++++++++++++++++. *:=#+%%=",
-    "          . :**********++++++++*****************+++==+*#%@#-",
-    "            =*****+++++++**************++++++++++++*#%%%#-.",
-    "          .-*********************************++**#%%@#+-.",
-    "       .-+#@*+++++**********************+++***#%@@%#-.",
-    "     .-#%@%#*+++++++++++++++++++++++++++**#%%@%#**+=",
-    "    -#@%%*+=.+***++++++++++++++++++**#%%@@%%#*+++++: .",
-    "   =%%+#=:*. .***********+++***##%%@@%%##**+++++++- .",
-    "  :#@+.*=.==-:-+++******###%%%@%%%##**+++++++++++- .",
-    "  .=%%**##*######%%%%%%%%%%%##**++++++++++++++++: .",
-    "    :=*####%#####*#%###******+******++++++++++-. .",
-    "         ......... .-+********+++++++++++++=:.  .",
-    "                  .  .:-=++**++++++++++=-:.   .",
-    "                    .    ..:::-----::..",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-].join("\n");
-
-/// The sampled ring separated from the bright page background.
-const planetRing = [
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "                                                 %##%###**=:",
-    "                                                  ######*#%%=",
-    "                                                   -     :+@#:",
-    "                                                     *:  +%%=",
-    "                                                    =  #%@#-",
-    "                                                    #%%%#-",
-    "           -                                     #%%@#+-",
-    "        -+#@                                  #%@@%",
-    "      -#%@%#                              #%%@%",
-    "    -#@%%*+=.                        #%%@@%",
-    "   =%%+   *                     #%%@@%%",
-    "  :#@+       :           ##%%%@%%",
-    "   =%%**##*######%%%%%%%%%%",
-    "    :=*####%#####*#",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-].join("\n");
-
-/// The ring mask filled with directional Destack operators.
-const tokenizedPlanetRing = fillAsciiMask(planetRing, ringPatterns);
 
 /// Render the public Destack homepage.
 export function HomePage() {
-    const sweep = createSweep({
-        firstColumn: firstSweepColumn,
-        lastColumn: lastSweepColumn,
-        stepMilliseconds: asciiLightIntervalMilliseconds,
-    });
-    const [selectedAction, setSelectedAction] = createSignal<Action>(defaultExample.action);
-    const selectedExample = createMemo(
-        () =>
-            homeExamples.find((example) => example.action === selectedAction()) ?? defaultExample,
-    );
-
-    // select URL-addressed actions after hydration and on navigation
-    onMount(() => {
-        const selectHash = () => {
-            const action = window.location.hash.slice(1);
-            const example = homeExamples.find((candidate) => candidate.action === action);
-
-            setSelectedAction(example?.action ?? defaultExample.action);
-        };
-
-        selectHash();
-        window.addEventListener("hashchange", selectHash);
-
-        onCleanup(() => window.removeEventListener("hashchange", selectHash));
-    });
-
     return (
-        <Shell>
+        <Shell class="home-shell">
             <Seo
                 description={
                     "Destack is a universal software engine for building complete " +
@@ -197,330 +30,289 @@ export function HomePage() {
                 }
             />
 
-            <article
-                class={
-                    "mx-auto grid h-full min-h-0 w-full max-w-[min(var(--site-width),100vw)] " +
-                    "grid-rows-[minmax(17rem,0.8fr)_minmax(25rem,1.2fr)] gap-4 " +
-                    "pr-[var(--site-gutter-right)] pb-6 pl-[var(--site-gutter-left)] " +
-                    "text-[length:var(--site-font-size)] max-md:h-auto max-md:grid-rows-[auto_auto] " +
-                    "max-md:pr-[var(--site-gutter-right)] max-md:pb-4 " +
-                    "max-md:pl-[var(--site-gutter-left)]"
-                }
-            >
-                {/* Main pitch */}
-                <section
-                    class={
-                        "grid min-h-0 min-w-0 grid-cols-[minmax(0,0.9fr)_minmax(24rem,1.1fr)] " +
-                        "items-center gap-8 overflow-hidden pt-6 pb-3 " +
-                        "max-[900px]:grid-cols-[minmax(0,1fr)_minmax(20rem,1fr)] " +
-                        "max-[900px]:gap-6 max-md:grid-cols-1 max-md:gap-4 max-md:pt-9 max-md:pb-4"
-                    }
-                >
-                    <div class="grid min-w-0 content-center gap-2">
-                        <h1
-                            class={
-                                "m-0 text-[clamp(2rem,3.2vw,2.875rem)] leading-[1.02] " +
-                                "font-[650] tracking-[-0.045em] text-destack-text"
-                            }
-                        >
-                            <span class="block">absurdly integrated</span>
-                            <span class="block">standardized</span>
-                            <span class="block">computing stack</span>
-                        </h1>
-                        <p class="mt-1.5 mb-0 text-base leading-[1.4] font-semibold text-destack-text">
-                            TypeScript++, web standards, familiar APIs
-                        </p>
-                        <ul class="mt-1.5 mb-0 grid list-none gap-1 p-0 leading-[1.45] text-destack-soft">
-                            <li class="before:mr-2.5 before:text-destack-accent before:content-['•']">
-                                sandboxed VM and true AOT native targets
-                            </li>
-                            <li class="before:mr-2.5 before:text-destack-accent before:content-['•']">
-                                strong typing, tests, simulation, and debugging
-                            </li>
-                            <li class="before:mr-2.5 before:text-destack-accent before:content-['•']">
-                                precise control over every host binding
-                            </li>
-                        </ul>
+            <article class="home-world">
+                <Universe />
+                <Cover />
 
-                        {/* Installation */}
-                        <div
-                            class={
-                                "mt-3 flex min-w-0 items-stretch self-start border " +
-                                "border-destack-frame font-mono text-xs leading-none"
-                            }
-                        >
-                            <a
-                                class={
-                                    "flex shrink-0 items-center border-r border-destack-frame " +
-                                    "px-3 py-2.5 font-semibold text-destack-text no-underline " +
-                                    "hover:text-destack-accent"
-                                }
-                                href="/docs/"
-                            >
-                                get started
-                            </a>
-                            <code class="min-w-0 overflow-hidden px-3 py-2.5 text-ellipsis whitespace-nowrap text-destack-soft">
-                                {installCommand}
-                            </code>
-                        </div>
-                    </div>
-
-                    <AsciiPlanet
-                        lightColumn={sweep.column() - planetSweepOffset}
-                        onRelease={sweep.release}
-                        onSteer={(column) => sweep.steer(column + planetSweepOffset)}
-                        phase={sweep.phase()}
-                    />
-                </section>
-
-                {/* Product workbench */}
-                <section
-                    aria-label="Destack actions"
-                    class="grid min-h-0 min-w-0 content-start grid-rows-[auto_minmax(0,1fr)]"
-                >
-                    <nav
-                        aria-label="Destack action previews"
-                        class="min-w-0 overflow-x-auto border-y border-destack-frame"
-                    >
-                        <ol class="m-0 flex w-max min-w-full list-none p-0">
-                            {homeExamples.map((example, index) => (
-                                <li class="flex-[1_0_auto]" id={example.action}>
-                                    <a
-                                        aria-current={
-                                            selectedAction() === example.action
-                                                ? "location"
-                                                : undefined
-                                        }
-                                        href={`#${example.action}`}
-                                        onClick={() => setSelectedAction(example.action)}
-                                        data-shortcut={String(index)}
-                                        title={`Alt+${index}: ${example.action}`}
-                                        class={
-                                            "flex min-h-[var(--site-control-height)] " +
-                                            "items-center justify-center border-b-2 " +
-                                            "border-transparent px-3 py-2 font-mono text-xs " +
-                                            "leading-none text-destack-soft hover:text-destack-text " +
-                                            "aria-[current=location]:border-destack-accent " +
-                                            "aria-[current=location]:text-destack-text"
-                                        }
-                                    >
-                                        <strong class="font-semibold">{example.action}</strong>
-                                    </a>
-                                </li>
-                            ))}
-                        </ol>
-                    </nav>
-
-                    <ExamplePreview example={selectedExample()} />
-                </section>
+                {/* System chapters */}
+                <div aria-label="Destack system lifecycle" class="home-lifecycle">
+                    {homeExamples.map((example, index) => (
+                        <Chapter example={example} index={index} />
+                    ))}
+                </div>
             </article>
         </Shell>
     );
 }
 
-/// Render the lightweight selected example placeholder.
-function ExamplePreview(props: ExamplePreviewProps) {
+/// Render the publication cover and installation procedure.
+function Cover() {
     return (
-        <section
-            aria-live="polite"
-            class={
-                "mt-4 grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-sm " +
-                "border border-destack-frame bg-destack-panel max-md:min-h-[22rem]"
-            }
-        >
-            <header
-                class={
-                    "grid grid-cols-[7rem_minmax(0,1fr)] items-baseline gap-4 " +
-                    "border-b border-destack-frame px-4 py-3.5 " +
-                    "max-[900px]:grid-cols-[5rem_minmax(0,1fr)] " +
-                    "max-md:grid-cols-1 max-md:gap-1"
-                }
-            >
-                <h2 class="m-0 font-mono text-[0.8125rem] leading-[1.4] font-semibold">
-                    {props.example.action}
-                </h2>
-                <p class="m-0 leading-[1.4] text-destack-soft">
-                    {props.example.description}
-                </p>
-            </header>
+        <section class="home-cover">
+            <div class="home-cover__frame">
+                {/* Series masthead */}
+                <h1 aria-label="Destack" class="display home-title">
+                    <span aria-hidden="true">D</span>
+                    <span aria-hidden="true">E</span>
+                    <span aria-hidden="true">S</span>
+                    <span aria-hidden="true">T</span>
+                    <span aria-hidden="true">A</span>
+                    <span aria-hidden="true">C</span>
+                    <span aria-hidden="true">K</span>
+                </h1>
 
-            <ExampleCode example={props.example} />
-        </section>
-    );
-}
-
-/// Render one numbered static code listing.
-function ExampleCode(props: { example: HomeExample }) {
-    const lines = createMemo(() =>
-        highlightExample(props.example.source.code, props.example.source.language),
-    );
-
-    return (
-        <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
-            <header
-                class={
-                    "flex items-center justify-between border-b border-destack-frame " +
-                    "px-4 py-2 font-mono text-xs text-destack-soft"
-                }
-            >
-                <span class="text-destack-text">{props.example.source.title}</span>
-                <span>{props.example.source.language}</span>
-            </header>
-
-            <div class="syntax min-h-0 overflow-auto py-4 font-mono text-[0.8125rem] leading-6">
-                <ol aria-label={props.example.source.title} class="m-0 list-none p-0">
-                    {lines().map((line, index) => (
-                        <li class="grid min-w-max grid-cols-[3.25rem_minmax(0,1fr)]">
-                            <span
-                                aria-hidden="true"
-                                class={
-                                    "border-r border-destack-frame pr-3 text-right " +
-                                    "text-destack-soft select-none"
-                                }
-                            >
-                                {index + 1}
-                            </span>
-                            <code
-                                class="px-4 whitespace-pre text-destack-text"
-                                innerHTML={line || " "}
-                            />
-                        </li>
-                    ))}
-                </ol>
-
-                {/* Result */}
-                <div
-                    class={
-                        "mt-3 grid min-w-max grid-cols-[3.25rem_minmax(0,1fr)] " +
-                        "text-destack-text"
-                    }
-                >
-                    <span
-                        aria-hidden="true"
-                        class="pr-3 text-right text-destack-accent select-none"
-                    >
-                        →
-                    </span>
-                    <div class="flex min-w-0 items-baseline gap-3 px-4">
-                        <span class="shrink-0 text-destack-soft">{props.example.result.title}</span>
-                        <pre class="m-0 whitespace-pre-wrap">{props.example.result.text}</pre>
+                {/* Publication navigation */}
+                <nav aria-label="Destack navigation" class="home-cover__navigation">
+                    <div class="home-cover__links home-cover__links--primary">
+                        <A href="/docs/">docs</A>
+                        <A href="/blog/">blog</A>
+                        <button
+                            onClick={() =>
+                                document.dispatchEvent(new CustomEvent(commandEvents.open))
+                            }
+                            type="button"
+                        >
+                            search
+                        </button>
                     </div>
+
+                    <div class="home-cover__links home-cover__links--social">
+                        {socialLinks.map(({ label, href, shortcut }) => (
+                            <SiteLink
+                                href={href}
+                                shortcut={shortcut}
+                                title={`Alt+${shortcut.toUpperCase()}: ${label}`}
+                            >
+                                {label}
+                            </SiteLink>
+                        ))}
+                    </div>
+                </nav>
+
+                {/* Main proposition */}
+                <div class="home-hero">
+                    <header class="home-hero__copy">
+                        <p class="display home-pitch">
+                            <span>the</span>
+                            <span>absurdly</span>
+                            <span>integrated</span>
+                            <span>open</span>
+                            <span>computing</span>
+                            <span>stack</span>
+                        </p>
+                    </header>
+
+                    <Installation />
                 </div>
             </div>
         </section>
     );
 }
 
-/// Render the actual Destack mark through sampled ASCII characters.
-function AsciiPlanet(props: {
-    lightColumn: number;
-    onRelease: () => void;
-    onSteer: (column: number) => void;
-    phase: number;
-}) {
-    // map pointer movement into the shared fixed-width ASCII field
-    const steer = (event: PointerEvent & { currentTarget: HTMLDivElement }) => {
-        // preserve native touch scrolling
-        if (event.pointerType === "touch") {
-            return;
-        }
+/// Render the first numbered installation procedure.
+function Installation() {
+    return (
+        <aside class="home-installation">
+            <header class="home-installation__header">
+                <span class="home-installation__number">00</span>
+                <strong>Install Destack</strong>
+            </header>
 
-        const bounds = event.currentTarget.getBoundingClientRect();
-        const progress = (event.clientX - bounds.left) / bounds.width;
+            <div class="home-installation__command">
+                <span aria-hidden="true">$</span>
+                <code>{installCommand}</code>
+            </div>
 
-        props.onSteer(progress * planetFieldWidth);
-    };
+            <footer class="home-installation__footer">
+                <a href="/docs/">
+                    get started <span aria-hidden="true">→</span>
+                </a>
+            </footer>
+        </aside>
+    );
+}
+
+/// Render the restrained planetary field behind the complete page.
+function Universe() {
+    return (
+        <div aria-hidden="true" class="home-universe">
+            <svg
+                class="home-universe__view"
+                preserveAspectRatio="xMidYMid slice"
+                viewBox="0 0 1600 1100"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+                <defs>
+                    <clipPath id="home-planet-clip">
+                        <circle cx="1180" cy="760" r="520" />
+                    </clipPath>
+
+                    <pattern
+                        id="home-object-grain"
+                        height="180"
+                        patternUnits="userSpaceOnUse"
+                        width="180"
+                    >
+                        <image height="180" href="/grain.svg" width="180" />
+                    </pattern>
+                </defs>
+
+                {/* Distant star field */}
+                <g class="home-object home-object--stars" fill="var(--color-cream)">
+                    <g class="home-object__drift">
+                        <circle class="home-star home-star--twinkle" cx="116" cy="154" r="2.5" />
+                        <circle class="home-star" cx="345" cy="86" r="1.5" />
+                        <circle class="home-star home-star--twinkle" cx="570" cy="192" r="2" />
+                        <circle class="home-star" cx="820" cy="112" r="1.5" />
+                        <circle class="home-star home-star--twinkle" cx="1070" cy="72" r="2.5" />
+                        <circle class="home-star" cx="1260" cy="210" r="1.25" />
+                        <circle class="home-star home-star--twinkle" cx="1425" cy="155" r="1.5" />
+                        <circle class="home-star" cx="1535" cy="345" r="2" />
+                        <circle class="home-star home-star--twinkle" cx="1480" cy="475" r="2.5" />
+                        <circle class="home-star" cx="1330" cy="565" r="1.5" />
+                        <circle class="home-star home-star--twinkle" cx="240" cy="590" r="2" />
+                        <circle class="home-star" cx="80" cy="430" r="1.5" />
+                        <circle class="home-star home-star--twinkle" cx="425" cy="385" r="1.25" />
+                        <circle class="home-star" cx="675" cy="520" r="1.75" />
+                        <circle class="home-star home-star--twinkle" cx="925" cy="430" r="1.5" />
+                        <circle class="home-star" cx="96" cy="910" r="1.5" />
+                        <circle class="home-star home-star--twinkle" cx="290" cy="800" r="2" />
+                        <circle class="home-star" cx="470" cy="1015" r="2" />
+                        <circle class="home-star home-star--twinkle" cx="720" cy="920" r="1.25" />
+                        <circle class="home-star" cx="970" cy="1040" r="1.5" />
+                        <circle class="home-star home-star--twinkle" cx="1170" cy="880" r="2" />
+                        <circle class="home-star" cx="1370" cy="970" r="1.5" />
+                        <circle class="home-star home-star--twinkle" cx="1510" cy="830" r="1.25" />
+                    </g>
+                </g>
+
+                {/* Independently moving ring and planet */}
+                <g transform="translate(180 110)">
+                    <g class="home-object home-object--ring">
+                        <g class="home-object__drift">
+                            <ellipse
+                                cx="1180"
+                                cy="760"
+                                fill="none"
+                                rx="1470"
+                                ry="245"
+                                stroke="var(--color-ink)"
+                                stroke-width="92"
+                                transform="rotate(-12 1180 760)"
+                            />
+                            <ellipse
+                                cx="1180"
+                                cy="760"
+                                fill="none"
+                                rx="1470"
+                                ry="245"
+                                stroke="var(--color-cream-deep)"
+                                stroke-width="86"
+                                transform="rotate(-12 1180 760)"
+                            />
+                        </g>
+                    </g>
+
+                    <g class="home-object home-object--planet">
+                        <g class="home-object__drift">
+                            <circle cx="1180" cy="760" fill="var(--color-orange)" r="520" />
+                            <g clip-path="url(#home-planet-clip)">
+                                <path
+                                    d="M610 695C990 830 1430 810 1770 660"
+                                    fill="none"
+                                    stroke="var(--color-rust)"
+                                    stroke-width="42"
+                                />
+                                <rect
+                                    class="home-object__texture"
+                                    fill="url(#home-object-grain)"
+                                    height="1040"
+                                    width="1040"
+                                    x="660"
+                                    y="240"
+                                />
+                            </g>
+                            <circle
+                                cx="1180"
+                                cy="760"
+                                fill="none"
+                                r="520"
+                                stroke="var(--color-ink)"
+                                stroke-width="3"
+                                vector-effect="non-scaling-stroke"
+                            />
+                        </g>
+                    </g>
+                </g>
+            </svg>
+        </div>
+    );
+}
+
+/// Render one numbered system chapter.
+function Chapter(props: ChapterProps) {
+    const number = String(props.index + 1).padStart(2, "0");
 
     return (
-        <figure
-            aria-label="The Destack ringed planet"
-            class="ascii-planet m-0 grid w-[min(100%,27rem)] min-w-0 justify-self-end justify-items-center overflow-hidden max-md:justify-self-center"
-            role="img"
-        >
-            <div
-                aria-hidden="true"
-                class="ascii-planet__art"
-                onPointerLeave={props.onRelease}
-                onPointerMove={steer}
-            >
-                <pre class="ascii-planet__stars">
-                    {illuminateAscii(
-                        renderAsciiStars(props.phase),
-                        props.lightColumn,
-                        starGlyphRamp,
-                    )}
-                </pre>
-                <pre class="ascii-planet__surface">
-                    {illuminateAscii(planet, props.lightColumn, surfaceGlyphRamp)}
-                </pre>
-                <pre class="ascii-planet__ring">
-                    {illuminateAscii(tokenizedPlanetRing, props.lightColumn, ringGlyphRamp)}
-                </pre>
+        <section class="home-chapter" id={props.example.action}>
+            <div class="home-chapter__frame">
+                {/* Chapter brief */}
+                <header class="home-chapter__brief">
+                    <div class="home-chapter__heading">
+                        <span>{number}</span>
+                        <h2>{props.example.action}</h2>
+                    </div>
+
+                    <div class="home-chapter__copy">
+                        <strong>{props.example.claim}</strong>
+                        <p>{props.example.description}</p>
+                    </div>
+
+                    <div class="home-chapter__replacements">
+                        <span>replaces</span>
+                        <ul aria-label="Systems consolidated by this chapter">
+                            {props.example.replacements.map((replacement) => (
+                                <li>{replacement}</li>
+                            ))}
+                        </ul>
+                    </div>
+                </header>
+
+                {/* Executable specimen */}
+                <CodePlate example={props.example} />
             </div>
+        </section>
+    );
+}
+
+/// Render one executable code specimen and its observed result.
+function CodePlate(props: { example: HomeExample }) {
+    const lines = createMemo(() =>
+        highlightExample(props.example.source.code, props.example.source.language),
+    );
+
+    return (
+        <figure class="home-code-plate">
+            <figcaption>
+                <strong>{props.example.source.title}</strong>
+                <span>{props.example.source.language}</span>
+            </figcaption>
+
+            <div class="home-code-plate__source syntax">
+                <ol aria-label={props.example.source.title}>
+                    {lines().map((line, index) => (
+                        <li>
+                            <span aria-hidden="true">{index + 1}</span>
+                            <code innerHTML={line || " "} />
+                        </li>
+                    ))}
+                </ol>
+            </div>
+
+            <footer class="home-code-plate__result">
+                <span>{props.example.result.title}</span>
+                <pre>{props.example.result.text}</pre>
+            </footer>
         </figure>
     );
-}
-
-/// Render the fixed stars into the planet coordinate field.
-function renderAsciiStars(phase: number) {
-    const field = Array.from({ length: planetFieldHeight }, () =>
-        Array.from({ length: planetFieldWidth }, () => " "),
-    );
-
-    // place every authored star at its stable coordinate
-    for (const star of stars) {
-        const cycleIndex = (phase + star.phase) % starTwinkleCycle.length;
-        field[star.row][star.column] = starTwinkleCycle[cycleIndex];
-    }
-
-    return field.map((row) => row.join("")).join("\n");
-}
-
-/// Fill each visible mask segment with one repeating token pattern.
-function fillAsciiMask(source: string, patterns: readonly [string, ...string[]]) {
-    return source
-        .split("\n")
-        .map((line, row) => {
-            const pattern = patterns[row % patterns.length];
-            let segmentColumn = 0;
-
-            return Array.from(line, (character) => {
-                if (character === " ") {
-                    segmentColumn = 0;
-
-                    return character;
-                }
-
-                const replacement = pattern[segmentColumn % pattern.length];
-                segmentColumn += 1;
-
-                return replacement;
-            }).join("");
-        })
-        .join("\n");
-}
-
-/// Raise glyph density within one diagonal moving light.
-function illuminateAscii(source: string, lightColumn: number, glyphRamp: string) {
-    return source
-        .split("\n")
-        .map((line, row) => {
-            const rowLightColumn = lightColumn - row * asciiLightSlope;
-
-            return Array.from(line, (character, column) => {
-                const index = glyphRamp.indexOf(character);
-                const distance = Math.abs(column - rowLightColumn);
-
-                if (index < 0 || distance >= asciiLightWidth) {
-                    return character;
-                }
-
-                const isCenter = distance < asciiLightWidth / 3;
-                const brightness = isCenter ? 2 : 1;
-                const nextIndex = Math.min(glyphRamp.length - 1, index + brightness);
-
-                return glyphRamp[nextIndex];
-            }).join("");
-        })
-        .join("\n");
 }

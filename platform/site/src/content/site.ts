@@ -30,6 +30,9 @@ export type HomeExample = {
     /// The action identifier and visible verb.
     action: string;
 
+    /// The commercial-style headline attached to the chapter.
+    claim: string;
+
     /// The short action description.
     description: string;
 
@@ -38,13 +41,17 @@ export type HomeExample = {
 
     /// The example result.
     result: HomeResult;
+
+    /// The tools or systems replaced by this part of the stack.
+    replacements: readonly string[];
 };
 
 /// The ordered Destack product examples.
 export const homeExamples = [
     {
-        action: "write",
-        description: "familiar TS / TSX, Node, and Web code",
+        action: "read",
+        claim: "I can't believe it's not Node!",
+        description: "standard TypeScript, TSX, Node, and Web code",
         source: {
             code: `function main() {
     console.log("Hello, Destack!");
@@ -58,10 +65,12 @@ main();`,
             text: "Hello, Destack!",
             title: "run",
         },
+        replacements: ["TypeScript", "Rust", "Node.js"],
     },
     {
-        action: "inspect",
-        description: "hover, completion, navigation, rename, and structural search",
+        action: "understand",
+        claim: "One program. One model.",
+        description: "one semantic model for the compiler, editor, and tools",
         source: {
             code: `export function choose(value: string): string {
     return value;
@@ -76,41 +85,12 @@ const selected = choose("web");`,
 main.ds:1:17`,
             title: "hover",
         },
-    },
-    {
-        action: "sandbox",
-        description: "grant each package only the host access it needs",
-        source: {
-            code: `{
-    "policy": {
-        "rules": [
-            {
-                "subject": { "package": "app" },
-                "action": "fs.read",
-                "resource": "app://config/**",
-                "access": "allow"
-            },
-            {
-                "subject": { "package": "@vendor/parser" },
-                "action": "net.connect",
-                "resource": "*",
-                "access": "deny"
-            }
-        ]
-    }
-}`,
-            language: "JSON",
-            title: "destack.json",
-        },
-        result: {
-            text: `app              fs.read      allow
-@vendor/parser   net.connect  deny`,
-            title: "policy",
-        },
+        replacements: ["tsserver", "ESLint", "ast-grep"],
     },
     {
         action: "check",
-        description: "strong typing and userland lints",
+        claim: "Types with teeth.",
+        description: "strong types and project-defined rules",
         source: {
             code: `const port: uint8 = 300;
 console.log(port);`,
@@ -121,10 +101,12 @@ console.log(port);`,
             text: "✗ checked 1 module · 1 error",
             title: "diagnostic",
         },
+        replacements: ["tsc", "ESLint", "Clippy"],
     },
     {
         action: "test",
-        description: "every byte and cycle of your systems",
+        claim: "Every byte. Every cycle.",
+        description: "correctness and exact cost measurement",
         source: {
             code: `import { expect, test } from "destack:test";
 
@@ -138,10 +120,12 @@ test("adds values", () => {
             text: "test result: ok · 1 passed",
             title: "test",
         },
+        replacements: ["Jest", "Vitest", "Criterion"],
     },
     {
         action: "simulate",
-        description: "the entire application end-to-end",
+        claim: "Reality, now rewindable.",
+        description: "the whole system backward, forward, or in slow motion",
         source: {
             code: `import { case as simulate } from "destack:simulation";
 
@@ -155,41 +139,34 @@ simulate("drains pending work", async (context) => {
             text: "simulation result: ok · world idle",
             title: "simulation",
         },
+        replacements: ["mocks", "staging", "replay debuggers"],
     },
     {
-        action: "debug",
-        description: "backward, in parallel or slow motion",
+        action: "sandbox",
+        claim: "Now with 100% less container.",
+        description: "grant each package only the host access it needs",
         source: {
-            code: `import * as debug from "destack:debug";
-import { Moment, WorldHandle } from "destack:runtime";
+            code: `import { PolicyDecision, replacePolicy } from "destack:runtime";
 
-function rewind(world: WorldHandle, moment: Moment) {
-    return debug.open(world).rewind(moment);
-}`,
+replacePolicy(world, [{
+    subject: { package: "@vendor/parser" },
+    action: { action: "host.net.*" },
+    target: { kind: "any" },
+    decision: PolicyDecision.Deny,
+}]);`,
             language: "TypeScript++",
-            title: "debug.ds",
+            title: "policy.ds",
         },
         result: {
-            text: "rewound to the selected moment",
-            title: "debugger",
+            text: "@vendor/parser   host.net.*   deny",
+            title: "policy",
         },
-    },
-    {
-        action: "compile",
-        description: "to sandboxed VM and true AOT native targets",
-        source: {
-            code: "destack build --target native",
-            language: "sh",
-            title: "terminal",
-        },
-        result: {
-            text: "✓ built 1 module",
-            title: "native",
-        },
+        replacements: ["containers", "seccomp", "IAM"],
     },
     {
         action: "ship",
-        description: "... web and native (really)",
+        claim: "Native means native.",
+        description: "Web, VM, and AOT native from one source tree",
         source: {
             code: `destack build --target web
 destack build --target native`,
@@ -201,6 +178,7 @@ destack build --target native`,
 native  program`,
             title: "outputs",
         },
+        replacements: ["bundlers", "cross-compilers", "packagers"],
     },
 ] as const satisfies readonly HomeExample[];
 
@@ -209,7 +187,7 @@ export const siteSearchEntries: readonly SearchEntry[] = [
     {
         context: "destack.sh",
         route: "/",
-        text: `Destack the absurdly integrated standardized computing stack ${homeExamples
+        text: `Destack the absurdly integrated open computing stack ${homeExamples
             .map((example) => `${example.action} ${example.description}`)
             .join(" ")}`,
         title: "Home",
@@ -217,13 +195,7 @@ export const siteSearchEntries: readonly SearchEntry[] = [
     ...homeExamples.map((example) => ({
         context: "destack.sh / actions",
         route: `/#${example.action}`,
-        text: example.description,
+        text: [example.claim, example.description, ...example.replacements].join(" "),
         title: example.action,
     })),
-    {
-        context: "footer",
-        route: "/",
-        text: "copyright symbol industries",
-        title: "Symbol Industries",
-    },
 ];

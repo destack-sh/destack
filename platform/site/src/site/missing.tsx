@@ -28,9 +28,9 @@ export function MissingPage(props: MissingPageProps) {
             <Seo title="404" description={props.description} />
 
             <section class="missing-page">
-                <p>[{props.label}]</p>
-                <h1>{props.title}</h1>
-                <A href={props.backHref}>[{props.backLabel}]</A>
+                <p>{props.label}</p>
+                <h1 class="display">{props.title}</h1>
+                <A href={props.backHref}>← {props.backLabel}</A>
             </section>
         </>
     );

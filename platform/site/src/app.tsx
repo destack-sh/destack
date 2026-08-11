@@ -1,4 +1,4 @@
-import jetbrainsMono from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
+import ibmPlexMono from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2?url";
 import { Link, MetaProvider } from "@solidjs/meta";
 import { Router } from "@solidjs/router";
 import { FileRoutes } from "@solidjs/start/router";
@@ -15,12 +15,17 @@ export default function App() {
                     <Link
                         as="font"
                         crossorigin="anonymous"
-                        href={jetbrainsMono}
+                        href={ibmPlexMono}
                         rel="preload"
                         type="font/woff2"
                     />
                     <Suspense>
-                        <div class="min-h-screen bg-destack-page text-destack-text selection:bg-destack-accent selection:text-neutral-950">
+                        <div
+                            class={
+                                "min-h-screen bg-destack-page text-destack-text " +
+                                "selection:bg-destack-accent selection:text-neutral-950"
+                            }
+                        >
                             {props.children}
                         </div>
                     </Suspense>
