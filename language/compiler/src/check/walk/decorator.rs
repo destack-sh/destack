@@ -38,6 +38,11 @@ impl WalkState<'_, '_> {
         self.enter_node(decorator.decorator)?;
         self.enter_node(decorator.target)?;
 
+        // declare each authored decorator once, however often typing revisits its node
+        if !self.check.walked_decorators.insert(decorator.decorator) {
+            return Ok(false);
+        }
+
         // resolve the decorator declaration exactly once
         let Some(symbol) = self.walk_decorator_target(decorator.target)? else {
             return Ok(false);

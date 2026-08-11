@@ -114,6 +114,7 @@ impl CheckState<'_> {
         }
     }
 
+    /// Decide one node's presence and select its applied decorators.
     fn applied_decorators(
         &mut self,
         decorated: dir::LocalNodeIdAny,
@@ -208,7 +209,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Declare decorator applications without walking their values.
-    /// Declare decorator applications without walking their values.
     pub(in crate::check) fn declare_decorators(
         &mut self,
         decorated: dir::LocalNodeIdAny,
@@ -226,7 +226,6 @@ impl WalkState<'_, '_> {
         Ok(true)
     }
 
-    /// Decide one node's presence and select its applied decorators.
     /// Walk one expression in static term position.
     ///
     /// Returns the type level term produced by the expression.

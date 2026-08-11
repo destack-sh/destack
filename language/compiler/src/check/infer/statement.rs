@@ -3,6 +3,7 @@ use std::sync::Arc;
 use destack_artifact::{DirExpanded, DirParsed};
 use destack_dir as dir;
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::check::{
     BodyState, Cause, CauseKind, ConditionBranch, Constraint, ControlLabel, ControlTargetForm,
@@ -822,15 +823,20 @@ impl BodyState<'_, '_> {
         (state.parsed.clone(), state.expanded.clone())
     }
 
-    /// Walk one statement's decorators at its typing visit.
+    /// Walk one body node's decorators at its typing visit.
     ///
     /// Ordinary decorators register their application for the pass
-    /// apply; the returned presence gates the statement.
+    /// apply; the returned presence gates the node.
     pub(in crate::check) fn walk_body_decorators(
         &mut self,
         module: ModuleId,
         decorated: dir::LocalNodeIdAny,
     ) -> CompilerResult<bool> {
+        // undecorated nodes are present, no walk decides anything for them
+        if !self.check.module_view(module).has_decorators_any(decorated) {
+            return Ok(true);
+        }
+
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let mut walk = WalkState::new(module, tree, self.check);
@@ -840,10 +846,25 @@ impl BodyState<'_, '_> {
         Ok(present)
     }
 
+    /// Walk one argument list's decorators and return the arguments their conditions keep.
+    pub(in crate::check) fn walk_body_arguments(
+        &mut self,
+        module: ModuleId,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<SmallVec<[dir::LocalNodeId<dir::Argument>; 4]>> {
+        let mut present = SmallVec::with_capacity(arguments.len());
+
+        // keep each argument its static condition decided present
+        for argument in arguments {
+            if self.walk_body_decorators(module, argument.into_any())? {
+                present.push(*argument);
+            }
+        }
+
+        Ok(present)
+    }
+
     /// Walk one body type expression at its first typing visit.
-    ///
-    /// Type expressions bind names and open holes through the walk
-    /// machinery, which typing runs on demand at the first visit.
     pub(in crate::check) fn walk_body_construct_type(
         &mut self,
         module: ModuleId,

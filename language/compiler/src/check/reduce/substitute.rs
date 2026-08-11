@@ -334,9 +334,18 @@ impl CheckState<'_> {
                 subject.target,
                 SubstitutionRule::Normalize { origin },
             )?;
-            if receiver != subject.receiver || target != subject.target {
+            let key_type = self.substitute_graph(
+                module,
+                subject.key_type,
+                SubstitutionRule::Normalize { origin },
+            )?;
+            if receiver != subject.receiver
+                || target != subject.target
+                || key_type != subject.key_type
+            {
                 subject.receiver = receiver;
                 subject.target = target;
+                subject.key_type = key_type;
                 self.module.members_tail.record_subject(site, subject);
             }
         }

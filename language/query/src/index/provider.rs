@@ -77,13 +77,14 @@ impl Indexer {
             dependencies.require(ArtifactKey::dir_resolved(module_id, profile_id));
             self.require_star_exports(context, module_id, profile_id, &mut dependencies)?;
         }
-        // index checked families over the module's declared and checked DIR
+        // index checked families over the module's declared, elaborated, and checked DIR
         else {
             dependencies.require(ArtifactKey::dir_parsed(module_id));
             dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_resolved(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_declared(module_id, profile_id));
+            dependencies.require(ArtifactKey::dir_elaborated(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
         }
 

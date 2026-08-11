@@ -654,7 +654,7 @@ impl BodyState<'_, '_> {
                 | MemberLookup::Intersection(_) => return Ok(inherent),
                 MemberLookup::Missing => match extensions {
                     ExtensionFilter::All => {
-                        self.lookup_static_extension_member(origin, module, symbol, key)?
+                        self.lookup_static_extension_member(origin, module, symbol, arguments, key)?
                     }
                     ExtensionFilter::Inherent => MemberLookup::Missing,
                 },

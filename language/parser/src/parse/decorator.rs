@@ -1,6 +1,8 @@
 use crate::parse::context::{DecoratorContext, ExpressionContext, FunctionContext};
 use crate::{Parser, ParserResult};
-use destack_dir::{Decorator, DecoratorPosition, LocalNodeId, OperatorPrecedence, TokenType};
+use destack_dir::{
+    Decorator, DecoratorPosition, Expression, LocalNodeId, OperatorPrecedence, TokenType,
+};
 use smallvec::SmallVec;
 
 /// Decorators awaiting attachment to the next owner at one parse site.
@@ -29,6 +31,22 @@ impl Parser {
         }
 
         decorators
+    }
+
+    /// Attach decorators to the node that owns one complete expression.
+    pub(crate) fn attach_expression_decorators(
+        &mut self,
+        expression: LocalNodeId<Expression>,
+        decorators: Decorators,
+    ) {
+        match self.tree.get(expression) {
+            Expression::Declaration(declaration) => {
+                let declaration = *declaration;
+                self.attach_decorators(declaration.id, decorators);
+            }
+            Expression::Missing | Expression::Error => {}
+            _ => self.attach_decorators(expression.id, decorators),
+        }
     }
 
     /// Attach decorators to an owner node in source order.

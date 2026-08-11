@@ -333,6 +333,15 @@ impl<'a> View<'a> {
         self.get_decorators_any(node_id.into_any())
     }
 
+    /// Return whether one visible erased node carries any decorator.
+    pub fn has_decorators_any(&self, node_id: LocalNodeIdAny) -> bool {
+        let Some((tree, node_id)) = self.visible_node(node_id) else {
+            return false;
+        };
+
+        tree.has_decorators(node_id.id)
+    }
+
     /// Get visible decorators attached to one erased node.
     pub fn get_decorators_any(&self, node_id: LocalNodeIdAny) -> Vec<LocalNodeId<Decorator>> {
         let Some((tree, node_id)) = self.visible_node(node_id) else {

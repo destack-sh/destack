@@ -185,6 +185,8 @@ pub(in crate::check) struct CheckState<'a> {
     // walk state
     /// Resolved decorators in module walk order.
     pub(in crate::check) decorators: Vec<DecoratorApplication>,
+    /// The authored decorators this pass's walk already visited.
+    pub(in crate::check) walked_decorators: FxIndexSet<dir::LocalNodeId<dir::Decorator>>,
     /// Tagged newtypes whose derivation is on the stack.
     pub(in crate::check) deriving_newtypes: FxIndexSet<dir::GlobalSymbolId>,
     /// Declaration types scanned for induced memory variables.
@@ -315,6 +317,7 @@ impl<'a> CheckState<'a> {
             infer: InferContext::new(),
             fulfill: Fulfillment::new(),
             decorators: Vec::new(),
+            walked_decorators: FxIndexSet::default(),
             deriving_newtypes: FxIndexSet::default(),
             induced_parameter_sites: Vec::new(),
             claimed_induced: FxIndexSet::default(),

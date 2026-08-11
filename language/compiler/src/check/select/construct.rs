@@ -276,6 +276,10 @@ impl BodyState<'_, '_> {
         let node = node.into_any();
         let origin = site.origin();
 
+        // walk the argument decorators, keeping the statically present arguments
+        let argument_nodes = self.walk_body_arguments(module, argument_nodes)?;
+        let argument_nodes = argument_nodes.as_slice();
+
         // collect the supplied arguments once for every candidate
         let arguments = self.callable_arguments(module, argument_nodes, ValueUse::Argument)?;
 

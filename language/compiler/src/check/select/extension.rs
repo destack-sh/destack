@@ -137,6 +137,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
+        arguments: &[dir::GlobalTypeId],
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
         // collect the extension declarations this module can see
@@ -146,8 +147,14 @@ impl BodyState<'_, '_> {
 
         // visit extension declarations in resolution order
         for extension_symbol in extensions {
-            let lookup =
-                self.lookup_one_static_extension(origin, module, symbol, extension_symbol, key)?;
+            let lookup = self.lookup_one_static_extension(
+                origin,
+                module,
+                symbol,
+                arguments,
+                extension_symbol,
+                key,
+            )?;
 
             let found = match lookup {
                 MemberLookup::Found(found) => found,
@@ -983,6 +990,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
+        arguments: &[dir::GlobalTypeId],
         extension_symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
@@ -1012,7 +1020,8 @@ impl BodyState<'_, '_> {
             return Ok(MemberLookup::Missing);
         }
 
-        // clone only the members matching the requested key
+        // read the extension target and clone only the members matching the requested key
+        let target_type = extension.target.r#type();
         let keyed = keyed_members(&extension.members, dir::MemberSpace::Static, key);
         if keyed.is_empty() {
             return Ok(MemberLookup::Missing);
@@ -1023,45 +1032,42 @@ impl BodyState<'_, '_> {
             return Ok(MemberLookup::Missing);
         }
 
-        self.lookup_parameterized_static_extension(origin, extension_symbol, &members)
-    }
+        // bind extension parameters through the written receiver arguments
+        let substitution = match arguments.is_empty() {
+            // a bare declaration name leaves every extension parameter open for the call
+            true => TypeSubstitution::default(),
+            // a written application binds the extension through its target
+            false => {
+                let arguments = self.intern_type_ids(arguments)?;
+                let instance = dir::GenericApplication { symbol, arguments };
+                let applied = self.intern_type(dir::Type::Application(instance))?;
+                let template = self.symbol_template(extension_symbol)?;
 
-    /// Look up static extension members with unspecialized extension parameters.
-    fn lookup_parameterized_static_extension(
-        &mut self,
-        origin: Origin,
-        extension_symbol: dir::GlobalSymbolId,
-        members: &[DeclaredMember],
-    ) -> CompilerResult<MemberLookup> {
-        // expose matching static members for later call inference
-        let mut candidates = Vec::new();
-        for member in members {
-            let Some(ty) = member.ty else {
-                continue;
-            };
+                // match the written application against the extension target
+                let matched = self.confirm_candidate(|state| {
+                    let matched = state.match_extension_subject(
+                        origin,
+                        applied,
+                        applied,
+                        template,
+                        target_type,
+                    )?;
+                    Ok(match matched {
+                        Some(substitution) => CandidateOutcome::Accepted(substitution),
+                        None => CandidateOutcome::Rejected(()),
+                    })
+                })?;
+                let Some(substitution) = matched else {
+                    return Ok(MemberLookup::Missing);
+                };
 
-            let callable = member.callable_type(origin.module(), extension_symbol, ty, self)?;
-            let access_type = member.access_type(self, ty)?;
-            let written = self.static_value(member.symbol);
-            let access_type = self.projected_member_type(origin, None, member.role, access_type)?;
+                substitution
+            }
+        };
 
-            candidates.push(MemberCandidate {
-                symbol: member.symbol,
-                owner: extension_symbol,
-                origin: dir::MemberOrigin::RootedExtension,
-                space: dir::MemberSpace::Static,
-                role: member.role,
-                kind: member.kind,
-                is_writable: member.is_writable,
-                access_type,
-                callable,
-                is_optional: member.is_optional,
-                generic_arguments: Vec::new(),
-                value: member.value,
-                value_type: written,
-                receiver: LookupReceiver::Direct(ReceiverSteps::new()),
-            });
-        }
+        // expose the matching members under that substitution
+        let candidates =
+            self.extension_member_candidates(origin, extension_symbol, &substitution, &members)?;
 
         Ok(MemberLookup::from_candidates(candidates))
     }

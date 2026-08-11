@@ -16,12 +16,9 @@ impl BodyState<'_, '_> {
         let node = site.node;
         let module = node.module_id;
         self.check_block_statements(module, block)?;
-        let tail = self.block_value(module, block)?;
+        let tail = self.visit_block_value(module, block)?;
         let ty = match tail {
-            Some(tail) => {
-                let tail_site = self.visit_site(tail.into_global_any(module))?;
-                self.infer_node_type(tail_site, PlaceUse::Read)?
-            }
+            Some(tail) => self.infer_node_type(tail, PlaceUse::Read)?,
             None => self.end_type(module, block.into_any())?,
         };
         self.commit_node_type(node, ty)?;
@@ -44,10 +41,9 @@ impl BodyState<'_, '_> {
         let mut is_end_reachable = true;
         for statement in statements {
             let node = statement.into_global_any(module);
-            if !self.walk_body_decorators(module, statement.into_any())? {
+            let Some(site) = self.visit_block_expression(module, statement)? else {
                 continue;
-            }
-            let site = self.check.visit_site(node)?;
+            };
 
             // let each statement own the inference it opens
             let scope = InferenceScope::open(
@@ -104,11 +100,10 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<ValueCheck> {
         let module = site.node.module_id;
         self.check_block_statements(module, block)?;
-        let value = self.block_value(module, block)?;
+        let value = self.visit_block_value(module, block)?;
         let check = match value {
             Some(value) => {
-                let value_site = self.visit_site(value.into_global_any(module))?;
-                let check = self.check_node(value_site, expectation)?;
+                let check = self.check_node(value, expectation)?;
                 let value_type = check.source;
                 self.commit_node_type(site.node, value_type)?;
 
@@ -132,18 +127,31 @@ impl BodyState<'_, '_> {
         Ok(check)
     }
 
-    /// Return the statically present value expression of one block.
-    fn block_value(
+    /// Visit one statically present block expression after walking its decorators.
+    fn visit_block_expression(
+        &mut self,
+        module: ModuleId,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Option<FlowSite>> {
+        if !self.walk_body_decorators(module, expression.into_any())? {
+            return Ok(None);
+        }
+
+        let site = self.check.visit_site(expression.into_global_any(module))?;
+
+        Ok(Some(site))
+    }
+
+    /// Visit the expression that produces one block's value.
+    fn visit_block_value(
         &mut self,
         module: ModuleId,
         block: dir::LocalNodeId<dir::Block>,
-    ) -> CompilerResult<Option<dir::LocalNodeId<dir::Expression>>> {
-        let value = self.module(module).view().get(block).value_expression();
-        let value = match value {
-            Some(value) if self.check.decide_static_presence(value.into_any())? => Some(value),
-            Some(_) | None => None,
+    ) -> CompilerResult<Option<FlowSite>> {
+        let Some(value) = self.module(module).view().get(block).value_expression() else {
+            return Ok(None);
         };
 
-        Ok(value)
+        self.visit_block_expression(module, value)
     }
 }

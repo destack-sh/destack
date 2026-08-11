@@ -835,7 +835,10 @@ impl BodyState<'_, '_> {
         subject: dir::MemberSubject,
     ) -> CompilerResult<Vec<dir::MemberBinding>> {
         // compose the owner's memoized bindings with extensions for nominal subjects
-        if let Some(instance) = self.apparent_instance(subject.target)? {
+        //  that key on their own target
+        if subject.key_type == subject.target
+            && let Some(instance) = self.apparent_instance(subject.target)?
+        {
             let inherent = self
                 .member_bindings(origin, instance.symbol, subject.space)?
                 .map(|bindings| bindings.to_vec())

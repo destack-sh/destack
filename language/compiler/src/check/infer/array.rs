@@ -17,6 +17,11 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
+
+        // walk the element decorators, keeping the statically present elements
+        let elements = self.walk_body_arguments(module, elements)?;
+        let elements = elements.as_slice();
+
         let mut values = SmallVec::<[(Option<dir::GlobalNodeIdAny>, dir::GlobalTypeId); 8]>::new();
         let mut spreads =
             SmallVec::<[(dir::LocalNodeId<dir::Expression>, dir::GlobalTypeId); 2]>::new();
@@ -207,6 +212,11 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
+
+        // walk the element decorators, keeping the statically present elements
+        let elements = self.walk_body_arguments(module, elements)?;
+        let elements = elements.as_slice();
+
         let mut fields = Vec::with_capacity(elements.len());
         let mut sources = Vec::with_capacity(elements.len());
         let element_mode = mode.descend(false);
@@ -323,6 +333,10 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<CheckAttempt> {
         let node = site.node.into_typed::<dir::Expression>();
         let target = expectation.target;
+
+        // walk the element decorators, keeping the statically present elements
+        let elements = self.walk_body_arguments(node.module_id, elements)?;
+        let elements = elements.as_slice();
 
         // read the expected element type and any declared length
         let expected = match self.ty(target_value)? {
@@ -488,6 +502,10 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<CheckAttempt> {
         let node = site.node.into_typed::<dir::Expression>();
         let target = expectation.target;
+
+        // walk the element decorators, keeping the statically present elements
+        let elements = self.walk_body_arguments(node.module_id, elements)?;
+        let elements = elements.as_slice();
 
         // require a tuple target of the authored length
         let dir::Type::Tuple(tuple) = self.ty(target_value)? else {

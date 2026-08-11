@@ -43,6 +43,93 @@ declare const bytes: Bytes;
 }
 
 #[test]
+fn test_applied_receiver_arguments_bind_static_extension_call() {
+    let session = TestSession::single(
+        r#"
+newtype Result<T, E> = T | E;
+
+extension<T, E> of Result<T, E> {
+    static ok(value: T): Result<T, E> {
+        Result(value)
+    }
+}
+
+const result = Result<int32, string>.ok(42);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype Result<out T, out E> = T | E;
+
+extension<T, E> of Result<T, E> {
+    static ok(value: T): Result<T, E> {
+        Result(value)
+    }
+}
+
+const result: Result<int32, string> = Result<int32, string>.ok<int32, string>(42);
+
+=== checked ===
+newtype Result<T, E> = T | E;
+/// @generic.template symbol=Result parameters=(out T#1, out E#1)
+/// @type.symbol symbol=Result source="newtype Result<T, E> = T | E" type=Result
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(out T#1, out E#1) backing=T#1 | E#1 constructors=[<T#1, E#1>(T#1) => Result<T#1, E#1>, <T#1, E#1>(E#1) => Result<T#1, E#1>, <T#1, E#1>(T#1 | E#1) => Result<T#1, E#1>]
+/// @type.symbol symbol=Result.T source=T type=T#1
+/// @type.symbol symbol=Result.E source=E type=E#1
+/// @resolution.name source=T target=Result.T
+/// @resolution.name source=E target=Result.E
+
+extension<T, E> of Result<T, E> {
+/// @generic.template symbol=<module>#2 parameters=(T#2, E#2)
+/// @definition.extension symbol=<module>#2 form=local target=Result<T#2, E#2>
+/// @definition.method symbol=ok slot=ok static=true type=(T#2) => Result<T#2, E#2>
+/// @type.symbol symbol=T source=T type=T#2
+/// @type.symbol symbol=E source=E type=E#2
+/// @resolution.name source=Result target=Result
+/// @resolution.name source=T target=T
+/// @resolution.name source=E target=E
+
+    static ok(value: T): Result<T, E> {
+    /// @type.symbol symbol=ok type=(T#2) => Result<T#2, E#2>
+    /// @type.symbol symbol=ok.value source="value: T" type=T#2
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=Result target=Result
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=E target=E
+
+        Result(value)
+        /// @resolution.name source=Result target=Result
+        /// @resolution.construct source=Result(value) parameters=(T#2) arguments=(provided(value) as T#2) return=Result<T#2, E#2> kind=newtype target=Result backing=T#2 instance="Result<T#2, E#2>"
+        /// @generic.instance source=Result(value) id="Result<T#2, E#2>"
+        /// @resolution.name source=value target=ok.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=ok.value
+
+    }
+}
+
+const result = Result<int32, string>.ok(42);
+/// @type.symbol symbol=result source=result type=Result<int32, string>
+/// @resolution.pattern source=result kind=binding target=result
+/// @resolution.name source=Result target=Result
+/// @resolution.member source="Result<int32, string>.ok" receiver=Result<int32, string> type=(int32) => Result<int32, string> kind=symbol target_receiver=Result<int32, string> target=ok
+/// @resolution.call source="Result<int32, string>.ok(42)" parameters=(int32) arguments=(provided(42) as int32) return=Result<int32, string> kind=symbol target=ok instance="Result<int32, string>.<extension#1>.ok"
+/// @resolution.instantiation source="Result<int32, string>" target=Result instance="Result<int32, string>"
+/// @generic.instance source="Result<int32, string>" id="Result<int32, string>"
+/// @generic.instance source="Result<int32, string>.ok(42)" id="Result<int32, string>.<extension#1>.ok"
+
+/// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
+/// @generic.instance id="Result<int32, string>" template=Result arguments=(int32, string)
+/// @generic.instance id="Result<int32, string>.<extension#1>.ok" template=ok arguments=(int32, string)
+"#,
+    );
+}
+
+#[test]
 fn test_parameter_position_transparent_constraint_induces_generic() {
     let session = TestSession::single(
         r#"

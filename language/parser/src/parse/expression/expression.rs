@@ -72,22 +72,19 @@ impl Parser {
         };
         let expression = self.parse_expression_tail_after_descent(first, context)?;
 
-        // attach documentation and decorators to the complete expression owner
+        // attach documentation to the complete expression owner
         match self.tree.get(expression) {
             Expression::Declaration(declaration) => {
                 let declaration = *declaration;
                 self.attach_documentation(declaration, documentation);
-                if let Some(decorators) = decorators {
-                    self.attach_decorators(declaration.id, decorators);
-                }
             }
             Expression::Missing | Expression::Error => {}
-            _ => {
-                self.attach_documentation(expression, documentation);
-                if let Some(decorators) = decorators {
-                    self.attach_decorators(expression.id, decorators);
-                }
-            }
+            _ => self.attach_documentation(expression, documentation),
+        }
+
+        // attach decorators to the same owner
+        if let Some(decorators) = decorators {
+            self.attach_expression_decorators(expression, decorators);
         }
 
         Ok(expression)

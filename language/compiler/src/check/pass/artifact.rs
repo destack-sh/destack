@@ -136,6 +136,7 @@ impl CheckState<'_> {
     /// Convert solved state into one checked DIR module.
     pub(in crate::check) fn into_checked(mut self, module: ModuleId) -> CompilerResult<DirChecked> {
         let definitions = self.module.merged_definitions();
+        let members = self.module.merged_members();
         let types = self.module.types_tail.finish();
         let CheckModuleState {
             bindings_tail: bindings,
@@ -161,6 +162,7 @@ impl CheckState<'_> {
             &decisions,
             &generics,
             &definitions,
+            &members,
             &coercions,
             &captures,
         ))
@@ -179,6 +181,7 @@ impl CheckState<'_> {
             decisions: Arc::new(decisions),
             generics: Arc::new(generics),
             definitions: Arc::new(definitions),
+            members: Arc::new(members),
             coercions: Arc::new(coercions),
             captures: Arc::new(captures),
         })

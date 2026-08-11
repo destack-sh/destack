@@ -454,6 +454,8 @@ pub struct DirChecked {
     pub generics: Arc<dir::GenericSegment>,
     /// Refined declaration definitions.
     pub definitions: Arc<dir::DefinitionSegment>,
+    /// Member subjects and bindings settled while checking.
+    pub members: Arc<dir::MemberSegment>,
     /// New implicit coercions.
     pub coercions: Arc<dir::CoercionSegment>,
     /// New captures.
@@ -467,6 +469,11 @@ impl DirChecked {
             elaborated.definitions.clone(),
             self.definitions.clone(),
         ])
+    }
+
+    /// Return the checked member table.
+    pub fn member_table(&self) -> dir::MemberTable<'static> {
+        dir::MemberTable::from_segment(self.members.clone())
     }
 
     /// Return the cumulative binding table for checked DIR.

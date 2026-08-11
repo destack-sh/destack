@@ -83,10 +83,43 @@ impl CheckState<'_> {
         // write closure capture frames and bindings
         self.write_captures(module)?;
 
-        // record source resolutions
+        // store member bindings, then the source resolutions reading them
         if !self.is_declaration() {
+            self.write_member_bindings(module)?;
             self.write_path_segment_resolutions(module)?;
             self.write_member_type_resolutions(module)?;
+        }
+
+        Ok(())
+    }
+
+    /// Store the member bindings each subject this pass recorded selects.
+    fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
+        // collect the recorded sites before mutating the segment
+        let sites = self
+            .module(module)
+            .iter_member_subjects()
+            .collect::<Vec<_>>();
+
+        // resolve each subject once, at the first site that selected it
+        for (site, subject) in sites {
+            if self
+                .module(module)
+                .member_subject_bindings(&subject)
+                .is_some()
+            {
+                continue;
+            }
+
+            // resolve the subject in its declared form and store what it selects
+            let origin = Origin::Node(site.node(), subject.scope);
+            let declared = self.declared_member_subject(subject)?;
+            let bindings = self
+                .body()
+                .subject_member_bindings(origin, module, declared)?;
+            self.module_mut(module)
+                .members_tail
+                .set_bindings(subject, bindings);
         }
 
         Ok(())
@@ -132,21 +165,8 @@ impl CheckState<'_> {
                 })?;
             let key = dir::StaticKey::Name(name);
 
-            // resolve the declaration selected by member lookup
-            let Some(subject) = self.module(module).member_subject(site) else {
-                continue;
-            };
-            let origin = Origin::Node(node, subject.scope);
-            let subject = self.declared_member_subject(subject)?;
-            let bindings = self
-                .body()
-                .subject_member_bindings(origin, module, subject)?;
-            let resolution = bindings
-                .iter()
-                .find(|binding| binding.key == key)
-                .and_then(dir::MemberBinding::declaration_resolution);
-
-            // commit the selection onto the segment
+            // commit the declaration the stored bindings select at this key
+            let resolution = self.member_site_resolution(module, site, key)?;
             if let Some(resolution) = resolution {
                 self.commit_path_resolution(node, segment, resolution)?;
             }
@@ -185,27 +205,37 @@ impl CheckState<'_> {
             };
             let key = dir::StaticKey::Name(*name);
 
-            // resolve the declaration selected by member lookup
-            let Some(subject) = self.module(module).member_subject(site) else {
-                continue;
-            };
-            let origin = Origin::Node(node, subject.scope);
-            let subject = self.declared_member_subject(subject)?;
-            let bindings = self
-                .body()
-                .subject_member_bindings(origin, module, subject)?;
-            let resolution = bindings
-                .iter()
-                .find(|binding| binding.key == key)
-                .and_then(dir::MemberBinding::declaration_resolution);
-
-            // commit the selection onto the node
+            // commit the declaration the stored bindings select at this key
+            let resolution = self.member_site_resolution(module, site, key)?;
             if let Some(resolution) = resolution {
                 self.commit_name(node, resolution)?;
             }
         }
 
         Ok(())
+    }
+
+    /// Return the declaration one site's stored member bindings select at one key.
+    fn member_site_resolution(
+        &self,
+        module: ModuleId,
+        site: dir::MemberSite,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Option<dir::NameResolution>> {
+        let Some(subject) = self.module(module).member_subject(site) else {
+            return Ok(None);
+        };
+        let bindings = self
+            .module(module)
+            .member_subject_bindings(&subject)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("member site {site:?} stored no bindings for {subject:?}"),
+            })?;
+
+        Ok(bindings
+            .iter()
+            .find(|binding| binding.key == key)
+            .and_then(dir::MemberBinding::declaration_resolution))
     }
 
     /// Commit one path segment resolution into its module's resolution segment.

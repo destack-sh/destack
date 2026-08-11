@@ -980,6 +980,10 @@ impl BodyState<'_, '_> {
         // walk the written generic arguments of the call node
         self.walk_body_generic_arguments(module, generic_argument_nodes)?;
 
+        // walk the argument decorators, keeping the statically present arguments
+        let argument_nodes = self.walk_body_arguments(module, argument_nodes)?;
+        let argument_nodes = argument_nodes.as_slice();
+
         // register function-valued arguments before any candidate probe
         self.register_argument_function_values(module, argument_nodes)?;
 

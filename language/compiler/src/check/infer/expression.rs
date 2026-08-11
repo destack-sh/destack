@@ -422,6 +422,10 @@ impl BodyState<'_, '_> {
         value: dir::TemplateLiteral,
     ) -> CompilerResult<dir::GlobalTypeId> {
         if let dir::TemplateLiteral::InterpolatedString { arguments, .. } = value {
+            // walk the interpolation decorators, keeping the statically present arguments
+            let arguments = self.walk_body_arguments(site.node.module_id, &arguments)?;
+
+            // infer each interpolated value in source order
             for argument in arguments {
                 self.infer_argument_type(site, argument)?;
             }

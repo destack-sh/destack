@@ -1,5 +1,6 @@
 use crate::parse::DeclarationHeader;
-use crate::parse::context::ExpressionContext;
+use crate::parse::context::{DecoratorContext, ExpressionContext};
+use crate::parse::decorator::Decorators;
 use crate::{ParseStart, Parser, ParserResult};
 use destack_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
 
@@ -29,10 +30,23 @@ impl Parser {
             return Ok((expression, false));
         }
 
+        // parse the first element's decorators here since tuple elements own them
+        let element_start = self.mark_parse_start();
+        let decorators = self.parse_element_decorators(context);
+
         let expression = self.parse_expression(context.nested())?;
         if self.peek_is(TokenType::Comma) {
-            return self.parse_parenthesized_tuple(start, expression, context);
+            return self.parse_parenthesized_tuple(
+                start,
+                &element_start,
+                expression,
+                decorators,
+                context,
+            );
         }
+
+        // a sole parenthesized value keeps its decorators on its expression owner
+        self.attach_expression_decorators(expression, decorators);
 
         self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
         self.record_parentheses(start, expression);
@@ -56,22 +70,24 @@ impl Parser {
     fn parse_parenthesized_tuple(
         &mut self,
         start: &ParseStart,
+        first_start: &ParseStart,
         first: LocalNodeId<Expression>,
+        first_decorators: Decorators,
         context: ExpressionContext,
     ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
-        let first = self.insert_node(
-            Argument::Positional { value: first },
-            self.tree.get_range(first),
-        );
+        let first = self.insert_tuple_element(first_start, first, first_decorators);
         let mut elements = vec![first];
+
+        // parse the remaining elements with the decorators they own
         while self.eat_token_if(TokenType::Comma) {
             if self.peek_is(TokenType::CloseParenthesis) {
                 break;
             }
 
+            let element_start = self.mark_parse_start();
+            let decorators = self.parse_element_decorators(context);
             let value = self.parse_expression(context.nested())?;
-            elements
-                .push(self.insert_node(Argument::Positional { value }, self.tree.get_range(value)));
+            elements.push(self.insert_tuple_element(&element_start, value, decorators));
         }
         self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
 
@@ -81,5 +97,35 @@ impl Parser {
         );
 
         Ok((expression, false))
+    }
+
+    /// Parse the decorators owned by one parenthesized element.
+    fn parse_element_decorators(&mut self, context: ExpressionContext) -> Decorators {
+        // a surrounding decorator owns the `@` tokens within its own value
+        if context.decorator != DecoratorContext::None {
+            return Decorators::new();
+        }
+
+        self.parse_decorators(context.function)
+    }
+
+    /// Insert one tuple element around its parsed value.
+    fn insert_tuple_element(
+        &mut self,
+        start: &ParseStart,
+        value: LocalNodeId<Expression>,
+        decorators: Decorators,
+    ) -> LocalNodeId<Argument> {
+        // decorated elements span their decorators, plain elements span their value
+        let range = if decorators.is_empty() {
+            self.tree.get_range(value)
+        } else {
+            self.range_since(start)
+        };
+
+        let element = self.insert_node(Argument::Positional { value }, range);
+        self.attach_decorators(element.id, decorators);
+
+        element
     }
 }

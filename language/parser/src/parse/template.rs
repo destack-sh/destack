@@ -255,10 +255,13 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<Argument>> {
         let start = self.mark_parse_start();
 
+        // interpolations own their decorators like call arguments do
+        let decorators = self.parse_decorators(function);
         let value = self.parse_template_interpolation(function)?;
 
         let argument_id =
             self.insert_node(Argument::Positional { value }, self.range_since(&start));
+        self.attach_decorators(argument_id.id, decorators);
 
         Ok(argument_id)
     }

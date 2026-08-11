@@ -190,6 +190,267 @@ const value = 1;
 }
 
 #[test]
+fn test_apply_decorator_to_argument_inside_function_body() {
+    let session = TestSession::single(
+        r#"
+newtype mark = (string,);
+
+class Sink {
+    constructor(value: int32) {}
+}
+
+declare function consume(value: int32): void;
+
+function run(): void {
+    consume(@mark("call") 1);
+    const sink = new Sink(@mark("construct") 2);
+    const array = [@mark("array") 3];
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_decorators(),
+        r#"
+=== annotated ===
+newtype mark = (string,);
+
+class Sink {
+    constructor(value: int32): this {}
+}
+
+declare function consume(value: int32): void;
+
+function run(): void {
+    consume(@mark("call") 1);
+    const sink: Sink = new Sink(@mark("construct") 2);
+    const array: float64[] = [@mark("array") 3,];
+}
+
+=== checked ===
+newtype mark = (string,);
+/// @type.symbol symbol=mark source="newtype mark = (string,)" type=mark
+/// @definition.newtype symbol=mark source="newtype mark = (string,)" backing=(string,) constructors=[(string) => mark]
+
+class Sink {
+/// @type.symbol symbol=Sink type=Sink
+/// @definition.class symbol=Sink
+/// @definition.method symbol=Sink.constructor source="constructor(value: int32) {}" slot=constructor role=constructor type=(int32) => this
+
+    constructor(value: int32) {}
+    /// @type.symbol symbol=Sink.constructor source="constructor(value: int32) {}" type=(int32) => this
+    /// @type.symbol symbol=Sink.constructor.value source="value: int32" type=int32
+
+}
+
+declare function consume(value: int32): void;
+/// @type.symbol symbol=consume source="declare function consume(value: int32): void" type=(int32) => void
+/// @type.symbol symbol=consume.value source="value: int32" type=int32
+
+function run(): void {
+/// @type.symbol symbol=run type=() => void
+
+    consume(@mark("call") 1);
+    /// @type.node source="consume(@mark(\"call\") 1)" type=void
+    /// @type.node source=consume type=(int32) => void
+    /// @resolution.name source=consume target=consume
+    /// @resolution.call source="consume(@mark(\"call\") 1)" parameters=(int32) arguments=(provided(@mark("call") 1) as int32) return=void kind=symbol target=consume
+    /// @decorator.node source="@mark(\"call\")" owner="@mark(\"call\") 1" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("call") as string) newtype=mark backing=(string,) value="mark(\"call\")"
+    /// @type.node source=mark type=mark
+    /// @resolution.name source=mark target=mark
+    /// @type.node source="\"call\"" type="call"
+    /// @type.node source=1 type=1
+
+    const sink = new Sink(@mark("construct") 2);
+    /// @type.symbol symbol=run.sink source=sink type=Sink
+    /// @resolution.pattern source=sink kind=binding target=run.sink
+    /// @type.node source="new Sink(@mark(\"construct\") 2)" type=Sink
+    /// @resolution.construct source="new Sink(@mark(\"construct\") 2)" parameters=(int32) arguments=(provided(@mark("construct") 2) as int32) return=Sink kind=class target=Sink constructor=Sink.constructor
+    /// @resolution.name source=Sink target=Sink
+    /// @decorator.node source="@mark(\"construct\")" owner="@mark(\"construct\") 2" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("construct") as string) newtype=mark backing=(string,) value="mark(\"construct\")"
+    /// @type.node source=mark type=mark
+    /// @resolution.name source=mark target=mark
+    /// @type.node source="\"construct\"" type="construct"
+    /// @type.node source=2 type=2
+
+    const array = [@mark("array") 3];
+    /// @type.symbol symbol=run.array source=array type=Array<float64>
+    /// @resolution.pattern source=array kind=binding target=run.array
+    /// @type.node source=[@mark("array") 3] type=Array<float64>
+    /// @decorator.node source="@mark(\"array\")" owner="@mark(\"array\") 3" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("array") as string) newtype=mark backing=(string,) value="mark(\"array\")"
+    /// @type.node source=mark type=mark
+    /// @resolution.name source=mark target=mark
+    /// @type.node source="\"array\"" type="array"
+    /// @type.node source=3 type=3
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_apply_decorator_to_tuple_element_and_interpolation() {
+    let session = TestSession::single(
+        r#"
+newtype mark = (string,);
+
+function run(): void {
+    const pair = (@mark("tuple") 4, 5);
+    const text = `value ${@mark("interpolation") 6}`;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_decorators(),
+        r#"
+=== annotated ===
+newtype mark = (string,);
+
+function run(): void {
+    const pair: (float64, float64) = (
+        @mark("tuple") 4,
+        5,
+    );
+    const text: string = `value ${@mark("interpolation") 6}`;
+}
+
+=== checked ===
+newtype mark = (string,);
+/// @type.symbol symbol=mark source="newtype mark = (string,)" type=mark
+/// @definition.newtype symbol=mark source="newtype mark = (string,)" backing=(string,) constructors=[(string) => mark]
+
+function run(): void {
+/// @type.symbol symbol=run type=() => void
+
+    const pair = (@mark("tuple") 4, 5);
+    /// @type.symbol symbol=run.pair source=pair type=(float64, float64)
+    /// @resolution.pattern source=pair kind=binding target=run.pair
+    /// @type.node source=(@mark("tuple") 4, 5) type=(float64, float64)
+    /// @decorator.node source="@mark(\"tuple\")" owner="@mark(\"tuple\") 4" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("tuple") as string) newtype=mark backing=(string,) value="mark(\"tuple\")"
+    /// @type.node source=mark type=mark
+    /// @resolution.name source=mark target=mark
+    /// @type.node source="\"tuple\"" type="tuple"
+    /// @type.node source=4 type=4
+    /// @type.node source=5 type=5
+
+    const text = `value ${@mark("interpolation") 6}`;
+    /// @type.symbol symbol=run.text source=text type=string
+    /// @resolution.pattern source=text kind=binding target=run.text
+    /// @type.node source="`value ${@mark(\"interpolation\") 6}`" type=string
+    /// @decorator.node source="@mark(\"interpolation\")" owner="@mark(\"interpolation\") 6" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("interpolation") as string) newtype=mark backing=(string,) value="mark(\"interpolation\")"
+    /// @type.node source=mark type=mark
+    /// @resolution.name source=mark target=mark
+    /// @type.node source="\"interpolation\"" type="interpolation"
+    /// @type.node source=6 type=6
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_drop_statically_absent_tuple_element() {
+    let session = TestSession::single(
+        r#"
+function run(): void {
+    const pair = (1, @if(false) 2);
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_decorators(),
+        r#"
+=== annotated ===
+function run(): void {
+    const pair: (float64,) = (
+        1,
+        @if(false) 2,
+    );
+}
+
+=== checked ===
+function run(): void {
+/// @type.symbol symbol=run type=() => void
+
+    const pair = (1, @if(false) 2);
+    /// @type.symbol symbol=run.pair source=pair type=(float64,)
+    /// @resolution.pattern source=pair kind=binding target=run.pair
+    /// @type.node source=(1, @if(false) 2) type=(float64,)
+    /// @type.node source=1 type=1
+
+}
+"#,
+        "",
+    );
+}
+
+#[test]
+fn test_drop_statically_absent_call_argument() {
+    let session = TestSession::single(
+        r#"
+declare function consume(first: int32, second?: int32): void;
+declare function require(first: int32): void;
+
+function run(): void {
+    consume(1, @if(false) 2);
+    require(@if(false) 1);
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_decorators(),
+        r#"
+=== annotated ===
+declare function consume(first: int32, second?: int32): void;
+declare function require(first: int32): void;
+
+function run(): void {
+    consume(1, @if(false) 2);
+    require(@if(false) 1);
+}
+
+=== checked ===
+declare function consume(first: int32, second?: int32): void;
+/// @type.symbol symbol=consume source="declare function consume(first: int32, second?: int32): void" type=(int32, int32 | undefined?) => void
+/// @type.symbol symbol=consume.first source="first: int32" type=int32
+/// @type.symbol symbol=consume.second source="second?: int32" type=int32 | undefined
+
+declare function require(first: int32): void;
+/// @type.symbol symbol=require source="declare function require(first: int32): void" type=(int32) => void
+/// @type.symbol symbol=require.first source="first: int32" type=int32
+
+function run(): void {
+/// @type.symbol symbol=run type=() => void
+
+    consume(1, @if(false) 2);
+    /// @type.node source="consume(1, @if(false) 2)" type=void
+    /// @type.node source=consume type=(int32, int32 | undefined?) => void
+    /// @resolution.name source=consume target=consume
+    /// @resolution.call source="consume(1, @if(false) 2)" parameters=(int32, int32 | undefined) arguments=(provided(1) as int32, omitted as int32 | undefined) return=void kind=symbol target=consume
+    /// @type.node source=1 type=1
+
+    require(@if(false) 1);
+    /// @type.node source="require(@if(false) 1)" type=<error>
+    /// @resolution.name source=require target=require
+    /// @resolution.call source="require(@if(false) 1)" parameters=() return=<error> kind=symbol target=require
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=wrong-argument-count message="expected 1 argument, but got 0 argument(s)"
+/// @diagnostic.label line=7 column=5 span="require(@if(false) 1)" line_source="require(@if(false) 1);"
+"#,
+    );
+}
+
+#[test]
 fn test_reject_ambiguous_decorator_backing() {
     let session = TestSession::single(
         r#"
