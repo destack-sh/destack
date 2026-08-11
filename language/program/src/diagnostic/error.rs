@@ -5,7 +5,7 @@ use destack_memory::MemoryError;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Fiber, FrameLayoutId, FrameStateId, FunctionId, GlobalId, LayoutId, Signature, SignatureId,
+    FiberId, FrameLayoutId, FrameStateId, FunctionId, GlobalId, LayoutId, Signature, SignatureId,
     TypeId,
 };
 
@@ -93,13 +93,13 @@ pub enum Error {
     EmptyCallChain,
     /// A fiber handle does not name one live fiber.
     UndefinedFiber {
-        /// The undefined fiber.
-        fiber: Fiber,
+        /// The undefined fiber identity.
+        fiber_id: FiberId,
     },
     /// A fiber operation is invalid for its current execution state.
     InvalidFiberState {
-        /// The fiber in the invalid state.
-        fiber: Fiber,
+        /// The fiber identity in the invalid state.
+        fiber_id: FiberId,
     },
     /// A retained frame byte width differs from its frame layout.
     FrameByteLengthMismatch {
@@ -248,11 +248,11 @@ impl fmt::Display for Error {
                 write!(formatter, "undefined frame layout {frame_layout:?}")
             }
             Self::EmptyCallChain => formatter.write_str("retained call chain contains no frames"),
-            Self::UndefinedFiber { fiber } => {
-                write!(formatter, "undefined fiber {fiber:?}")
+            Self::UndefinedFiber { fiber_id } => {
+                write!(formatter, "undefined fiber {fiber_id:?}")
             }
-            Self::InvalidFiberState { fiber } => {
-                write!(formatter, "invalid state for fiber {fiber:?}")
+            Self::InvalidFiberState { fiber_id } => {
+                write!(formatter, "invalid state for fiber {fiber_id:?}")
             }
             Self::FrameByteLengthMismatch {
                 frame_state,

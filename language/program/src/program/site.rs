@@ -13,7 +13,7 @@ use super::{FunctionId, LayoutId, ProgramPoint, SignatureId, TypeId, VirtualTabl
 pub struct SiteTable {
     /// Allocation sites sorted by program point.
     allocations: SectionSlice<AllocationSite>,
-    /// Addressable memory operation sites sorted by program point.
+    /// Addressable memory operation sites sorted by point and then execution order.
     memory: SectionSlice<MemorySite>,
     /// Function call operation sites sorted by program point.
     calls: SectionSlice<CallSite>,
@@ -60,7 +60,7 @@ impl SiteTable {
         self.allocations(sections).len()
     }
 
-    /// Return memory sites at one program point.
+    /// Return memory sites at one program point in execution order.
     pub fn memory<'a>(&self, sections: SectionImage<'a>, point: ProgramPoint) -> &'a [MemorySite] {
         let memory = self.memory_sites(sections);
         let start = memory.partition_point(|site| site.point < point);
@@ -245,7 +245,7 @@ impl SiteTableBuilder {
     pub(crate) fn build(mut self, sections: &mut SectionBuilder) -> SiteTable {
         // order every site family for direct lookup
         self.allocations.sort_unstable_by_key(|site| site.point);
-        self.memory.sort_unstable_by_key(|site| site.point);
+        self.memory.sort_by_key(|site| site.point);
         self.calls.sort_unstable_by_key(|site| site.point);
         self.edges
             .sort_unstable_by_key(|site| (site.source, site.target));

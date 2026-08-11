@@ -4,12 +4,9 @@ use serde::{Deserialize, Serialize};
 /// Runtime identity for one fiber.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct Fiber(u64);
+pub struct FiberId(u64);
 
-impl Fiber {
-    /// Identity carried by an idle execution; issued generations start at one.
-    pub const NONE: Self = Self(0);
-
+impl FiberId {
     /// Create one fiber identity from its slot and generation.
     pub const fn new(index: u32, generation: u32) -> Self {
         Self(((generation as u64) << u32::BITS) | index as u64)

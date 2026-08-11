@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Binding, Context, Event, EventSet, Fiber, Memory, Value, Word};
+use crate::{Binding, Context, Event, EventSet, FiberId, Memory, Value, Word};
 
 /// Action returned by one runtime poll.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,7 +30,11 @@ pub trait Runtime {
     }
 
     /// Observe one selected Program execution event.
-    fn observe(&mut self, _event: Event) -> Result<(), Self::Error> {
+    fn observe(
+        &mut self,
+        _fiber_id: Option<FiberId>,
+        _event: Event,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -39,20 +43,20 @@ pub trait Runtime {
         &mut self,
         memory: Memory<'_>,
         context: Context,
-        fiber: Fiber,
+        fiber_id: Option<FiberId>,
         binding: &Binding,
         arguments: &[Word],
         result: &mut [Word],
     ) -> Result<(), Self::Error>;
 
     /// Park one logical fiber, or take an already delivered wake value.
-    fn park(&mut self, fiber: Fiber) -> Result<Park, Self::Error>;
+    fn park(&mut self, fiber_id: FiberId) -> Result<Park, Self::Error>;
 
     /// Allocate one detached fiber identity at a task boundary.
-    fn detach(&mut self) -> Result<Fiber, Self::Error>;
+    fn detach(&mut self) -> Result<FiberId, Self::Error>;
 
-    /// Retire one detached fiber that completed without parking.
-    fn retire(&mut self, fiber: Fiber) -> Result<(), Self::Error>;
+    /// Retire one running detached fiber.
+    fn retire(&mut self, fiber_id: FiberId) -> Result<(), Self::Error>;
 }
 
 /// Decision returned by one fiber park request.

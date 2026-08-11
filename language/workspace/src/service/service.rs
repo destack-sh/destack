@@ -11,6 +11,10 @@ use crate::{
 /// RPC operations over one Destack workspace.
 #[destack_rpc::service(name = "destack.workspace.Workspace")]
 pub trait WorkspaceService {
+    // =============================================================================
+    // Workspace
+    // =============================================================================
+
     /// Reload one workspace root from its host.
     #[rpc(name = "Reload", idempotency = "idempotent")]
     fn reload(request: ReloadRequest) -> Option<Commit>;
@@ -18,6 +22,10 @@ pub trait WorkspaceService {
     /// Read one workspace root revision.
     #[rpc(name = "ReadRevision", idempotency = "no_side_effects")]
     fn read_revision(request: ReadRevisionRequest) -> Revision;
+
+    // =============================================================================
+    // Source
+    // =============================================================================
 
     /// Apply one editor file operation.
     #[rpc(name = "ApplyFileOperation")]
@@ -38,6 +46,10 @@ pub trait WorkspaceService {
     /// Read source files from one exact revision.
     #[rpc(name = "ReadFiles", idempotency = "no_side_effects")]
     fn read_files(request: ReadFilesRequest) -> Vec<FileImage>;
+
+    // =============================================================================
+    // Analysis
+    // =============================================================================
 
     /// Check source state.
     #[rpc(
@@ -63,6 +75,10 @@ pub trait WorkspaceService {
     #[rpc(name = "Rewrite", response_stream = ProgressEvent)]
     fn rewrite(request: RewriteRequest) -> RewriteOutput;
 
+    // =============================================================================
+    // Build
+    // =============================================================================
+
     /// Build target artifacts.
     #[rpc(name = "Build", response_stream = ProgressEvent)]
     fn build(request: BuildRequest) -> BuildOutput;
@@ -78,6 +94,10 @@ pub trait WorkspaceService {
     /// Run workspace benchmarks.
     #[rpc(name = "Bench", response_stream = ProgressEvent)]
     fn bench(request: BenchRequest) -> BenchOutput;
+
+    // =============================================================================
+    // Configuration
+    // =============================================================================
 
     /// Return workspace information.
     #[rpc(
@@ -119,6 +139,10 @@ pub trait WorkspaceService {
     )]
     fn doctor(request: DoctorRequest) -> DoctorOutput;
 
+    // =============================================================================
+    // Task
+    // =============================================================================
+
     /// Execute configured workspace tasks.
     #[rpc(name = "Task", response_stream = ProgressEvent)]
     fn task(request: TaskRequest) -> TaskOutput;
@@ -127,6 +151,10 @@ pub trait WorkspaceService {
     #[rpc(name = "Clean", response_stream = ProgressEvent)]
     fn clean(request: CleanRequest) -> CleanOutput;
 
+    // =============================================================================
+    // Artifact
+    // =============================================================================
+
     /// Read one exact artifact payload.
     #[rpc(name = "Artifact", idempotency = "no_side_effects")]
     fn artifact(request: ArtifactRequest) -> ArtifactPayload;
@@ -134,6 +162,10 @@ pub trait WorkspaceService {
     /// Materialize one artifact on the workspace host.
     #[rpc(name = "Export")]
     fn export(request: ExportRequest) -> ExportResult;
+
+    // =============================================================================
+    // Language
+    // =============================================================================
 
     /// Read exact diagnostics.
     #[rpc(name = "Diagnose", idempotency = "no_side_effects")]
@@ -146,6 +178,10 @@ pub trait WorkspaceService {
     /// Execute one semantic query.
     #[rpc(name = "RunQuery", idempotency = "no_side_effects")]
     fn run_query(request: RunQueryRequest) -> RunQueryResponse;
+
+    // =============================================================================
+    // Watch
+    // =============================================================================
 
     /// Watch one workspace root until cancellation.
     #[rpc(name = "Watch", response_stream = WatchEvent)]
