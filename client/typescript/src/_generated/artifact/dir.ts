@@ -180,6 +180,8 @@ export type DirChecked = {
     readonly generics: GenericSegment;
     /** Refined declaration definitions. */
     readonly definitions: DefinitionSegment;
+    /** Member subjects and bindings settled while checking. */
+    readonly members: MemberSegment;
     /** New implicit coercions. */
     readonly coercions: CoercionSegment;
     /** New captures. */
@@ -220,6 +222,7 @@ export function encodeDirChecked(writer: BinaryWriter, value: DirChecked): void 
     encodeDecisionSegment(writer, value.decisions);
     encodeGenericSegment(writer, value.generics);
     encodeDefinitionSegment(writer, value.definitions);
+    encodeMemberSegment(writer, value.members);
     encodeCoercionSegment(writer, value.coercions);
     encodeCaptureSegment(writer, value.captures);
 }
@@ -236,6 +239,7 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
     const decisions = decodeDecisionSegment(reader);
     const generics = decodeGenericSegment(reader);
     const definitions = decodeDefinitionSegment(reader);
+    const members = decodeMemberSegment(reader);
     const coercions = decodeCoercionSegment(reader);
     const captures = decodeCaptureSegment(reader);
 
@@ -250,6 +254,7 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
         decisions,
         generics,
         definitions,
+        members,
         coercions,
         captures,
     };
@@ -268,6 +273,7 @@ export function toJsonDirChecked(value: DirChecked): Json {
         decisions: toJsonDecisionSegment(value.decisions),
         generics: toJsonGenericSegment(value.generics),
         definitions: toJsonDefinitionSegment(value.definitions),
+        members: toJsonMemberSegment(value.members),
         coercions: toJsonCoercionSegment(value.coercions),
         captures: toJsonCaptureSegment(value.captures),
     };
@@ -288,6 +294,7 @@ export function fromJsonDirChecked(value: Json): DirChecked {
         decisions: fromJsonDecisionSegment(jsonField(object, "decisions")),
         generics: fromJsonGenericSegment(jsonField(object, "generics")),
         definitions: fromJsonDefinitionSegment(jsonField(object, "definitions")),
+        members: fromJsonMemberSegment(jsonField(object, "members")),
         coercions: fromJsonCoercionSegment(jsonField(object, "coercions")),
         captures: fromJsonCaptureSegment(jsonField(object, "captures")),
     };

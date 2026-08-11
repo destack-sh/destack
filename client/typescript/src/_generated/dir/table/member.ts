@@ -321,7 +321,7 @@ export function fromJsonMemberKind(value: Json): MemberKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** The declaration family one member came from. */
+/** The declaration family one member came from, ordered by shadowing precedence. */
 export type MemberOrigin = "declaration" | "rootedExtension" | "blanketExtension";
 
 export const MemberOrigin = {

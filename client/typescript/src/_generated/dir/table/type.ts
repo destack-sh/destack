@@ -84,6 +84,7 @@ export function fromJsonListPool(value: Json): ListPool {
     };
 }
 
+/** One module's layer of checked types over the committed base. */
 export type TypeSegment = {
     /** The module id of the type segment. */
     readonly moduleId: ModuleId;
@@ -121,8 +122,6 @@ export type TypeSegment = {
     readonly expectedTypes: ReadonlyMap<GlobalNodeIdAny, GlobalTypeId>;
     /** Checked declaration type by symbol. */
     readonly symbolTypes: ReadonlyMap<GlobalSymbolId, GlobalTypeId>;
-    /** Reduced type by source type. */
-    readonly reducedTypes: ReadonlyMap<GlobalTypeId, GlobalTypeId>;
 };
 
 export const TypeSegment = {
@@ -206,18 +205,6 @@ export function encodeTypeSegment(writer: BinaryWriter, value: TypeSegment): voi
         encodeGlobalSymbolId(writer, entry17.key17);
         encodeGlobalTypeId(writer, entry17.item17);
     }
-    const entries18 = Array.from(value.reducedTypes.entries()).map(([key18, item18]) => {
-        const keyBytes = nestedBytes((writer) => {
-            encodeGlobalTypeId(writer, key18);
-        });
-        return { key18, item18, keyBytes };
-    });
-    entries18.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
-    writer.writeUnsigned(entries18.length);
-    for (const entry18 of entries18) {
-        encodeGlobalTypeId(writer, entry18.key18);
-        encodeGlobalTypeId(writer, entry18.item18);
-    }
 }
 
 /** Decode one TypeSegment. */
@@ -240,7 +227,6 @@ export function decodeTypeSegment(reader: BinaryReader): TypeSegment {
     const nodeTypes = (() => { const length15 = reader.readNumber(); const items15 = new Map<GlobalNodeIdAny, GlobalTypeId>(); for (let index = 0; index < length15; index += 1) { items15.set(decodeGlobalNodeIdAny(reader), decodeGlobalTypeId(reader)); } return items15; })();
     const expectedTypes = (() => { const length16 = reader.readNumber(); const items16 = new Map<GlobalNodeIdAny, GlobalTypeId>(); for (let index = 0; index < length16; index += 1) { items16.set(decodeGlobalNodeIdAny(reader), decodeGlobalTypeId(reader)); } return items16; })();
     const symbolTypes = (() => { const length17 = reader.readNumber(); const items17 = new Map<GlobalSymbolId, GlobalTypeId>(); for (let index = 0; index < length17; index += 1) { items17.set(decodeGlobalSymbolId(reader), decodeGlobalTypeId(reader)); } return items17; })();
-    const reducedTypes = (() => { const length18 = reader.readNumber(); const items18 = new Map<GlobalTypeId, GlobalTypeId>(); for (let index = 0; index < length18; index += 1) { items18.set(decodeGlobalTypeId(reader), decodeGlobalTypeId(reader)); } return items18; })();
 
     return {
         moduleId,
@@ -261,7 +247,6 @@ export function decodeTypeSegment(reader: BinaryReader): TypeSegment {
         nodeTypes,
         expectedTypes,
         symbolTypes,
-        reducedTypes,
     };
 }
 
@@ -286,7 +271,6 @@ export function toJsonTypeSegment(value: TypeSegment): Json {
         nodeTypes: Array.from(value.nodeTypes.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonGlobalTypeId(item0)] as const),
         expectedTypes: Array.from(value.expectedTypes.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonGlobalTypeId(item0)] as const),
         symbolTypes: Array.from(value.symbolTypes.entries()).map(([key0, item0]) => [toJsonGlobalSymbolId(key0), toJsonGlobalTypeId(item0)] as const),
-        reducedTypes: Array.from(value.reducedTypes.entries()).map(([key0, item0]) => [toJsonGlobalTypeId(key0), toJsonGlobalTypeId(item0)] as const),
     };
 }
 
@@ -313,6 +297,5 @@ export function fromJsonTypeSegment(value: Json): TypeSegment {
         nodeTypes: new Map(jsonArray(jsonField(object, "nodeTypes")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonGlobalTypeId(item0)] as const; })),
         expectedTypes: new Map(jsonArray(jsonField(object, "expectedTypes")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonGlobalTypeId(item0)] as const; })),
         symbolTypes: new Map(jsonArray(jsonField(object, "symbolTypes")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalSymbolId(key0), fromJsonGlobalTypeId(item0)] as const; })),
-        reducedTypes: new Map(jsonArray(jsonField(object, "reducedTypes")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalTypeId(key0), fromJsonGlobalTypeId(item0)] as const; })),
     };
 }
