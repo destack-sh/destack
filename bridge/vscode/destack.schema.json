@@ -220,95 +220,89 @@
         "rules": []
       }
     },
-    "runtime": {
-      "description": "Runtime configuration.",
-      "$ref": "#/$defs/RuntimeOptions",
+    "execution": {
+      "description": "World and Runtime execution configuration.",
+      "$ref": "#/$defs/ExecutionOptions",
       "default": {
-        "identity": {
-          "name": null,
-          "labels": {}
+        "world": {
+          "mode": "strict",
+          "clock": {
+            "epochNanos": null
+          },
+          "random": {
+            "seed": null
+          },
+          "replayPayload": "resultsOnly"
         },
-        "profile": "full",
-        "linkage": "portable",
-        "mode": "strict",
-        "worker": {
-          "limit": null,
-          "threadLimit": null,
-          "stackBytes": null
-        },
-        "clock": {
-          "epochNs": null
-        },
-        "random": {
-          "seed": null
-        },
-        "trace": {
-          "restore": "world",
-          "path": null,
-          "template": null,
-          "chunkSizeMb": null,
-          "payload": "resultsOnly"
-        },
-        "heap": {
-          "memoryMapSizeBytes": 4398046511104,
-          "memoryLimitBytes": null,
-          "growthPercent": 100,
-          "local": {
-            "youngSizeBytes": 1048576,
-            "minBytes": null,
-            "maxBytes": null
+        "runtime": {
+          "identity": {
+            "name": null,
+            "labels": {}
           },
-          "shared": {
-            "minBytes": null,
-            "maxBytes": null
-          }
-        },
-        "diagnostic": {
-          "level": "warn",
-          "capacity": 1024
-        },
-        "host": {
-          "poller": {
-            "backend": "auto"
+          "profile": "full",
+          "linkage": "portable",
+          "worker": {
+            "limit": null,
+            "threadLimit": null,
+            "stackBytes": null
           },
-          "fs": {
-            "temporaryDirectory": null,
-            "cacheDirectory": null
+          "heap": {
+            "memoryLimitBytes": null,
+            "growthPercent": 100,
+            "local": {
+              "youngSizeBytes": 1048576,
+              "minBytes": null,
+              "maxBytes": null
+            },
+            "shared": {
+              "minBytes": null,
+              "maxBytes": null
+            }
           },
-          "net": {
-            "dnsServers": [],
-            "proxyUrl": null,
-            "bindInterface": null
+          "diagnostic": {
+            "level": "warn",
+            "capacity": 1024
           },
-          "process": {
-            "defaultWorkingDirectory": null,
-            "inheritEnvironment": null,
-            "environmentAllowlist": []
-          },
-          "audio": {
-            "backend": null,
-            "outputDevice": null,
-            "inputDevice": null
-          },
-          "display": {
-            "backend": null
-          },
-          "input": {
-            "backend": null
-          },
-          "gpu": {
-            "backend": null,
-            "adapterName": null
-          },
-          "tls": {
-            "trustStorePath": null,
-            "systemCertificateFiles": [],
-            "systemCertificateDirectories": []
-          },
-          "os": {
-            "defaultLocale": null,
-            "dataDirectory": null,
-            "stateDirectory": null
+          "host": {
+            "fs": {
+              "temporaryDirectory": null,
+              "cacheDirectory": null
+            },
+            "net": {
+              "dnsServers": [],
+              "proxyUrl": null,
+              "bindInterface": null
+            },
+            "process": {
+              "defaultWorkingDirectory": null,
+              "inheritEnvironment": null,
+              "environmentAllowlist": []
+            },
+            "audio": {
+              "backend": null,
+              "outputDevice": null,
+              "inputDevice": null
+            },
+            "display": {
+              "backend": null
+            },
+            "input": {
+              "backend": null
+            },
+            "gpu": {
+              "backend": null,
+              "adapterName": null
+            },
+            "tls": {
+              "trustStorePath": null,
+              "systemCertificateFiles": [],
+              "systemCertificateDirectories": []
+            },
+            "os": {
+              "defaultLocale": null,
+              "dataDirectory": null,
+              "stateDirectory": null
+            }
           }
         }
       }
@@ -1742,6 +1736,203 @@
         }
       ]
     },
+    "ExecutionOptions": {
+      "description": "Complete configuration for one World and its initial Runtime.",
+      "type": "object",
+      "properties": {
+        "world": {
+          "description": "World configuration.",
+          "$ref": "#/$defs/WorldOptions",
+          "default": {
+            "mode": "strict",
+            "clock": {
+              "epochNanos": null
+            },
+            "random": {
+              "seed": null
+            },
+            "replayPayload": "resultsOnly"
+          }
+        },
+        "runtime": {
+          "description": "Initial Runtime configuration.",
+          "$ref": "#/$defs/RuntimeOptions",
+          "default": {
+            "identity": {
+              "name": null,
+              "labels": {}
+            },
+            "profile": "full",
+            "linkage": "portable",
+            "worker": {
+              "limit": null,
+              "threadLimit": null,
+              "stackBytes": null
+            },
+            "heap": {
+              "memoryLimitBytes": null,
+              "growthPercent": 100,
+              "local": {
+                "youngSizeBytes": 1048576,
+                "minBytes": null,
+                "maxBytes": null
+              },
+              "shared": {
+                "minBytes": null,
+                "maxBytes": null
+              }
+            },
+            "diagnostic": {
+              "level": "warn",
+              "capacity": 1024
+            },
+            "host": {
+              "fs": {
+                "temporaryDirectory": null,
+                "cacheDirectory": null
+              },
+              "net": {
+                "dnsServers": [],
+                "proxyUrl": null,
+                "bindInterface": null
+              },
+              "process": {
+                "defaultWorkingDirectory": null,
+                "inheritEnvironment": null,
+                "environmentAllowlist": []
+              },
+              "audio": {
+                "backend": null,
+                "outputDevice": null,
+                "inputDevice": null
+              },
+              "display": {
+                "backend": null
+              },
+              "input": {
+                "backend": null
+              },
+              "gpu": {
+                "backend": null,
+                "adapterName": null
+              },
+              "tls": {
+                "trustStorePath": null,
+                "systemCertificateFiles": [],
+                "systemCertificateDirectories": []
+              },
+              "os": {
+                "defaultLocale": null,
+                "dataDirectory": null,
+                "stateDirectory": null
+              }
+            }
+          }
+        }
+      }
+    },
+    "WorldOptions": {
+      "description": "World configuration.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Execution mode for scheduling and effect handling.",
+          "$ref": "#/$defs/ExecutionMode",
+          "default": "strict"
+        },
+        "clock": {
+          "description": "World clock seed configuration.",
+          "$ref": "#/$defs/ClockOptions",
+          "default": {
+            "epochNanos": null
+          }
+        },
+        "random": {
+          "description": "World randomness source configuration.",
+          "$ref": "#/$defs/RandomOptions",
+          "default": {
+            "seed": null
+          }
+        },
+        "replayPayload": {
+          "description": "Recorded binding call payload selection.",
+          "$ref": "#/$defs/ReplayPayloadMode",
+          "default": "resultsOnly"
+        }
+      }
+    },
+    "ExecutionMode": {
+      "description": "Execution mode for World scheduling and replay.",
+      "oneOf": [
+        {
+          "description": "Strict execution through runtime-owned facts and effect boundaries.",
+          "type": "string",
+          "const": "strict"
+        },
+        {
+          "description": "Fast execution without determinism guarantees.",
+          "type": "string",
+          "const": "fast"
+        },
+        {
+          "description": "Record external effects for replay.",
+          "type": "string",
+          "const": "record"
+        },
+        {
+          "description": "Replay external effects from the log.",
+          "type": "string",
+          "const": "replay"
+        }
+      ]
+    },
+    "ClockOptions": {
+      "description": "World clock configuration.",
+      "type": "object",
+      "properties": {
+        "epochNanos": {
+          "description": "World wall-clock epoch in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
+        }
+      }
+    },
+    "RandomOptions": {
+      "description": "World randomness configuration.",
+      "type": "object",
+      "properties": {
+        "seed": {
+          "description": "Seed for deterministic randomness streams.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
+        }
+      }
+    },
+    "ReplayPayloadMode": {
+      "description": "Replay payload selection for record/replay.",
+      "oneOf": [
+        {
+          "description": "Record only the result value.",
+          "type": "string",
+          "const": "resultsOnly"
+        },
+        {
+          "description": "Record arguments and results for verification.",
+          "type": "string",
+          "const": "argumentsAndResults"
+        }
+      ]
+    },
     "RuntimeOptions": {
       "description": "Runtime configuration.",
       "type": "object",
@@ -1764,11 +1955,6 @@
           "$ref": "#/$defs/BuildLinkage",
           "default": "portable"
         },
-        "mode": {
-          "description": "Execution mode for scheduling and effect handling.",
-          "$ref": "#/$defs/ExecutionMode",
-          "default": "strict"
-        },
         "worker": {
           "description": "Runtime worker configuration.",
           "$ref": "#/$defs/WorkerOptions",
@@ -1778,36 +1964,10 @@
             "stackBytes": null
           }
         },
-        "clock": {
-          "description": "Runtime clock seed configuration.",
-          "$ref": "#/$defs/ClockOptions",
-          "default": {
-            "epochNs": null
-          }
-        },
-        "random": {
-          "description": "Runtime randomness source configuration.",
-          "$ref": "#/$defs/RandomOptions",
-          "default": {
-            "seed": null
-          }
-        },
-        "trace": {
-          "description": "Runtime trace configuration.",
-          "$ref": "#/$defs/TraceOptions",
-          "default": {
-            "restore": "world",
-            "path": null,
-            "template": null,
-            "chunkSizeMb": null,
-            "payload": "resultsOnly"
-          }
-        },
         "heap": {
           "description": "Runtime heap configuration.",
           "$ref": "#/$defs/HeapOptions",
           "default": {
-            "memoryMapSizeBytes": 4398046511104,
             "memoryLimitBytes": null,
             "growthPercent": 100,
             "local": {
@@ -1833,9 +1993,6 @@
           "description": "Runtime host module defaults.",
           "$ref": "#/$defs/HostOptions",
           "default": {
-            "poller": {
-              "backend": "auto"
-            },
             "fs": {
               "temporaryDirectory": null,
               "cacheDirectory": null
@@ -1941,31 +2098,6 @@
         }
       ]
     },
-    "ExecutionMode": {
-      "description": "Execution mode for runtime scheduling and replay.",
-      "oneOf": [
-        {
-          "description": "Strict execution through runtime-owned facts and effect boundaries.",
-          "type": "string",
-          "const": "strict"
-        },
-        {
-          "description": "Fast execution without determinism guarantees.",
-          "type": "string",
-          "const": "fast"
-        },
-        {
-          "description": "Record external effects for replay.",
-          "type": "string",
-          "const": "record"
-        },
-        {
-          "description": "Replay external effects from the log.",
-          "type": "string",
-          "const": "replay"
-        }
-      ]
-    },
     "WorkerOptions": {
       "description": "Runtime worker configuration.",
       "type": "object",
@@ -2002,121 +2134,10 @@
         }
       }
     },
-    "ClockOptions": {
-      "description": "Runtime clock configuration.",
-      "type": "object",
-      "properties": {
-        "epochNs": {
-          "description": "Runtime wall-clock epoch in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        }
-      }
-    },
-    "RandomOptions": {
-      "description": "Runtime randomness configuration.",
-      "type": "object",
-      "properties": {
-        "seed": {
-          "description": "Seed for deterministic randomness streams.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        }
-      }
-    },
-    "TraceOptions": {
-      "description": "Runtime trace configuration.",
-      "type": "object",
-      "properties": {
-        "restore": {
-          "description": "The configured restore contract.",
-          "$ref": "#/$defs/RestoreMode",
-          "default": "world"
-        },
-        "path": {
-          "description": "Base path for trace logs.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "template": {
-          "description": "Template for auto-generated log file names.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "chunkSizeMb": {
-          "description": "Chunk size in megabytes for log rotation.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "payload": {
-          "description": "Trace payload selection for recorded binding calls.",
-          "$ref": "#/$defs/ReplayPayloadMode",
-          "default": "resultsOnly"
-        }
-      }
-    },
-    "RestoreMode": {
-      "description": "Restore contract for one world checkpoint or replay boundary.",
-      "oneOf": [
-        {
-          "description": "Restore one live logical world state.",
-          "type": "string",
-          "const": "world"
-        },
-        {
-          "description": "Restore one exact serialized execution image.",
-          "type": "string",
-          "const": "image"
-        }
-      ]
-    },
-    "ReplayPayloadMode": {
-      "description": "Replay payload selection for record/replay.",
-      "oneOf": [
-        {
-          "description": "Record only the result value.",
-          "type": "string",
-          "const": "resultsOnly"
-        },
-        {
-          "description": "Record arguments and results for verification.",
-          "type": "string",
-          "const": "argumentsAndResults"
-        }
-      ]
-    },
     "HeapOptions": {
       "description": "Runtime heap configuration.",
       "type": "object",
       "properties": {
-        "memoryMapSizeBytes": {
-          "description": "Virtual byte capacity reserved for the World memory map.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0,
-          "default": 4398046511104
-        },
         "memoryLimitBytes": {
           "description": "Soft memory limit inherited by local and shared heap collectors.",
           "type": [
@@ -2272,13 +2293,6 @@
       "description": "Runtime host module defaults.",
       "type": "object",
       "properties": {
-        "poller": {
-          "description": "Host poller defaults.",
-          "$ref": "#/$defs/HostPollerOptions",
-          "default": {
-            "backend": "auto"
-          }
-        },
         "fs": {
           "description": "Filesystem host defaults.",
           "$ref": "#/$defs/HostFsOptions",
@@ -2355,52 +2369,6 @@
           }
         }
       }
-    },
-    "HostPollerOptions": {
-      "description": "Runtime host-poller configuration.",
-      "type": "object",
-      "properties": {
-        "backend": {
-          "description": "Host poller backend selection.",
-          "$ref": "#/$defs/PollerBackend",
-          "default": "auto"
-        }
-      }
-    },
-    "PollerBackend": {
-      "description": "Host poller backend selection.",
-      "oneOf": [
-        {
-          "description": "Choose the best available backend for the platform.",
-          "type": "string",
-          "const": "auto"
-        },
-        {
-          "description": "Use io_uring on Linux.",
-          "type": "string",
-          "const": "ioUring"
-        },
-        {
-          "description": "Use epoll on Linux.",
-          "type": "string",
-          "const": "epoll"
-        },
-        {
-          "description": "Use kqueue on BSD and macOS.",
-          "type": "string",
-          "const": "kqueue"
-        },
-        {
-          "description": "Use poll on Unix.",
-          "type": "string",
-          "const": "poll"
-        },
-        {
-          "description": "Use the Windows readiness backend.",
-          "type": "string",
-          "const": "windows"
-        }
-      ]
     },
     "HostFsOptions": {
       "description": "Filesystem host defaults.",
@@ -2986,94 +2954,88 @@
           }
         },
         "execution": {
-          "description": "Runtime execution options.",
-          "$ref": "#/$defs/RuntimeOptions",
+          "description": "World and Runtime execution configuration.",
+          "$ref": "#/$defs/ExecutionOptions",
           "default": {
-            "identity": {
-              "name": null,
-              "labels": {}
+            "world": {
+              "mode": "strict",
+              "clock": {
+                "epochNanos": null
+              },
+              "random": {
+                "seed": null
+              },
+              "replayPayload": "resultsOnly"
             },
-            "profile": "full",
-            "linkage": "portable",
-            "mode": "strict",
-            "worker": {
-              "limit": null,
-              "threadLimit": null,
-              "stackBytes": null
-            },
-            "clock": {
-              "epochNs": null
-            },
-            "random": {
-              "seed": null
-            },
-            "trace": {
-              "restore": "world",
-              "path": null,
-              "template": null,
-              "chunkSizeMb": null,
-              "payload": "resultsOnly"
-            },
-            "heap": {
-              "memoryMapSizeBytes": 4398046511104,
-              "memoryLimitBytes": null,
-              "growthPercent": 100,
-              "local": {
-                "youngSizeBytes": 1048576,
-                "minBytes": null,
-                "maxBytes": null
+            "runtime": {
+              "identity": {
+                "name": null,
+                "labels": {}
               },
-              "shared": {
-                "minBytes": null,
-                "maxBytes": null
-              }
-            },
-            "diagnostic": {
-              "level": "warn",
-              "capacity": 1024
-            },
-            "host": {
-              "poller": {
-                "backend": "auto"
+              "profile": "full",
+              "linkage": "portable",
+              "worker": {
+                "limit": null,
+                "threadLimit": null,
+                "stackBytes": null
               },
-              "fs": {
-                "temporaryDirectory": null,
-                "cacheDirectory": null
+              "heap": {
+                "memoryLimitBytes": null,
+                "growthPercent": 100,
+                "local": {
+                  "youngSizeBytes": 1048576,
+                  "minBytes": null,
+                  "maxBytes": null
+                },
+                "shared": {
+                  "minBytes": null,
+                  "maxBytes": null
+                }
               },
-              "net": {
-                "dnsServers": [],
-                "proxyUrl": null,
-                "bindInterface": null
+              "diagnostic": {
+                "level": "warn",
+                "capacity": 1024
               },
-              "process": {
-                "defaultWorkingDirectory": null,
-                "inheritEnvironment": null,
-                "environmentAllowlist": []
-              },
-              "audio": {
-                "backend": null,
-                "outputDevice": null,
-                "inputDevice": null
-              },
-              "display": {
-                "backend": null
-              },
-              "input": {
-                "backend": null
-              },
-              "gpu": {
-                "backend": null,
-                "adapterName": null
-              },
-              "tls": {
-                "trustStorePath": null,
-                "systemCertificateFiles": [],
-                "systemCertificateDirectories": []
-              },
-              "os": {
-                "defaultLocale": null,
-                "dataDirectory": null,
-                "stateDirectory": null
+              "host": {
+                "fs": {
+                  "temporaryDirectory": null,
+                  "cacheDirectory": null
+                },
+                "net": {
+                  "dnsServers": [],
+                  "proxyUrl": null,
+                  "bindInterface": null
+                },
+                "process": {
+                  "defaultWorkingDirectory": null,
+                  "inheritEnvironment": null,
+                  "environmentAllowlist": []
+                },
+                "audio": {
+                  "backend": null,
+                  "outputDevice": null,
+                  "inputDevice": null
+                },
+                "display": {
+                  "backend": null
+                },
+                "input": {
+                  "backend": null
+                },
+                "gpu": {
+                  "backend": null,
+                  "adapterName": null
+                },
+                "tls": {
+                  "trustStorePath": null,
+                  "systemCertificateFiles": [],
+                  "systemCertificateDirectories": []
+                },
+                "os": {
+                  "defaultLocale": null,
+                  "dataDirectory": null,
+                  "stateDirectory": null
+                }
               }
             }
           }
