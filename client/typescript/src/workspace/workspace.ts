@@ -1,10 +1,14 @@
 import {
+    DaemonClient,
+    daemonService,
+} from "../_generated/daemon/daemon.js";
+import {
     WorkspaceClient,
     workspaceService,
 } from "../_generated/workspace/workspace.js";
-import { daemonService } from "../_generated/daemon/daemon.js";
 import type { DiagnosticsRequest } from "../_generated/workspace/diagnostic/file.js";
 import type { ArtifactRequest, ExportRequest } from "../_generated/workspace/service/artifact.js";
+import type { Blob } from "../_generated/core/blob.js";
 import type {
     BenchRequest,
     BuildRequest,
@@ -36,7 +40,6 @@ import {
     Connection,
     type ConnectionOptions,
 } from "../rpc/index.js";
-import { Daemon } from "../daemon/daemon.js";
 import { hasNodeProcess } from "../runtime.js";
 import type { NapiWorkspaceOptions } from "../napi.js";
 import type { WasmWorkspaceOptions } from "../wasm.js";
@@ -199,6 +202,13 @@ export class Workspace {
         return this.client.artifact({ root: this.root, artifact });
     }
 
+    /** Publish one artifact's storage bytes as a Blob. */
+    async blob(artifact: ArtifactRequest["artifact"]): Promise<Blob> {
+        const response = await this.client.blob({ root: this.root, artifact });
+
+        return response.value;
+    }
+
     /** Materialize one artifact through this root's host. */
     export(input: ExportRequest["input"]) {
         return this.client.export({ root: this.root, input });
@@ -230,9 +240,10 @@ export async function openRemoteWorkspace(
         options.connection,
     );
     try {
-        const daemon = new Daemon(connection);
+        const daemon = new DaemonClient(connection);
+        const response = await daemon.openWorkspace({ root: options.root });
 
-        return await daemon.openWorkspace(options.root);
+        return new Workspace(connection, response.value.root);
     } catch (error) {
         connection.close();
 

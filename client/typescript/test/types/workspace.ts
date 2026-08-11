@@ -10,7 +10,7 @@ import type {
     RunQueryRequest,
 } from "../../src/_generated/workspace/service/query.js";
 import type { ReadFilesRequest } from "../../src/_generated/workspace/service/source.js";
-import type { Workspace } from "../../src/index.js";
+import type { Blob, Workspace } from "../../src/index.js";
 import { openWorkspace } from "../../src/index.js";
 
 declare const workspace: Workspace;
@@ -71,6 +71,7 @@ workspace.formatFile({ path: "main.ds", range });
 workspace.isFileOpen("main.ds");
 workspace.readFiles(readFiles);
 workspace.artifact(artifact);
+const artifactBlob: Promise<Blob> = workspace.blob(artifact);
 workspace.export(exportInput);
 workspace.diagnose();
 workspace.resolveQueryFile(queryPath);
@@ -79,6 +80,7 @@ workspace.runQuery(queryRun);
 void physical;
 void memory;
 void remote;
+void artifactBlob;
 
 // @ts-expect-error the workspace supplies its own root
 workspace.check({ root: "/wrong", input: checkInput });

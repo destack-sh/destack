@@ -45,6 +45,11 @@
             "types": "./dist/workspace/workspace.d.ts",
             "import": "./dist/workspace/workspace.js",
             "default": "./dist/workspace/workspace.js"
+        },
+        "./world": {
+            "types": "./dist/world/world.d.ts",
+            "import": "./dist/world/world.js",
+            "default": "./dist/world/world.js"
         }
     },
     "sideEffects": false,

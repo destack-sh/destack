@@ -5,7 +5,7 @@ import type { Call, Connection } from "../rpc/index.js";
 /** Preferred bytes in one Blob RPC item, matching the daemon's 64 KiB bound. */
 const BLOB_CHUNK_BYTE_LEN = 64 * 1024;
 
-/** One complete byte array accepted by BlobService.put. */
+/** One complete byte array accepted by BlobStore.put. */
 export type BlobBytes = Uint8Array | readonly number[];
 
 /** Bytes accepted by one Blob upload. */
@@ -20,7 +20,7 @@ export type BlobRange = {
 };
 
 /** Immutable Blob operations over one negotiated Destack connection. */
-export class BlobService {
+export class BlobStore {
     /** Shared RPC connection. */
     readonly connection: Connection;
     /** Complete generated Blob service client. */
