@@ -696,6 +696,16 @@ impl CheckState<'_> {
             None
         };
 
+        // store memory defaults canonically, like written memory arguments
+        let default = match (kind, default) {
+            (Some(kind), Some(default)) => {
+                let origin = Origin::Node(current.source, None);
+
+                Some(self.normalize_memory_component(origin, default, kind)?)
+            }
+            _ => default,
+        };
+
         // commit the completed binding after classification
         let module = parameter.module_id;
         let working = self
