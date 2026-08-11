@@ -1,6 +1,8 @@
 mod constants;
 mod daemon;
+mod debugger;
 mod error;
+mod host;
 mod options;
 mod watch;
 mod workspace;

@@ -2,7 +2,7 @@ use destack_runtime::service::WorldId;
 
 use super::{
     CloseWorkspaceRequest, CloseWorldRequest, CreateWorldRequest, OpenWorkspaceRequest,
-    OpenWorkspaceResponse,
+    OpenWorkspaceResponse, RestoreWorldRequest,
 };
 
 /// RPC operations on one Destack daemon.
@@ -27,6 +27,14 @@ pub trait DaemonService {
     /// Create one World in this daemon.
     #[rpc(name = "CreateWorld")]
     fn create_world(request: CreateWorldRequest) -> WorldId;
+
+    /// List the Worlds hosted by this daemon.
+    #[rpc(name = "ListWorlds", idempotency = "no_side_effects")]
+    fn list_worlds(request: ()) -> Vec<WorldId>;
+
+    /// Restore one World from a Blob-backed Snapshot.
+    #[rpc(name = "RestoreWorld")]
+    fn restore_world(request: RestoreWorldRequest) -> WorldId;
 
     /// Close one World in this daemon.
     #[rpc(name = "CloseWorld", idempotency = "idempotent")]

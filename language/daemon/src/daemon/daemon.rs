@@ -8,7 +8,7 @@ use destack_rpc::{
     IpcListener, Listener, Registry, Server, ServerError, Transport, TransportError,
     WebSocketListener,
 };
-use destack_runtime::service::{DebuggerServer, WorldServer};
+use destack_runtime::service::{DebuggerServer, HostServer, WorldServer};
 use destack_workspace::{Workspace, WorkspaceServer};
 
 use crate::{
@@ -279,6 +279,7 @@ impl Daemon {
         let blob = BlobServer::new(self.blobs.clone())?;
         let workspace = WorkspaceServer::new(self.workspaces.clone())?;
         let world = WorldServer::new(self.worlds.clone())?;
+        let host = HostServer::new(self.worlds.clone())?;
         let debugger = DebuggerServer::new(self.worlds.clone())?;
 
         // register each independently versioned service
@@ -286,8 +287,11 @@ impl Daemon {
         services.insert(daemon)?;
 
         services.insert(blob)?;
+
         services.insert(workspace)?;
+
         services.insert(world)?;
+        services.insert(host)?;
         services.insert(debugger)?;
 
         Ok(Server::new(services, self.options.rpc.clone()))

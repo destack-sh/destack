@@ -3,7 +3,7 @@ use destack_runtime::service::WorldId;
 
 use crate::{
     CloseWorkspaceRequest, CloseWorldRequest, ConnectionId, CreateWorldRequest, Daemon,
-    DaemonService, OpenWorkspaceRequest, OpenWorkspaceResponse,
+    DaemonService, OpenWorkspaceRequest, OpenWorkspaceResponse, RestoreWorldRequest,
 };
 
 /// Daemon operations bound to one RPC peer.
@@ -54,6 +54,21 @@ impl DaemonService for DaemonPeer {
         let options = request.options.unwrap_or_default();
         let environment = request.environment.unwrap_or_default();
         let world_id = self.daemon.worlds().create(options, environment)?;
+
+        Ok(Response::new(world_id))
+    }
+
+    /// List the Worlds hosted by this daemon.
+    async fn list_worlds(&self, _request: Request<()>) -> Result<Response<Vec<WorldId>>, Status> {
+        Ok(Response::new(self.daemon.worlds().list()))
+    }
+
+    /// Restore one World from a Blob-backed Snapshot.
+    async fn restore_world(
+        &self,
+        request: Request<RestoreWorldRequest>,
+    ) -> Result<Response<WorldId>, Status> {
+        let world_id = self.daemon.worlds().restore(request.value.snapshot)?;
 
         Ok(Response::new(world_id))
     }

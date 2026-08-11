@@ -4,7 +4,8 @@ use destack_program::ProgramBuilder;
 use destack_repository::Change;
 use destack_rpc::{CallError, Code};
 use destack_runtime::service::{
-    RemoveRuntimeRequest, RunRequest, SpawnRuntimeRequest, WorldRequest,
+    CaptureRequest, ListRuntimesRequest, ReadMomentRequest, RemoveRuntimeRequest, RunRequest,
+    SnapshotRequest, SpawnRuntimeRequest,
 };
 use destack_runtime::world::{Run, RunOutcome};
 use destack_source::{Edit, FileId};
@@ -14,8 +15,8 @@ use destack_workspace::{
 
 use super::harness::TestDaemon;
 use crate::{
-    BLOB_CHUNK_BYTE_LEN, CloseWorldRequest, CreateWorldRequest, OpenWorkspaceRequest,
-    ReadBlobRequest,
+    BYTE_STREAM_CHUNK_BYTE_LEN, CloseWorldRequest, CreateWorldRequest, OpenWorkspaceRequest,
+    ReadBlobRequest, RestoreWorldRequest,
 };
 
 /// Round trip workspace operations and daemon shutdown over IPC RPC.
@@ -63,13 +64,13 @@ fn test_serve_workspace_connection() {
 fn test_put_read_blob() {
     let daemon = TestDaemon::start("daemon_blob_connection");
     let connection = daemon.connect();
-    let bytes = (0..BLOB_CHUNK_BYTE_LEN * 2 + 17)
+    let bytes = (0..BYTE_STREAM_CHUNK_BYTE_LEN * 2 + 17)
         .map(|index| index as u8)
         .collect::<Vec<_>>();
 
     // stream and publish one Blob larger than one protocol chunk
     let mut put = connection.blob().put(()).expect("Blob put should start");
-    for chunk in bytes.chunks(BLOB_CHUNK_BYTE_LEN) {
+    for chunk in bytes.chunks(BYTE_STREAM_CHUNK_BYTE_LEN) {
         put.send(&chunk.to_vec()).expect("Blob chunk should send");
     }
     put.close_input().expect("Blob input should close");
@@ -86,7 +87,7 @@ fn test_put_read_blob() {
 
     // stream one exact range back through multiple response items
     let offset = 11_u64;
-    let byte_len = BLOB_CHUNK_BYTE_LEN as u64 + 23;
+    let byte_len = BYTE_STREAM_CHUNK_BYTE_LEN as u64 + 23;
     let mut read = connection
         .blob()
         .read(ReadBlobRequest {
@@ -107,7 +108,7 @@ fn test_put_read_blob() {
     daemon.shutdown(connection);
 }
 
-/// Create, run, and close one World over IPC RPC.
+/// Round trip World operations over IPC RPC.
 #[test]
 fn test_serve_world_connection() {
     let daemon = TestDaemon::start("daemon_world_connection");
@@ -133,7 +134,7 @@ fn test_serve_world_connection() {
         })
         .expect("World should create")
         .value;
-    let runtime_id = connection
+    let runtime = connection
         .world()
         .spawn_runtime(SpawnRuntimeRequest {
             world_id,
@@ -157,16 +158,17 @@ fn test_serve_world_connection() {
         })
         .expect("Runtime should spawn")
         .value;
+    let runtime_id = runtime.id;
 
     // observe the exact hosted state and idle run outcome
-    let runtime_ids = connection
+    let runtimes = connection
         .world()
-        .list_runtimes(WorldRequest { world_id })
+        .list_runtimes(ListRuntimesRequest { world_id })
         .expect("Runtimes should list")
         .value;
     let moment = connection
         .world()
-        .read_moment(WorldRequest { world_id })
+        .read_moment(ReadMomentRequest { world_id })
         .expect("Moment should read")
         .value;
     let outcome = connection
@@ -178,11 +180,97 @@ fn test_serve_world_connection() {
         .expect("World should run")
         .value;
 
-    assert_eq!(runtime_ids, vec![runtime_id]);
+    assert_eq!(runtimes, vec![runtime.clone()]);
     assert_eq!(moment.sequence.get(), 1);
     assert_eq!(outcome, RunOutcome::Idle);
 
-    // remove the Runtime and close the World through their owning services
+    // capture one retained image as a blob-backed snapshot
+    let image = connection
+        .world()
+        .capture(CaptureRequest {
+            world_id,
+            name: "ready".to_string(),
+        })
+        .expect("Image should capture")
+        .value;
+    let snapshot = connection
+        .world()
+        .snapshot(SnapshotRequest {
+            world_id,
+            image_id: image.id,
+        })
+        .expect("Image snapshot should store")
+        .value;
+
+    assert_eq!(image.moment, moment);
+
+    // transfer only the Snapshot Blob into a fresh daemon
+    let mut read = connection
+        .blob()
+        .read(ReadBlobRequest {
+            blob: snapshot.blob,
+            offset: 0,
+            byte_len: None,
+        })
+        .expect("Snapshot read should start");
+    let mut snapshot_bytes = Vec::new();
+    while let Some(chunk) = read.receive().expect("Snapshot chunk should receive") {
+        snapshot_bytes.extend_from_slice(&chunk);
+    }
+    read.response().expect("Snapshot read should complete");
+
+    let restored_daemon = TestDaemon::start("daemon_restored_world_connection");
+    let restored_connection = restored_daemon.connect();
+    let mut put = restored_connection
+        .blob()
+        .put(())
+        .expect("Snapshot put should start");
+    for chunk in snapshot_bytes.chunks(BYTE_STREAM_CHUNK_BYTE_LEN) {
+        put.send(&chunk.to_vec())
+            .expect("Snapshot chunk should send");
+    }
+    put.close_input().expect("Snapshot input should close");
+    let restored_snapshot = put.response().expect("Snapshot put should complete").value;
+
+    assert_eq!(restored_snapshot, snapshot.blob);
+
+    // restore the World and every retained Program into the fresh daemon
+    let restored_world_id = restored_connection
+        .daemon()
+        .restore_world(RestoreWorldRequest { snapshot })
+        .expect("World snapshot should restore")
+        .value;
+    let world_ids = restored_connection
+        .daemon()
+        .list_worlds(())
+        .expect("Worlds should list")
+        .value;
+    let restored_runtimes = restored_connection
+        .world()
+        .list_runtimes(ListRuntimesRequest {
+            world_id: restored_world_id,
+        })
+        .expect("restored Runtimes should list")
+        .value;
+    let is_program_present = restored_connection
+        .blob()
+        .contains(restored_runtimes[0].program)
+        .expect("restored Program presence should read")
+        .value;
+
+    assert_eq!(world_ids, vec![restored_world_id]);
+    assert_eq!(restored_runtimes, vec![runtime]);
+    assert!(is_program_present);
+
+    restored_connection
+        .daemon()
+        .close_world(CloseWorldRequest {
+            world_id: restored_world_id,
+        })
+        .expect("restored World should close");
+    restored_daemon.shutdown(restored_connection);
+
+    // remove the original Runtime and close its World through their owning services
     connection
         .world()
         .remove_runtime(RemoveRuntimeRequest {
@@ -196,7 +284,7 @@ fn test_serve_world_connection() {
         .expect("World should close");
     let error = connection
         .world()
-        .read_moment(WorldRequest { world_id })
+        .read_moment(ReadMomentRequest { world_id })
         .expect_err("closed World should not resolve");
     let CallError::Status(status) = error else {
         panic!("closed World should return RPC status, got {error}");

@@ -1,25 +1,28 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::io::Cursor;
 use std::sync::Arc;
 
 use destack_core::{Blob, SectionStorage};
 use destack_program as program;
 use destack_repository::{BlobStore, Environment, WorldOptions};
-use destack_rpc::{Code, Request, Response, Status};
+use destack_rpc::{Code, Request, Response, ResponseSender, Status};
 use destack_runtime::binding::BindingTable;
+use destack_runtime::debugger::Debugger;
 use destack_runtime::diagnostic::{EntityError, MachineError, RuntimeError};
 use destack_runtime::machine::Engine;
 use destack_runtime::service::{
-    AddBreakpointRequest, AddProbeRequest, AddWatchpointRequest, CheckpointRequest,
-    DebuggerRequest, DebuggerService, ForkRequest, FrameRequest, InvokeRequest, MemoryChunk,
-    MemoryRequest, ProbeRequest, ReadBranchRequest, ReadCheckpointRequest, RemoveBreakpointRequest,
-    RemoveProbeRequest, RemoveRuntimeRequest, RemoveWatchpointRequest, RestoreRequest,
-    RewindRequest, RunRequest, SnapshotRequest, SpawnRuntimeRequest, UpdateBreakpointRequest,
-    UpdateProbeRequest, UpdateWatchpointRequest, WorldId, WorldRequest, WorldService,
+    self, AddRuleRequest, CaptureRequest, ForkRequest, InvokeRequest, ListBranchesRequest,
+    ListImagesRequest, ListObservationsRequest, ListRuntimesRequest, ObservationPage,
+    ReadBranchRequest, ReadImageRequest, ReadMomentRequest, ReadPolicyRequest, ReadRuntimeRequest,
+    ReadTopologyRequest, ReloadRuntimeRequest, RemoveRuleRequest, RemoveRuntimeRequest,
+    ReplacePolicyRequest, ReplaceRuleRequest, RewindRequest, RunRequest, SnapshotRequest,
+    SpawnRuntimeRequest, WatchObservationsRequest, WorldId, WorldService,
 };
+use destack_runtime::world::observation::ObservationEntry;
 use destack_runtime::world::{
-    Branch, Breakpoint, Checkpoint, CheckpointId, Debugger, Frame, Moment, Probe, ProbeId,
-    RestoreContext, RunOutcome, RuntimeId, Watchpoint, World, WorldImage, WorldSnapshot,
+    Branch, Image, Moment, Policy, RestoreContext, RunOutcome, Snapshot, World, WorldImage,
+    WorldSnapshot,
 };
 use destack_vm::MachineLimits;
 use parking_lot::{Mutex, RwLock};
@@ -29,7 +32,7 @@ use crate::DaemonError;
 /// Worlds hosted by one daemon process.
 #[derive(Clone)]
 pub(crate) struct WorldRegistry {
-    /// Immutable Program bytes shared with daemon Blob operations.
+    /// Content-addressed bytes shared by daemon services.
     blobs: Arc<dyn BlobStore>,
     /// Runtime bindings available to every hosted World.
     bindings: Arc<BindingTable>,
@@ -45,9 +48,9 @@ struct WorldRegistryState {
     worlds: BTreeMap<WorldId, Arc<Mutex<World>>>,
 }
 
-impl std::fmt::Debug for WorldRegistry {
+impl fmt::Debug for WorldRegistry {
     /// Format hosted World registration state.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("WorldRegistry")
             .field("bindings", &self.bindings)
@@ -86,6 +89,30 @@ impl WorldRegistry {
         Ok(world_id)
     }
 
+    /// List the registered World identifiers.
+    pub(crate) fn list(&self) -> Vec<WorldId> {
+        self.state.read().worlds.keys().copied().collect()
+    }
+
+    /// Restore one World from a Blob-backed Snapshot.
+    pub(crate) fn restore(&self, snapshot: Snapshot) -> Result<WorldId, Status> {
+        let memory = self
+            .blobs
+            .open(snapshot.blob)
+            .map_err(DaemonError::from)
+            .map_err(Status::from)?;
+        let snapshot = WorldSnapshot::decode(memory.bytes()).map_err(Self::runtime_status)?;
+        let restore = RestoreContext::empty().with_bindings(&self.bindings);
+        let world = World::from_snapshot(&snapshot, restore).map_err(Self::runtime_status)?;
+        self.publish_programs(&snapshot)?;
+
+        let mut state = self.state.write();
+        let world_id = state.allocate_id()?;
+        state.worlds.insert(world_id, Arc::new(Mutex::new(world)));
+
+        Ok(world_id)
+    }
+
     /// Close one World when it is registered.
     pub(crate) fn close(&self, world_id: WorldId) {
         self.state.write().worlds.remove(&world_id);
@@ -97,7 +124,7 @@ impl WorldRegistry {
     }
 
     /// Return one registered World.
-    fn world(&self, world_id: WorldId) -> Result<Arc<Mutex<World>>, Status> {
+    pub(crate) fn world(&self, world_id: WorldId) -> Result<Arc<Mutex<World>>, Status> {
         self.state
             .read()
             .worlds
@@ -112,26 +139,49 @@ impl WorldRegistry {
     }
 
     /// Capture the selected current or committed World image.
-    fn image(&self, world_id: WorldId, moment: Option<Moment>) -> Result<WorldImage, Status> {
+    pub(crate) fn image(
+        &self,
+        world_id: WorldId,
+        moment: Option<Moment>,
+    ) -> Result<(Moment, WorldImage), Status> {
         let world = self.world(world_id)?;
         let mut world = world.lock();
-        let image = match moment {
-            Some(moment) => world.lineage().image(moment),
-            None => world.image(),
-        }
-        .map_err(Self::runtime_status)?;
+        let (moment, image) = match moment {
+            // materialize the requested committed Moment
+            Some(moment) => {
+                let restore = RestoreContext::empty().with_bindings(&self.bindings);
+                let image = world
+                    .lineage()
+                    .materialize(moment, restore)
+                    .map_err(Self::runtime_status)?;
 
-        Ok(image)
+                (moment, image)
+            }
+            // capture the current live Moment and image together
+            None => {
+                let moment = world.moment();
+                let image = world.image().map_err(Self::runtime_status)?;
+
+                (moment, image)
+            }
+        };
+
+        Ok((moment, image))
     }
 
     /// Copy the selected current or committed Debugger state.
-    fn debugger(&self, world_id: WorldId, moment: Option<Moment>) -> Result<Debugger, Status> {
+    pub(crate) fn debugger(
+        &self,
+        world_id: WorldId,
+        moment: Option<Moment>,
+    ) -> Result<Debugger, Status> {
         let world = self.world(world_id)?;
         let world = world.lock();
         if let Some(moment) = moment {
+            let restore = RestoreContext::empty().with_bindings(&self.bindings);
             let image = world
                 .lineage()
-                .image(moment)
+                .materialize(moment, restore)
                 .map_err(Self::runtime_status)?;
 
             Ok(image.debugger().clone())
@@ -154,8 +204,47 @@ impl WorldRegistry {
         Ok(Arc::new(program))
     }
 
+    /// Publish every distinct Program retained by one Snapshot.
+    fn publish_programs(&self, snapshot: &WorldSnapshot) -> Result<(), Status> {
+        let mut blobs = BTreeSet::new();
+        for program in snapshot.programs() {
+            let expected = program.blob();
+
+            // skip Programs already seen in another retained Image
+            if !blobs.insert(expected) {
+                continue;
+            }
+
+            // skip Programs already available through this daemon
+            let is_present = self
+                .blobs
+                .contains(expected)
+                .map_err(DaemonError::from)
+                .map_err(Status::from)?;
+            if is_present {
+                continue;
+            }
+
+            // publish the exact image before exposing its Blob through the service
+            let mut bytes = Cursor::new(program.bytes());
+            let published = self
+                .blobs
+                .put(&mut bytes)
+                .map_err(DaemonError::from)
+                .map_err(Status::from)?;
+            if published != expected {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!("Program Blob changed from {expected} to {published}"),
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
     /// Convert one runtime failure into an RPC status.
-    fn runtime_status(error: Box<RuntimeError>) -> Status {
+    pub(crate) fn runtime_status(error: Box<RuntimeError>) -> Status {
         let code = match error.as_ref() {
             RuntimeError::Entity {
                 reason: EntityError::NotFound(_),
@@ -189,19 +278,71 @@ impl WorldRegistryState {
 }
 
 impl WorldService for WorldRegistry {
+    // =============================================================================
+    // World
+    // =============================================================================
+
+    /// Read one World's current Moment.
+    async fn read_moment(
+        &self,
+        request: Request<ReadMomentRequest>,
+    ) -> Result<Response<Moment>, Status> {
+        let world = self.world(request.value.world_id)?;
+        let moment = world.lock().moment();
+
+        Ok(Response::new(moment))
+    }
+
+    // =============================================================================
+    // Runtime
+    // =============================================================================
+
+    /// Read one Runtime in a World.
+    async fn read_runtime(
+        &self,
+        request: Request<ReadRuntimeRequest>,
+    ) -> Result<Response<service::Runtime>, Status> {
+        let request = request.value;
+        let world = self.world(request.world_id)?;
+        let world = world.lock();
+        let runtime = world
+            .runtime(request.runtime_id)
+            .map(service::Runtime::from)
+            .map_err(Self::runtime_status)?;
+
+        Ok(Response::new(runtime))
+    }
+
+    /// List the Runtimes in one World.
+    async fn list_runtimes(
+        &self,
+        request: Request<ListRuntimesRequest>,
+    ) -> Result<Response<Vec<service::Runtime>>, Status> {
+        let world = self.world(request.value.world_id)?;
+        let world = world.lock();
+        let runtimes = world
+            .runtime_ids()
+            .into_iter()
+            .map(|runtime_id| world.runtime(runtime_id).map(service::Runtime::from))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(Self::runtime_status)?;
+
+        Ok(Response::new(runtimes))
+    }
+
     /// Spawn one Runtime from an encoded Program Blob.
     async fn spawn_runtime(
         &self,
         request: Request<SpawnRuntimeRequest>,
-    ) -> Result<Response<RuntimeId>, Status> {
+    ) -> Result<Response<service::Runtime>, Status> {
         let request = request.value;
         let program = self.program(request.program)?;
         let engine = Engine::new(program, MachineLimits::default());
         let world = self.world(request.world_id)?;
         let options = request.options.unwrap_or_default();
         let environment = request.environment.unwrap_or_default();
+        let mut world = world.lock();
         let runtime_id = world
-            .lock()
             .spawn_runtime(
                 environment,
                 &options,
@@ -210,8 +351,20 @@ impl WorldService for WorldRegistry {
                 engine,
             )
             .map_err(Self::runtime_status)?;
+        let runtime = world
+            .runtime(runtime_id)
+            .map(service::Runtime::from)
+            .map_err(Self::runtime_status)?;
 
-        Ok(Response::new(runtime_id))
+        Ok(Response::new(runtime))
+    }
+
+    /// Replace one Runtime's Program at a committed safepoint.
+    async fn reload_runtime(
+        &self,
+        _request: Request<ReloadRuntimeRequest>,
+    ) -> Result<Response<service::Runtime>, Status> {
+        todo!("reload one Runtime Program at a committed safepoint")
     }
 
     /// Remove one Runtime from its World.
@@ -229,6 +382,10 @@ impl WorldService for WorldRegistry {
         Ok(Response::new(()))
     }
 
+    // =============================================================================
+    // Execution
+    // =============================================================================
+
     /// Invoke one Runtime entrypoint.
     async fn invoke(
         &self,
@@ -238,7 +395,7 @@ impl WorldService for WorldRegistry {
         let world = self.world(request.world_id)?;
         let value = world
             .lock()
-            .run_entrypoint(request.runtime_id, &request.entry, &request.arguments)
+            .invoke(request.runtime_id, &request.entry, &request.arguments)
             .map_err(Self::runtime_status)?;
 
         Ok(Response::new(value))
@@ -256,27 +413,186 @@ impl WorldService for WorldRegistry {
         Ok(Response::new(outcome))
     }
 
-    /// Read one World's current Moment.
-    async fn read_moment(
-        &self,
-        request: Request<WorldRequest>,
-    ) -> Result<Response<Moment>, Status> {
-        let world = self.world(request.value.world_id)?;
-        let moment = world.lock().moment();
+    // =============================================================================
+    // Observation
+    // =============================================================================
 
-        Ok(Response::new(moment))
+    /// List one page of World Observations.
+    async fn list_observations(
+        &self,
+        request: Request<ListObservationsRequest>,
+    ) -> Result<Response<ObservationPage>, Status> {
+        let request = request.value;
+
+        // require a cursor that can make forward progress
+        if request.limit == 0 {
+            return Err(Status::new(
+                Code::InvalidArgument,
+                "Observation page limit must be greater than zero",
+            ));
+        }
+
+        // retain one additional match to detect another page
+        let limit = usize::try_from(request.limit)
+            .map_err(|_| Status::new(Code::OutOfRange, "Observation page limit exceeds usize"))?;
+        let query_limit = limit
+            .checked_add(1)
+            .ok_or_else(|| Status::new(Code::OutOfRange, "Observation page limit exceeds usize"))?;
+
+        // stop the Observation log traversal at the page boundary
+        let world = self.world(request.world_id)?;
+        let world = world.lock();
+        let mut observations = world.observations().query(&request.query, query_limit);
+
+        // return only the requested page and its continuation cursor
+        let has_more = observations.len() > limit;
+        observations.truncate(limit);
+        let next = if has_more {
+            observations.last().map(|entry| entry.sequence)
+        } else {
+            None
+        };
+
+        Ok(Response::new(ObservationPage { observations, next }))
     }
 
-    /// List the Runtime identifiers in one World.
-    async fn list_runtimes(
+    /// Watch World Observations after one sequence.
+    async fn watch_observations(
         &self,
-        request: Request<WorldRequest>,
-    ) -> Result<Response<Vec<RuntimeId>>, Status> {
-        let world = self.world(request.value.world_id)?;
-        let runtime_ids = world.lock().runtime_ids();
-
-        Ok(Response::new(runtime_ids))
+        _request: Request<WatchObservationsRequest>,
+        _responses: ResponseSender<ObservationEntry>,
+    ) -> Result<Response<()>, Status> {
+        todo!("stream live World Observations without polling")
     }
+
+    // =============================================================================
+    // Topology
+    // =============================================================================
+
+    /// Read one World's Topology.
+    async fn read_topology(
+        &self,
+        request: Request<ReadTopologyRequest>,
+    ) -> Result<Response<service::Topology>, Status> {
+        let request = request.value;
+        let topology = match request.moment {
+            // materialize retained topology from one committed Moment
+            Some(moment) => {
+                let (_, image) = self.image(request.world_id, Some(moment))?;
+
+                service::Topology {
+                    entity_definitions: image.entity_kinds().into_values().collect(),
+                    edge_definitions: image.edge_kinds().into_values().collect(),
+                    entities: image.entities().into_values().collect(),
+                    edges: image.edges().into_values().collect(),
+                }
+            }
+            // copy current topology without capturing an entire World image
+            None => {
+                let world = self.world(request.world_id)?;
+                let world = world.lock();
+
+                service::Topology {
+                    entity_definitions: world.entity_kinds().into_values().collect(),
+                    edge_definitions: world.edge_kinds().into_values().collect(),
+                    entities: world.entities().into_values().collect(),
+                    edges: world.edges().into_values().collect(),
+                }
+            }
+        };
+
+        Ok(Response::new(topology))
+    }
+
+    // =============================================================================
+    // Policy
+    // =============================================================================
+
+    /// Read one World's Policy.
+    async fn read_policy(
+        &self,
+        request: Request<ReadPolicyRequest>,
+    ) -> Result<Response<Policy>, Status> {
+        let request = request.value;
+        let policy = match request.moment {
+            // materialize retained policy from one committed Moment
+            Some(moment) => {
+                let (_, image) = self.image(request.world_id, Some(moment))?;
+
+                image.policy().clone()
+            }
+            // copy current policy without capturing an entire World image
+            None => {
+                let world = self.world(request.world_id)?;
+
+                world.lock().policy()
+            }
+        };
+
+        Ok(Response::new(policy))
+    }
+
+    /// Replace one World's active Policy.
+    async fn replace_policy(
+        &self,
+        request: Request<ReplacePolicyRequest>,
+    ) -> Result<Response<()>, Status> {
+        let request = request.value;
+        let world = self.world(request.world_id)?;
+        world
+            .lock()
+            .set_policy(request.policy)
+            .map_err(Self::runtime_status)?;
+
+        Ok(Response::new(()))
+    }
+
+    /// Add one Rule to a World's active Policy.
+    async fn add_rule(&self, request: Request<AddRuleRequest>) -> Result<Response<()>, Status> {
+        let request = request.value;
+        let world = self.world(request.world_id)?;
+        world
+            .lock()
+            .add_rule(request.rule)
+            .map_err(Self::runtime_status)?;
+
+        Ok(Response::new(()))
+    }
+
+    /// Replace one Rule in a World's active Policy.
+    async fn replace_rule(
+        &self,
+        request: Request<ReplaceRuleRequest>,
+    ) -> Result<Response<()>, Status> {
+        let request = request.value;
+        let rule_id = request.rule.id.clone();
+        let world = self.world(request.world_id)?;
+        world
+            .lock()
+            .replace_rule(rule_id, request.rule)
+            .map_err(Self::runtime_status)?;
+
+        Ok(Response::new(()))
+    }
+
+    /// Remove one Rule from a World's active Policy.
+    async fn remove_rule(
+        &self,
+        request: Request<RemoveRuleRequest>,
+    ) -> Result<Response<()>, Status> {
+        let request = request.value;
+        let world = self.world(request.world_id)?;
+        world
+            .lock()
+            .remove_rule(request.rule_id)
+            .map_err(Self::runtime_status)?;
+
+        Ok(Response::new(()))
+    }
+
+    // =============================================================================
+    // Branch
+    // =============================================================================
 
     /// Read one Branch in a World's lineage.
     async fn read_branch(
@@ -287,7 +603,8 @@ impl WorldService for WorldRegistry {
         let world = self.world(request.world_id)?;
         let branch = world
             .lock()
-            .branch_info(request.branch_id)
+            .lineage()
+            .branch(request.branch_id)
             .map_err(Self::runtime_status)?;
 
         Ok(Response::new(branch))
@@ -296,10 +613,10 @@ impl WorldService for WorldRegistry {
     /// List the Branches in one World's lineage.
     async fn list_branches(
         &self,
-        request: Request<WorldRequest>,
+        request: Request<ListBranchesRequest>,
     ) -> Result<Response<Vec<Branch>>, Status> {
         let world = self.world(request.value.world_id)?;
-        let branches = world.lock().lineage().branches().into_vec();
+        let branches = world.lock().lineage().branches();
 
         Ok(Response::new(branches))
     }
@@ -308,9 +625,10 @@ impl WorldService for WorldRegistry {
     async fn rewind(&self, request: Request<RewindRequest>) -> Result<Response<()>, Status> {
         let request = request.value;
         let world = self.world(request.world_id)?;
+        let restore = RestoreContext::empty().with_bindings(&self.bindings);
         world
             .lock()
-            .rewind(request.moment)
+            .rewind(request.moment, restore)
             .map_err(Self::runtime_status)?;
 
         Ok(Response::new(()))
@@ -320,9 +638,10 @@ impl WorldService for WorldRegistry {
     async fn fork(&self, request: Request<ForkRequest>) -> Result<Response<WorldId>, Status> {
         let request = request.value;
         let world = self.world(request.world_id)?;
+        let restore = RestoreContext::empty().with_bindings(&self.bindings);
         let child = world
             .lock()
-            .fork(request.moment, request.name)
+            .fork(request.moment, request.name, restore)
             .map_err(Self::runtime_status)?;
         let mut state = self.state.write();
         let world_id = state.allocate_id()?;
@@ -331,60 +650,63 @@ impl WorldService for WorldRegistry {
         Ok(Response::new(world_id))
     }
 
-    /// Read one Checkpoint in a World's lineage.
-    async fn read_checkpoint(
+    // =============================================================================
+    // Image
+    // =============================================================================
+
+    /// Read one retained Image in a World's lineage.
+    async fn read_image(
         &self,
-        request: Request<ReadCheckpointRequest>,
-    ) -> Result<Response<Checkpoint>, Status> {
+        request: Request<ReadImageRequest>,
+    ) -> Result<Response<Image>, Status> {
         let request = request.value;
         let world = self.world(request.world_id)?;
-        let checkpoint = world
+        let image = world
             .lock()
-            .checkpoint_info(request.checkpoint_id)
+            .lineage()
+            .image(request.image_id)
             .map_err(Self::runtime_status)?;
 
-        Ok(Response::new(checkpoint))
+        Ok(Response::new(image))
     }
 
-    /// List the Checkpoints in one World's lineage.
-    async fn list_checkpoints(
+    /// List the retained Images in one World's lineage.
+    async fn list_images(
         &self,
-        request: Request<WorldRequest>,
-    ) -> Result<Response<Vec<Checkpoint>>, Status> {
+        request: Request<ListImagesRequest>,
+    ) -> Result<Response<Vec<Image>>, Status> {
         let world = self.world(request.value.world_id)?;
-        let world = world.lock();
-        let checkpoints = world
-            .checkpoint_ids()
-            .into_iter()
-            .map(|checkpoint_id| world.checkpoint_info(checkpoint_id))
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(Self::runtime_status)?;
+        let images = world.lock().lineage().images();
 
-        Ok(Response::new(checkpoints))
+        Ok(Response::new(images))
     }
 
-    /// Create one Checkpoint for a World.
-    async fn checkpoint(
-        &self,
-        request: Request<CheckpointRequest>,
-    ) -> Result<Response<CheckpointId>, Status> {
+    /// Capture one named Image for a World.
+    async fn capture(&self, request: Request<CaptureRequest>) -> Result<Response<Image>, Status> {
         let request = request.value;
         let world = self.world(request.world_id)?;
-        let checkpoint_id = world
+        let image = world
             .lock()
-            .checkpoint(request.name)
+            .capture(request.name)
             .map_err(Self::runtime_status)?;
 
-        Ok(Response::new(checkpoint_id))
+        Ok(Response::new(image))
     }
 
-    /// Store one Checkpoint snapshot as a Blob.
-    async fn snapshot(&self, request: Request<SnapshotRequest>) -> Result<Response<Blob>, Status> {
+    // =============================================================================
+    // Snapshot
+    // =============================================================================
+
+    /// Store one retained Image as a Blob-backed Snapshot.
+    async fn snapshot(
+        &self,
+        request: Request<SnapshotRequest>,
+    ) -> Result<Response<Snapshot>, Status> {
         let request = request.value;
         let world = self.world(request.world_id)?;
         let snapshot = world
             .lock()
-            .snapshot_checkpoint(request.checkpoint_id)
+            .snapshot_image(request.image_id)
             .map_err(Self::runtime_status)?;
         let bytes = snapshot.encode().map_err(Self::runtime_status)?;
         let mut input = Cursor::new(bytes);
@@ -394,247 +716,6 @@ impl WorldService for WorldRegistry {
             .map_err(DaemonError::from)
             .map_err(Status::from)?;
 
-        Ok(Response::new(blob))
-    }
-
-    /// Restore one World from a snapshot Blob.
-    async fn restore(&self, request: Request<RestoreRequest>) -> Result<Response<Moment>, Status> {
-        let request = request.value;
-        let memory = self
-            .blobs
-            .open(request.snapshot)
-            .map_err(DaemonError::from)
-            .map_err(Status::from)?;
-        let snapshot = WorldSnapshot::decode(memory.bytes()).map_err(Self::runtime_status)?;
-        let world = self.world(request.world_id)?;
-        let mut world = world.lock();
-        world
-            .restore_snapshot(&snapshot, RestoreContext::empty())
-            .map_err(Self::runtime_status)?;
-        let moment = world.moment();
-
-        Ok(Response::new(moment))
-    }
-}
-
-impl DebuggerService for WorldRegistry {
-    /// Read captured Frames from one World.
-    async fn read_frames(
-        &self,
-        request: Request<FrameRequest>,
-    ) -> Result<Response<Vec<Frame>>, Status> {
-        let request = request.value;
-        let image = self.image(request.world_id, request.moment)?;
-        let frames = match request.worker_id {
-            Some(worker_id) => image.worker_frames(worker_id),
-            None => image.frames(),
-        }
-        .map_err(Self::runtime_status)?;
-
-        Ok(Response::new(frames))
-    }
-
-    /// Read one exact World memory range.
-    async fn read_memory(
-        &self,
-        request: Request<MemoryRequest>,
-    ) -> Result<Response<MemoryChunk>, Status> {
-        let request = request.value;
-        let image = self.image(request.world_id, request.moment)?;
-        let bytes = image
-            .memory()
-            .read_bytes(request.range.offset, request.range.byte_len)
-            .map_err(Box::<RuntimeError>::from)
-            .map_err(Self::runtime_status)?;
-
-        Ok(Response::new(MemoryChunk {
-            range: request.range,
-            bytes,
-        }))
-    }
-
-    /// List the Breakpoints in one World.
-    async fn list_breakpoints(
-        &self,
-        request: Request<DebuggerRequest>,
-    ) -> Result<Response<Vec<Breakpoint>>, Status> {
-        let request = request.value;
-        let debugger = self.debugger(request.world_id, request.moment)?;
-
-        Ok(Response::new(debugger.breakpoints().to_vec()))
-    }
-
-    /// Add one Breakpoint to a World.
-    async fn add_breakpoint(
-        &self,
-        request: Request<AddBreakpointRequest>,
-    ) -> Result<Response<program::BreakpointId>, Status> {
-        let request = request.value;
-        let world = self.world(request.world_id)?;
-        let breakpoint_id = world
-            .lock()
-            .add_breakpoint(request.filter)
-            .map_err(Self::runtime_status)?;
-
-        Ok(Response::new(breakpoint_id))
-    }
-
-    /// Update one Breakpoint in a World.
-    async fn update_breakpoint(
-        &self,
-        request: Request<UpdateBreakpointRequest>,
-    ) -> Result<Response<()>, Status> {
-        let request = request.value;
-        let world = self.world(request.world_id)?;
-        world
-            .lock()
-            .update_breakpoint(request.breakpoint)
-            .map_err(Self::runtime_status)?;
-
-        Ok(Response::new(()))
-    }
-
-    /// Remove one Breakpoint from a World.
-    async fn remove_breakpoint(
-        &self,
-        request: Request<RemoveBreakpointRequest>,
-    ) -> Result<Response<()>, Status> {
-        let request = request.value;
-        let world = self.world(request.world_id)?;
-        world
-            .lock()
-            .remove_breakpoint(request.breakpoint_id)
-            .map_err(Self::runtime_status)?;
-
-        Ok(Response::new(()))
-    }
-
-    /// List the Watchpoints in one World.
-    async fn list_watchpoints(
-        &self,
-        request: Request<DebuggerRequest>,
-    ) -> Result<Response<Vec<Watchpoint>>, Status> {
-        let request = request.value;
-        let debugger = self.debugger(request.world_id, request.moment)?;
-
-        Ok(Response::new(debugger.watchpoints().to_vec()))
-    }
-
-    /// Add one Watchpoint to a World.
-    async fn add_watchpoint(
-        &self,
-        request: Request<AddWatchpointRequest>,
-    ) -> Result<Response<program::WatchpointId>, Status> {
-        let request = request.value;
-        let world = self.world(request.world_id)?;
-        let watchpoint_id = world
-            .lock()
-            .add_watchpoint(request.filter)
-            .map_err(Self::runtime_status)?;
-
-        Ok(Response::new(watchpoint_id))
-    }
-
-    /// Update one Watchpoint in a World.
-    async fn update_watchpoint(
-        &self,
-        request: Request<UpdateWatchpointRequest>,
-    ) -> Result<Response<()>, Status> {
-        let request = request.value;
-        let world = self.world(request.world_id)?;
-        world
-            .lock()
-            .update_watchpoint(request.watchpoint)
-            .map_err(Self::runtime_status)?;
-
-        Ok(Response::new(()))
-    }
-
-    /// Remove one Watchpoint from a World.
-    async fn remove_watchpoint(
-        &self,
-        request: Request<RemoveWatchpointRequest>,
-    ) -> Result<Response<()>, Status> {
-        let request = request.value;
-        let world = self.world(request.world_id)?;
-        world
-            .lock()
-            .remove_watchpoint(request.watchpoint_id)
-            .map_err(Self::runtime_status)?;
-
-        Ok(Response::new(()))
-    }
-
-    /// List the Probes in one World.
-    async fn list_probes(
-        &self,
-        request: Request<DebuggerRequest>,
-    ) -> Result<Response<Vec<Probe>>, Status> {
-        let request = request.value;
-        let debugger = self.debugger(request.world_id, request.moment)?;
-
-        Ok(Response::new(debugger.probes().collect()))
-    }
-
-    /// Read one Probe matching-event count.
-    async fn read_probe_count(
-        &self,
-        request: Request<ProbeRequest>,
-    ) -> Result<Response<u64>, Status> {
-        let request = request.value;
-        let debugger = self.debugger(request.world_id, request.moment)?;
-        let count = debugger.probe_count(request.probe_id).ok_or_else(|| {
-            Status::new(
-                Code::NotFound,
-                format!("Probe {} does not exist", request.probe_id.get()),
-            )
-        })?;
-
-        Ok(Response::new(count))
-    }
-
-    /// Add one Probe to a World.
-    async fn add_probe(
-        &self,
-        request: Request<AddProbeRequest>,
-    ) -> Result<Response<ProbeId>, Status> {
-        let request = request.value;
-        let world = self.world(request.world_id)?;
-        let probe_id = world
-            .lock()
-            .add_probe(request.filter, request.action)
-            .map_err(Self::runtime_status)?;
-
-        Ok(Response::new(probe_id))
-    }
-
-    /// Update one Probe in a World.
-    async fn update_probe(
-        &self,
-        request: Request<UpdateProbeRequest>,
-    ) -> Result<Response<()>, Status> {
-        let request = request.value;
-        let world = self.world(request.world_id)?;
-        world
-            .lock()
-            .update_probe(request.probe)
-            .map_err(Self::runtime_status)?;
-
-        Ok(Response::new(()))
-    }
-
-    /// Remove one Probe from a World.
-    async fn remove_probe(
-        &self,
-        request: Request<RemoveProbeRequest>,
-    ) -> Result<Response<()>, Status> {
-        let request = request.value;
-        let world = self.world(request.world_id)?;
-        world
-            .lock()
-            .remove_probe(request.probe_id)
-            .map_err(Self::runtime_status)?;
-
-        Ok(Response::new(()))
+        Ok(Response::new(Snapshot { blob }))
     }
 }
