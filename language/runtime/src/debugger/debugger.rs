@@ -5,9 +5,8 @@ use destack_program as program;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::RuntimeId;
 use crate::worker::WorkerId;
-use crate::world::ProbeId;
 
-use super::{Breakpoint, Probe, ProbeAction, Watchpoint};
+use super::{Breakpoint, Probe, ProbeAction, ProbeId, Watchpoint};
 
 /// Debugger state for one World.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

@@ -6,13 +6,13 @@ use destack_program as program;
 use destack_repository::ExecutionMode;
 use serde::{Deserialize, Serialize};
 
+use crate::debugger::{
+    Breakpoint, MemoryFilter, PointFilter, Probe, ProbeAction, ProbeFilter, ProbeId, Watchpoint,
+};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::runtime::{RuntimeId, RuntimeImage};
 use crate::worker::{WorkerId, WorkerImage};
-use crate::world::debug::{
-    Breakpoint, MemoryFilter, PointFilter, Probe, ProbeAction, ProbeFilter, ProbeId, Watchpoint,
-};
 use crate::world::observation::Observation;
 use crate::world::policy::{Policy, Rule, RuleId};
 

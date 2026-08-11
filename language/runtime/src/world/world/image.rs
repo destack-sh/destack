@@ -8,18 +8,17 @@ use destack_serde as serde;
 
 use ::serde::{Deserialize, Serialize};
 
+use crate::debugger::{Debugger, Frame};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::runtime::{Runtime, RuntimeId, RuntimeImage};
 use crate::worker::{WorkerId, WorkerImage};
-use crate::world::Frame;
-use crate::world::debug::Debugger;
 use crate::world::policy::Policy;
 use crate::world::random::RandomImage;
 use crate::world::time::ClockImage;
 use crate::world::topology::{
-    Edge, EdgeDefinition, EdgeKind, Entity, EntityDefinition, EntityKind, LabelSet,
-    Topology,
+    Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
+    LabelSet, Topology,
 };
 
 use super::{MomentSequence, RestoreContext, World};
@@ -251,6 +250,11 @@ impl WorldImage {
         self.topology.entity_kinds()
     }
 
+    /// Return all captured topology entities.
+    pub fn entities(&self) -> BTreeMap<EntityId, Entity> {
+        self.topology.entities().clone()
+    }
+
     /// Return one captured topology entity kind when present.
     pub fn entity_kind(&self, kind_id: &str) -> Option<&EntityDefinition> {
         self.topology.entity_kind(kind_id)
@@ -264,6 +268,11 @@ impl WorldImage {
     /// Return all captured topology edge kinds.
     pub fn edge_kinds(&self) -> BTreeMap<EdgeKind, EdgeDefinition> {
         self.topology.edge_kinds()
+    }
+
+    /// Return all captured topology edges.
+    pub fn edges(&self) -> BTreeMap<EdgeId, Edge> {
+        self.topology.edges().clone()
     }
 
     /// Return one captured topology edge kind when present.

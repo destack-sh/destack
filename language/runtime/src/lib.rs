@@ -2,6 +2,7 @@
 #![allow(clippy::too_many_arguments)]
 
 pub mod binding;
+pub mod debugger;
 pub mod diagnostic;
 pub mod heap;
 pub mod host;

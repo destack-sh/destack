@@ -3,12 +3,12 @@ use std::num::NonZeroU64;
 use destack_program as program;
 use destack_repository::RuntimeOptions;
 
-use crate::tests::{TestProgram, TestWorld};
-use crate::world::observation::{Observation, ObservationScope};
-use crate::world::{
-    Breakpoint, EventFilter, MemoryFilter, PointFilter, Probe, ProbeAction, ProbeFilter,
-    RunOutcome, Watchpoint,
+use crate::debugger::{
+    Breakpoint, EventFilter, MemoryFilter, PointFilter, Probe, ProbeAction, ProbeFilter, Watchpoint,
 };
+use crate::tests::{TestProgram, TestWorld};
+use crate::world::RunOutcome;
+use crate::world::observation::{Observation, ObservationScope};
 
 /// Runs one task to an explicit bytecode breakpoint and resumes it explicitly.
 #[test]

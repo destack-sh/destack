@@ -8,14 +8,14 @@ use destack_memory::MemoryMap;
 use destack_repository::{Environment, WorldOptions};
 
 use crate::binding::ReplayPayload;
+use crate::debugger::Debugger;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::heap::{WorldCollector, WorldCollectorMode};
 use crate::host::poller::HostPoller;
 use crate::host::time::HostClockSource;
-use crate::host::{Host, HostError, HostQueue, compile_target};
+use crate::host::{Host, HostError, HostEvent, HostQueue, compile_target};
 use crate::runtime::{Runtime, RuntimeId};
 use crate::worker::WorkerId;
-use crate::world::debug::Debugger;
 use crate::world::observation::{Observation, ObservationLog, ObservationSequence};
 use crate::world::policy::Policy;
 use crate::world::random::{Random, RandomSource, RandomStreamId};
@@ -319,6 +319,11 @@ impl World {
         let moment = self.moment();
 
         self.state.observations.record_at(moment, observation)
+    }
+
+    /// Send one typed host Event into this World.
+    pub fn send(&self, event: HostEvent) {
+        self.host_queue.enqueue(vec![event]);
     }
 
     /// Return the current world wall time.
