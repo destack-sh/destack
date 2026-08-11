@@ -19,7 +19,7 @@ impl CheckState<'_> {
         }
 
         // close recursive types coinductively across conformance re-entry
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
         if !self.deriving.insert((ty, interface)) {
             return Ok(true);
         }
@@ -39,7 +39,7 @@ impl CheckState<'_> {
         interface: dir::AutoInterface,
     ) -> CompilerResult<bool> {
         // read the head structure of the subject
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
         let kind = self.ty(ty)?;
 
         // decide explicit memory carriers before their payload types
@@ -269,6 +269,6 @@ impl CheckState<'_> {
         let item = dir::LanguageItem::from(interface);
         let target = self.language_type(item, &[])?;
 
-        self.decide_relation(origin, Relation::Satisfies, field, target)
+        self.evaluate_relation(origin, Relation::Satisfies, field, target)
     }
 }

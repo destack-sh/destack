@@ -1,11 +1,12 @@
 use std::iter;
 
+use destack_core::ensure_sufficient_stack;
 use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CandidateOutcome, CandidateVerdict, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome,
-    CheckState, Origin, Relation, Verdict,
+    CandidateOutcome, CandidateVerdict, CauseId, CheckFailure, CheckOutcome, CheckState, Origin,
+    Relation, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -15,7 +16,7 @@ impl CheckState<'_> {
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
         let signature = match self.ty(ty)? {
             dir::Type::Function(function) => Some(function.signature),
             dir::Type::FunctionPointer(function) => Some(function.signature),
@@ -139,8 +140,8 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // substitute solved variables before comparing
-        let source = self.resolve_head(source)?;
-        let target = self.resolve_head(target)?;
+        let source = self.shallow_resolve(source)?;
+        let target = self.shallow_resolve(target)?;
         if source == target {
             return Ok(true);
         }
@@ -153,20 +154,6 @@ impl CheckState<'_> {
         // read the open variable standing at each root
         let source_variable = self.root_variable(source)?;
         let target_variable = self.root_variable(target)?;
-
-        // inference barriers contribute no target bounds
-        if self.no_infer_target(target)?.is_some() {
-            return Ok(true);
-        }
-
-        // accept lifetime extent pairs, since MIR verification enforces them
-        if source_variable.is_none()
-            && target_variable.is_none()
-            && self.is_lifetime_extent(source)?
-            && self.is_lifetime_extent(target)?
-        {
-            return Ok(true);
-        }
 
         match (source_variable, target_variable, relation) {
             // alias one open side onto the other for variable equality
@@ -230,70 +217,12 @@ impl CheckState<'_> {
                     "open variable reached the {relation:?} relation: {source:?} against {target:?}"
                 ),
             }),
-            // decompose open composites before reducing the whole graph
+            // dispatch the shared decision matrix, binding through open children
             (None, None, _) => {
-                let structural = match relation {
-                    Relation::Castable => Relation::Assignable,
-                    relation => relation,
-                };
-
-                // rigid parameters contribute their declared relation clauses
-                if relation != Relation::Equal
-                    && let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) =
-                        self.ty(source)?
-                {
-                    let candidates = self
-                        .parameter_bounds(origin, parameter)?
-                        .into_iter()
-                        .map(|bound| (bound, target))
-                        .collect::<SmallVec<[_; 4]>>();
-                    if !candidates.is_empty() {
-                        let held =
-                            self.constrain_any_relation(origin, cause, relation, &candidates)?;
-                        if held {
-                            return Ok(true);
-                        }
-                    }
-                }
-
-                // relate this through the interface clauses active at its origin
-                if relation != Relation::Equal && matches!(self.ty(source)?, dir::Type::This) {
-                    let candidates = self
-                        .this_bounds(origin)?
-                        .into_iter()
-                        .map(|bound| (bound, target))
-                        .collect::<SmallVec<[_; 4]>>();
-                    if !candidates.is_empty()
-                        && self.constrain_any_relation(origin, cause, relation, &candidates)?
-                    {
-                        return Ok(true);
-                    }
-                }
-
-                // variants flow into their owner instantiation
-                if let dir::Type::Variant(member) = self.ty(source)?
-                    && !matches!(self.ty(target)?, dir::Type::Variant(_))
-                    && relation != Relation::Equal
-                {
-                    return self.constrain_type(origin, cause, relation, member.owner, target);
-                }
-
-                // decompose matching constructors before dispatching open composites
-                let has_variables = !self.type_variables(source)?.is_empty()
-                    || !self.type_variables(target)?.is_empty();
-                if has_variables
-                    && let Some(decided) =
-                        self.constrain_open_relation(origin, cause, structural, source, target)?
-                {
-                    if decided {
-                        return Ok(true);
-                    }
-
-                    return self.constrain_stuck(origin, cause, relation, source, target);
-                }
-
-                // dispatch known constructors while their children remain open
-                if self.decide_relation(origin, relation, source, target)? {
+                let holds = ensure_sufficient_stack(|| {
+                    self.relate_pair(origin, cause, relation, source, target)
+                })?;
+                if holds {
                     return Ok(true);
                 }
 
@@ -311,8 +240,8 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let reduced_source = self.normalize_stuck(origin, source)?;
-        let reduced_target = self.normalize_stuck(origin, target)?;
+        let reduced_source = self.structurally_normalize(origin, source)?;
+        let reduced_target = self.structurally_normalize(origin, target)?;
         if reduced_source == source && reduced_target == target {
             return Ok(false);
         }
@@ -320,477 +249,8 @@ impl CheckState<'_> {
         self.constrain_type(origin, cause, relation, reduced_source, reduced_target)
     }
 
-    /// Relate types containing open variables through their known constructors.
-    fn constrain_open_relation(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<bool>> {
-        // same-symbol applications constrain arguments under their default handle context
-        let same_symbol = match (self.ty(source)?, self.ty(target)?) {
-            (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
-                if source_instance.symbol == target_instance.symbol =>
-            {
-                let source = SmallVec::<[_; 4]>::from_slice(
-                    self.type_ids(source.module_id, source_instance.arguments)?,
-                );
-                let target = SmallVec::<[_; 4]>::from_slice(
-                    self.type_ids(target.module_id, target_instance.arguments)?,
-                );
-
-                Some((source_instance.symbol, source, target))
-            }
-            _ => None,
-        };
-        if let Some((symbol, source, target)) = same_symbol {
-            // slot arguments by kind, collecting elided lifetimes proof-only
-            let Some(slots) = self.slot_application_arguments(&source, &target)? else {
-                return Ok(Some(false));
-            };
-            let (source, target): (SmallVec<[_; 4]>, SmallVec<[_; 4]>) =
-                slots.iter().copied().unzip();
-            let form = self.default_variance_form(symbol)?;
-
-            return Ok(Some(self.relate_type_arguments(
-                origin,
-                cause,
-                symbol,
-                form,
-                relation.interior(),
-                &source,
-                &target,
-            )?));
-        }
-
-        // decide memory forms through their placement and readonly views
-        if matches!(relation, Relation::Assignable | Relation::Widens)
-            && let Some(decision) =
-                self.constrain_form_assignable(origin, cause, relation, source, target)?
-        {
-            return Ok(Some(decision));
-        }
-
-        // decompose existential conversions through their represented constraints
-        if relation == Relation::Assignable {
-            let dynamic = match (self.ty(source)?, self.ty(target)?) {
-                (dir::Type::Dynamic(source), dir::Type::Dynamic(target)) => {
-                    Some((source.constraint, target.constraint, None))
-                }
-                (_, dir::Type::Dynamic(target)) => Some((source, target.constraint, Some(source))),
-                (dir::Type::Dynamic(source), _) => Some((source.constraint, target, None)),
-                _ => None,
-            };
-            if let Some((source, target, erased)) = dynamic {
-                let safe = match erased {
-                    Some(erased) => self.satisfies_auto_interface(
-                        origin,
-                        erased,
-                        dir::AutoInterface::DynamicSafe,
-                    )?,
-                    None => true,
-                };
-                if !safe {
-                    return Ok(Some(false));
-                }
-                let constraint =
-                    self.constrain_type(origin, cause, Relation::Assignable, source, target)?;
-
-                return Ok(Some(constraint));
-            }
-        }
-
-        // test known nominal roots through heritage before waiting on arguments
-        if matches!(relation, Relation::Assignable | Relation::Widens)
-            && let (dir::Type::Application(_), dir::Type::Application(_)) =
-                (self.ty(source)?, self.ty(target)?)
-        {
-            return Ok(Some(
-                self.decide_application_assignable(origin, source, target)?,
-            ));
-        }
-
-        // read each side's call signature once for the callable arms below
-        let source_signature = self.callable_signature(source)?;
-        let target_signature = self.callable_signature(target)?;
-
-        // union representations widen only through exact set equality
-        if matches!(relation, Relation::Equal | Relation::Widens)
-            && let (dir::Type::Union(source_union), dir::Type::Union(target_union)) =
-                (self.ty(source)?, self.ty(target)?)
-        {
-            let source_elements = SmallVec::<[_; 4]>::from_slice(
-                self.type_ids(source.module_id, source_union.elements)?,
-            );
-            let target_elements = SmallVec::<[_; 4]>::from_slice(
-                self.type_ids(target.module_id, target_union.elements)?,
-            );
-            let equal =
-                self.constrain_type_sets_equal(origin, cause, &source_elements, &target_elements)?;
-
-            return Ok(Some(equal));
-        }
-
-        // intersections compare as unordered sets under equality
-        if relation == Relation::Equal
-            && let (
-                dir::Type::Intersection(source_intersection),
-                dir::Type::Intersection(target_intersection),
-            ) = (self.ty(source)?, self.ty(target)?)
-        {
-            let source_elements = SmallVec::<[_; 4]>::from_slice(
-                self.type_ids(source.module_id, source_intersection.elements)?,
-            );
-            let target_elements = SmallVec::<[_; 4]>::from_slice(
-                self.type_ids(target.module_id, target_intersection.elements)?,
-            );
-            let equal =
-                self.constrain_type_sets_equal(origin, cause, &source_elements, &target_elements)?;
-
-            return Ok(Some(equal));
-        }
-
-        // collect fixed slot pairs with their slot relations
-        let mut pairs = SmallVec::<
-            [(
-                Option<CauseKind>,
-                Relation,
-                dir::GlobalTypeId,
-                dir::GlobalTypeId,
-            ); 4],
-        >::new();
-        match (self.ty(source)?, self.ty(target)?) {
-            // keep mutable collection elements invariant, since they alias
-            (dir::Type::Array(source_array), dir::Type::Array(target_array)) => {
-                pairs.push((
-                    None,
-                    Relation::Equal,
-                    source_array.element,
-                    target_array.element,
-                ));
-            }
-            (dir::Type::Slice(source_slice), dir::Type::Slice(target_slice)) => {
-                pairs.push((
-                    None,
-                    Relation::Equal,
-                    source_slice.element,
-                    target_slice.element,
-                ));
-            }
-            (dir::Type::Array(source_array), dir::Type::Slice(target_slice)) => {
-                pairs.push((
-                    None,
-                    Relation::Equal,
-                    source_array.element,
-                    target_slice.element,
-                ));
-            }
-            (dir::Type::FixedArray(source_array), dir::Type::FixedArray(target_array)) => {
-                pairs.push((
-                    None,
-                    relation.interior(),
-                    source_array.element,
-                    target_array.element,
-                ));
-                pairs.push((
-                    None,
-                    Relation::Equal,
-                    source_array.count,
-                    target_array.count,
-                ));
-            }
-            (dir::Type::Tuple(source_tuple), dir::Type::Tuple(target_tuple))
-                if source_tuple.form == target_tuple.form
-                    && source_tuple.elements.len() == target_tuple.elements.len() =>
-            {
-                let source_elements =
-                    self.tuple_elements(source.module_id, source_tuple.elements)?;
-                let target_elements =
-                    self.tuple_elements(target.module_id, target_tuple.elements)?;
-                for (index, (source_element, target_element)) in source_elements
-                    .iter()
-                    .zip(target_elements.iter())
-                    .enumerate()
-                {
-                    let kind = CauseKind::Element {
-                        index: index as u32,
-                    };
-                    pairs.push((
-                        Some(kind),
-                        relation.interior(),
-                        source_element.ty,
-                        target_element.ty,
-                    ));
-                }
-            }
-            // string sources bind open template spans by captured text
-            (
-                dir::Type::Literal(dir::ScalarLiteral::String(text)),
-                dir::Type::Operation(operation),
-            ) if let dir::TypeOperation::TemplateLiteral(template) =
-                self.type_operation(target.module_id, operation)? =>
-            {
-                let text = self.strings().get(text).to_string();
-                let parts = match self.split_template_captures(
-                    origin,
-                    &text,
-                    target.module_id,
-                    &template,
-                )? {
-                    Some(parts) => parts,
-                    None => return Ok(Some(false)),
-                };
-                let mut seen: SmallVec<[(dir::GlobalTypeId, String); 2]> = SmallVec::new();
-                for (span, captured) in parts {
-                    if self.template_piece_text(span)?.is_some() {
-                        continue;
-                    }
-
-                    // repeated spans must capture identical text
-                    let root = self.resolve_head(span)?;
-                    if let Some((_, previous)) = seen.iter().find(|(other, _)| *other == root) {
-                        if *previous != captured {
-                            return Ok(Some(false));
-                        }
-
-                        continue;
-                    }
-                    seen.push((root, captured.clone()));
-                    let Some(captured) = self.template_capture_bound(origin, span, &captured)?
-                    else {
-                        return Ok(Some(false));
-                    };
-                    pairs.push((None, Relation::Assignable, captured, span));
-                }
-            }
-            (dir::Type::Primitive(dir::PrimitiveType::String), dir::Type::Operation(operation))
-                if let dir::TypeOperation::TemplateLiteral(template) =
-                    self.type_operation(target.module_id, operation)? =>
-            {
-                // absorb the string domain into unconstraining open patterns only
-                for segment in self.template_strings(target.module_id, template.strings)? {
-                    if !self.strings().get(*segment).is_empty() {
-                        return Ok(Some(false));
-                    }
-                }
-                for span in self.type_ids(target.module_id, template.spans)?.to_vec() {
-                    pairs.push((None, Relation::Assignable, source, span));
-                }
-            }
-
-            // shapes relate matching fields by target writeability
-            (
-                dir::Type::Shape(source_shape) | dir::Type::Object(source_shape),
-                dir::Type::Shape(target_shape) | dir::Type::Object(target_shape),
-            ) => {
-                let is_constructed = matches!(self.ty(source)?, dir::Type::Object(_));
-                let source_fields =
-                    self.shape_properties(source.module_id, source_shape.properties)?;
-                let target_fields =
-                    self.shape_properties(target.module_id, target_shape.properties)?;
-
-                for target_field in target_fields {
-                    let source_field = source_fields
-                        .iter()
-                        .find(|field| field.key == target_field.key);
-
-                    match source_field {
-                        Some(source_field) => {
-                            let Some(relations) = self.shape_property_relations(
-                                relation,
-                                is_constructed,
-                                source_field,
-                                target_field,
-                            ) else {
-                                return Ok(Some(false));
-                            };
-                            for (field_relation, source_ty, target_ty) in relations {
-                                pairs.push((
-                                    Some(CauseKind::Field {
-                                        key: target_field.key,
-                                    }),
-                                    field_relation,
-                                    source_ty,
-                                    target_ty,
-                                ));
-                            }
-                        }
-                        // missing members satisfy optional targets only
-                        None => {
-                            if !target_field.is_optional {
-                                return Ok(Some(false));
-                            }
-                        }
-                    }
-                }
-            }
-            // functions relate parameters contravariantly and returns covariantly
-            (_, dir::Type::FunctionSignature(_))
-                if matches!(relation, Relation::Assignable | Relation::Widens)
-                    && let Some(source) = source_signature =>
-            {
-                pairs.push((None, relation, source, target));
-            }
-            (dir::Type::FunctionSignature(_), _)
-                if matches!(relation, Relation::Assignable | Relation::Widens)
-                    && let Some(target) = target_signature =>
-            {
-                pairs.push((None, relation, source, target));
-            }
-            (_, _)
-                if matches!(relation, Relation::Assignable | Relation::Widens)
-                    && let (Some(source), Some(target)) = (source_signature, target_signature) =>
-            {
-                pairs.push((None, relation, source, target));
-            }
-            (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
-                // pair splatted signature slots positionally
-                let source = self.normalize(origin, source)?;
-                let target = self.normalize(origin, target)?;
-                let (
-                    dir::Type::FunctionSignature(source_function),
-                    dir::Type::FunctionSignature(target_function),
-                ) = (self.ty(source)?, self.ty(target)?)
-                else {
-                    return Ok(None);
-                };
-                let source_function = self.type_signature(source.module_id, source_function)?;
-                let target_function = self.type_signature(target.module_id, target_function)?;
-                let source_parameters =
-                    self.signature_parameters(source.module_id, source_function.parameters)?;
-                let target_parameters =
-                    self.signature_parameters(target.module_id, target_function.parameters)?;
-                let shared = source_parameters.len().min(target_parameters.len());
-                for (index, (source_parameter, target_parameter)) in source_parameters[..shared]
-                    .iter()
-                    .zip(target_parameters[..shared].iter())
-                    .enumerate()
-                {
-                    let kind = CauseKind::Parameter {
-                        index: index as u32,
-                    };
-                    pairs.push((
-                        Some(kind),
-                        relation.interior(),
-                        target_parameter.ty,
-                        source_parameter.ty,
-                    ));
-                }
-
-                // equate the return slots so a callable value adopts its contextual signature
-                if let (Some(source_return), Some(target_return)) =
-                    (source_function.return_type, target_function.return_type)
-                {
-                    pairs.push((
-                        Some(CauseKind::ReturnSlot),
-                        relation.interior(),
-                        source_return,
-                        target_return,
-                    ));
-                }
-            }
-            // memory forms relate payloads directly, borrows bind their slots
-            (dir::Type::Form(source_form), dir::Type::Form(target_form))
-                if source_form.form.same_constructor(&target_form.form) =>
-            {
-                if let (dir::Form::Borrowed(source_borrow), dir::Form::Borrowed(target_borrow)) =
-                    (source_form.form, target_form.form)
-                {
-                    let source_borrow = self.type_borrow(source.module_id, source_borrow)?;
-                    let target_borrow = self.type_borrow(target.module_id, target_borrow)?;
-                    pairs.push((
-                        None,
-                        relation,
-                        source_borrow.lifetime,
-                        target_borrow.lifetime,
-                    ));
-                    pairs.push((None, relation, source_borrow.access, target_borrow.access));
-                }
-                if let (
-                    dir::Form::Placed {
-                        place: source_place,
-                    },
-                    dir::Form::Placed {
-                        place: target_place,
-                    },
-                ) = (source_form.form, target_form.form)
-                {
-                    pairs.push((None, Relation::Equal, source_place, target_place));
-                }
-                pairs.push((
-                    Some(CauseKind::Payload),
-                    relation,
-                    source_form.value,
-                    target_form.value,
-                ));
-            }
-            // union sources flow every element into the target
-            (dir::Type::Union(elements), _) if relation.distributes_over_union_source() => {
-                let elements = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(
-                    self.type_ids(source.module_id, elements.elements)?,
-                );
-                for element in elements {
-                    pairs.push((None, relation, element, target));
-                }
-            }
-            // union targets accept when any member accepts
-            (_, dir::Type::Union(elements)) if relation.distributes_over_union_target() => {
-                let elements = SmallVec::<[_; 4]>::from_slice(
-                    self.type_ids(target.module_id, elements.elements)?,
-                );
-
-                let candidates = elements
-                    .into_iter()
-                    .map(|target| (source, target))
-                    .collect::<SmallVec<[_; 4]>>();
-
-                return Ok(Some(self.constrain_any_relation(
-                    origin,
-                    cause,
-                    relation,
-                    &candidates,
-                )?));
-            }
-            (dir::Type::Dynamic(source), dir::Type::Dynamic(target)) => {
-                // constraint changes rebuild the fat pointer and never widen
-                let constraint_relation = match relation {
-                    Relation::Widens => Relation::Equal,
-                    relation => relation,
-                };
-                pairs.push((
-                    None,
-                    constraint_relation,
-                    source.constraint,
-                    target.constraint,
-                ));
-            }
-            // fixed constructors recurse through their slots
-            (_, _) if let Some(slots) = self.decompose_type_pair(source, target)? => {
-                for (source, target) in slots {
-                    pairs.push((None, relation, source, target));
-                }
-            }
-            _ => return Ok(None),
-        }
-
-        // constrain every slot pair through the bounding path
-        for (kind, relation, source, target) in pairs {
-            let child = match kind {
-                Some(kind) => self.intern_cause(Cause::child(origin, kind, cause)),
-                None => cause,
-            };
-            if !self.constrain_type(origin, child, relation, source, target)? {
-                return Ok(Some(false));
-            }
-        }
-
-        Ok(Some(true))
-    }
-
     /// Constrain one relation through exactly one applicable alternative.
-    fn constrain_any_relation(
+    pub(in crate::check) fn constrain_any_relation(
         &mut self,
         origin: Origin,
         cause: CauseId,
@@ -876,39 +336,14 @@ impl CheckState<'_> {
         Ok(!viables.is_empty())
     }
 
-    /// Return whether one closed type denotes a lifetime extent.
-    pub(in crate::check) fn is_lifetime_extent(
-        &self,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        match self.ty(id)? {
-            dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)) => Ok(true),
-            dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
-                Ok(self.generic_parameter(parameter).is_some_and(|binding| {
-                    binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
-                }))
-            }
-            dir::Type::Union(union) => {
-                for member in self.type_ids(id.module_id, union.elements)? {
-                    if !self.is_lifetime_extent(*member)? {
-                        return Ok(false);
-                    }
-                }
-
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
     /// Return whether one pair shares its top type constructor.
     fn same_type_constructor(
         &self,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let source = self.resolve_head(source)?;
-        let target = self.resolve_head(target)?;
+        let source = self.shallow_resolve(source)?;
+        let target = self.shallow_resolve(target)?;
 
         match (self.ty(source)?, self.ty(target)?) {
             (dir::Type::Form(source), dir::Type::Form(target)) => {
@@ -943,8 +378,8 @@ impl CheckState<'_> {
         Ok(variables)
     }
 
-    /// Return the root after substituting solved inference variables.
-    pub(in crate::check) fn resolve_head(
+    /// Resolve one solved variable root, keeping children as written.
+    pub(in crate::check) fn shallow_resolve(
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {

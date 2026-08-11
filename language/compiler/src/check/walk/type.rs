@@ -1169,7 +1169,7 @@ impl WalkState<'_, '_> {
                     )?;
 
                     let role = MemberRole::from(signature.role);
-                    let ty = self.check.resolve_head(ty)?;
+                    let ty = self.check.shallow_resolve(ty)?;
                     let access = self
                         .check
                         .property_access(role, ty, false)?

@@ -1221,13 +1221,13 @@ impl BodyState<'_, '_> {
 
         // require the subject to satisfy the bound target
         let target = self.substitute_type(target_type, &substitution)?;
-        if !self.decide_relation(origin, Relation::Assignable, subject, target)? {
+        if !self.evaluate_relation(origin, Relation::Assignable, subject, target)? {
             return Ok(None);
         }
 
         // require the extension declaration's substituted constraints
         if let Some(template) = template
-            && !self.decide_substitution_constraints(origin, template, &substitution)?
+            && !self.relate_substitution_constraints(origin, template, &substitution)?
         {
             return Ok(None);
         }

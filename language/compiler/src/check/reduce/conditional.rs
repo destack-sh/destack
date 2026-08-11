@@ -238,7 +238,7 @@ impl CheckState<'_> {
         then_type: dir::GlobalTypeId,
         else_type: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let extends = self.decide_relation(origin, Relation::Extends, left, right)?;
+        let extends = self.evaluate_relation(origin, Relation::Extends, left, right)?;
 
         Ok(if extends { then_type } else { else_type })
     }
@@ -365,7 +365,7 @@ impl CheckState<'_> {
             let constraint = infer.constraint;
 
             if let Some(constraint) = constraint
-                && !self.decide_relation(origin, Relation::Extends, actual, constraint)?
+                && !self.evaluate_relation(origin, Relation::Extends, actual, constraint)?
             {
                 return Ok(false);
             }
@@ -553,7 +553,7 @@ impl CheckState<'_> {
             (dir::Type::Form(pattern), dir::Type::Form(actual)) if pattern.form == actual.form => {
                 self.match_infer_type(origin, captures, variance, pattern.value, actual.value)
             }
-            _ => self.decide_relation(origin, Relation::Extends, actual, pattern),
+            _ => self.evaluate_relation(origin, Relation::Extends, actual, pattern),
         }
     }
 

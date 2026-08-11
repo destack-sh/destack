@@ -172,7 +172,7 @@ impl BodyState<'_, '_> {
 
         // keep the selected member in a union slot under exact mode
         if mode == InferMode::Exact && matches!(self.ty(source)?, dir::Type::Literal(_)) {
-            let head = self.normalize_stuck(origin, slot)?;
+            let head = self.structurally_normalize(origin, slot)?;
             if matches!(self.ty(head)?, dir::Type::Union(_)) {
                 return Ok(source);
             }

@@ -337,7 +337,7 @@ impl BodyState<'_, '_> {
                 let mut alternatives = Vec::with_capacity(elements.len());
                 for element in elements {
                     let satisfies =
-                        self.decide_relation(origin, Relation::Satisfies, element, target)?;
+                        self.evaluate_relation(origin, Relation::Satisfies, element, target)?;
                     let predicate = self.runtime_union_arm_predicate(origin, value, element)?;
                     if satisfies && let Some(predicate) = predicate {
                         alternatives.push(predicate);
@@ -361,7 +361,8 @@ impl BodyState<'_, '_> {
 
             // plain values either satisfy the target statically or never can
             _ => {
-                let satisfies = self.decide_relation(origin, Relation::Satisfies, value, target)?;
+                let satisfies =
+                    self.evaluate_relation(origin, Relation::Satisfies, value, target)?;
                 let condition = if satisfies {
                     dir::PredicateCondition::Always
                 } else {

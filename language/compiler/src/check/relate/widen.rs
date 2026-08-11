@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, Origin, Relation};
+use crate::check::{Cause, CauseKind, CheckState, Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -19,7 +19,7 @@ impl CheckState<'_> {
         // resolve bounds through solved variables
         let mut resolved = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for bound in bounds {
-            let bound = self.resolve_head(*bound).map_err(|error| {
+            let bound = self.shallow_resolve(*bound).map_err(|error| {
                 CompilerError::Internal {
                     message: format!(
                         "best_common bound resolution failed for {variable:?} bounds={bounds:?}: {error:?}"
@@ -54,7 +54,7 @@ impl CheckState<'_> {
                     continue;
                 }
 
-                absorbed = self.decide_relation(origin, Relation::Assignable, bound, other)?;
+                absorbed = self.evaluate_relation(origin, Relation::Assignable, bound, other)?;
                 if absorbed {
                     break;
                 }
@@ -147,7 +147,8 @@ impl CheckState<'_> {
             lifetimes.push(borrow.lifetime);
             for (other_bound, other_value, other_borrow) in borrows.iter().copied().skip(index + 1)
             {
-                let payloads_equal = self.decide_equal(origin, value, other_value)?;
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                let payloads_equal = self.relate_equal(origin, cause, value, other_value)?;
                 let accesses_equal = self.ty(borrow.access)? == self.ty(other_borrow.access)?;
                 if payloads_equal && accesses_equal {
                     consumed.push(other_bound);
@@ -246,7 +247,7 @@ impl CheckState<'_> {
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // self-referential solutions keep their recursive leaves
-        let id = self.resolve_head(id)?;
+        let id = self.shallow_resolve(id)?;
         if !active.insert(id) {
             return Ok(None);
         }
@@ -322,7 +323,7 @@ impl CheckState<'_> {
                 );
                 let mut changed = false;
                 for element in &mut elements {
-                    let ty = self.resolve_head(element.ty)?;
+                    let ty = self.shallow_resolve(element.ty)?;
                     if let Some(widened) = self.widen_tree(module, ty, active)? {
                         element.ty = widened;
                         changed = true;
@@ -348,7 +349,7 @@ impl CheckState<'_> {
                 let mut widened = Vec::with_capacity(elements.len());
                 let mut changed = false;
                 for element in elements {
-                    let element = self.resolve_head(element)?;
+                    let element = self.shallow_resolve(element)?;
                     match self.widen_tree(module, element, active)? {
                         Some(wide) => {
                             widened.push(wide);
@@ -437,7 +438,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<(dir::GlobalTypeId, bool)> {
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
 
         match self.widen_tree(module, ty, active)? {
             Some(widened) => Ok((widened, true)),

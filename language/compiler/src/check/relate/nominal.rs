@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Cause, CauseKind, CheckState, Origin, Relation, Verdict};
+use crate::check::{Cause, CauseId, CauseKind, CheckState, Origin, Relation, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 /// One applied heritage edge in a nominal declaration closure.
@@ -60,10 +60,11 @@ impl HeritageClosure {
 }
 
 impl CheckState<'_> {
-    /// Decide one check-only constraint relation between closed roots.
-    pub(in crate::check) fn decide_satisfies(
+    /// Relate two closed roots under a check-only constraint relation.
+    pub(in crate::check) fn relate_satisfies(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -72,7 +73,7 @@ impl CheckState<'_> {
         if (matches!(self.ty(source)?, dir::Type::Form(_))
             || matches!(self.ty(target)?, dir::Type::Form(_)))
             && let Some(decision) =
-                self.constrain_form_assignable_rooted(origin, relation, source, target)?
+                self.constrain_form_assignable(origin, cause, relation, source, target)?
         {
             return Ok(Verdict::decided(decision));
         }
@@ -95,15 +96,17 @@ impl CheckState<'_> {
 
         // enum members satisfy constraints through their owner
         if let dir::Type::Variant(member) = self.ty(source)? {
-            let holds = self.decide_relation(origin, relation, member.owner, target)?;
+            let holds = self.constrain_type(origin, cause, relation, member.owner, target)?;
 
             return Ok(Verdict::decided(holds));
         }
 
         // generic parameters prove relations through their active bounds
         if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = self.ty(source)? {
-            let decision = self.decide_parameter_relation(origin, relation, parameter, target)?;
-            let holds = self.decide_union_membership(origin, relation, decision, source, target)?;
+            let decision =
+                self.relate_parameter_bounds(origin, cause, relation, parameter, target)?;
+            let holds =
+                self.relate_union_membership(origin, cause, relation, decision, source, target)?;
 
             return Ok(Verdict::decided(holds));
         }
@@ -111,7 +114,7 @@ impl CheckState<'_> {
         // union sources must satisfy the target through every element
         if let dir::Type::Union(union) = self.ty(source)? {
             let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
-            let holds = self.decide_all_sources(origin, relation, &elements, target)?;
+            let holds = self.relate_all_sources(origin, cause, relation, &elements, target)?;
 
             return Ok(Verdict::decided(holds));
         }
@@ -119,7 +122,7 @@ impl CheckState<'_> {
         // union targets accept when any element accepts the source
         if let dir::Type::Union(union) = self.ty(target)? {
             let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
-            let holds = self.decide_any_target(origin, relation, source, &elements)?;
+            let holds = self.relate_any_target(origin, cause, relation, source, &elements)?;
 
             return Ok(Verdict::decided(holds));
         }
@@ -147,7 +150,7 @@ impl CheckState<'_> {
             self.operation_head(source)?,
             Some(dir::TypeOperation::StaticBinary(_) | dir::TypeOperation::StaticUnary(_))
         ) && let Some(result) = self.static_operation_type(origin, source)?
-            && self.decide_relation(origin, relation, result, target)?
+            && self.constrain_type(origin, cause, relation, result, target)?
         {
             return Ok(Verdict::Holds);
         }
@@ -157,7 +160,7 @@ impl CheckState<'_> {
             let elements = self
                 .type_ids(target.module_id, intersection.elements)?
                 .to_vec();
-            let holds = self.decide_all_targets(origin, relation, source, &elements)?;
+            let holds = self.relate_all_targets(origin, cause, relation, source, &elements)?;
 
             return Ok(Verdict::decided(holds));
         }
@@ -167,7 +170,7 @@ impl CheckState<'_> {
             let elements = self
                 .type_ids(source.module_id, intersection.elements)?
                 .to_vec();
-            let holds = self.decide_any_source(origin, relation, &elements, target)?;
+            let holds = self.relate_any_source(origin, cause, relation, &elements, target)?;
 
             return Ok(Verdict::decided(holds));
         }
@@ -185,7 +188,7 @@ impl CheckState<'_> {
                 Some(dir::Definition::Interface(_))
             )
         {
-            return self.decide_interface_relation(origin, relation, source, target);
+            return self.relate_interface(origin, cause, relation, source, target);
         }
 
         // nominal sources meet nominal constraints through their declarations
@@ -196,8 +199,9 @@ impl CheckState<'_> {
 
         match (instances, relation) {
             (Some((source_instance, target_instance)), _) => {
-                let holds = self.decide_application_relation(
+                let holds = self.relate_application(
                     origin,
+                    cause,
                     relation,
                     source,
                     &source_instance,
@@ -216,25 +220,26 @@ impl CheckState<'_> {
                     dir::Type::Shape(_) | dir::Type::Object(_),
                 ) = (self.ty(source)?, self.ty(target)?)
                 {
-                    let holds = self.decide_shape_relation(origin, relation, source, target)?;
+                    let holds = self.relate_shape(origin, cause, relation, source, target)?;
 
                     return Ok(Verdict::decided(holds));
                 }
 
                 // everything else decides through assignability
-                let assignable = self.decide_assignable(origin, relation, source, target)?;
-                let holds =
-                    self.decide_union_membership(origin, relation, assignable, source, target)?;
+                let assignable = self.relate_assignable(origin, cause, relation, source, target)?;
+                let holds = self
+                    .relate_union_membership(origin, cause, relation, assignable, source, target)?;
 
                 Ok(Verdict::decided(holds))
             }
         }
     }
 
-    /// Decide one relation between applied declarations.
-    pub(in crate::check) fn decide_application_relation(
+    /// Relate two applied declarations.
+    pub(in crate::check) fn relate_application(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         source_instance: &dir::GenericApplication,
@@ -261,7 +266,7 @@ impl CheckState<'_> {
 
         // interface targets select one implementation path
         if target_kind.is_interface() {
-            let decided = self.decide_interface_relation(origin, relation, source, target)?;
+            let decided = self.relate_interface(origin, cause, relation, source, target)?;
 
             return Ok(decided.holds());
         }
@@ -289,8 +294,9 @@ impl CheckState<'_> {
             let form = self.default_variance_form(target_instance.symbol)?;
 
             let arguments = if relation == Relation::Subtype {
-                self.decide_type_arguments(
+                self.relate_application_arguments(
                     origin,
+                    cause,
                     target_instance.symbol,
                     form,
                     relation,
@@ -313,10 +319,11 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Decide assignability between different nominal applications.
-    pub(in crate::check) fn decide_application_assignable(
+    /// Relate two different nominal applications under assignability.
+    pub(in crate::check) fn relate_application_assignable(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
@@ -325,8 +332,9 @@ impl CheckState<'_> {
             _ => return Ok(false),
         };
 
-        self.decide_application_relation(
+        self.relate_application(
             origin,
+            cause,
             Relation::Assignable,
             source,
             &source_instance,
@@ -635,10 +643,11 @@ impl CheckState<'_> {
         Ok(keys)
     }
 
-    /// Decide whether one reference source satisfies one structural shape target.
-    pub(in crate::check) fn decide_reference_against_target(
+    /// Relate one reference source against a structural shape target.
+    pub(in crate::check) fn relate_reference_against_target(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source_module: ModuleId,
         source_instance: &dir::GenericApplication,
@@ -673,7 +682,7 @@ impl CheckState<'_> {
                     }
                 }
                 Some(member) => {
-                    if !self.decide_relation(origin, relation, member, field_type)? {
+                    if !self.constrain_type(origin, cause, relation, member, field_type)? {
                         return Ok(false);
                     }
                 }
@@ -682,7 +691,7 @@ impl CheckState<'_> {
 
         // require each target index signature from the source
         for signature in index_signatures {
-            if !self.decide_index_signature_satisfied(origin, relation, source, &signature)? {
+            if !self.relate_index_signature(origin, relation, source, &signature)? {
                 return Ok(false);
             }
         }

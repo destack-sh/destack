@@ -779,7 +779,7 @@ impl CheckState<'_> {
 
         // collect memory forms outermost first
         loop {
-            let root = self.resolve_head(current)?;
+            let root = self.shallow_resolve(current)?;
             current = root;
             let dir::Type::Form(form) = self.ty(current)? else {
                 break;
@@ -1462,13 +1462,13 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut current = self.resolve_head(ty)?;
+        let mut current = self.shallow_resolve(ty)?;
         while let dir::Type::Form(form) = self.ty(current)? {
             // drop alias-transparent forms for reads
             if !matches!(form.form, dir::Form::Managed | dir::Form::Readonly) {
                 break;
             }
-            current = self.resolve_head(form.value)?;
+            current = self.shallow_resolve(form.value)?;
         }
 
         Ok(current)

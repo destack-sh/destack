@@ -76,8 +76,8 @@ impl BodyState<'_, '_> {
         let value_type = check.source;
 
         // warn when the cast target equals the operand's settled type
-        let value_root = self.check.resolve_head(value_type)?;
-        let target_root = self.check.resolve_head(target)?;
+        let value_root = self.check.shallow_resolve(value_type)?;
+        let target_root = self.check.shallow_resolve(target)?;
         if value_root == target_root && self.check.type_variables(value_root)?.is_empty() {
             self.check.report_redundant_cast(
                 node.into_any(),

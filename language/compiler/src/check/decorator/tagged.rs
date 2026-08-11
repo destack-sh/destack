@@ -602,7 +602,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<Option<Vec<TaggedArm>>> {
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
 
         match self.ty(ty)? {
             // flatten direct union arms in declaration order

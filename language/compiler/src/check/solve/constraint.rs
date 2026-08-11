@@ -274,8 +274,8 @@ pub(in crate::check) struct FailedCheck {
 }
 
 impl CheckState<'_> {
-    /// Decide the bounds and predicates of one matched substitution.
-    pub(in crate::check) fn decide_substitution_constraints(
+    /// Relate the bounds and predicates of one matched substitution.
+    pub(in crate::check) fn relate_substitution_constraints(
         &mut self,
         origin: Origin,
         template: GenericTemplateId,
@@ -290,7 +290,7 @@ impl CheckState<'_> {
 
         // require every substituted declaration constraint
         for constraint in constraints {
-            let holds = self.decide_relation(
+            let holds = self.evaluate_relation(
                 constraint.origin,
                 constraint.relation,
                 constraint.source,
@@ -314,7 +314,7 @@ impl CheckState<'_> {
                     .and_then(|binding| binding.constraint)
             {
                 let declared = self.substitute_type(declared, substitution)?;
-                satisfied = self.decide_relation(
+                satisfied = self.evaluate_relation(
                     constraint.origin,
                     constraint.relation,
                     declared,

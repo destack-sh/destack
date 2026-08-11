@@ -117,7 +117,7 @@ impl BodyState<'_, '_> {
         }
 
         // step through a stuck named head that carries a memory form
-        let head = self.check.normalize_stuck(origin, receiver)?;
+        let head = self.check.structurally_normalize(origin, receiver)?;
         if head != receiver && matches!(self.ty(head)?, dir::Type::Form(_)) {
             return self.receiver_step(origin, head);
         }

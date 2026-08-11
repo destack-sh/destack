@@ -205,7 +205,7 @@ impl CheckState<'_> {
                         });
                     } else {
                         // overrides must remain assignable to the base member
-                        let assignment = self.decide_member_relation(
+                        let assignment = self.relate_member(
                             origin,
                             Relation::Assignable,
                             member.role,

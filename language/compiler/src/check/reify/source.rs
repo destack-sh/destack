@@ -113,7 +113,7 @@ impl CheckState<'_> {
             };
             if matches!(self.ty(ty)?, dir::Type::Member(_) | dir::Type::Operation(_)) {
                 let reduced =
-                    self.deeply_normalize(Origin::Symbol(symbol.into_global(module_id)), ty)?;
+                    self.deeply_resolve(Origin::Symbol(symbol.into_global(module_id)), ty)?;
                 reductions.insert(ty, reduced);
             }
         }
@@ -678,11 +678,11 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         };
 
         // look through function values to their signature
-        let mut signature = self.check.resolve_head(ty)?;
+        let mut signature = self.check.shallow_resolve(ty)?;
         loop {
             match self.check.ty(signature)? {
                 dir::Type::Function(function) => {
-                    signature = self.check.resolve_head(function.signature)?;
+                    signature = self.check.shallow_resolve(function.signature)?;
                 }
                 dir::Type::FunctionSignature(_) => break,
                 _ => return Ok(None),

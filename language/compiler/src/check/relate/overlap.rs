@@ -303,7 +303,7 @@ impl CheckState<'_> {
                         }
                     }
                     Variance::Invariant => {
-                        if !self.decide_relation(origin, Relation::Equal, source, target)? {
+                        if !self.evaluate_relation(origin, Relation::Equal, source, target)? {
                             return Ok(false);
                         }
                     }
@@ -314,8 +314,10 @@ impl CheckState<'_> {
         }
 
         // accept inherited applications, the subtype's values are shared
-        let source_is_subtype = self.decide_relation(origin, Relation::Subtype, source, target)?;
-        let target_is_subtype = self.decide_relation(origin, Relation::Subtype, target, source)?;
+        let source_is_subtype =
+            self.evaluate_relation(origin, Relation::Subtype, source, target)?;
+        let target_is_subtype =
+            self.evaluate_relation(origin, Relation::Subtype, target, source)?;
         if source_is_subtype || target_is_subtype {
             return Ok(true);
         }

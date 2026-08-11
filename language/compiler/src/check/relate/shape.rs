@@ -2,8 +2,13 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, MemberRole, Origin, Relation, TypeSubstitution};
+use crate::check::{
+    Cause, CauseId, CauseKind, CheckState, MemberRole, Origin, Relation, TypeSubstitution,
+};
 use crate::{CompilerError, CompilerResult};
+
+/// One directed function assignment pair with its signature slot.
+type FunctionAssignabilityPair = (Option<CauseKind>, dir::GlobalTypeId, dir::GlobalTypeId);
 
 /// One signature instantiated at its required signature.
 pub(in crate::check) struct SignatureInstantiation {
@@ -106,10 +111,11 @@ impl CheckState<'_> {
         Ok(result)
     }
 
-    /// Decide assignability of two tuple types.
-    pub(in crate::check) fn decide_tuple_assignable(
+    /// Relate two tuple types under assignability.
+    pub(in crate::check) fn relate_tuple_assignable(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -147,7 +153,7 @@ impl CheckState<'_> {
                         source_index += 1;
                     }
 
-                    return self.decide_each(origin, relation.interior(), &pairs);
+                    return self.relate_each(origin, cause, relation.interior(), &pairs);
                 }
 
                 // omitted source elements satisfy optional target elements
@@ -178,7 +184,7 @@ impl CheckState<'_> {
             pairs
         };
 
-        self.decide_each(origin, relation.interior(), &pairs)
+        self.relate_each(origin, cause, relation.interior(), &pairs)
     }
 
     /// Return the item type yielded when one spread or rest container expands.
@@ -196,10 +202,11 @@ impl CheckState<'_> {
         Ok(element)
     }
 
-    /// Decide exact equality of two structural shapes.
-    pub(in crate::check) fn decide_shape_equal(
+    /// Relate two structural shapes under exact equality.
+    pub(in crate::check) fn relate_shape_equal(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
@@ -289,23 +296,25 @@ impl CheckState<'_> {
             pairs
         };
 
-        self.decide_each(origin, Relation::Equal, &pairs)
+        self.relate_each(origin, cause, Relation::Equal, &pairs)
     }
 
-    /// Decide structural assignability of two shapes.
-    pub(in crate::check) fn decide_shape_assignable(
+    /// Relate two shapes under structural assignability.
+    pub(in crate::check) fn relate_shape_assignable(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        self.decide_shape_relation(origin, Relation::Assignable, source, target)
+        self.relate_shape(origin, cause, Relation::Assignable, source, target)
     }
 
-    /// Decide one structural pair under storage or read rules.
-    pub(in crate::check) fn decide_shape_relation(
+    /// Relate one structural pair under storage or read rules.
+    pub(in crate::check) fn relate_shape(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -381,7 +390,7 @@ impl CheckState<'_> {
         };
 
         // decide matched field pairs
-        if !self.decide_shape_fields(origin, &pairs)? {
+        if !self.relate_shape_fields(origin, cause, &pairs)? {
             return Ok(false);
         }
 
@@ -389,7 +398,8 @@ impl CheckState<'_> {
         for (candidates, target_signature) in signature_requirements {
             let mut satisfied = false;
             for candidate in candidates {
-                satisfied = self.decide_relation(origin, relation, candidate, target_signature)?;
+                satisfied =
+                    self.constrain_type(origin, cause, relation, candidate, target_signature)?;
                 if satisfied {
                     break;
                 }
@@ -401,7 +411,7 @@ impl CheckState<'_> {
 
         // require each target index signature from the source
         for signature in index_signatures {
-            if !self.decide_index_signature_satisfied(origin, relation, source, &signature)? {
+            if !self.relate_index_signature(origin, relation, source, &signature)? {
                 return Ok(false);
             }
         }
@@ -523,14 +533,15 @@ impl CheckState<'_> {
         Some(relations)
     }
 
-    /// Decide each matched structural field with its required relation.
-    pub(in crate::check) fn decide_shape_fields(
+    /// Relate each matched structural field under its required relation.
+    pub(in crate::check) fn relate_shape_fields(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         fields: &[(Relation, dir::GlobalTypeId, dir::GlobalTypeId)],
     ) -> CompilerResult<bool> {
         for (relation, source, target) in fields.iter().copied() {
-            if !self.decide_relation(origin, relation, source, target)? {
+            if !self.constrain_type(origin, cause, relation, source, target)? {
                 return Ok(false);
             }
         }
@@ -556,10 +567,11 @@ impl CheckState<'_> {
         Ok(signature)
     }
 
-    /// Decide assignability of a static declaration reference to a shape.
-    pub(in crate::check) fn decide_reference_shape_assignable(
+    /// Relate a static declaration reference to a shape under assignability.
+    pub(in crate::check) fn relate_reference_shape_assignable(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
@@ -595,7 +607,7 @@ impl CheckState<'_> {
             };
 
             let store = field.access.store();
-            if !self.decide_relation(origin, Relation::Assignable, found, store)? {
+            if !self.constrain_type(origin, cause, Relation::Assignable, found, store)? {
                 return Ok(false);
             }
         }
@@ -604,8 +616,9 @@ impl CheckState<'_> {
         for target_signature in target_constructs {
             let mut satisfied = false;
             for candidate in self.reference_construct_signatures(origin, reference)? {
-                satisfied = self.decide_relation(
+                satisfied = self.constrain_type(
                     origin,
+                    cause,
                     Relation::Assignable,
                     candidate,
                     target_signature,
@@ -655,8 +668,8 @@ impl CheckState<'_> {
         Ok(signatures)
     }
 
-    /// Decide whether one source exposes an index signature.
-    pub(in crate::check) fn decide_index_signature_satisfied(
+    /// Relate one source against a required index signature.
+    pub(in crate::check) fn relate_index_signature(
         &mut self,
         origin: Origin,
         relation: Relation,
@@ -673,29 +686,19 @@ impl CheckState<'_> {
                     relation => relation,
                 };
 
-                self.decide_shape_index_signature_satisfied(
-                    origin,
-                    relation,
-                    source.module_id,
-                    shape,
-                    target,
-                )
+                self.relate_shape_index_signature(origin, relation, source.module_id, shape, target)
             }
-            dir::Type::Shape(shape) => self.decide_shape_index_signature_satisfied(
-                origin,
-                relation,
-                source.module_id,
-                shape,
-                target,
-            ),
+            dir::Type::Shape(shape) => {
+                self.relate_shape_index_signature(origin, relation, source.module_id, shape, target)
+            }
             _ => self
                 .body()
                 .decide_subscript_index_signature_satisfied(origin, relation, source, target),
         }
     }
 
-    /// Decide whether one structural source exposes an index signature.
-    fn decide_shape_index_signature_satisfied(
+    /// Relate one structural source against a required index signature.
+    fn relate_shape_index_signature(
         &mut self,
         origin: Origin,
         relation: Relation,
@@ -721,11 +724,11 @@ impl CheckState<'_> {
                 if source.is_readonly && !target.is_readonly {
                     continue;
                 }
-                if !self.decide_relation(origin, relation, target.key_type, source.key_type)? {
+                if !self.evaluate_relation(origin, relation, target.key_type, source.key_type)? {
                     continue;
                 }
 
-                let value = self.decide_relation(
+                let value = self.evaluate_relation(
                     origin,
                     value_relation,
                     source.value_type,
@@ -745,7 +748,7 @@ impl CheckState<'_> {
         );
         for field in source_fields {
             let key = self.static_key_type(field.key)?;
-            if !self.decide_relation(origin, relation, key, target.key_type)? {
+            if !self.evaluate_relation(origin, relation, key, target.key_type)? {
                 continue;
             }
 
@@ -755,7 +758,7 @@ impl CheckState<'_> {
             }
 
             let store = field.access.store();
-            if !self.decide_relation(origin, value_relation, store, target.value_type)? {
+            if !self.evaluate_relation(origin, value_relation, store, target.value_type)? {
                 return Ok(false);
             }
         }
@@ -763,10 +766,11 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Decide assignability of two function types by signature variance.
-    pub(in crate::check) fn decide_function_assignable(
+    /// Relate two function types by signature variance.
+    pub(in crate::check) fn relate_function_assignable(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -788,8 +792,19 @@ impl CheckState<'_> {
             return Ok(false);
         };
 
-        // widen interior slots without coercions
-        self.decide_each(origin, relation.interior(), &pairs)
+        // relate every interior slot under its own cause
+        let relation = relation.interior();
+        for (kind, source, target) in pairs {
+            let child = match kind {
+                Some(kind) => self.intern_cause(Cause::child(origin, kind, cause)),
+                None => cause,
+            };
+            if !self.constrain_type(origin, child, relation, source, target)? {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
     }
 
     /// Instantiate one polymorphic signature at its required signature.
@@ -833,7 +848,7 @@ impl CheckState<'_> {
         if !self.extend_generic_substitution(origin, &parameters, &mut substitution, &pairs)? {
             return Ok(None);
         }
-        if !self.decide_substitution_constraints(origin, template, &substitution)? {
+        if !self.relate_substitution_constraints(origin, template, &substitution)? {
             return Ok(None);
         }
 
@@ -849,7 +864,7 @@ impl CheckState<'_> {
             }
             match substitution.argument(parameter) {
                 Some(argument) => {
-                    let argument = self.resolve_head(argument)?;
+                    let argument = self.shallow_resolve(argument)?;
                     if let Some(arguments) = &mut arguments {
                         arguments.push(dir::GenericArgumentBinding::new(parameter, argument));
                     }
@@ -864,10 +879,11 @@ impl CheckState<'_> {
         }))
     }
 
-    /// Decide one relation between receiver-bound method signatures over rigid parameters.
-    pub(in crate::check) fn decide_method_relation(
+    /// Relate two receiver-bound method signatures over rigid parameters.
+    pub(in crate::check) fn relate_method(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         mut source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -879,7 +895,7 @@ impl CheckState<'_> {
                 .type_ids(source.module_id, intersection.elements)?
                 .to_vec();
             for element in elements {
-                if self.decide_method_relation(origin, relation, element, target, receiver)? {
+                if self.relate_method(origin, cause, relation, element, target, receiver)? {
                     return Ok(true);
                 }
             }
@@ -895,7 +911,7 @@ impl CheckState<'_> {
                 dir::Type::FunctionSignature(_)
             )
         ) {
-            return self.decide_relation(origin, relation, source, target);
+            return self.constrain_type(origin, cause, relation, source, target);
         }
 
         // bind the source's own generics against the required signature
@@ -954,7 +970,7 @@ impl CheckState<'_> {
                     }
 
                     // require the declared constraints of the bound arguments
-                    if !self.decide_substitution_constraints(origin, template, &substitution)? {
+                    if !self.relate_substitution_constraints(origin, template, &substitution)? {
                         return Ok(false);
                     }
 
@@ -980,13 +996,13 @@ impl CheckState<'_> {
         };
 
         // relate each pair with redundant forms shed and closed readonly borrows stripped
-        for (source, target) in pairs {
+        for (_, source, target) in pairs {
             let source = self.reduce_redundant_forms(origin, source)?;
             let source = self.strip_borrows(origin, source)?;
             let target = self.normalize(origin, target)?;
             let target = self.reduce_redundant_forms(origin, target)?;
             let target = self.strip_borrows(origin, target)?;
-            if !self.decide_relation(origin, relation, source, target)? {
+            if !self.constrain_type(origin, cause, relation, source, target)? {
                 return Ok(false);
             }
         }
@@ -1090,7 +1106,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         this_parameter: ThisParameterComparison,
-    ) -> CompilerResult<Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>>> {
+    ) -> CompilerResult<Option<SmallVec<[FunctionAssignabilityPair; 8]>>> {
         // require two function signatures
         let (Some(source_signature), Some(target_signature)) =
             (self.signature_head(source)?, self.signature_head(target)?)
@@ -1098,7 +1114,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
+        let mut pairs = SmallVec::<[FunctionAssignabilityPair; 8]>::new();
 
         // compare receiver input contravariantly for function values
         if this_parameter.includes_this() {
@@ -1106,7 +1122,7 @@ impl CheckState<'_> {
                 source_signature.this_parameter,
                 target_signature.this_parameter,
             ) {
-                (Some(source), Some(target)) => pairs.push((target, source)),
+                (Some(source), Some(target)) => pairs.push((None, target, source)),
                 (None, _) => {}
                 (Some(_), None) => return Ok(None),
             }
@@ -1123,19 +1139,28 @@ impl CheckState<'_> {
 
         // compare runtime inputs contravariantly
         let shared = source_parameters.len().min(target_parameters.len());
-        for (source, target) in source_parameters[..shared]
+        for (index, (source, target)) in source_parameters[..shared]
             .iter()
             .zip(&target_parameters[..shared])
+            .enumerate()
         {
             if source.is_rest != target.is_rest {
                 return Ok(None);
             }
-            pairs.push((target.ty, source.ty));
+            pairs.push((
+                Some(CauseKind::Parameter {
+                    index: index as u32,
+                }),
+                target.ty,
+                source.ty,
+            ));
         }
 
         // compare outputs covariantly
         match (source_signature.return_type, target_signature.return_type) {
-            (Some(source), Some(target)) => pairs.push((source, target)),
+            (Some(source), Some(target)) => {
+                pairs.push((Some(CauseKind::ReturnSlot), source, target));
+            }
             (_, None) => {}
             (None, Some(_)) => return Ok(None),
         }

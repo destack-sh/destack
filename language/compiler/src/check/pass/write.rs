@@ -32,7 +32,7 @@ impl CheckState<'_> {
 
         // write each identity value as a type static
         for (symbol, value) in identities {
-            let value = self.resolve_committed_type(value, &FxIndexSet::default())?;
+            let value = self.fully_resolve(value, &FxIndexSet::default())?;
             let state = self.module_mut(module);
             if state.statics_tail.get_symbol_static_id(symbol).is_some() {
                 continue;
@@ -295,7 +295,7 @@ impl CheckState<'_> {
         // keep the symbols whose value settled on a scalar literal
         let mut literals = Vec::new();
         for (symbol, value) in static_values {
-            let value = self.resolve_head(value)?;
+            let value = self.shallow_resolve(value)?;
             if let dir::Type::Literal(literal) = self.ty(value)? {
                 literals.push((symbol, literal));
             }

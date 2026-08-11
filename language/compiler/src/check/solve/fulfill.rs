@@ -362,7 +362,7 @@ impl CheckState<'_> {
             )?;
 
             // stall failed targets with open variables and open union targets
-            let target = self.resolve_head(expectation.target)?;
+            let target = self.shallow_resolve(expectation.target)?;
             let is_choice = matches!(
                 self.ty(target)?,
                 dir::Type::Union(_) | dir::Type::Intersection(_)
@@ -424,7 +424,7 @@ impl CheckState<'_> {
         let source = self.fulfill.obligations.get(id)?.obligation.source();
         let blocker = match self.committed_node_type(source) {
             Some(ty) => {
-                let ty = self.resolve_head(ty)?;
+                let ty = self.shallow_resolve(ty)?;
 
                 self.root_variable(ty)?.map(Some)
             }
@@ -548,10 +548,10 @@ impl CheckState<'_> {
         if verdict == Verdict::Ambiguous
             && settle == Settle::Final
             && self
-                .root_variable(self.resolve_head(constraint.source)?)?
+                .root_variable(self.shallow_resolve(constraint.source)?)?
                 .is_none()
             && self
-                .root_variable(self.resolve_head(constraint.target)?)?
+                .root_variable(self.shallow_resolve(constraint.target)?)?
                 .is_none()
         {
             verdict = Verdict::Fails;

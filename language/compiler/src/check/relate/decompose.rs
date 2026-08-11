@@ -401,7 +401,7 @@ impl CheckState<'_> {
         &self,
         qualifier: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let qualifier = self.resolve_head(qualifier)?;
+        let qualifier = self.shallow_resolve(qualifier)?;
         match self.ty(qualifier)? {
             dir::Type::Reference(reference) => Ok(Some(reference.symbol)),
             dir::Type::Application(instance) => Ok(Some(instance.symbol)),
@@ -424,25 +424,25 @@ impl CheckState<'_> {
         actual: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // bind direct parameters before reducing the authored argument
-        let pattern = self.resolve_head(pattern)?;
+        let pattern = self.shallow_resolve(pattern)?;
         if let dir::Type::Parameter(parameter) = self.ty(pattern)? {
             // defer open actuals under an already-bound rigid parameter to the relation
             if !parameters.contains(&parameter) {
-                let actual = self.resolve_head(actual)?;
+                let actual = self.shallow_resolve(actual)?;
                 if self.root_variable(actual)?.is_some() {
                     return Ok(true);
                 }
             }
             // bind open extension parameters directly
             else {
-                let actual = self.resolve_head(actual)?;
+                let actual = self.shallow_resolve(actual)?;
 
                 return self.bind_generic_argument(origin, substitution, parameter, actual);
             }
         }
 
-        // match written faces, the stuck retry reduces heads once matching fails
-        let actual = self.resolve_head(actual)?;
+        // match the written heads, the stuck retry reduces them once matching fails
+        let actual = self.shallow_resolve(actual)?;
 
         // leave parameter-free patterns over an open actual to the relation
         if self.root_variable(actual)?.is_some() && !self.type_flags(pattern)?.has_parameter() {
@@ -520,8 +520,8 @@ impl CheckState<'_> {
         }
 
         // retry a stuck match once over reduced heads
-        let reduced_pattern = self.normalize_stuck(origin, pattern)?;
-        let reduced_actual = self.normalize_stuck(origin, actual)?;
+        let reduced_pattern = self.structurally_normalize(origin, pattern)?;
+        let reduced_actual = self.structurally_normalize(origin, actual)?;
         if reduced_pattern == pattern && reduced_actual == actual {
             return Ok(false);
         }
@@ -589,7 +589,7 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Slot two applied argument lists by kind, collecting lifetimes proof-only.
+    /// Slot two applied argument lists by kind, collecting lifetimes for proof only.
     pub(in crate::check) fn slot_application_arguments(
         &self,
         source: &[dir::GlobalTypeId],
@@ -680,7 +680,7 @@ impl CheckState<'_> {
             return Ok(true);
         };
 
-        self.decide_relation(origin, Relation::Equal, bound, argument)
+        self.evaluate_relation(origin, Relation::Equal, bound, argument)
     }
 
     /// Match fixed positional type pairs.

@@ -53,8 +53,8 @@ impl BodyState<'_, '_> {
         mode: InferMode,
     ) -> CompilerResult<ValueConversion> {
         // resolve both sides and collect the variables they still hold open
-        source.ty = self.resolve_head(source.ty)?;
-        let mut target = self.resolve_head(target)?;
+        source.ty = self.shallow_resolve(source.ty)?;
+        let mut target = self.shallow_resolve(target)?;
         let mut variables = self.type_variables(source.ty)?;
         variables.extend(self.type_variables(target)?);
 
@@ -72,8 +72,8 @@ impl BodyState<'_, '_> {
 
             // open conversions finish once the enclosing inference closes
             if holds {
-                source.ty = self.resolve_head(source.ty)?;
-                target = self.resolve_head(target)?;
+                source.ty = self.shallow_resolve(source.ty)?;
+                target = self.shallow_resolve(target)?;
                 variables = self.type_variables(source.ty)?;
                 variables.extend(self.type_variables(target)?);
                 if !variables.is_empty() {
@@ -99,8 +99,8 @@ impl BodyState<'_, '_> {
                 // settle the conversion's own variables at the statement close
                 if !variables.is_empty() {
                     self.resolve_variables(&variables)?;
-                    source.ty = self.resolve_head(source.ty)?;
-                    target = self.resolve_head(target)?;
+                    source.ty = self.shallow_resolve(source.ty)?;
+                    target = self.shallow_resolve(target)?;
                     variables = self.type_variables(source.ty)?;
                     variables.extend(self.type_variables(target)?);
                 }
@@ -314,13 +314,13 @@ impl BodyState<'_, '_> {
         use_: ValueUse,
     ) -> CompilerResult<Result<Option<Box<dir::Coercion>>, CheckFailure>> {
         // shed redundant forms from both sides before converting
-        let source_type = self.resolve_head(source.ty)?;
+        let source_type = self.shallow_resolve(source.ty)?;
         let source_type = self.reduce_redundant_forms(origin, source_type)?;
         let source = Value {
             ty: source_type,
             ..source
         };
-        let target = self.resolve_head(target)?;
+        let target = self.shallow_resolve(target)?;
         let target = self.reduce_redundant_forms(origin, target)?;
 
         // widen a scalar singleton first, then convert the widened runtime value
@@ -394,7 +394,7 @@ impl BodyState<'_, '_> {
         // stored positions convert into the target's storage representation
         let target = match use_.requires_storage() {
             true => {
-                let target = self.deeply_normalize(origin, target)?;
+                let target = self.deeply_resolve(origin, target)?;
 
                 self.storage_type(origin, target)?
             }
@@ -402,7 +402,7 @@ impl BodyState<'_, '_> {
         };
 
         // skip adjustment for identical and unreachable values
-        if self.decide_relation(origin, Relation::Equal, source.ty, target)? {
+        if self.evaluate_relation(origin, Relation::Equal, source.ty, target)? {
             return Ok(Ok(None));
         }
         let source_value = self.strip_form(origin, source.ty)?;
@@ -485,7 +485,7 @@ impl BodyState<'_, '_> {
         if matches!(self.ty(target)?, dir::Type::Application(_))
             && self.union_arms(origin, target)?.is_none()
         {
-            let head = self.normalize_stuck(origin, target)?;
+            let head = self.structurally_normalize(origin, target)?;
             if head != target && self.union_arms(origin, head)?.is_some() {
                 return self.convert_closed_value(site, origin, cause, source, head, use_);
             }
@@ -553,7 +553,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Result<(dir::GlobalTypeId, Option<Box<dir::Coercion>>), CheckFailure>> {
         // exact cases preserve their declared identity
         for target in targets.iter().copied() {
-            if self.decide_relation(origin, Relation::Equal, source.ty, target)? {
+            if self.evaluate_relation(origin, Relation::Equal, source.ty, target)? {
                 return Ok(Ok((target, None)));
             }
         }

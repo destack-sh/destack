@@ -3,9 +3,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    BoundSide, CauseId, CheckEvent, CheckState, Constraint, DeferredCheck, InferenceScope, Origin,
-    PendingWork, Relation, TypeBound, VariableBounds, VariableRole, VariableState, Widening,
-    WorkState,
+    BoundSide, Cause, CauseId, CauseKind, CheckEvent, CheckState, Constraint, DeferredCheck,
+    InferenceScope, Origin, PendingWork, Relation, TypeBound, VariableBounds, VariableRole,
+    VariableState, Widening, WorkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -581,7 +581,7 @@ impl CheckState<'_> {
         };
 
         // expose the chosen solution's named head
-        let solution = self.resolve_head(solution)?;
+        let solution = self.shallow_resolve(solution)?;
         let solution = self.reduce_redundant_forms(origin, solution)?;
 
         // commit canonical memory literals for memory variables
@@ -631,7 +631,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         // require every produced value to flow into the solution
         for bound in lower {
-            match self.decide_relation(origin, bound.relation, bound.ty, solution)? {
+            match self.evaluate_relation(origin, bound.relation, bound.ty, solution)? {
                 true => {}
                 false => return Ok(false),
             }
@@ -639,7 +639,7 @@ impl CheckState<'_> {
 
         // require the solution to flow into every expectation
         for bound in upper {
-            match self.decide_relation(origin, bound.relation, solution, bound.ty)? {
+            match self.evaluate_relation(origin, bound.relation, solution, bound.ty)? {
                 true => {}
                 false => return Ok(false),
             }
@@ -658,12 +658,13 @@ impl CheckState<'_> {
             return Ok(false);
         };
 
-        let first = self.resolve_head(*first)?;
+        let first = self.shallow_resolve(*first)?;
 
         // compare each remaining candidate with the first
         for ty in &types[1..] {
-            let ty = self.resolve_head(*ty)?;
-            match self.decide_equal(origin, first, ty)? {
+            let ty = self.shallow_resolve(*ty)?;
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+            match self.relate_equal(origin, cause, first, ty)? {
                 true => {}
                 false => return Ok(true),
             }
@@ -731,7 +732,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         // require a committed solution to be closed
         let variable = self.infer.alias_root(variable)?;
-        let solution = self.resolve_head(solution)?;
+        let solution = self.shallow_resolve(solution)?;
         if self.root_variable(solution)?.is_some() {
             return Err(CompilerError::Internal {
                 message: format!(

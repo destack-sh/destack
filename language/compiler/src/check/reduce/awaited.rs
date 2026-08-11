@@ -22,7 +22,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let target = self.resolve_head(target)?;
+        let target = self.shallow_resolve(target)?;
         if !active.insert(target) {
             return Ok(None);
         }

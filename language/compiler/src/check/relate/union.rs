@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, Origin, Relation};
+use crate::check::{CauseId, CheckState, Origin, Relation};
 
 impl CheckState<'_> {
     /// Return the members of one union target with its enclosing forms.
@@ -38,7 +38,7 @@ impl CheckState<'_> {
         // reduce a stuck named head, which may still hide a union
         let mut arms = self.union_arms(origin, target)?;
         if arms.is_none() {
-            let head = self.normalize_stuck(origin, target)?;
+            let head = self.structurally_normalize(origin, target)?;
             if head != target {
                 arms = self.union_arms(origin, head)?;
             }
@@ -57,7 +57,7 @@ impl CheckState<'_> {
             match self.union_arms(origin, member)? {
                 Some(nested) => members.extend(nested),
                 None => {
-                    let head = self.normalize_stuck(origin, member)?;
+                    let head = self.structurally_normalize(origin, member)?;
                     match self.union_arms(origin, head)? {
                         Some(nested) => members.extend(nested),
                         None => leaves.push(member),
@@ -69,10 +69,11 @@ impl CheckState<'_> {
         Ok(Some(leaves))
     }
 
-    /// Decide a union target by membership when direct proof fell short.
-    pub(in crate::check) fn decide_union_membership(
+    /// Relate a union target by membership when direct proof fell short.
+    pub(in crate::check) fn relate_union_membership(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         decision: bool,
         source: dir::GlobalTypeId,
@@ -94,7 +95,7 @@ impl CheckState<'_> {
         // relate the source against any one element
         let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
         for element in elements {
-            if self.decide_relation(origin, relation, source, element)? {
+            if self.constrain_type(origin, cause, relation, source, element)? {
                 return Ok(true);
             }
         }
@@ -102,16 +103,17 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Decide whether every source relates to one target.
-    pub(in crate::check) fn decide_all_sources(
+    /// Relate every source to one target.
+    pub(in crate::check) fn relate_all_sources(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         sources: &[dir::GlobalTypeId],
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         for source in sources {
-            if !self.decide_relation(origin, relation, *source, target)? {
+            if !self.constrain_type(origin, cause, relation, *source, target)? {
                 return Ok(false);
             }
         }
@@ -119,16 +121,32 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Decide whether any source relates to one target.
-    pub(in crate::check) fn decide_any_source(
+    /// Relate any one source to one target.
+    pub(in crate::check) fn relate_any_source(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         sources: &[dir::GlobalTypeId],
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // choose one open arm by constraint over the whole candidate set
+        let mut is_open = self.type_flags(target)?.has_variable();
         for source in sources {
-            if self.decide_relation(origin, relation, *source, target)? {
+            is_open = is_open || self.type_flags(*source)?.has_variable();
+        }
+        if is_open {
+            let candidates = sources
+                .iter()
+                .map(|source| (*source, target))
+                .collect::<SmallVec<[_; 4]>>();
+
+            return self.constrain_any_relation(origin, cause, relation, &candidates);
+        }
+
+        // relate any one source against the target
+        for source in sources {
+            if self.constrain_type(origin, cause, relation, *source, target)? {
                 return Ok(true);
             }
         }
@@ -136,16 +154,17 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Decide whether one source relates to every target.
-    pub(in crate::check) fn decide_all_targets(
+    /// Relate one source to every target.
+    pub(in crate::check) fn relate_all_targets(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         targets: &[dir::GlobalTypeId],
     ) -> CompilerResult<bool> {
         for target in targets {
-            if !self.decide_relation(origin, relation, source, *target)? {
+            if !self.constrain_type(origin, cause, relation, source, *target)? {
                 return Ok(false);
             }
         }
@@ -153,10 +172,11 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Decide whether one source relates to any target.
-    pub(in crate::check) fn decide_any_target(
+    /// Relate one source to any one target.
+    pub(in crate::check) fn relate_any_target(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         targets: &[dir::GlobalTypeId],
@@ -170,9 +190,23 @@ impl CheckState<'_> {
             }
         }
 
+        // choose one open arm by constraint over the whole candidate set
+        let mut is_open = self.type_flags(source)?.has_variable();
+        for target in targets {
+            is_open = is_open || self.type_flags(*target)?.has_variable();
+        }
+        if is_open {
+            let candidates = targets
+                .iter()
+                .map(|target| (source, *target))
+                .collect::<SmallVec<[_; 4]>>();
+
+            return self.constrain_any_relation(origin, cause, relation, &candidates);
+        }
+
         // relate the source against any one target
         for target in targets {
-            if self.decide_relation(origin, relation, source, *target)? {
+            if self.constrain_type(origin, cause, relation, source, *target)? {
                 return Ok(true);
             }
         }

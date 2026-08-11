@@ -298,7 +298,7 @@ impl BodyState<'_, '_> {
             let left_operand = self.strip_form(origin, left)?;
             let right_operand = self.strip_form(origin, right)?;
             let target = self.language_type(dir::LanguageItem::PartialEqual, &[right_operand])?;
-            if self.decide_relation(origin, Relation::Satisfies, left_operand, target)? {
+            if self.evaluate_relation(origin, Relation::Satisfies, left_operand, target)? {
                 // record the selection so later passes replay this dispatch
                 let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
                 if let Some(key) = selection_key {
@@ -726,7 +726,7 @@ impl BodyState<'_, '_> {
         } else {
             let mut is_equal = true;
             for operand in rest {
-                is_equal &= self.decide_relation(origin, Relation::Equal, *first, *operand)?;
+                is_equal &= self.evaluate_relation(origin, Relation::Equal, *first, *operand)?;
             }
 
             is_equal.then_some(*first)
@@ -1016,7 +1016,7 @@ impl BodyState<'_, '_> {
                     dir::Type::Parameter(_) => {
                         self.builtin_scalar_accepts_literal(origin, left, right)?
                     }
-                    _ => self.decide_relation(origin, Relation::Assignable, left, right)?,
+                    _ => self.evaluate_relation(origin, Relation::Assignable, left, right)?,
                 };
 
                 Ok(adapts.then_some(right))
@@ -1026,14 +1026,14 @@ impl BodyState<'_, '_> {
                     dir::Type::Parameter(_) => {
                         self.builtin_scalar_accepts_literal(origin, right, left)?
                     }
-                    _ => self.decide_relation(origin, Relation::Assignable, right, left)?,
+                    _ => self.evaluate_relation(origin, Relation::Assignable, right, left)?,
                 };
 
                 Ok(adapts.then_some(left))
             }
             // typed operands must agree exactly
             (None, None) => {
-                let equal = self.decide_relation(origin, Relation::Equal, left, right)?;
+                let equal = self.evaluate_relation(origin, Relation::Equal, left, right)?;
 
                 Ok(equal.then_some(left))
             }

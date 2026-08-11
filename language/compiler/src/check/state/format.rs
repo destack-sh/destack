@@ -46,7 +46,7 @@ impl CheckState<'_> {
         }
 
         // resolve the root before rendering it
-        let id = self.resolve_head(id)?;
+        let id = self.shallow_resolve(id)?;
         let next = depth - 1;
 
         let rendered = match self.ty(id)? {
@@ -367,7 +367,7 @@ impl CheckState<'_> {
         function: &dir::FunctionPointerType,
         depth: usize,
     ) -> CompilerResult<String> {
-        let signature_id = self.resolve_head(function.signature)?;
+        let signature_id = self.shallow_resolve(function.signature)?;
         let Some(signature) = self.signature_head(signature_id)? else {
             let signature = self.format_depth_at(module, function.signature, depth)?;
 
@@ -433,7 +433,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         depth: usize,
     ) -> CompilerResult<String> {
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
 
         // arrays use the written rest form
         match self.ty(ty)? {
@@ -463,7 +463,7 @@ impl CheckState<'_> {
             dir::Form::Readonly => format!("readonly {value}"),
             dir::Form::Borrowed(borrow) => {
                 let borrow = self.type_borrow(owner, *borrow)?;
-                let access = match self.ty(self.resolve_head(borrow.access)?)? {
+                let access = match self.ty(self.shallow_resolve(borrow.access)?)? {
                     dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
                         "readonly "
                     }
@@ -473,8 +473,8 @@ impl CheckState<'_> {
                     _ => "",
                 };
 
-                // spell named and static provenance, eliding the frame default
-                let lifetime = match self.ty(self.resolve_head(borrow.lifetime)?)? {
+                // render named and static provenance, eliding the frame default
+                let lifetime = match self.ty(self.shallow_resolve(borrow.lifetime)?)? {
                     dir::Type::Parameter(parameter) => {
                         let name = self.format_parameter(parameter);
                         match name
@@ -495,7 +495,7 @@ impl CheckState<'_> {
                 format!("&{lifetime}{access}{value}")
             }
             dir::Form::Placed { place } => {
-                let place = match self.ty(self.resolve_head(*place)?)? {
+                let place = match self.ty(self.shallow_resolve(*place)?)? {
                     dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))) => {
                         match space {
                             dir::Space::Local => "local ",

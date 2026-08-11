@@ -233,7 +233,7 @@ impl BodyState<'_, '_> {
                     target: expectation.target,
                 });
             }
-            let no_infer = self.resolve_head(no_infer)?;
+            let no_infer = self.shallow_resolve(no_infer)?;
             expectation.target = no_infer;
         }
 

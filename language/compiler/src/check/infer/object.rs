@@ -97,7 +97,7 @@ impl BodyState<'_, '_> {
 
                     // record the operations exposed by the method
                     let role = MemberRole::from(signature.role);
-                    let ty = self.check.resolve_head(ty)?;
+                    let ty = self.check.shallow_resolve(ty)?;
                     let authored_access =
                         self.check
                             .property_access(role, ty, false)?
@@ -262,7 +262,7 @@ impl BodyState<'_, '_> {
                     if field.is_none() {
                         let key_type = self.static_key_type(key)?;
                         for signature in &index_signatures {
-                            let accepts = self.check.decide_relation(
+                            let accepts = self.check.evaluate_relation(
                                 origin,
                                 Relation::Assignable,
                                 key_type,
@@ -420,7 +420,7 @@ impl BodyState<'_, '_> {
 
                     // record the operations exposed by the method
                     let role = MemberRole::from(signature.role);
-                    let ty = self.check.resolve_head(ty)?;
+                    let ty = self.check.shallow_resolve(ty)?;
                     let authored_access =
                         self.check
                             .property_access(role, ty, false)?
@@ -460,7 +460,7 @@ impl BodyState<'_, '_> {
             }));
         }
 
-        // adopt the slot class and memory form only for storage into a concrete object or intersection
+        // adopt the slot class and memory form only for concrete object and intersection storage
         let is_adopting = expectation.relation != Relation::Satisfies
             && matches!(
                 self.ty(target_value)?,

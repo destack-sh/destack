@@ -310,7 +310,7 @@ impl BodyState<'_, '_> {
 
         // resolve relative member parameters at the receiver's place
         let parameter_type = self.receiver_relative_type(origin, receiver, parameter_type)?;
-        let parameter_type = self.resolve_head(parameter_type)?;
+        let parameter_type = self.shallow_resolve(parameter_type)?;
 
         // rest parameters retain their collection type and accept its element per source
         let argument_type = match parameter.is_rest {
@@ -395,7 +395,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         rest: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let reduced = self.check.deeply_normalize(origin, rest)?;
+        let reduced = self.check.deeply_resolve(origin, rest)?;
 
         // placed collections accept their element in the collection's place
         if let dir::Type::Form(form) = self.check.ty(reduced)?

@@ -196,7 +196,7 @@ impl CheckState<'_> {
         substitution: &TypeSubstitution,
     ) -> CompilerResult<bool> {
         for binding in &substitution.bindings {
-            let argument = self.resolve_head(binding.argument)?;
+            let argument = self.shallow_resolve(binding.argument)?;
             let is_self = matches!(
                 self.ty(argument)?,
                 dir::Type::Parameter(parameter) if parameter == binding.parameter
@@ -495,7 +495,7 @@ impl CheckState<'_> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let id = self.resolve_head(id)?;
+        let id = self.shallow_resolve(id)?;
         if let Some(dir::TypeOperation::NoInfer(operation)) = self.operation_head(id)? {
             return Ok(Some(operation.target));
         }

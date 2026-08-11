@@ -75,7 +75,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         let ty = self.symbol_type(field.symbol)?;
         let undefined = self.intern_type(dir::Type::Undefined)?;
-        let is_assignable = self.decide_relation(origin, Relation::Assignable, undefined, ty)?;
+        let is_assignable = self.evaluate_relation(origin, Relation::Assignable, undefined, ty)?;
 
         Ok(!is_assignable)
     }

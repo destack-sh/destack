@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use destack_source::ModuleId;
 
-use crate::check::{CheckState, Origin, Relation, TypeSubstitution, Verdict};
+use crate::check::{Cause, CauseKind, CheckState, Origin, Relation, TypeSubstitution, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -42,7 +42,7 @@ impl CheckState<'_> {
             };
             if let Some(other) = other {
                 // read argument solutions settled since the bound was queued
-                let other = self.resolve_head(other)?;
+                let other = self.shallow_resolve(other)?;
                 let substitution = TypeSubstitution::default().with_receiver(ty);
                 let other = self.substitute_type(other, &substitution)?;
 
@@ -61,7 +61,7 @@ impl CheckState<'_> {
 
                 // require the argument to equal the receiver otherwise
                 let receiver_holds =
-                    numeric || self.decide_relation(origin, Relation::Equal, ty, other)?;
+                    numeric || self.evaluate_relation(origin, Relation::Equal, ty, other)?;
                 if !receiver_holds {
                     // leave the receiver rule undecided for an open argument
                     if !self.open_type_variables([ty, other])?.is_empty() {
@@ -197,16 +197,18 @@ impl CheckState<'_> {
         interface: dir::AutoInterface,
     ) -> CompilerResult<Option<bool>> {
         // read the settled head of the subject
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
 
         // select the bounds owned by each generic form
         let decision = match self.ty(ty)? {
             dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
                 let item = dir::LanguageItem::from(interface);
                 let target = self.language_type(item, &[])?;
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
-                Some(self.decide_parameter_relation(
+                Some(self.relate_parameter_bounds(
                     origin,
+                    cause,
                     Relation::Satisfies,
                     parameter,
                     target,
@@ -215,8 +217,9 @@ impl CheckState<'_> {
             dir::Type::This => {
                 let item = dir::LanguageItem::from(interface);
                 let target = self.language_type(item, &[])?;
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
-                Some(self.decide_this_relation(origin, Relation::Satisfies, target)?)
+                Some(self.relate_this_bounds(origin, cause, Relation::Satisfies, target)?)
             }
             _ => None,
         };

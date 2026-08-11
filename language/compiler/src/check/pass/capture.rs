@@ -198,7 +198,7 @@ impl CheckState<'_> {
         let this = match capture.receiver {
             Some(receiver) => {
                 let mode = self.capture_mode(module, directive.as_ref(), receiver.symbol)?;
-                let ty = self.resolve_head(receiver.receiver.ty)?;
+                let ty = self.shallow_resolve(receiver.receiver.ty)?;
 
                 Some(dir::CapturedReceiver {
                     symbol: receiver.symbol,
@@ -258,7 +258,7 @@ impl CheckState<'_> {
                 ),
             });
         };
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
 
         Ok(ty)
     }

@@ -1,8 +1,8 @@
 mod assign;
 mod cast;
-mod decide;
 mod decompose;
 mod equal;
+mod evaluate;
 mod form;
 mod immutable;
 mod interface;
@@ -15,6 +15,6 @@ mod union;
 mod variance;
 mod widen;
 
-pub(in crate::check) use decide::*;
+pub(in crate::check) use evaluate::*;
 pub(in crate::check) use interface::*;
 pub(in crate::check) use variance::*;

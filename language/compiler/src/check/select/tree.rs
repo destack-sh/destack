@@ -91,7 +91,7 @@ impl BodyState<'_, '_> {
         )?;
         let interface = protocol.instance(self.check, origin.module())?;
         let interface = self.check.intern_type(dir::Type::Application(interface))?;
-        let implements = self.decide_relation(origin, Relation::Satisfies, target, interface)?;
+        let implements = self.evaluate_relation(origin, Relation::Satisfies, target, interface)?;
 
         Ok(implements.then_some(target))
     }
@@ -282,7 +282,7 @@ impl BodyState<'_, '_> {
             .intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType {
                 target: tags.ty,
             }))?;
-        let accepted = self.decide_relation(origin, Relation::Satisfies, tag_type, rows)?;
+        let accepted = self.evaluate_relation(origin, Relation::Satisfies, tag_type, rows)?;
         if !accepted {
             self.check
                 .report_unknown_tree_tag(module, node.local_id, tag, builder);
@@ -422,7 +422,7 @@ impl BodyState<'_, '_> {
                         let key_type = self.check.static_key_type(field.key)?;
 
                         // spread members outside the row pass through unchecked
-                        if !self.decide_relation(origin, Relation::Satisfies, key_type, keys)? {
+                        if !self.evaluate_relation(origin, Relation::Satisfies, key_type, keys)? {
                             continue;
                         }
                         let property = self.tree_row_projection(origin, row, key_type)?;
@@ -480,7 +480,7 @@ impl BodyState<'_, '_> {
             .intern_type(dir::Type::Literal(dir::ScalarLiteral::String(key)))?;
 
         // reject attributes outside the declared row
-        if !self.decide_relation(origin, Relation::Satisfies, key_type, keys)? {
+        if !self.evaluate_relation(origin, Relation::Satisfies, key_type, keys)? {
             self.check
                 .report_unknown_tree_attribute(module, node.local_id, key, row);
             self.check.commit_decision(node, dir::Decision::Rejected)?;

@@ -137,7 +137,7 @@ impl CheckState<'_> {
         key_type: dir::GlobalTypeId,
     ) -> CompilerResult<OperationReduction> {
         // resolve a stuck named head before selecting the member space
-        let head = self.normalize_stuck(origin, owner)?;
+        let head = self.structurally_normalize(origin, owner)?;
         let space = match self.ty(head)? {
             dir::Type::Reference(_) | dir::Type::Static(_) => dir::MemberSpace::Static,
             _ => dir::MemberSpace::Instance,

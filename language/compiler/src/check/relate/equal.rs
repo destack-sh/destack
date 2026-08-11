@@ -5,16 +5,23 @@ use crate::check::{CauseId, CheckState, Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Decide exact equality of two reduced types.
-    pub(in crate::check) fn decide_equal(
+    /// Relate two reduced types under exact equality.
+    pub(in crate::check) fn relate_equal(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // error types poison silently instead of cascading
             (dir::Type::Error, _) | (_, dir::Type::Error) => true,
+            // compare lifetime pairs equal, MIR Verify enforces outlives
+            (_, _)
+                if self.is_lifetime_slot_type(source)? && self.is_lifetime_slot_type(target)? =>
+            {
+                true
+            }
             // unit types compare by kind
             (dir::Type::Null, dir::Type::Null)
             | (dir::Type::Undefined, dir::Type::Undefined)
@@ -43,12 +50,6 @@ impl CheckState<'_> {
             | (dir::Type::Literal(dir::ScalarLiteral::String(text)), dir::Type::Memory(memory)) => {
                 text == dir::StringId::for_text(memory.text())
             }
-            // defer lifetime outlives checks to Verify
-            (source, target)
-                if self.is_lifetime_shaped(source) && self.is_lifetime_shaped(target) =>
-            {
-                true
-            }
             (dir::Type::Memory(source), dir::Type::Memory(target)) => source == target,
             (dir::Type::Static(source), dir::Type::Static(target)) => source == target,
             (dir::Type::Parameter(source), dir::Type::Parameter(target)) => source == target,
@@ -63,7 +64,7 @@ impl CheckState<'_> {
                     .type_ids(target.module_id, target_union.elements)?
                     .to_vec();
 
-                self.decide_type_sets_equal(origin, &source, &target)?
+                self.relate_type_sets_equal(origin, cause, &source, &target)?
             }
             (
                 dir::Type::Intersection(source_intersection),
@@ -76,12 +77,13 @@ impl CheckState<'_> {
                     .type_ids(target.module_id, target_intersection.elements)?
                     .to_vec();
 
-                self.decide_type_sets_equal(origin, &source, &target)?
+                self.relate_type_sets_equal(origin, cause, &source, &target)?
             }
             // memory forms compare constructor and payload
             (dir::Type::Form(source_form), dir::Type::Form(target_form)) => {
-                let constructor = self.decide_form_equal(
+                let constructor = self.relate_form_equal(
                     origin,
+                    cause,
                     source.module_id,
                     source_form.form,
                     target.module_id,
@@ -91,8 +93,9 @@ impl CheckState<'_> {
                     return Ok(constructor);
                 }
 
-                self.decide_relation(
+                self.constrain_type(
                     origin,
+                    cause,
                     Relation::Equal,
                     source_form.value,
                     target_form.value,
@@ -101,11 +104,11 @@ impl CheckState<'_> {
             // structural shapes and functions
             (dir::Type::Shape(_), dir::Type::Shape(_))
             | (dir::Type::Object(_), dir::Type::Object(_)) => {
-                self.decide_shape_equal(origin, source, target)?
+                self.relate_shape_equal(origin, cause, source, target)?
             }
             // composites compare fixed slots beneath one shared constructor
             _ => match self.decompose_type_pair(source, target)? {
-                Some(pairs) => self.decide_each(origin, Relation::Equal, &pairs)?,
+                Some(pairs) => self.relate_each(origin, cause, Relation::Equal, &pairs)?,
                 None => false,
             },
         };
@@ -113,53 +116,8 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Return whether one type names a lifetime literal or parameter.
-    fn is_lifetime_shaped(&self, ty: dir::Type) -> bool {
-        match ty {
-            dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)) => true,
-            dir::Type::Parameter(parameter) => {
-                self.generic_parameter(parameter).is_some_and(|binding| {
-                    binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
-                })
-            }
-            _ => false,
-        }
-    }
-
-    /// Decide equality between two unordered type sets.
-    fn decide_type_sets_equal(
-        &mut self,
-        origin: Origin,
-        source: &[dir::GlobalTypeId],
-        target: &[dir::GlobalTypeId],
-    ) -> CompilerResult<bool> {
-        if source.len() != target.len() {
-            return Ok(false);
-        }
-        let mut unmatched = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(target);
-
-        // consume one equal target for each source element
-        for source in source.iter().copied() {
-            let mut matched = None;
-            for (index, target) in unmatched.iter().copied().enumerate() {
-                if self.decide_relation(origin, Relation::Equal, source, target)? {
-                    matched = Some(index);
-
-                    break;
-                }
-            }
-
-            let Some(index) = matched else {
-                return Ok(false);
-            };
-            unmatched.remove(index);
-        }
-
-        Ok(true)
-    }
-
-    /// Constrain equality between two unordered type sets.
-    pub(in crate::check) fn constrain_type_sets_equal(
+    /// Relate equality between two unordered type sets.
+    pub(in crate::check) fn relate_type_sets_equal(
         &mut self,
         origin: Origin,
         cause: CauseId,
@@ -181,10 +139,15 @@ impl CheckState<'_> {
             for (target_index, target_type) in target.iter().copied().enumerate() {
                 let is_target_open = !self.type_variables(target_type)?.is_empty();
                 if is_source_open || is_target_open {
-                    if self.resolve_head(source_type)? == self.resolve_head(target_type)? {
+                    if self.shallow_resolve(source_type)? == self.shallow_resolve(target_type)? {
                         matched = Some(target_index);
                     }
-                } else if self.decide_relation(origin, Relation::Equal, source_type, target_type)? {
+                } else if self.evaluate_relation(
+                    origin,
+                    Relation::Equal,
+                    source_type,
+                    target_type,
+                )? {
                     matched = Some(target_index);
                 }
                 if matched.is_some() {

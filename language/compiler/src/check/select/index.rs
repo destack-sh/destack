@@ -516,7 +516,7 @@ impl BodyState<'_, '_> {
 
         // prefer index signatures declared by the selected interface
         for signature in requirements.index_signatures {
-            let accepts = self.decide_relation(
+            let accepts = self.evaluate_relation(
                 origin,
                 Relation::Assignable,
                 index,
@@ -854,7 +854,7 @@ impl BodyState<'_, '_> {
             .to_vec();
         for (position, signature) in index_signatures.into_iter().enumerate() {
             let accepts =
-                self.decide_relation(origin, Relation::Assignable, index, signature.key_type)?;
+                self.evaluate_relation(origin, Relation::Assignable, index, signature.key_type)?;
             if accepts {
                 let target = dir::MemberTarget::Index(dir::IndexResolution {
                     receiver: dir::MemberReceiver::direct(lookup_receiver),
@@ -875,7 +875,7 @@ impl BodyState<'_, '_> {
         let key_domain = self.intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType {
             target: lookup_receiver,
         }))?;
-        let accepts = self.decide_relation(origin, Relation::Assignable, index, key_domain)?;
+        let accepts = self.evaluate_relation(origin, Relation::Assignable, index, key_domain)?;
         if accepts {
             let fields = self
                 .shape_properties(lookup_receiver.module_id, shape.properties)?
@@ -978,7 +978,7 @@ impl BodyState<'_, '_> {
         let key = method.key(self.strings());
 
         // classify candidates against the checked key while still flowing context into it
-        let index = self.resolve_head(index)?;
+        let index = self.shallow_resolve(index)?;
         let Some((_protocol, call)) = self.select_language_protocol_call(
             origin,
             receiver,
@@ -1048,7 +1048,7 @@ impl BodyState<'_, '_> {
             // absorb the forms a stuck head still hides
             let chain = loop {
                 let chain = self.form_chain(origin, arm)?;
-                let head = self.check.normalize_stuck(origin, chain.base())?;
+                let head = self.check.structurally_normalize(origin, chain.base())?;
                 if head == chain.base() || !matches!(self.ty(head)?, dir::Type::Form(_)) {
                     break chain;
                 }
@@ -1134,7 +1134,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Option<SubscriptSelection>> {
         let method = SubscriptProtocol::IndexSet;
         let key = method.key(self.strings());
-        let index = self.resolve_head(index)?;
+        let index = self.shallow_resolve(index)?;
         let Some((_protocol, member)) = self.select_language_protocol_member(
             origin,
             receiver.ty,
@@ -1331,7 +1331,7 @@ impl BodyState<'_, '_> {
             return Ok(false);
         };
 
-        self.decide_relation(origin, relation, call.return_type, read_type)
+        self.evaluate_relation(origin, relation, call.return_type, read_type)
     }
 
     /// Decide whether `IndexSet<I>` accepts values compatible with one signature.
@@ -1383,8 +1383,8 @@ impl BodyState<'_, '_> {
             _ => self.normalized_intersection_type(value_types)?,
         };
 
-        let key_holds = self.decide_relation(origin, relation, key_type, key)?;
-        let value_holds = self.decide_relation(origin, relation, value_type, input)?;
+        let key_holds = self.evaluate_relation(origin, relation, key_type, key)?;
+        let value_holds = self.evaluate_relation(origin, relation, value_type, input)?;
 
         Ok(key_holds && (value_holds))
     }

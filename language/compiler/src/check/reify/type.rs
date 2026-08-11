@@ -184,7 +184,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         target_type: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<Option<dir::TypeExpression>> {
         // require a settled access literal for the borrow modifier
-        let access = match self.check.ty(self.check.resolve_head(access)?)? {
+        let access = match self.check.ty(self.check.shallow_resolve(access)?)? {
             dir::Type::Memory(dir::MemoryLiteral::Access(access)) => access,
             _ => return Ok(None),
         };
@@ -195,7 +195,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         };
 
         // name the tick parameter or reserved lifetime literal
-        let name = match self.check.ty(self.check.resolve_head(lifetime)?)? {
+        let name = match self.check.ty(self.check.shallow_resolve(lifetime)?)? {
             dir::Type::Parameter(parameter) => {
                 let Some(binding) = self.check.generic_parameter(parameter) else {
                     return Ok(None);
@@ -289,7 +289,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         if depth == 0 {
             return Ok(None);
         }
-        let id = self.check.resolve_head(id)?;
+        let id = self.check.shallow_resolve(id)?;
         let ty = self.check.ty(id)?;
         let next = depth - 1;
 
@@ -430,7 +430,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 let Some(element) = self.reify_depth(array.element, next)? else {
                     return Ok(None);
                 };
-                let count = self.check.resolve_head(array.count)?;
+                let count = self.check.shallow_resolve(array.count)?;
                 let dir::Type::Literal(value) = self.check.ty(count)? else {
                     return Ok(None);
                 };
@@ -570,13 +570,13 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         let borrow = self.check.type_borrow(id.module_id, *borrow)?;
                         let (lifetime, access) = (borrow.lifetime, borrow.access);
 
-                        // spell settled borrows through the borrow form
+                        // render settled borrows through the borrow form
                         if let Some(borrowed) =
                             self.reify_borrowed_of(lifetime, access, target_type)?
                         {
                             borrowed
                         }
-                        // parametric slots keep the full algebra spelling
+                        // render parametric slots through the full algebra
                         else {
                             let Some(lifetime) = self.reify_static_depth(lifetime, next)? else {
                                 return Ok(None);
@@ -600,7 +600,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         }
                     }
                     dir::Form::Placed { place } => {
-                        let place = self.check.resolve_head(*place)?;
+                        let place = self.check.shallow_resolve(*place)?;
                         let concrete = match self.check.ty(place)? {
                             dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(
                                 space,
@@ -675,7 +675,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             return Ok(None);
         }
 
-        let id = self.check.resolve_head(id)?;
+        let id = self.check.shallow_resolve(id)?;
         let dir::Type::Union(union) = self.check.ty(id)? else {
             return self.reify_depth(id, depth);
         };
@@ -683,7 +683,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
         let mut elements = Vec::new();
         for element in &union_elements {
-            let element = self.check.resolve_head(*element)?;
+            let element = self.check.shallow_resolve(*element)?;
             if self.check.ty(element)?.is_undefined() {
                 continue;
             }
@@ -884,7 +884,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         function: &dir::FunctionPointerType,
         depth: usize,
     ) -> CompilerResult<Option<dir::TypeExpression>> {
-        let signature_id = self.check.resolve_head(function.signature)?;
+        let signature_id = self.check.shallow_resolve(function.signature)?;
         let Some(signature) = self.check.signature_head(signature_id)? else {
             return Ok(None);
         };
@@ -1047,7 +1047,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         if depth == 0 {
             return Ok(None);
         }
-        let id = self.check.resolve_head(id)?;
+        let id = self.check.shallow_resolve(id)?;
 
         let expression = match self.check.ty(id)? {
             dir::Type::Literal(value) => dir::Expression::ScalarLiteral(value),

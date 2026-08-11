@@ -2,7 +2,7 @@ use destack_core::{FxIndexSet, ensure_sufficient_stack};
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, Origin, Relation};
+use crate::check::{Cause, CauseId, CauseKind, CheckState, Origin, Relation};
 
 /// The outcome of deciding one relation, keeping ambiguity apart from failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,8 +39,8 @@ impl Verdict {
 }
 
 impl CheckState<'_> {
-    /// Decide one relation between closed type roots, growing the stack.
-    pub(in crate::check) fn decide_relation(
+    /// Evaluate one relation between type roots as a pure query, growing the stack.
+    pub(in crate::check) fn evaluate_relation(
         &mut self,
         origin: Origin,
         relation: Relation,
@@ -48,31 +48,31 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // read solved variables through their committed rows
-        let mut source = self.resolve_head(source)?;
+        let mut source = self.shallow_resolve(source)?;
         if self.type_flags(source)?.has_variable() {
-            source = self.resolve_committed_type(source, &FxIndexSet::default())?;
+            source = self.fully_resolve(source, &FxIndexSet::default())?;
         }
-        let mut target = self.resolve_head(target)?;
+        let mut target = self.shallow_resolve(target)?;
         if self.type_flags(target)?.has_variable() {
-            target = self.resolve_committed_type(target, &FxIndexSet::default())?;
+            target = self.fully_resolve(target, &FxIndexSet::default())?;
         }
 
-        // decide the written heads first
-        let holds = ensure_sufficient_stack(|| {
-            self.decide_relation_recursive(origin, relation, source, target)
-        })?;
+        // relate the written heads first
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+        let holds =
+            ensure_sufficient_stack(|| self.relate_pair(origin, cause, relation, source, target))?;
         if holds {
             return Ok(true);
         }
 
         // retry a stuck decision once over reduced heads
-        let reduced_source = self.normalize_stuck(origin, source)?;
-        let reduced_target = self.normalize_stuck(origin, target)?;
+        let reduced_source = self.structurally_normalize(origin, source)?;
+        let reduced_target = self.structurally_normalize(origin, target)?;
         if reduced_source == source && reduced_target == target {
             return Ok(false);
         }
 
-        self.decide_relation(origin, relation, reduced_source, reduced_target)
+        self.evaluate_relation(origin, relation, reduced_source, reduced_target)
     }
 
     /// Classify one judged outcome, where failure over an open head is ambiguity.
@@ -89,31 +89,34 @@ impl CheckState<'_> {
         }
 
         // retry the judgment once an open head solves
-        let source = self.resolve_head(source)?;
-        let target = self.resolve_head(target)?;
+        let source = self.shallow_resolve(source)?;
+        let target = self.shallow_resolve(target)?;
         if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
             return Ok(Verdict::Ambiguous);
         }
 
         // predicates carry their own ambiguity
         if relation == Relation::Satisfies {
-            return self.decide_satisfies(origin, relation, source, target);
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
+            return self.relate_satisfies(origin, cause, relation, source, target);
         }
 
         Ok(Verdict::Fails)
     }
 
-    /// Decide one relation recursively on the grown stack.
-    fn decide_relation_recursive(
+    /// Relate one resolved pair through the structural matrix, binding the open children.
+    pub(in crate::check) fn relate_pair(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // identity mapped targets over an open variable bind it whole
         if let Some(variable) = self.reverse_mapped_variable(target)? {
-            return self.decide_relation(origin, relation, source, variable);
+            return self.constrain_type(origin, cause, relation, source, variable);
         }
 
         // identical roots relate under every relation
@@ -121,9 +124,14 @@ impl CheckState<'_> {
             return Ok(true);
         }
 
+        // accept inference barrier targets outright
+        if self.no_infer_target(target)?.is_some() {
+            return Ok(true);
+        }
+
         // refined targets require the base and the refined member equality
         if let Some(refined) = self.refined_head(target)? {
-            let base = self.decide_relation(origin, relation, source, refined.base)?;
+            let base = self.constrain_type(origin, cause, relation, source, refined.base)?;
             if !base {
                 return Ok(false);
             }
@@ -137,12 +145,12 @@ impl CheckState<'_> {
                 qualifier: None,
             })?;
 
-            return self.decide_relation(origin, Relation::Equal, projected, refined.value);
+            return self.constrain_type(origin, cause, Relation::Equal, projected, refined.value);
         }
 
         // refined sources imply their base application
         if let Some(refined) = self.refined_head(source)? {
-            return self.decide_relation(origin, relation, refined.base, target);
+            return self.constrain_type(origin, cause, relation, refined.base, target);
         }
 
         // irreducible conditionals relate through both branches
@@ -151,12 +159,12 @@ impl CheckState<'_> {
                 self.operation_head(source)?
         {
             let then_branch =
-                self.decide_relation(origin, relation, conditional.then_type, target)?;
+                self.constrain_type(origin, cause, relation, conditional.then_type, target)?;
             if !then_branch {
                 return Ok(false);
             }
 
-            return self.decide_relation(origin, relation, conditional.else_type, target);
+            return self.constrain_type(origin, cause, relation, conditional.else_type, target);
         }
 
         // exact property keys compare by key identity
@@ -167,9 +175,23 @@ impl CheckState<'_> {
             return Ok(source_key == target_key);
         }
 
-        // key parameter and this queries by their assuming scope
+        // accept lifetime pairs here, MIR Verify enforces outlives
+        if self.is_lifetime_slot_type(source)? && self.is_lifetime_slot_type(target)? {
+            return Ok(true);
+        }
+
+        // classify the pair by the variables it still holds open
         let flags = self.type_flags(source)? | self.type_flags(target)?;
         let durable = !flags.has_variable();
+
+        // decide open pairs outside the memo, since their heads still move
+        if !durable {
+            let decision = self.relate_matrix(origin, cause, relation, source, target)?;
+
+            return Ok(decision.unwrap_or(false));
+        }
+
+        // key parameter and this queries by their assuming scope
         let scope = if flags.has_parameter() || flags.has_this() {
             self.assuming_scope(origin)?
         } else {
@@ -193,43 +215,11 @@ impl CheckState<'_> {
         self.counters.judges += 1;
         let attempt = self.infer.relations.enter(key);
 
-        // prove type equality before the broader relation
-        let equal = match relation {
-            Relation::Equal => false,
-            _ => self.decide_equal(origin, source, target)?,
-        };
-
-        // decide the relation itself when equality left it open
-        let decision = if equal {
-            Ok(true)
-        } else {
-            let decision = match relation {
-                Relation::Equal => self.decide_equal(origin, source, target)?,
-                Relation::Subtype => self.decide_subtype(origin, source, target)?,
-                Relation::Assignable | Relation::Widens => {
-                    self.decide_assignable(origin, relation, source, target)?
-                }
-                Relation::Castable => self.decide_castable(origin, source, target)?,
-                Relation::Satisfies | Relation::Extends => {
-                    let verdict = self.decide_satisfies(origin, relation, source, target)?;
-
-                    // degrade an ambiguous predicate to false without memoizing
-                    if verdict == Verdict::Ambiguous {
-                        self.infer.relations.cancel(attempt);
-
-                        return Ok(false);
-                    }
-
-                    verdict.holds()
-                }
-            };
-
-            Ok(decision)
-        };
+        let decision = self.relate_matrix(origin, cause, relation, source, target);
 
         // memoize settled decisions, forget failed attempts
         match &decision {
-            Ok(holds) => {
+            Ok(Some(holds)) => {
                 // decided closed pairs are durable for the whole module
                 if let Some((key, holds)) = self.infer.relations.finish(attempt, *holds, durable) {
                     self.relates.insert(key, holds);
@@ -238,7 +228,49 @@ impl CheckState<'_> {
             _ => self.infer.relations.cancel(attempt),
         }
 
-        decision
+        Ok(decision?.unwrap_or(false))
+    }
+
+    /// Dispatch one relation over its constructor matrix, where an ambiguous predicate is none.
+    fn relate_matrix(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        relation: Relation,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<bool>> {
+        // prove equality on closed pairs before the broader relation
+        let closed = !(self.type_flags(source)? | self.type_flags(target)?).has_variable();
+        let equal = match relation {
+            Relation::Equal => false,
+            _ => closed && self.relate_equal(origin, cause, source, target)?,
+        };
+        if equal {
+            return Ok(Some(true));
+        }
+
+        // decide the relation itself when equality left it open
+        let decision = match relation {
+            Relation::Equal => self.relate_equal(origin, cause, source, target)?,
+            Relation::Subtype => self.relate_subtype(origin, cause, source, target)?,
+            Relation::Assignable | Relation::Widens => {
+                self.relate_assignable(origin, cause, relation, source, target)?
+            }
+            Relation::Castable => self.relate_castable(origin, cause, source, target)?,
+            Relation::Satisfies | Relation::Extends => {
+                let verdict = self.relate_satisfies(origin, cause, relation, source, target)?;
+
+                // leave an ambiguous predicate undecided for the caller memo
+                if verdict == Verdict::Ambiguous {
+                    return Ok(None);
+                }
+
+                verdict.holds()
+            }
+        };
+
+        Ok(Some(decision))
     }
 
     /// Return the open variable behind one identity mapped target.
@@ -264,7 +296,7 @@ impl CheckState<'_> {
         }
 
         // iterate an open variable's keys
-        let constraint = self.resolve_head(mapped.parameter.constraint)?;
+        let constraint = self.shallow_resolve(mapped.parameter.constraint)?;
         let dir::Type::Operation(constraint) = self.ty(constraint)? else {
             return Ok(None);
         };
@@ -272,37 +304,38 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
-        let variable = self.resolve_head(keys.target)?;
+        let variable = self.shallow_resolve(keys.target)?;
         if !matches!(self.ty(variable)?, dir::Type::Variable(_)) {
             return Ok(None);
         }
 
         // project the iterated key back out of the variable
-        let value = self.resolve_head(mapped.value)?;
+        let value = self.shallow_resolve(mapped.value)?;
         let dir::Type::Operation(value) = self.ty(value)? else {
             return Ok(None);
         };
         let dir::TypeOperation::Index(index) = self.type_operation(target.module_id, value)? else {
             return Ok(None);
         };
-        let is_identity = self.resolve_head(index.left)? == variable
+        let is_identity = self.shallow_resolve(index.left)? == variable
             && matches!(
-                self.ty(self.resolve_head(index.index)?)?,
+                self.ty(self.shallow_resolve(index.index)?)?,
                 dir::Type::Parameter(parameter) if parameter == mapped.parameter.parameter
             );
 
         Ok(is_identity.then_some(variable))
     }
 
-    /// Decide every relation in one pair list.
-    pub(in crate::check) fn decide_each(
+    /// Relate every pair in one pair list.
+    pub(in crate::check) fn relate_each(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
     ) -> CompilerResult<bool> {
         for (source, target) in pairs.iter().copied() {
-            if !self.decide_relation(origin, relation, source, target)? {
+            if !self.constrain_type(origin, cause, relation, source, target)? {
                 return Ok(false);
             }
         }
@@ -310,10 +343,11 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Decide whether every source inhabitant also inhabits the target type.
-    fn decide_subtype(
+    /// Relate one pair under subtype inclusion, where every source inhabitant inhabits the target.
+    fn relate_subtype(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
@@ -333,38 +367,40 @@ impl CheckState<'_> {
             (dir::Type::Union(union), _) => {
                 let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
 
-                self.decide_all_sources(origin, Relation::Subtype, &elements, target)?
+                self.relate_all_sources(origin, cause, Relation::Subtype, &elements, target)?
             }
             (_, dir::Type::Union(union)) => {
                 let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
 
-                self.decide_any_target(origin, Relation::Subtype, source, &elements)?
+                self.relate_any_target(origin, cause, Relation::Subtype, source, &elements)?
             }
             (dir::Type::Intersection(intersection), _) => {
                 let elements = self
                     .type_ids(source.module_id, intersection.elements)?
                     .to_vec();
 
-                self.decide_any_source(origin, Relation::Subtype, &elements, target)?
+                self.relate_any_source(origin, cause, Relation::Subtype, &elements, target)?
             }
             (_, dir::Type::Intersection(intersection)) => {
                 let elements = self
                     .type_ids(target.module_id, intersection.elements)?
                     .to_vec();
 
-                self.decide_all_targets(origin, Relation::Subtype, source, &elements)?
+                self.relate_all_targets(origin, cause, Relation::Subtype, source, &elements)?
             }
 
             // rigid generic domains prove inclusion through their bounds
             (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
-                self.decide_parameter_relation(origin, Relation::Subtype, parameter, target)?
+                self.relate_parameter_bounds(origin, cause, Relation::Subtype, parameter, target)?
             }
-            (dir::Type::This, _) => self.decide_this_relation(origin, Relation::Subtype, target)?,
+            (dir::Type::This, _) => {
+                self.relate_this_bounds(origin, cause, Relation::Subtype, target)?
+            }
             (dir::Type::Member(member), _) => {
                 let member = self.type_member(source.module_id, member)?;
                 match self.body().projection_constraint(origin, &member)? {
                     Some(constraint) => {
-                        self.decide_relation(origin, Relation::Subtype, constraint, target)?
+                        self.constrain_type(origin, cause, Relation::Subtype, constraint, target)?
                     }
                     None => false,
                 }
@@ -379,7 +415,22 @@ impl CheckState<'_> {
             {
                 let text = self.strings().get(text).to_string();
 
-                self.decide_template_string(origin, &text, target.module_id, &template)?
+                // bind open spans to the text they capture
+                let mut is_open = false;
+                for span in self.type_ids(target.module_id, template.spans)?.to_vec() {
+                    is_open = is_open || self.type_flags(span)?.has_variable();
+                }
+                if is_open {
+                    self.relate_template_captures(
+                        origin,
+                        cause,
+                        &text,
+                        target.module_id,
+                        &template,
+                    )?
+                } else {
+                    self.relate_template_string(origin, &text, target.module_id, &template)?
+                }
             }
             (dir::Type::Operation(operation), dir::Type::Primitive(dir::PrimitiveType::String))
                 if matches!(
@@ -393,7 +444,13 @@ impl CheckState<'_> {
                 if let dir::TypeOperation::TemplateLiteral(template) =
                     self.type_operation(target.module_id, operation)? =>
             {
-                self.decide_string_inhabits_template(target.module_id, &template)?
+                self.relate_string_into_template(
+                    origin,
+                    cause,
+                    source,
+                    target.module_id,
+                    &template,
+                )?
             }
             (dir::Type::Operation(source_operation), dir::Type::Operation(target_operation))
                 if let dir::TypeOperation::TemplateLiteral(source_template) =
@@ -401,7 +458,7 @@ impl CheckState<'_> {
                     && let dir::TypeOperation::TemplateLiteral(target_template) =
                         self.type_operation(target.module_id, target_operation)? =>
             {
-                self.decide_template_template(
+                self.relate_template_template(
                     origin,
                     source.module_id,
                     &source_template,
@@ -420,20 +477,23 @@ impl CheckState<'_> {
             (dir::Type::Literal(_) | dir::Type::Range(_), dir::Type::Application(instance))
                 if self.symbol_kind(instance.symbol)?.is_interface() =>
             {
-                self.decide_interface_relation(origin, Relation::Subtype, source, target)?
+                self.relate_interface(origin, cause, Relation::Subtype, source, target)?
                     .holds()
             }
             (dir::Type::Literal(literal), target) => literal.widens_to(&target),
             (dir::Type::Range(range), target) => range.widens_to(&target),
 
             // precise variants inhabit their declared owner
-            (dir::Type::Variant(variant), _) => {
-                self.decide_relation(origin, Relation::Subtype, variant.owner, target)?
+            (dir::Type::Variant(variant), _)
+                if !matches!(self.ty(target)?, dir::Type::Variant(_)) =>
+            {
+                self.constrain_type(origin, cause, Relation::Subtype, variant.owner, target)?
             }
 
             // relate dynamic values only against other dynamic values
-            (dir::Type::Dynamic(source), dir::Type::Dynamic(target)) => self.decide_relation(
+            (dir::Type::Dynamic(source), dir::Type::Dynamic(target)) => self.constrain_type(
                 origin,
+                cause,
                 Relation::Subtype,
                 source.constraint,
                 target.constraint,
@@ -441,34 +501,48 @@ impl CheckState<'_> {
             (dir::Type::Dynamic(_), _) | (_, dir::Type::Dynamic(_)) => false,
 
             // subtype inclusion observes collection elements covariantly
-            (dir::Type::Array(source), dir::Type::Array(target)) => {
-                self.decide_relation(origin, Relation::Subtype, source.element, target.element)?
-            }
-            (dir::Type::Slice(source), dir::Type::Slice(target)) => {
-                self.decide_relation(origin, Relation::Subtype, source.element, target.element)?
-            }
+            (dir::Type::Array(source), dir::Type::Array(target)) => self.constrain_type(
+                origin,
+                cause,
+                Relation::Subtype,
+                source.element,
+                target.element,
+            )?,
+            (dir::Type::Slice(source), dir::Type::Slice(target)) => self.constrain_type(
+                origin,
+                cause,
+                Relation::Subtype,
+                source.element,
+                target.element,
+            )?,
             (dir::Type::FixedArray(source), dir::Type::FixedArray(target)) => {
-                let element = self.decide_relation(
+                let element = self.constrain_type(
                     origin,
+                    cause,
                     Relation::Subtype,
                     source.element,
                     target.element,
                 )?;
-                let count =
-                    self.decide_relation(origin, Relation::Equal, source.count, target.count)?;
+                let count = self.constrain_type(
+                    origin,
+                    cause,
+                    Relation::Equal,
+                    source.count,
+                    target.count,
+                )?;
 
                 element && count
             }
             (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
-                self.decide_tuple_assignable(origin, Relation::Subtype, source, target)?
+                self.relate_tuple_assignable(origin, cause, Relation::Subtype, source, target)?
             }
 
             // structural and nominal inclusion
             (dir::Type::Object(_), dir::Type::Object(_)) => {
-                self.decide_shape_equal(origin, source, target)?
+                self.relate_shape_equal(origin, cause, source, target)?
             }
             (dir::Type::Shape(_) | dir::Type::Object(_), dir::Type::Shape(_)) => {
-                self.decide_shape_relation(origin, Relation::Subtype, source, target)?
+                self.relate_shape(origin, cause, Relation::Subtype, source, target)?
             }
             (
                 dir::Type::Shape(_)
@@ -479,19 +553,21 @@ impl CheckState<'_> {
                 | dir::Type::FixedArray(_),
                 dir::Type::Application(instance),
             ) if self.symbol_kind(instance.symbol)?.is_interface() => self
-                .decide_interface_relation(origin, Relation::Subtype, source, target)?
+                .relate_interface(origin, cause, Relation::Subtype, source, target)?
                 .holds(),
             (dir::Type::Application(instance), dir::Type::Shape(_) | dir::Type::Object(_)) => self
-                .decide_reference_against_target(
+                .relate_reference_against_target(
                     origin,
+                    cause,
                     Relation::Subtype,
                     source.module_id,
                     &instance,
                     target,
                 )?,
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance)) => {
-                self.decide_application_relation(
+                self.relate_application(
                     origin,
+                    cause,
                     Relation::Subtype,
                     source,
                     &source_instance,
@@ -502,16 +578,16 @@ impl CheckState<'_> {
 
             // callable values include according to signature variance
             (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
-                self.decide_function_assignable(origin, Relation::Subtype, source, target)?
+                self.relate_function_assignable(origin, cause, Relation::Subtype, source, target)?
             }
             (_, dir::Type::FunctionSignature(_)) if let Some(source) = source_signature => {
-                self.decide_function_assignable(origin, Relation::Subtype, source, target)?
+                self.relate_function_assignable(origin, cause, Relation::Subtype, source, target)?
             }
             (dir::Type::FunctionSignature(_), _) if let Some(target) = target_signature => {
-                self.decide_function_assignable(origin, Relation::Subtype, source, target)?
+                self.relate_function_assignable(origin, cause, Relation::Subtype, source, target)?
             }
             (_, _) if let (Some(source), Some(target)) = (source_signature, target_signature) => {
-                self.decide_function_assignable(origin, Relation::Subtype, source, target)?
+                self.relate_function_assignable(origin, cause, Relation::Subtype, source, target)?
             }
 
             // forms and all unmatched constructors require equality

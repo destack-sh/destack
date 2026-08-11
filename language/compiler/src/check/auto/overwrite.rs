@@ -21,7 +21,7 @@ impl CheckState<'_> {
         }
 
         // close recursive structural types coinductively
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
         if active.contains(&ty) {
             return Ok(true);
         }

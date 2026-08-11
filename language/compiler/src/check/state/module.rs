@@ -456,7 +456,7 @@ impl CheckModuleState {
         symbols
     }
 
-    /// Return the member subject selected at one site, reading the pass tail over the committed base.
+    /// Return the member subject selected at one site, reading the pass tail over the base.
     pub(in crate::check) fn member_subject(
         &self,
         site: dir::MemberSite,
@@ -466,7 +466,7 @@ impl CheckModuleState {
             .or_else(|| self.members.as_ref().and_then(|base| base.subject(site)))
     }
 
-    /// Return the member bindings stored for one subject, reading the pass tail over the committed base.
+    /// Return the member bindings stored for one subject, reading the pass tail over the base.
     pub(in crate::check) fn member_subject_bindings(
         &self,
         subject: &dir::MemberSubject,
@@ -744,7 +744,7 @@ impl CheckState<'_> {
 
                     return Ok(());
                 }
-                if self.resolve_head(previous)? == self.resolve_head(ty)? {
+                if self.shallow_resolve(previous)? == self.shallow_resolve(ty)? {
                     return Ok(());
                 }
 

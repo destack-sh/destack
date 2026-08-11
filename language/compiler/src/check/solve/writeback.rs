@@ -12,10 +12,10 @@ impl CheckState<'_> {
         // resolve committed node types, storing their reduced heads
         for node in self.node_types.nodes() {
             let ty = self.node_types.get(&node).expect("collected node type");
-            let resolved = self.resolve_committed_type(ty, &failed)?;
+            let resolved = self.fully_resolve(ty, &failed)?;
             let resolved = match self.is_checking() {
                 true => match self.node_origin_maybe(node) {
-                    Some(origin) => self.deeply_normalize(origin, resolved)?,
+                    Some(origin) => self.deeply_resolve(origin, resolved)?,
                     None => resolved,
                 },
                 false => resolved,
@@ -32,7 +32,7 @@ impl CheckState<'_> {
                 .expected_types
                 .get(&node)
                 .expect("collected expected type");
-            let resolved = self.resolve_committed_type(ty, &failed)?;
+            let resolved = self.fully_resolve(ty, &failed)?;
             self.expected_types.insert(node, resolved);
             if self.node_types.get(&node) != Some(resolved) {
                 self.module.types_tail.set_expected_type(node, resolved);
@@ -46,7 +46,7 @@ impl CheckState<'_> {
                 .get_index(index)
                 .map(|(k, v)| (*k, *v))
                 .expect("indexed entry");
-            let resolved = self.resolve_committed_type(ty, &failed)?;
+            let resolved = self.fully_resolve(ty, &failed)?;
             self.declaration_types[index] = resolved;
             if self.module.types.get_symbol_type_id(symbol) != Some(resolved) {
                 self.module.types_tail.set_symbol_type(symbol, resolved);
@@ -60,7 +60,7 @@ impl CheckState<'_> {
                 .get_index(index)
                 .map(|(k, v)| (*k, *v))
                 .expect("indexed entry");
-            let resolved = self.resolve_committed_type(ty, &failed)?;
+            let resolved = self.fully_resolve(ty, &failed)?;
             self.binding_types[index] = resolved;
             if self.module.types.get_symbol_type_id(symbol) != Some(resolved) {
                 self.module.types_tail.set_symbol_type(symbol, resolved);
@@ -94,13 +94,13 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Resolve one committed type, poisoning the given failed applications.
-    pub(in crate::check) fn resolve_committed_type(
+    /// Resolve one committed type, erroring unsolved holes and poisoning failed applications.
+    pub(in crate::check) fn fully_resolve(
         &mut self,
         ty: dir::GlobalTypeId,
         failed: &FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
         if failed.is_empty() && !self.type_flags(ty)?.has_variable() {
             return Ok(ty);
         }
@@ -138,7 +138,7 @@ impl CheckState<'_> {
         let resolved = if let dir::Type::Variable(variable) = ty {
             match self.infer.solution(variable)? {
                 Some(solution) => {
-                    let solution = self.resolve_head(solution)?;
+                    let solution = self.shallow_resolve(solution)?;
 
                     self.resolve_open_type(solution, failed, active)?
                 }

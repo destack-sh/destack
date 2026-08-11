@@ -175,7 +175,7 @@ impl BodyState<'_, '_> {
                 let mut indexes = SmallVec::new();
                 for element in elements {
                     // read the members this arm accepts
-                    let element = self.check.normalize_stuck(origin, element)?;
+                    let element = self.check.structurally_normalize(origin, element)?;
                     let Some((arm_fields, arm_indexes)) =
                         self.apparent_object_members(origin, element)?
                     else {

@@ -1876,7 +1876,7 @@ impl BodyState<'_, '_> {
         &self,
         owner: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let owner = self.resolve_head(owner)?;
+        let owner = self.shallow_resolve(owner)?;
         let is_rigid = matches!(self.ty(owner)?, dir::Type::Parameter(_) | dir::Type::This);
 
         Ok(is_rigid)

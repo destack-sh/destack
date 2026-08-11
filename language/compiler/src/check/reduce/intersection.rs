@@ -26,7 +26,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut kept = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for element in elements {
-            let element = self.resolve_head(element)?;
+            let element = self.shallow_resolve(element)?;
 
             // flatten nested intersections into one element list
             let elements = match self.ty(element)? {

@@ -34,7 +34,7 @@ impl CheckState<'_> {
             let Some(ty) = self.committed_node_type(global) else {
                 continue;
             };
-            let ty = self.resolve_head(ty)?;
+            let ty = self.shallow_resolve(ty)?;
             let dir::Type::Literal(dir::ScalarLiteral::Boolean(value)) = self.ty(ty)? else {
                 continue;
             };

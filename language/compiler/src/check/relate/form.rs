@@ -17,6 +17,9 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // name the payload slot the form carries
+        let cause = self.intern_cause(Cause::child(origin, CauseKind::Payload, cause));
+
         match form {
             // raw pointers require identical values
             dir::Form::Raw => self.constrain_type(origin, cause, Relation::Equal, source, target),
@@ -99,6 +102,20 @@ impl CheckState<'_> {
                     .type_ids(target.module_id, target_instance.arguments)?
                     .to_vec();
 
+                // complete an elided side so the slots align with the declared parameters
+                if source_arguments.len() < target_arguments.len()
+                    && let Some(filled) =
+                        self.fill_elided_application(source.module_id, &source_instance)?
+                {
+                    return self.constrain_variance(origin, cause, form, relation, filled, target);
+                }
+                if target_arguments.len() < source_arguments.len()
+                    && let Some(filled) =
+                        self.fill_elided_application(target.module_id, &target_instance)?
+                {
+                    return self.constrain_variance(origin, cause, form, relation, source, filled);
+                }
+
                 self.relate_type_arguments(
                     origin,
                     cause,
@@ -169,19 +186,6 @@ impl CheckState<'_> {
             // preserve the established representation of other values
             _ => self.constrain_type(origin, cause, relation, source, target),
         }
-    }
-
-    /// Constrain form assignability from a decide-side entry.
-    pub(in crate::check) fn constrain_form_assignable_rooted(
-        &mut self,
-        origin: Origin,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<bool>> {
-        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-
-        self.constrain_form_assignable(origin, cause, relation, source, target)
     }
 
     /// Constrain assignability involving memory forms.
@@ -256,8 +260,6 @@ impl CheckState<'_> {
                 if source_form.form == dir::Form::Readonly
                     && target_form.form == dir::Form::Readonly =>
             {
-                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-
                 Ok(Some(self.constrain_form_value(
                     origin,
                     cause,
@@ -281,8 +283,6 @@ impl CheckState<'_> {
 
             // flow values into readonly forms by dropping write access
             (_, dir::Type::Form(target_form)) if target_form.form == dir::Form::Readonly => {
-                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-
                 Ok(Some(self.constrain_form_value(
                     origin,
                     cause,
@@ -571,10 +571,11 @@ impl CheckState<'_> {
         self.constrain_type(origin, cause, relation, payload, target)
     }
 
-    /// Decide equality of two memory form constructors.
-    pub(in crate::check) fn decide_form_equal(
+    /// Relate two memory form constructors under equality.
+    pub(in crate::check) fn relate_form_equal(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         source_module: ModuleId,
         source: dir::Form,
         target_module: ModuleId,
@@ -585,15 +586,16 @@ impl CheckState<'_> {
                 let source_borrow = self.type_borrow(source_module, source_borrow)?;
                 let target_borrow = self.type_borrow(target_module, target_borrow)?;
 
-                self.decide_relation(
+                self.constrain_type(
                     origin,
+                    cause,
                     Relation::Equal,
                     source_borrow.access,
                     target_borrow.access,
                 )
             }
             (dir::Form::Placed { place: source }, dir::Form::Placed { place: target }) => {
-                self.decide_relation(origin, Relation::Equal, source, target)
+                self.constrain_type(origin, cause, Relation::Equal, source, target)
             }
             _ => Ok(source.same_constructor(&target)),
         }
@@ -624,8 +626,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Decide whether one borrow access satisfies a required access.
-    pub(in crate::check) fn decide_access_assignable(
+    /// Relate one borrow access against a required access.
+    pub(in crate::check) fn relate_access_assignable(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
@@ -650,7 +652,7 @@ impl CheckState<'_> {
                 let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
                 let mut decision = true;
                 for element in elements {
-                    decision = self.decide_access_assignable(origin, element, target)?;
+                    decision = self.relate_access_assignable(origin, element, target)?;
                     if !decision {
                         break;
                     }
@@ -664,7 +666,7 @@ impl CheckState<'_> {
                 let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
                 let mut decision = false;
                 for element in elements {
-                    decision = self.decide_access_assignable(origin, source, element)?;
+                    decision = self.relate_access_assignable(origin, source, element)?;
                     if decision {
                         break;
                     }
@@ -677,7 +679,7 @@ impl CheckState<'_> {
             (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
                 let mut decision = false;
                 for bound in self.parameter_bounds(origin, parameter)? {
-                    decision = self.decide_access_assignable(origin, bound, target)?;
+                    decision = self.relate_access_assignable(origin, bound, target)?;
                     if decision {
                         break;
                     }
@@ -697,14 +699,14 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let source = self.resolve_head(source)?;
-        let target = self.resolve_head(target)?;
+        let source = self.shallow_resolve(source)?;
+        let target = self.shallow_resolve(target)?;
         if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
             return self.constrain_type(origin, cause, Relation::Assignable, source, target);
         }
 
-        self.decide_access_assignable(origin, source, target)
+        self.relate_access_assignable(origin, source, target)
     }
 }

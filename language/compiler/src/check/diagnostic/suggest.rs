@@ -130,9 +130,9 @@ impl CheckState<'_> {
 
     /// Collect the member keys visible on one receiver.
     fn visible_member_keys(&mut self, receiver: dir::GlobalTypeId) -> CompilerResult<Vec<String>> {
-        let mut current = self.resolve_head(receiver)?;
+        let mut current = self.shallow_resolve(receiver)?;
         while let dir::Type::Form(form) = self.ty(current)? {
-            current = self.resolve_head(form.value)?;
+            current = self.shallow_resolve(form.value)?;
         }
 
         let mut keys = Vec::new();

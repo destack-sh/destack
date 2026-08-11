@@ -644,41 +644,24 @@ impl CheckState<'_> {
         Ok(measured)
     }
 
-    /// Decide same-template type arguments by their parameter variances.
-    pub(in crate::check) fn decide_type_arguments(
+    /// Relate same-template applications, slotting written arguments by kind first.
+    pub(in crate::check) fn relate_application_arguments(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         symbol: dir::GlobalSymbolId,
         form: VarianceForm,
-        edge: Relation,
+        relation: Relation,
         source: &[dir::GlobalTypeId],
         target: &[dir::GlobalTypeId],
     ) -> CompilerResult<bool> {
-        if source.len() != target.len() {
+        // pair the written arguments by kind, collecting elided lifetimes for proof only
+        let Some(slots) = self.slot_application_arguments(source, target)? else {
             return Ok(false);
-        }
-        let relation = self.instance_argument_relation(symbol, edge)?;
-        for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
-            // erased target arguments admit every instantiation of their parameter
-            if matches!(self.ty(*target)?, dir::Type::Erased(_)) {
-                continue;
-            }
+        };
+        let (source, target): (SmallVec<[_; 4]>, SmallVec<[_; 4]>) = slots.iter().copied().unzip();
 
-            // bivariant arguments relate freely under a closed relation
-            let Some((relation, order)) = self
-                .argument_variance(symbol, index, form)?
-                .argument_relation(relation)
-            else {
-                continue;
-            };
-            let (source, target) = order.orient(*source, *target);
-
-            if !self.decide_relation(origin, relation, source, target)? {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
+        self.relate_type_arguments(origin, cause, symbol, form, relation, &source, &target)
     }
 
     /// Relate same-template type arguments by their parameter variances.
@@ -706,8 +689,8 @@ impl CheckState<'_> {
             // skip closed lifetime slots for Verify, still linking open ones
             if !self.type_flags(*source)?.has_variable()
                 && !self.type_flags(*target)?.has_variable()
-                && self.is_lifetime_slot(&self.ty(*source)?)?
-                && self.is_lifetime_slot(&self.ty(*target)?)?
+                && self.is_lifetime_slot_type(*source)?
+                && self.is_lifetime_slot_type(*target)?
             {
                 continue;
             }

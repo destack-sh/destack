@@ -315,7 +315,7 @@ impl BodyState<'_, '_> {
             if form.form != dir::Form::Managed {
                 break;
             }
-            current = self.resolve_head(form.value)?;
+            current = self.shallow_resolve(form.value)?;
         }
 
         match self.ty(current)? {

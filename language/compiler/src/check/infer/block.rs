@@ -61,7 +61,7 @@ impl BodyState<'_, '_> {
 
             // end the block unreachable on a never-typed statement, excluding unbound jumps
             if let Some(ty) = self.check.committed_node_type(node) {
-                let ty = self.check.resolve_head(ty)?;
+                let ty = self.check.shallow_resolve(ty)?;
                 if matches!(self.check.ty(ty)?, dir::Type::Never)
                     && !self.check.flow.is_unbound_jump(node.local_id)
                 {

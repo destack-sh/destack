@@ -51,7 +51,7 @@ impl CheckState<'_> {
         let unknown = self.intern_type(dir::Type::Unknown)?;
         let member = self.field_shape_type(key, unknown)?;
         let member_is_narrower =
-            self.decide_relation(origin, Relation::Satisfies, member, receiver)?;
+            self.evaluate_relation(origin, Relation::Satisfies, member, receiver)?;
         let narrowed = if member_is_narrower {
             member
         } else {
@@ -109,7 +109,7 @@ impl CheckState<'_> {
         let bounds = self.parameter_bounds(origin, parameter)?;
         let mut enumerated = None;
         for bound in &bounds {
-            let bound = self.deeply_normalize(origin, *bound)?;
+            let bound = self.deeply_resolve(origin, *bound)?;
             if self.union_arms(origin, bound)?.is_some() {
                 enumerated = Some(bound);
 
@@ -209,7 +209,7 @@ impl CheckState<'_> {
                     let variables = self.type_variables(source)?;
                     if variables.is_empty() {
                         // closed operations expand before narrowing distributes
-                        let expanded = self.deeply_normalize(origin, source)?;
+                        let expanded = self.deeply_resolve(origin, source)?;
                         if expanded != source {
                             return self.reduce_narrowing(
                                 origin,
@@ -304,7 +304,7 @@ impl CheckState<'_> {
         }
 
         // keep or remove the source arm on an exact match
-        if self.decide_relation(origin, Relation::Subtype, source, target)? {
+        if self.evaluate_relation(origin, Relation::Subtype, source, target)? {
             let narrowed = if is_positive {
                 source
             } else {
@@ -331,7 +331,7 @@ impl CheckState<'_> {
         }
 
         // select the target when it is narrower, otherwise preserve both constraints
-        let is_top_like = self.decide_relation(origin, Relation::Subtype, target, source)?;
+        let is_top_like = self.evaluate_relation(origin, Relation::Subtype, target, source)?;
         let narrowed = if is_positive && is_top_like {
             target
         } else if is_positive {

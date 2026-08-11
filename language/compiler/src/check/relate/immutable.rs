@@ -12,20 +12,20 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<bool> {
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
         if active.contains(&ty) {
             return Ok(true);
         }
         active.push(ty);
 
-        let result = self.decide_immutable_type(origin, ty, active);
+        let result = self.is_immutable_type(origin, ty, active);
         active.pop();
 
         result
     }
 
-    /// Decide immutability for one active type.
-    fn decide_immutable_type(
+    /// Return whether one active type is immutable.
+    fn is_immutable_type(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,

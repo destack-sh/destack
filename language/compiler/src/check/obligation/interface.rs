@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CheckState, InterfaceConformanceObligation, InterfaceMember, MemberCandidate, MemberLookup,
-    ObligationCheck, ObligationFailure, Origin, Relation, TypeSubstitution, Verdict,
+    Cause, CauseKind, CheckState, InterfaceConformanceObligation, InterfaceMember, MemberCandidate,
+    MemberLookup, ObligationCheck, ObligationFailure, Origin, Relation, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -301,7 +301,7 @@ impl CheckState<'_> {
                     let Some(found) = found else {
                         continue;
                     };
-                    let decision = self.decide_member_relation(
+                    let decision = self.relate_member(
                         origin,
                         Relation::Assignable,
                         requirement.role,
@@ -331,8 +331,14 @@ impl CheckState<'_> {
         }
 
         // validate call, construct, and index requirements from the target
-        let signatures =
-            self.decide_interface_signatures(origin, Relation::Satisfies, target, &requirements)?;
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+        let signatures = self.relate_interface_signatures(
+            origin,
+            cause,
+            Relation::Satisfies,
+            target,
+            &requirements,
+        )?;
         if !signatures {
             return Ok(ConformanceSelection::Missing);
         }

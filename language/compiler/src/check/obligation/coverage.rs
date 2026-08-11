@@ -360,7 +360,7 @@ impl CheckState<'_> {
                 let expression = *expression;
                 let expected = self.require_node_type(expression.into_global_any(module))?;
 
-                self.decide_relation(origin, Relation::Assignable, value, expected)
+                self.evaluate_relation(origin, Relation::Assignable, value, expected)
             }
             // range patterns cover scalar values inside their interval
             dir::Pattern::Range {

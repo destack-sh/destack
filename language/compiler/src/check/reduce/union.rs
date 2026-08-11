@@ -100,7 +100,7 @@ impl CheckState<'_> {
         let mut keys = FxIndexSet::default();
         let mut key_domains = SmallVec::<[dir::PrimitiveType; 2]>::new();
         for element in elements {
-            let element = self.resolve_head(element)?;
+            let element = self.shallow_resolve(element)?;
             let element = self.canonical_union_element(element)?;
 
             // flatten nested unions into one element list

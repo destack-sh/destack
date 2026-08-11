@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Cause, CauseKind, CheckState, GenericParameterId, MemberRole, Origin, Relation,
+    Cause, CauseId, CauseKind, CheckState, GenericParameterId, MemberRole, Origin, Relation,
     TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
@@ -76,10 +76,11 @@ pub(in crate::check) struct InterfaceMember {
 }
 
 impl CheckState<'_> {
-    /// Decide one relation from a source to an applied interface.
-    pub(in crate::check) fn decide_interface_relation(
+    /// Relate one source to an applied interface.
+    pub(in crate::check) fn relate_interface(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -126,28 +127,19 @@ impl CheckState<'_> {
                 .type_ids(target.module_id, target_instance.arguments)?
                 .to_vec();
             let form = self.default_variance_form(target_instance.symbol)?;
-            let arguments = if relation == Relation::Subtype {
-                self.decide_type_arguments(
-                    origin,
-                    target_instance.symbol,
-                    form,
-                    relation,
-                    &source_arguments,
-                    &target_arguments,
-                )?
-            } else {
-                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-
-                self.relate_type_arguments(
-                    origin,
-                    cause,
-                    target_instance.symbol,
-                    form,
-                    relation.interior(),
-                    &source_arguments,
-                    &target_arguments,
-                )?
+            let argument_relation = match relation {
+                Relation::Subtype => relation,
+                _ => relation.interior(),
             };
+            let arguments = self.relate_type_arguments(
+                origin,
+                cause,
+                target_instance.symbol,
+                form,
+                argument_relation,
+                &source_arguments,
+                &target_arguments,
+            )?;
 
             return Ok(Verdict::decided(arguments));
         }
@@ -177,14 +169,15 @@ impl CheckState<'_> {
 
         // dynamic values carry their erased interface constraint
         if let dir::Type::Dynamic(dynamic) = self.ty(source)? {
-            let holds = self.decide_relation(origin, relation, dynamic.constraint, target)?;
+            let holds = self.constrain_type(origin, cause, relation, dynamic.constraint, target)?;
 
             return Ok(Verdict::decided(holds));
         }
 
         // structural interfaces conform by shape
         if !is_nominal {
-            let holds = self.decide_interface_requirements(origin, relation, source, target)?;
+            let holds =
+                self.relate_interface_requirements(origin, cause, relation, source, target)?;
 
             return Ok(Verdict::decided(holds));
         }
@@ -192,8 +185,8 @@ impl CheckState<'_> {
         Ok(implemented)
     }
 
-    /// Decide one structural relation between declaration members.
-    pub(in crate::check) fn decide_member_relation(
+    /// Relate two declaration members structurally.
+    pub(in crate::check) fn relate_member(
         &mut self,
         origin: Origin,
         relation: Relation,
@@ -203,9 +196,11 @@ impl CheckState<'_> {
         receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<bool> {
         if role.is_callable() {
-            self.decide_method_relation(origin, relation, source, target, receiver)
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
+            self.relate_method(origin, cause, relation, source, target, receiver)
         } else {
-            self.decide_relation(origin, relation, source, target)
+            self.evaluate_relation(origin, relation, source, target)
         }
     }
 
@@ -231,7 +226,7 @@ impl CheckState<'_> {
         }))?;
         for implemented in interfaces {
             // fill elided arguments before matching
-            let declared = self.resolve_head(*implemented)?;
+            let declared = self.shallow_resolve(*implemented)?;
             let declared = match self.ty(declared)? {
                 dir::Type::Application(instance) => {
                     match self.fill_elided_application(declared.module_id, &instance)? {
@@ -256,7 +251,7 @@ impl CheckState<'_> {
 
             // apply the fresh bindings to the declared interface
             let implemented = self.substitute_type(declared, &scratch)?;
-            let implemented = self.resolve_head(implemented)?;
+            let implemented = self.shallow_resolve(implemented)?;
 
             // select the implemented application naming the requested interface
             let (implemented_module, implemented_instance) =
@@ -368,9 +363,10 @@ impl CheckState<'_> {
 
             // reject conflicting source bindings
             if let (Some(written), Some(declared)) = (written, declared) {
-                let written = self.deeply_normalize(origin, written)?;
-                let declared = self.deeply_normalize(origin, declared)?;
-                if !self.decide_equal(origin, written, declared)? {
+                let written = self.deeply_resolve(origin, written)?;
+                let declared = self.deeply_resolve(origin, declared)?;
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                if !self.relate_equal(origin, cause, written, declared)? {
                     return Ok(None);
                 }
             }
@@ -406,7 +402,7 @@ impl CheckState<'_> {
 
             let constraint =
                 self.instantiate_interface_type(constraint, implementation, receiver)?;
-            if !self.decide_relation(origin, Relation::Satisfies, *value, constraint)? {
+            if !self.evaluate_relation(origin, Relation::Satisfies, *value, constraint)? {
                 return Ok(None);
             }
         }
@@ -414,10 +410,11 @@ impl CheckState<'_> {
         Ok(Some(implementation))
     }
 
-    /// Decide whether one source satisfies one interface's declared requirements.
-    pub(in crate::check) fn decide_interface_requirements(
+    /// Relate one source against an interface's declared requirements.
+    pub(in crate::check) fn relate_interface_requirements(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -443,7 +440,7 @@ impl CheckState<'_> {
             };
 
             // relate the found member against the requirement by its role
-            let member_type = self.resolve_head(member_type)?;
+            let member_type = self.shallow_resolve(member_type)?;
             let access = self.property_access(member.role, member_type, member.is_readonly)?;
             let member_decision = match access {
                 // properties relate their complete read and write operations
@@ -475,7 +472,7 @@ impl CheckState<'_> {
                         return Ok(false);
                     };
 
-                    self.decide_shape_fields(origin, &relations)?
+                    self.relate_shape_fields(origin, cause, &relations)?
                 }
                 // methods compare callable signatures without their receivers
                 Some(_) => {
@@ -487,8 +484,9 @@ impl CheckState<'_> {
                         return Ok(false);
                     };
 
-                    self.decide_method_relation(
+                    self.relate_method(
                         origin,
+                        cause,
                         Relation::Assignable,
                         found,
                         member_type,
@@ -505,7 +503,7 @@ impl CheckState<'_> {
                         return Ok(false);
                     };
 
-                    self.decide_relation(origin, Relation::Assignable, found, member_type)?
+                    self.constrain_type(origin, cause, Relation::Assignable, found, member_type)?
                 }
             };
 
@@ -516,14 +514,14 @@ impl CheckState<'_> {
 
         // prove each direct signature from the source
         let signatures =
-            self.decide_interface_signatures(origin, relation, source, &requirements)?;
+            self.relate_interface_signatures(origin, cause, relation, source, &requirements)?;
         if !signatures {
             return Ok(false);
         }
 
         // preserve each inherited interface's structural or nominal identity
         for inherited in requirements.inherited {
-            if !self.decide_relation(origin, relation, source, inherited.ty)? {
+            if !self.constrain_type(origin, cause, relation, source, inherited.ty)? {
                 return Ok(false);
             }
         }
@@ -531,18 +529,20 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Decide whether one source satisfies an interface's direct signatures.
-    pub(in crate::check) fn decide_interface_signatures(
+    /// Relate one source against an interface's direct signatures.
+    pub(in crate::check) fn relate_interface_signatures(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         requirements: &InterfaceRequirements,
     ) -> CompilerResult<bool> {
         // prove each required call signature from the source
         for signature in &requirements.call_signatures {
-            let satisfied = self.decide_signature_requirement(
+            let satisfied = self.relate_signature_requirement(
                 origin,
+                cause,
                 source,
                 signature.ty,
                 SignatureFamily::Call,
@@ -554,8 +554,9 @@ impl CheckState<'_> {
 
         // prove each required construct signature from the source
         for signature in &requirements.construct_signatures {
-            let satisfied = self.decide_signature_requirement(
+            let satisfied = self.relate_signature_requirement(
                 origin,
+                cause,
                 source,
                 signature.ty,
                 SignatureFamily::Construct,
@@ -567,12 +568,8 @@ impl CheckState<'_> {
 
         // prove each required index signature from the source
         for signature in &requirements.index_signatures {
-            let satisfied = self.decide_index_signature_satisfied(
-                origin,
-                relation,
-                source,
-                &signature.signature,
-            )?;
+            let satisfied =
+                self.relate_index_signature(origin, relation, source, &signature.signature)?;
             if !satisfied {
                 return Ok(false);
             }
@@ -581,10 +578,11 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Decide whether one source satisfies a required signature.
-    fn decide_signature_requirement(
+    /// Relate one source against a required signature.
+    fn relate_signature_requirement(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         source: dir::GlobalTypeId,
         required: dir::GlobalTypeId,
         family: SignatureFamily,
@@ -599,13 +597,9 @@ impl CheckState<'_> {
         };
         if is_function {
             return match family {
-                SignatureFamily::Call => self.decide_method_relation(
-                    origin,
-                    Relation::Assignable,
-                    source,
-                    required,
-                    None,
-                ),
+                SignatureFamily::Call => {
+                    self.relate_method(origin, cause, Relation::Assignable, source, required, None)
+                }
                 SignatureFamily::Construct => Ok(false),
             };
         }
@@ -620,8 +614,9 @@ impl CheckState<'_> {
         // accept one apparent signature satisfying the requirement
         let signatures = self.apparent_signatures(origin, constraint, family)?;
         for signature in signatures {
-            let satisfied = self.decide_method_relation(
+            let satisfied = self.relate_method(
                 origin,
+                cause,
                 Relation::Assignable,
                 signature.ty,
                 required,
@@ -864,7 +859,7 @@ impl CheckState<'_> {
             let Some(ty) = member.ty else {
                 continue;
             };
-            let ty = self.resolve_head(ty)?;
+            let ty = self.shallow_resolve(ty)?;
             let Some(access) = self.property_access(member.role, ty, member.is_readonly)? else {
                 continue;
             };

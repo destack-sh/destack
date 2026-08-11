@@ -77,7 +77,7 @@ impl CheckState<'_> {
                             target: index.left,
                         }))?;
                     let proven =
-                        self.decide_relation(origin, Relation::Satisfies, index.index, keys)?;
+                        self.evaluate_relation(origin, Relation::Satisfies, index.index, keys)?;
                     if proven {
                         return Ok(ObligationCheck::holds());
                     }

@@ -63,14 +63,6 @@ impl Relation {
             Self::Subtype | Self::Assignable | Self::Castable | Self::Satisfies | Self::Extends
         )
     }
-
-    /// Return whether every union source arm must satisfy this relation.
-    pub(in crate::check) fn distributes_over_union_source(self) -> bool {
-        matches!(
-            self,
-            Self::Subtype | Self::Assignable | Self::Widens | Self::Satisfies | Self::Extends
-        )
-    }
 }
 
 /// One relation pair identity closed under its assuming scope.

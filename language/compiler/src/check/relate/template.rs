@@ -1,8 +1,9 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, Origin, Relation};
+use crate::check::{CauseId, CheckState, Origin, Relation};
 
 /// One numeric template capture attempt under a constraint head.
 enum NumericCapture {
@@ -21,7 +22,7 @@ impl CheckState<'_> {
         origin: Origin,
         span: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let span = self.resolve_head(span)?;
+        let span = self.shallow_resolve(span)?;
         if self.root_variable(span)?.is_some() {
             return Ok(span);
         }
@@ -42,8 +43,8 @@ impl CheckState<'_> {
             .collect())
     }
 
-    /// Decide whether one string literal inhabits a template literal pattern.
-    pub(in crate::check) fn decide_template_string(
+    /// Relate one string literal into a closed template literal pattern.
+    pub(in crate::check) fn relate_template_string(
         &mut self,
         origin: Origin,
         text: &str,
@@ -62,13 +63,97 @@ impl CheckState<'_> {
         self.match_template_segments(origin, text, &segments, &heads)
     }
 
-    /// Decide whether the whole string domain inhabits one template pattern.
-    pub(in crate::check) fn decide_string_inhabits_template(
+    /// Relate one string literal into the open spans of a template literal pattern.
+    pub(in crate::check) fn relate_template_captures(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        text: &str,
+        module: ModuleId,
+        template: &dir::TemplateLiteralType,
+    ) -> CompilerResult<bool> {
+        let Some(parts) = self.split_template_captures(origin, text, module, template)? else {
+            return Ok(false);
+        };
+
+        // collect every capture bound before relating any of them
+        let mut seen: SmallVec<[(dir::GlobalTypeId, String); 2]> = SmallVec::new();
+        let mut pairs: SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 2]> = SmallVec::new();
+        for (span, captured) in parts {
+            if self.template_piece_text(span)?.is_some() {
+                continue;
+            }
+
+            // repeated spans must capture identical text
+            let root = self.shallow_resolve(span)?;
+            if let Some((_, previous)) = seen.iter().find(|(other, _)| *other == root) {
+                if *previous != captured {
+                    return Ok(false);
+                }
+
+                continue;
+            }
+            seen.push((root, captured.clone()));
+            let Some(bound) = self.template_capture_bound(origin, span, &captured)? else {
+                return Ok(false);
+            };
+            pairs.push((bound, span));
+        }
+
+        // relate every collected bound into its span
+        for (bound, span) in pairs {
+            if !self.constrain_type(origin, cause, Relation::Assignable, bound, span)? {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Relate the whole string domain into one template pattern, binding its open spans.
+    pub(in crate::check) fn relate_string_into_template(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        source: dir::GlobalTypeId,
+        module: ModuleId,
+        template: &dir::TemplateLiteralType,
+    ) -> CompilerResult<bool> {
+        let spans = self.type_ids(module, template.spans)?.to_vec();
+
+        // decide closed patterns by inhabitation
+        let mut is_open = false;
+        for span in &spans {
+            is_open = is_open || self.type_flags(*span)?.has_variable();
+        }
+        if !is_open {
+            return self.relate_string_inhabits_template(module, template);
+        }
+
+        // absorb the string domain into patterns whose segments are all empty
+        for segment in self.template_strings(module, template.strings)? {
+            if !self.strings().get(*segment).is_empty() {
+                return Ok(false);
+            }
+        }
+
+        // bind every open span to the whole string domain
+        for span in spans {
+            if !self.constrain_type(origin, cause, Relation::Assignable, source, span)? {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Relate the whole string domain into one closed template pattern.
+    pub(in crate::check) fn relate_string_inhabits_template(
         &mut self,
         template_module: ModuleId,
         template: &dir::TemplateLiteralType,
     ) -> CompilerResult<bool> {
-        // absorb every string into fully unconstraining patterns only
+        // accept only patterns whose segments are all empty
         for segment in self.template_strings(template_module, template.strings)? {
             if !self.strings().get(*segment).is_empty() {
                 return Ok(false);
@@ -142,7 +227,7 @@ impl CheckState<'_> {
             dir::Type::Variable(variable) => Some(variable),
             _ => None,
         };
-        let root = self.root_variable(self.resolve_head(span)?)?;
+        let root = self.root_variable(self.shallow_resolve(span)?)?;
         let mut hint = None;
         for variable in [immediate, root].into_iter().flatten() {
             hint = self
@@ -302,7 +387,7 @@ impl CheckState<'_> {
                 if let dir::TypeOperation::TemplateLiteral(nested) =
                     self.type_operation(span.module_id, operation)? =>
             {
-                self.decide_template_string(origin, text, span.module_id, &nested)?
+                self.relate_template_string(origin, text, span.module_id, &nested)?
             }
             _ => false,
         };
@@ -321,8 +406,8 @@ enum TemplatePiece {
 }
 
 impl CheckState<'_> {
-    /// Decide whether one template pattern inhabits another template pattern.
-    pub(in crate::check) fn decide_template_template(
+    /// Relate one template pattern into another template pattern.
+    pub(in crate::check) fn relate_template_template(
         &mut self,
         origin: Origin,
         source_module: ModuleId,
@@ -587,7 +672,7 @@ impl CheckState<'_> {
                 }
                 Some(TemplatePiece::Span(source_span)) => {
                     let source_span = *source_span;
-                    if self.decide_template_span_domain(origin, source_span, *span)?
+                    if self.relate_template_span_domain(origin, source_span, *span)?
                         && self.match_template_pieces(
                             origin,
                             pieces,
@@ -622,8 +707,8 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Decide whether one span's whole domain fits another span pattern.
-    fn decide_template_span_domain(
+    /// Relate one span's whole domain into another span pattern.
+    fn relate_template_span_domain(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
@@ -639,7 +724,7 @@ impl CheckState<'_> {
                 dir::Type::Primitive(dir::PrimitiveType::Bigint),
                 dir::Type::Primitive(dir::PrimitiveType::Bigint),
             ) => Ok(true),
-            _ => self.decide_relation(origin, Relation::Assignable, source, target),
+            _ => self.evaluate_relation(origin, Relation::Assignable, source, target),
         }
     }
 }

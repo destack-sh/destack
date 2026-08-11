@@ -142,7 +142,7 @@ impl BodyState<'_, '_> {
         active: &mut FxIndexSet<MemberLookupKey>,
     ) -> CompilerResult<MemberLookup> {
         // read the declaration for static names through reference and application heads
-        let root = self.resolve_head(subject)?;
+        let root = self.shallow_resolve(subject)?;
         if space == dir::MemberSpace::Static {
             let named = match self.ty(root)? {
                 dir::Type::Reference(reference) => {
@@ -528,7 +528,7 @@ impl BodyState<'_, '_> {
                     .to_vec();
                 let mut lookups = Vec::with_capacity(elements.len());
                 for element in elements {
-                    let element = self.resolve_head(element)?;
+                    let element = self.shallow_resolve(element)?;
                     match self.lookup_subject_member(
                         origin, module, receiver, element, space, key, extensions, active,
                     )? {
@@ -689,7 +689,7 @@ impl BodyState<'_, '_> {
         let mut lookups = Vec::with_capacity(elements.len());
 
         // runtime receiver unions settle each member under its own arm
-        let is_receiver_union = self.resolve_head(receiver)? == self.resolve_head(subject)?;
+        let is_receiver_union = self.shallow_resolve(receiver)? == self.shallow_resolve(subject)?;
 
         // require every element to expose the member
         for element in elements {
@@ -1199,7 +1199,7 @@ impl BodyState<'_, '_> {
 
                 // apply this level's arguments and read the member's operations
                 let ty = self.substitute_type(ty, &substitution)?;
-                let ty = self.check.resolve_head(ty)?;
+                let ty = self.check.shallow_resolve(ty)?;
                 let callable = declared.callable_type(origin.module(), level.symbol, ty, self)?;
                 let access_type = declared.access_type(self.check, ty)?;
                 let access = match declared.role {
@@ -1659,7 +1659,7 @@ impl BodyState<'_, '_> {
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
         // resolve the subject head before collecting its keys
-        let subject = self.resolve_head(subject)?;
+        let subject = self.shallow_resolve(subject)?;
 
         // stop cyclic paths through bounds, unions, and heritage
         if !visited.insert(subject) {

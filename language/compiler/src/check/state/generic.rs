@@ -381,7 +381,7 @@ impl CheckState<'_> {
         parameter: GenericParameterId,
         argument: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let argument = self.resolve_head(argument)?;
+        let argument = self.shallow_resolve(argument)?;
         let Some(variable) = self.root_variable(argument)? else {
             return Ok(argument);
         };
@@ -1005,14 +1005,14 @@ impl CheckState<'_> {
             return Ok(true);
         }
 
-        // memory literals spell as strings in written type arguments
-        let spelled = matches!(
+        // memory literals appear as strings in written type arguments
+        let is_reserved_lifetime = matches!(
             self.ty(ty)?,
             dir::Type::Literal(dir::ScalarLiteral::String(name))
                 if matches!(self.strings().get(name), "static" | "frame")
         );
 
-        Ok(spelled)
+        Ok(is_reserved_lifetime)
     }
 
     /// Return one instance substitution qualified by a concrete receiver.
@@ -1181,7 +1181,7 @@ impl CheckState<'_> {
         for applied in applied {
             // skip lifetime arguments, which erase from instance identity
             let parameter = applied.parameter;
-            let argument = self.resolve_head(applied.argument)?;
+            let argument = self.shallow_resolve(applied.argument)?;
             let binding = self.require_generic_parameter(parameter)?;
             let is_lifetime = binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime);
             if is_lifetime {
