@@ -8,14 +8,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::DaemonError;
-
-/// Greatest bytes carried by one Blob stream item.
-///
-/// 64 KiB bounds decoded memory while amortizing RPC framing and disk writes.
-pub const BLOB_CHUNK_BYTE_LEN: usize = 64 * 1024;
-
-/// Bytes carried by one Blob stream item.
-pub type BlobChunk = Vec<u8>;
+use crate::service::BYTE_STREAM_CHUNK_BYTE_LEN;
 
 /// RPC operations on shared Blobs.
 #[destack_rpc::service(name = "destack.blob.Blob")]
@@ -97,7 +90,7 @@ impl BlobService for dyn BlobStore {
     async fn put(
         &self,
         _request: Request<()>,
-        mut requests: RequestStream<BlobChunk>,
+        mut requests: RequestStream<Vec<u8>>,
     ) -> Result<Response<Blob>, Status> {
         let mut writer = self.writer().map_err(DaemonError::from)?;
 
@@ -107,11 +100,11 @@ impl BlobService for dyn BlobStore {
             .await
             .map_err(|error| error.into_status())?
         {
-            if bytes.len() > BLOB_CHUNK_BYTE_LEN {
+            if bytes.len() > BYTE_STREAM_CHUNK_BYTE_LEN {
                 return Err(Status::new(
                     Code::InvalidArgument,
                     format!(
-                        "Blob stream item exceeds {BLOB_CHUNK_BYTE_LEN} bytes: {}",
+                        "Blob stream item exceeds {BYTE_STREAM_CHUNK_BYTE_LEN} bytes: {}",
                         bytes.len()
                     ),
                 ));
@@ -132,13 +125,13 @@ impl BlobService for dyn BlobStore {
     async fn read(
         &self,
         request: Request<ReadBlobRequest>,
-        mut responses: ResponseSender<BlobChunk>,
+        mut responses: ResponseSender<Vec<u8>>,
     ) -> Result<Response<()>, Status> {
         let range = request.value.range()?;
         let memory = self.open(request.value.blob).map_err(DaemonError::from)?;
 
         // send the exact range as bounded output chunks
-        for bytes in memory.bytes()[range].chunks(BLOB_CHUNK_BYTE_LEN) {
+        for bytes in memory.bytes()[range].chunks(BYTE_STREAM_CHUNK_BYTE_LEN) {
             responses
                 .send(&bytes.to_vec())
                 .await

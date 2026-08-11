@@ -1,4 +1,5 @@
 mod blob;
+mod constants;
 mod error;
 mod peer;
 mod service;
@@ -10,4 +11,5 @@ pub use service::*;
 pub use workspace::*;
 pub use world::*;
 
+pub(crate) use constants::*;
 pub(crate) use peer::*;
