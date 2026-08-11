@@ -161,6 +161,6 @@ impl ModuleContext {
     pub fn node_type_id(&self, node: dir::LocalNodeIdAny) -> Option<dir::GlobalTypeId> {
         let node = node.into_global(self.module);
 
-        self.types.get_reduced_node_type_id(node)
+        self.types.get_node_type_id(node)
     }
 }

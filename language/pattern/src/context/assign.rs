@@ -48,7 +48,6 @@ impl ModuleContext {
         active: &mut Vec<TypeRelation>,
         program: &ProgramContext,
     ) -> Result<bool, ContextError> {
-        let source = program.reduce_type(source)?;
         let relation = TypeRelation {
             checked: source,
             parsed: target,
@@ -83,7 +82,7 @@ impl ModuleContext {
             return Ok(is_assignable);
         }
 
-        // every union source member must fit the same target
+        // require every union source member to fit the same target
         if let dir::Type::Union(union) = source_type {
             let elements = program.type_ids(source.module_id, union.elements)?;
             for element in elements {
@@ -180,7 +179,6 @@ impl ModuleContext {
         active: &mut Vec<TypeRelation>,
         program: &ProgramContext,
     ) -> Result<bool, ContextError> {
-        let target = program.reduce_type(target)?;
         let relation = TypeRelation {
             checked: target,
             parsed: source,
@@ -200,7 +198,7 @@ impl ModuleContext {
             return Ok(true);
         }
 
-        // one source must fit at least one target union member
+        // require the source to fit at least one target union member
         if let dir::Type::Union(union) = target_type {
             let elements = program.type_ids(target.module_id, union.elements)?;
             for element in elements {
@@ -217,7 +215,7 @@ impl ModuleContext {
             return Ok(false);
         }
 
-        // one source must fit every target intersection member
+        // require the source to fit every target intersection member
         if let dir::Type::Intersection(intersection) = target_type {
             let elements = program.type_ids(target.module_id, intersection.elements)?;
             for element in elements {

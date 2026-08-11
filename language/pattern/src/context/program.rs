@@ -44,13 +44,6 @@ impl ProgramContext {
             .ok_or(ContextError::MissingType(id))
     }
 
-    /// Return one checked type reduced by its owning module.
-    pub fn reduce_type(&self, id: dir::GlobalTypeId) -> Result<dir::GlobalTypeId, ContextError> {
-        let module = self.module(id.module_id)?;
-
-        Ok(module.types().get_reduced_type_id(id))
-    }
-
     /// Return a checked type-id list from its owning module.
     pub fn type_ids(
         &self,

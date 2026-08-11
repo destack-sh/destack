@@ -45,7 +45,7 @@ impl ProgramContext {
         }
 
         // checked singleton symbol types retain literal values without a static table entry
-        let Some(type_id) = module.types().get_reduced_symbol_type_id(*symbol) else {
+        let Some(type_id) = module.types().get_symbol_type_id(*symbol) else {
             return Ok(None);
         };
         let scalar = match self.type_by_id(type_id)? {
