@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt;
 
 pub use destack_artifact::ConditionSet;
+use destack_serde::Reflect;
 use destack_source::matches;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
@@ -784,7 +785,7 @@ impl ConditionAxis {
 }
 
 /// Selector over one active condition axis.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ConditionSelector {
     /// Condition names or glob patterns.
