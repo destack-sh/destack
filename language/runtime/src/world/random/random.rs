@@ -1,3 +1,4 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -9,7 +10,7 @@ use super::r#virtual::StreamStateDecodeError;
 use super::r#virtual::VirtualRandom;
 
 /// Effective runtime randomness source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum RandomSource {
     /// Use the host randomness source.
     #[default]

@@ -9,11 +9,12 @@ use destack_repository::{
     ConditionGate, ConditionSelector, ConditionSet, ExecutionMode, PackageSelector,
     RuntimeIdentitySelector, RuntimeLabelOperator, RuntimeLabelRequirement, RuntimeLabelSelector,
 };
+use destack_serde::Reflect;
 use destack_source::matches;
 use serde::{Deserialize, Serialize};
 
 /// Selector clauses for policy subjects.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "camelCase")]
 pub struct SubjectSelector {
     /// Package selector.
@@ -66,7 +67,7 @@ pub(crate) struct Subject<'a> {
 }
 
 /// Selector clauses for attempted actions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub struct ActionSelector {
     /// Glob selector for full binding names.
     pub binding: Option<String>,
@@ -87,7 +88,7 @@ pub struct ActionSelector {
 }
 
 /// Selector for one policy target.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "camelCase")]
 pub enum TargetSelector {
     /// Match any target.
@@ -106,7 +107,7 @@ pub enum TargetSelector {
 }
 
 /// Selector for one topology entity target.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "camelCase")]
 pub enum EntitySelector {
     /// Match all entities of this class.
@@ -183,7 +184,7 @@ impl EntitySelector {
 }
 
 /// Selector for one topology edge target.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "camelCase")]
 pub enum EdgeSelector {
     /// Match all edges of this class.

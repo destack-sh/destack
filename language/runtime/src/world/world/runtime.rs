@@ -191,7 +191,7 @@ impl World {
     }
 
     /// Borrow one stored runtime immutably.
-    pub(crate) fn runtime(&self, runtime_id: RuntimeId) -> RuntimeResult<&Runtime> {
+    pub fn runtime(&self, runtime_id: RuntimeId) -> RuntimeResult<&Runtime> {
         self.runtimes
             .get(&runtime_id)
             .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())

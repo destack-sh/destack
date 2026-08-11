@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use destack_program as program;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -8,7 +9,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use super::{Decision, Rule, RuleId, Subject};
 
 /// Runtime policy specification.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Policy {
     /// Default decision when no rule matches.
     #[serde(default)]

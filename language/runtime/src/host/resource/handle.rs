@@ -1,11 +1,15 @@
-use crate::worker::WorkerId;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+
+use crate::worker::WorkerId;
 
 use super::ResourceKind;
 use super::kind::for_each_resource_handle_kind;
 
 /// The global identifier for one runtime-managed resource.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
 pub struct ResourceId {
     /// Worker that owns this resource.
     pub worker_id: WorkerId,

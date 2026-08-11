@@ -1,4 +1,5 @@
 use destack_program as program;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeResult;
@@ -6,7 +7,7 @@ use crate::diagnostic::RuntimeResult;
 use super::{ActionSelector, Subject, SubjectSelector, TargetSelector};
 
 /// Stable identifier for one runtime rule.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
 pub struct RuleId(pub String);
 
 impl RuleId {
@@ -17,7 +18,7 @@ impl RuleId {
 }
 
 /// Runtime policy decision payload.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "camelCase")]
 pub enum Decision {
     /// Allow the matching action.
@@ -28,7 +29,7 @@ pub enum Decision {
 }
 
 /// One runtime policy rule.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Rule {
     /// Stable rule identifier.
     pub id: RuleId,

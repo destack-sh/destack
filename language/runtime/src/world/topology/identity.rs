@@ -30,7 +30,7 @@ impl WorkerId {
 }
 
 /// Stable identifier for one topology entity.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
 #[serde(transparent)]
 pub struct EntityId(pub String);
 
@@ -71,7 +71,7 @@ impl fmt::Display for EntityId {
 }
 
 /// Stable identifier for one topology edge.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
 #[serde(transparent)]
 pub struct EdgeId(pub String);
 
@@ -112,7 +112,7 @@ impl fmt::Display for EdgeId {
 }
 
 /// Stable identifier for one topology entity kind.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
 #[serde(transparent)]
 pub struct EntityKind(pub String);
 
@@ -162,7 +162,7 @@ impl fmt::Display for EntityKind {
 }
 
 /// Stable identifier for one topology edge kind.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
 #[serde(transparent)]
 pub struct EdgeKind(pub String);
 

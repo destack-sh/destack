@@ -7,10 +7,11 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::machine::Entry;
-use crate::runtime::RuntimeId;
-use crate::worker::WorkerId;
+use crate::runtime::{self, RuntimeId};
+use crate::world::observation::{ObservationEntry, ObservationScope, ObservationSequence};
 use crate::world::{
-    Branch, BranchId, Checkpoint, CheckpointId, Instant, Moment, Run, RunOutcome,
+    Branch, BranchId, Edge, EdgeDefinition, Entity, EntityDefinition, Image, ImageId, Moment,
+    Policy, Rule, RuleId, Run, RunOutcome, Snapshot,
 };
 
 /// RPC operations over hosted Worlds.
@@ -28,13 +29,21 @@ pub trait WorldService {
     // Runtime
     // =============================================================================
 
+    /// Read one Runtime in a World.
+    #[rpc(name = "ReadRuntime", idempotency = "no_side_effects")]
+    fn read_runtime(request: ReadRuntimeRequest) -> Runtime;
+
+    /// List the Runtimes in one World.
+    #[rpc(name = "ListRuntimes", idempotency = "no_side_effects")]
+    fn list_runtimes(request: ListRuntimesRequest) -> Vec<Runtime>;
+
     /// Spawn one Runtime from an encoded Program Blob.
     #[rpc(name = "SpawnRuntime")]
-    fn spawn_runtime(request: SpawnRuntimeRequest) -> RuntimeId;
+    fn spawn_runtime(request: SpawnRuntimeRequest) -> Runtime;
 
-    /// List the Runtime identifiers in one World.
-    #[rpc(name = "ListRuntimes", idempotency = "no_side_effects")]
-    fn list_runtimes(request: ListRuntimesRequest) -> Vec<RuntimeId>;
+    /// Replace one Runtime's Program at a committed safepoint.
+    #[rpc(name = "ReloadRuntime")]
+    fn reload_runtime(request: ReloadRuntimeRequest) -> Runtime;
 
     /// Remove one Runtime from its World.
     #[rpc(name = "RemoveRuntime", idempotency = "idempotent")]
@@ -52,13 +61,49 @@ pub trait WorldService {
     #[rpc(name = "Run")]
     fn run(request: RunRequest) -> RunOutcome;
 
-    /// Resume one exact debugger-stopped Worker.
-    #[rpc(name = "Resume")]
-    fn resume(request: ResumeRequest) -> RunOutcome;
+    // =============================================================================
+    // Observation
+    // =============================================================================
 
-    /// Advance one runtime-controlled World clock.
-    #[rpc(name = "Advance")]
-    fn advance(request: AdvanceRequest) -> Instant;
+    /// List one page of World Observations.
+    #[rpc(name = "ListObservations", idempotency = "no_side_effects")]
+    fn list_observations(request: ListObservationsRequest) -> ObservationPage;
+
+    /// Watch World Observations after one sequence.
+    #[rpc(name = "WatchObservations", response_stream(ObservationEntry))]
+    fn watch_observations(request: WatchObservationsRequest) -> ();
+
+    // =============================================================================
+    // Topology
+    // =============================================================================
+
+    /// Read one World's Topology.
+    #[rpc(name = "ReadTopology", idempotency = "no_side_effects")]
+    fn read_topology(request: ReadTopologyRequest) -> Topology;
+
+    // =============================================================================
+    // Policy
+    // =============================================================================
+
+    /// Read one World's Policy.
+    #[rpc(name = "ReadPolicy", idempotency = "no_side_effects")]
+    fn read_policy(request: ReadPolicyRequest) -> Policy;
+
+    /// Replace one World's active Policy.
+    #[rpc(name = "ReplacePolicy")]
+    fn replace_policy(request: ReplacePolicyRequest) -> ();
+
+    /// Add one Rule to a World's active Policy.
+    #[rpc(name = "AddRule")]
+    fn add_rule(request: AddRuleRequest) -> ();
+
+    /// Replace one Rule in a World's active Policy.
+    #[rpc(name = "ReplaceRule")]
+    fn replace_rule(request: ReplaceRuleRequest) -> ();
+
+    /// Remove one Rule from a World's active Policy.
+    #[rpc(name = "RemoveRule", idempotency = "idempotent")]
+    fn remove_rule(request: RemoveRuleRequest) -> ();
 
     // =============================================================================
     // Branch
@@ -81,32 +126,106 @@ pub trait WorldService {
     fn fork(request: ForkRequest) -> WorldId;
 
     // =============================================================================
-    // Checkpoint
+    // Image
     // =============================================================================
 
-    /// Read one Checkpoint in a World's lineage.
-    #[rpc(name = "ReadCheckpoint", idempotency = "no_side_effects")]
-    fn read_checkpoint(request: ReadCheckpointRequest) -> Checkpoint;
+    /// Read one retained Image in a World's lineage.
+    #[rpc(name = "ReadImage", idempotency = "no_side_effects")]
+    fn read_image(request: ReadImageRequest) -> Image;
 
-    /// List the Checkpoints in a World's lineage.
-    #[rpc(name = "ListCheckpoints", idempotency = "no_side_effects")]
-    fn list_checkpoints(request: ListCheckpointsRequest) -> Vec<Checkpoint>;
+    /// List the retained Images in a World's lineage.
+    #[rpc(name = "ListImages", idempotency = "no_side_effects")]
+    fn list_images(request: ListImagesRequest) -> Vec<Image>;
 
-    /// Create one Checkpoint for a World.
-    #[rpc(name = "CreateCheckpoint")]
-    fn create_checkpoint(request: CreateCheckpointRequest) -> CheckpointId;
+    /// Capture one Image for a World.
+    #[rpc(name = "Capture")]
+    fn capture(request: CaptureRequest) -> Image;
 
     // =============================================================================
     // Snapshot
     // =============================================================================
 
-    /// Store one Checkpoint snapshot as a Blob.
+    /// Store one retained Image as a Blob-backed Snapshot.
     #[rpc(name = "Snapshot")]
-    fn snapshot(request: SnapshotRequest) -> Blob;
+    fn snapshot(request: SnapshotRequest) -> Snapshot;
+}
 
-    /// Restore one World from a snapshot Blob.
-    #[rpc(name = "Restore")]
-    fn restore(request: RestoreRequest) -> WorldId;
+/// Stable identifier for one hosted World.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
+pub struct WorldId(u64);
+
+/// One Runtime hosted inside a World.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct Runtime {
+    /// World-local Runtime identity.
+    pub id: RuntimeId,
+    /// Exact Program Blob instantiated by the Runtime.
+    pub program: Blob,
+    /// Runtime configuration.
+    pub options: RuntimeOptions,
+    /// Ambient Runtime environment.
+    pub environment: Environment,
+    /// Active Program conditions.
+    pub conditions: ConditionSet,
+}
+
+/// One materialized World topology.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct Topology {
+    /// Registered entity definitions.
+    pub entity_definitions: Vec<EntityDefinition>,
+    /// Registered edge definitions.
+    pub edge_definitions: Vec<EdgeDefinition>,
+    /// Live topology entities.
+    pub entities: Vec<Entity>,
+    /// Live topology edges.
+    pub edges: Vec<Edge>,
+}
+
+/// One query over a World's Observation log.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ObservationQuery {
+    /// Sequence preceding the first matching Observation.
+    pub after: Option<ObservationSequence>,
+    /// Scope to match, or every scope when absent.
+    pub scope: Option<ObservationScope>,
+}
+
+/// One page of World Observations.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ObservationPage {
+    /// Matching Observations in sequence order.
+    pub observations: Vec<ObservationEntry>,
+    /// Sequence preceding the next page when more Observations remain.
+    pub next: Option<ObservationSequence>,
+}
+
+impl WorldId {
+    /// Create one World identifier.
+    pub const fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    /// Return the raw World identifier.
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+}
+
+impl From<&runtime::Runtime> for Runtime {
+    /// Capture one Runtime's client-visible configuration.
+    fn from(runtime: &runtime::Runtime) -> Self {
+        Self {
+            id: runtime.runtime_id(),
+            program: runtime.program().blob(),
+            options: runtime.options().clone(),
+            environment: runtime.environment().clone(),
+            conditions: runtime.conditions().clone(),
+        }
+    }
 }
 
 /// Request to read one World's current Moment.
@@ -114,6 +233,15 @@ pub trait WorldService {
 pub struct ReadMomentRequest {
     /// Hosted World.
     pub world_id: WorldId,
+}
+
+/// Request to read one Runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ReadRuntimeRequest {
+    /// World containing the Runtime.
+    pub world_id: WorldId,
+    /// Runtime to read.
+    pub runtime_id: RuntimeId,
 }
 
 /// Request to spawn one Runtime in a World.
@@ -128,6 +256,19 @@ pub struct SpawnRuntimeRequest {
     /// Ambient Runtime environment.
     pub environment: Option<Environment>,
     /// Active Program conditions.
+    pub conditions: ConditionSet,
+}
+
+/// Request to replace one Runtime's Program.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ReloadRuntimeRequest {
+    /// World containing the Runtime.
+    pub world_id: WorldId,
+    /// Runtime receiving the Program.
+    pub runtime_id: RuntimeId,
+    /// Replacement Program Blob.
+    pub program: Blob,
+    /// Active conditions for the replacement Program.
     pub conditions: ConditionSet,
 }
 
@@ -169,24 +310,78 @@ pub struct RunRequest {
     pub run: Run,
 }
 
-/// Request to resume one debugger-stopped Worker.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ResumeRequest {
-    /// World containing the stopped Worker.
+/// Request to list one page of World Observations.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ListObservationsRequest {
+    /// World to inspect.
     pub world_id: WorldId,
-    /// Runtime containing the stopped Worker.
-    pub runtime_id: RuntimeId,
-    /// Worker to resume.
-    pub worker_id: WorkerId,
+    /// Observation selection.
+    pub query: ObservationQuery,
+    /// Maximum number of Observations to return.
+    pub limit: u32,
 }
 
-/// Request to advance one runtime-controlled World clock.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct AdvanceRequest {
-    /// World whose clock advances.
+/// Request to watch World Observations.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct WatchObservationsRequest {
+    /// World to watch.
     pub world_id: WorldId,
-    /// Absolute World deadline to reach.
-    pub deadline: Instant,
+    /// Observation selection.
+    pub query: ObservationQuery,
+}
+
+/// Request to read one World's Topology.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ReadTopologyRequest {
+    /// World to inspect.
+    pub world_id: WorldId,
+    /// Committed Moment to inspect, or the current World when absent.
+    pub moment: Option<Moment>,
+}
+
+/// Request to read one World's Policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ReadPolicyRequest {
+    /// World to inspect.
+    pub world_id: WorldId,
+    /// Committed Moment to inspect, or the current World when absent.
+    pub moment: Option<Moment>,
+}
+
+/// Request to replace one World's active Policy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ReplacePolicyRequest {
+    /// World receiving the Policy.
+    pub world_id: WorldId,
+    /// Complete replacement Policy.
+    pub policy: Policy,
+}
+
+/// Request to add one Rule to a World's active Policy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct AddRuleRequest {
+    /// World receiving the Rule.
+    pub world_id: WorldId,
+    /// Rule to add.
+    pub rule: Rule,
+}
+
+/// Request to replace one Rule in a World's active Policy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ReplaceRuleRequest {
+    /// World containing the Rule.
+    pub world_id: WorldId,
+    /// Complete replacement Rule.
+    pub rule: Rule,
+}
+
+/// Request to remove one Rule from a World's active Policy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct RemoveRuleRequest {
+    /// World containing the Rule.
+    pub world_id: WorldId,
+    /// Rule to remove.
+    pub rule_id: RuleId,
 }
 
 /// Request to read one Branch.
@@ -225,62 +420,36 @@ pub struct ForkRequest {
     pub name: String,
 }
 
-/// Request to read one Checkpoint.
+/// Request to read one retained Image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ReadCheckpointRequest {
-    /// World containing the Checkpoint.
+pub struct ReadImageRequest {
+    /// World containing the Image.
     pub world_id: WorldId,
-    /// Checkpoint to read.
-    pub checkpoint_id: CheckpointId,
+    /// Image to read.
+    pub image_id: ImageId,
 }
 
-/// Request to list the Checkpoints in one World.
+/// Request to list the retained Images in one World.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ListCheckpointsRequest {
+pub struct ListImagesRequest {
     /// Hosted World.
     pub world_id: WorldId,
 }
 
-/// Request to create one Checkpoint.
+/// Request to capture one Image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct CreateCheckpointRequest {
-    /// World receiving the Checkpoint.
+pub struct CaptureRequest {
+    /// World receiving the Image.
     pub world_id: WorldId,
-    /// Checkpoint name.
+    /// Image name.
     pub name: String,
 }
 
-/// Request to store one Checkpoint snapshot.
+/// Request to store one retained Image as a Blob-backed Snapshot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SnapshotRequest {
-    /// World containing the Checkpoint.
+    /// World containing the Image.
     pub world_id: WorldId,
-    /// Checkpoint to snapshot.
-    pub checkpoint_id: CheckpointId,
-}
-
-/// Request to restore one World snapshot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct RestoreRequest {
-    /// Snapshot Blob to restore.
-    pub snapshot: Blob,
-}
-
-/// Stable identifier for one hosted World.
-#[repr(transparent)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
-)]
-pub struct WorldId(u64);
-
-impl WorldId {
-    /// Create one World identifier.
-    pub const fn new(value: u64) -> Self {
-        Self(value)
-    }
-
-    /// Return the raw World identifier.
-    pub const fn get(self) -> u64 {
-        self.0
-    }
+    /// Image to snapshot.
+    pub image_id: ImageId,
 }

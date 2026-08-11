@@ -199,6 +199,26 @@ impl Runtime {
         }
     }
 
+    /// Borrow the Program instantiated by this Runtime.
+    pub fn program(&self) -> &program::Program {
+        &self.program
+    }
+
+    /// Borrow this Runtime's immutable options.
+    pub fn options(&self) -> &RuntimeOptions {
+        &self.options
+    }
+
+    /// Borrow this Runtime's ambient environment.
+    pub fn environment(&self) -> &Environment {
+        &self.environment
+    }
+
+    /// Borrow this Runtime's active Program conditions.
+    pub fn conditions(&self) -> &ConditionSet {
+        &self.conditions
+    }
+
     /// Return the current default worker id.
     pub fn default_worker_id(&self) -> WorkerId {
         self.default_worker_id

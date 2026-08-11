@@ -1,3 +1,4 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::world::topology::LabelSet;
@@ -5,7 +6,7 @@ use crate::world::topology::LabelSet;
 use super::{EdgeId, EdgeKind, EntityId, EntityKind};
 
 /// Topology entity-kind registration payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EntityDefinition {
     /// Stable kind identifier.
     pub kind: EntityKind,
@@ -36,7 +37,7 @@ impl EntityDefinition {
 }
 
 /// Topology edge-kind registration payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EdgeDefinition {
     /// Stable kind identifier.
     pub kind: EdgeKind,
@@ -67,7 +68,7 @@ impl EdgeDefinition {
 }
 
 /// Topology entity payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Entity {
     /// Stable entity identifier.
     pub id: EntityId,
@@ -113,7 +114,7 @@ impl Entity {
 }
 
 /// Topology edge payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Edge {
     /// Stable edge identifier.
     pub id: EdgeId,

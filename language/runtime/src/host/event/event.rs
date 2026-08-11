@@ -1,7 +1,8 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Host lifecycle state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum LifecycleState {
     /// Runtime has not received start events yet.
     Initializing,
@@ -16,7 +17,7 @@ pub enum LifecycleState {
 }
 
 /// Host lifecycle source attachment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum LifecycleSourceKind {
     /// Event originated from one application attachment.
     Application,
@@ -27,7 +28,7 @@ pub enum LifecycleSourceKind {
 }
 
 /// Host memory pressure state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MemoryPressureLevel {
     /// Memory pressure is normal.
     Normal,
@@ -38,7 +39,7 @@ pub enum MemoryPressureLevel {
 }
 
 /// Host thermal state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ThermalState {
     /// Thermal state is nominal.
     Nominal,
@@ -51,7 +52,7 @@ pub enum ThermalState {
 }
 
 /// Host power mode state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum PowerMode {
     /// Normal power mode.
     Normal,
@@ -60,7 +61,9 @@ pub enum PowerMode {
 }
 
 /// Host event kind for queue policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
 pub enum HostEventKind {
     /// Lifecycle transitions.
     Lifecycle,
@@ -75,7 +78,7 @@ pub enum HostEventKind {
 }
 
 /// Runtime-visible host ingress payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum HostEvent {
     /// Host lifecycle transition event.
     Lifecycle(LifecycleEvent),
@@ -103,7 +106,7 @@ impl HostEvent {
 }
 
 /// Host lifecycle transition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct LifecycleEvent {
     /// Lifecycle source.
     pub source_kind: LifecycleSourceKind,
@@ -112,26 +115,26 @@ pub struct LifecycleEvent {
 }
 
 /// Host memory pressure event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MemoryPressureEvent {
     /// Memory pressure level.
     pub level: MemoryPressureLevel,
 }
 
 /// Host thermal state event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ThermalEvent {
     /// Thermal state.
     pub state: ThermalState,
 }
 
 /// Host power mode event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct PowerModeEvent {
     /// Power mode.
     pub mode: PowerMode,
 }
 
 /// Host wall clock change event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct WallClockEvent;
