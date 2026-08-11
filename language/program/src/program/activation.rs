@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Binding, Context, Fiber, Memory, Value, Word};
+use crate::{Binding, Context, Event, EventSet, Fiber, Memory, Value, Word};
 
 /// Action returned by one runtime poll.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,6 +23,16 @@ pub trait Runtime {
 
     /// Service pending runtime work; roots are visited after control returns.
     fn poll(&mut self, memory: Memory<'_>) -> Result<Poll, Self::Error>;
+
+    /// Return the Program execution event categories selected for observation.
+    fn events(&self) -> EventSet {
+        EventSet::default()
+    }
+
+    /// Observe one selected Program execution event.
+    fn observe(&mut self, _event: Event) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Call one linked runtime binding on one logical fiber.
     fn call_binding(
