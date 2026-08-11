@@ -16,7 +16,7 @@ class Bag<T> {
         r#"
 === annotated ===
 class Bag<in out T> {
-    values: T[] = Array.new() as T[];
+    values: T[] = Array.new<T>() as T[];
 }
 
 === checked ===
@@ -32,18 +32,18 @@ class Bag<T> {
     /// @resolution.name source=T target=Bag.T
     /// @type.node source=Array type=Array
     /// @type.node source=Array.new type=() => Owned<Array<collections.array.T#4>>
-    /// @type.node source=Array.new() type=Owned<Array<<error>>>
+    /// @type.node source=Array.new() type=Owned<Array<T>>
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.member source=Array.new receiver=Array type=() => Owned<Array<collections.array.T#4>> kind=symbol target_receiver=Array target=collections.array.new
-    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<<error>>> kind=symbol target=collections.array.new instance=Array<<error>>.<extension#4>.new
+    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<T>> kind=symbol target=collections.array.new instance=Array<T>.<extension#4>.new
     /// @generic.instance source=Array.new id=Array<collections.array.T#4>
-    /// @generic.instance source=Array.new() id=Array<<error>>
-    /// @generic.instance source=Array.new() id=Array<<error>>.<extension#4>.new
+    /// @generic.instance source=Array.new() id=Array<T>
+    /// @generic.instance source=Array.new() id=Array<T>.<extension#4>.new
 
 }
 
-/// @generic.instance id=Array<<error>> template=collections.array.Array arguments=(<error>)
-/// @generic.instance id=Array<<error>>.<extension#4>.new template=collections.array.new arguments=(<error>)
+/// @generic.instance id=Array<T> template=collections.array.Array arguments=(T)
+/// @generic.instance id=Array<T>.<extension#4>.new template=collections.array.new arguments=(T)
 /// @generic.instance id=Array<collections.array.T#4> template=collections.array.Array arguments=(collections.array.T#4)
 "#,
     );
@@ -66,7 +66,7 @@ function build(): void {
         r#"
 === annotated ===
 function build(): void {
-    let values: int32[] = Array.new() as int32[];
+    let values: int32[] = Array.new<int32>() as int32[];
     values;
 }
 
@@ -79,13 +79,13 @@ function build(): void {
     /// @resolution.pattern source=values kind=binding target=build.values
     /// @type.node source=Array type=Array
     /// @type.node source=Array.new type=() => Owned<Array<collections.array.T#4>>
-    /// @type.node source=Array.new() type=Owned<Array<<error>>>
+    /// @type.node source=Array.new() type=Owned<Array<int32>>
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.member source=Array.new receiver=Array type=() => Owned<Array<collections.array.T#4>> kind=symbol target_receiver=Array target=collections.array.new
-    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<<error>>> kind=symbol target=collections.array.new instance=Array<<error>>.<extension#4>.new
+    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<int32>> kind=symbol target=collections.array.new instance=Array<int32>.<extension#4>.new
     /// @generic.instance source=Array.new id=Array<collections.array.T#4>
-    /// @generic.instance source=Array.new() id=Array<<error>>
-    /// @generic.instance source=Array.new() id=Array<<error>>.<extension#4>.new
+    /// @generic.instance source=Array.new() id=Array<int32>
+    /// @generic.instance source=Array.new() id=Array<int32>.<extension#4>.new
 
     values;
     /// @type.node source=values type=Array<int32>
@@ -95,9 +95,9 @@ function build(): void {
 
 }
 
-/// @generic.instance id=Array<<error>> template=collections.array.Array arguments=(<error>)
-/// @generic.instance id=Array<<error>>.<extension#4>.new template=collections.array.new arguments=(<error>)
 /// @generic.instance id=Array<collections.array.T#4> template=collections.array.Array arguments=(collections.array.T#4)
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=Array<int32>.<extension#4>.new template=collections.array.new arguments=(int32)
 "#,
     );
 }

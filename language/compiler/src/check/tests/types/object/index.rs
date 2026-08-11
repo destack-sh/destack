@@ -150,12 +150,13 @@ const value = read(mixed);
 /// @diagnostic.error id=argument-not-assignable message="argument of type '{ x: int32; y: string }' is not assignable to parameter of type 'Bag'"
 /// @diagnostic.label line=7 column=20 span="mixed" line_source="const value = read(mixed);"
 /// @diagnostic.related line=7 column=15 span="read(mixed)" line_source="const value = read(mixed);" message="in this call"
+/// @diagnostic.note message="'Bag' reduces to '{ readonly [key: string]: int32 }'"
 "#,
     );
 }
 
 #[test]
-fn test_satisfies_does_not_add_index_signature_members() {
+fn test_satisfies_keeps_the_written_object_type() {
     let session = TestSession::single(
         r#"
 type Bag = { readonly [key: string]: int32 };

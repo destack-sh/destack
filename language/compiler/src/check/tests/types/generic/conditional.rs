@@ -50,7 +50,7 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 declare const text: Dynamic<TextSink>;
 declare const number: Dynamic<NumberSink>;
 
-write<string>("message", text as SinkFor<string>);
+write<string>("message", text);
 write<float64>(1, number);
 
 === checked ===
@@ -271,6 +271,7 @@ write("message", number);
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'Dynamic<NumberSink>' is not assignable to parameter of type 'SinkFor<string>'"
 /// @diagnostic.label line=17 column=18 span="number" line_source="write(\"message\", number);"
 /// @diagnostic.related line=17 column=1 span="write(\"message\", number)" line_source="write(\"message\", number);" message="in this call"
+/// @diagnostic.note message="'SinkFor<string>' reduces to 'TextSink'"
 "#,
     );
 }
