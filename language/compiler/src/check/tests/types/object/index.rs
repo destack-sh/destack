@@ -1042,12 +1042,9 @@ counter["value"] += 1;
 /// @resolution.name source=counter target=counter
 /// @resolution.operator source="counter[\"value\"] += 1" type=Counter.Output operator="+" kind=builtin operands=[counter["value"] as Counter.Output families=(integer), 1 as Counter.Output families=(integer)]
 /// @resolution.pattern.assign source="counter[\"value\"]" kind=place
-/// @resolution.assignment source="counter[\"value\"]" read="index(parameters=(string), arguments=(provided(\"value\") as string), return=Borrowed<Counter.Output, \"static\", \"readonly\">)" write="indexSet(parameters=(string, int32 | float64), arguments=(provided(\"value\") as string, write as int32 | float64), return=void)" type=int32 | float64
+/// @resolution.assignment source="counter[\"value\"]" read="index(parameters=(string), arguments=(provided(\"value\") as string), return=&'static readonly Counter.Output)" write="indexSet(parameters=(string, int32 | float64), arguments=(provided(\"value\") as string, write as int32 | float64), return=void)" type=int32 | float64
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
-
-/// @generic.instance id="Borrowed<this, L, \"readonly\">" template=memory.borrow.Borrowed arguments=(this, L, "readonly")
-/// @generic.instance id="Borrowed<this.Output, L, \"readonly\">" template=memory.borrow.Borrowed arguments=(this.Output, L, "readonly")
 "#,
     );
 }

@@ -35,7 +35,7 @@ struct Circle {
     radius: int32;
 }
 
-function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
+function read<'a>(shape: &'a (Rectangle | Circle)): int32 {
     if (shape is Borrowed<Rectangle, 'a>) {
         return shape.width;
     }
@@ -66,9 +66,9 @@ struct Circle {
 
 function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
 /// @generic.template symbol=read parameters=('a)
-/// @type.symbol symbol=read type=<'a>(Borrowed<Rectangle | Circle, 'a>) => int32
+/// @type.symbol symbol=read type=<'a>(&'a Rectangle | Circle) => int32
 /// @type.symbol symbol=read.'a source='a type='a
-/// @type.symbol symbol=read.shape source="shape: Borrowed<Rectangle | Circle, 'a>" type=Borrowed<Rectangle | Circle, 'a>
+/// @type.symbol symbol=read.shape source="shape: Borrowed<Rectangle | Circle, 'a>" type=&'a Rectangle | Circle
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Rectangle target=Rectangle
 /// @resolution.name source=Circle target=Circle
@@ -76,26 +76,24 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
 
     if (shape is Borrowed<Rectangle, 'a>) {
     /// @type.node source="shape is Borrowed<Rectangle, 'a>" type=boolean
-    /// @type.node source=shape type=Borrowed<Rectangle | Circle, 'a>
+    /// @type.node source=shape type=&'a Rectangle | Circle
     /// @resolution.name source=shape target=read.shape
-    /// @resolution.guard source="shape is Borrowed<Rectangle, 'a>" kind=is value=&'a Rectangle | Circle target=Borrowed<Rectangle, 'a, "mutable"> predicate="&'a Rectangle | Circle is type(Borrowed<Rectangle, 'a, \"mutable\">)" narrowed=Narrow<&'a Rectangle | Circle, Borrowed<Rectangle, 'a, "mutable">>
-    /// @resolution.place source=shape placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.guard source="shape is Borrowed<Rectangle, 'a>" kind=is value=&'a Rectangle | Circle target=&'a Rectangle predicate="&'a Rectangle | Circle is type(&'a Rectangle)" narrowed=Narrow<&'a Rectangle | Circle, &'a Rectangle>
+    /// @resolution.place source=shape placement="local" lifetime='a access="mutable"
     /// @resolution.access source=shape root=read.shape
-    /// @generic.instance source=shape id="Borrowed<Rectangle | Circle, 'a>"
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Rectangle target=Rectangle
     /// @resolution.name source='a target=read.'a
 
         return shape.width;
-        /// @type.node source=shape type=Narrow<&'a Rectangle | Circle, Borrowed<Rectangle, 'a, "mutable">>
+        /// @type.node source=shape type=Narrow<&'a Rectangle | Circle, &'a Rectangle>
         /// @type.node source=shape.width type=int32
         /// @resolution.name source=shape target=read.shape
-        /// @resolution.member source=shape.width receiver=Narrow<&'a Rectangle | Circle, Borrowed<Rectangle, 'a, "mutable">> type=int32 kind=field target_receiver=Narrow<&'a Rectangle | Circle, Borrowed<Rectangle, 'a, "mutable">> key=width target=Rectangle.width target_type=int32
+        /// @resolution.member source=shape.width receiver=Narrow<&'a Rectangle | Circle, &'a Rectangle> type=int32 kind=field target_receiver=Narrow<&'a Rectangle | Circle, &'a Rectangle> key=width target=Rectangle.width target_type=int32
         /// @resolution.place source=shape placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=shape root=read.shape
         /// @resolution.place source=shape.width placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=shape.width root=read.shape keys=[width]
-        /// @generic.instance source=shape id="Borrowed<Rectangle, 'a, \"mutable\">"
 
     }
 
@@ -110,9 +108,6 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
     /// @resolution.access source=shape.radius root=read.shape keys=[radius]
 
 }
-
-/// @generic.instance id="Borrowed<Rectangle | Circle, 'a>" template=memory.borrow.Borrowed arguments=(Rectangle | Circle, 'a)
-/// @generic.instance id="Borrowed<Rectangle, 'a, \"mutable\">" template=memory.borrow.Borrowed arguments=(Rectangle, 'a, "mutable")
 "#);
 }
 
@@ -203,9 +198,8 @@ function read<'a, comptime A: Access>(
     /// @type.node source=shape type=Borrowed<Rectangle | Circle, 'a, A>
     /// @resolution.name source=shape target=read.shape
     /// @resolution.guard source="shape is Borrowed<Rectangle, 'a, A>" kind=is value=Borrowed<Rectangle | Circle, 'a, A> target=Borrowed<Rectangle, 'a, A> predicate="Borrowed<Rectangle | Circle, 'a, A> is type(Borrowed<Rectangle, 'a, A>)" narrowed=Narrow<Borrowed<Rectangle | Circle, 'a, A>, Borrowed<Rectangle, 'a, A>>
-    /// @resolution.place source=shape placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=shape placement="local" lifetime='a access=A
     /// @resolution.access source=shape root=read.shape
-    /// @generic.instance source=shape id="Borrowed<Rectangle | Circle, 'a, A>"
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Rectangle target=Rectangle
     /// @resolution.name source='a target=read.'a
@@ -220,7 +214,6 @@ function read<'a, comptime A: Access>(
         /// @resolution.access source=shape root=read.shape
         /// @resolution.place source=shape.width placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=shape.width root=read.shape keys=[width]
-        /// @generic.instance source=shape id="Borrowed<Rectangle, 'a, A>"
 
     }
 
@@ -235,9 +228,6 @@ function read<'a, comptime A: Access>(
     /// @resolution.access source=shape.radius root=read.shape keys=[radius]
 
 }
-
-/// @generic.instance id="Borrowed<Rectangle | Circle, 'a, A>" template=memory.borrow.Borrowed arguments=(Rectangle | Circle, 'a, A)
-/// @generic.instance id="Borrowed<Rectangle, 'a, A>" template=memory.borrow.Borrowed arguments=(Rectangle, 'a, A)
 "#);
 }
 
@@ -269,10 +259,10 @@ struct Text {
 }
 
 function value<'a, 'b>(
-    left: Borrowed<Text, 'a>,
-    right: Borrowed<Text, 'b>,
+    left: &'a Text,
+    right: &'b Text,
     flag: boolean,
-): Borrowed<string, 'a | 'b> {
+): Borrowed<string, 'a | 'b, "mutable"> {
     return flag ? &left.value : &right.value;
 }
 
@@ -289,18 +279,18 @@ struct Text {
 
 function value<'a, 'b>(
 /// @generic.template symbol=value parameters=('a, 'b)
-/// @type.symbol symbol=value type=<'a, 'b>(Borrowed<Text, 'a>, Borrowed<Text, 'b>, boolean) => Borrowed<string, 'a | 'b>
+/// @type.symbol symbol=value type=<'a, 'b>(&'a Text, &'b Text, boolean) => &'a | 'b string
 /// @type.symbol symbol=value.'a source='a type='a
 /// @type.symbol symbol=value.'b source='b type='b
 
     left: Borrowed<Text, 'a>,
-    /// @type.symbol symbol=value.left source="left: Borrowed<Text, 'a>" type=Borrowed<Text, 'a>
+    /// @type.symbol symbol=value.left source="left: Borrowed<Text, 'a>" type=&'a Text
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Text target=Text
     /// @resolution.name source='a target=value.'a
 
     right: Borrowed<Text, 'b>,
-    /// @type.symbol symbol=value.right source="right: Borrowed<Text, 'b>" type=Borrowed<Text, 'b>
+    /// @type.symbol symbol=value.right source="right: Borrowed<Text, 'b>" type=&'b Text
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Text target=Text
     /// @resolution.name source='b target=value.'b
@@ -314,37 +304,30 @@ function value<'a, 'b>(
 /// @resolution.name source='b target=value.'b
 
     return flag ? (&left.value) : (&right.value);
-    /// @type.node source="flag ? (&left.value) : (&right.value)" type=Borrowed<string, 'a | 'b>
+    /// @type.node source="flag ? (&left.value) : (&right.value)" type=&'a | 'b string
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=value.flag
     /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=flag root=value.flag
-    /// @generic.instance source="flag ? (&left.value) : (&right.value)" id="Borrowed<string, 'a | 'b>"
-    /// @type.node source=&left.value type=&'frame string
-    /// @type.node source=left type=Borrowed<Text, 'a>
+    /// @type.node source=&left.value type=&'a string
+    /// @type.node source=left type=&'a Text
     /// @type.node source=left.value type=string
     /// @resolution.name source=left target=value.left
-    /// @resolution.member source=left.value receiver=Borrowed<Text, 'a> type=string kind=field target_receiver=Borrowed<Text, 'a> key=value target=Text.value target_type=string
-    /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.member source=left.value receiver=&'a Text type=string kind=field target_receiver=&'a Text key=value target=Text.value target_type=string
+    /// @resolution.place source=left placement="local" lifetime='a access="mutable"
     /// @resolution.access source=left root=value.left
-    /// @resolution.place source=left.value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=left.value placement="local" lifetime='a access="mutable"
     /// @resolution.access source=left.value root=value.left keys=[value]
-    /// @generic.instance source=left id="Borrowed<Text, 'a>"
-    /// @type.node source=&right.value type=&'frame string
-    /// @type.node source=right type=Borrowed<Text, 'b>
+    /// @type.node source=&right.value type=&'b string
+    /// @type.node source=right type=&'b Text
     /// @type.node source=right.value type=string
     /// @resolution.name source=right target=value.right
-    /// @resolution.member source=right.value receiver=Borrowed<Text, 'b> type=string kind=field target_receiver=Borrowed<Text, 'b> key=value target=Text.value target_type=string
-    /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.member source=right.value receiver=&'b Text type=string kind=field target_receiver=&'b Text key=value target=Text.value target_type=string
+    /// @resolution.place source=right placement="local" lifetime='b access="mutable"
     /// @resolution.access source=right root=value.right
-    /// @resolution.place source=right.value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=right.value placement="local" lifetime='b access="mutable"
     /// @resolution.access source=right.value root=value.right keys=[value]
-    /// @generic.instance source=right id="Borrowed<Text, 'b>"
 
 }
-
-/// @generic.instance id="Borrowed<Text, 'a>" template=memory.borrow.Borrowed arguments=(Text, 'a)
-/// @generic.instance id="Borrowed<Text, 'b>" template=memory.borrow.Borrowed arguments=(Text, 'b)
-/// @generic.instance id="Borrowed<string, 'a | 'b>" template=memory.borrow.Borrowed arguments=(string, 'a | 'b)
 "#);
 }

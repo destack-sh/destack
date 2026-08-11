@@ -748,8 +748,8 @@ inspect(readonlyCell);
 struct Cell {}
 
 declare function inspect<'a>(value: &'a readonly Cell): void;
-declare const localCell: local Managed<Cell>;
-declare const readonlyCell: local readonly Managed<Cell>;
+declare const localCell: local Cell;
+declare const readonlyCell: local readonly Cell;
 
 inspect(localCell as &'static readonly Cell);
 inspect(readonlyCell as &'static readonly Cell);
@@ -792,8 +792,6 @@ inspect(readonlyCell);
 /// @resolution.place source=readonlyCell placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=readonlyCell root=readonlyCell
 /// @coercion.node source=readonlyCell from=Placed<Readonly<Managed<Cell>>, "local"> adjustments=[{ kind: borrow, target: &'static readonly Cell }] origin=implicit
-
-/// @generic.instance id=Managed<Cell> template=memory.managed.Managed arguments=(Cell)
 "#,
         r#"
 

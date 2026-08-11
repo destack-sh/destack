@@ -229,10 +229,7 @@ struct Node {
     id: int32;
 }
 
-declare function choose<'a, 'b>(
-    a: Borrowed<Node, 'a, "mutable">,
-    b: Borrowed<Node, 'b, "mutable">,
-): &Node;
+declare function choose<'a, 'b>(a: &'a Node, b: &'b Node): &Node;
 
 === checked ===
 struct Node { id: int32; }
@@ -243,27 +240,24 @@ struct Node { id: int32; }
 
 declare function choose<'a, 'b>(
 /// @generic.template symbol=choose parameters=('a, 'b)
-/// @type.symbol symbol=choose type=<'a, 'b>(Borrowed<Node, 'a, "mutable">, Borrowed<Node, 'b, "mutable">) => &'a | 'b Node
+/// @type.symbol symbol=choose type=<'a, 'b>(&'a Node, &'b Node) => &'a | 'b Node
 /// @type.symbol symbol=choose.'a source='a type='a
 /// @type.symbol symbol=choose.'b source='b type='b
 
     a: Borrowed<Node, 'a, "mutable">,
-    /// @type.symbol symbol=choose.a source="a: Borrowed<Node, 'a, \"mutable\">" type=Borrowed<Node, 'a, "mutable">
+    /// @type.symbol symbol=choose.a source="a: Borrowed<Node, 'a, \"mutable\">" type=&'a Node
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Node target=Node
     /// @resolution.name source='a target=choose.'a
 
     b: Borrowed<Node, 'b, "mutable">,
-    /// @type.symbol symbol=choose.b source="b: Borrowed<Node, 'b, \"mutable\">" type=Borrowed<Node, 'b, "mutable">
+    /// @type.symbol symbol=choose.b source="b: Borrowed<Node, 'b, \"mutable\">" type=&'b Node
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Node target=Node
     /// @resolution.name source='b target=choose.'b
 
 ): &Node;
 /// @resolution.name source=Node target=Node
-
-/// @generic.instance id="Borrowed<Node, 'a, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, 'a, "mutable")
-/// @generic.instance id="Borrowed<Node, 'b, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, 'b, "mutable")
 "#,
         r#"
 "#,
