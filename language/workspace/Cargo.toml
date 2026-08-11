@@ -42,6 +42,10 @@ smallvec = { workspace = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fs2 = { workspace = true }
 
+[dev-dependencies]
+# language
+destack_program = { workspace = true }
+
 [features]
 default = ["native"]
 native = ["destack_compiler/native", "destack_session/native"]

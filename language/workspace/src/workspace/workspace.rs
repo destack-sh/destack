@@ -5,6 +5,7 @@ use dashmap::DashMap;
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product,
 };
+use destack_core::Blob;
 use destack_repository::{Commit, Ref, Repository, Revision, Trace, TraceSnapshot, TraceView};
 use destack_session::{ArtifactRun, Executor, Session};
 use destack_source::{File, FileId, OverlayFileSystem};
@@ -520,6 +521,17 @@ impl Workspace {
         let payload = self.artifact_payload(artifact)?;
 
         Ok(payload)
+    }
+
+    /// Publish one artifact's storage bytes as a Blob.
+    pub fn blob(&self, artifact: ArtifactReference) -> Result<Blob, Error> {
+        let payload = self.artifact(artifact)?;
+        let bytes = payload.as_ref().encode().map_err(|error| Error::Internal {
+            detail: error.to_string(),
+        })?;
+        let blob = self.repository.put_blob(bytes.as_ref())?;
+
+        Ok(blob)
     }
 
     /// Materialize one artifact on the workspace host.

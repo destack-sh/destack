@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::ArtifactPayload;
+use destack_core::Blob;
 use destack_repository::{
     BlobStore, Commit, DestackLayoutOverride, Host, Revision, Settings, open_repository,
 };
@@ -449,6 +450,16 @@ impl WorkspaceService for WorkspaceRegistry {
         let workspace = self.workspace(&request.value.root)?;
 
         WorkspaceService::artifact(&workspace, request).await
+    }
+
+    /// Publish one artifact's storage bytes as a Blob.
+    async fn blob(
+        &self,
+        request: Request<workspace::ArtifactRequest>,
+    ) -> Result<Response<Blob>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::blob(&workspace, request).await
     }
 
     /// Materialize one artifact on the workspace host.

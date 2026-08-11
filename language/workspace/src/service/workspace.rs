@@ -1,4 +1,5 @@
 use destack_artifact::ArtifactPayload;
+use destack_core::Blob;
 use destack_repository::{Commit, Revision};
 use destack_rpc::{Request, Response, ResponseSender, Status};
 use futures::{FutureExt, pin_mut, select_biased};
@@ -319,6 +320,15 @@ impl WorkspaceService for Workspace {
         let artifact = Workspace::artifact(self, request.artifact)?;
 
         Ok(Response::new(artifact))
+    }
+
+    /// Publish one artifact's storage bytes as a Blob.
+    async fn blob(&self, request: Request<ArtifactRequest>) -> Result<Response<Blob>, Status> {
+        let request = request.value;
+        self.resolve_root(&request.root)?;
+        let blob = Workspace::blob(self, request.artifact)?;
+
+        Ok(Response::new(blob))
     }
 
     /// Materialize one artifact on the workspace host.

@@ -1,4 +1,5 @@
 use destack_artifact::ArtifactPayload;
+use destack_core::Blob;
 use destack_repository::{Commit, Revision};
 
 use super::*;
@@ -158,6 +159,10 @@ pub trait WorkspaceService {
     /// Read one exact artifact payload.
     #[rpc(name = "Artifact", idempotency = "no_side_effects")]
     fn artifact(request: ArtifactRequest) -> ArtifactPayload;
+
+    /// Publish one artifact's storage bytes as a Blob.
+    #[rpc(name = "Blob", idempotency = "idempotent")]
+    fn blob(request: ArtifactRequest) -> Blob;
 
     /// Materialize one artifact on the workspace host.
     #[rpc(name = "Export")]
