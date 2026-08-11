@@ -1023,6 +1023,18 @@ impl Form {
         matches!(self, Self::Borrowed(_) | Self::Raw | Self::Readonly)
     }
 
+    /// Return the language item constructing this form.
+    pub fn language_item(self) -> LanguageItem {
+        match self {
+            Self::Managed => LanguageItem::Managed,
+            Self::Owned => LanguageItem::Owned,
+            Self::Borrowed(_) => LanguageItem::Borrowed,
+            Self::Raw => LanguageItem::Raw,
+            Self::Placed { .. } => LanguageItem::Placed,
+            Self::Readonly => LanguageItem::Readonly,
+        }
+    }
+
     /// Return whether one receiver form adjusts to a declared target form.
     pub fn adjusts_to(self, target: Form) -> bool {
         match (self, target) {

@@ -122,6 +122,19 @@ macro_rules! define_language_items {
                 }
             }
 
+            /// Return whether this item constructs a memory form.
+            pub fn is_memory_carrier(&self) -> bool {
+                matches!(
+                    self,
+                    Self::Managed
+                        | Self::Owned
+                        | Self::Raw
+                        | Self::Borrowed
+                        | Self::Placed
+                        | Self::Readonly
+                )
+            }
+
             /// Return the scalar domain this item's interface admits.
             pub fn scalar_domain(&self) -> Option<ScalarDomain> {
                 match self {
