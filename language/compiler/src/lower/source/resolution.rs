@@ -21,7 +21,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         self.source()
             .types
-            .get_reduced_node_type_id(node)
+            .get_node_type_id(node)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("missing a type for node {}", node.local_id.id),
             })

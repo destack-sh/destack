@@ -21,7 +21,6 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // bind object types behind their managed reference representation
-        let source = self.lowerer.reduced_type(source)?;
         if let dir::Type::Object(_) = self.lowerer.ty(source)? {
             let reference = self.lower_type(source)?;
             let concrete = match self.builder.tree().get(reference) {

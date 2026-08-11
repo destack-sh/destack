@@ -169,16 +169,12 @@ impl ModuleLowerer<'_> {
 
             // initialize each tuple element at its own type
             dir::StaticTerm::Tuple { elements } => {
-                let reduced = self.reduced_type(ty)?;
-                let dir::Type::Tuple(tuple) = self.ty(reduced)? else {
+                let dir::Type::Tuple(tuple) = self.ty(ty)? else {
                     return Err(CompilerError::Internal {
                         message: "a tuple constant at a non-tuple type".to_string(),
                     });
                 };
-                let element_types = self
-                    .types(reduced.module_id)?
-                    .type_ids(tuple.elements)
-                    .to_vec();
+                let element_types = self.types(ty.module_id)?.type_ids(tuple.elements).to_vec();
                 if element_types.len() != elements.len() {
                     return Err(CompilerError::Internal {
                         message: "a tuple constant with a mismatched arity".to_string(),
@@ -269,7 +265,7 @@ impl ModuleLowerer<'_> {
                 bits: destack_core::float_to_bits(format.format(), value),
                 format: *format,
             },
-            // a mismatched carrier is reachable only behind check errors
+            // fail on a mismatched carrier, reachable only behind check errors
             (_, carrier) => {
                 return Err(LowerError::Unsupported {
                     anchor: self.module.into(),

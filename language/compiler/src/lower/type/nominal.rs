@@ -140,7 +140,7 @@ impl TypeLowerer<'_, '_> {
         definition: &dir::TypeAliasDefinition,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Vec<NominalField>> {
-        let value = self.lowerer.reduced_type(definition.value)?;
+        let value = definition.value;
 
         // define declared object types in place at the alias identity
         if let dir::Type::Object(shape) = self.lowerer.ty(value)? {
@@ -150,7 +150,7 @@ impl TypeLowerer<'_, '_> {
         }
 
         // forward transparent aliases to their lowered value
-        let value = self.lower_reduced(value)?;
+        let value = self.lower_family(value)?;
         let content = self.tree.get(value).clone();
         self.tree.define_type(ty, content);
 
@@ -349,10 +349,7 @@ impl TypeLowerer<'_, '_> {
             })
             .count();
 
-        // accept four argument lists: the full list, the written list with
-        //  induced lifetimes elided, the value list with all lifetimes elided,
-        //  and an empty list inside a receiver context whose parameters the
-        //  substitution binds, since lifetimes erase at runtime anyway
+        // accept the full, lifetime-elided, value-only, and receiver-substituted argument lists
         let is_complete = arguments.len() == parameters.len();
         let elide_lifetimes = !is_complete && arguments.len() == value_parameters;
         let is_substituted = !is_complete

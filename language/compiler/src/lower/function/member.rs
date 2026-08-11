@@ -102,7 +102,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     if matches!(read.target, dir::IndexTarget::Signature(_)) =>
                 {
                     // dispatch a keyed find by name over string domains only
-                    let domain = self.lowerer.reduced_type(read.key_type)?;
+                    let domain = read.key_type;
                     if !matches!(
                         self.lowerer.ty(domain)?,
                         dir::Type::Primitive(dir::PrimitiveType::String)
@@ -192,14 +192,13 @@ impl FunctionLowerer<'_, '_, '_> {
         field: &dir::FieldResolution,
     ) -> CompilerResult<mir::Value> {
         // read structural receivers through their dynamic entries
-        let reduced = self.lowerer.reduced_type(field.receiver.ty())?;
-        if matches!(self.lowerer.ty(reduced)?, dir::Type::Shape(_)) {
-            return self.lower_dynamic_field_read(expression, left, reduced, field.target.key());
+        let receiver = field.receiver.ty();
+        if matches!(self.lowerer.ty(receiver)?, dir::Type::Shape(_)) {
+            return self.lower_dynamic_field_read(expression, left, receiver, field.target.key());
         }
 
         // lower the receiver the resolution selected
         let index = self.member_field_index(field)?;
-        let receiver = field.receiver.ty();
         let result_type = self.lower_type(self.node_type_id(expression)?)?;
         let value = self.lower_expression(left)?;
         let value = self.lower_member_receiver(value, &field.receiver)?;
@@ -272,7 +271,7 @@ impl FunctionLowerer<'_, '_, '_> {
         field: &dir::FieldResolution,
     ) -> CompilerResult<u32> {
         // locate storage in the selected receiver
-        let stored = match self
+        let mut stored = match self
             .lowerer
             .peel_indirection(field.receiver.ty(), &self.type_substitution)?
         {
@@ -281,6 +280,16 @@ impl FunctionLowerer<'_, '_, '_> {
                 .lowerer
                 .peel_owned(field.receiver.ty(), &self.type_substitution)?,
         };
+
+        // follow transparent alias and newtype definitions, re-peeling their owners
+        while let dir::Type::Application(instance) = self.lowerer.ty(stored)? {
+            let defined = match self.lowerer.definition(instance.symbol)? {
+                Some(dir::Definition::TypeAlias(alias)) => alias.value,
+                Some(dir::Definition::Newtype(newtype)) => newtype.backing,
+                _ => break,
+            };
+            stored = self.lowerer.peel_owned(defined, &self.type_substitution)?;
+        }
 
         // find the field's position in the storage the receiver declares
         let index = match self.lowerer.ty(stored)? {

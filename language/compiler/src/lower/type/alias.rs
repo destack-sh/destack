@@ -21,9 +21,7 @@ impl ModuleLowerer<'_> {
         let Some(dir::Definition::TypeAlias(alias)) = self.definition(symbol)? else {
             return Ok(None);
         };
-        let value = self.reduced_type(alias.value)?;
-
-        Ok(match self.ty(value)? {
+        Ok(match self.ty(alias.value)? {
             dir::Type::Object(_) => Some(AliasForm::Object),
             // families whose lowering recurses into children need identity
             dir::Type::Union(_)

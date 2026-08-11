@@ -28,7 +28,6 @@ impl TypeLowerer<'_, '_> {
         constraint: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // read the properties the constraint declares
-        let constraint = self.lowerer.reduced_type(constraint)?;
         let (properties, is_keyed) = match self.lowerer.ty(constraint)? {
             dir::Type::Shape(shape) => {
                 let properties = self

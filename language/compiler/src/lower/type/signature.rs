@@ -80,7 +80,6 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let id = self.lowerer.reduced_type(id)?;
         let (_, owner) = self.lowerer.signature(id)?;
         let dir::Type::FunctionSignature(signature) = self.lowerer.ty(id)? else {
             return Err(CompilerError::Internal {

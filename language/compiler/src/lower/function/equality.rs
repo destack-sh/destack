@@ -137,8 +137,6 @@ impl FunctionLowerer<'_, '_, '_> {
         scalar_families: Option<&dir::ScalarFamilySet>,
         mut value: mir::Value,
     ) -> CompilerResult<LoweredOperand> {
-        carrier = self.lowerer.reduced_type(carrier)?;
-
         // compare transparent newtypes through their backing representation
         loop {
             let dir::Type::Application(instance) = self.lowerer.ty(carrier)? else {
@@ -157,7 +155,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             value = self.builder.field_get(value, 0);
-            carrier = self.lowerer.reduced_type(definition.backing)?;
+            carrier = definition.backing;
         }
 
         // classify the operand by the carrier it lowered to
@@ -241,8 +239,6 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return whether one type has one value and no runtime payload.
     fn type_is_singleton(&self, mut ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         loop {
-            ty = self.lowerer.reduced_type(ty)?;
-
             match self.lowerer.ty(ty)? {
                 dir::Type::Literal(_) | dir::Type::Null | dir::Type::Undefined => return Ok(true),
                 dir::Type::Application(instance) => {
@@ -401,7 +397,6 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         carrier: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let carrier = self.lowerer.reduced_type(carrier)?;
         match self.lowerer.ty(carrier)? {
             dir::Type::Union(union) => Ok(self
                 .lowerer
@@ -433,7 +428,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Lower equality between two non-variant operands.
+    /// Lower equality between two leaf operands.
     fn lower_leaf_equality(
         &mut self,
         left: LoweredOperand,
@@ -444,7 +439,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(self.builder.bconst(true));
         }
 
-        // only two scalar operands compare directly, anything else by address
+        // compare two scalar operands directly and anything else by address
         let (
             LoweredOperand::Scalar {
                 value: left_value,

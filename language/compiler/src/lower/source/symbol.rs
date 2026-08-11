@@ -10,7 +10,7 @@ impl ModuleLowerer<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         self.types(symbol.module_id)?
-            .get_reduced_symbol_type_id(symbol)
+            .get_symbol_type_id(symbol)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("missing a type for symbol {symbol:?}"),
             })
@@ -94,7 +94,7 @@ impl ModuleLowerer<'_> {
             return Ok(false);
         };
 
-        // a template without parameters declares nothing to instantiate
+        // skip a template without parameters, which declares nothing to instantiate
         let generics = &self.state(module)?.generics;
         let template = generics.get_template(template);
 

@@ -22,14 +22,6 @@ impl ModuleLowerer<'_> {
             })
     }
 
-    /// Return the reduction of one type id.
-    pub(in crate::lower) fn reduced_type(
-        &self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        Ok(self.types(ty.module_id)?.get_reduced_type_id(ty))
-    }
-
     /// Return the inherent method implementing one constraint member.
     pub(in crate::lower) fn implementing_method(
         &self,
@@ -63,8 +55,9 @@ impl ModuleLowerer<'_> {
         ty: dir::GlobalTypeId,
         kind: dir::MemoryParameter,
     ) -> CompilerResult<dir::MemoryLiteral> {
-        let ty = self.reduced_type(ty)?;
         let actual = self.ty(ty)?;
+
+        // require the canonical singleton the check walk stores
         let dir::Type::Memory(literal) = actual else {
             return Err(CompilerError::Internal {
                 message: format!("a {kind:?} singleton left as {actual:?}"),
@@ -121,15 +114,11 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the slice one payload dereferences to, when its pointee is unsized.
-    ///
-    /// Transparent newtype identity over a slice erases into the descriptor.
-    /// Open elements resolve with their instances and stay opaque here.
     pub(in crate::lower) fn slice_pointee(
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::SliceType>> {
-        let reduced = self.reduced_type(id)?;
-        let slice = match self.ty(reduced)? {
+        let slice = match self.ty(id)? {
             dir::Type::Slice(slice) => slice,
             // look through transparent newtype identity
             dir::Type::Application(instance) => {
@@ -137,8 +126,7 @@ impl ModuleLowerer<'_> {
                 else {
                     return Ok(None);
                 };
-                let backing = self.reduced_type(newtype.backing)?;
-                let dir::Type::Slice(slice) = self.ty(backing)? else {
+                let dir::Type::Slice(slice) = self.ty(newtype.backing)? else {
                     return Ok(None);
                 };
 
@@ -148,8 +136,7 @@ impl ModuleLowerer<'_> {
         };
 
         // leave open elements to their instance substitution
-        let element = self.reduced_type(slice.element)?;
-        if matches!(self.ty(element)?, dir::Type::Parameter(_)) {
+        if matches!(self.ty(slice.element)?, dir::Type::Parameter(_)) {
             return Ok(None);
         }
 
@@ -161,7 +148,6 @@ impl ModuleLowerer<'_> {
         &self,
         count: dir::GlobalTypeId,
     ) -> CompilerResult<u64> {
-        let count = self.reduced_type(count)?;
         let dir::Type::Literal(dir::ScalarLiteral::Integer(length)) = self.ty(count)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.module.into(),

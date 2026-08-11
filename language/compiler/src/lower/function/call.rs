@@ -321,14 +321,12 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Lower one omitted optional argument to its undefined slot value.
     fn lower_omitted_argument(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<mir::Value> {
-        let reduced = self.lowerer.reduced_type(ty)?;
-        let carrier = self.lower_type(reduced)?;
+        let carrier = self.lower_type(ty)?;
 
         // inject the undefined case into union carriers
-        if let dir::Type::Union(_) = self.lowerer.ty(reduced)? {
-            let members = self.union_members(reduced)?;
+        if let dir::Type::Union(_) = self.lowerer.ty(ty)? {
+            let members = self.union_members(ty)?;
             for (index, member) in members.into_iter().enumerate() {
-                let member = self.lowerer.reduced_type(member)?;
                 if matches!(self.lowerer.ty(member)?, dir::Type::Undefined) {
                     return Ok(self.builder.variant_new(carrier, index as u32, None));
                 }

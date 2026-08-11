@@ -105,13 +105,13 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Lower one tree tag to its literal constant.
     fn lower_tree_tag(&mut self, tag: &dir::ArgumentBinding) -> CompilerResult<mir::Value> {
-        let reduced = self.lowerer.reduced_type(tag.argument_type)?;
-        let dir::Type::Literal(literal) = self.lowerer.ty(reduced)? else {
+        let argument_type = tag.argument_type;
+        let dir::Type::Literal(literal) = self.lowerer.ty(argument_type)? else {
             return Err(CompilerError::Internal {
                 message: "tree tag bound a non-literal parameter".to_string(),
             });
         };
-        let carrier = self.lower_type(reduced)?;
+        let carrier = self.lower_type(argument_type)?;
         let carrier = self.builder.tree().get(carrier).clone();
 
         self.lower_constant(literal, carrier)
@@ -123,7 +123,6 @@ impl FunctionLowerer<'_, '_, '_> {
         attributes: dir::GlobalTypeId,
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
-        let attributes = self.lowerer.reduced_type(attributes)?;
         let dir::Type::Application(_) = self.lowerer.ty(attributes)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -141,7 +140,6 @@ impl FunctionLowerer<'_, '_, '_> {
         attributes: dir::GlobalTypeId,
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
-        let attributes = self.lowerer.reduced_type(attributes)?;
         let dir::Type::Application(instance) = self.lowerer.ty(attributes)? else {
             return Err(CompilerError::Internal {
                 message: "a tree aggregate outside a nominal type".to_string(),
@@ -212,8 +210,7 @@ impl FunctionLowerer<'_, '_, '_> {
             // provide true for bare attributes
             None => dir::ScalarLiteral::Boolean(true),
         };
-        let reduced = self.lowerer.reduced_type(attribute.ty)?;
-        let carrier = self.lower_type(reduced)?;
+        let carrier = self.lower_type(attribute.ty)?;
         let carrier = self.builder.tree().get(carrier).clone();
 
         self.lower_constant(literal, carrier)
@@ -225,14 +222,12 @@ impl FunctionLowerer<'_, '_, '_> {
         tuple: dir::GlobalTypeId,
         children: &[dir::TreeChildBinding],
     ) -> CompilerResult<mir::Value> {
-        let tuple = self.lowerer.reduced_type(tuple)?;
         let ty = self.lower_type(tuple)?;
         let mut values = Vec::with_capacity(children.len());
         for child in children {
             match child {
                 dir::TreeChildBinding::Text { value, ty } => {
-                    let reduced = self.lowerer.reduced_type(*ty)?;
-                    let carrier = self.lower_type(reduced)?;
+                    let carrier = self.lower_type(*ty)?;
                     let carrier = self.builder.tree().get(carrier).clone();
                     values.push(self.lower_constant(dir::ScalarLiteral::String(*value), carrier)?);
                 }

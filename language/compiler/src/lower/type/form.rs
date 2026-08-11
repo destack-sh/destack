@@ -29,6 +29,7 @@ impl TypeLowerer<'_, '_> {
         match form.form {
             // narrow the access of the next indirect layer inward
             dir::Form::Readonly => match self.lowerer.ty(form.value)? {
+                // carry the narrowed access into the layer below
                 dir::Type::Form(_) => self.lower_form(form.value, Some(mir::Access::Readonly)),
                 // lower readonly over a pure value at the narrowed access
                 _ => self.lower_layer_value(form.value, Some(mir::Access::Readonly)),
@@ -64,12 +65,12 @@ impl TypeLowerer<'_, '_> {
                 )
             }
 
-            // raw layers produce process-local machine pointers
+            // produce process-local machine pointers for raw layers
             dir::Form::Raw => {
                 self.lower_pointer(form.value, access.unwrap_or(mir::Access::Mutable))
             }
 
-            // owned fat references fuse into one unique carrier
+            // fuse owned fat references into one unique carrier
             dir::Form::Owned
                 if self
                     .lowerer
@@ -83,9 +84,10 @@ impl TypeLowerer<'_, '_> {
                 )
             }
 
-            // owned value families hold their storage directly
+            // hold storage directly for owned value families
             dir::Form::Owned => self.lower_pointee(form.value),
 
+            // reject an explicit placement
             dir::Form::Placed { .. } => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "an explicit placement".to_string(),
@@ -93,9 +95,7 @@ impl TypeLowerer<'_, '_> {
         }
     }
 
-    /// Lower one reference layer over its stored payload.
-    ///
-    /// Slice payloads fuse with the layer into one fat descriptor.
+    /// Lower one reference layer over its stored payload, fusing slice payloads into a descriptor.
     pub(in crate::lower) fn lower_reference(
         &mut self,
         kind: mir::ReferenceKind,
@@ -103,8 +103,6 @@ impl TypeLowerer<'_, '_> {
         access: mir::Access,
         payload: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let payload = self.lowerer.reduced_type(payload)?;
-
         // fuse dynamic payload references into the erased descriptor
         if let dir::Type::Dynamic(dynamic) = self.lowerer.ty(payload)? {
             let constraint = self.lower_dynamic_constraint(dynamic.constraint)?;
@@ -181,9 +179,6 @@ impl TypeLowerer<'_, '_> {
     }
 
     /// Lower one type as the pointee behind a reference or owner.
-    ///
-    /// The pointee is the declared storage for nominal families and the
-    /// value form for value families.
     pub(in crate::lower) fn lower_pointee(
         &mut self,
         id: dir::GlobalTypeId,
@@ -349,7 +344,7 @@ impl ModuleLowerer<'_> {
                 }
             },
 
-            // nullable unions ride their reference carrier; tagged unions are values
+            // answer nullable unions through their reference carrier, tagged unions stay values
             dir::Type::Union(union) => {
                 match self.decompose_nullish_union(id.module_id, &union, type_substitution)? {
                     Some((_, carrier)) => {
@@ -374,7 +369,6 @@ impl ModuleLowerer<'_> {
         type_substitution: &TypeSubstitution,
     ) -> CompilerResult<bool> {
         let id = type_substitution.resolve(self, id)?;
-        let id = self.reduced_type(id)?;
 
         Ok(match self.ty(id)? {
             dir::Type::Dynamic(_) | dir::Type::Function(_) | dir::Type::Slice(_) => true,
@@ -405,6 +399,12 @@ impl ModuleLowerer<'_> {
             dir::Type::Application(instance) => match self.definition(instance.symbol)? {
                 Some(dir::Definition::Class(_) | dir::Definition::Interface(_)) => {
                     dir::Ownership::Managed
+                }
+                // follow a transparent alias default to its defined value
+                Some(dir::Definition::TypeAlias(alias))
+                    if self.language_item(instance.symbol)?.is_none() =>
+                {
+                    self.base_default_ownership(&self.ty(alias.value)?, type_substitution)?
                 }
                 _ => dir::Ownership::Owned,
             },
@@ -462,8 +462,6 @@ impl ModuleLowerer<'_> {
     }
 
     /// Split one union into its nullish bits and single reference carrier.
-    ///
-    /// Returns None when the union does not reduce to one nullable reference.
     pub(in crate::lower) fn decompose_nullish_union(
         &self,
         module: ModuleId,

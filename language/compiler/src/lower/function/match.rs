@@ -223,7 +223,6 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<Vec<(i128, mir::LocalNodeId<mir::Block>)>>> {
         // require a runtime carrier dispatching by integer identity
         let carrier = self.operand_carrier(value)?;
-        let carrier = self.lowerer.reduced_type(carrier)?;
         let dir::Type::Primitive(dir::PrimitiveType::Integer(_)) = self.lowerer.ty(carrier)? else {
             return Ok(None);
         };

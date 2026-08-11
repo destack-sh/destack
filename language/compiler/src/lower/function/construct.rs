@@ -5,6 +5,14 @@ use crate::lower::FunctionLowerer;
 
 use crate::{CompilerError, CompilerResult, LowerError};
 
+/// One declared field an object literal constructs.
+struct ConstructionField {
+    /// The field key.
+    key: dir::StaticKey,
+    /// Whether the field may be absent from the literal.
+    is_optional: bool,
+}
+
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one construct call through its construct resolution.
     pub(in crate::lower) fn lower_construct(
@@ -243,8 +251,9 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         properties: &[dir::LocalNodeId<dir::Property>],
     ) -> CompilerResult<mir::Value> {
-        // lower the constructed nominal from the node type
+        // lower the constructed nominal beneath its owner and view forms
         let ty = self.node_type_id(expression)?;
+        let ty = self.lowerer.peel_owned(ty, &self.type_substitution)?;
         let dir::Type::Application(_) = self.lowerer.ty(ty)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -364,28 +373,21 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         properties: &[dir::LocalNodeId<dir::Property>],
     ) -> CompilerResult<mir::Value> {
-        // read the class from the written expectation, falling back to the
-        //  literal's own committed object type when the expectation is not
-        //  an object type
+        // read the class from the written expectation, falling back to the literal's own type
         let own = self.node_type_id(expression)?;
         let mut committed = self.expected_type_id(expression).unwrap_or(own);
-        let mut class = self.object_class(committed)?;
-        if !matches!(self.lowerer.ty(class)?, dir::Type::Object(_)) && committed != own {
+        let mut declared = self.construction_fields(committed)?;
+        if declared.is_none() && committed != own {
             committed = own;
-            class = self.object_class(own)?;
+            declared = self.construction_fields(own)?;
         }
-        let dir::Type::Object(shape) = self.lowerer.ty(class)? else {
+        let Some(declared) = declared else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "an object literal outside its concrete class".to_string(),
             }
             .into());
         };
-        let declared = self
-            .lowerer
-            .types(class.module_id)?
-            .properties(shape.properties)
-            .to_vec();
 
         // gather each written value under its property key
         let mut written = Vec::with_capacity(properties.len());
@@ -423,8 +425,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // build the concrete instance in declaration order
         let mut values = Vec::with_capacity(declared.len());
-        for (index, property) in declared.iter().enumerate() {
-            match written.iter().find(|(key, _)| *key == property.key) {
+        for (index, field) in declared.iter().enumerate() {
+            match written.iter().find(|(key, _)| *key == field.key) {
                 Some((_, value)) => {
                     // skip singleton literal properties storing no runtime value
                     let carrier = self.property_carrier(concrete, index)?;
@@ -443,7 +445,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     values.push(self.lower_property_case(concrete, index, value)?);
                 }
                 // store the undefined case for absent optional properties
-                None if property.is_optional => {
+                None if field.is_optional => {
                     values.push(self.lower_absent_property(concrete, index)?);
                 }
                 None => {
@@ -465,14 +467,59 @@ impl FunctionLowerer<'_, '_, '_> {
         })
     }
 
-    /// Return the class beneath one committed type's memory forms.
-    fn object_class(&mut self, committed: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
-        let mut class = self.lowerer.reduced_type(committed)?;
-        while let dir::Type::Form(form) = self.lowerer.ty(class)? {
-            class = self.lowerer.reduced_type(form.value)?;
-        }
+    /// Return the construction fields one committed object type declares.
+    fn construction_fields(
+        &mut self,
+        committed: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<Vec<ConstructionField>>> {
+        let mut class = committed;
+        loop {
+            match self.lowerer.ty(class)? {
+                // step through the memory forms around the value
+                dir::Type::Form(form) => class = form.value,
+                // read a nominal's fields, following alias applications on the way
+                dir::Type::Application(instance) => {
+                    let aliased = match self.lowerer.definition(instance.symbol)? {
+                        Some(dir::Definition::TypeAlias(alias)) => alias.value,
+                        Some(dir::Definition::Class(_) | dir::Definition::Struct(_)) => {
+                            let fields = self.lowerer.nominal_fields(instance.symbol)?;
 
-        Ok(class)
+                            return Ok(Some(
+                                fields
+                                    .iter()
+                                    .map(|field| ConstructionField {
+                                        key: field.key,
+                                        is_optional: field.is_optional,
+                                    })
+                                    .collect(),
+                            ));
+                        }
+                        _ => return Ok(None),
+                    };
+                    class = aliased;
+                }
+                // read the properties a structural shape declares
+                dir::Type::Object(shape) | dir::Type::Shape(shape) => {
+                    let properties = self
+                        .lowerer
+                        .types(class.module_id)?
+                        .properties(shape.properties)
+                        .to_vec();
+
+                    return Ok(Some(
+                        properties
+                            .iter()
+                            .map(|property| ConstructionField {
+                                key: property.key,
+                                is_optional: property.is_optional,
+                            })
+                            .collect(),
+                    ));
+                }
+                // stop at every other type
+                _ => return Ok(None),
+            }
+        }
     }
 
     /// Inject one written value into its declared property carrier.
@@ -482,7 +529,7 @@ impl FunctionLowerer<'_, '_, '_> {
         index: usize,
         value: mir::Value,
     ) -> CompilerResult<mir::Value> {
-        // a value already at its carrier type stores directly
+        // store a value already at its carrier type directly
         let carrier = self.property_carrier(concrete, index)?;
         let Some(value_type) = self.builder.value_type(value) else {
             return Err(CompilerError::Internal {

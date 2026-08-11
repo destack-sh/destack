@@ -94,11 +94,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             return Ok(self.lower_nominal(symbol, &arguments)?.value);
         }
 
-        let id = self.lowerer.reduced_type(id)?;
-
-        // anonymous compound graphs can cycle once reduction strands the
-        //  written type: a revisit reserves the identity and the first visit
-        //  defines it
+        // reserve an identity for anonymous compound graphs, which can cycle through their members
         let compound = matches!(
             self.lowerer.ty(id)?,
             dir::Type::Union(_)
@@ -135,9 +131,8 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             self.reservations.insert(id, None);
         }
 
-        // lower the family, then define any reservation a revisit created;
-        //  the identified node becomes the one identity of the cyclic graph
-        let mut lowered = self.lower_reduced(id);
+        // lower the family, then define any reservation a revisit created
+        let mut lowered = self.lower_family(id);
         if compound
             && let Some(reservation) = self.reservations.swap_remove(&id)
             && let (Ok(result), Some(reserved)) = (&lowered, reservation)
@@ -145,9 +140,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             let value = self.tree.get(*result).clone();
             self.tree.define_type(reserved, value);
 
-            // give isomorphic cycles one shared node: the canonical registry
-            //  hands back the node an earlier walk registered, and a first walk
-            //  registers every member of the cycle it just built
+            // give isomorphic cycles one shared node through the canonical registry
             let key = self.tree.canonical_key(reserved);
             match self.tree.canonical_type(&key) {
                 Some(existing) => lowered = Ok(existing),
@@ -165,8 +158,8 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         lowered
     }
 
-    /// Lower one reduced type by family.
-    pub(super) fn lower_reduced(
+    /// Lower one type by its family.
+    pub(super) fn lower_family(
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
@@ -245,7 +238,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 mir::Access::Mutable,
                 id,
             ),
-            // dynamic and callable values are managed fat references by default
+            // default dynamic and callable values to managed fat references
             dir::Type::Dynamic(_) | dir::Type::Function(_) => self.lower_reference(
                 mir::ReferenceKind::Managed,
                 mir::Lifetime::empty(),
@@ -304,6 +297,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                     return Ok(self.lower_nominal(symbol, &arguments)?.value);
                 }
+
                 // fall back to the scalar families
                 let ty = self.lowerer.scalar_type(&other)?;
 

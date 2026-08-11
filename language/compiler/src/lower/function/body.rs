@@ -256,8 +256,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let id = self.type_substitution.resolve(self.lowerer, id)?;
-        let reduced = self.lowerer.reduced_type(id)?;
-        let key = (reduced, self.type_substitution.bindings_key());
+        let key = (id, self.type_substitution.bindings_key());
 
         // lower the dispatch shape once for every body that reads it
         if !self.lowerer.constraints.contains_key(&key) {
@@ -270,7 +269,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
                     &self.type_substitution,
                     &self.lifetime_parameters,
                 )
-                .lower_dynamic_constraint(reduced);
+                .lower_dynamic_constraint(id);
             Self::bank(&mut self.lowerer.constraints, key.clone(), outcome)?;
         }
 
@@ -344,8 +343,6 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
     }
 
     /// Bank one lowering outcome under its key for every body that reads it.
-    ///
-    /// Diagnostics bank as the stored failure; internal errors propagate.
     fn bank<T>(
         outcomes: &mut FxIndexMap<ResolvedTypeKey, Lowered<T>>,
         key: ResolvedTypeKey,

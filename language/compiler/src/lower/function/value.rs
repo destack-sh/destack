@@ -12,7 +12,7 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
         environment: Option<mir::Value>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let declared = self.lowerer.reduced_type(self.node_type_id(expression)?)?;
+        let declared = self.node_type_id(expression)?;
         let key = self.function_reference_key(expression, symbol)?;
         let ty = self.lower_type(declared)?;
 
@@ -65,8 +65,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.generic_instance_key(symbol, &arguments);
         }
 
-        // an unconverted generic reference selects no instance: the selection
-        //  arrives through the reference's instantiating coercion
+        // reject a generic reference whose instantiating coercion selected no instance
         let declared = self.lowerer.symbol_type(symbol)?;
         if !self
             .lowerer

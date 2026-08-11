@@ -57,8 +57,7 @@ impl TypeLowerer<'_, '_> {
             },
         );
 
-        // register the constraint's dispatch shape once, unkeyed: interface
-        //  constraints declare no index signatures
+        // register the constraint's unkeyed dispatch shape once
         self.lowerer
             .dynamic_shapes
             .entry(ty)
@@ -80,7 +79,7 @@ impl TypeLowerer<'_, '_> {
     ) -> CompilerResult<()> {
         // flatten inherited members first so derived members override in place
         for heritage in &definition.extends {
-            let base = self.lowerer.reduced_type(heritage.ty)?;
+            let base = heritage.ty;
             let dir::Type::Application(application) = self.lowerer.ty(base)? else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -150,8 +149,7 @@ impl TypeLowerer<'_, '_> {
                 continue;
             };
             let declared = self.lowerer.symbol_type(method.symbol)?;
-            let reduced = self.lowerer.reduced_type(declared)?;
-            let dir::Type::FunctionSignature(signature) = self.lowerer.ty(reduced)? else {
+            let dir::Type::FunctionSignature(signature) = self.lowerer.ty(declared)? else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
                     construct: "an interface method without a plain signature".to_string(),
@@ -159,8 +157,8 @@ impl TypeLowerer<'_, '_> {
                 .into());
             };
 
-            // a method with its own type parameters has no single slot signature
-            let signature = *self.lowerer.types(reduced.module_id)?.signature(signature);
+            // reject a method with its own type parameters, which has no single slot
+            let signature = *self.lowerer.types(declared.module_id)?.signature(signature);
             if let Some(template) = signature.template {
                 let generics = &self.lowerer.state(template.module_id)?.generics;
                 let is_generic = generics
@@ -180,7 +178,7 @@ impl TypeLowerer<'_, '_> {
             }
 
             // leave the receiver to the dispatch and lower the bare signature
-            let signature = self.lower_bare_signature(&signature, reduced.module_id)?;
+            let signature = self.lower_bare_signature(&signature, declared.module_id)?;
             let Some(name) = self.lowerer.symbol_name(method.symbol)? else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),

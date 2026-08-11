@@ -107,17 +107,14 @@ impl ModuleLowerer<'_> {
                 }
             }
 
-            // collect literals already committed at their runtime types: a
-            //  literal at its own singleton type is comptime and never
-            //  materializes, its content lives in the type
+            // collect literals committed at their runtime types, skipping comptime singletons
             if let Ok(expression) = id.try_into_typed::<dir::Expression>()
                 && let dir::Expression::ScalarLiteral(literal) = state.tree().get(expression)
             {
                 let is_runtime = state
                     .types
                     .get_node_type_id(node)
-                    .map(|ty| state.types.get_reduced_type_id(ty))
-                    .is_some_and(|reduced| !matches!(self.ty(reduced), Ok(dir::Type::Literal(_))));
+                    .is_some_and(|ty| !matches!(self.ty(ty), Ok(dir::Type::Literal(_))));
                 match literal {
                     _ if !is_runtime => {}
                     dir::ScalarLiteral::String(string) => {
@@ -176,8 +173,7 @@ impl ModuleLowerer<'_> {
                 self.collect_coercion(coercion, substitution, reachable)?;
             }
 
-            // collect instances behind value-position callable references, leaving
-            //  unmatchable shapes to their own body diagnostics
+            // collect instances behind value-position callable references
             match self.collect_function_reference(module, node, substitution, reachable) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(_)) => {}
@@ -325,10 +321,7 @@ impl ModuleLowerer<'_> {
         if kind.is_binding() {
             return Ok(());
         }
-        let Some(ty) = self
-            .types(symbol.module_id)?
-            .get_reduced_symbol_type_id(symbol)
-        else {
+        let Some(ty) = self.types(symbol.module_id)?.get_symbol_type_id(symbol) else {
             return Ok(());
         };
         if !matches!(
@@ -419,8 +412,7 @@ impl ModuleLowerer<'_> {
         substitution: &TypeSubstitution,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
-        // require every generic argument to close under the collecting
-        //  substitution: nested parameters follow their enclosing bindings
+        // require every generic argument to close under the collecting substitution
         for binding in &bindings {
             let mut queue = vec![binding.argument];
             let mut visited = FxIndexSet::default();
@@ -462,10 +454,8 @@ impl ModuleLowerer<'_> {
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         // materialize widened comptime literals as immortal objects
-        if let Ok(source) = substitution.resolve(self, coercion.source)
-            && let Ok(reduced) = self.reduced_type(source)
-        {
-            match self.ty(reduced)? {
+        if let Ok(source) = substitution.resolve(self, coercion.source) {
+            match self.ty(source)? {
                 dir::Type::Literal(dir::ScalarLiteral::String(string)) => {
                     reachable.strings.insert(string);
                 }
@@ -498,20 +488,17 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<()> {
         // record the resolved pair for its declared dispatch entries
         let source = substitution.resolve(self, source)?;
-        let source = self.reduced_type(source)?;
         let resolved_target = substitution.resolve(self, target)?;
-        let resolved_target = self.reduced_type(resolved_target)?;
         reachable.implementers.insert((source, resolved_target));
 
-        // structural sources supply properties, not implementing methods
+        // stop at structural sources, which supply properties
         let dir::Type::Application(class) = self.ty(source)? else {
             return Ok(());
         };
 
         // read the constraint interface from the erased target
-        let target = self.reduced_type(target)?;
         let target = match self.ty(target)? {
-            dir::Type::Dynamic(dynamic) => self.reduced_type(dynamic.constraint)?,
+            dir::Type::Dynamic(dynamic) => dynamic.constraint,
             _ => target,
         };
         let dir::Type::Application(interface) = self.ty(target)? else {

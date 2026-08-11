@@ -41,8 +41,6 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         source: dir::GlobalTypeId,
     ) -> CompilerResult<CoercionValue> {
-        let source = self.lowerer.reduced_type(source)?;
-
         Ok(match self.lowerer.ty(source)? {
             dir::Type::Literal(literal) => CoercionValue::Literal(literal),
             dir::Type::Null => CoercionValue::Null,
@@ -492,8 +490,6 @@ impl FunctionLowerer<'_, '_, '_> {
         index: u32,
         member: dir::GlobalTypeId,
     ) -> CompilerResult<CoercionValue> {
-        let member = self.lowerer.reduced_type(member)?;
-
         Ok(match self.lowerer.ty(member)? {
             dir::Type::Literal(literal) => CoercionValue::Literal(literal),
             dir::Type::Null => CoercionValue::Null,
@@ -508,13 +504,15 @@ impl FunctionLowerer<'_, '_, '_> {
         value: CoercionValue,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<mir::Value>> {
-        let reduced = self.lowerer.reduced_type(target)?;
+        // skip literal and singleton cases, which carry no runtime payload
         if matches!(
-            self.lowerer.ty(reduced)?,
+            self.lowerer.ty(target)?,
             dir::Type::Literal(_) | dir::Type::Null | dir::Type::Undefined
         ) {
             return Ok(None);
         }
+
+        // materialize every other case into its storage
         let value = self.materialize_coercion_value(value, target)?;
 
         Ok(Some(value))
@@ -548,8 +546,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Lower one value expression by form.
-    /// Lower one expression that resolved to a symbol.
+    /// Lower one value expression that resolved to a symbol.
     pub(in crate::lower) fn lower_resolved_value(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -569,6 +566,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 if let Some(global) = self.module_constant_global(symbol)? {
                     return Ok(self.builder.load_global(global));
                 }
+
                 // materialize callable declarations as function values
                 if let Some(value) = self.lower_function_value(expression, symbol, None)? {
                     return Ok(value);
@@ -583,6 +581,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
+    /// Lower one expression to the value it produces.
     fn lower_expression_value(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,

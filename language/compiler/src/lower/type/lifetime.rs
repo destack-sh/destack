@@ -74,7 +74,6 @@ impl LifetimeParameters {
         lowerer: &ModuleLowerer<'_>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<mir::LifetimeSlot>> {
-        let ty = lowerer.reduced_type(ty)?;
         let dir::Type::Parameter(parameter) = lowerer.ty(ty)? else {
             return Ok(None);
         };
@@ -129,8 +128,6 @@ impl ModuleLowerer<'_> {
         lifetime: dir::GlobalTypeId,
         parameters: &LifetimeParameters,
     ) -> CompilerResult<mir::Lifetime> {
-        let lifetime = self.reduced_type(lifetime)?;
-
         match self.ty(lifetime)? {
             // resolve declared slots and erase parameters outside the scope
             dir::Type::Parameter(parameter) => Ok(parameters

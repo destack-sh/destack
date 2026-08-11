@@ -21,7 +21,7 @@ impl TypeLowerer<'_, '_> {
                         message: "Unique instantiated without its payload".to_string(),
                     });
                 };
-                let payload = self.lowerer.reduced_type(*payload)?;
+                let payload = *payload;
                 let representation = match self.lowerer.ty(payload)? {
                     // carry slice payloads in a fat unique descriptor
                     dir::Type::Slice(slice) => {
