@@ -1,8 +1,10 @@
 use destack_heap as heap;
 use destack_program as program;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::ObservationScope;
+use crate::debugger::ProbeId;
 use crate::host::ResourceId;
 use crate::runtime::RuntimeId;
 use crate::scheduler::RunnableId;
@@ -10,10 +12,9 @@ use crate::worker::WorkerId;
 use crate::world::policy::RuleId;
 use crate::world::time::Instant;
 use crate::world::topology::{EdgeId, EdgeKind, EntityId, EntityKind};
-use crate::world::ProbeId;
 
 /// One emitted observable fact.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Observation {
     // runtime
     /// runtime.spawned
@@ -462,19 +463,26 @@ impl Observation {
             ObservationScope::Worker { worker_id } => {
                 self.worker_id() == Some(*worker_id) && self.runtime_id().is_none()
             }
-            ObservationScope::RuntimeWorker(scope) => {
-                self.runtime_id() == Some(scope.runtime_id)
-                    && self.worker_id() == Some(scope.worker_id)
+            ObservationScope::RuntimeWorker {
+                runtime_id,
+                worker_id,
+            } => {
+                self.runtime_id() == Some(*runtime_id)
+                    && self.worker_id() == Some(*worker_id)
                     && self.fiber_id().is_none()
             }
-            ObservationScope::Fiber(scope) => {
-                self.runtime_id() == Some(scope.runtime_id)
-                    && self.worker_id() == Some(scope.worker_id)
-                    && self.fiber_id() == Some(scope.fiber_id)
+            ObservationScope::Fiber {
+                runtime_id,
+                worker_id,
+                fiber_id,
+            } => {
+                self.runtime_id() == Some(*runtime_id)
+                    && self.worker_id() == Some(*worker_id)
+                    && self.fiber_id() == Some(*fiber_id)
             }
-            ObservationScope::Entity(entity_id) => self.entity_id() == Some(entity_id.as_str()),
-            ObservationScope::Edge(edge_id) => self.edge_id() == Some(edge_id.as_str()),
-            ObservationScope::Resource(resource_id) => self.resource_id() == Some(**resource_id),
+            ObservationScope::Entity { entity_id } => self.entity_id() == Some(entity_id.as_str()),
+            ObservationScope::Edge { edge_id } => self.edge_id() == Some(edge_id.as_str()),
+            ObservationScope::Resource { resource_id } => self.resource_id() == Some(*resource_id),
         }
     }
 
@@ -619,8 +627,8 @@ impl Observation {
 #[cfg(test)]
 mod tests {
     use crate::host::ResourceId;
-    use crate::worker::WorkerId;
     use crate::runtime::RuntimeId;
+    use crate::worker::WorkerId;
     use crate::world::observation::{Observation, ObservationScope};
 
     #[test]

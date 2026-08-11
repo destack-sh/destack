@@ -1,3 +1,4 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::world::Moment;
@@ -5,7 +6,7 @@ use crate::world::Moment;
 use super::{Observation, ObservationSequence};
 
 /// One recorded observation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ObservationEntry {
     /// Observation sequence number.
     pub sequence: ObservationSequence,
