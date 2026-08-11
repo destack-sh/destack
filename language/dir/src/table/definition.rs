@@ -274,53 +274,18 @@ impl DefinitionSegment {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Definition {
     /// Transparent type alias declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// type Json = string | number | boolean
-    /// ```
     TypeAlias(TypeAliasDefinition),
     /// Struct declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// struct User { name: string }
-    /// ```
     Struct(StructDefinition),
     /// Class declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// class User { name: string }
-    /// ```
     Class(ClassDefinition),
     /// Nominal interface declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// interface Reader { read(): string }
-    /// ```
     Interface(InterfaceDefinition),
     /// Enum declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// enum Status { Ready, Done }
-    /// ```
     Enum(EnumDefinition),
     /// Newtype declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// newtype UserId = int64
-    /// ```
     Newtype(NewtypeDefinition),
     /// Extension declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// extension Logger for Writer { write(message: string): void }
-    /// ```
     Extension(ExtensionDefinition),
 }
 
@@ -494,40 +459,13 @@ pub struct ClassConstructorDefinition {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ClassConstructor {
     /// Constructor explicitly declared by this class.
-    ///
-    /// Examples:
-    /// ```ds
-    /// class User {
-    ///     constructor(name: string) {}
-    /// }
-    ///
-    /// new User("ada")
-    /// ```
     Declared {
         /// The declared constructor symbol.
         symbol: GlobalSymbolId,
     },
     /// Default `new T()` candidate for a class with no declared constructor.
-    ///
-    /// Examples:
-    /// ```ds
-    /// class User {}
-    ///
-    /// new User()
-    /// ```
     Default,
     /// Constructor forwarded to an explicit base class constructor.
-    ///
-    /// Examples:
-    /// ```ds
-    /// class Parent {
-    ///     constructor(name: string) {}
-    /// }
-    ///
-    /// class Child extends Parent {}
-    ///
-    /// new Child("ada")
-    /// ```
     ForwardedDeclared {
         /// The base class symbol.
         base: GlobalSymbolId,
@@ -535,15 +473,6 @@ pub enum ClassConstructor {
         symbol: GlobalSymbolId,
     },
     /// Constructor forwarded to a base class default constructor.
-    ///
-    /// Examples:
-    /// ```ds
-    /// class Parent {}
-    ///
-    /// class Child extends Parent {}
-    ///
-    /// new Child()
-    /// ```
     ForwardedDefault {
         /// The base class symbol.
         base: GlobalSymbolId,
@@ -644,27 +573,12 @@ pub struct NewtypeConstructor {
 )]
 pub enum ExtensionForm {
     /// Extension visible only inside its declaring module.
-    ///
-    /// Examples:
-    /// ```ds
-    /// extension of string { shout(): string { ... } }
-    /// ```
     Local,
     /// Extension visible outside its declaring module.
-    ///
-    /// Examples:
-    /// ```ds
-    /// export extension of string implements Hash { ... }
-    /// ```
     Exported,
 }
 
 /// Checked declaration data for one extension.
-///
-/// Examples:
-/// ```ds
-/// extension<T> of Array<T> implements Iterable<T> { ... }
-/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ExtensionDefinition {
     /// The extension declaration's symbol.
@@ -728,11 +642,6 @@ impl ExtensionDefinition {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ExtensionTarget {
     /// Extension whose receiver type has a lookup root.
-    ///
-    /// Example:
-    /// ```ds
-    /// extension<T> of ^Array<T> {}
-    /// ```
     Rooted {
         /// The declaration root used for member lookup.
         root: GlobalSymbolId,
@@ -740,11 +649,6 @@ pub enum ExtensionTarget {
         ty: GlobalTypeId,
     },
     /// Extension over an open receiver type.
-    ///
-    /// Example:
-    /// ```ds
-    /// extension<T> of T where T: Copy {}
-    /// ```
     Blanket {
         /// The checked receiver type.
         ty: GlobalTypeId,

@@ -95,20 +95,6 @@ impl<'a> TypeTable<'a> {
         entries.into_iter()
     }
 
-    /// Iterate checked reduced types.
-    pub fn reduced_types(&self) -> impl Iterator<Item = (GlobalTypeId, GlobalTypeId)> + '_ {
-        let mut entries = IndexMap::default();
-
-        // apply later segment values over earlier ones
-        for segment in self.segments.iter() {
-            for (source, target) in &segment.reduced_types {
-                entries.insert(*source, *target);
-            }
-        }
-
-        entries.into_iter()
-    }
-
     /// Get the effective checked type id for a node.
     pub fn get_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
         for segment in self.segments.iter().rev() {
@@ -140,30 +126,6 @@ impl<'a> TypeTable<'a> {
         }
 
         None
-    }
-
-    /// Get the reduced type id for a checked type.
-    pub fn get_reduced_type_id(&self, type_id: GlobalTypeId) -> GlobalTypeId {
-        // stored reductions are fixed points, so one lookup resolves
-        for segment in self.segments.iter().rev() {
-            if let Some(reduced) = segment.get_reduced_type_id(type_id) {
-                return reduced;
-            }
-        }
-
-        type_id
-    }
-
-    /// Get the reduced checked type id for a node.
-    pub fn get_reduced_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
-        self.get_node_type_id(node_id)
-            .map(|type_id| self.get_reduced_type_id(type_id))
-    }
-
-    /// Get the reduced checked type id for a symbol.
-    pub fn get_reduced_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<GlobalTypeId> {
-        self.get_symbol_type_id(symbol_id)
-            .map(|type_id| self.get_reduced_type_id(type_id))
     }
 
     /// Get a type by its id.
@@ -569,6 +531,7 @@ pool_id!(MemberTypeId);
 pool_id!(RefinedTypeId);
 pool_id!(BorrowFormId);
 
+/// One module's layer of checked types over the committed base.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TypeSegment {
     /// The module id of the type segment.
@@ -610,8 +573,6 @@ pub struct TypeSegment {
     pub(crate) expected_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
     /// Checked declaration type by symbol.
     pub(crate) symbol_types: IndexMap<GlobalSymbolId, GlobalTypeId>,
-    /// Reduced type by source type.
-    pub(crate) reduced_types: IndexMap<GlobalTypeId, GlobalTypeId>,
 }
 
 /// Mark of one type segment for speculative rollback.
@@ -670,7 +631,6 @@ impl TypeSegment {
             node_types: IndexMap::default(),
             expected_types: IndexMap::default(),
             symbol_types: IndexMap::default(),
-            reduced_types: IndexMap::default(),
         }
     }
 
@@ -695,7 +655,6 @@ impl TypeSegment {
             node_types: IndexMap::default(),
             expected_types: IndexMap::default(),
             symbol_types: IndexMap::default(),
-            reduced_types: IndexMap::default(),
         }
     }
 
@@ -780,13 +739,6 @@ impl TypeSegment {
             .map(|(symbol_id, type_id)| (*symbol_id, *type_id))
     }
 
-    /// Iterate checked reduced types.
-    pub fn reduced_types(&self) -> impl Iterator<Item = (GlobalTypeId, GlobalTypeId)> + '_ {
-        self.reduced_types
-            .iter()
-            .map(|(source, target)| (*source, *target))
-    }
-
     /// Set the effective checked type for a node.
     pub fn set_node_type(&mut self, node_id: GlobalNodeIdAny, type_id: GlobalTypeId) {
         self.node_types.insert(node_id, type_id);
@@ -815,20 +767,6 @@ impl TypeSegment {
     /// Get the solved type id for a symbol.
     pub fn get_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<GlobalTypeId> {
         self.symbol_types.get(&symbol_id).copied()
-    }
-
-    /// Set the reduced type for one source type.
-    pub fn set_type_reduction(&mut self, source: GlobalTypeId, target: GlobalTypeId) {
-        if source == target {
-            self.reduced_types.shift_remove(&source);
-        } else {
-            self.reduced_types.insert(source, target);
-        }
-    }
-
-    /// Get the reduced type id for a checked type.
-    pub fn get_reduced_type_id(&self, type_id: GlobalTypeId) -> Option<GlobalTypeId> {
-        self.reduced_types.get(&type_id).copied()
     }
 
     /// Get a type by its id.
@@ -934,7 +872,6 @@ impl TypeSegment {
             && self.node_types.is_empty()
             && self.expected_types.is_empty()
             && self.symbol_types.is_empty()
-            && self.reduced_types.is_empty()
     }
 
     /// Return whether this segment contains the given type id.
@@ -1179,9 +1116,17 @@ impl TypeTail {
         }
     }
 
-    /// Intern one type whose payload lists are already interned.
-    /// The caller supplies the joined structural flags of every child type.
+    /// Intern one type whose payload lists are already interned, with its joined child flags.
     pub fn intern_type(&mut self, ty: Type, child_flags: TypeFlags) -> LocalTypeId {
+        self.intern_type_inserted(ty, child_flags).0
+    }
+
+    /// Intern one type row, returning whether this call inserted it.
+    pub fn intern_type_inserted(
+        &mut self,
+        ty: Type,
+        child_flags: TypeFlags,
+    ) -> (LocalTypeId, bool) {
         // probe the committed segments beneath this tail first
         let hash = fx_hash(&ty);
         if let Some(slots) = self.committed_index.get(&hash) {
@@ -1191,7 +1136,7 @@ impl TypeTail {
                     .iter()
                     .find_map(|base| base.get_type_maybe(*slot));
                 if committed.as_ref() == Some(&ty) {
-                    return *slot;
+                    return (*slot, false);
                 }
             }
         }
@@ -1200,7 +1145,7 @@ impl TypeTail {
         if let Some(slots) = self.index.get(&hash) {
             for slot in slots {
                 if self.segment.owned_type(*slot) == &ty {
-                    return *slot;
+                    return (*slot, false);
                 }
             }
         }
@@ -1210,7 +1155,7 @@ impl TypeTail {
         self.hashes.push(hash);
         self.index.entry(hash).or_default().push(type_id);
 
-        type_id
+        (type_id, true)
     }
 
     /// Intern one type operation payload.

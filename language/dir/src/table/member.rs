@@ -130,17 +130,9 @@ impl MemberSegment {
         }
     }
 
-    /// Record the member lookup subject selected at one source site.
+    /// Record the member lookup subject selected at one source site, where the settled one wins.
     pub fn record_subject(&mut self, site: MemberSite, subject: MemberSubject) {
-        // require one stable subject per source site
-        if let Some(recorded) = self.subjects.get(&site) {
-            assert_eq!(
-                *recorded, subject,
-                "member site was recorded with a different subject"
-            );
-        } else {
-            self.subjects.insert(site, subject);
-        }
+        self.subjects.insert(site, subject);
     }
 
     /// Return the member bindings stored for one subject.
@@ -442,9 +434,7 @@ pub enum MemberSpace {
     Static,
 }
 
-/// The declaration family one member came from.
-///
-/// Direct declarations shadow rooted extensions, which shadow blanket extensions.
+/// The declaration family one member came from, ordered by shadowing precedence.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
