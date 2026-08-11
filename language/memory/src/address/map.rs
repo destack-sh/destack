@@ -1106,6 +1106,11 @@ impl MemoryImage {
         self.memory.frame_size_bytes()
     }
 
+    /// Read bytes from this image into a caller-provided buffer.
+    pub fn read_bytes_into(&self, offset: usize, target: &mut [u8]) -> MemoryResult<()> {
+        self.memory.read_bytes_into(offset, target)
+    }
+
     /// Return one owned byte vector from this image.
     pub fn read_bytes(&self, offset: usize, byte_len: usize) -> MemoryResult<Vec<u8>> {
         self.memory.read_bytes(offset, byte_len)
