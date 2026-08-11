@@ -132,7 +132,7 @@ impl CheckState<'_> {
         let [target] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
-        let target = self.reduce_type_head(origin, *target)?;
+        let target = self.normalize(origin, *target)?;
 
         // project only settled builtin integers to their unsigned width
         let dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) = self.ty(target)? else {
@@ -337,7 +337,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let (parameters, return_type) = (*parameters, *return_type);
-        let parameters = self.reduce_type_head(origin, parameters)?;
+        let parameters = self.normalize(origin, parameters)?;
 
         // read the parameter tuple
         let parameters = match self.ty(parameters)? {

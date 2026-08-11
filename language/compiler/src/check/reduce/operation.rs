@@ -11,7 +11,7 @@ impl CheckState<'_> {
         operation: dir::TypeOperation,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let ty = self.intern_operation(operation)?;
-        let ty = self.reduce_type_head(origin, ty)?;
+        let ty = self.normalize(origin, ty)?;
 
         Ok(ty)
     }

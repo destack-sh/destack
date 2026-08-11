@@ -91,7 +91,7 @@ impl CheckState<'_> {
         use_: ScalarUse,
         parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
     ) -> CompilerResult<Option<dir::ScalarFamilySet>> {
-        let root = self.reduce_type_head(origin, ty)?;
+        let root = self.normalize(origin, ty)?;
         let families = match self.ty(root)? {
             // union alternatives contribute every possible family
             dir::Type::Union(union) => {
@@ -220,7 +220,7 @@ impl CheckState<'_> {
 
         // enum values retain their declared family
         if let dir::Type::Variant(variant) = ty {
-            let owner = self.reduce_type_head(origin, variant.owner)?;
+            let owner = self.normalize(origin, variant.owner)?;
             let symbol = match self.ty(owner)? {
                 dir::Type::Application(instance)
                     if matches!(
@@ -296,7 +296,7 @@ impl CheckState<'_> {
         parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
         formats: &mut SmallVec<[dir::PrimitiveType; 4]>,
     ) -> CompilerResult<()> {
-        let target = self.reduce_type_head(origin, target)?;
+        let target = self.normalize(origin, target)?;
         match self.ty(target)? {
             // retain exact formats from active scalar families
             dir::Type::Primitive(format)
@@ -372,7 +372,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let root = self.reduce_type_head(origin, ty)?;
+        let root = self.normalize(origin, ty)?;
         match self.ty(root)? {
             // binary operators join their operand types
             dir::Type::Operation(operation)
@@ -425,7 +425,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let root = self.reduce_type_head(origin, ty)?;
+        let root = self.normalize(origin, ty)?;
         match self.ty(root)? {
             // concrete scalars type themselves
             dir::Type::Primitive(_) => Ok(Some(root)),
@@ -468,7 +468,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let mut selected = None;
         for bound in self.parameter_bounds(origin, parameter)? {
-            let root = self.reduce_type_head(origin, bound)?;
+            let root = self.normalize(origin, bound)?;
             if matches!(self.ty(root)?, dir::Type::Parameter(_))
                 || self
                     .type_scalar_families(origin, bound, ScalarUse::Value, parameters)?

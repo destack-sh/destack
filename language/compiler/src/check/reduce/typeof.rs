@@ -75,6 +75,13 @@ impl CheckState<'_> {
                 let [symbol] = symbols.as_slice() else {
                     return Ok(None);
                 };
+
+                // lift a class used as a value to its declared static side
+                let is_class = matches!(self.definition(*symbol)?, Some(dir::Definition::Class(_)));
+                if is_class && let Some(id) = self.symbol_static_id(*symbol) {
+                    return Ok(Some(self.intern_type(dir::Type::Static(id))?));
+                }
+
                 if let Some(value) = self.static_value(*symbol) {
                     return Ok(Some(value));
                 }

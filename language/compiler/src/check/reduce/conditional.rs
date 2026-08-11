@@ -168,7 +168,7 @@ impl CheckState<'_> {
         origin: Origin,
         conditional: dir::ConditionalType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let left = self.reduce_type_head(origin, conditional.left)?;
+        let left = self.normalize(origin, conditional.left)?;
 
         // distribute over union-valued checked types
         let elements = match self.ty(left)? {
@@ -212,7 +212,7 @@ impl CheckState<'_> {
         // rebuild the distributed result, dropping never like any union
         let mut kept = Vec::with_capacity(branches.len());
         for branch in branches {
-            let branch = self.reduce_type_head(origin, branch)?;
+            let branch = self.normalize(origin, branch)?;
             if matches!(self.ty(branch)?, dir::Type::Never) {
                 continue;
             }
@@ -332,7 +332,8 @@ impl CheckState<'_> {
 
         // substitute captured binders into the chosen branch
         let substitutions = captures.substitutions(self, module, source)?;
-        let branch = self.substitute_infer_captures(origin.module(), then_type, &substitutions)?;
+        let branch =
+            self.substitute_infer_captures(origin, origin.module(), then_type, &substitutions)?;
 
         Ok(Some(branch))
     }
@@ -346,8 +347,15 @@ impl CheckState<'_> {
         pattern: dir::GlobalTypeId,
         actual: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let pattern = self.reduce_type_head(origin, pattern)?;
-        let actual = self.reduce_type_head(origin, actual)?;
+        let pattern = self.normalize(origin, pattern)?;
+        let mut actual = self.normalize(origin, actual)?;
+
+        // match a static type term through the type it holds
+        if let dir::Type::Static(value) = self.ty(actual)?
+            && let dir::StaticTerm::Type { ty } = self.r#static(value)
+        {
+            actual = *ty;
+        }
 
         // capture direct infer binders
         if let Some(dir::TypeOperation::Infer(infer)) = self.operation_head(pattern)?
@@ -407,6 +415,7 @@ impl CheckState<'_> {
                                 span,
                                 &captured,
                             )?;
+
                             // repeated binders must capture identical text
                             let previous = captures.captured(span, infer.symbol);
                             if !previous.is_empty() && previous != [captured] {
@@ -478,8 +487,13 @@ impl CheckState<'_> {
                     &actual_elements,
                 )
             }
-            // class references match constructor patterns by their construct signatures
-            (dir::Type::FunctionSignature(_), dir::Type::Reference(reference)) => {
+            // class names match constructor patterns by their construct signatures
+            (
+                dir::Type::FunctionSignature(_),
+                dir::Type::Reference(dir::TypeReference { symbol })
+                | dir::Type::Application(dir::GenericApplication { symbol, .. }),
+            ) => {
+                let reference = dir::TypeReference { symbol };
                 let candidates = self
                     .reference_construct_signatures(origin, reference)?
                     .to_vec();
@@ -846,7 +860,7 @@ impl CheckState<'_> {
         pattern: &[dir::FunctionParameterType],
         actual: &[dir::FunctionParameterType],
     ) -> CompilerResult<bool> {
-        // one rest parameter pattern spans the full actual parameter tuple
+        // span the full actual parameter tuple with one rest parameter pattern
         if let [rest] = pattern
             && rest.is_rest
         {
@@ -878,7 +892,7 @@ impl CheckState<'_> {
         pattern: dir::FunctionParameterType,
         actual: &[dir::FunctionParameterType],
     ) -> CompilerResult<bool> {
-        let pattern_type = self.reduce_type_head(origin, pattern.ty)?;
+        let pattern_type = self.normalize(origin, pattern.ty)?;
 
         // infer rest parameters capture the actual parameter tuple
         if let Some(dir::TypeOperation::Infer(infer)) = self.operation_head(pattern_type)?

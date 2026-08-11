@@ -122,6 +122,7 @@ impl BodyState<'_, '_> {
             self.ty(right)?,
             dir::Type::Null | dir::Type::Undefined | dir::Type::Never
         );
+
         // scalar comparisons read values, so views compare their pointees
         let left_value = self.strip_form(origin, left)?;
         let right_value = self.strip_form(origin, right)?;
@@ -339,7 +340,7 @@ impl BodyState<'_, '_> {
         call: ProtocolCall,
         writeback: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
-        let result = self.operator_expression_type(origin, expression_result, call.return_type)?;
+        let result = self.operator_expression_type(expression_result, call.return_type)?;
 
         let resolution = match call.resolution {
             dir::OperationResolution::One(call) => {
@@ -354,8 +355,7 @@ impl BodyState<'_, '_> {
             dir::OperationResolution::Union { arms, .. } => {
                 let mut applications = Vec::with_capacity(arms.len());
                 for call in arms {
-                    let ty =
-                        self.operator_expression_type(origin, expression_result, call.return_type)?;
+                    let ty = self.operator_expression_type(expression_result, call.return_type)?;
                     applications.push(dir::OperatorApplication::Binary {
                         operator,
                         target: dir::OperatorTarget::Call(Box::new(call)),
@@ -453,10 +453,7 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Defer one operator selection until its operands settle.
-    ///
-    /// The node commits an open hole so enclosing checks proceed; the
-    /// deferred re-inference selects the operator and solves the hole.
+    /// Defer one operator selection until its operands settle, committing an open hole.
     fn defer_operator_selection(
         &mut self,
         site: FlowSite,
@@ -626,11 +623,8 @@ impl BodyState<'_, '_> {
             else {
                 continue;
             };
-            let result = self.operator_expression_type(
-                origin,
-                protocol.expression_result,
-                call.return_type,
-            )?;
+            let result =
+                self.operator_expression_type(protocol.expression_result, call.return_type)?;
 
             let resolution = match call.resolution {
                 dir::OperationResolution::One(call) => {
@@ -646,7 +640,6 @@ impl BodyState<'_, '_> {
                     let mut applications = Vec::with_capacity(arms.len());
                     for call in arms {
                         let ty = self.operator_expression_type(
-                            origin,
                             protocol.expression_result,
                             call.return_type,
                         )?;
@@ -765,9 +758,7 @@ impl BodyState<'_, '_> {
             && self.operand_is_integral(origin, left)?
             && self.operand_is_integral(origin, right)?;
 
-        // literal operands are static operations: the comptime
-        //  reduction folds them exactly and reports overflow, so the
-        //  result flows by representability like any written literal
+        // fold literal operands through the comptime static operation
         if numeric
             && matches!(
                 (self.ty(left)?, self.ty(right)?),
@@ -776,13 +767,23 @@ impl BodyState<'_, '_> {
             && let Ok(static_operator) = dir::StaticBinaryOperator::try_from(operator)
             && !static_operator.yields_boolean()
         {
+            // evaluate non-integral joins in the float domain
+            let (left, right) = match integral {
+                true => (left, right),
+                false => (
+                    self.float_literal_operand(left)?,
+                    self.float_literal_operand(right)?,
+                ),
+            };
+
+            // fold the static operation over the two literals
             let operation =
                 self.intern_operation(dir::TypeOperation::StaticBinary(dir::StaticBinaryType {
                     operator: static_operator,
                     left,
                     right,
                 }))?;
-            let folded = self.reduce_type_head(origin, operation)?;
+            let folded = self.normalize(origin, operation)?;
             if matches!(self.ty(folded)?, dir::Type::Literal(_)) {
                 return Ok(Some((folded, [left, right])));
             }
@@ -882,15 +883,11 @@ impl BodyState<'_, '_> {
         let operand_site = self.visit_site(source)?;
 
         // parametric literal adaptation belongs only to the selected builtin
-        let target_root = self.reduce_type_head(operand_site.origin(), target)?;
         if matches!(self.ty(source_type)?, dir::Type::Literal(_))
-            && matches!(self.ty(target_root)?, dir::Type::Parameter(_))
+            && matches!(self.ty(target)?, dir::Type::Parameter(_))
         {
-            let accepts = self.builtin_scalar_accepts_literal(
-                operand_site.origin(),
-                source_type,
-                target_root,
-            )?;
+            let accepts =
+                self.builtin_scalar_accepts_literal(operand_site.origin(), source_type, target)?;
             if !accepts {
                 return Err(CompilerError::Internal {
                     message: "selected builtin operation rejects its literal operand".to_string(),
@@ -943,8 +940,7 @@ impl BodyState<'_, '_> {
         operand: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // fold only literal operands
-        let reduced = self.reduce_type_head(origin, operand)?;
-        if !matches!(self.ty(reduced)?, dir::Type::Literal(_)) {
+        if !matches!(self.ty(operand)?, dir::Type::Literal(_)) {
             return Ok(operand);
         }
         let Ok(operator) = dir::StaticUnaryOperator::try_from(operator) else {
@@ -959,10 +955,22 @@ impl BodyState<'_, '_> {
         Ok(result)
     }
 
+    /// Return one comptime integer literal lifted into the float domain.
+    fn float_literal_operand(
+        &mut self,
+        operand: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::Literal(dir::ScalarLiteral::Integer(value)) = self.ty(operand)? else {
+            return Ok(operand);
+        };
+        let literal = dir::Type::Literal(dir::ScalarLiteral::Float(value as f64));
+
+        self.intern_type(literal)
+    }
+
     /// Return one interval operand widened to its base scalar.
     fn interval_operand_base(
         &mut self,
-        _origin: Origin,
         operand: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let dir::Type::Range(range) = self.ty(operand)? else {
@@ -983,8 +991,8 @@ impl BodyState<'_, '_> {
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // interval operands widen to their base scalar under arithmetic
-        let left = self.interval_operand_base(origin, left)?;
-        let right = self.interval_operand_base(origin, right)?;
+        let left = self.interval_operand_base(left)?;
+        let right = self.interval_operand_base(right)?;
 
         // literals adapt into the other operand's type
         let left_literal = match self.ty(left)? {
@@ -1035,7 +1043,6 @@ impl BodyState<'_, '_> {
     /// Return the expression result for one selected operator method.
     pub(in crate::check) fn operator_expression_type(
         &mut self,
-        origin: Origin,
         expression_result: OperatorExpressionResult,
         return_type: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -1043,25 +1050,20 @@ impl BodyState<'_, '_> {
         let result = match expression_result {
             OperatorExpressionResult::MethodReturn => return_type,
             // project the place behind the returned borrow
-            OperatorExpressionResult::Pointee => {
-                let reduced = self.reduce_type_head(origin, return_type)?;
-
-                match self.ty(reduced)? {
-                    dir::Type::Form(form)
-                        if matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw) =>
-                    {
-                        form.value
-                    }
-                    _ => {
-                        let actual = self.format_type(return_type);
-                        return Err(CompilerError::Internal {
-                            message: format!(
-                                "dereference operator returned non-pointer type {actual}"
-                            ),
-                        });
-                    }
+            OperatorExpressionResult::Pointee => match self.ty(return_type)? {
+                dir::Type::Form(form)
+                    if matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw) =>
+                {
+                    form.value
                 }
-            }
+                _ => {
+                    let actual = self.format_type(return_type);
+
+                    return Err(CompilerError::Internal {
+                        message: format!("dereference operator returned non-pointer type {actual}"),
+                    });
+                }
+            },
             OperatorExpressionResult::Boolean => {
                 self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?
             }
@@ -1070,7 +1072,7 @@ impl BodyState<'_, '_> {
         Ok(result)
     }
 
-    /// Read one operand node's reduced input type.
+    /// Read one operand node's normalized input type.
     fn operand_type(
         &mut self,
         origin: Origin,
@@ -1078,7 +1080,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let ty = self.infer_node_type(site, PlaceUse::Read)?;
 
-        self.reduce_type_head(origin, ty)
+        self.normalize(origin, ty)
     }
 
     /// Commit one builtin binary operator selection.
@@ -1222,7 +1224,7 @@ impl BodyState<'_, '_> {
         let relation = Relation::Assignable;
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         let holds = self.constrain_type(origin, cause, relation, source, writeback)?;
-        let outcome = self.complete_constraint_check(origin, relation, source, writeback, holds)?;
+        let outcome = self.complete_constraint_check(relation, source, writeback, holds)?;
 
         // record the failure against the store site
         if let CheckOutcome::Fails(failure) = outcome {
@@ -1247,7 +1249,7 @@ impl BodyState<'_, '_> {
         operator: String,
         operands: &[dir::GlobalTypeId],
     ) -> CompilerResult<()> {
-        // poison instead of reporting again when an operand already reported an error
+        // poison an operand that already reported an error
         if self.any_error_operand(operands)? {
             self.poison_node(node)?;
 

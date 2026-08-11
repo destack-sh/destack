@@ -18,11 +18,11 @@ pub(in crate::check) struct NullishSplit {
 /// Nullish part removed from one union type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum NullishPart {
-    /// Null was removed.
+    /// Null alone.
     Null,
-    /// Undefined was removed.
+    /// Undefined alone.
     Undefined,
-    /// Null and undefined were removed.
+    /// Null and undefined together.
     NullOrUndefined,
 }
 
@@ -55,10 +55,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Canonicalize one union element through import binders and aliases.
-    ///
-    /// The same nominal reaches a union under different ids when one arm
-    /// names it through an import binder; deduplication needs one spelling.
+    /// Canonicalize one union element through import binders and aliases to one form.
     fn canonical_union_element(
         &mut self,
         element: dir::GlobalTypeId,
@@ -103,7 +100,7 @@ impl CheckState<'_> {
         let mut keys = FxIndexSet::default();
         let mut key_domains = SmallVec::<[dir::PrimitiveType; 2]>::new();
         for element in elements {
-            let element = self.shallow_resolve(element)?;
+            let element = self.resolve_head(element)?;
             let element = self.canonical_union_element(element)?;
 
             // flatten nested unions into one element list
@@ -177,7 +174,7 @@ impl CheckState<'_> {
                 return Ok(true);
             }
 
-            // one borrow value valid for the join of both lifetimes
+            // join both lifetimes into one borrow value
             let joined = self.normalized_union_type([existing_borrow.lifetime, borrow.lifetime])?;
             let joined_form = self.intern_borrow(joined, borrow.access)?;
             *slot = self.intern_type(dir::Type::Form(dir::FormType {
@@ -247,7 +244,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<NullishSplit>> {
-        let reduced = self.reduce_type_head(origin, ty)?;
+        let reduced = self.normalize(origin, ty)?;
         let dir::Type::Union(union) = self.ty(reduced)? else {
             return Ok(None);
         };

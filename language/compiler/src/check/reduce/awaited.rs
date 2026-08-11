@@ -22,7 +22,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let target = self.shallow_resolve(target)?;
+        let target = self.resolve_head(target)?;
         if !active.insert(target) {
             return Ok(None);
         }
@@ -85,7 +85,6 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let target = self.reduce_type_head(origin, target)?;
         if !active.insert(target) {
             return Ok(Some(target));
         }
@@ -158,7 +157,6 @@ impl CheckState<'_> {
         // newtypes await through their backing
         if let Some(instance) = self.decompose_newtype(origin, target)? {
             let backing = instance.backing;
-            let backing = self.reduce_type_head(origin, backing)?;
             let awaited = self.reduce_awaited_guarded(origin, backing, active)?;
 
             return match awaited {

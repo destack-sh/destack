@@ -26,7 +26,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut kept = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for element in elements {
-            let element = self.shallow_resolve(element)?;
+            let element = self.resolve_head(element)?;
 
             // flatten nested intersections into one element list
             let elements = match self.ty(element)? {
@@ -63,12 +63,8 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         elements: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // reduce every element head before merging shapes
-        let mut closed = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        for element in elements {
-            let element = self.reduce_type_head(origin, *element)?;
-            closed.push(element);
-        }
+        // collect the elements this intersection merges
+        let mut closed = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(elements);
 
         // exact key members absorb the string primitive
         let has_exact_key = closed.iter().any(|element| {

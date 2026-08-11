@@ -197,13 +197,14 @@ impl SignatureRejection {
 
 #[allow(clippy::too_many_arguments)]
 impl BodyState<'_, '_> {
-    /// Return the reduced signature type of one callable type.
+    /// Return the signature type behind one callable type.
     pub(in crate::check) fn callable_signature_type(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::FunctionSignatureType)>> {
-        let ty = self.reduce_type_head(origin, ty)?;
+        // read the callable through its reduced head
+        let ty = self.normalize(origin, ty)?;
         let signature = match self.ty(ty)? {
             dir::Type::FunctionSignature(signature) => {
                 Some((ty, self.type_signature(ty.module_id, signature)?))
@@ -218,6 +219,44 @@ impl BodyState<'_, '_> {
         };
 
         Ok(signature)
+    }
+
+    /// Expand one substituted tuple rest into its positional parameters.
+    fn splat_tuple_rest_parameters(
+        &mut self,
+        origin: Origin,
+        parameters: Vec<dir::FunctionParameterType>,
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<Vec<dir::FunctionParameterType>> {
+        // find the trailing rest parameter
+        let Some(rest_index) = parameters.iter().position(|parameter| parameter.is_rest) else {
+            return Ok(parameters);
+        };
+
+        // read the substituted rest as a closed tuple
+        let rest = self.substitute_type(parameters[rest_index].ty, substitution)?;
+        let rest = self.check.normalize(origin, rest)?;
+        let dir::Type::Tuple(tuple) = self.check.ty(rest)? else {
+            return Ok(parameters);
+        };
+
+        // rebuild positional parameters from the tuple elements
+        let mut expanded = parameters[..rest_index].to_vec();
+        let elements = self
+            .check
+            .tuple_elements(rest.module_id, tuple.elements)?
+            .to_vec();
+        for element in elements {
+            expanded.push(dir::FunctionParameterType {
+                name: None,
+                ty: element.ty,
+                is_optional: element.is_optional,
+                is_rest: false,
+            });
+        }
+        expanded.extend(parameters[rest_index + 1..].iter().copied());
+
+        Ok(expanded)
     }
 
     /// Create one substituted function signature type.
@@ -271,7 +310,7 @@ impl BodyState<'_, '_> {
 
         // resolve relative member parameters at the receiver's place
         let parameter_type = self.receiver_relative_type(origin, receiver, parameter_type)?;
-        let parameter_type = self.shallow_resolve(parameter_type)?;
+        let parameter_type = self.resolve_head(parameter_type)?;
 
         // rest parameters retain their collection type and accept its element per source
         let argument_type = match parameter.is_rest {
@@ -332,7 +371,7 @@ impl BodyState<'_, '_> {
                 None => dir::ArgumentSource::Omitted,
             };
 
-            // settled selections project rest elements through the full reduce
+            // project rest elements through the deep normal form for settled selections
             let argument_type = match parameter.is_rest {
                 true => self
                     .rest_element_type(origin, parameter.ty)?
@@ -356,7 +395,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         rest: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let reduced = self.check.reduce_type(origin, rest)?;
+        let reduced = self.check.deeply_normalize(origin, rest)?;
 
         // placed collections accept their element in the collection's place
         if let dir::Type::Form(form) = self.check.ty(reduced)?
@@ -407,8 +446,7 @@ impl BodyState<'_, '_> {
         arguments: &[CallableArgument],
         expectation: Option<Expectation>,
     ) -> CompilerResult<SignatureMatch> {
-        // reduce the callable shape before selecting a signature
-        let function_type = self.reduce_type_head(origin, function_type)?;
+        // read the callable shape before selecting a signature
         let function = match self.ty(function_type)? {
             dir::Type::FunctionSignature(function) => {
                 self.type_signature(function_type.module_id, function)?
@@ -584,8 +622,7 @@ impl BodyState<'_, '_> {
             substitution = opened;
         }
 
-        // point this at the applied extension target for bare type receivers,
-        //  so static members return the inferred instance
+        // point this at the applied extension target for bare type receivers
         if let Some(receiver_value) = receiver
             && matches!(self.ty(receiver_value.ty)?, dir::Type::Reference(_))
             && let Some(owner) = owner
@@ -649,6 +686,23 @@ impl BodyState<'_, '_> {
                 }
             }
 
+            // splat a substituted tuple rest into positional parameters
+            let signature_parameters = self.splat_tuple_rest_parameters(
+                origin,
+                signature_parameters.clone(),
+                &substitution,
+            )?;
+
+            // reject argument tails a splatted signature cannot accept
+            let has_rest = signature_parameters
+                .iter()
+                .any(|parameter| parameter.is_rest);
+            if !has_rest && arguments.len() > signature_parameters.len() {
+                return Ok(SignatureMatch::Inapplicable(
+                    SignatureRejection::Inapplicable,
+                ));
+            }
+
             // substitute parameter types once for candidate inference
             let mut argument_parameters =
                 SmallVec::<[(usize, CallableArgument, dir::GlobalTypeId); 4]>::new();
@@ -691,8 +745,7 @@ impl BodyState<'_, '_> {
                 )?);
             }
 
-            // queue obligations, rejecting on decided failures only;
-            //  deferred predicates prove once arguments solve their variables
+            // queue obligations, rejecting on decided failures only
             for bound in bounds {
                 let id = self.check.push_constraint(bound)?;
                 let Some(result) = self.check.fulfill.constraints.result(id)? else {
@@ -818,7 +871,7 @@ impl BodyState<'_, '_> {
         let Some(receiver) = receiver else {
             return Ok(ty);
         };
-        let Some(place) = self.receiver_projected_place(origin, receiver)? else {
+        let Some(place) = self.receiver_projected_place(receiver)? else {
             return Ok(ty);
         };
 
@@ -844,11 +897,12 @@ impl BodyState<'_, '_> {
         let return_type = self.receiver_relative_type(origin, receiver, return_type)?;
 
         // select each parameter and erase the barriers inference left behind
-        let mut parameters = SmallVec::<[_; 4]>::new();
-        for parameter in self
+        let declared = self
             .signature_parameters(signature_module, function.parameters)?
-            .to_vec()
-        {
+            .to_vec();
+        let declared = self.splat_tuple_rest_parameters(origin, declared, substitution)?;
+        let mut parameters = SmallVec::<[_; 4]>::new();
+        for parameter in declared {
             let parameter = self.select_parameter(origin, parameter, substitution, receiver)?;
             let parameter = ParameterSelection {
                 parameter: dir::FunctionParameterType {
@@ -896,7 +950,7 @@ impl BodyState<'_, '_> {
                 index: index as u32,
             },
         ));
-        let mode = self.contextual_literal_mode(parameter_type, InferMode::Widen)?;
+        let mode = self.contextual_literal_mode(origin, parameter_type, InferMode::Widen)?;
 
         // apply target-directed syntax before converting the resulting value
         let ty = match argument.ty {

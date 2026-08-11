@@ -12,7 +12,7 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         key: dir::StaticKey,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let receiver = self.reduce_type_head(origin, receiver)?;
+        let receiver = self.normalize(origin, receiver)?;
 
         // filter union alternatives independently by their declared member sets
         if let dir::Type::Union(union) = self.ty(receiver)? {
@@ -69,7 +69,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         is_positive: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let source = self.reduce_type_head(origin, source)?;
+        let source = self.normalize(origin, source)?;
         let alternatives = match self.variant_types(origin.module(), source)? {
             Some(variants) => variants,
             None => match self.ty(source)? {
@@ -84,7 +84,7 @@ impl CheckState<'_> {
         let mut kept = Vec::with_capacity(alternatives.len());
         for alternative in alternatives {
             let narrowed = self.narrow_element(origin, alternative, target, is_positive)?;
-            let narrowed = self.reduce_type_head(origin, narrowed)?;
+            let narrowed = self.normalize(origin, narrowed)?;
             if !matches!(self.ty(narrowed)?, dir::Type::Never) {
                 kept.push(alternative);
             }
@@ -109,7 +109,7 @@ impl CheckState<'_> {
         let bounds = self.parameter_bounds(origin, parameter)?;
         let mut enumerated = None;
         for bound in &bounds {
-            let bound = self.reduce_type(origin, *bound)?;
+            let bound = self.deeply_normalize(origin, *bound)?;
             if self.union_arms(origin, bound)?.is_some() {
                 enumerated = Some(bound);
 
@@ -153,8 +153,8 @@ impl CheckState<'_> {
         origin: Origin,
         narrow: dir::NarrowType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let source = self.reduce_type_head(origin, narrow.source)?;
-        let target = self.reduce_type_head(origin, narrow.target)?;
+        let source = self.normalize(origin, narrow.source)?;
+        let target = self.normalize(origin, narrow.target)?;
 
         // preserve precise case identity for enum and Tagged owners
         let variants = self.variant_types(origin.module(), source)?;
@@ -163,7 +163,7 @@ impl CheckState<'_> {
         if variants.is_none()
             && let Some(instance) = self.decompose_newtype(origin, source)?
         {
-            let backing = self.reduce_type_head(origin, instance.backing)?;
+            let backing = self.normalize(origin, instance.backing)?;
 
             return self.reduce_narrowing(
                 origin,
@@ -184,7 +184,7 @@ impl CheckState<'_> {
                 target: target_value,
                 is_positive: narrow.is_positive,
             }))?;
-            let narrowed = self.reduce_type_head(origin, operation)?;
+            let narrowed = self.normalize(origin, operation)?;
             if matches!(self.ty(narrowed)?, dir::Type::Operation(_)) {
                 return Ok(None);
             }
@@ -209,7 +209,7 @@ impl CheckState<'_> {
                     let variables = self.type_variables(source)?;
                     if variables.is_empty() {
                         // closed operations expand before narrowing distributes
-                        let expanded = self.reduce_type(origin, source)?;
+                        let expanded = self.deeply_normalize(origin, source)?;
                         if expanded != source {
                             return self.reduce_narrowing(
                                 origin,
@@ -220,6 +220,7 @@ impl CheckState<'_> {
                                 },
                             );
                         }
+
                         // irreducible template patterns narrow like single arms
                         if matches!(
                             self.type_operation(source.module_id, operation)?,
@@ -246,7 +247,7 @@ impl CheckState<'_> {
         // filter each arm through the guard relation
         for element in elements {
             let narrowed = self.narrow_element(origin, element, target, narrow.is_positive)?;
-            let narrowed = self.reduce_type_head(origin, narrowed)?;
+            let narrowed = self.normalize(origin, narrowed)?;
             if matches!(self.ty(narrowed)?, dir::Type::Never) {
                 continue;
             }
@@ -302,8 +303,7 @@ impl CheckState<'_> {
             return Ok(narrowed);
         }
 
-        // exact matches keep or remove the source arm; narrowing asks a
-        //  constraint question, so reads stay per use and never move values
+        // keep or remove the source arm on an exact match
         if self.decide_relation(origin, Relation::Subtype, source, target)? {
             let narrowed = if is_positive {
                 source

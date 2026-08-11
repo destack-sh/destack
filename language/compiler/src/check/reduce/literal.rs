@@ -17,7 +17,7 @@ impl CheckState<'_> {
         mapping: dir::StringMapping,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let target = self.reduce_type_head(origin, target)?;
+        let target = self.normalize(origin, target)?;
 
         match self.ty(target)? {
             // map one closed string literal
@@ -70,9 +70,9 @@ impl CheckState<'_> {
         // close every interpolated span to its printable choices
         let mut printed: Vec<Vec<String>> = Vec::with_capacity(spans.len());
         for span in spans {
-            let span = self.reduce_type_head(origin, span)?;
+            let span = self.normalize(origin, span)?;
 
-            // a never span empties the whole template
+            // empty the whole template on a never span
             if matches!(self.ty(span)?, dir::Type::Never) {
                 return Ok(Some(self.intern_type(dir::Type::Never)?));
             }
@@ -83,7 +83,7 @@ impl CheckState<'_> {
                     let elements = self.type_ids(span.module_id, union.elements)?.to_vec();
                     let mut choices = Vec::with_capacity(elements.len());
                     for element in elements {
-                        let element = self.reduce_type_head(origin, element)?;
+                        let element = self.normalize(origin, element)?;
                         match self.template_piece_text(element)? {
                             Some(text) => choices.push(text),
                             None => return Ok(None),
@@ -143,7 +143,7 @@ impl CheckState<'_> {
         origin: Origin,
         binary: dir::StaticBinaryType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let left = self.reduce_type_head(origin, binary.left)?;
+        let left = self.normalize(origin, binary.left)?;
         let left_literal = match self.ty(left)? {
             dir::Type::Literal(literal) => Some(literal),
             _ => None,
@@ -156,7 +156,7 @@ impl CheckState<'_> {
                     return Ok(Some(left));
                 }
                 (dir::StaticBinaryOperator::And, true) | (dir::StaticBinaryOperator::Or, false) => {
-                    let right = self.reduce_type_head(origin, binary.right)?;
+                    let right = self.normalize(origin, binary.right)?;
 
                     return match self.ty(right)? {
                         dir::Type::Literal(dir::ScalarLiteral::Boolean(_)) => Ok(Some(right)),
@@ -168,7 +168,7 @@ impl CheckState<'_> {
         }
 
         // close the right operand after short-circuiting
-        let right = self.reduce_type_head(origin, binary.right)?;
+        let right = self.normalize(origin, binary.right)?;
         let right_literal = match self.ty(right)? {
             dir::Type::Literal(literal) => Some(literal),
             _ => None,
@@ -217,7 +217,7 @@ impl CheckState<'_> {
         origin: Origin,
         unary: dir::StaticUnaryType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let target = self.reduce_type_head(origin, unary.target)?;
+        let target = self.normalize(origin, unary.target)?;
         let literal = match self.ty(target)? {
             dir::Type::Literal(literal) => literal,
             _ => return Ok(None),
@@ -280,7 +280,7 @@ impl CheckState<'_> {
         mapping: dir::StringMapping,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let target = self.reduce_type_head(origin, target)?;
+        let target = self.normalize(origin, target)?;
         let reduced = match self.ty(target)? {
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
                 self.reduce_string_mapping(module, mapping, value)?

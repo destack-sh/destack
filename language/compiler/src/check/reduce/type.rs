@@ -6,15 +6,6 @@ use smallvec::SmallVec;
 use crate::check::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
-/// One head reduction outcome, keeping blocked heads visible.
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum HeadReduction {
-    /// The chain closed on one head normal form.
-    Closed(dir::GlobalTypeId),
-    /// The chain blocked at one head awaiting open dependencies.
-    Blocked(dir::GlobalTypeId),
-}
-
 impl CheckState<'_> {
     /// Return the storage representation of one checked type.
     pub(in crate::check) fn storage_type(
@@ -34,9 +25,6 @@ impl CheckState<'_> {
     }
 
     /// Return the canonical checked form of one foreign written type.
-    ///
-    /// Declared modules record written types, so foreign symbol types canonicalize on entry:
-    /// signature parameters store like walked parameter declarations and other values store whole.
     pub(in crate::check) fn canonical_foreign_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -47,7 +35,7 @@ impl CheckState<'_> {
             return Ok(ty);
         }
 
-        // signatures canonicalize per parameter, other values canonicalize whole
+        // canonicalize signatures per parameter and other values whole
         let origin = Origin::Symbol(symbol);
         match self.ty(ty)? {
             dir::Type::Function(function) => {
@@ -117,7 +105,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         aliases: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_head(ty)?;
 
         // expand aliases only when their bodies require storage adaptation
         if self.is_alias_instance(ty)? {
@@ -203,7 +191,7 @@ impl CheckState<'_> {
             // top types have no direct layout in storage
             dir::Type::Any | dir::Type::Unknown => Ok(true),
 
-            // interface instances are constraints, not represented values
+            // treat interface instances as constraints
             dir::Type::Application(instance) => Ok(matches!(
                 self.symbol_kind(instance.symbol)?,
                 dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
@@ -215,37 +203,53 @@ impl CheckState<'_> {
     }
 
     /// Reduce one type graph to its simplest closed form.
-    pub(in crate::check) fn reduce_type(
+    pub(in crate::check) fn deeply_normalize(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let id = self.shallow_resolve(id)?;
-
-        // key parameter reductions by their assuming scope
-        let scope = if self.type_flags(id)?.has_parameter() {
-            self.assuming_scope(origin)?
-        } else {
-            None
-        };
-        if scope.is_none()
-            && let Some(reduced) = self.module.types_tail.get_reduced_type_id(id)
-        {
-            return Ok(reduced);
-        }
-
-        // fold the root, then normalize children with aliases kept symbolic
+        // resolve the root, then normalize children with aliases kept symbolic
+        let id = self.resolve_head(id)?;
         let mut memo = FxIndexMap::default();
         let mut active = FxIndexSet::default();
-        let head = self.reduce_type_head(origin, id)?;
-        let reduced = self.reduce_type_graph(origin, head, &mut memo, &mut active)?;
 
-        // record complete reductions as type tail entries
-        if !self.type_flags(id)?.has_variable() && !self.type_flags(reduced)?.has_variable() {
-            self.module.types_tail.set_type_reduction(id, reduced);
-        }
+        self.normalize_graph(origin, id, &mut memo, &mut active)
+    }
 
-        Ok(reduced)
+    /// Splice one tuple's closed rest spreads into positional elements.
+    fn reduce_tuple_rest_splice(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+        tuple: dir::TupleType,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // locate the rest element among the written positions
+        let elements = self.tuple_elements(id.module_id, tuple.elements)?.to_vec();
+        let Some(rest_index) = elements.iter().position(|element| element.is_rest) else {
+            return Ok(None);
+        };
+
+        // read the spread as a closed tuple
+        let rest = self.normalize_stuck(origin, elements[rest_index].ty)?;
+        let dir::Type::Tuple(spread) = self.ty(rest)? else {
+            return Ok(None);
+        };
+
+        // splice the spread elements in place
+        let mut spliced = elements[..rest_index].to_vec();
+        spliced.extend(
+            self.tuple_elements(rest.module_id, spread.elements)?
+                .iter()
+                .copied(),
+        );
+        spliced.extend(elements[rest_index + 1..].iter().copied());
+        let spliced = self.intern_elements(&spliced)?;
+        let spliced = self.intern_type(dir::Type::Tuple(dir::TupleType {
+            form: tuple.form,
+            elements: spliced,
+        }))?;
+
+        Ok(Some(spliced))
     }
 
     /// Splat one signature's closed tuple rest parameter into positional parameters.
@@ -265,7 +269,8 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
-        let rest_ty = self.reduce_type_head(origin, rest.ty)?;
+        // resolve a stuck rest head to its closed tuple
+        let rest_ty = self.normalize_stuck(origin, rest.ty)?;
         let dir::Type::Tuple(tuple) = self.ty(rest_ty)? else {
             return Ok(None);
         };
@@ -294,52 +299,124 @@ impl CheckState<'_> {
         Ok(Some(splatted))
     }
 
-    /// Reduce the head of one type to an honest value form, keeping authored names.
-    pub(in crate::check) fn reduce_named_head(
+    /// Normalize one closed head once at construction.
+    pub(in crate::check) fn normalize_closed(
+        &mut self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // keep the reductions of parameter carriers lazy under their assuming scope
+        let flags = self.type_flags(id)?;
+        if flags.has_parameter() || flags.has_this() {
+            return Ok(id);
+        }
+
+        // reduce alias applications and closed projections at their declaration
+        let Some(origin) = self.head_origin(id)? else {
+            return Ok(id);
+        };
+        let mut expanding = FxIndexSet::default();
+
+        self.normalize_chain(origin, id, &mut expanding)
+    }
+
+    /// Return the declaration origin owning one reducible head.
+    fn head_origin(&self, id: dir::GlobalTypeId) -> CompilerResult<Option<Origin>> {
+        let origin = match self.ty(id)? {
+            dir::Type::Application(instance) => Some(Origin::Symbol(instance.symbol)),
+            dir::Type::Reference(reference) => Some(Origin::Symbol(reference.symbol)),
+            dir::Type::Member(member) => {
+                let member = self.type_member(id.module_id, member)?;
+
+                return self.head_origin(member.owner);
+            }
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(id.module_id, refined)?;
+
+                return self.head_origin(refined.base);
+            }
+            _ => None,
+        };
+
+        Ok(origin)
+    }
+
+    /// Normalize one anonymous computation or carrier head, keeping names and forms rigid.
+    pub(in crate::check) fn normalize_computation(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut id = self.shallow_resolve(id)?;
-        loop {
-            let reduced = match self.ty(id)? {
-                // resolve meta heads: they name computations, not values
-                dir::Type::Member(_) | dir::Type::Operation(_) => {
-                    self.reduce_type_head(origin, id)?
-                }
-                // drop redundant forms while the payload keeps its spelling
-                dir::Type::Form(_) => self.reduce_redundant_forms(origin, id)?,
-                _ => return Ok(id),
-            };
-            if reduced == id {
-                return Ok(id);
+        let id = self.resolve_head(id)?;
+        match self.ty(id)? {
+            // reduce meta heads, which name computations
+            dir::Type::Member(_) | dir::Type::Operation(_) => self.normalize(origin, id),
+            // reduce written carrier constructors, which name memory forms
+            dir::Type::Application(instance)
+                if self.language_item(instance.symbol)?.is_some_and(|item| {
+                    matches!(
+                        item,
+                        dir::LanguageItem::Managed
+                            | dir::LanguageItem::Owned
+                            | dir::LanguageItem::Raw
+                            | dir::LanguageItem::Borrowed
+                            | dir::LanguageItem::Placed
+                            | dir::LanguageItem::Readonly
+                            | dir::LanguageItem::WithBase
+                            | dir::LanguageItem::WithOwnership
+                            | dir::LanguageItem::WithPlace
+                            | dir::LanguageItem::WithSpace
+                            | dir::LanguageItem::WithLifetime
+                            | dir::LanguageItem::WithAccess
+                    )
+                }) =>
+            {
+                self.normalize(origin, id)
             }
-            id = reduced;
+            // keep every other head as written
+            _ => Ok(id),
         }
     }
 
-    /// Reduce the head of one type to its simplest available form.
-    pub(in crate::check) fn reduce_type_head(
+    /// Normalize one named head blocking a stuck relation, keeping memory forms rigid.
+    pub(in crate::check) fn normalize_stuck(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // reduce only the named families a stuck relation can still unblock
+        let id = self.resolve_head(id)?;
+        if !matches!(
+            self.ty(id)?,
+            dir::Type::Application(_)
+                | dir::Type::Reference(_)
+                | dir::Type::Member(_)
+                | dir::Type::Operation(_)
+                | dir::Type::FunctionSignature(_)
+        ) {
+            return Ok(id);
+        }
+
+        self.normalize(origin, id)
+    }
+
+    /// Normalize the head of one type to its simplest available form.
+    pub(in crate::check) fn normalize(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         self.counters.reduces += 1;
 
-        // an open head reduces to itself: the variable is its own value form
-        Ok(match self.head_reduction(origin, id)? {
-            HeadReduction::Closed(reduced) => reduced,
-            HeadReduction::Blocked(head) => head,
-        })
+        self.normalize_head(origin, id)
     }
 
-    /// Reduce one type head, keeping a blocked head visible with its openness.
-    fn head_reduction(
+    /// Reduce one type head, recording the reductions that close.
+    fn normalize_head(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<HeadReduction> {
-        let id = self.shallow_resolve(id)?;
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let id = self.resolve_head(id)?;
         let flags = self.type_flags(id)?;
 
         // key parameter reductions by their assuming scope
@@ -350,8 +427,8 @@ impl CheckState<'_> {
         };
 
         // replay decided reductions of closed types
-        if let Some(reduced) = self.reduces.get(&(id, scope)) {
-            return Ok(HeadReduction::Closed(*reduced));
+        if let Some(reduced) = self.normalizations.get(&(id, scope)) {
+            return Ok(*reduced);
         }
 
         // close heads outside the reducible families, which are already normal
@@ -365,114 +442,158 @@ impl CheckState<'_> {
                 | dir::Type::Operation(_)
                 | dir::Type::Form(_)
                 | dir::Type::Intersection(_)
+                | dir::Type::Tuple(_)
         ) {
-            // record the fixed point of a settled head
-            if !flags.has_variable() {
-                self.reduces.insert((id, scope), id);
+            // record the fixed point of a settled head, skipping the declaring pass
+            if !flags.has_variable() && !self.is_declaration() {
+                self.normalizations.insert((id, scope), id);
             }
 
-            return Ok(HeadReduction::Closed(id));
+            return Ok(id);
         }
 
         // walk the reduction chain, tracking the heads it expands
         let mut expanding = FxIndexSet::default();
-        let reduction = self.reduce_type_chain(origin, id, &mut expanding)?;
+        let reduced = self.normalize_chain(origin, id, &mut expanding)?;
 
-        // decide closed reductions once
-        if let HeadReduction::Closed(reduced) = reduction
-            && !flags.has_variable()
+        // decide closed reductions once, keeping variable heads open
+        if !flags.has_variable()
             && !self.type_flags(reduced)?.has_variable()
+            && !self.is_declaration()
         {
-            self.reduces.insert((id, scope), reduced);
+            self.normalizations.insert((id, scope), reduced);
         }
 
-        Ok(reduction)
+        Ok(reduced)
     }
 
     /// Reduce one settled type head with the active expansion chain tracked.
-    fn reduce_type_chain(
+    fn normalize_chain(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
         expanding: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<HeadReduction> {
-        ensure_sufficient_stack(|| self.reduce_type_chain_recursive(origin, id, expanding))
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        ensure_sufficient_stack(|| self.normalize_chain_recursive(origin, id, expanding))
     }
 
     /// Reduce one type chain on the grown stack.
-    fn reduce_type_chain_recursive(
+    fn normalize_chain_recursive(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
         expanding: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<HeadReduction> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         // report circular expansions and complete the chain with the error type
         if !expanding.insert(id) {
             self.report_circular_type(origin)?;
             let error = self.intern_type(dir::Type::Error)?;
 
-            return Ok(HeadReduction::Closed(error));
+            return Ok(error);
+        }
+
+        // load foreign heads before their chains expand
+        if !self.is_own_module(id.module_id) {
+            self.import_external_module(id.module_id)?;
         }
 
         match self.ty(id)? {
             // open variables block the chain as its own head
-            dir::Type::Variable(_) => Ok(HeadReduction::Blocked(id)),
+            dir::Type::Variable(_) => Ok(id),
+
+            // continue written names as their nominal application
+            dir::Type::Reference(reference) => {
+                // keep bare names of generic symbols with required parameters symbolic
+                if let Some(template) = self.symbol_template(reference.symbol)? {
+                    let parameters = self.generic_template_parameters(template)?.to_vec();
+                    for parameter in parameters {
+                        let Some(binding) = self.generic_parameter(parameter).copied() else {
+                            continue;
+                        };
+                        if binding.is_writable()
+                            && binding.default.is_none()
+                            && binding.memory_parameter() != Some(dir::MemoryParameter::Lifetime)
+                        {
+                            return Ok(id);
+                        }
+                    }
+                }
+
+                // apply the name with no arguments and continue the chain
+                let application = dir::GenericApplication {
+                    symbol: reference.symbol,
+                    arguments: self.intern_type_ids(&[])?,
+                };
+                let applied = self.intern_type(dir::Type::Application(application))?;
+                if applied == id {
+                    return Ok(id);
+                }
+
+                self.normalize_chain(origin, applied, expanding)
+            }
 
             // unions normalize their canonical elements in place
             dir::Type::Union(union) => {
                 let elements = self.type_ids(id.module_id, union.elements)?.to_vec();
                 let normalized = self.normalized_union_type(elements)?;
                 if normalized == id {
-                    return Ok(HeadReduction::Closed(id));
+                    return Ok(id);
                 }
 
-                self.reduce_type_chain_recursive(origin, normalized, expanding)
+                self.normalize_chain_recursive(origin, normalized, expanding)
             }
+
+            // splice closed rest spreads into their tuple positionally
+            dir::Type::Tuple(tuple) => match self.reduce_tuple_rest_splice(origin, id, tuple)? {
+                Some(spliced) => Ok(spliced),
+                None => Ok(id),
+            },
 
             // rest parameters with closed tuple types splat positionally
             dir::Type::FunctionSignature(signature) => {
                 let signature = self.type_signature(id.module_id, signature)?;
                 match self.reduce_signature_rest_splat(origin, id, signature)? {
-                    Some(splatted) => Ok(HeadReduction::Closed(splatted)),
-                    None => Ok(HeadReduction::Closed(id)),
+                    Some(splatted) => Ok(splatted),
+                    None => Ok(id),
                 }
             }
 
             // written applications complete their elided arguments
             dir::Type::Application(instance) => {
                 if let Some(filled) = self.fill_elided_application(id.module_id, &instance)? {
-                    return self.head_reduction(origin, filled);
+                    return self.normalize_head(origin, filled);
                 }
 
                 // reduce intrinsic references to their builtin forms
                 if let Some(reduced) =
                     self.reduce_intrinsic_reference(origin, id.module_id, &instance)?
                 {
-                    return self.head_reduction(origin, reduced);
+                    return self.normalize_head(origin, reduced);
                 }
 
                 match self.type_alias_body(origin, id.module_id, &instance)? {
                     Some(value) => {
-                        let value = self.shallow_resolve(value)?;
+                        let value = self.resolve_head(value)?;
 
-                        self.reduce_type_chain(origin, value, expanding)
+                        self.normalize_chain(origin, value, expanding)
                     }
-                    None => Ok(HeadReduction::Closed(id)),
+                    None => Ok(id),
                 }
             }
 
             // member projections resolve through their owners
             dir::Type::Member(member) => {
                 let member = self.type_member(id.module_id, member)?;
-                // close the owner and keep its memory form
-                let owner = self.reduce_type_head(origin, member.owner)?;
+
+                // peel the owner's forms for the projection
+                let owner = member.owner;
                 let peeled = self.strip_form(origin, owner)?;
 
                 // error owners poison their projections
                 if matches!(self.ty(peeled)?, dir::Type::Error) {
                     let error = self.intern_type(dir::Type::Error)?;
 
-                    return Ok(HeadReduction::Closed(error));
+                    return Ok(error);
                 }
 
                 // unqualified projections select one declaring interface
@@ -499,16 +620,16 @@ impl CheckState<'_> {
                         qualifier,
                     })?;
 
-                    return self.reduce_type_chain(origin, rebuilt, expanding);
+                    return self.normalize_chain(origin, rebuilt, expanding);
                 }
 
                 let projection = self.body().project_member(origin, &member)?;
                 let Some(projected) = projection else {
-                    return Ok(HeadReduction::Closed(id));
+                    return Ok(id);
                 };
-                let projected = self.shallow_resolve(projected)?;
+                let projected = self.resolve_head(projected)?;
 
-                self.reduce_type_chain(origin, projected, expanding)
+                self.normalize_chain(origin, projected, expanding)
             }
 
             // reduce type operations once their inputs close
@@ -517,34 +638,26 @@ impl CheckState<'_> {
                 let reduction = self.reduce_operation(origin, id, &operation)?;
 
                 let Some(reduced) = reduction else {
-                    return Ok(HeadReduction::Closed(id));
+                    return Ok(id);
                 };
-                let reduced = self.shallow_resolve(reduced)?;
+                let reduced = self.resolve_head(reduced)?;
 
-                self.reduce_type_chain(origin, reduced, expanding)
+                self.normalize_chain(origin, reduced, expanding)
             }
 
             // borrows absorb payload forms and retain placement around the resulting handle
             dir::Type::Form(form) if let dir::Form::Borrowed(borrow) = form.form => {
                 let borrow = self.type_borrow(id.module_id, borrow)?;
 
-                // close the lifetime and access components
-                let closed_lifetime = self.reduce_type_head(origin, borrow.lifetime)?;
-                let closed_access = self.reduce_type_head(origin, borrow.access)?;
-                let value = self.reduce_type_head(origin, form.value)?;
-
                 // absorb the payload forms the borrow carries itself
-                let (payload, closed_access, place) =
-                    self.reduce_borrow_payload(origin, value, closed_access)?;
-                if payload == form.value
-                    && closed_lifetime == borrow.lifetime
-                    && closed_access == borrow.access
-                    && place.is_none()
-                {
-                    return Ok(HeadReduction::Closed(id));
+                let (payload, access, place) =
+                    self.reduce_borrow_payload(form.value, borrow.access)?;
+                if payload == form.value && access == borrow.access && place.is_none() {
+                    return Ok(id);
                 }
 
-                let closed_form = self.intern_borrow(closed_lifetime, closed_access)?;
+                // rebuild the borrow around the absorbed payload
+                let closed_form = self.intern_borrow(borrow.lifetime, access)?;
                 let mut rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
                     form: closed_form,
                     value: payload,
@@ -556,29 +669,11 @@ impl CheckState<'_> {
                     }))?;
                 }
 
-                self.head_reduction(origin, rebuilt)
+                self.normalize_head(origin, rebuilt)
             }
 
-            // non-borrow forms close their payload head
-            dir::Type::Form(form) => {
-                let value = self.reduce_type_head(origin, form.value)?;
-
-                // redundant wrappers reduce to their payload
-                if self.is_redundant_form(origin, form.form, value)? {
-                    return self.reduce_type_chain(origin, value, expanding);
-                }
-
-                if value == form.value {
-                    return Ok(HeadReduction::Closed(id));
-                }
-
-                let rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
-                    form: form.form,
-                    value,
-                }))?;
-
-                self.head_reduction(origin, rebuilt)
-            }
+            // close non-borrow forms as written values
+            dir::Type::Form(_) => Ok(id),
 
             // intersections merge their structural shape elements
             dir::Type::Intersection(intersection) => {
@@ -586,18 +681,17 @@ impl CheckState<'_> {
                     SmallVec::from_slice(self.type_ids(id.module_id, intersection.elements)?);
                 let merged = self.reduce_intersection(origin, id, &elements)?;
 
-                Ok(HeadReduction::Closed(merged))
+                Ok(merged)
             }
 
             // return every other root unchanged, it is already simplest
-            _ => Ok(HeadReduction::Closed(id)),
+            _ => Ok(id),
         }
     }
 
     /// Reduce forms that a borrow absorbs from its payload.
     fn reduce_borrow_payload(
         &mut self,
-        _origin: Origin,
         mut value: dir::GlobalTypeId,
         mut access: dir::GlobalTypeId,
     ) -> CompilerResult<(
@@ -621,7 +715,7 @@ impl CheckState<'_> {
                 // borrowed payloads reborrow at the clamped access
                 dir::Form::Borrowed(payload_borrow) => {
                     let payload_access = self.type_borrow(value.module_id, payload_borrow)?.access;
-                    let payload_access = self.shallow_resolve(payload_access)?;
+                    let payload_access = self.resolve_head(payload_access)?;
                     if matches!(
                         self.ty(payload_access)?,
                         dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))
@@ -631,7 +725,7 @@ impl CheckState<'_> {
                     value = payload.value;
                 }
 
-                // ownership forms contribute storage rather than another handle layer
+                // look through ownership forms, which contribute storage
                 dir::Form::Managed | dir::Form::Owned => value = payload.value,
 
                 // placement qualifies the resulting borrow handle
@@ -649,7 +743,7 @@ impl CheckState<'_> {
     }
 
     /// Reduce one type graph with the active reduction path tracked.
-    fn reduce_type_graph(
+    fn normalize_graph(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
@@ -661,19 +755,16 @@ impl CheckState<'_> {
             return Ok(done);
         }
 
+        // replay the reduction recorded for the settled head
         let original = id;
-
-        // keep transparent alias references symbolic in child positions
-        let id = self.shallow_resolve(id)?;
-        let id = match self.is_alias_instance(id)? {
-            true => id,
-            false => self.reduce_type_head(origin, id)?,
-        };
+        let id = self.resolve_head(id)?;
         if let Some(done) = memo.get(&id).copied() {
             memo.insert(original, done);
 
             return Ok(done);
         }
+
+        // stop at a node already on the active reduction path
         if !active.insert(id) {
             memo.insert(original, id);
 
@@ -686,11 +777,12 @@ impl CheckState<'_> {
         let root = self.ty(id)?;
         self.for_each_type_child(id.module_id, &root, |child| children.push(child))?;
         for child in children {
-            let reduced = self.reduce_type_graph(origin, child, memo, active)?;
+            let reduced = self.normalize_graph(origin, child, memo, active)?;
             if reduced != child {
                 replacements.insert(child, reduced);
             }
         }
+
         // keep an unchanged local root as it stands
         let target = origin.module();
         let is_union = matches!(root, dir::Type::Union(_));
@@ -714,12 +806,13 @@ impl CheckState<'_> {
             }
             ty => self.intern_type(ty)?,
         };
+
         // reduce the rebuilt root once more when it moved
         active.swap_remove(&id);
         let rebuilt = if rebuilt == id {
             rebuilt
         } else {
-            self.reduce_type_graph(origin, rebuilt, memo, active)?
+            self.normalize_graph(origin, rebuilt, memo, active)?
         };
         memo.insert(original, rebuilt);
 

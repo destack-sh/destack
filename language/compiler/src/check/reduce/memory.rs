@@ -25,6 +25,8 @@ pub(in crate::check) struct BorrowConversion {
     pub(in crate::check) source: FormChain,
     /// The target borrowed form.
     pub(in crate::check) target: FormChain,
+    /// Whether the borrow acquires the source handle itself.
+    pub(in crate::check) acquires_handle: bool,
     /// The target borrow constructor and payload.
     pub(in crate::check) borrow: dir::FormType,
 }
@@ -100,26 +102,41 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<BorrowConversion>> {
+        // normalize both sides so accessor intrinsics expose their borrow carriers
+        let source = self.normalize(origin, source)?;
         let source = self.form_chain(origin, source)?;
+        let target = self.normalize(origin, target)?;
         let target = self.form_chain(origin, target)?;
+
+        // require a borrowed target form
         let Some(borrow) = target.ownership_form() else {
             return Ok(None);
         };
         if !matches!(borrow.form, dir::Form::Borrowed(_)) {
             return Ok(None);
         }
+
         // require a placeable value, a borrow only targets owned storage
         if !self.ty(source.base())?.is_placeable() {
             return Ok(None);
         }
 
+        // note when a borrow-shaped target payload acquires the handle itself
+        let payload = self.normalize(origin, borrow.value)?;
+        let payload = self.form_chain(origin, payload)?;
+        let acquires_handle = payload
+            .ownership_form()
+            .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)));
+
         // explicit borrowed and raw values reborrow through the receiver ladder
-        if source.ownership_form().is_some_and(|form| {
-            matches!(
-                form.form.ownership(),
-                Some(dir::Ownership::Borrowed | dir::Ownership::Raw)
-            )
-        }) {
+        if !acquires_handle
+            && source.ownership_form().is_some_and(|form| {
+                matches!(
+                    form.form.ownership(),
+                    Some(dir::Ownership::Borrowed | dir::Ownership::Raw)
+                )
+            })
+        {
             return Ok(None);
         }
 
@@ -127,6 +144,7 @@ impl CheckState<'_> {
             module: origin.module(),
             source,
             target,
+            acquires_handle,
             borrow,
         }))
     }
@@ -137,7 +155,7 @@ impl CheckState<'_> {
         origin: Origin,
         access: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Access>> {
-        let access = self.reduce_type_head(origin, access)?;
+        let access = self.normalize(origin, access)?;
         let literal = match self.ty(access)? {
             dir::Type::Memory(dir::MemoryLiteral::Access(access)) => Some(access),
             _ => None,
@@ -210,13 +228,13 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Return whether one value crosses a call boundary in an immediate carrier.
+    /// Return whether one value passes to a call in an immediate carrier.
     pub(in crate::check) fn is_immediate_value(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let ty = self.reduce_type_head(origin, ty)?;
+        let ty = self.normalize(origin, ty)?;
         let is_immediate = match self.ty(ty)? {
             dir::Type::Null
             | dir::Type::Undefined
@@ -322,9 +340,9 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut value = self.reduce_type_head(origin, id)?;
+        let mut value = self.normalize(origin, id)?;
         while let dir::Type::Form(form) = self.ty(value)? {
-            value = self.reduce_type_head(origin, form.value)?;
+            value = self.normalize(origin, form.value)?;
         }
 
         Ok(value)
@@ -336,14 +354,14 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let mut value = self.reduce_type_head(origin, target)?;
+        let mut value = self.normalize(origin, target)?;
 
         // construction owns storage forms but never manufactures references
         while let dir::Type::Form(form) = self.ty(value)? {
             if matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw) {
                 return Ok(None);
             }
-            value = self.reduce_type_head(origin, form.value)?;
+            value = self.normalize(origin, form.value)?;
         }
 
         Ok(Some(value))
@@ -356,7 +374,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let head = self.reduce_type_head(origin, ty)?;
+        let head = self.normalize(origin, ty)?;
         let dir::Type::Form(form) = self.ty(head)? else {
             return Ok(value);
         };
@@ -418,8 +436,8 @@ impl CheckState<'_> {
                 return Ok(id);
             };
 
-            // decide on the reduced payload, return the authored spelling
-            let value = self.reduce_type_head(origin, form.value)?;
+            // decide on the reduced payload and return the authored form
+            let value = self.normalize(origin, form.value)?;
             let drops = self.is_redundant_form(origin, form.form, value)?;
             if !drops {
                 return Ok(id);
@@ -542,7 +560,7 @@ impl CheckState<'_> {
         };
 
         // close the inspected target first
-        let target = self.reduce_type_head(origin, target)?;
+        let target = self.normalize(origin, target)?;
 
         // distribute the accessor over union targets
         let elements = match self.ty(target)? {
@@ -553,10 +571,10 @@ impl CheckState<'_> {
         };
         let mut reduced = Vec::with_capacity(elements.len());
         for element in elements {
-            let element = self.reduce_type_head(origin, element)?;
+            let element = self.normalize(origin, element)?;
 
             match self.reduce_element_accessor(origin, module, item, instance, element)? {
-                // one symbolic element keeps the whole accessor symbolic
+                // keep the whole accessor symbolic for one symbolic element
                 None => return Ok(None),
                 Some(accessor) => reduced.push(accessor),
             }
@@ -592,6 +610,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // close the element's form chain first
         let chain = self.form_chain(origin, element)?;
+
         self.reduce_stack_accessor(origin, module, item, instance, element, &chain)
     }
 
@@ -760,8 +779,8 @@ impl CheckState<'_> {
 
         // collect memory forms outermost first
         loop {
-            let root = self.shallow_resolve(current)?;
-            current = self.reduce_type_head(origin, root)?;
+            let root = self.resolve_head(current)?;
+            current = root;
             let dir::Type::Form(form) = self.ty(current)? else {
                 break;
             };
@@ -881,7 +900,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Ownership>> {
-        let ty = self.reduce_type_head(origin, ty)?;
+        let ty = self.normalize(origin, ty)?;
         let default = match self.ty(ty)? {
             dir::Type::Any
             | dir::Type::Unknown
@@ -920,7 +939,7 @@ impl CheckState<'_> {
                         Some(dir::Ownership::Owned)
                     }
                     Some(dir::Definition::Newtype(definition)) => {
-                        let backing = self.reduce_type_head(origin, definition.backing)?;
+                        let backing = self.normalize(origin, definition.backing)?;
 
                         return self.default_ownership(origin, backing);
                     }
@@ -977,7 +996,7 @@ impl CheckState<'_> {
             match entry.form {
                 dir::Form::Readonly => return self.text_literal_type(origin, "readonly").map(Some),
                 dir::Form::Borrowed(borrow) => {
-                    let access = self.type_borrow(origin.module(), borrow)?.access;
+                    let access = self.type_borrow(self.module_id, borrow)?.access;
 
                     return self.normalize_component_text(origin, access).map(Some);
                 }
@@ -1038,7 +1057,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         for entry in &chain.forms {
             if let dir::Form::Borrowed(borrow) = entry.form {
-                return Ok(Some(self.type_borrow(origin.module(), borrow)?.lifetime));
+                return Ok(Some(self.type_borrow(self.module_id, borrow)?.lifetime));
             }
         }
 
@@ -1362,7 +1381,7 @@ impl CheckState<'_> {
         origin: Origin,
         component: dir::GlobalTypeId,
     ) -> CompilerResult<Option<String>> {
-        let component = self.reduce_type_head(origin, component)?;
+        let component = self.normalize(origin, component)?;
 
         let text = match self.ty(component)? {
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
@@ -1443,13 +1462,13 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut current = self.shallow_resolve(ty)?;
+        let mut current = self.resolve_head(ty)?;
         while let dir::Type::Form(form) = self.ty(current)? {
-            // only alias-transparent forms disappear for reads
+            // drop alias-transparent forms for reads
             if !matches!(form.form, dir::Form::Managed | dir::Form::Readonly) {
                 break;
             }
-            current = self.shallow_resolve(form.value)?;
+            current = self.resolve_head(form.value)?;
         }
 
         Ok(current)
@@ -1468,7 +1487,7 @@ impl CheckState<'_> {
         };
 
         match (form.form, inner.form) {
-            // an explicit inner placement absorbs the outer request
+            // absorb the outer request into the explicit placement below it
             (dir::Form::Placed { place }, dir::Form::Placed { place: existing }) => {
                 if self.is_relative_place(existing)? {
                     let value = inner.value;
@@ -1486,6 +1505,23 @@ impl CheckState<'_> {
             }
             // readonly views are idempotent
             (dir::Form::Readonly, dir::Form::Readonly) => Ok(dir::Type::Form(inner)),
+            // absorb an ownership request into the equal ownership below it
+            (dir::Form::Managed, dir::Form::Managed) | (dir::Form::Owned, dir::Form::Owned) => {
+                Ok(dir::Type::Form(inner))
+            }
+            // absorb a readonly payload view into a readonly borrow
+            (dir::Form::Borrowed(borrow), dir::Form::Readonly)
+                if let Some(row) = self.borrow_maybe(borrow)
+                    && matches!(
+                        self.ty(row.access)?,
+                        dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))
+                    ) =>
+            {
+                Ok(dir::Type::Form(dir::FormType {
+                    form: form.form,
+                    value: inner.value,
+                }))
+            }
             // placement commutes with every other axis: `^shared T` is `shared ^T`
             (form_kind, dir::Form::Placed { place }) => {
                 let value = self.intern_type(dir::Type::Form(dir::FormType {

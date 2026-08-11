@@ -21,8 +21,6 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
         projection: TryProjection,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let value = self.reduce_type_head(origin, value)?;
-
         // split nullish members from the remaining value arms
         let mut nullish = Vec::new();
         let mut values = Vec::new();

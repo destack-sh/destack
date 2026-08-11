@@ -136,11 +136,13 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         key_type: dir::GlobalTypeId,
     ) -> CompilerResult<OperationReduction> {
-        let space = match self.ty(owner)? {
-            dir::Type::Reference(_) => dir::MemberSpace::Static,
+        // resolve a stuck named head before selecting the member space
+        let head = self.normalize_stuck(origin, owner)?;
+        let space = match self.ty(head)? {
+            dir::Type::Reference(_) | dir::Type::Static(_) => dir::MemberSpace::Static,
             _ => dir::MemberSpace::Instance,
         };
-        let subject = dir::MemberSubject::new(owner, owner, space);
+        let subject = dir::MemberSubject::new(owner, head, space);
         let lookup = self
             .body()
             .lookup_member(origin, origin.module(), subject, key)?;
@@ -240,8 +242,8 @@ impl CheckState<'_> {
         origin: Origin,
         index: &dir::IndexType,
     ) -> CompilerResult<OperationReduction> {
-        let left = self.reduce_type_head(origin, index.left)?;
-        let key = self.reduce_type_head(origin, index.index)?;
+        let left = self.normalize(origin, index.left)?;
+        let key = self.normalize(origin, index.index)?;
 
         // poisoned operands project their poison
         if self.ty(left)?.is_error() || self.ty(key)?.is_error() {
@@ -292,7 +294,10 @@ impl CheckState<'_> {
         if let Some(static_key) = static_key
             && matches!(
                 self.ty(left)?,
-                dir::Type::Reference(_) | dir::Type::Application(_) | dir::Type::Refined(_)
+                dir::Type::Reference(_)
+                    | dir::Type::Application(_)
+                    | dir::Type::Refined(_)
+                    | dir::Type::Static(_)
             )
         {
             return self.reduce_static_member_projection(origin, left, static_key, key);
@@ -410,10 +415,11 @@ impl CheckState<'_> {
 
         // match the first signature covering the key domain
         for signature in signatures {
-            let signature_key = self.reduce_type_head(origin, signature.key_type)?;
+            let signature_key = self.normalize(origin, signature.key_type)?;
             let Some(signature_domain) = self.index_key_domain(signature_key)? else {
                 continue;
             };
+
             // string signatures accept numeric property names too
             let covers = signature_domain == domain
                 || (signature_domain == KeyDomain::String && domain == KeyDomain::Usize);
@@ -462,7 +468,8 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let target = self.reduce_type_head(origin, target)?;
+        // project the key domain from the operand's reduced shape
+        let target = self.normalize(origin, target)?;
 
         // collect exact keys and index domains
         let Some(keys) = self.keyof_set(origin, target)? else {
@@ -517,12 +524,12 @@ impl CheckState<'_> {
 
             // memory forms preserve the key set of their payload
             dir::Type::Form(form) => {
-                let value = self.reduce_type_head(origin, form.value)?;
+                let value = self.normalize(origin, form.value)?;
 
                 return self.keyof_set(origin, value);
             }
 
-            // union keys are the keys present in every arm
+            // keep the union keys present in every arm
             dir::Type::Union(union) => {
                 let mut elements = self
                     .type_ids(target.module_id, union.elements)?
@@ -531,12 +538,12 @@ impl CheckState<'_> {
                 let Some(first) = elements.next() else {
                     return Ok(Some(KeySet::default()));
                 };
-                let first = self.reduce_type_head(origin, first)?;
+                let first = self.normalize(origin, first)?;
                 let Some(mut keys) = self.keyof_set(origin, first)? else {
                     return Ok(None);
                 };
                 for element in elements {
-                    let element = self.reduce_type_head(origin, element)?;
+                    let element = self.normalize(origin, element)?;
                     let Some(other) = self.keyof_set(origin, element)? else {
                         return Ok(None);
                     };
@@ -546,14 +553,14 @@ impl CheckState<'_> {
                 keys
             }
 
-            // intersection keys are keys from any constituent
+            // collect intersection keys from any constituent
             dir::Type::Intersection(intersection) => {
                 let mut keys = KeySet::default();
                 let elements = self
                     .type_ids(target.module_id, intersection.elements)?
                     .to_vec();
                 for element in elements {
-                    let element = self.reduce_type_head(origin, element)?;
+                    let element = self.normalize(origin, element)?;
                     let Some(other) = self.keyof_set(origin, element)? else {
                         return Ok(None);
                     };
@@ -563,7 +570,7 @@ impl CheckState<'_> {
                 keys
             }
 
-            // tuple keys are the element indices, rest tails widen to the index domain
+            // key tuples by element index, widening rest tails to the index domain
             dir::Type::Tuple(tuple) => {
                 let mut set = KeySet::default();
                 let elements = self
@@ -590,7 +597,7 @@ impl CheckState<'_> {
 
             // fixed arrays with a settled count key by their exact indices
             dir::Type::FixedArray(array) => {
-                let count = self.reduce_type_head(origin, array.count)?;
+                let count = self.normalize(origin, array.count)?;
                 let mut set = KeySet::default();
                 match self.ty(count)? {
                     dir::Type::Literal(dir::ScalarLiteral::Integer(count)) => {
@@ -669,7 +676,7 @@ impl CheckState<'_> {
                 keys.insert_key(key);
             }
 
-            // index signatures contribute key domains rather than exact keys
+            // contribute key domains for index signatures
             if let dir::DefinitionMember::IndexSignature(signature) = member {
                 signatures.push(signature.key_type);
             }
@@ -688,7 +695,7 @@ impl CheckState<'_> {
         keys: &mut KeySet,
         key_type: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let key_type = self.reduce_type_head(origin, key_type)?;
+        let key_type = self.normalize(origin, key_type)?;
 
         match self.ty(key_type)? {
             // union key domains contribute every alternative
@@ -715,7 +722,7 @@ impl CheckState<'_> {
                 keys.insert_domain(KeyDomain::Symbol);
             }
 
-            // literal key domains are exact keys
+            // insert literal key domains as exact keys
             _ => {
                 if let Some(key) = self.static_key_from_type(key_type)? {
                     keys.insert_key(key);
@@ -787,7 +794,7 @@ impl CheckState<'_> {
         );
 
         // close the key source first
-        let closed = self.reduce_type_head(origin, mapped.parameter.constraint)?;
+        let closed = self.normalize(origin, mapped.parameter.constraint)?;
         let closed_type = self.ty(closed)?;
         let keys = match closed_type {
             dir::Type::Union(union) => {
@@ -802,7 +809,7 @@ impl CheckState<'_> {
         // close the modifier source for the carry
         let source_fields = match modifiers_type {
             Some(target) => {
-                let target = self.reduce_type_head(origin, target)?;
+                let target = self.normalize(origin, target)?;
 
                 match self.ty(target)? {
                     dir::Type::Shape(shape) | dir::Type::Object(shape) => Some(
@@ -816,7 +823,7 @@ impl CheckState<'_> {
             None => None,
         };
 
-        // top-level T[K] values project declared field types, not reads
+        // project declared field types for top-level T[K] values
         let is_identity = match (self.operation_head(mapped.value)?, modifiers_type) {
             (Some(dir::TypeOperation::Index(index)), Some(target)) => {
                 (index.left == target || Some(index.left) == mapped.parameter.modifiers_type)
@@ -847,7 +854,7 @@ impl CheckState<'_> {
                 _ => {
                     let value = self.substitute_type(mapped.value, &substitution)?;
 
-                    self.reduce_type_head(origin, value)?
+                    self.normalize(origin, value)?
                 }
             };
 
@@ -855,7 +862,7 @@ impl CheckState<'_> {
                 Some(remap) => {
                     let remap = self.substitute_type(remap, &substitution)?;
 
-                    self.reduce_type_head(origin, remap)?
+                    self.normalize(origin, remap)?
                 }
                 None => key,
             };

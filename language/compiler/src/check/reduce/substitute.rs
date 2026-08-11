@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::CheckState;
+use crate::check::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
 /// One generic type substitution.
@@ -109,6 +109,11 @@ enum SubstitutionRule<'a> {
         /// The generic arguments and qualified receiver.
         substitution: &'a TypeSubstitution,
     },
+    /// Rebuild every node so construction normalizes each head.
+    Normalize {
+        /// The declaration whose rows normalize.
+        origin: Origin,
+    },
     /// Replace one type id wherever it occurs.
     Replace {
         /// The replaced type id.
@@ -118,6 +123,8 @@ enum SubstitutionRule<'a> {
     },
     /// Replace conditional-infer binders with captured types.
     SubstituteInfer {
+        /// The declaration whose computed rows settle.
+        origin: Origin,
         /// The captured types keyed by binder symbol.
         captures: &'a [InferSubstitution],
     },
@@ -134,7 +141,10 @@ impl SubstitutionRule<'_> {
                 .iter()
                 .find(|binding| binding.parameter == parameter)
                 .map(|binding| binding.argument),
-            Self::Replace { .. } | Self::SubstituteInfer { .. } | Self::EraseNoInfer => None,
+            Self::Replace { .. }
+            | Self::SubstituteInfer { .. }
+            | Self::EraseNoInfer
+            | Self::Normalize { .. } => None,
         }
     }
 
@@ -142,18 +152,24 @@ impl SubstitutionRule<'_> {
     fn receiver(&self) -> Option<dir::GlobalTypeId> {
         match self {
             Self::Substitute { substitution } => substitution.receiver,
-            Self::Replace { .. } | Self::SubstituteInfer { .. } | Self::EraseNoInfer => None,
+            Self::Replace { .. }
+            | Self::SubstituteInfer { .. }
+            | Self::EraseNoInfer
+            | Self::Normalize { .. } => None,
         }
     }
 
     /// Return the captured type for one conditional-infer symbol.
     fn infer_capture(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalTypeId> {
         match self {
-            Self::SubstituteInfer { captures } => captures
+            Self::SubstituteInfer { captures, .. } => captures
                 .iter()
                 .find(|capture| capture.symbol == symbol)
                 .map(|capture| capture.ty),
-            Self::Substitute { .. } | Self::Replace { .. } | Self::EraseNoInfer => None,
+            Self::Substitute { .. }
+            | Self::Replace { .. }
+            | Self::EraseNoInfer
+            | Self::Normalize { .. } => None,
         }
     }
 }
@@ -180,7 +196,7 @@ impl CheckState<'_> {
         substitution: &TypeSubstitution,
     ) -> CompilerResult<bool> {
         for binding in &substitution.bindings {
-            let argument = self.shallow_resolve(binding.argument)?;
+            let argument = self.resolve_head(binding.argument)?;
             let is_self = matches!(
                 self.ty(argument)?,
                 dir::Type::Parameter(parameter) if parameter == binding.parameter
@@ -251,6 +267,220 @@ impl CheckState<'_> {
         Ok(id)
     }
 
+    /// Translate the declared types into semantic types, normal by construction.
+    pub(in crate::check) fn translate_declared_types(&mut self) -> CompilerResult<()> {
+        // rebuild each declared symbol type over normalized heads
+        let module = self.module_id;
+        let symbol_types: Vec<_> = self
+            .module
+            .types
+            .with_tail(&self.module.types_tail)
+            .symbol_types()
+            .filter(|(symbol, _)| symbol.module_id == module)
+            .collect();
+        for (symbol, ty) in symbol_types {
+            let origin = Origin::Symbol(symbol);
+            let normal =
+                self.substitute_graph(module, ty, SubstitutionRule::Normalize { origin })?;
+            if normal != ty {
+                self.module.types_tail.set_symbol_type(symbol, normal);
+            }
+        }
+
+        // rebuild each node's annotation over normalized heads
+        let node_types: Vec<_> = self
+            .module
+            .types
+            .with_tail(&self.module.types_tail)
+            .node_types()
+            .filter(|(node, _)| node.module_id == module)
+            .collect();
+        for (node, ty) in node_types {
+            let origin = Origin::Node(node, None);
+            let normal =
+                self.substitute_graph(module, ty, SubstitutionRule::Normalize { origin })?;
+            if normal != ty {
+                self.module.types_tail.set_node_type(node, normal);
+            }
+        }
+
+        // rebuild each node's expectation the same way
+        let expected_types: Vec<_> = self
+            .module
+            .types_tail
+            .expected_types()
+            .filter(|(node, _)| node.module_id == module)
+            .collect();
+        for (node, ty) in expected_types {
+            let origin = Origin::Node(node, None);
+            let normal =
+                self.substitute_graph(module, ty, SubstitutionRule::Normalize { origin })?;
+            if normal != ty {
+                self.module.types_tail.set_expected_type(node, normal);
+            }
+        }
+
+        // rebuild each recorded member subject over normalized heads
+        let subjects: Vec<_> = self.module.iter_member_subjects().collect();
+        for (site, mut subject) in subjects {
+            let origin = Origin::Node(site.node(), subject.scope);
+            let receiver = self.substitute_graph(
+                module,
+                subject.receiver,
+                SubstitutionRule::Normalize { origin },
+            )?;
+            let target = self.substitute_graph(
+                module,
+                subject.target,
+                SubstitutionRule::Normalize { origin },
+            )?;
+            if receiver != subject.receiver || target != subject.target {
+                subject.receiver = receiver;
+                subject.target = target;
+                self.module.members_tail.record_subject(site, subject);
+            }
+        }
+
+        // rebuild each definition's stored roots the same way
+        let symbols: Vec<_> = self
+            .module
+            .iter_definitions()
+            .map(|(symbol, _)| symbol)
+            .collect();
+        for symbol in symbols {
+            let Some(source) = self.module.definition_source_maybe(symbol) else {
+                continue;
+            };
+            let Some(definition) = self.module.definition(symbol) else {
+                continue;
+            };
+            let mut definition = definition.clone();
+            self.translate_definition(module, Origin::Symbol(symbol), &mut definition)?;
+            self.module
+                .definitions_tail
+                .insert_definition(symbol, source, definition);
+        }
+
+        Ok(())
+    }
+
+    /// Translate one declared definition's stored roots over normalized heads.
+    fn translate_definition(
+        &mut self,
+        module: ModuleId,
+        origin: Origin,
+        definition: &mut dir::Definition,
+    ) -> CompilerResult<()> {
+        match definition {
+            dir::Definition::TypeAlias(alias) => {
+                self.translate_root(module, origin, &mut alias.value)?;
+            }
+            dir::Definition::Struct(nominal) => {
+                for conformance in &mut nominal.implements {
+                    self.translate_root(module, origin, &mut conformance.interface)?;
+                }
+                self.translate_members(module, origin, &mut nominal.members)?;
+            }
+            dir::Definition::Class(nominal) => {
+                if let Some(heritage) = &mut nominal.extends {
+                    self.translate_root(module, origin, &mut heritage.ty)?;
+                }
+                for conformance in &mut nominal.implements {
+                    self.translate_root(module, origin, &mut conformance.interface)?;
+                }
+                for constructor in &mut nominal.constructors {
+                    self.translate_root(module, origin, &mut constructor.ty)?;
+                }
+                self.translate_members(module, origin, &mut nominal.members)?;
+            }
+            dir::Definition::Interface(nominal) => {
+                for heritage in &mut nominal.extends {
+                    self.translate_root(module, origin, &mut heritage.ty)?;
+                }
+                self.translate_members(module, origin, &mut nominal.members)?;
+            }
+            dir::Definition::Enum(nominal) => {
+                for conformance in &mut nominal.implements {
+                    self.translate_root(module, origin, &mut conformance.interface)?;
+                }
+                self.translate_members(module, origin, &mut nominal.members)?;
+            }
+            dir::Definition::Newtype(nominal) => {
+                self.translate_root(module, origin, &mut nominal.backing)?;
+                for constructor in &mut nominal.constructors {
+                    self.translate_root(module, origin, &mut constructor.backing)?;
+                    self.translate_root(module, origin, &mut constructor.ty)?;
+                }
+                self.translate_members(module, origin, &mut nominal.members)?;
+            }
+            dir::Definition::Extension(extension) => {
+                let (dir::ExtensionTarget::Rooted { ty, .. }
+                | dir::ExtensionTarget::Blanket { ty, .. }) = &mut extension.target;
+                self.translate_root(module, origin, ty)?;
+                for conformance in &mut extension.implements {
+                    self.translate_root(module, origin, &mut conformance.interface)?;
+                }
+                self.translate_members(module, origin, &mut extension.members)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Translate the stored roots of one definition's members.
+    fn translate_members(
+        &mut self,
+        module: ModuleId,
+        origin: Origin,
+        members: &mut [dir::DefinitionMember],
+    ) -> CompilerResult<()> {
+        for member in members {
+            match member {
+                dir::DefinitionMember::Field(_)
+                | dir::DefinitionMember::Method(_)
+                | dir::DefinitionMember::AssociatedConst(_)
+                | dir::DefinitionMember::EnumVariant(_)
+                | dir::DefinitionMember::TaggedKey(_) => {}
+                dir::DefinitionMember::AssociatedType(member) => {
+                    if let Some(constraint) = &mut member.constraint {
+                        self.translate_root(module, origin, constraint)?;
+                    }
+                    if let Some(value) = &mut member.value {
+                        self.translate_root(module, origin, value)?;
+                    }
+                }
+                dir::DefinitionMember::TaggedVariant(member) => {
+                    self.translate_root(module, origin, &mut member.backing)?;
+                    if let Some(argument) = &mut member.argument {
+                        self.translate_root(module, origin, argument)?;
+                    }
+                }
+                dir::DefinitionMember::CallSignature(member)
+                | dir::DefinitionMember::ConstructSignature(member) => {
+                    self.translate_root(module, origin, &mut member.ty)?;
+                }
+                dir::DefinitionMember::IndexSignature(member) => {
+                    self.translate_root(module, origin, &mut member.key_type)?;
+                    self.translate_root(module, origin, &mut member.value_type)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Re-point one stored root at its normalized head.
+    fn translate_root(
+        &mut self,
+        module: ModuleId,
+        origin: Origin,
+        id: &mut dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        *id = self.substitute_graph(module, *id, SubstitutionRule::Normalize { origin })?;
+
+        Ok(())
+    }
+
     /// Remove inference barriers after candidate inference has closed.
     pub(in crate::check) fn erase_inference_barriers(
         &mut self,
@@ -265,7 +495,7 @@ impl CheckState<'_> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let id = self.shallow_resolve(id)?;
+        let id = self.resolve_head(id)?;
         if let Some(dir::TypeOperation::NoInfer(operation)) = self.operation_head(id)? {
             return Ok(Some(operation.target));
         }
@@ -307,6 +537,7 @@ impl CheckState<'_> {
     /// Substitute conditional-infer captures inside one branch type.
     pub(in crate::check) fn substitute_infer_captures(
         &mut self,
+        origin: Origin,
         target: ModuleId,
         id: dir::GlobalTypeId,
         captures: &[InferSubstitution],
@@ -315,7 +546,11 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        self.substitute_graph(target, id, SubstitutionRule::SubstituteInfer { captures })
+        self.substitute_graph(
+            target,
+            id,
+            SubstitutionRule::SubstituteInfer { origin, captures },
+        )
     }
 
     /// Mark whether each reachable id contains an affected leaf.
@@ -331,9 +566,10 @@ impl CheckState<'_> {
         }
         marks.insert(id, false);
 
-        // leaves decide directly, composites inherit their children
+        // decide leaves directly and inherit composites from their children
         let ty = self.ty(id)?;
         let hit = match (ty, rule) {
+            _ if matches!(rule, SubstitutionRule::Normalize { .. }) => true,
             _ if matches!(rule, SubstitutionRule::Replace { from, .. } if from == id) => true,
             (dir::Type::Application(instance), _)
                 if instance.arguments.is_empty()
@@ -480,7 +716,7 @@ impl CheckState<'_> {
         let ty = self.ty(id)?;
         let substituted =
             self.substitute_children(id.module_id, target, ty, rule, marks, substituting)?;
-        match substituted {
+        let rebuilt = match substituted {
             dir::Type::Union(union) => {
                 let elements = self.type_ids(target, union.elements)?.to_vec();
 
@@ -492,7 +728,19 @@ impl CheckState<'_> {
                 self.normalized_intersection_type(elements)
             }
             substituted => self.intern_type(substituted),
+        }?;
+
+        // normalize rebuilt rows that hold no parameter, this, or variable
+        if let SubstitutionRule::Normalize { origin }
+        | SubstitutionRule::SubstituteInfer { origin, .. } = rule
+        {
+            let flags = self.type_flags(rebuilt)?;
+            if !flags.has_parameter() && !flags.has_this() && !flags.has_variable() {
+                return self.normalize(origin, rebuilt);
+            }
         }
+
+        Ok(rebuilt)
     }
 
     /// Rebuild one type with substituted children.
