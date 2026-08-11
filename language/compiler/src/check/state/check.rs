@@ -677,12 +677,25 @@ impl CheckState<'_> {
             child_flags |= self.type_operation(module, operation)?.own_flags();
         }
 
+        // keep written alias applications intact, consumers normalize on demand
+        let is_written_alias = match &ty {
+            dir::Type::Application(instance) => matches!(
+                self.definition(instance.symbol)?,
+                Some(dir::Definition::TypeAlias(_))
+            ),
+            _ => false,
+        };
+
         // store the type in this module's working tail
         let (local, inserted) = self.module.types_tail.intern_type_inserted(ty, child_flags);
         let id = local.into_global(module);
 
         // settle each newly born closed head once declarations can load
-        if inserted && !child_flags.has_variable() && self.pass != Pass::Declare {
+        if inserted
+            && !child_flags.has_variable()
+            && self.pass != Pass::Declare
+            && !is_written_alias
+        {
             return self.normalize_closed(id);
         }
 

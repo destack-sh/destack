@@ -105,7 +105,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         aliases: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.resolve_head(ty)?;
+        let ty = self.shallow_resolve(ty)?;
 
         // expand aliases only when their bodies require storage adaptation
         if self.is_alias_instance(ty)? {
@@ -202,14 +202,14 @@ impl CheckState<'_> {
         }
     }
 
-    /// Reduce one type graph to its simplest closed form.
-    pub(in crate::check) fn deeply_normalize(
+    /// Resolve solved variables through one type graph, keeping open holes.
+    pub(in crate::check) fn deeply_resolve(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // resolve the root, then normalize children with aliases kept symbolic
-        let id = self.resolve_head(id)?;
+        let id = self.shallow_resolve(id)?;
         let mut memo = FxIndexMap::default();
         let mut active = FxIndexSet::default();
 
@@ -230,7 +230,7 @@ impl CheckState<'_> {
         };
 
         // read the spread as a closed tuple
-        let rest = self.normalize_stuck(origin, elements[rest_index].ty)?;
+        let rest = self.structurally_normalize(origin, elements[rest_index].ty)?;
         let dir::Type::Tuple(spread) = self.ty(rest)? else {
             return Ok(None);
         };
@@ -270,7 +270,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
         // resolve a stuck rest head to its closed tuple
-        let rest_ty = self.normalize_stuck(origin, rest.ty)?;
+        let rest_ty = self.structurally_normalize(origin, rest.ty)?;
         let dir::Type::Tuple(tuple) = self.ty(rest_ty)? else {
             return Ok(None);
         };
@@ -346,7 +346,7 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let id = self.resolve_head(id)?;
+        let id = self.shallow_resolve(id)?;
         match self.ty(id)? {
             // reduce meta heads, which name computations
             dir::Type::Member(_) | dir::Type::Operation(_) => self.normalize(origin, id),
@@ -377,14 +377,41 @@ impl CheckState<'_> {
         }
     }
 
-    /// Normalize one named head blocking a stuck relation, keeping memory forms rigid.
-    pub(in crate::check) fn normalize_stuck(
+    /// Normalize one transparent alias head to its body, keeping every other head rigid.
+    pub(in crate::check) fn normalize_alias_head(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let mut current = id;
+        loop {
+            let symbol = match self.ty(current)? {
+                dir::Type::Application(instance) => instance.symbol,
+                dir::Type::Reference(reference) => reference.symbol,
+                _ => return Ok(current),
+            };
+            if !matches!(
+                self.definition(symbol)?,
+                Some(dir::Definition::TypeAlias(_))
+            ) {
+                return Ok(current);
+            }
+            let reduced = self.structurally_normalize(origin, current)?;
+            if reduced == current {
+                return Ok(current);
+            }
+            current = reduced;
+        }
+    }
+
+    /// Normalize one named head to a rigid structural form, keeping memory forms rigid.
+    pub(in crate::check) fn structurally_normalize(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // reduce only the named families a stuck relation can still unblock
-        let id = self.resolve_head(id)?;
+        let id = self.shallow_resolve(id)?;
         if !matches!(
             self.ty(id)?,
             dir::Type::Application(_)
@@ -416,7 +443,7 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let id = self.resolve_head(id)?;
+        let id = self.shallow_resolve(id)?;
         let flags = self.type_flags(id)?;
 
         // key parameter reductions by their assuming scope
@@ -573,7 +600,7 @@ impl CheckState<'_> {
 
                 match self.type_alias_body(origin, id.module_id, &instance)? {
                     Some(value) => {
-                        let value = self.resolve_head(value)?;
+                        let value = self.shallow_resolve(value)?;
 
                         self.normalize_chain(origin, value, expanding)
                     }
@@ -627,7 +654,7 @@ impl CheckState<'_> {
                 let Some(projected) = projection else {
                     return Ok(id);
                 };
-                let projected = self.resolve_head(projected)?;
+                let projected = self.shallow_resolve(projected)?;
 
                 self.normalize_chain(origin, projected, expanding)
             }
@@ -640,7 +667,7 @@ impl CheckState<'_> {
                 let Some(reduced) = reduction else {
                     return Ok(id);
                 };
-                let reduced = self.resolve_head(reduced)?;
+                let reduced = self.shallow_resolve(reduced)?;
 
                 self.normalize_chain(origin, reduced, expanding)
             }
@@ -715,7 +742,7 @@ impl CheckState<'_> {
                 // borrowed payloads reborrow at the clamped access
                 dir::Form::Borrowed(payload_borrow) => {
                     let payload_access = self.type_borrow(value.module_id, payload_borrow)?.access;
-                    let payload_access = self.resolve_head(payload_access)?;
+                    let payload_access = self.shallow_resolve(payload_access)?;
                     if matches!(
                         self.ty(payload_access)?,
                         dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))
@@ -757,7 +784,7 @@ impl CheckState<'_> {
 
         // replay the reduction recorded for the settled head
         let original = id;
-        let id = self.resolve_head(id)?;
+        let id = self.shallow_resolve(id)?;
         if let Some(done) = memo.get(&id).copied() {
             memo.insert(original, done);
 

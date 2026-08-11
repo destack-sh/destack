@@ -180,15 +180,17 @@ impl CheckState<'_> {
             return Ok(leaf);
         }
 
-        // reduce both sides before pairing their slots
-        let source = self.deeply_normalize(origin, source)?;
-        let target = self.deeply_normalize(origin, target)?;
+        // resolve both sides and expand their written aliases before pairing their slots
+        let source = self.deeply_resolve(origin, source)?;
+        let source = self.normalize_alias_head(origin, source)?;
+        let target = self.deeply_resolve(origin, target)?;
+        let target = self.normalize_alias_head(origin, target)?;
 
         // descend into the first slot whose relation fails
         for (slot, child_relation, child_source, child_target) in
             self.blame_pairs(relation, source, target)?
         {
-            if self.decide_relation(origin, child_relation, child_source, child_target)? {
+            if self.evaluate_relation(origin, child_relation, child_source, child_target)? {
                 continue;
             }
 
