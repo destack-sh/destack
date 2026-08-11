@@ -16,6 +16,7 @@ path = "src/main.rs"
 # destack
 destack_daemon.workspace = true
 destack_rpc.workspace = true
+destack_runtime.workspace = true
 destack_serde.workspace = true
 destack_workspace.workspace = true
 

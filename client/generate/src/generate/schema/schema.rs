@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use anyhow::{Result, anyhow, bail};
 use destack_daemon as daemon;
 use destack_rpc as rpc;
+use destack_runtime as runtime;
 use destack_serde as serde;
 use destack_workspace as workspace;
 
@@ -33,6 +34,9 @@ impl Schema {
         let mut services = vec![
             daemon::BlobClient::service_schema()?,
             daemon::DaemonClient::service_schema()?,
+            runtime::service::DebuggerClient::service_schema()?,
+            runtime::service::HostClient::service_schema()?,
+            runtime::service::WorldClient::service_schema()?,
             workspace::WorkspaceClient::service_schema()?,
         ];
         services.sort_unstable_by(|left, right| left.name().cmp(right.name()));
