@@ -6,7 +6,7 @@ use dashmap::DashMap;
 use destack_artifact::{
     ArtifactDependency, ArtifactStore, ArtifactTable, ArtifactVersion, BuildId,
 };
-use destack_core::{Blob, StringPool, TreapRoot};
+use destack_core::{Blob, BlobMemory, StringPool, TreapRoot};
 use destack_source::FileSystem;
 use rustc_hash::FxBuildHasher;
 
@@ -225,8 +225,27 @@ impl Repository {
             })
     }
 
-    /// Require one exact Blob in repository storage.
+    /// Open one exact Blob, serving embedded builtin content directly.
+    pub fn open_blob(&self, blob: Blob) -> Result<Arc<BlobMemory>, RepositoryError> {
+        // serve embedded builtin sources from their retained memory
+        if let Some(memory) = self.embedded_builtin.builtin_blob_memory(blob.id) {
+            return Ok(memory);
+        }
+
+        self.blobs
+            .open(blob)
+            .map_err(|error| RepositoryError::Blob {
+                message: error.to_string(),
+            })
+    }
+
+    /// Require one exact Blob, counting embedded builtin content as present.
     pub(crate) fn require_blob(&self, blob: Blob) -> Result<(), RepositoryError> {
+        // embedded builtin sources are always present in their retained memory
+        if self.embedded_builtin.builtin_blob_memory(blob.id).is_some() {
+            return Ok(());
+        }
+
         let is_present = self
             .blobs
             .contains(blob)

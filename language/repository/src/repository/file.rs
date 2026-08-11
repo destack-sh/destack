@@ -305,8 +305,8 @@ impl Repository {
         file_id: FileId,
     ) -> Result<Option<Blob>, RepositoryError> {
         // resolve embedded Builtin FileIds from their immutable table
-        if let Some(builtin) = self.embedded_builtin.builtin_file(file_id) {
-            return Ok(Some(builtin.blob()));
+        if let Some(blob) = self.embedded_builtin.builtin_blob(file_id) {
+            return Ok(Some(blob));
         }
 
         // read editable revision files

@@ -140,7 +140,7 @@ impl TestSession {
                     .put_blob(source.as_bytes())
                     .expect("test source Blob should store");
 
-                Edit::add_file(path, blob)
+                Edit::set_file(path, blob)
             })
             .collect::<Vec<_>>();
         let revision = repository

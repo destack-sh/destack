@@ -152,8 +152,7 @@ fn render_label(
 
     // load the exact source revision named by the diagnostic label
     let memory = repository
-        .blob_store()
-        .open(label.blob)
+        .open_blob(label.blob)
         .expect("diagnostic snapshot Blob should load");
     let file = File::from_blob(
         file.id,

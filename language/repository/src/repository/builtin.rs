@@ -1,7 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_core::Blob;
+use destack_core::{Blob, BlobId, BlobMemory};
 use destack_source::{
     File, FileId, FileMetadata, FileType, LanguageType, Loader, ModuleId, PackageId, TargetId, Uri,
 };
@@ -51,8 +51,12 @@ pub struct EmbeddedBuiltinPackage {
     builtin_file_by_id: IndexMap<FileId, BuiltinFile>,
     /// Builtin files keyed by path or URI.
     builtin_file_by_path: IndexMap<&'static str, BuiltinFile>,
-    /// Loaded source files keyed by file id, built once on first read.
+    /// Loaded source files keyed by file id, built once at construction.
     file_by_id: IndexMap<FileId, Arc<File>>,
+    /// Content blobs keyed by file id, hashed once at construction.
+    blob_by_id: IndexMap<FileId, Blob>,
+    /// Retained content memory keyed by blob id, hashed once at construction.
+    memory_by_blob: IndexMap<BlobId, Arc<BlobMemory>>,
     /// The modules shipped in this package.
     modules: Vec<(ModuleId, Arc<Module>)>,
 }
@@ -105,26 +109,27 @@ impl EmbeddedBuiltinPackage {
             .iter()
             .map(|builtin| builtin.module_entry(package.id))
             .collect();
-        let builtin_file_by_id = BUILTINS
-            .iter()
-            .copied()
-            .chain([BUILTIN_MANIFEST_FILE])
+        let builtin_file_by_id = Self::shipped_files()
             .map(|builtin| (builtin.file_id(), builtin))
             .collect();
         // key by canonical uri only so workspace files never shadow builtins
-        let builtin_file_by_path = BUILTINS
-            .iter()
-            .copied()
-            .chain([BUILTIN_MANIFEST_FILE])
+        let builtin_file_by_path = Self::shipped_files()
             .map(|builtin| (builtin.uri, builtin))
             .collect();
 
-        let file_by_id = BUILTINS
-            .iter()
-            .copied()
-            .chain([BUILTIN_MANIFEST_FILE])
+        let file_by_id = Self::shipped_files()
             .map(|builtin| (builtin.file_id(), Arc::new(builtin.file())))
             .collect();
+
+        // hash each content once, keying blobs by file and memory by blob
+        let mut blob_by_id = IndexMap::new();
+        let mut memory_by_blob = IndexMap::new();
+        for builtin in Self::shipped_files() {
+            let memory = Arc::new(BlobMemory::from_shared(Arc::new(builtin.content)));
+            let blob = memory.blob();
+            blob_by_id.insert(builtin.file_id(), blob);
+            memory_by_blob.insert(blob.id, memory);
+        }
 
         Self {
             package,
@@ -132,6 +137,8 @@ impl EmbeddedBuiltinPackage {
             builtin_file_by_id,
             builtin_file_by_path,
             file_by_id,
+            blob_by_id,
+            memory_by_blob,
             modules,
         }
     }
@@ -224,6 +231,16 @@ impl EmbeddedBuiltinPackage {
         self.builtin_file_by_id.get(&file_id).copied()
     }
 
+    /// Return one builtin file's content blob by file id.
+    pub fn builtin_blob(&self, file_id: FileId) -> Option<Blob> {
+        self.blob_by_id.get(&file_id).copied()
+    }
+
+    /// Return one builtin file's retained content memory by blob id.
+    pub fn builtin_blob_memory(&self, blob_id: BlobId) -> Option<Arc<BlobMemory>> {
+        self.memory_by_blob.get(&blob_id).cloned()
+    }
+
     /// Return one loaded builtin source file by file id.
     pub fn file(&self, file_id: FileId) -> Option<&Arc<File>> {
         self.file_by_id.get(&file_id)
@@ -306,6 +323,11 @@ impl EmbeddedBuiltinPackage {
         }
 
         Ok(path)
+    }
+
+    /// Return every file shipped in this package, the manifest included.
+    fn shipped_files() -> impl Iterator<Item = BuiltinFile> {
+        BUILTINS.iter().copied().chain([BUILTIN_MANIFEST_FILE])
     }
 }
 
@@ -466,11 +488,6 @@ impl BuiltinFile {
     /// Return the stable builtin source file id.
     pub fn file_id(self) -> FileId {
         FileId::from_logical_str(self.uri)
-    }
-
-    /// Return the exact builtin source Blob.
-    pub fn blob(self) -> Blob {
-        Blob::for_bytes(self.content.as_bytes())
     }
 
     /// Return the stable builtin module id.

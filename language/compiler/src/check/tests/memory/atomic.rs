@@ -118,7 +118,7 @@ declare const wide: Atomic<uint128>;
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'uint128' does not satisfy 'AtomicSafe'"
 /// @diagnostic.label line=4 column=28 span="uint128" line_source="declare const wide: Atomic<uint128>;"
-/// @diagnostic.related file="atomic.ds" message="required by this bound on 'T'"
+/// @diagnostic.related file="atomic.ds" line=96 column=23 span="T" line_source="export newtype Atomic<T: AtomicSafe> = intrinsic;" message="required by this bound on 'T'"
 "#,
     );
 }

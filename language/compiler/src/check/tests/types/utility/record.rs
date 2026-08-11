@@ -249,7 +249,7 @@ type Bad = Record<{ name: string }, boolean>;
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '{ name: string }' does not satisfy 'PropertyKey'"
 /// @diagnostic.label line=2 column=19 span="{ name: string }" line_source="type Bad = Record<{ name: string }, boolean>;"
-/// @diagnostic.related file="object.ds" message="required by this bound on 'K'"
+/// @diagnostic.related file="object.ds" line=7 column=20 span="K" line_source="export type Record<K: PropertyKey, V> = {" message="required by this bound on 'K'"
 /// @diagnostic.note message="'PropertyKey' reduces to 'string | usize | symbol'"
 "#,
     );
