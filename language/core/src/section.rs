@@ -7,7 +7,7 @@ pub use destack_serde::SectionEntry;
 use destack_serde::{Reflect, Schema, Type};
 use serde::{Deserialize, Serialize};
 
-use crate::{BlobMemory, StringId};
+use crate::{Blob, BlobMemory, StringId};
 
 const SECTION_CHUNK_BYTES: usize = mem::size_of::<u128>();
 const SECTION_ALIGNMENT_BYTES: usize = mem::align_of::<u128>();
@@ -627,6 +627,14 @@ impl SectionStorage {
     pub fn from_bytes(bytes: &[u8]) -> Self {
         Self {
             bytes: SectionBytes::Owned(Buffer::from_bytes(bytes, SECTION_ALIGNMENT_BYTES)),
+        }
+    }
+
+    /// Return the exact Blob identity of this section image.
+    pub fn blob(&self) -> Blob {
+        match &self.bytes {
+            SectionBytes::Shared(memory) => memory.blob(),
+            SectionBytes::Owned(_) | SectionBytes::Static { .. } => Blob::for_bytes(self.bytes()),
         }
     }
 

@@ -1,7 +1,8 @@
+use std::result;
 use std::sync::Arc;
 
 use destack_bytecode as bytecode;
-use destack_core::{EntryRange, SectionImage, SectionStorage, StringId};
+use destack_core::{Blob, EntryRange, SectionImage, SectionStorage, StringId};
 use destack_heap::{
     AllocationPlan, AllocationShape, DropId, HeapOptions, HeapResult, ReferenceRange, RootSlot,
     SharedHeapOptions, TraceTable, TraceView, visit_heap_root_slots,
@@ -9,7 +10,7 @@ use destack_heap::{
 use destack_memory::{MemoryMap, MemoryRange, MemoryResult};
 use destack_mir::{Space, Storage, TargetLayout, TraceId, TraceMap};
 use destack_native as native;
-use destack_serde::Reflect;
+use destack_serde::{Reflect, Schema, Type};
 use destack_webassembly as wasm;
 use serde::{Deserialize, Serialize};
 
@@ -26,8 +27,7 @@ use crate::{
 };
 
 /// Linked program.
-#[derive(Debug, Serialize, Deserialize, Reflect)]
-#[reflect(module = "destack_program::program")]
+#[derive(Debug)]
 pub struct Program {
     /// Target ABI layout used by program layouts and pointer-sized integer types.
     pub(crate) target_layout: TargetLayout,
@@ -73,11 +73,47 @@ pub struct Program {
     /// WebAssembly code when generated for this program.
     pub(crate) wasm: Option<wasm::Code>,
 
+    /// Identity of the exact encoded Program image.
+    pub(crate) blob: Blob,
     /// Program section storage.
     pub(crate) storage: SectionStorage,
 }
 
+impl Serialize for Program {
+    /// Serialize this Program as its exact encoded image.
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.storage.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Program {
+    /// Deserialize and validate one exact encoded Program image.
+    fn deserialize<D>(deserializer: D) -> result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let storage = SectionStorage::deserialize(deserializer)?;
+
+        Self::load(storage).map_err(serde::de::Error::custom)
+    }
+}
+
+impl Reflect for Program {
+    /// Reflect this Program as its exact encoded image.
+    fn reflect(schema: &mut Schema) -> Type {
+        SectionStorage::reflect(schema)
+    }
+}
+
 impl Program {
+    /// Return the exact Blob identity of this Program image.
+    pub const fn blob(&self) -> Blob {
+        self.blob
+    }
+
     /// Return runtime type table.
     pub fn types(&self) -> &TypeTable {
         &self.types

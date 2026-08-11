@@ -576,6 +576,8 @@ impl Program {
 
     /// Create one Program from its fixed header and retained section storage.
     fn from_header(header: ProgramHeader, storage: SectionStorage) -> Self {
+        let blob = storage.blob();
+
         Self {
             target_layout: header.target_layout,
             strings: header.strings,
@@ -597,6 +599,7 @@ impl Program {
             bytecode: header.bytecode,
             native: header.native.get(),
             wasm: header.wasm.get(),
+            blob,
             storage,
         }
     }
