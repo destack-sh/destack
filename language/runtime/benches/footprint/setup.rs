@@ -15,8 +15,9 @@ use destack_program::{Activation, FunctionId, Memory, Outcome, StaticSpace, Valu
 use destack_repository::{Environment, RuntimeOptions, WorldOptions};
 use destack_runtime::binding::BindingTable;
 use destack_runtime::machine::{Engine, Entry};
+use destack_runtime::runtime::RuntimeId;
 use destack_runtime::worker::WorkerOptions;
-use destack_runtime::world::{RunOutcome, RuntimeId, World};
+use destack_runtime::world::{RunOutcome, World};
 use destack_source::{DiagnosticSeverity, File, FileId, FileType, ModuleId, PackageId, Uri};
 use destack_vm::{Error, Machine, MachineLimits, Result};
 

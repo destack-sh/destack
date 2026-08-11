@@ -3,8 +3,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use destack_program as program;
 
 use crate::host::ResourceId;
+use crate::runtime::RuntimeId;
 use crate::worker::WorkerId;
-use crate::world::RuntimeId;
 
 /// Scope for one emitted observation.
 #[derive(Debug, Clone, PartialEq, Eq)]

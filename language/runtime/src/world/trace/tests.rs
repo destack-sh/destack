@@ -12,13 +12,14 @@ use crate::binding::{Binding, ReplayPayload};
 use crate::diagnostic::{BindingError, HostErrorCode, RuntimeError, RuntimeResult};
 use crate::host::{HostError, ResourceId};
 use crate::machine::{Entry, native};
+use crate::runtime::RuntimeId;
 use crate::tests::TestProgram;
 use crate::worker::{Activation, RunnableScope, WorkerId};
 use crate::world::policy::{ActionSelector, Rule};
 use crate::world::random::RandomStreamId;
 use crate::world::time::Instant;
 use crate::world::trace::{EntropySubject, EntrypointCall, TraceHeader, TraceLog, TraceResult};
-use crate::world::{Entity, EntityDefinition, EntityKind, Mutation, RuntimeId};
+use crate::world::{Entity, EntityDefinition, EntityKind, Mutation};
 
 /// Build one replay entropy subject for tests.
 fn test_entropy_subject(binding_name: &'static str) -> EntropySubject {

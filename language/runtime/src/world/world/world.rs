@@ -13,7 +13,7 @@ use crate::heap::{WorldCollector, WorldCollectorMode};
 use crate::host::poller::HostPoller;
 use crate::host::time::HostClockSource;
 use crate::host::{Host, HostError, HostQueue, compile_target};
-use crate::runtime::Runtime;
+use crate::runtime::{Runtime, RuntimeId};
 use crate::worker::WorkerId;
 use crate::world::debug::Debugger;
 use crate::world::observation::{Observation, ObservationLog, ObservationSequence};
@@ -27,7 +27,6 @@ use super::constants::WORLD_MEMORY_MAP_SIZE_BYTES;
 use super::topology::Topology;
 pub(crate) use super::topology::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
-    RuntimeId,
 };
 use super::{BranchId, Lineage, MomentSequence, Mutation, ROOT_BRANCH, WorldImage, WorldState};
 

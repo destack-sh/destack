@@ -7,9 +7,10 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::machine::Entry;
+use crate::runtime::RuntimeId;
 use crate::worker::WorkerId;
 use crate::world::{
-    Branch, BranchId, Checkpoint, CheckpointId, Instant, Moment, Run, RunOutcome, RuntimeId,
+    Branch, BranchId, Checkpoint, CheckpointId, Instant, Moment, Run, RunOutcome,
 };
 
 /// RPC operations over hosted Worlds.

@@ -1,6 +1,6 @@
+use crate::runtime::RuntimeId;
 use crate::scheduler::Wake;
 use crate::worker::WorkerId;
-use crate::world::RuntimeId;
 
 /// Wake addressed to one worker in one runtime.
 #[derive(Debug, Clone, PartialEq)]

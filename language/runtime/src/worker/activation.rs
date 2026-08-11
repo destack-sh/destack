@@ -9,11 +9,12 @@ use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::{
     Host, HostError, HostQueue, family_name, host_name, monotonic_now_ns, platform_name,
 };
+use crate::runtime::RuntimeId;
 use crate::scheduler::{EventLoop, Invocation, RunnableId};
 use crate::world::random::RandomStreamId;
 use crate::world::time::ClockSource;
 use crate::world::trace::{EntropySubject, TraceLog};
-use crate::world::{Decision, RuntimeId, WorldState};
+use crate::world::{Decision, WorldState};
 
 use super::{Handshake, RunnableScope, WorkerId};
 

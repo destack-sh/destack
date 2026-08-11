@@ -2,8 +2,8 @@ use destack_program as program;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
+use crate::runtime::RuntimeId;
 use crate::worker::WorkerId;
-use crate::world::RuntimeId;
 use crate::world::debug::Debugger;
 use crate::world::observation::{Observation, ObservationLog, ObservationSequence};
 use crate::world::policy::Policy;

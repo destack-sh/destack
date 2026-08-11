@@ -10,7 +10,7 @@ use ::serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
-use crate::runtime::{Runtime, RuntimeImage};
+use crate::runtime::{Runtime, RuntimeId, RuntimeImage};
 use crate::worker::{WorkerId, WorkerImage};
 use crate::world::Frame;
 use crate::world::debug::Debugger;
@@ -18,7 +18,7 @@ use crate::world::policy::Policy;
 use crate::world::random::RandomImage;
 use crate::world::time::ClockImage;
 use crate::world::topology::{
-    Edge, EdgeDefinition, EdgeKind, Entity, EntityDefinition, EntityKind, LabelSet, RuntimeId,
+    Edge, EdgeDefinition, EdgeKind, Entity, EntityDefinition, EntityKind, LabelSet,
     Topology,
 };
 

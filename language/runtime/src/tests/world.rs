@@ -12,12 +12,13 @@ use crate::host::time::TimerClock;
 use crate::host::{HostEvent, HostEventKind, ResourceId};
 use crate::machine::Engine;
 use crate::machine::native::{Loader, Platform};
+use crate::runtime::RuntimeId;
 use crate::scheduler::{Callback, Invocation, RunnableId, ScheduledTimer, TimerDeadline};
 use crate::tests::{TestProgram, TestWorker};
 use crate::worker::{Worker, WorkerId, WorkerOptions};
 use crate::world::time::Nanos;
 use crate::world::{
-    CheckpointId, Moment, RestoreContext, Run, RunOutcome, RuntimeId, Stop, World, WorldSnapshot,
+    CheckpointId, Moment, RestoreContext, Run, RunOutcome, Stop, World, WorldSnapshot,
 };
 
 /// One world fixture with a selected runtime.

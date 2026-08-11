@@ -15,9 +15,10 @@ use crate::diagnostic::{DiagnosticImage, DiagnosticStore, RuntimeError, RuntimeR
 use crate::host::resource::ResourceImage;
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::machine::{Engine, Machine, MachineImage};
+use crate::runtime::RuntimeId;
 use crate::scheduler::{Callback, EventLoop, EventLoopImage, Readiness, RetainedRunnable};
 use crate::world::topology::LabelSet;
-use crate::world::{RestoreContext, RuntimeId, WorkerSequence, WorldState};
+use crate::world::{RestoreContext, WorkerSequence, WorldState};
 
 use super::{Handshake, Request};
 

@@ -8,10 +8,9 @@ use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::RuntimeImage;
+use crate::runtime::{RuntimeId, RuntimeImage};
 use crate::scheduler::RunnableId;
 use crate::worker::{WorkerId, WorkerImage};
-use crate::world::RuntimeId;
 
 /// One captured execution frame.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

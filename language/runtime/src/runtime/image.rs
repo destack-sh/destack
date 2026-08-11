@@ -13,9 +13,9 @@ use crate::binding::ReplayPayload;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::heap::{SharedCollectionState, WorldCollector};
 use crate::machine::{Engine, EngineImage};
-use crate::runtime::Runtime;
+use crate::runtime::{Runtime, RuntimeId};
 use crate::worker::{Worker, WorkerId, WorkerImage};
-use crate::world::{Entity, RestoreContext, RuntimeId, WorldState};
+use crate::world::{Entity, RestoreContext, WorldState};
 
 /// One captured runtime image.
 #[derive(Debug, Clone, Serialize, Deserialize)]

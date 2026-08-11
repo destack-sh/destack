@@ -4,13 +4,13 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::RuntimeImage;
+use crate::runtime::{RuntimeId, RuntimeImage};
 use crate::worker::{WorkerId, WorkerImage};
 use crate::world::observation::{ObservationChunk, ObservationEntry};
 use crate::world::time::Instant;
 use crate::world::topology::LabelSet;
 use crate::world::trace::{TraceImage, TraceSequence};
-use crate::world::{RuntimeId, WorldImage};
+use crate::world::WorldImage;
 
 use super::constants::{
     INITIAL_BRANCH_ID, INITIAL_CHECKPOINT_ID, INITIAL_IMAGE_ID, INITIAL_REVISION_ID,

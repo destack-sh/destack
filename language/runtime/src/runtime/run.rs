@@ -5,11 +5,11 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::poller::PollerEvent;
 use crate::host::{Host, HostEvent, HostQueue};
 use crate::machine::Entry;
-use crate::runtime::Runtime;
+use crate::runtime::{Runtime, RuntimeId};
 use crate::scheduler::{HostWake, Readiness, ResourceWake, ScheduledTimer, Wake};
 use crate::worker::{RunnableProgress, WorkerId, WorkerRunOutcome};
 use crate::world::time::Instant;
-use crate::world::{RuntimeId, WorkerWake, WorldState};
+use crate::world::{WorkerWake, WorldState};
 
 /// Outcome from one bounded runtime run operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
-use crate::runtime::RuntimeImage;
+use crate::runtime::{RuntimeId, RuntimeImage};
 use crate::worker::{WorkerId, WorkerImage};
 use crate::world::debug::{
     Breakpoint, MemoryFilter, PointFilter, Probe, ProbeAction, ProbeFilter, ProbeId, Watchpoint,
@@ -18,7 +18,7 @@ use crate::world::policy::{Policy, Rule, RuleId};
 
 use super::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
-    RestoreContext, RuntimeId, World,
+    RestoreContext, World,
 };
 
 /// One world mutation recorded in authoritative trace.

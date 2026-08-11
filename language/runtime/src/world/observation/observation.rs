@@ -4,12 +4,13 @@ use serde::{Deserialize, Serialize};
 
 use super::ObservationScope;
 use crate::host::ResourceId;
+use crate::runtime::RuntimeId;
 use crate::scheduler::RunnableId;
 use crate::worker::WorkerId;
 use crate::world::policy::RuleId;
 use crate::world::time::Instant;
 use crate::world::topology::{EdgeId, EdgeKind, EntityId, EntityKind};
-use crate::world::{ProbeId, RuntimeId};
+use crate::world::ProbeId;
 
 /// One emitted observable fact.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -615,7 +616,7 @@ impl Observation {
 mod tests {
     use crate::host::ResourceId;
     use crate::worker::WorkerId;
-    use crate::world::RuntimeId;
+    use crate::runtime::RuntimeId;
     use crate::world::observation::{Observation, ObservationScope};
 
     #[test]

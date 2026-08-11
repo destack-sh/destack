@@ -7,9 +7,10 @@ use super::builtin::{
 };
 use super::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
-    EntityRole, RuntimeId, TopologyError, TopologyResult,
+    EntityRole, TopologyError, TopologyResult,
 };
 use crate::host::ResourceId;
+use crate::runtime::RuntimeId;
 use crate::worker::WorkerId;
 use crate::world::topology::LabelSet;
 

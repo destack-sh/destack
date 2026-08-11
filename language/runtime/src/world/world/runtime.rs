@@ -9,12 +9,12 @@ use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use crate::binding::BindingTable;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::machine::{Engine, Entry};
-use crate::runtime::{Runtime, RuntimeImage};
+use crate::runtime::{Runtime, RuntimeId, RuntimeImage};
 use crate::worker::{WorkerId, WorkerImage, WorkerOptions};
 use crate::world::observation::Observation;
 use crate::world::trace::EntrypointCall;
 
-use super::{Entity, Mutation, RestoreContext, RuntimeId, SpawnedWorker, World};
+use super::{Entity, Mutation, RestoreContext, SpawnedWorker, World};
 
 impl World {
     /// Spawn one live runtime owned by this world and return its identifier.

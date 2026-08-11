@@ -4,8 +4,8 @@ use destack_program as program;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use crate::runtime::RuntimeId;
 use crate::worker::WorkerId;
-use crate::world::RuntimeId;
 
 /// One installed runtime Probe.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]

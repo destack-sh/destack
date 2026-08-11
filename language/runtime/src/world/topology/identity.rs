@@ -4,13 +4,8 @@ use std::fmt;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use crate::runtime::RuntimeId;
 use crate::worker::WorkerId;
-
-/// Stable identifier for one runtime instance in one world.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
-)]
-pub struct RuntimeId(pub u64);
 
 impl RuntimeId {
     /// Return the canonical topology entity id for this runtime.
@@ -24,12 +19,6 @@ impl RuntimeId {
             "runtime.instance.{}.owns.worker.{}",
             self.0, worker_id.0
         ))
-    }
-}
-
-impl fmt::Display for RuntimeId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
 

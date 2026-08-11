@@ -7,13 +7,15 @@ use destack_heap as heap;
 use destack_memory::{MemoryMap, MemoryRange};
 use destack_program as program;
 use destack_repository::{Environment, RuntimeOptions};
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
 
 use crate::binding::BindingTable;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::heap::{SharedCollectionState, WorldCollector};
 use crate::machine::Engine;
 use crate::worker::{Worker, WorkerId, WorkerOptions};
-use crate::world::{Entity, EntityKind, RuntimeId, WorldState};
+use crate::world::{Entity, EntityKind, WorldState};
 
 /// Runtime container that owns one or more workers in one shared world.
 pub struct Runtime {
@@ -52,6 +54,18 @@ pub struct Runtime {
     pub(super) default_worker_id: WorkerId,
     /// The next worker slot to schedule first.
     pub(super) next_worker_cursor: usize,
+}
+
+/// Stable identifier for one Runtime in one World.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
+pub struct RuntimeId(pub u64);
+
+impl fmt::Display for RuntimeId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.0)
+    }
 }
 
 impl fmt::Debug for Runtime {
