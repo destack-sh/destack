@@ -7,7 +7,7 @@ use destack_heap::{
     AllocationCache, AllocationPlan, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits,
     SharedHeapOptions, SharedMarkWorker,
 };
-use destack_memory::MemoryMap;
+use destack_memory::{MemoryMap, MemoryRange};
 use destack_mir::{
     Access, Nullability, ReferenceKind, Space, Storage, TensorFormat, TraceMap, TraceTable,
 };
@@ -22,7 +22,9 @@ use destack_program::{
 use destack_source::FileId;
 use destack_vm::{Error, Machine, MachineLimits, Result};
 
+/// Reserved address-space byte length for direct benchmark execution.
 const MEMORY_BYTES: usize = 512 * 1024 * 1024;
+/// Memory frame byte length for direct benchmark execution.
 const MEMORY_FRAME_BYTES: usize = 16 * 1024 * 1024;
 
 /// One direct-bytecode benchmark runtime.
@@ -45,6 +47,8 @@ pub(crate) struct Runtime {
     shared_cache: AllocationCache,
     /// Shared collector worker state.
     shared_mark_worker: SharedMarkWorker,
+    /// Runtime immortal object bytes.
+    immortal_space: program::StaticSpace,
     /// Worker-local static bytes.
     local_static: program::StaticSpace,
     /// Runtime-shared static bytes.
@@ -73,7 +77,7 @@ impl program::Runtime for BenchmarkRuntime {
         &mut self,
         _memory: program::Memory<'_>,
         _context: program::Context,
-        _fiber: program::Fiber,
+        _fiber_id: Option<program::FiberId>,
         _binding: &program::Binding,
         _arguments: &[Word],
         _result: &mut [Word],
@@ -82,17 +86,17 @@ impl program::Runtime for BenchmarkRuntime {
     }
 
     /// Reject fiber parks outside asynchronous benchmarks.
-    fn park(&mut self, _fiber: program::Fiber) -> Result<program::Park> {
+    fn park(&mut self, _fiber: program::FiberId) -> Result<program::Park> {
         unreachable!("direct execution benchmarks do not park")
     }
 
     /// Reject detach boundaries outside asynchronous benchmarks.
-    fn detach(&mut self) -> Result<program::Fiber> {
+    fn detach(&mut self) -> Result<program::FiberId> {
         unreachable!("direct execution benchmarks do not detach")
     }
 
     /// Reject boundary retirement outside asynchronous benchmarks.
-    fn retire(&mut self, _fiber: program::Fiber) -> Result<()> {
+    fn retire(&mut self, _fiber: program::FiberId) -> Result<()> {
         unreachable!("direct execution benchmarks do not detach")
     }
 }
@@ -120,7 +124,7 @@ impl Runtime {
         );
         let heap = Heap::new(memory.clone(), HeapLimits::default(), HeapOptions::local())
             .expect("benchmark heap should build");
-        let shared_heap = SharedHeap::new(
+        let mut shared_heap = SharedHeap::new(
             memory.clone(),
             SharedHeapLimits::default(),
             SharedHeapOptions::default(),
@@ -134,6 +138,13 @@ impl Runtime {
         let shared_static = program
             .materialize_shared_statics(memory.clone())
             .expect("benchmark shared statics should materialize");
+        let immortal_space = program
+            .materialize_immortals(memory.clone())
+            .expect("benchmark immortals should materialize");
+        shared_heap.set_immortal_range(MemoryRange {
+            offset: immortal_space.offset(),
+            byte_len: immortal_space.byte_len(),
+        });
         let allocation_plans = program
             .plan_allocations(heap.options(), shared_heap.options())
             .expect("benchmark allocation plans should build")
@@ -156,6 +167,7 @@ impl Runtime {
             shared_mark_worker,
             local_static,
             shared_static,
+            immortal_space,
         }
     }
 
@@ -173,6 +185,7 @@ impl Runtime {
                 shared_mark_worker: &self.shared_mark_worker,
                 local_statics: &mut self.local_static,
                 shared_statics: &mut self.shared_static,
+                immortals: &self.immortal_space,
                 constants: self.program.constants(),
             },
         };
