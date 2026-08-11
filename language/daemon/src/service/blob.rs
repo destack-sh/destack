@@ -20,6 +20,10 @@ pub type BlobChunk = Vec<u8>;
 /// RPC operations on shared Blobs.
 #[destack_rpc::service(name = "destack.blob.Blob")]
 pub trait BlobService {
+    // =============================================================================
+    // Transfer
+    // =============================================================================
+
     /// Store one streamed Blob.
     #[rpc(
         name = "Put",
@@ -35,6 +39,10 @@ pub trait BlobService {
         idempotency = "no_side_effects"
     )]
     fn read(request: ReadBlobRequest) -> ();
+
+    // =============================================================================
+    // Query
+    // =============================================================================
 
     /// Return whether one exact Blob is present.
     #[rpc(name = "Contains", idempotency = "no_side_effects")]

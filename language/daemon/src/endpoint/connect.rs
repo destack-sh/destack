@@ -4,6 +4,7 @@ use std::thread;
 use std::time::Instant;
 
 use destack_rpc::{ConnectError, Connection, ConnectionError, IpcError, IpcTransport, Transport};
+use destack_runtime::service::{DebuggerClient, WorldClient};
 use destack_workspace::WorkspaceClient;
 
 use super::{DaemonConnectOptions, DaemonEndpoint, DaemonEndpointError, DaemonLaunch};
@@ -14,28 +15,44 @@ use crate::{BlobClient, DaemonClient};
 pub struct DaemonConnection {
     /// Shared negotiated RPC connection.
     connection: Arc<Connection>,
-    /// Immutable Blob operations.
-    blob: BlobClient,
+
     /// Daemon operations.
     daemon: DaemonClient,
+
+    /// Immutable Blob operations.
+    blob: BlobClient,
     /// Workspace operations.
     workspace: WorkspaceClient,
+    /// World execution operations.
+    world: WorldClient,
+    /// World debugging operations.
+    debugger: DebuggerClient,
 }
 
 impl DaemonConnection {
-    /// Return immutable Blob operations.
-    pub const fn blob(&self) -> &BlobClient {
-        &self.blob
-    }
-
     /// Return daemon operations.
     pub const fn daemon(&self) -> &DaemonClient {
         &self.daemon
     }
 
+    /// Return immutable Blob operations.
+    pub const fn blob(&self) -> &BlobClient {
+        &self.blob
+    }
+
     /// Return workspace operations.
     pub const fn workspace(&self) -> &WorkspaceClient {
         &self.workspace
+    }
+
+    /// Return World execution operations.
+    pub const fn world(&self) -> &WorldClient {
+        &self.world
+    }
+
+    /// Return World debugging operations.
+    pub const fn debugger(&self) -> &DebuggerClient {
+        &self.debugger
     }
 
     /// Close this daemon connection.
@@ -51,6 +68,7 @@ impl DaemonEndpoint {
         options: DaemonConnectOptions,
         launch: Option<DaemonLaunch>,
     ) -> Result<DaemonConnection, DaemonEndpointError> {
+        // connect to the published transport or launch its daemon
         let max_message_bytes = options.rpc.limits.max_message_bytes as usize;
         let transport = match IpcTransport::connect(&self.socket_path, max_message_bytes) {
             Ok(transport) => transport,
@@ -63,21 +81,43 @@ impl DaemonEndpoint {
                 self.wait_for_transport(&options, error)?
             }
         };
-        let blob = BlobClient::service_schema().map_err(ConnectError::from)?;
+
+        // resolve every required service schema
         let daemon = DaemonClient::service_schema().map_err(ConnectError::from)?;
+
+        let blob = BlobClient::service_schema().map_err(ConnectError::from)?;
         let workspace = WorkspaceClient::service_schema().map_err(ConnectError::from)?;
-        let services = vec![blob.id(), daemon.id(), workspace.id()];
+        let world = WorldClient::service_schema().map_err(ConnectError::from)?;
+        let debugger = DebuggerClient::service_schema().map_err(ConnectError::from)?;
+
+        // negotiate one connection for all services
+        let services = vec![
+            daemon.id(),
+            blob.id(),
+            workspace.id(),
+            world.id(),
+            debugger.id(),
+        ];
         let connection =
             Connection::connect(transport, options.rpc, services).map_err(ConnectError::from)?;
-        let blob = BlobClient::new(connection.clone())?;
+
+        // bind each typed client to the shared connection
         let daemon = DaemonClient::new(connection.clone())?;
+
+        let blob = BlobClient::new(connection.clone())?;
         let workspace = WorkspaceClient::new(connection.clone())?;
+        let world = WorldClient::new(connection.clone())?;
+        let debugger = DebuggerClient::new(connection.clone())?;
 
         Ok(DaemonConnection {
             connection,
-            blob,
+
             daemon,
+
+            blob,
             workspace,
+            world,
+            debugger,
         })
     }
 

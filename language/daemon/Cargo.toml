@@ -15,11 +15,14 @@ doctest = false
 # language
 destack_artifact = { workspace = true }
 destack_core = { workspace = true }
+destack_program = { workspace = true }
 destack_repository = { workspace = true }
 destack_rpc = { workspace = true }
+destack_runtime = { workspace = true }
 destack_serde = { workspace = true }
 destack_session = { workspace = true }
 destack_source = { workspace = true }
+destack_vm = { workspace = true }
 destack_workspace = { workspace = true }
 
 # general

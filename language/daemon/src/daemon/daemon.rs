@@ -8,11 +8,12 @@ use destack_rpc::{
     IpcListener, Listener, Registry, Server, ServerError, Transport, TransportError,
     WebSocketListener,
 };
+use destack_runtime::service::{DebuggerServer, WorldServer};
 use destack_workspace::{Workspace, WorkspaceServer};
 
 use crate::{
     BlobServer, ConnectionActivity, ConnectionId, DaemonEndpoint, DaemonError, DaemonLifecycle,
-    DaemonMetadata, DaemonOptions, DaemonPeer, DaemonServer, WorkspaceRegistry,
+    DaemonMetadata, DaemonOptions, DaemonPeer, DaemonServer, WorkspaceRegistry, WorldRegistry,
 };
 
 /// Persistent process serving Destack RPC services.
@@ -24,6 +25,8 @@ pub struct Daemon {
     blobs: Arc<dyn BlobStore>,
     /// Root-bound workspaces exposed by this daemon.
     workspaces: WorkspaceRegistry,
+    /// Runtime Worlds exposed by this daemon.
+    worlds: WorldRegistry,
     /// Daemon options.
     options: DaemonOptions,
     /// Shared process lifecycle.
@@ -48,6 +51,9 @@ impl Daemon {
         // host shared workspace state and physical changes
         let workspaces = WorkspaceRegistry::new(workspace, blobs.clone())?;
 
+        // host runtime Worlds over the same immutable Blob storage
+        let worlds = WorldRegistry::new(blobs.clone());
+
         // create process lifecycle state
         let lifecycle = DaemonLifecycle::new(options.idle_timeout);
 
@@ -55,6 +61,7 @@ impl Daemon {
             endpoint,
             blobs,
             workspaces,
+            worlds,
             options,
             lifecycle,
         })
@@ -70,6 +77,7 @@ impl Daemon {
         // remove published endpoint state after every listening outcome
         let result = self.listen();
         let workspace_result = self.workspaces.close_all();
+        self.worlds.close_all();
         let metadata_result = self.endpoint.remove_metadata();
         let socket_result = self.endpoint.clear_socket();
 
@@ -266,15 +274,21 @@ impl Daemon {
     /// Build connection-scoped RPC services.
     fn rpc_server(&self, connection: ConnectionId) -> Result<Server, DaemonError> {
         // bind typed services to shared daemon state
-        let blob = BlobServer::new(self.blobs.clone())?;
         let daemon = DaemonServer::new(DaemonPeer::new(self.clone(), connection))?;
+
+        let blob = BlobServer::new(self.blobs.clone())?;
         let workspace = WorkspaceServer::new(self.workspaces.clone())?;
+        let world = WorldServer::new(self.worlds.clone())?;
+        let debugger = DebuggerServer::new(self.worlds.clone())?;
 
         // register each independently versioned service
         let mut services = Registry::new();
-        services.insert(blob)?;
         services.insert(daemon)?;
+
+        services.insert(blob)?;
         services.insert(workspace)?;
+        services.insert(world)?;
+        services.insert(debugger)?;
 
         Ok(Server::new(services, self.options.rpc.clone()))
     }
@@ -303,6 +317,11 @@ impl Daemon {
     /// Return the root-bound workspace registry.
     pub(crate) const fn workspaces(&self) -> &WorkspaceRegistry {
         &self.workspaces
+    }
+
+    /// Return the runtime World registry.
+    pub(crate) const fn worlds(&self) -> &WorldRegistry {
+        &self.worlds
     }
 
     /// Return the shared process lifecycle.

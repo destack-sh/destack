@@ -1,13 +1,22 @@
+use destack_artifact::{ConditionSet, Host, Platform, Runtime};
 use destack_core::Blob;
+use destack_program::ProgramBuilder;
 use destack_repository::Change;
 use destack_rpc::{CallError, Code};
+use destack_runtime::service::{
+    RemoveRuntimeRequest, RunRequest, SpawnRuntimeRequest, WorldRequest,
+};
+use destack_runtime::world::{Run, RunOutcome};
 use destack_source::{Edit, FileId};
 use destack_workspace::{
     ApplySourceUpdateRequest, ReadRevisionRequest, SourceUpdate, WatchEvent, WatchRequest,
 };
 
 use super::harness::TestDaemon;
-use crate::{BLOB_CHUNK_BYTE_LEN, OpenWorkspaceRequest, ReadBlobRequest};
+use crate::{
+    BLOB_CHUNK_BYTE_LEN, CloseWorldRequest, CreateWorldRequest, OpenWorkspaceRequest,
+    ReadBlobRequest,
+};
 
 /// Round trip workspace operations and daemon shutdown over IPC RPC.
 #[test]
@@ -94,6 +103,107 @@ fn test_put_read_blob() {
 
     let range = offset as usize..(offset + byte_len) as usize;
     assert_eq!(actual, bytes[range]);
+
+    daemon.shutdown(connection);
+}
+
+/// Create, run, and close one World over IPC RPC.
+#[test]
+fn test_serve_world_connection() {
+    let daemon = TestDaemon::start("daemon_world_connection");
+    let connection = daemon.connect();
+    let program = ProgramBuilder::new(Default::default())
+        .bytecode(Default::default())
+        .build()
+        .expect("empty Program should build");
+
+    // publish the complete Program through shared Blob storage
+    let mut put = connection.blob().put(()).expect("Program put should start");
+    put.send(&program.bytes().to_vec())
+        .expect("Program bytes should send");
+    put.close_input().expect("Program input should close");
+    let program = put.response().expect("Program put should complete").value;
+
+    // create one World and spawn one Runtime from the Program Blob
+    let world_id = connection
+        .daemon()
+        .create_world(CreateWorldRequest {
+            options: None,
+            environment: None,
+        })
+        .expect("World should create")
+        .value;
+    let runtime_id = connection
+        .world()
+        .spawn_runtime(SpawnRuntimeRequest {
+            world_id,
+            program,
+            options: None,
+            environment: None,
+            conditions: ConditionSet {
+                modes: Default::default(),
+                roles: Default::default(),
+                features: Default::default(),
+                tags: Default::default(),
+                target: None,
+                product: None,
+                role: None,
+                labels: Default::default(),
+                stage: None,
+                platform: Platform::Unknown,
+                host: Host::Native,
+                runtime: Runtime::Destack,
+            },
+        })
+        .expect("Runtime should spawn")
+        .value;
+
+    // observe the exact hosted state and idle run outcome
+    let runtime_ids = connection
+        .world()
+        .list_runtimes(WorldRequest { world_id })
+        .expect("Runtimes should list")
+        .value;
+    let moment = connection
+        .world()
+        .read_moment(WorldRequest { world_id })
+        .expect("Moment should read")
+        .value;
+    let outcome = connection
+        .world()
+        .run(RunRequest {
+            world_id,
+            run: Run::Task,
+        })
+        .expect("World should run")
+        .value;
+
+    assert_eq!(runtime_ids, vec![runtime_id]);
+    assert_eq!(moment.sequence.get(), 1);
+    assert_eq!(outcome, RunOutcome::Idle);
+
+    // remove the Runtime and close the World through their owning services
+    connection
+        .world()
+        .remove_runtime(RemoveRuntimeRequest {
+            world_id,
+            runtime_id,
+        })
+        .expect("Runtime should remove");
+    connection
+        .daemon()
+        .close_world(CloseWorldRequest { world_id })
+        .expect("World should close");
+    let error = connection
+        .world()
+        .read_moment(WorldRequest { world_id })
+        .expect_err("closed World should not resolve");
+    let CallError::Status(status) = error else {
+        panic!("closed World should return RPC status, got {error}");
+    };
+
+    assert_eq!(status.code, Code::NotFound);
+    assert_eq!(status.message, "World 1 is not open");
 
     daemon.shutdown(connection);
 }
