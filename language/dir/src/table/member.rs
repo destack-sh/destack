@@ -152,6 +152,13 @@ impl MemberSegment {
             .map(|(site, subject)| (*site, *subject))
     }
 
+    /// Iterate the member bindings stored per lookup subject.
+    pub fn iter_bindings(&self) -> impl Iterator<Item = (&MemberSubject, &[MemberBinding])> + '_ {
+        self.bindings
+            .iter()
+            .map(|(subject, bindings)| (subject, bindings.as_slice()))
+    }
+
     /// Return a rollback position for this segment.
     pub fn mark(&self) -> MemberMark {
         MemberMark {
