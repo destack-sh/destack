@@ -24,6 +24,7 @@ export function BlogArticle(props: BlogArticleProps) {
             contents={props.post.tableOfContents}
             location={() => <BlogLocation post={props.post} />}
             navigation={() => <BlogNavigation current={props.post} posts={props.posts} />}
+            publication="journal"
             source={props.post}
         >
             <BlogArticleHeader post={props.post} />
@@ -43,10 +44,7 @@ type BlogLocationProps = {
 function BlogLocation(props: BlogLocationProps) {
     return (
         <div class="blog-location">
-            <Breadcrumbs items={[
-                { href: "/blog/", label: "blog" },
-                { label: props.post.title },
-            ]} />
+            <Breadcrumbs items={[{ href: "/blog/", label: "blog" }]} />
             <span>
                 <time>{props.post.date}</time> / {props.post.author}
             </span>
@@ -68,7 +66,7 @@ function BlogNavigation(props: BlogNavigationProps) {
     return (
         <nav aria-label="blog" class="blog-book">
             <A class="blog-book__title" href="/blog/">
-                [blog]
+                blog
             </A>
 
             <ol>
@@ -125,11 +123,11 @@ function PostNavigation(props: PostNavigationProps) {
     return (
         <nav aria-label="post navigation" class="blog-post-navigation">
             <Show when={newer()}>
-                {(post) => <PostNavigationLink label="newer" post={post()} />}
+                {(post) => <PostNavigationLink direction="newer" post={post()} />}
             </Show>
 
             <Show when={older()}>
-                {(post) => <PostNavigationLink label="older" post={post()} />}
+                {(post) => <PostNavigationLink direction="older" post={post()} />}
             </Show>
         </nav>
     );
@@ -137,8 +135,8 @@ function PostNavigation(props: PostNavigationProps) {
 
 /// Properties for one adjacent post link.
 type PostNavigationLinkProps = {
-    /// The link label.
-    label: string;
+    /// The adjacent post direction.
+    direction: "newer" | "older";
 
     /// The adjacent post.
     post: Post;
@@ -146,9 +144,11 @@ type PostNavigationLinkProps = {
 
 /// Render one adjacent post link.
 function PostNavigationLink(props: PostNavigationLinkProps) {
+    const isNewer = props.direction === "newer";
+
     return (
         <A href={props.post.route}>
-            [{props.label}] {props.post.title}
+            {isNewer ? `← ${props.post.title}` : `${props.post.title} →`}
         </A>
     );
 }

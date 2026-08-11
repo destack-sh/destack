@@ -26,7 +26,7 @@ export function Contents(props: ContentsProps) {
     return (
         <Show when={props.entries.length > 0}>
             <nav aria-label="contents" class="contents">
-                <p>[contents]</p>
+                <p>contents</p>
                 <ol>
                     <For each={props.entries}>
                         {(entry) => (

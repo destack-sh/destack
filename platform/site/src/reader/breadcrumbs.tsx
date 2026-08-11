@@ -25,7 +25,7 @@ export function Breadcrumbs(props: BreadcrumbsProps) {
                         {item.href == undefined ? (
                             <span>{item.label}</span>
                         ) : (
-                            <A href={item.href}>[{item.label}]</A>
+                            <A href={item.href}>{item.label}</A>
                         )}
                     </>
                 )}

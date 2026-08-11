@@ -16,6 +16,9 @@ type ReaderProps = {
     /// The current article headings.
     contents: readonly ContentsEntry[];
 
+    /// The publication treatment applied to the reader.
+    publication: "journal" | "manual";
+
     /// The collection navigation shown beside the article.
     navigation: () => JSX.Element;
 
@@ -53,7 +56,7 @@ export function Reader(props: ReaderProps) {
     const sourceCommands = createPageSourceCommands(props.source);
 
     return (
-        <div class="reader">
+        <div class={`reader reader--${props.publication}`}>
             <aside class="reader__sidebar">
                 {props.navigation()}
                 <Contents activeId={activeHeading} entries={props.contents} />
@@ -94,7 +97,7 @@ function ReaderToolbar(props: ReaderToolbarProps) {
     return (
         <header class={`reader__toolbar ${props.class}`}>
             <details class="reader-menu" name="reader-tools">
-                <summary>[menu]</summary>
+                <summary>menu</summary>
                 <div class="reader-menu__body">
                     {props.navigation()}
                     <Contents activeId={props.activeHeading} entries={props.contents} />

@@ -91,21 +91,13 @@ export function SourceActions(props: SourceActionsProps) {
     return (
         <div class="source-controls">
             <nav aria-label="Page formats" class="source-actions">
-                <a
-                    href={commands.source.markdownRoute}
-                    rel="alternate noopener"
-                    target="_blank"
-                    type="text/markdown"
-                >
-                    [source]
-                </a>
                 <SourceLinks commands={commands} />
                 <span class="source-actions__tokens">{commands.tokenLabel()}</span>
             </nav>
 
             <details class="source-menu" name="reader-tools">
                 <summary>
-                    <span>[source]</span>
+                    <span>source</span>
                     <span class="source-actions__tokens">{commands.tokenLabel()}</span>
                 </summary>
                 <nav aria-label="Page formats" class="source-menu__body">
@@ -129,28 +121,43 @@ function SourceLinks(props: SourceLinksProps) {
 
     return (
         <>
-            <a
-                href={commands.source.markdownRoute}
-                rel="alternate noopener"
-                target="_blank"
-                type="text/markdown"
-            >
-                [.md]
-            </a>
-            <a
-                href={commands.source.textRoute}
-                rel="alternate noopener"
-                target="_blank"
-                type="text/plain"
-            >
-                [.txt]
-            </a>
-            <button onClick={() => commands.copy("md")} type="button">
-                [{commands.state() === "md" ? "copied" : "copy .md"}]
-            </button>
-            <button onClick={() => commands.copy("txt")} type="button">
-                [{commands.state() === "txt" ? "copied" : "copy .txt"}]
-            </button>
+            <span class="source-actions__group">
+                <span class="source-actions__label">view</span>
+                <a
+                    href={commands.source.markdownRoute}
+                    rel="alternate noopener"
+                    target="_blank"
+                    type="text/markdown"
+                >
+                    .md
+                </a>
+                <a
+                    href={commands.source.textRoute}
+                    rel="alternate noopener"
+                    target="_blank"
+                    type="text/plain"
+                >
+                    .txt
+                </a>
+            </span>
+
+            <span class="source-actions__group">
+                <span class="source-actions__label">copy</span>
+                <button
+                    aria-label="Copy Markdown"
+                    onClick={() => commands.copy("md")}
+                    type="button"
+                >
+                    {commands.state() === "md" ? "copied" : ".md"}
+                </button>
+                <button
+                    aria-label="Copy text"
+                    onClick={() => commands.copy("txt")}
+                    type="button"
+                >
+                    {commands.state() === "txt" ? "copied" : ".txt"}
+                </button>
+            </span>
         </>
     );
 }

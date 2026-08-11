@@ -22,7 +22,7 @@ export function BlogPage() {
 
             <section class="blog-index">
                 <header class="blog-index__header">
-                    <h1>[blog]</h1>
+                    <h1 class="display">Blog</h1>
                     <span>
                         {orderedPosts.length} {orderedPosts.length === 1 ? "post" : "posts"}
                     </span>
@@ -46,7 +46,7 @@ function PostRow(props: PostRowProps) {
     return (
         <li>
             <A href={props.post.route}>
-                <time>[{props.post.date}]</time>
+                <time>{props.post.date}</time>
 
                 <span class="blog-archive__copy">
                     <strong>{props.post.title}</strong>
