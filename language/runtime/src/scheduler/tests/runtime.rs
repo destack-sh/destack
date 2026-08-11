@@ -9,7 +9,7 @@ use crate::host::time::TimerClock;
 use crate::host::{HostEventKind, LifecycleState, ResourceId};
 use crate::machine::Engine;
 use crate::tests::{TestProgram, TestWorker, TestWorld};
-use crate::world::observation::Observation;
+use crate::world::observation::{Observation, ObservationQuery};
 use crate::world::{Run, RunOutcome, World};
 
 /// Executes one queued task in one run.
@@ -83,7 +83,7 @@ entry(v0: int32):
     let observation = runtime
         .world()
         .observations()
-        .records_after(None)
+        .query(&ObservationQuery::default(), usize::MAX)
         .into_iter()
         .last()
         .expect("microtask should emit an observation");
@@ -126,7 +126,7 @@ entry(v0: int32):
     let runtime_ids = world
         .world()
         .observations()
-        .records_after(None)
+        .query(&ObservationQuery::default(), usize::MAX)
         .into_iter()
         .filter_map(|entry| match entry.observation {
             Observation::TaskRan { runtime_id, .. } => Some(runtime_id),
@@ -382,7 +382,9 @@ fn test_world_spawn_runtime_records_observation() {
             engine,
         )
         .expect("runtime should spawn");
-    let observations = world.observations().records_after(None);
+    let observations = world
+        .observations()
+        .query(&ObservationQuery::default(), usize::MAX);
 
     assert_eq!(observations.len(), 1);
     assert_eq!(observations[0].moment.branch_id, before.branch_id);

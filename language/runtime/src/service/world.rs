@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::machine::Entry;
 use crate::runtime::{self, RuntimeId};
-use crate::world::observation::{ObservationEntry, ObservationScope, ObservationSequence};
+use crate::world::observation::{ObservationEntry, ObservationQuery, ObservationSequence};
 use crate::world::{
     Branch, BranchId, Edge, EdgeDefinition, Entity, EntityDefinition, Image, ImageId, Moment,
     Policy, Rule, RuleId, Run, RunOutcome, Snapshot,
@@ -183,15 +183,6 @@ pub struct Topology {
     pub entities: Vec<Entity>,
     /// Live topology edges.
     pub edges: Vec<Edge>,
-}
-
-/// One query over a World's Observation log.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ObservationQuery {
-    /// Sequence preceding the first matching Observation.
-    pub after: Option<ObservationSequence>,
-    /// Scope to match, or every scope when absent.
-    pub scope: Option<ObservationScope>,
 }
 
 /// One page of World Observations.

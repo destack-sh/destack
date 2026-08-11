@@ -8,7 +8,7 @@ use crate::debugger::{
 };
 use crate::tests::{TestProgram, TestWorld};
 use crate::world::RunOutcome;
-use crate::world::observation::{Observation, ObservationScope};
+use crate::world::observation::{Observation, ObservationQuery, ObservationScope};
 
 /// Runs one task to an explicit bytecode breakpoint and resumes it explicitly.
 #[test]
@@ -126,7 +126,7 @@ entry(v0: int32):
     let after_breakpoint = runtime
         .world()
         .observations()
-        .records_after(None)
+        .query(&ObservationQuery::default(), usize::MAX)
         .into_iter()
         .last()
         .expect("breakpoint mutation should emit an observation");
@@ -153,10 +153,10 @@ entry(v0: int32):
         }
     );
     assert_eq!(stop.worker_id, worker_id);
-    let after_stop = runtime
-        .world()
-        .observations()
-        .records_after(Some(after_breakpoint.sequence));
+    let after_stop = runtime.world().observations().query(
+        &ObservationQuery::after(after_breakpoint.sequence),
+        usize::MAX,
+    );
     assert_eq!(after_stop.len(), 1);
     assert_eq!(
         after_stop[0].observation,
@@ -548,7 +548,7 @@ entry(v0: int32):
     let after_probe = runtime
         .world()
         .observations()
-        .records_after(None)
+        .query(&ObservationQuery::default(), usize::MAX)
         .into_iter()
         .last()
         .expect("probe mutation should emit an observation");
@@ -576,7 +576,7 @@ entry(v0: int32):
     let observations = runtime
         .world()
         .observations()
-        .records_after(Some(after_probe.sequence))
+        .query(&ObservationQuery::after(after_probe.sequence), usize::MAX)
         .into_iter()
         .map(|entry| entry.observation)
         .collect::<Vec<_>>();

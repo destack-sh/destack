@@ -2,7 +2,8 @@ use crate::diagnostic::RuntimeResult;
 use crate::world::{BranchId, Moment, MomentSequence};
 
 use super::{
-    Observation, ObservationChunk, ObservationEntry, ObservationSequence, ObservationStore,
+    Observation, ObservationChunk, ObservationEntry, ObservationQuery, ObservationSequence,
+    ObservationStore,
 };
 
 /// Observation log kept separate from causal replay trace.
@@ -35,9 +36,9 @@ impl ObservationLog {
         self.store.record_at(moment, observation)
     }
 
-    /// Return every observation entry after the optional sequence.
-    pub fn records_after(&self, after: Option<ObservationSequence>) -> Vec<ObservationEntry> {
-        self.store.records_after(after)
+    /// Return matching Observation entries up to one exact limit.
+    pub fn query(&self, query: &ObservationQuery, limit: usize) -> Vec<ObservationEntry> {
+        self.store.query(query, limit)
     }
 
     /// Return every observation entry within one moment range.
@@ -62,13 +63,13 @@ impl ObservationLog {
 
 #[cfg(test)]
 mod tests {
-    use crate::world::observation::Observation;
+    use crate::world::observation::{Observation, ObservationQuery, ObservationSequence};
     use crate::world::{BranchId, Moment, MomentSequence};
 
     use super::ObservationLog;
 
     #[test]
-    fn test_drain_through_returns_committed_chunks() {
+    fn test_query_and_drain_observations_across_chunks() {
         let branch_id = BranchId::new(7);
         let log = ObservationLog::new();
 
@@ -83,13 +84,23 @@ mod tests {
             log.record_at(moment, observation).unwrap();
         }
 
+        // bound one query across the sealed and active chunks
+        let query = ObservationQuery::after(ObservationSequence::new(1022));
+        let queried = log.query(&query, 2);
+        let sequences = queried
+            .iter()
+            .map(|entry| entry.sequence.get())
+            .collect::<Vec<_>>();
+
+        assert_eq!(sequences, vec![1023, 1024]);
+
         // drain only the sealed committed chunk
         let drained = log.drain_through(branch_id, MomentSequence::new(1023));
         assert_eq!(drained.len(), 1);
         assert_eq!(drained[0].entries().len(), 1024);
 
         // retain the active uncommitted tail
-        let retained = log.records_after(None);
+        let retained = log.query(&ObservationQuery::default(), usize::MAX);
         assert_eq!(retained.len(), 1);
         assert_eq!(retained[0].moment.sequence, MomentSequence::new(1024));
     }

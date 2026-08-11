@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::world::{BranchId, Moment, MomentSequence};
 
-use super::{ObservationEntry, ObservationSequence};
+use super::{ObservationEntry, ObservationQuery};
 
 /// Observation chunk payload.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -34,14 +34,19 @@ impl ObservationChunk {
         &self.entries
     }
 
-    /// Append entries after one optional sequence.
-    pub(crate) fn append_records_after(
+    /// Append matching entries up to one exact output limit.
+    pub(crate) fn append_query(
         &self,
         output: &mut Vec<ObservationEntry>,
-        after: Option<ObservationSequence>,
+        query: &ObservationQuery,
+        limit: usize,
     ) {
         for entry in &self.entries {
-            if entry.is_after(after) {
+            if output.len() == limit {
+                break;
+            }
+
+            if query.selects(entry) {
                 output.push(entry.clone());
             }
         }
