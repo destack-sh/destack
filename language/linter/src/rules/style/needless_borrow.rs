@@ -57,7 +57,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(resolution) = module.operator_decision(expression.into_any())? else {
             continue;
         };
-        let is_direct = resolution.iter().all(dir::OperatorApplication::is_builtin);
+        let is_direct = resolution
+            .arms()
+            .iter()
+            .all(dir::OperatorApplication::is_builtin);
         if !is_direct {
             continue;
         }

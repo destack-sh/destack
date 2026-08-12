@@ -63,7 +63,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(resolution) = module.subscript_resolution(expression)? else {
             continue;
         };
-        let is_member = resolution.iter().all(|subscript| {
+        let is_member = resolution.arms().iter().all(|subscript| {
             let dir::SubscriptTarget::Member(access) = &subscript.target else {
                 return false;
             };

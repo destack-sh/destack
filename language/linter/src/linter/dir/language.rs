@@ -123,7 +123,7 @@ impl DirModule<'_> {
                 let Some(resolution) = self.call_decision(expression)? else {
                     return Ok(None);
                 };
-                let symbols = resolution.iter().map(|call| call.target.symbol());
+                let symbols = resolution.arms().iter().map(|call| call.target.symbol());
 
                 self.selected_language_member(symbols)
             }
@@ -133,7 +133,10 @@ impl DirModule<'_> {
                 let Some(resolution) = self.member_decision(expression)? else {
                     return Ok(None);
                 };
-                let symbols = resolution.iter().map(|access| access.target.symbol());
+                let symbols = resolution
+                    .arms()
+                    .iter()
+                    .map(|access| access.target.symbol());
 
                 self.selected_language_member(symbols)
             }
@@ -150,6 +153,7 @@ impl DirModule<'_> {
             return Ok(None);
         };
         let symbols = resolution
+            .arms()
             .iter()
             .map(|application| application.call().and_then(|call| call.target.symbol()));
 
