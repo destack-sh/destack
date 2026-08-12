@@ -90,7 +90,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<ObligationCheck> {
         let source = self.origin_source(origin)?;
         let instance = self.declaration_instance(symbol)?;
-        let ty = self.intern_type(dir::Type::Application(instance.clone()))?;
+        let ty = self.intern_type(dir::Type::Application(instance))?;
         let closure = self.instance_heritage_closure(origin, ty, symbol.module_id, instance)?;
 
         // report graph errors before class member rules

@@ -246,23 +246,23 @@ impl BodyState<'_, '_> {
         let chain = self.check.form_chain(origin, qualifier)?;
 
         // project explicit placement
-        if let Some(placement) = chain.place() {
-            if !matches!(
+        if let Some(placement) = chain.place()
+            && !matches!(
                 self.ty(placement)?,
                 dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Relative))
-            ) {
-                place.placement = placement;
+            )
+        {
+            place.placement = placement;
 
-                // shared storage grants exclusivity only through unique ownership
-                let is_owned = matches!(
-                    chain.ownership_form().map(|form| form.form),
-                    Some(dir::Form::Owned)
-                );
-                if self.place_space(placement)? == Some(dir::Space::Shared) && !is_owned {
-                    place.access = self.intern_type(dir::Type::Memory(
-                        dir::MemoryLiteral::Access(dir::Access::Mutable),
-                    ))?;
-                }
+            // shared storage grants exclusivity only through unique ownership
+            let is_owned = matches!(
+                chain.ownership_form().map(|form| form.form),
+                Some(dir::Form::Owned)
+            );
+            if self.place_space(placement)? == Some(dir::Space::Shared) && !is_owned {
+                place.access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
+                    dir::Access::Mutable,
+                )))?;
             }
         }
 

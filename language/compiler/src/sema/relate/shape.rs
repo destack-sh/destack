@@ -32,7 +32,6 @@ impl CheckState<'_> {
     /// Return whether one type can be used as a property key.
     pub(in crate::sema) fn is_property_key_type(
         &mut self,
-        origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let result = match self.ty(ty)? {
@@ -58,7 +57,7 @@ impl CheckState<'_> {
                 );
                 let mut is_key = true;
                 for element in elements {
-                    if !self.is_property_key_type(origin, element)? {
+                    if !self.is_property_key_type(element)? {
                         is_key = false;
                         break;
                     }

@@ -830,8 +830,7 @@ impl BodyState<'_, '_> {
         forms: &[dir::Form],
     ) -> CompilerResult<dir::GlobalTypeId> {
         let module = node.module_id;
-        let signatures =
-            self.apparent_signatures(origin, constraint, SignatureFamily::Construct)?;
+        let signatures = self.apparent_signatures(constraint, SignatureFamily::Construct)?;
         let Some((constraint_module, instance)) = self.nominal_application_maybe(constraint)?
         else {
             return self.reject_not_constructible(node, origin, target, "");

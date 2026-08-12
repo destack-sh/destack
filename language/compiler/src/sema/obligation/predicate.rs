@@ -88,7 +88,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         predicate: &dir::InGuardDecision,
     ) -> CompilerResult<ObligationCheck> {
-        let is_key = self.is_property_key_type(origin, predicate.key_type)?;
+        let is_key = self.is_property_key_type(predicate.key_type)?;
         let is_receiver = self.is_keyed_type(origin, predicate.receiver_type)?;
 
         if is_key && is_receiver {

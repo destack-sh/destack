@@ -113,7 +113,7 @@ impl CheckState<'_> {
 
         // cover scalar intervals by subtracting pattern intervals
         if let dir::Type::Range(domain) = self.ty(value)? {
-            return self.decide_patterns_cover_range(origin, patterns, &domain);
+            return self.decide_patterns_cover_range(patterns, &domain);
         }
 
         self.decide_patterns_cover_value(origin, patterns, value)
@@ -181,7 +181,7 @@ impl CheckState<'_> {
 
         // name the first uncovered scalar interval
         if let dir::Type::Range(domain) = self.ty(value)?
-            && let Some(range) = self.uncovered_range(origin, patterns, &domain)?
+            && let Some(range) = self.uncovered_range(patterns, &domain)?
         {
             let ty = match range.singleton_literal() {
                 Some(literal) => dir::Type::Literal(literal),
@@ -326,7 +326,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let module = pattern.module_id;
-        if let Some(decision) = self.decide_pattern_decision_covers(origin, pattern, value)? {
+        if let Some(decision) = self.decide_pattern_decision_covers(pattern, value)? {
             return Ok(decision);
         }
 
@@ -394,7 +394,7 @@ impl CheckState<'_> {
 
                 // tagged variants decide through their selected predicate and payload
                 if let dir::PatternDecision::Variant(variant) = &resolution {
-                    if !self.decide_predicate_covers(origin, &variant.predicate, value)? {
+                    if !self.decide_predicate_covers(&variant.predicate, value)? {
                         return Ok(false);
                     }
                     let Some(projection) = &variant.predicate.projection else {
@@ -464,7 +464,6 @@ impl CheckState<'_> {
     /// Decide coverage directly from one selected pattern resolution.
     fn decide_pattern_decision_covers(
         &mut self,
-        origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<bool>> {
@@ -475,14 +474,12 @@ impl CheckState<'_> {
 
         match resolution {
             Some(dir::PatternDecision::Test(resolution)) => {
-                let decision =
-                    self.decide_predicate_covers(origin, &resolution.predicate, value)?;
+                let decision = self.decide_predicate_covers(&resolution.predicate, value)?;
 
                 Ok(Some(decision))
             }
             Some(dir::PatternDecision::Variant(resolution)) => {
-                let decision =
-                    self.decide_predicate_covers(origin, &resolution.predicate, value)?;
+                let decision = self.decide_predicate_covers(&resolution.predicate, value)?;
 
                 Ok(Some(decision))
             }
@@ -493,7 +490,6 @@ impl CheckState<'_> {
     /// Decide whether one predicate-backed pattern covers one closed value.
     fn decide_predicate_covers(
         &mut self,
-        origin: Origin,
         predicate: &dir::Predicate,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
@@ -501,7 +497,7 @@ impl CheckState<'_> {
             dir::PredicateTest::Unary(unary) => self.decide_unary_predicate_covers(unary, value),
             dir::PredicateTest::Any(predicates) => {
                 for predicate in predicates {
-                    if self.decide_predicate_covers(origin, predicate, value)? {
+                    if self.decide_predicate_covers(predicate, value)? {
                         return Ok(true);
                     }
                 }
@@ -607,11 +603,10 @@ impl CheckState<'_> {
     /// Decide whether pattern alternatives cover one scalar interval.
     fn decide_patterns_cover_range(
         &mut self,
-        origin: Origin,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         domain: &dir::RangeType,
     ) -> CompilerResult<bool> {
-        let uncovered = self.uncovered_range(origin, patterns, domain)?;
+        let uncovered = self.uncovered_range(patterns, domain)?;
 
         Ok(uncovered.is_none())
     }
@@ -619,7 +614,6 @@ impl CheckState<'_> {
     /// Return the first uncovered interval left after pattern subtraction.
     fn uncovered_range(
         &mut self,
-        origin: Origin,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         domain: &dir::RangeType,
     ) -> CompilerResult<Option<dir::RangeType>> {
@@ -627,7 +621,7 @@ impl CheckState<'_> {
 
         // subtract each pattern's interval coverage
         for pattern in patterns {
-            let Some(coverage) = self.pattern_range_coverage(origin, *pattern)? else {
+            let Some(coverage) = self.pattern_range_coverage(*pattern)? else {
                 continue;
             };
             let intervals = match coverage {
@@ -650,7 +644,6 @@ impl CheckState<'_> {
     /// Return scalar interval coverage represented by one pattern.
     fn pattern_range_coverage(
         &mut self,
-        origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
     ) -> CompilerResult<Option<IntervalCoverage>> {
         let module = pattern.module_id;
@@ -673,7 +666,7 @@ impl CheckState<'_> {
             | dir::Pattern::Default { pattern: inner, .. } => {
                 let inner = inner.into_global(module);
 
-                return self.pattern_range_coverage(origin, inner);
+                return self.pattern_range_coverage(inner);
             }
             // expression patterns cover literal points
             dir::Pattern::Expression { value } => {
@@ -705,7 +698,7 @@ impl CheckState<'_> {
                 let mut intervals = Vec::new();
                 for pattern in patterns {
                     let pattern = pattern.into_global(module);
-                    let Some(coverage) = self.pattern_range_coverage(origin, pattern)? else {
+                    let Some(coverage) = self.pattern_range_coverage(pattern)? else {
                         return Ok(None);
                     };
 

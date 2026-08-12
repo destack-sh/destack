@@ -513,31 +513,7 @@ impl BodyState<'_, '_> {
 
         // call erased interface values through their apparent signatures
         if let dir::Type::Dynamic(dynamic) = self.ty(ty)? {
-            let signatures =
-                self.apparent_signatures(origin, dynamic.constraint, SignatureFamily::Call)?;
-            let mut overloads = SmallVec::with_capacity(signatures.len());
-            for signature in signatures {
-                overloads.push(CallableCandidate {
-                    target: CallableTarget::CallSignature {
-                        source: signature.source,
-                        receiver: ty,
-                        constraint: dynamic.constraint,
-                    },
-                    generic_scope: None,
-                    receiver: None,
-                    member_space: None,
-                    ty: signature.ty,
-                    generic_arguments: Vec::new(),
-                });
-            }
-
-            return Ok(overloads);
-        }
-
-        // call erased interface values through their apparent signatures
-        if let dir::Type::Dynamic(dynamic) = self.ty(ty)? {
-            let signatures =
-                self.apparent_signatures(origin, dynamic.constraint, SignatureFamily::Call)?;
+            let signatures = self.apparent_signatures(dynamic.constraint, SignatureFamily::Call)?;
             let mut overloads = SmallVec::with_capacity(signatures.len());
             for signature in signatures {
                 overloads.push(CallableCandidate {
@@ -563,7 +539,7 @@ impl BodyState<'_, '_> {
                 .symbol_kind_maybe(instance.symbol)?
                 .is_some_and(|kind| kind.is_interface())
         {
-            let signatures = self.apparent_signatures(origin, ty, SignatureFamily::Call)?;
+            let signatures = self.apparent_signatures(ty, SignatureFamily::Call)?;
             let mut overloads = SmallVec::with_capacity(signatures.len());
             for signature in signatures {
                 overloads.push(CallableCandidate {

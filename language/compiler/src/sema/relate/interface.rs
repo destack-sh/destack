@@ -612,7 +612,7 @@ impl CheckState<'_> {
         };
 
         // accept one apparent signature satisfying the requirement
-        let signatures = self.apparent_signatures(origin, constraint, family)?;
+        let signatures = self.apparent_signatures(constraint, family)?;
         for signature in signatures {
             let satisfied = self.relate_method(
                 origin,
@@ -710,7 +710,6 @@ impl CheckState<'_> {
     /// Return the apparent signatures of one interface constraint.
     pub(in crate::sema) fn apparent_signatures(
         &mut self,
-        origin: Origin,
         constraint: dir::GlobalTypeId,
         family: SignatureFamily,
     ) -> CompilerResult<SmallVec<[InterfaceSignature; 2]>> {
@@ -728,7 +727,7 @@ impl CheckState<'_> {
 
         // collect apparent signatures from inherited interfaces
         for heritage in &requirements.inherited {
-            let nested = self.apparent_signatures(origin, heritage.ty, family)?;
+            let nested = self.apparent_signatures(heritage.ty, family)?;
             signatures.extend(nested);
         }
 
