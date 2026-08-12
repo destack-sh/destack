@@ -1,4 +1,5 @@
 use std::hash::{Hash, Hasher};
+use std::io::{self, Write};
 
 /// Insertion-ordered map hashed by the fast session hasher.
 pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, rustc_hash::FxBuildHasher>;
@@ -102,6 +103,20 @@ impl Hasher for StableHasher {
 
     fn write(&mut self, bytes: &[u8]) {
         self.update(bytes);
+    }
+}
+
+impl Write for StableHasher {
+    /// Add raw bytes to the hash stream.
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        self.update(buffer);
+
+        Ok(buffer.len())
+    }
+
+    /// Accept every byte immediately.
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }
 
