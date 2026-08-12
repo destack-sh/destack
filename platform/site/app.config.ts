@@ -1,6 +1,5 @@
 import stylex from "@stylexjs/unplugin";
 import { defineConfig } from "@solidjs/start/config";
-import tailwindcss from "@tailwindcss/vite";
 
 import { contentPlugin } from "./build/content";
 import { prerenderRoutes } from "./src/generated/prerender-routes";
@@ -22,7 +21,6 @@ export default defineConfig({
                 useCSSLayers: true,
             }),
             contentPlugin(),
-            tailwindcss(),
         ],
     },
 });
