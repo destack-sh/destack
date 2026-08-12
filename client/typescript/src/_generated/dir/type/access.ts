@@ -3,10 +3,8 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonField, jsonObject, jsonString } from "../../../protocol/serde.js";
 import type { StaticKey } from "../symbol/key.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
-import type { ReceiverKind } from "./receiver.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../symbol/key.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
-import { decodeReceiverKind, encodeReceiverKind, fromJsonReceiverKind, toJsonReceiverKind } from "./receiver.js";
 
 /** Structural path to one value access. */
 export type AccessPath = {
@@ -141,10 +139,9 @@ export type AccessRoot =
           readonly kind: "symbol";
           readonly symbol: GlobalSymbolId;
       }
-    /** A contextual receiver. */
+    /** The contextual receiver instance, named by `this` and by `super`. */
     | {
           readonly kind: "receiver";
-          readonly receiver: ReceiverKind;
       }
 ;
 
@@ -154,9 +151,9 @@ export const AccessRoot = {
         return { kind: "symbol", symbol: symbol_ };
     },
 
-    /** A contextual receiver. */
-    receiver(receiver: ReceiverKind): AccessRoot {
-        return { kind: "receiver", receiver };
+    /** The contextual receiver instance, named by `this` and by `super`. */
+    receiver(): AccessRoot {
+        return { kind: "receiver" };
     },
 
     /** Encode this value. */
@@ -189,7 +186,6 @@ export function encodeAccessRoot(writer: BinaryWriter, value: AccessRoot): void 
             return;
         case "receiver":
             writer.writeUnsigned(1);
-            encodeReceiverKind(writer, value.receiver);
             return;
     }
 
@@ -207,9 +203,7 @@ export function decodeAccessRoot(reader: BinaryReader): AccessRoot {
             return { kind: "symbol", symbol: symbol_ };
         }
         case 1: {
-            const receiver = decodeReceiverKind(reader);
-
-            return { kind: "receiver", receiver };
+            return { kind: "receiver" };
         }
     }
 
@@ -227,7 +221,6 @@ export function toJsonAccessRoot(value: AccessRoot): Json {
         case "receiver":
             return {
                 kind: "receiver",
-                receiver: toJsonReceiverKind(value.receiver),
             };
     }
 
@@ -248,7 +241,6 @@ export function fromJsonAccessRoot(value: Json): AccessRoot {
         case "receiver":
             return {
                 kind,
-                receiver: fromJsonReceiverKind(jsonField(object, "receiver")),
             };
     }
 

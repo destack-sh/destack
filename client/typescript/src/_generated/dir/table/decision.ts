@@ -6,6 +6,7 @@ import type { AccessResolution } from "../type/access.js";
 import type { ReceiverDecision } from "../type/receiver.js";
 import type { AssignPatternDecision } from "../type/resolution.js";
 import type { AssignmentDecision } from "../type/resolution.js";
+import type { Call } from "../type/resolution.js";
 import type { ConstructDecision } from "../type/resolution.js";
 import type { GuardDecision } from "../type/resolution.js";
 import type { InstantiationDecision } from "../type/resolution.js";
@@ -19,6 +20,7 @@ import { decodeAccessResolution, encodeAccessResolution, fromJsonAccessResolutio
 import { decodeReceiverDecision, encodeReceiverDecision, fromJsonReceiverDecision, toJsonReceiverDecision } from "../type/receiver.js";
 import { decodeAssignPatternDecision, encodeAssignPatternDecision, fromJsonAssignPatternDecision, toJsonAssignPatternDecision } from "../type/resolution.js";
 import { decodeAssignmentDecision, encodeAssignmentDecision, fromJsonAssignmentDecision, toJsonAssignmentDecision } from "../type/resolution.js";
+import { decodeCall, encodeCall, fromJsonCall, toJsonCall } from "../type/resolution.js";
 import { decodeConstructDecision, encodeConstructDecision, fromJsonConstructDecision, toJsonConstructDecision } from "../type/resolution.js";
 import { decodeGuardDecision, encodeGuardDecision, fromJsonGuardDecision, toJsonGuardDecision } from "../type/resolution.js";
 import { decodeInstantiationDecision, encodeInstantiationDecision, fromJsonInstantiationDecision, toJsonInstantiationDecision } from "../type/resolution.js";
@@ -95,10 +97,10 @@ export type Decision =
           readonly kind: "assignPattern";
           readonly assign_pattern: AssignPatternDecision;
       }
-    /** Rejected node with its retained best-attempt decision. */
+    /** Rejected node with the one call it reached for. */
     | {
           readonly kind: "attempted";
-          readonly attempted: Decision;
+          readonly attempted: Call;
       }
     /** Rejected node with reported diagnostics. */
     | {
@@ -176,8 +178,8 @@ export const Decision = {
         return { kind: "assignPattern", assign_pattern };
     },
 
-    /** Rejected node with its retained best-attempt decision. */
-    attempted(attempted: Decision): Decision {
+    /** Rejected node with the one call it reached for. */
+    attempted(attempted: Call): Decision {
         return { kind: "attempted", attempted };
     },
 
@@ -269,7 +271,7 @@ export function encodeDecision(writer: BinaryWriter, value: Decision): void {
             return;
         case "attempted":
             writer.writeUnsigned(13);
-            encodeDecision(writer, value.attempted);
+            encodeCall(writer, value.attempted);
             return;
         case "rejected":
             writer.writeUnsigned(14);
@@ -353,7 +355,7 @@ export function decodeDecision(reader: BinaryReader): Decision {
             return { kind: "assignPattern", assign_pattern };
         }
         case 13: {
-            const attempted = decodeDecision(reader);
+            const attempted = decodeCall(reader);
 
             return { kind: "attempted", attempted };
         }
@@ -439,7 +441,7 @@ export function toJsonDecision(value: Decision): Json {
         case "attempted":
             return {
                 kind: "attempted",
-                attempted: toJsonDecision(value.attempted),
+                attempted: toJsonCall(value.attempted),
             };
         case "rejected":
             return {
@@ -528,7 +530,7 @@ export function fromJsonDecision(value: Json): Decision {
         case "attempted":
             return {
                 kind,
-                attempted: fromJsonDecision(jsonField(object, "attempted")),
+                attempted: fromJsonCall(jsonField(object, "attempted")),
             };
         case "rejected":
             return {
