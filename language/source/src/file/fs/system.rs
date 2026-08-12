@@ -1,5 +1,7 @@
 use std::fmt::Debug;
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 use std::{fs, io};
 
@@ -7,6 +9,18 @@ use cfg_if::cfg_if;
 
 #[cfg(target_os = "linux")]
 use std::time::Duration;
+
+#[cfg(windows)]
+use std::os::windows::ffi::OsStrExt;
+#[cfg(windows)]
+use windows::Win32::Storage::FileSystem::{
+    MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH, MoveFileExW,
+};
+#[cfg(windows)]
+use windows::core::PCWSTR;
+
+/// Next process-local atomic write identity.
+static NEXT_WRITE_ID: AtomicU64 = AtomicU64::new(1);
 
 /// Metadata information about a file.
 #[derive(Debug, Clone, Copy)]
@@ -132,19 +146,10 @@ pub trait FileSystem: Send + Sync + Debug {
     /// See [std::fs::symlink_metadata].
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata>;
 
-    // write operations
+    // mutation operations
 
-    /// Write bytes to a file, creating it if it doesn't exist, overwriting if it does.
-    ///
-    /// See [std::fs::write].
+    /// Write exact bytes atomically, creating the file when absent.
     fn write(&self, path: &Path, content: &[u8]) -> io::Result<()>;
-
-    /// Write a string to a file, creating it if it doesn't exist, overwriting if it does.
-    ///
-    /// See [std::fs::write].
-    fn write_string(&self, path: &Path, content: &str) -> io::Result<()> {
-        self.write(path, content.as_bytes())
-    }
 
     /// Create a directory at the given path.
     ///
@@ -299,6 +304,68 @@ impl PhysicalFileSystem {
     pub fn canonicalize(path: &Path) -> io::Result<PathBuf> {
         fs::canonicalize(path)
     }
+
+    /// Return the write destination reached by one final symlink.
+    fn destination(path: &Path) -> io::Result<PathBuf> {
+        match fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.file_type().is_symlink() => fs::canonicalize(path),
+            Ok(_) => Ok(path.to_path_buf()),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(path.to_path_buf()),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Return one unique temporary path beside its destination.
+    fn temporary_path(path: &Path) -> PathBuf {
+        let identifier = NEXT_WRITE_ID.fetch_add(1, Ordering::Relaxed);
+        let process = std::process::id();
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy())
+            .unwrap_or_default();
+        let temporary = format!(".{name}.destack-{process}-{identifier}.tmp");
+
+        path.with_file_name(temporary)
+    }
+
+    /// Preserve existing file permissions when the destination exists.
+    fn permissions(path: &Path) -> io::Result<Option<fs::Permissions>> {
+        match fs::metadata(path) {
+            Ok(metadata) => Ok(Some(metadata.permissions())),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Remove one unpublished replacement while retaining every failure.
+    fn discard(path: &Path, operation: io::Error) -> io::Error {
+        match fs::remove_file(path) {
+            Ok(()) => operation,
+            Err(cleanup) => io::Error::other(format!(
+                "{operation}; removing replacement {} also failed: {cleanup}",
+                path.display()
+            )),
+        }
+    }
+
+    /// Atomically publish one replacement file on Unix hosts.
+    #[cfg(not(windows))]
+    fn publish(source: &Path, destination: &Path) -> io::Result<()> {
+        fs::rename(source, destination)
+    }
+
+    /// Atomically publish one replacement file on Windows hosts.
+    #[cfg(windows)]
+    fn publish(source: &Path, destination: &Path) -> io::Result<()> {
+        let mut source = source.as_os_str().encode_wide().collect::<Vec<_>>();
+        source.push(0);
+        let mut destination = destination.as_os_str().encode_wide().collect::<Vec<_>>();
+        destination.push(0);
+        let flags = MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH;
+
+        unsafe { MoveFileExW(PCWSTR(source.as_ptr()), PCWSTR(destination.as_ptr()), flags) }
+            .map_err(io::Error::other)
+    }
 }
 
 impl FileSystem for PhysicalFileSystem {
@@ -352,7 +419,47 @@ impl FileSystem for PhysicalFileSystem {
     }
 
     fn write(&self, path: &Path, content: &[u8]) -> io::Result<()> {
-        fs::write(path, content)
+        let destination = Self::destination(path)?;
+        let permissions = Self::permissions(&destination)?;
+
+        // allocate one unused replacement path beside the destination
+        let (temporary, mut file) = loop {
+            let temporary = Self::temporary_path(&destination);
+            let file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&temporary);
+            match file {
+                Ok(file) => break (temporary, file),
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error),
+            }
+        };
+
+        // remove an incomplete replacement after one failed write
+        if let Err(error) = file.write_all(content) {
+            drop(file);
+
+            return Err(Self::discard(&temporary, error));
+        }
+
+        // retain the destination's existing access permissions
+        if let Some(permissions) = permissions
+            && let Err(error) = file.set_permissions(permissions)
+        {
+            drop(file);
+
+            return Err(Self::discard(&temporary, error));
+        }
+        drop(file);
+
+        // publish the complete file through one filesystem replacement
+        let result = Self::publish(&temporary, &destination);
+        if let Err(error) = result {
+            return Err(Self::discard(&temporary, error));
+        }
+
+        Ok(())
     }
 
     fn create_dir(&self, path: &Path) -> io::Result<()> {

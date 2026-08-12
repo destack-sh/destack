@@ -301,16 +301,6 @@ mod tests {
     }
 
     #[test]
-    fn test_write_string() {
-        let fs = MemoryFileSystem::new();
-        let path = Path::new("/test/file.txt");
-
-        fs.write_string(path, "hello world").unwrap();
-
-        assert_eq!(fs.read_to_string(path).unwrap(), "hello world");
-    }
-
-    #[test]
     fn test_write_overwrites_existing() {
         let fs = MemoryFileSystem::new();
         let path = Path::new("/test/file.txt");

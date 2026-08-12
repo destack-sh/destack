@@ -9,9 +9,9 @@ use super::{FileMetadata, FileSystem};
 
 /// Filesystem that overlays in-memory content on top of another filesystem.
 ///
-/// When a path has overlay content set, all read operations return that content
-/// instead of delegating to the underlying filesystem. write operations always
-/// go to the underlying filesystem and clear any overlay for that path.
+/// When a path has overlay content set, all reads return that content.
+///
+/// Writes publish to the underlying filesystem and then clear the overlay.
 #[derive(Debug)]
 pub struct OverlayFileSystem {
     /// The underlying filesystem to delegate to.
@@ -223,10 +223,12 @@ impl FileSystem for OverlayFileSystem {
     }
 
     fn write(&self, path: &Path, content: &[u8]) -> io::Result<()> {
-        // writing clears any overlay for this path
+        // retain the overlay unless its underlying write succeeds
+        self.inner.write(path, content)?;
         let canonical = self.normalize_path(path);
         self.overlays.remove(&canonical);
-        self.inner.write(path, content)
+
+        Ok(())
     }
 
     fn create_dir(&self, path: &Path) -> io::Result<()> {
