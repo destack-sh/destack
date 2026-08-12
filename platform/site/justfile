@@ -38,7 +38,7 @@ lint:
 
 # run tests
 test:
-    @echo "No site tests defined"
+    bun scripts/test-highlighting.mjs
 
 # default check
 check:

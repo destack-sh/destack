@@ -1,12 +1,16 @@
 import { A } from "@solidjs/router";
-import { createMemo } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
 import { commandEvents } from "../command/command";
-import { type HomeExample, homeExamples, installCommand } from "../content/site";
+import {
+    type HomeExample,
+    homeExamples,
+    homeLanguageLabels,
+    installCommand,
+} from "../content/site";
+import { homeHighlights } from "../generated/home-highlights";
 import { SiteLink } from "../navigation/link";
 import { socialLinks } from "../navigation/navigation";
-import { highlightExample } from "../site/highlight";
 import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
 import { tokens } from "../style/tokens.stylex";
@@ -331,20 +335,20 @@ function Chapter(props: ChapterProps) {
 
 /// Render one executable code specimen and its observed result.
 function CodePlate(props: { example: HomeExample }) {
-    const lines = createMemo(() =>
-        highlightExample(props.example.source.code, props.example.source.language),
-    );
+    const lines = homeHighlights[props.example.action];
 
     return (
         <figure {...stylex.attrs(plateStyles.plate)}>
             <figcaption {...stylex.attrs(plateStyles.caption)}>
                 <strong {...stylex.attrs(plateStyles.title)}>{props.example.source.title}</strong>
-                <span {...stylex.attrs(plateStyles.format)}>{props.example.source.language}</span>
+                <span {...stylex.attrs(plateStyles.format)}>
+                    {homeLanguageLabels[props.example.source.language]}
+                </span>
             </figcaption>
 
             <div {...stylex.attrs(plateStyles.source)} data-syntax>
                 <ol aria-label={props.example.source.title} {...stylex.attrs(plateStyles.lines)}>
-                    {lines().map((line, index) => (
+                    {lines.map((line, index) => (
                         <li {...stylex.attrs(plateStyles.line)}>
                             <span aria-hidden="true" {...stylex.attrs(plateStyles.lineNumber)}>{index + 1}</span>
                             <code {...stylex.attrs(plateStyles.code)} innerHTML={line || " "} />

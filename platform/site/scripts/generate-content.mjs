@@ -20,6 +20,8 @@ import {
 } from "./markdown.mjs";
 import { plainTextFor, searchTextFor, tokenEstimateFor } from "./text.mjs";
 import { writePageSources } from "./sources.mjs";
+import { highlightCode } from "./highlight.mjs";
+import { homeExamples } from "../src/content/site.ts";
 
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const siteDirectory = join(repositoryDirectory, "platform/site");
@@ -30,6 +32,7 @@ const publicDirectory = join(siteDirectory, "public");
 const generatedDocumentDirectory = join(generatedDirectory, "document");
 const generatedPostDirectory = join(generatedDirectory, "post");
 const generatedDocumentFile = join(generatedDirectory, "documents.ts");
+const generatedHomeHighlightFile = join(generatedDirectory, "home-highlights.ts");
 const generatedPostFile = join(generatedDirectory, "posts.ts");
 const generatedRouteFile = join(generatedDirectory, "prerender-routes.ts");
 const generatedSearchFile = join(generatedDirectory, "search.ts");
@@ -45,6 +48,7 @@ if (!isCheck) {
 }
 const documentSource = renderDocumentModule(documents);
 const documentContentSources = renderDocumentContentModules(documents);
+const homeHighlightSource = renderHomeHighlightModule();
 const postSource = renderPostModule(posts);
 const postContentSources = renderPostContentModules(posts);
 const routeSource = renderRouteModule(posts, documents);
@@ -53,6 +57,7 @@ const searchSource = renderSearchModule(posts, documents);
 if (isCheck) {
     checkGeneratedFile(generatedDocumentFile, documentSource);
     checkGeneratedModules(generatedDocumentDirectory, documentContentSources, "document");
+    checkGeneratedFile(generatedHomeHighlightFile, homeHighlightSource);
     checkGeneratedFile(generatedPostFile, postSource);
     checkGeneratedModules(generatedPostDirectory, postContentSources, "post");
     checkGeneratedFile(generatedRouteFile, routeSource);
@@ -61,10 +66,25 @@ if (isCheck) {
     mkdirSync(generatedDirectory, { recursive: true });
     writeGeneratedFile(generatedDocumentFile, documentSource);
     writeGeneratedModules(generatedDocumentDirectory, documentContentSources);
+    writeGeneratedFile(generatedHomeHighlightFile, homeHighlightSource);
     writeGeneratedFile(generatedPostFile, postSource);
     writeGeneratedModules(generatedPostDirectory, postContentSources);
     writeGeneratedFile(generatedRouteFile, routeSource);
     writeGeneratedFile(generatedSearchFile, searchSource);
+}
+
+/// Generate parser-backed syntax spans for every homepage listing.
+function renderHomeHighlightModule() {
+    const entries = homeExamples.map((example) => {
+        const highlighted = highlightCode(example.source.code, example.source.language).split("\n");
+
+        return `    ${JSON.stringify(example.action)}: ${JSON.stringify(highlighted)},`;
+    }).join("\n");
+
+    return `export const homeHighlights = {
+${entries}
+} as const;
+`;
 }
 
 /// Read and order every documentation source.

@@ -51,13 +51,16 @@ function loadGrammar(directory, name) {
         directory,
         extension: grammar["file-types"][0],
         fingerprint: grammarFingerprint(join(directory, grammar.path ?? ""), queries),
+        name,
         queries,
     };
 }
 
 function grammarFingerprint(directory, queries) {
     const parser = join(directory, "src/parser.c");
-    const files = [parser, ...queries];
+    const scanner = join(directory, "src/scanner.c");
+    const scannerHeader = join(directory, "src/javascript-scanner.h");
+    const files = [parser, scanner, scannerHeader, ...queries].filter(existsSync);
     const hash = createHash("sha256");
 
     // invalidate cached output whenever the parser or highlighting queries change
@@ -73,13 +76,6 @@ function resolveQuery(directory, query) {
     const localQuery = resolve(directory, query);
     if (existsSync(localQuery)) {
         return localQuery;
-    }
-
-    if (query.startsWith("node_modules/")) {
-        const workspaceQuery = resolve(repositoryDirectory, query);
-        if (existsSync(workspaceQuery)) {
-            return workspaceQuery;
-        }
     }
 
     throw new Error(`missing grammar query: ${query}`);
@@ -155,10 +151,20 @@ function highlightGrammarFile(file, source, grammar) {
 }
 
 function grammarRanges(file, source, grammar) {
-    const ranges = lexicalRanges(source);
+    const ranges = diagnosticRanges(source);
+    const library = grammarLibrary(grammar);
 
     for (const query of grammar.queries) {
-        const output = execFileSync(treeSitter, ["query", query, file, "--captures"], {
+        const output = execFileSync(treeSitter, [
+            "query",
+            "--lib-path",
+            library,
+            "--lang-name",
+            grammar.name,
+            query,
+            file,
+            "--captures",
+        ], {
             cwd: grammar.directory,
             encoding: "utf8",
             stdio: ["ignore", "pipe", "pipe"],
@@ -167,6 +173,25 @@ function grammarRanges(file, source, grammar) {
     }
 
     return mergeRanges(ranges);
+}
+
+function grammarLibrary(grammar) {
+    const extension = process.platform === "darwin" ? "dylib" : process.platform === "win32" ? "dll" : "so";
+    const library = join(cacheDirectory, `${grammar.name}-${grammar.fingerprint}.${extension}`);
+    if (existsSync(library)) {
+        return library;
+    }
+
+    // compile one parser library for every generated grammar revision
+    mkdirSync(cacheDirectory, { recursive: true });
+    const temporary = `${library}.${process.pid}.tmp`;
+    execFileSync(treeSitter, ["build", "--output", temporary, grammar.directory], {
+        cwd: grammar.directory,
+        stdio: ["ignore", "pipe", "pipe"],
+    });
+    renameSync(temporary, library);
+
+    return library;
 }
 
 function parseQueryRanges(output, source) {
@@ -183,31 +208,7 @@ function parseQueryRanges(output, source) {
 
         const start = starts[Number(match[2])] + Number(match[3]);
         const end = starts[Number(match[4])] + Number(match[5]);
-        ranges.push({ start, end, kind, priority: capturePriority(kind) });
-    }
-
-    return ranges;
-}
-
-function lexicalRanges(source) {
-    const ranges = diagnosticRanges(source);
-    const pattern =
-        /\/\*[\s\S]*?\*\/|\/\/[^\n]*|`(?:\\.|[^`\\])*`|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])'|\b\d+(?:\.\d+)?\b|\.\.=?|=>|==|!=|<=|>=|&&|\|\||[{}()[\]<>:;,.|?=!&%*+-]/g;
-
-    for (const match of source.matchAll(pattern)) {
-        const value = match[0];
-        const start = match.index;
-        const kind = lexicalKind(value);
-        if (kind == undefined) {
-            continue;
-        }
-
-        ranges.push({
-            start,
-            end: start + value.length,
-            kind,
-            priority: 1,
-        });
+        ranges.push({ start, end, kind, priority: capturePriority(match[1]) });
     }
 
     return ranges;
@@ -243,26 +244,6 @@ function diagnosticRanges(source) {
     }
 
     return ranges;
-}
-
-function lexicalKind(value) {
-    if (value.startsWith("//") || value.startsWith("/*")) {
-        return "comment";
-    }
-
-    if (value.startsWith("`") || value.startsWith("\"") || value.startsWith("'")) {
-        return "string";
-    }
-
-    if (/^\d/.test(value)) {
-        return "literal";
-    }
-
-    if (/^(?:[{}()[\]<>:;,.|?=!&%*+-]|\.\.=?|=>|==|!=|<=|>=|&&|\|\|)$/.test(value)) {
-        return "punct";
-    }
-
-    return undefined;
 }
 
 function captureKind(capture) {
@@ -310,8 +291,23 @@ function captureKind(capture) {
     return undefined;
 }
 
-function capturePriority(kind) {
-    if (kind === "function" || kind === "property" || kind === "type") {
+function capturePriority(capture) {
+    if (
+        capture.includes(".definition") ||
+        capture.includes(".method") ||
+        capture.includes(".builtin") ||
+        capture.includes(".parameter")
+    ) {
+        return 4;
+    }
+
+    if (
+        capture === "constructor" ||
+        capture === "function" ||
+        capture === "property" ||
+        capture === "type" ||
+        capture.startsWith("type.")
+    ) {
         return 3;
     }
 

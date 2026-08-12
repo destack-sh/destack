@@ -477,20 +477,43 @@ summary::-webkit-details-marker {
     color: #6d5b45;
 }
 
-[data-syntax] :is(.hljs-keyword, .hljs-title.function_, .hljs-function > .hljs-title, [data-k="keyword"], [data-k="function"], .hljs-literal, .hljs-number, [data-k="literal"]) {
-    color: #df7042;
+[data-syntax] :is(.hljs-keyword, [data-k="keyword"]) {
+    color: #ee7547;
+    font-weight: 600;
 }
 
-[data-syntax] :is(.hljs-built_in, .hljs-title.class_, .hljs-attr, .hljs-property, [data-k="type"], [data-k="property"], .hljs-string, [data-k="string"]) {
-    color: #8eb6b3;
+[data-syntax] :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]) {
+    color: #f4ead4;
+    font-weight: 600;
 }
 
-[data-syntax] :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"], .hljs-params, [data-k="punct"]) {
-    color: #f0e6d0;
+[data-syntax] :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]) {
+    color: #d8b65c;
+    font-weight: 600;
+}
+
+[data-syntax] :is(.hljs-attr, .hljs-property, [data-k="property"]) {
+    color: #8fc0c5;
+}
+
+[data-syntax] :is(.hljs-literal, .hljs-number, [data-k="literal"]) {
+    color: #e1ad4f;
+}
+
+[data-syntax] :is(.hljs-string, [data-k="string"]) {
+    color: #a5bd86;
+}
+
+[data-syntax] :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]) {
+    color: #e9dfca;
+}
+
+[data-syntax] :is(.hljs-params, [data-k="punct"]) {
+    color: #9aabad;
 }
 
 [data-syntax] :is(.hljs-comment, .hljs-meta, [data-k="comment"]) {
-    color: #82999d;
+    color: #7f9599;
 }
 
 @media (width < 60rem) {

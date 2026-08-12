@@ -1,5 +1,13 @@
 import type { SearchEntry } from "./search";
-import type { ExampleLanguage } from "../site/highlight";
+
+/// Languages used by homepage source listings.
+export type HomeLanguage = "bash" | "destack";
+
+/// Visible label for each homepage source language.
+export const homeLanguageLabels: Readonly<Record<HomeLanguage, string>> = {
+    bash: "sh",
+    destack: "TypeScript++",
+};
 
 /// The public installation command.
 export const installCommand = "curl -fsSL https://destack.sh/install | sh";
@@ -9,8 +17,8 @@ export type HomeCode = {
     /// The code text.
     code: string;
 
-    /// The language label.
-    language: ExampleLanguage;
+    /// The parser used for the listing.
+    language: HomeLanguage;
 
     /// The file or terminal label.
     title: string;
@@ -25,8 +33,8 @@ export type HomeResult = {
     title: string;
 };
 
-/// One public product example.
-export type HomeExample = {
+/// One product example.
+type HomeExampleShape = {
     /// The action identifier and visible verb.
     action: string;
 
@@ -58,7 +66,7 @@ export const homeExamples = [
 }
 
 main();`,
-            language: "TypeScript++",
+            language: "destack",
             title: "main.ds",
         },
         result: {
@@ -77,7 +85,7 @@ main();`,
 }
 
 const selected = choose("web");`,
-            language: "TypeScript++",
+            language: "destack",
             title: "main.ds",
         },
         result: {
@@ -94,7 +102,7 @@ main.ds:1:17`,
         source: {
             code: `const port: uint8 = 300;
 console.log(port);`,
-            language: "TypeScript++",
+            language: "destack",
             title: "main.ds",
         },
         result: {
@@ -113,7 +121,7 @@ console.log(port);`,
 test("adds values", () => {
     expect(20 + 22).toBe(42);
 });`,
-            language: "TypeScript++",
+            language: "destack",
             title: "math.test.ds",
         },
         result: {
@@ -132,7 +140,7 @@ test("adds values", () => {
 simulate("drains pending work", async (context) => {
     await context.runUntilIdle();
 });`,
-            language: "TypeScript++",
+            language: "destack",
             title: "app.simulation.ds",
         },
         result: {
@@ -154,7 +162,7 @@ replacePolicy(world, [{
     target: { kind: "any" },
     decision: PolicyDecision.Deny,
 }]);`,
-            language: "TypeScript++",
+            language: "destack",
             title: "policy.ds",
         },
         result: {
@@ -170,7 +178,7 @@ replacePolicy(world, [{
         source: {
             code: `destack build --target web
 destack build --target native`,
-            language: "sh",
+            language: "bash",
             title: "terminal",
         },
         result: {
@@ -180,7 +188,10 @@ native  program`,
         },
         replacements: ["bundlers", "cross-compilers", "packagers"],
     },
-] as const satisfies readonly HomeExample[];
+] as const satisfies readonly HomeExampleShape[];
+
+/// One public product example.
+export type HomeExample = (typeof homeExamples)[number];
 
 /// Searchable content outside the generated documentation and blog collections.
 export const siteSearchEntries: readonly SearchEntry[] = [
