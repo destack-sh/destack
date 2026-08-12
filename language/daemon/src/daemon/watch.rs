@@ -3,10 +3,10 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
 use crossbeam_channel::{Sender, unbounded};
-use destack_source::{FileWatch, FileWatchEvent};
-use destack_workspace::{Error, Workspace};
+use destack_source::{FileWatch, FileWatchError, FileWatchEvent};
+use destack_workspace::Workspace;
 
-use super::DaemonError;
+use super::{DaemonError, WorkspaceWatchError};
 
 /// Physical file observation for one daemon workspace.
 pub(crate) struct WorkspaceWatch {
@@ -32,12 +32,25 @@ impl fmt::Debug for WorkspaceWatch {
 impl WorkspaceWatch {
     /// Start physical observation for one workspace.
     pub(crate) fn start(workspace: Arc<Workspace>) -> Result<Self, DaemonError> {
-        let root = workspace.root();
-        let mut watch = FileWatch::new()?;
-        watch.watch(root)?;
+        let root = workspace.root().to_path_buf();
+        let mut watch = FileWatch::new().map_err(|source| WorkspaceWatchError::FileWatch {
+            root: root.clone(),
+            source,
+        })?;
+        watch
+            .watch(&root)
+            .map_err(|source| WorkspaceWatchError::FileWatch {
+                root: root.clone(),
+                source,
+            })?;
 
         // close the scan race after physical observation becomes active
-        workspace.reload()?;
+        workspace
+            .reload()
+            .map_err(|source| WorkspaceWatchError::Reload {
+                root,
+                source: Box::new(source),
+            })?;
         workspace.resume_watch()?;
 
         // serialize physical events and repository reconciliation
@@ -48,24 +61,15 @@ impl WorkspaceWatch {
                     recv(stopped) -> _ => return Ok(()),
                     recv(watch.changes) -> changed => {
                         let Ok(()) = changed else {
-                            return Self::fail(
-                                &workspace,
-                                "host file watch stopped unexpectedly".into(),
-                            );
+                            return Self::disconnect(&workspace);
                         };
                         Self::reconcile(&workspace, watch.take())?;
                     }
                     recv(watch.errors) -> error => {
                         let Ok(error) = error else {
-                            return Self::fail(
-                                &workspace,
-                                "host file watch stopped unexpectedly".into(),
-                            );
+                            return Self::disconnect(&workspace);
                         };
-                        let detail = error.to_string();
-                        workspace.fail_watch(detail)?;
-                        workspace.reload()?;
-                        workspace.resume_watch()?;
+                        Self::recover(&workspace, error)?;
 
                         continue;
                     }
@@ -97,7 +101,12 @@ impl WorkspaceWatch {
     fn reconcile(workspace: &Workspace, changes: FileWatchEvent) -> Result<(), DaemonError> {
         // restore complete source truth when exact physical changes were lost
         if changes.is_rescan {
-            workspace.reload()?;
+            workspace
+                .reload()
+                .map_err(|source| WorkspaceWatchError::Reload {
+                    root: workspace.root().to_path_buf(),
+                    source: Box::new(source),
+                })?;
 
             return Ok(());
         }
@@ -106,25 +115,54 @@ impl WorkspaceWatch {
         if let Err(reconcile_error) = workspace.reconcile(changes.paths)
             && let Err(reload_error) = workspace.reload()
         {
-            let detail = format!(
-                "workspace reconciliation failed: {reconcile_error}; \
-                 workspace reload failed: {reload_error}"
-            );
-            return Self::fail(workspace, detail);
+            let error = WorkspaceWatchError::Reconcile {
+                root: workspace.root().to_path_buf(),
+                source: Box::new(reconcile_error),
+                reload: Box::new(reload_error),
+            };
+
+            return Self::fail(workspace, error);
         }
 
         Ok(())
     }
 
-    /// Terminate semantic watches after one physical observation failure.
-    fn fail(workspace: &Workspace, detail: String) -> Result<(), DaemonError> {
-        workspace.fail_watch(detail.clone())?;
+    /// Restore authoritative workspace state after one host watcher failure.
+    fn recover(workspace: &Workspace, source: FileWatchError) -> Result<(), DaemonError> {
+        let root = workspace.root().to_path_buf();
+        let message = format!("host file watch failed for {}: {source}", root.display());
+        workspace.fail_watch(message)?;
 
-        Err(Error::WatchFailed {
-            root: workspace.root().to_path_buf(),
-            detail,
+        // reload complete physical state before accepting more events
+        if let Err(reload) = workspace.reload() {
+            return Err(WorkspaceWatchError::FileWatchReload {
+                root,
+                source,
+                reload: Box::new(reload),
+            }
+            .into());
         }
-        .into())
+
+        // reopen semantic observation after successful recovery
+        workspace.resume_watch()?;
+
+        Ok(())
+    }
+
+    /// Terminate semantic watches after the host watcher disconnects.
+    fn disconnect(workspace: &Workspace) -> Result<(), DaemonError> {
+        let error = WorkspaceWatchError::Disconnected {
+            root: workspace.root().to_path_buf(),
+        };
+
+        Self::fail(workspace, error)
+    }
+
+    /// Terminate semantic watches after one physical observation failure.
+    fn fail(workspace: &Workspace, error: WorkspaceWatchError) -> Result<(), DaemonError> {
+        workspace.fail_watch(error.to_string())?;
+
+        Err(error.into())
     }
 }
 

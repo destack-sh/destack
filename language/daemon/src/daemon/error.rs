@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::{error, fmt};
 
 use destack_repository::BlobStoreError;
@@ -24,7 +25,7 @@ pub enum DaemonError {
     /// RPC connection failed.
     Connection(ServerError),
     /// Physical workspace observation failed.
-    Watch(FileWatchError),
+    Watch(WorkspaceWatchError),
     /// Immutable Blob storage failed.
     Blob(BlobStoreError),
     /// Workspace initialization failed.
@@ -35,6 +36,48 @@ pub enum DaemonError {
     Shutdown {
         /// Serving and cleanup failures in observation order.
         failures: Vec<DaemonError>,
+    },
+}
+
+/// Failure while observing one daemon workspace.
+#[derive(Debug)]
+pub enum WorkspaceWatchError {
+    /// The operating-system watcher could not observe the workspace.
+    FileWatch {
+        /// Workspace root that could not be observed.
+        root: PathBuf,
+        /// Host watcher failure.
+        source: FileWatchError,
+    },
+    /// The operating-system watcher stopped producing events.
+    Disconnected {
+        /// Workspace root whose watcher stopped.
+        root: PathBuf,
+    },
+    /// Authoritative physical state could not be reloaded.
+    Reload {
+        /// Workspace root that could not be reloaded.
+        root: PathBuf,
+        /// Workspace reload failure.
+        source: Box<workspace::Error>,
+    },
+    /// Authoritative reload failed after a host watcher error.
+    FileWatchReload {
+        /// Workspace root that could not be reloaded.
+        root: PathBuf,
+        /// Host watcher failure that required recovery.
+        source: FileWatchError,
+        /// Workspace reload failure.
+        reload: Box<workspace::Error>,
+    },
+    /// Authoritative reload failed after incremental reconciliation.
+    Reconcile {
+        /// Workspace root that could not be reconciled.
+        root: PathBuf,
+        /// Incremental reconciliation failure.
+        source: Box<workspace::Error>,
+        /// Authoritative reload failure.
+        reload: Box<workspace::Error>,
     },
 }
 
@@ -58,7 +101,7 @@ impl fmt::Display for DaemonError {
             Self::Schema(error) => write!(formatter, "daemon RPC schema failed: {error}"),
             Self::Registry(error) => write!(formatter, "daemon RPC registry failed: {error}"),
             Self::Connection(error) => write!(formatter, "daemon RPC connection failed: {error}"),
-            Self::Watch(error) => write!(formatter, "daemon file watch failed: {error}"),
+            Self::Watch(error) => write!(formatter, "daemon workspace watch failed: {error}"),
             Self::Blob(error) => write!(formatter, "daemon BlobStore failed: {error}"),
             Self::Workspace(error) => write!(formatter, "daemon workspace failed: {error}"),
             Self::Thread => write!(formatter, "daemon thread panicked"),
@@ -90,6 +133,71 @@ impl error::Error for DaemonError {
             Self::Shutdown { failures } => failures
                 .first()
                 .map(|failure| failure as &(dyn error::Error + 'static)),
+        }
+    }
+}
+
+impl fmt::Display for WorkspaceWatchError {
+    /// Format this workspace observation failure.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::FileWatch { root, source } => {
+                write!(
+                    formatter,
+                    "host file watch failed for {}: {source}",
+                    root.display()
+                )
+            }
+            Self::Disconnected { root } => {
+                write!(
+                    formatter,
+                    "host file watch stopped unexpectedly for {}",
+                    root.display()
+                )
+            }
+            Self::Reload { root, source } => {
+                write!(
+                    formatter,
+                    "workspace reload failed for {}: {source}",
+                    root.display()
+                )
+            }
+            Self::FileWatchReload {
+                root,
+                source,
+                reload,
+            } => {
+                write!(
+                    formatter,
+                    "host file watch failed for {}: {source}; workspace reload failed: {reload}",
+                    root.display()
+                )
+            }
+            Self::Reconcile {
+                root,
+                source,
+                reload,
+            } => {
+                write!(
+                    formatter,
+                    "workspace reconciliation failed for {}: {source}; \
+                     workspace reload failed: {reload}",
+                    root.display()
+                )
+            }
+        }
+    }
+}
+
+impl error::Error for WorkspaceWatchError {
+    /// Return the failure that initiated this terminal observation error.
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            Self::FileWatch { source, .. } => Some(source),
+            Self::Disconnected { .. } => None,
+            Self::Reload { source, .. } => Some(source.as_ref()),
+            Self::FileWatchReload { source, .. } => Some(source),
+            Self::Reconcile { source, .. } => Some(source.as_ref()),
         }
     }
 }
@@ -143,9 +251,9 @@ impl From<ServerError> for DaemonError {
     }
 }
 
-impl From<FileWatchError> for DaemonError {
-    /// Convert one physical file watch failure.
-    fn from(error: FileWatchError) -> Self {
+impl From<WorkspaceWatchError> for DaemonError {
+    /// Convert one workspace observation failure.
+    fn from(error: WorkspaceWatchError) -> Self {
         Self::Watch(error)
     }
 }
