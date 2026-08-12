@@ -14,10 +14,10 @@ use destack_source::{
     DiagnosticTarget,
 };
 use destack_workspace::{DiagnosticsRequest, FileDiagnostics, Workspace};
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 
 use super::{Document, DocumentSet, ToLspUri};
-use crate::server::{internal_error, workspace_error};
+use crate::server::{ProjectSet, internal_error, workspace_error};
 
 /// Delay used to replace superseded diagnostic work.
 const DIAGNOSTIC_DELAY: Duration = Duration::from_millis(150);
@@ -54,10 +54,17 @@ impl DiagnosticDelivery {
     }
 
     /// Schedule diagnostics after source state changes.
-    pub(crate) fn schedule(&self, workspace: Arc<Workspace>, client: Client) {
+    pub(crate) fn schedule(
+        &self,
+        workspace: Arc<Workspace>,
+        projects: Arc<RwLock<ProjectSet>>,
+        client: Client,
+    ) {
         match &self.mode {
             DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client),
-            DiagnosticDeliveryMode::Push(diagnostics) => diagnostics.schedule(workspace, client),
+            DiagnosticDeliveryMode::Push(diagnostics) => {
+                diagnostics.schedule(workspace, projects, client)
+            }
         }
     }
 
@@ -86,12 +93,22 @@ pub(crate) struct DiagnosticPublisher {
     client: Client,
     /// Workspace providing related files.
     workspace: Arc<Workspace>,
+    /// Open document identities at the diagnostic revision.
+    documents: HashMap<PathBuf, lsp::VersionedTextDocumentIdentifier>,
 }
 
 impl DiagnosticPublisher {
     /// Create one diagnostic publisher.
-    pub(crate) fn new(client: Client, workspace: Arc<Workspace>) -> Self {
-        Self { client, workspace }
+    pub(crate) fn new(
+        client: Client,
+        workspace: Arc<Workspace>,
+        documents: HashMap<PathBuf, lsp::VersionedTextDocumentIdentifier>,
+    ) -> Self {
+        Self {
+            client,
+            workspace,
+            documents,
+        }
     }
 
     /// Compute a deterministic result ID for one diagnostics payload.
@@ -100,6 +117,33 @@ impl DiagnosticPublisher {
         diagnostics.hash(&mut hasher);
 
         format!("{:x}", hasher.finish_u64())
+    }
+
+    /// Return one diagnostic file's optional versioned document identifier.
+    pub(crate) fn document(
+        &self,
+        diagnostics: &FileDiagnostics,
+    ) -> jsonrpc::Result<lsp::OptionalVersionedTextDocumentIdentifier> {
+        let document = diagnostics
+            .file
+            .path
+            .as_ref()
+            .and_then(|path| self.documents.get(path));
+        if let Some(document) = document {
+            return Ok(lsp::OptionalVersionedTextDocumentIdentifier::new(
+                document.uri.clone(),
+                document.version,
+            ));
+        }
+
+        let uri = diagnostics.file.uri.to_lsp_uri().ok_or_else(|| {
+            internal_error(format!(
+                "diagnostic URI is not representable by LSP: {}",
+                diagnostics.file.uri
+            ))
+        })?;
+
+        Ok(lsp::OptionalVersionedTextDocumentIdentifier { uri, version: None })
     }
 
     /// Load every document referenced by one file's diagnostics.
@@ -159,12 +203,8 @@ impl DiagnosticPublisher {
 
         // publish every file in the current result
         for file_diagnostics in diagnostics {
-            let uri = file_diagnostics.uri.to_lsp_uri().ok_or_else(|| {
-                internal_error(format!(
-                    "diagnostic URI is not representable by LSP: {}",
-                    file_diagnostics.uri
-                ))
-            })?;
+            let document = self.document(&file_diagnostics)?;
+            let uri = document.uri;
             current.insert(uri.clone());
             let documents = self.load_documents(&file_diagnostics)?;
             let diagnostics = file_diagnostics
@@ -174,8 +214,20 @@ impl DiagnosticPublisher {
                 .collect::<jsonrpc::Result<Vec<_>>>()?;
 
             self.client
-                .publish_diagnostics(uri, diagnostics, file_diagnostics.version)
+                .publish_diagnostics(uri, diagnostics, document.version)
                 .await;
+        }
+
+        // publish empty results for open files without diagnostics
+        let mut open = self.documents.values().collect::<Vec<_>>();
+        open.sort_unstable_by(|left, right| left.uri.as_str().cmp(right.uri.as_str()));
+        for document in open {
+            let uri = document.uri.clone();
+            if current.insert(uri.clone()) {
+                self.client
+                    .publish_diagnostics(uri, Vec::new(), Some(document.version))
+                    .await;
+            }
         }
 
         // clear files omitted from the replacement result
@@ -350,7 +402,12 @@ struct PushDiagnostics {
 
 impl PushDiagnostics {
     /// Schedule diagnostics for one changed workspace root.
-    fn schedule(&self, workspace: Arc<Workspace>, client: Client) {
+    fn schedule(
+        &self,
+        workspace: Arc<Workspace>,
+        projects: Arc<RwLock<ProjectSet>>,
+        client: Client,
+    ) {
         let root = workspace.root().to_path_buf();
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let tasks = self.tasks.clone();
@@ -360,7 +417,19 @@ impl PushDiagnostics {
             tokio::time::sleep(DIAGNOSTIC_DELAY).await;
 
             // schedule diagnostic artifacts after the debounce interval
-            let run = match workspace.start_diagnostics(DiagnosticsRequest::All) {
+            let revision = { projects.read().revision(workspace.root()) };
+            let revision = match revision {
+                Some(Ok(revision)) => revision,
+                Some(Err(error)) => {
+                    client
+                        .report_error("diagnostics.revision.read", error)
+                        .await;
+
+                    return;
+                }
+                None => return,
+            };
+            let run = match workspace.start_diagnostics(revision, DiagnosticsRequest::All) {
                 Ok(run) => run,
                 Err(error) => {
                     client
@@ -384,23 +453,22 @@ impl PushDiagnostics {
                 return;
             }
 
-            // reject a workspace invalidated while diagnostics were running
-            let current = match workspace.revision() {
-                Ok(current) => current,
+            // snapshot documents only while their branch remains at this revision
+            let documents = { projects.read().documents(workspace.root(), revision) };
+            let documents = match documents {
+                Ok(Some(documents)) => documents,
+                Ok(None) => return,
                 Err(error) => {
                     client
-                        .report_error("diagnostics.revision.read", workspace_error(error))
+                        .report_error("diagnostics.revision.read", error)
                         .await;
 
                     return;
                 }
             };
-            if current != revision {
-                return;
-            }
 
             // publish only the current diagnostic result
-            let publisher = DiagnosticPublisher::new(client.clone(), workspace);
+            let publisher = DiagnosticPublisher::new(client.clone(), workspace, documents);
             let previous = published
                 .lock()
                 .get(&task_root)

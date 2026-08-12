@@ -1,7 +1,9 @@
 mod error;
+mod project;
 mod server;
 mod session;
 
 pub(crate) use error::*;
-pub use server::DestackLanguageServer;
+pub(crate) use project::*;
+pub use server::*;
 use session::*;

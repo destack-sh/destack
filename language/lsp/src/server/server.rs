@@ -7,17 +7,17 @@ use destack_lsp_server::{Client, LanguageServer, LspService, Server, UriExt, jso
 use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::{Revision, Trace, TraceReport, TraceView};
-use destack_source::{FileId, PatchSet, TextRange, Uri, WATCHABLE_FILE_TYPES};
+use destack_source::{FileId, PatchSet, TextRange, WATCHABLE_FILE_TYPES};
 use destack_workspace::{
-    DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, FileOperation, QueryFile,
-    QueryRun, RevisionPolicy, RunQueryInput, RunQueryResponse, Workspace,
+    DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, QueryFile, QueryRun,
+    RevisionPolicy, RunQueryInput, RunQueryResponse, Workspace,
 };
 use serde_json::to_value;
 
 use super::{ClientCapabilities, ServerSession, ServerSettings, internal_error, workspace_error};
 use crate::query::{
     CodeActionContext, DiagnosticDelivery, DiagnosticPublisher, Document, DocumentSet, IntoLsp,
-    IntoSource, QueryContinuation, SemanticTokenStream, ToLspUri,
+    IntoSource, QueryContinuation, SemanticTokenStream,
 };
 
 /// Slow artifact attempts included in verbose LSP traces.
@@ -91,7 +91,11 @@ impl DestackLanguageServer {
         revision: RevisionPolicy,
     ) -> jsonrpc::Result<RunQueryResponse> {
         let method = request.method();
-        let workspace = self.workspace(path)?;
+        let (workspace, current) = self.session()?.revision(path)?;
+        let revision = match revision {
+            RevisionPolicy::Latest => RevisionPolicy::Exact(current),
+            revision => revision,
+        };
         let request = RunQueryInput { revision, request };
         let run = self.start_query(workspace.as_ref(), request)?;
 
@@ -103,9 +107,11 @@ impl DestackLanguageServer {
         let Some(path) = uri.to_file_path().map(|path| path.into_owned()) else {
             return Ok(None);
         };
-        let workspace = self.workspace(&path)?;
+        let (workspace, revision) = self.session()?.revision(&path)?;
 
-        workspace.resolve_query_file(path).map_err(workspace_error)
+        workspace
+            .resolve_query_file(revision, path)
+            .map_err(workspace_error)
     }
 
     /// Format one LSP document or selected text range.
@@ -117,9 +123,11 @@ impl DestackLanguageServer {
         let Some(path) = uri.to_file_path().map(|path| path.into_owned()) else {
             return Ok(None);
         };
-        let workspace = self.workspace(&path)?;
+        let (workspace, revision) = self.session()?.revision(&path)?;
 
-        workspace.format_file(path, range).map_err(workspace_error)
+        workspace
+            .format_file(revision, path, range)
+            .map_err(workspace_error)
     }
 
     /// Execute one module query against its file revision.
@@ -131,7 +139,7 @@ impl DestackLanguageServer {
         let method = request.method();
         let workspace = self.workspace(&file.path)?;
         let request = RunQueryInput {
-            revision: RevisionPolicy::Current(file.revision),
+            revision: RevisionPolicy::Exact(file.revision),
             request,
         };
         let run = self.start_query(workspace.as_ref(), request)?;
@@ -167,7 +175,7 @@ impl DestackLanguageServer {
         let response = response.map_err(workspace_error)?;
 
         // reject results invalidated while the query was running
-        let current = workspace.revision().map_err(workspace_error)?;
+        let current = self.session()?.workspace_revision(workspace.as_ref())?;
         if current != response.revision {
             return Err(jsonrpc::Error::content_modified());
         }
@@ -228,9 +236,10 @@ impl DestackLanguageServer {
         &self,
         workspace: Arc<Workspace>,
         request: DiagnosticsRequest,
-    ) -> jsonrpc::Result<Vec<FileDiagnostics>> {
+    ) -> jsonrpc::Result<(Revision, Vec<FileDiagnostics>)> {
+        let revision = self.session()?.workspace_revision(workspace.as_ref())?;
         let run = workspace
-            .start_diagnostics(request)
+            .start_diagnostics(revision, request)
             .map_err(workspace_error)?;
 
         self.wait_diagnostics(workspace, run).await
@@ -241,12 +250,12 @@ impl DestackLanguageServer {
         &self,
         workspace: Arc<Workspace>,
         run: DiagnosticRun,
-    ) -> jsonrpc::Result<Vec<FileDiagnostics>> {
+    ) -> jsonrpc::Result<(Revision, Vec<FileDiagnostics>)> {
         let revision = run.revision();
         let outcome = run.wait().await;
 
         // reject the workspace when it changed while diagnostics were running
-        let current = workspace.revision().map_err(workspace_error)?;
+        let current = self.session()?.workspace_revision(workspace.as_ref())?;
         if current != revision {
             return Err(jsonrpc::Error::content_modified());
         }
@@ -258,7 +267,7 @@ impl DestackLanguageServer {
                 .await;
         }
 
-        Ok(outcome.diagnostics)
+        Ok((revision, outcome.diagnostics))
     }
 
     /// Register file watchers with the client.
@@ -326,16 +335,13 @@ impl DestackLanguageServer {
 
     /// Reload workspace source.
     fn reload_workspace(&self) -> jsonrpc::Result<()> {
-        for workspace in self.session()?.workspaces() {
-            workspace.reload().map_err(workspace_error)?;
-        }
-
-        Ok(())
+        self.session()?.reload()
     }
 
     /// Schedule diagnostics for one semantic workspace.
     fn schedule_diagnostics(&self, workspace: Arc<Workspace>) -> jsonrpc::Result<()> {
-        self.diagnostics()?.schedule(workspace, self.client.clone());
+        self.diagnostics()?
+            .schedule(workspace, self.session()?.projects(), self.client.clone());
 
         Ok(())
     }
@@ -365,20 +371,12 @@ impl DestackLanguageServer {
             .to_file_path()
             .map(|path| path.into_owned())
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
-        let uri = Uri::from_string(params.text_document.uri.to_string());
+        let uri = params.text_document.uri;
+        let version = params.text_document.version;
         let content = params.text_document.text;
-        let workspace = self.session()?.open_document(&path)?;
-        let result = workspace.apply_file_operation(FileOperation::OpenText {
-            path: path.clone(),
-            uri,
-            version: params.text_document.version,
-            content,
-        });
-        if let Err(error) = result {
-            self.session()?.close_document(&path)?;
-
-            return Err(workspace_error(error));
-        }
+        let workspace = self
+            .session()?
+            .open_document(&path, uri, version, content)?;
 
         self.schedule_diagnostics(workspace)
     }
@@ -398,21 +396,16 @@ impl DestackLanguageServer {
             .to_file_path()
             .map(|path| path.into_owned())
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
-        let uri = Uri::from_string(params.text_document.uri.to_string());
+        let uri = params.text_document.uri;
+        let version = params.text_document.version;
         let changes = params
             .content_changes
             .into_iter()
             .map(IntoSource::into_source)
-            .collect();
-        let workspace = self.workspace(&path)?;
-        workspace
-            .apply_file_operation(FileOperation::PatchText {
-                path,
-                uri,
-                version: params.text_document.version,
-                changes,
-            })
-            .map_err(workspace_error)?;
+            .collect::<Vec<_>>();
+        let workspace = self
+            .session()?
+            .change_document(&path, &uri, version, &changes)?;
 
         self.schedule_diagnostics(workspace)
     }
@@ -425,11 +418,7 @@ impl DestackLanguageServer {
             .to_file_path()
             .map(|path| path.into_owned())
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
-        let content = params.text;
-        let workspace = self.workspace(&path)?;
-        workspace
-            .apply_file_operation(FileOperation::SaveText { path, content })
-            .map_err(workspace_error)?;
+        let workspace = self.session()?.save_document(&path, params.text)?;
 
         self.schedule_diagnostics(workspace)
     }
@@ -442,11 +431,7 @@ impl DestackLanguageServer {
             .to_file_path()
             .map(|path| path.into_owned())
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
-        let workspace = self.workspace(&path)?;
-        workspace
-            .apply_file_operation(FileOperation::Close { path: path.clone() })
-            .map_err(workspace_error)?;
-        let removed = self.session()?.close_document(&path)?;
+        let (workspace, removed) = self.session()?.close_document(&path)?;
 
         // clear projects released with the final open document
         if !removed.is_empty() {
@@ -544,14 +529,8 @@ impl DestackLanguageServer {
             .ok_or_else(|| jsonrpc::Error::invalid_params("new URI is not a file URI"))?;
 
         // keep diagnostics owned by open editor documents
-        let old_workspace = self.workspace(&old_path)?;
-        let new_workspace = self.workspace(&new_path)?;
-        let old_is_open = old_workspace
-            .is_file_open(&old_path)
-            .map_err(workspace_error)?;
-        let new_is_open = new_workspace
-            .is_file_open(&new_path)
-            .map_err(workspace_error)?;
+        let old_is_open = self.session()?.is_open(&old_path)?;
+        let new_is_open = self.session()?.is_open(&new_path)?;
         if old_is_open || new_is_open {
             return Ok(());
         }
@@ -572,8 +551,7 @@ impl DestackLanguageServer {
             .ok_or_else(|| jsonrpc::Error::invalid_params("URI is not a file URI"))?;
 
         // keep diagnostics owned by an open editor document
-        let workspace = self.workspace(&path)?;
-        let is_open = workspace.is_file_open(&path).map_err(workspace_error)?;
+        let is_open = self.session()?.is_open(&path)?;
         if is_open {
             return Ok(());
         }
@@ -868,7 +846,7 @@ impl LanguageServer for DestackLanguageServer {
                     ));
                 }
             } else {
-                let revision = workspace.revision().map_err(workspace_error)?;
+                let revision = self.session()?.workspace_revision(workspace.as_ref())?;
                 query_state = Some((root, revision));
             }
 
@@ -883,11 +861,7 @@ impl LanguageServer for DestackLanguageServer {
         // build workspace edits for import specifiers
         let request = query::QueryRequest::RenameFiles(query::RenameFilesRequest { renames });
         let response = self
-            .query_program(
-                &query_root,
-                request,
-                RevisionPolicy::Current(query_revision),
-            )
+            .query_program(&query_root, request, RevisionPolicy::Exact(query_revision))
             .await?;
         let revision = response.revision;
         let query::QueryResponse::RenameFiles(response) = response.response else {
@@ -957,7 +931,7 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         let workspace = self.workspace(path)?;
-        let mut diagnostics = self
+        let (revision, mut diagnostics) = self
             .read_diagnostics(workspace.clone(), DiagnosticsRequest::File(path.clone()))
             .await?;
         if diagnostics.len() > 1 {
@@ -978,7 +952,8 @@ impl LanguageServer for DestackLanguageServer {
                 });
             return Ok(lsp::DocumentDiagnosticReportResult::Report(report));
         };
-        let publisher = DiagnosticPublisher::new(self.client.clone(), workspace);
+        let documents = self.session()?.documents(workspace.as_ref(), revision)?;
+        let publisher = DiagnosticPublisher::new(self.client.clone(), workspace, documents);
         let documents = publisher.load_documents(&file_diagnostics)?;
         let diagnostics = file_diagnostics.diagnostics;
         let result_id = DiagnosticPublisher::result_id(&diagnostics);
@@ -1024,23 +999,20 @@ impl LanguageServer for DestackLanguageServer {
 
         let mut items = Vec::new();
         for workspace in self.session()?.workspaces() {
-            let diagnostics = self
+            let (revision, diagnostics) = self
                 .read_diagnostics(workspace.clone(), DiagnosticsRequest::All)
                 .await?;
-            let publisher = DiagnosticPublisher::new(self.client.clone(), workspace);
+            let documents = self.session()?.documents(workspace.as_ref(), revision)?;
+            let publisher = DiagnosticPublisher::new(self.client.clone(), workspace, documents);
 
             // encode every diagnostic file from this semantic workspace
             for file_diagnostics in diagnostics {
-                let uri = file_diagnostics.uri.to_lsp_uri().ok_or_else(|| {
-                    internal_error(format!(
-                        "diagnostic URI is not representable by LSP: {}",
-                        file_diagnostics.uri
-                    ))
-                })?;
+                let document = publisher.document(&file_diagnostics)?;
+                let uri = document.uri;
+                let version = document.version.map(i64::from);
                 let documents = publisher.load_documents(&file_diagnostics)?;
                 let diagnostics = file_diagnostics.diagnostics;
                 let result_id = DiagnosticPublisher::result_id(&diagnostics);
-                let version = file_diagnostics.version.map(|version| version as i64);
                 let uri_string = uri.to_string();
                 let report = if previous_ids.get(&uri_string) == Some(&result_id) {
                     lsp::WorkspaceDocumentDiagnosticReport::Unchanged(

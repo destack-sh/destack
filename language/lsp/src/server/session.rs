@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -6,17 +7,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use destack_lsp_server::{Client, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{
-    DestackLayoutOverride, Environment, Execution, Settings, SourceRoot, open_repository_from_fs,
-};
+use destack_repository::{Execution, Revision, SourceRoot};
 use destack_session::Executor;
-use destack_source::{FileSystem, OverlayFileSystem, PhysicalFileSystem};
+use destack_source::{FileSystem, PhysicalFileSystem, TextChange};
 use destack_workspace::Workspace;
 use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::from_value;
 
-use super::internal_error;
+use super::{Project, ProjectSet, internal_error};
 use crate::query::DiagnosticDelivery;
 
 /// State installed after one language server initialization.
@@ -24,217 +23,16 @@ use crate::query::DiagnosticDelivery;
 pub(super) struct ServerSession {
     /// Artifact executor shared by every project session.
     executor: Arc<Executor>,
-    /// Shared editor overlay used by every project.
-    file_system: Arc<OverlayFileSystem>,
+    /// Shared physical filesystem used for project discovery and repositories.
+    file_system: Arc<PhysicalFileSystem>,
     /// Projects discovered for the current editor workspace.
-    projects: RwLock<ProjectSet>,
+    projects: Arc<RwLock<ProjectSet>>,
     /// Features supported by the connected client.
     pub(super) client_capabilities: ClientCapabilities,
     /// Mutable editor configuration.
     pub(super) settings: ServerSettings,
     /// Diagnostic delivery selected from client capabilities.
     pub(super) diagnostics: DiagnosticDelivery,
-}
-
-/// Projects discovered from the current editor workspace folders.
-#[derive(Debug, Default)]
-struct ProjectSet {
-    /// Client-provided workspace folders.
-    editor_folders: Vec<PathBuf>,
-    /// Discovered semantic projects ordered by source root.
-    projects: Vec<Project>,
-}
-
-/// One independently configured semantic project.
-#[derive(Debug)]
-struct Project {
-    /// The project workspace.
-    workspace: Arc<Workspace>,
-    /// Editor documents retaining this project.
-    documents: Vec<PathBuf>,
-}
-
-impl ProjectSet {
-    /// Return the most specific project containing one normalized path.
-    fn select(&self, path: &Path) -> Option<&Project> {
-        let index = self.select_index(path)?;
-
-        Some(&self.projects[index])
-    }
-
-    /// Return the most specific mutable project containing one normalized path.
-    fn select_mut(&mut self, path: &Path) -> Option<&mut Project> {
-        let index = self.select_index(path)?;
-
-        Some(&mut self.projects[index])
-    }
-
-    /// Return the most specific project index containing one normalized path.
-    fn select_index(&self, path: &Path) -> Option<usize> {
-        self.projects
-            .iter()
-            .enumerate()
-            .filter(|(_, project)| project.contains(path))
-            .max_by_key(|(_, project)| project.workspace.root().components().count())
-            .map(|(index, _)| index)
-    }
-
-    /// Return the project at one exact source root.
-    fn get(&self, root: &Path) -> Option<&Project> {
-        self.projects
-            .binary_search_by(|project| project.workspace.root().cmp(root))
-            .ok()
-            .map(|index| &self.projects[index])
-    }
-
-    /// Insert one project unless its source root is already open.
-    fn insert(&mut self, project: Project) -> &Project {
-        match self
-            .projects
-            .binary_search_by(|existing| existing.workspace.root().cmp(project.workspace.root()))
-        {
-            // merge ownership into the project already opened for this root
-            Ok(index) => {
-                for document in project.documents {
-                    self.projects[index].open_document(document);
-                }
-
-                &self.projects[index]
-            }
-
-            // preserve source-root order for stable workspace iteration
-            Err(index) => {
-                self.projects.insert(index, project);
-
-                &self.projects[index]
-            }
-        }
-    }
-
-    /// Retain the project containing one opened editor document.
-    fn open_document(&mut self, path: PathBuf) -> Option<Arc<Workspace>> {
-        let project = self.select_mut(&path)?;
-        project.open_document(path);
-
-        Some(project.workspace())
-    }
-
-    /// Release one closed editor document and remove newly unowned projects.
-    fn close_document(&mut self, path: &Path) -> Vec<PathBuf> {
-        if let Some(project) = self.select_mut(path) {
-            project.close_document(path);
-        }
-
-        self.remove_unowned()
-    }
-
-    /// Add one client-provided workspace folder.
-    fn add_folder(&mut self, folder: PathBuf) {
-        if !self.editor_folders.contains(&folder) {
-            self.editor_folders.push(folder);
-        }
-    }
-
-    /// Remove one folder and every project no longer owned by the client.
-    fn remove_folder(&mut self, folder: &Path) -> Vec<PathBuf> {
-        let Some(index) = self
-            .editor_folders
-            .iter()
-            .position(|candidate| candidate == folder)
-        else {
-            return Vec::new();
-        };
-        self.editor_folders.remove(index);
-
-        self.remove_unowned()
-    }
-
-    /// Return every opened project workspace in source-root order.
-    fn workspaces(&self) -> Vec<Arc<Workspace>> {
-        self.projects
-            .iter()
-            .map(|project| project.workspace.clone())
-            .collect()
-    }
-
-    /// Remove every project outside all editor and document ownership.
-    fn remove_unowned(&mut self) -> Vec<PathBuf> {
-        let editor_folders = &self.editor_folders;
-        let mut removed = Vec::new();
-
-        // remove projects outside every remaining editor folder and document
-        self.projects.retain(|project| {
-            let is_owned = project.is_owned(editor_folders);
-            if !is_owned {
-                removed.push(project.workspace.root().to_path_buf());
-            }
-
-            is_owned
-        });
-
-        removed
-    }
-}
-
-impl Project {
-    /// Open one project from its exact source root.
-    fn open(
-        root: PathBuf,
-        file_system: Arc<OverlayFileSystem>,
-        executor: Arc<Executor>,
-    ) -> jsonrpc::Result<Self> {
-        let repository = open_repository_from_fs(
-            root.clone(),
-            file_system.clone(),
-            Environment::capture_process(),
-            Settings::default(),
-            DestackLayoutOverride::default(),
-        )
-        .map_err(internal_error)?;
-        let workspace = Workspace::new(Arc::new(repository), Some(file_system), executor)
-            .map_err(internal_error)?;
-
-        Ok(Self {
-            workspace: Arc::new(workspace),
-            documents: Vec::new(),
-        })
-    }
-
-    /// Return whether this project contains one normalized path.
-    fn contains(&self, path: &Path) -> bool {
-        self.workspace.contains(path)
-    }
-
-    /// Return whether this project and one editor folder contain one another.
-    fn overlaps(&self, folder: &Path) -> bool {
-        let root = self.workspace.root();
-
-        root.starts_with(folder) || folder.starts_with(root)
-    }
-
-    /// Return whether an editor folder or document retains this project.
-    fn is_owned(&self, editor_folders: &[PathBuf]) -> bool {
-        !self.documents.is_empty() || editor_folders.iter().any(|folder| self.overlaps(folder))
-    }
-
-    /// Retain one opened editor document.
-    fn open_document(&mut self, path: PathBuf) {
-        if !self.documents.contains(&path) {
-            self.documents.push(path);
-        }
-    }
-
-    /// Release one closed editor document.
-    fn close_document(&mut self, path: &Path) {
-        if let Some(index) = self.documents.iter().position(|document| document == path) {
-            self.documents.remove(index);
-        }
-    }
-
-    /// Return the project workspace.
-    fn workspace(&self) -> Arc<Workspace> {
-        self.workspace.clone()
-    }
 }
 
 impl ServerSession {
@@ -245,8 +43,7 @@ impl ServerSession {
             folders.push(Self::initial_path(params)?);
         }
 
-        let physical_file_system = Arc::new(PhysicalFileSystem::new());
-        let file_system = Arc::new(OverlayFileSystem::with_inner(physical_file_system));
+        let file_system = Arc::new(PhysicalFileSystem::new());
         let executor = Executor::new(Execution::Threaded, Executor::default_worker_count())
             .map_err(internal_error)?;
         let client_capabilities = ClientCapabilities::try_from(params)?;
@@ -259,7 +56,7 @@ impl ServerSession {
         let session = Self {
             executor,
             file_system,
-            projects: RwLock::new(ProjectSet::default()),
+            projects: Arc::new(RwLock::new(ProjectSet::default())),
             client_capabilities,
             settings: ServerSettings::default(),
             diagnostics,
@@ -283,34 +80,121 @@ impl ServerSession {
         })
     }
 
-    /// Open one editor document through its nearest project.
-    pub(super) fn open_document(&self, path: &Path) -> jsonrpc::Result<Arc<Workspace>> {
+    /// Resolve the project workspace and editor revision for one source path.
+    pub(super) fn revision(&self, path: &Path) -> jsonrpc::Result<(Arc<Workspace>, Revision)> {
         let path = Self::normalize(path)?;
-        let workspace = self.projects.write().open_document(path.clone());
-        if let Some(workspace) = workspace {
-            return Ok(workspace);
+        let projects = self.projects.read();
+        let project = projects.select(&path).ok_or_else(|| {
+            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
+        })?;
+        let workspace = project.workspace();
+        let revision = project.revision()?;
+
+        Ok((workspace, revision))
+    }
+
+    /// Open one editor document through its nearest project.
+    pub(super) fn open_document(
+        &self,
+        path: &Path,
+        uri: lsp::Uri,
+        version: i32,
+        text: String,
+    ) -> jsonrpc::Result<Arc<Workspace>> {
+        let path = Self::normalize(path)?;
+        if self.projects.read().select(&path).is_none() {
+            let directory = path
+                .parent()
+                .ok_or_else(|| jsonrpc::Error::invalid_params("document path has no parent"))?;
+            let root = SourceRoot::discover(self.file_system.as_ref(), directory)
+                .map(PathBuf::from)
+                .map_err(internal_error)?;
+            let root = Self::canonicalize(&root)?;
+            let project = Project::open(root, self.file_system.clone(), self.executor.clone())?;
+            self.projects.write().insert(project);
         }
 
-        let directory = path
-            .parent()
-            .ok_or_else(|| jsonrpc::Error::invalid_params("document path has no parent"))?;
-        let root = SourceRoot::discover(self.file_system.as_ref(), directory)
-            .map(PathBuf::from)
-            .map_err(internal_error)?;
-        let root = Self::canonicalize(&root)?;
-        let mut project = Project::open(root, self.file_system.clone(), self.executor.clone())?;
-        project.open_document(path);
-        let workspace = self.projects.write().insert(project).workspace();
+        let mut projects = self.projects.write();
+        let project = projects.select_mut(&path).ok_or_else(|| {
+            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
+        })?;
+        project.open_document(path, uri, version, text)?;
+        let workspace = project.workspace();
 
         Ok(workspace)
     }
 
-    /// Close one editor document and return projects released with it.
-    pub(super) fn close_document(&self, path: &Path) -> jsonrpc::Result<Vec<PathBuf>> {
+    /// Apply changes to one open editor document.
+    pub(super) fn change_document(
+        &self,
+        path: &Path,
+        uri: &lsp::Uri,
+        version: i32,
+        changes: &[TextChange],
+    ) -> jsonrpc::Result<Arc<Workspace>> {
         let path = Self::normalize(path)?;
-        let removed = self.projects.write().close_document(&path);
+        let mut projects = self.projects.write();
+        let project = projects.select_mut(&path).ok_or_else(|| {
+            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
+        })?;
+        project.change_document(&path, uri, version, changes)?;
 
-        Ok(removed)
+        Ok(project.workspace())
+    }
+
+    /// Save one open editor document.
+    pub(super) fn save_document(
+        &self,
+        path: &Path,
+        text: Option<String>,
+    ) -> jsonrpc::Result<Arc<Workspace>> {
+        let path = Self::normalize(path)?;
+        let mut projects = self.projects.write();
+        let project = projects.select_mut(&path).ok_or_else(|| {
+            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
+        })?;
+        project.save_document(&path, text)?;
+
+        Ok(project.workspace())
+    }
+
+    /// Close one editor document and return projects released with it.
+    pub(super) fn close_document(
+        &self,
+        path: &Path,
+    ) -> jsonrpc::Result<(Arc<Workspace>, Vec<PathBuf>)> {
+        let path = Self::normalize(path)?;
+        let mut projects = self.projects.write();
+        let project = projects.select_mut(&path).ok_or_else(|| {
+            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
+        })?;
+        project.close_document(&path)?;
+        let workspace = project.workspace();
+        let removed = projects.remove_unowned();
+
+        Ok((workspace, removed))
+    }
+
+    /// Return whether one editor document is open.
+    pub(super) fn is_open(&self, path: &Path) -> jsonrpc::Result<bool> {
+        let path = Self::normalize(path)?;
+        let is_open = self
+            .projects
+            .read()
+            .select(&path)
+            .is_some_and(|project| project.is_open(&path));
+
+        Ok(is_open)
+    }
+
+    /// Return project state shared with diagnostic delivery.
+    pub(super) fn projects(&self) -> Arc<RwLock<ProjectSet>> {
+        self.projects.clone()
+    }
+
+    /// Reload physical state for every opened project.
+    pub(super) fn reload(&self) -> jsonrpc::Result<()> {
+        self.projects.write().reload()
     }
 
     /// Register one editor folder and open its declared source root.
@@ -358,6 +242,34 @@ impl ServerSession {
     /// Return every opened project workspace.
     pub(super) fn workspaces(&self) -> Vec<Arc<Workspace>> {
         self.projects.read().workspaces()
+    }
+
+    /// Return one opened workspace's current editor revision.
+    pub(super) fn workspace_revision(&self, workspace: &Workspace) -> jsonrpc::Result<Revision> {
+        let projects = self.projects.read();
+        let project = projects.get(workspace.root()).ok_or_else(|| {
+            jsonrpc::Error::invalid_params(format!(
+                "Destack project is not open: {}",
+                workspace.root().display()
+            ))
+        })?;
+
+        project.revision()
+    }
+
+    /// Clone open documents when one project remains at an exact editor revision.
+    pub(super) fn documents(
+        &self,
+        workspace: &Workspace,
+        revision: Revision,
+    ) -> jsonrpc::Result<HashMap<PathBuf, lsp::VersionedTextDocumentIdentifier>> {
+        let documents = self
+            .projects
+            .read()
+            .documents(workspace.root(), revision)?
+            .ok_or_else(jsonrpc::Error::content_modified)?;
+
+        Ok(documents)
     }
 
     /// Close projects owned only by one removed editor folder.
