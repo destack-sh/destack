@@ -7,19 +7,11 @@ use destack_artifact::{
     DirResolved, EnvironmentBound, EnvironmentDeclared,
 };
 use destack_dir as dir;
-use destack_repository::{ProfileId, ProviderContext, ProviderError};
+use destack_repository::{ArtifactAttemptRecorder, ProfileId, ProviderContext, ProviderError};
 use destack_source::ModuleId;
 
 use crate::check::{CheckState, Pass};
 use crate::{Compiler, CompilerError, CompilerResult};
-
-/// Record one provider span around a closure when tracing is active.
-fn breakdown<T>(context: &dyn ProviderContext, name: &'static str, work: impl FnOnce() -> T) -> T {
-    match context.recorder() {
-        Some(recorder) => recorder.breakdown(name, work),
-        None => work(),
-    }
-}
 
 /// The foreign modules one module's check reads through resolution targets.
 struct ReferencedModules {
@@ -114,23 +106,26 @@ impl Compiler {
 
         // declare the module without walking callable bodies
         let emit_events = options.emit_events || context.emit_events();
-        let mut check = breakdown(context, "check.load", || {
-            CheckState::new(
-                self,
-                context,
-                &artifacts,
-                profile,
-                global,
-                None,
-                environment,
-                module,
-                Pass::Declare,
-                emit_events,
-            )
-        })?;
+        let mut check =
+            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "load", || {
+                CheckState::new(
+                    self,
+                    context,
+                    &artifacts,
+                    profile,
+                    global,
+                    None,
+                    environment,
+                    module,
+                    Pass::Declare,
+                    emit_events,
+                )
+            })?;
 
         // run the pass
-        breakdown(context, "check.run", || check.run_declare())?;
+        ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "run", || {
+            check.run_declare()
+        })?;
 
         // emit solver counters for the declaration pass
         let stats = check.stats();
@@ -138,7 +133,10 @@ impl Compiler {
         context.emit_counter("solve.constraints", stats.constraints as u64);
 
         // package declared DIR tables and report the pass's diagnostics
-        let (declared, diagnostics) = check.finish_declare(module)?;
+        let (declared, diagnostics) =
+            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "finish", || {
+                check.finish_declare(module)
+            })?;
         context.emit_diagnostics(diagnostics);
 
         Ok(ArtifactPayload::DirDeclared(Arc::new(declared)))
@@ -222,26 +220,32 @@ impl Compiler {
 
         // flatten the module's declared owners
         let emit_events = options.emit_events || context.emit_events();
-        let mut check = breakdown(context, "check.load", || {
-            CheckState::new(
-                self,
-                context,
-                &artifacts,
-                profile,
-                global,
-                Some(declared_environment),
-                environment,
-                module,
-                Pass::Elaborate,
-                emit_events,
-            )
-        })?;
+        let mut check =
+            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "load", || {
+                CheckState::new(
+                    self,
+                    context,
+                    &artifacts,
+                    profile,
+                    global,
+                    Some(declared_environment),
+                    environment,
+                    module,
+                    Pass::Elaborate,
+                    emit_events,
+                )
+            })?;
 
         // run the pass
-        breakdown(context, "check.run", || check.run_elaborate())?;
+        ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "run", || {
+            check.run_elaborate()
+        })?;
 
         // package elaborated DIR tables and report the pass's diagnostics
-        let (elaborated, diagnostics) = check.finish_elaborate(module)?;
+        let (elaborated, diagnostics) =
+            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "finish", || {
+                check.finish_elaborate(module)
+            })?;
         context.emit_diagnostics(diagnostics);
 
         Ok(ArtifactPayload::DirElaborated(Arc::new(elaborated)))
@@ -334,23 +338,24 @@ impl Compiler {
 
         // check the module's declarations and bodies
         let emit_events = options.emit_events || context.emit_events();
-        let mut check = breakdown(context, "check.load", || {
-            CheckState::new(
-                self,
-                context,
-                &artifacts,
-                profile,
-                global,
-                Some(declared_environment),
-                environment,
-                module,
-                Pass::Check,
-                emit_events,
-            )
-        })?;
+        let mut check =
+            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "load", || {
+                CheckState::new(
+                    self,
+                    context,
+                    &artifacts,
+                    profile,
+                    global,
+                    Some(declared_environment),
+                    environment,
+                    module,
+                    Pass::Check,
+                    emit_events,
+                )
+            })?;
 
         // run the pass
-        breakdown(context, "check.run", || check.run_check())?;
+        ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "run", || check.run_check())?;
 
         // emit solver counters and optional trace sidecars
         let stats = check.stats();
@@ -392,9 +397,10 @@ impl Compiler {
         }
 
         // write checked DIR tables, render annotations, and report the pass's diagnostics
-        let (checked, diagnostics, annotated) = breakdown(context, "check.finish", || {
-            check.finish_check(module, options.emit_checked_types)
-        })?;
+        let (checked, diagnostics, annotated) =
+            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "finish", || {
+                check.finish_check(module, options.emit_checked_types)
+            })?;
         for source in annotated {
             let labels = [
                 ("phase", "check".to_string()),
