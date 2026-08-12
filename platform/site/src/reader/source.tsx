@@ -1,7 +1,9 @@
 import { type Accessor, createSignal, onCleanup, onMount } from "solid-js";
+import * as stylex from "@stylexjs/stylex";
 
 import { commandEvents } from "../command/command";
 import type { PageSource } from "../content/source";
+import { sourceStyles } from "./publication.stylex";
 
 /// Properties for the page source controls.
 type SourceActionsProps = {
@@ -89,19 +91,19 @@ export function SourceActions(props: SourceActionsProps) {
     const commands = props.commands;
 
     return (
-        <div class="source-controls">
-            <nav aria-label="Page formats" class="source-actions">
+        <div {...stylex.attrs(sourceStyles.controls)}>
+            <nav aria-label="Page formats" {...stylex.attrs(sourceStyles.actions)}>
                 <SourceLinks commands={commands} />
-                <span class="source-actions__tokens">{commands.tokenLabel()}</span>
+                <span {...stylex.attrs(sourceStyles.tokens)}>{commands.tokenLabel()}</span>
             </nav>
 
-            <details class="source-menu" name="reader-tools">
-                <summary>
+            <details {...stylex.attrs(sourceStyles.menu)} name="reader-tools">
+                <summary {...stylex.attrs(sourceStyles.menuSummary)}>
                     <span>source</span>
-                    <span class="source-actions__tokens">{commands.tokenLabel()}</span>
+                    <span {...stylex.attrs(sourceStyles.tokens)}>{commands.tokenLabel()}</span>
                 </summary>
-                <nav aria-label="Page formats" class="source-menu__body">
-                    <span class="source-menu__tokens">{commands.tokenLabel()}</span>
+                <nav aria-label="Page formats" {...stylex.attrs(sourceStyles.menuBody)}>
+                    <span {...stylex.attrs(sourceStyles.menuTokens)}>{commands.tokenLabel()}</span>
                     <SourceLinks commands={commands} />
                 </nav>
             </details>
@@ -121,9 +123,10 @@ function SourceLinks(props: SourceLinksProps) {
 
     return (
         <>
-            <span class="source-actions__group">
-                <span class="source-actions__label">view</span>
+            <span {...stylex.attrs(sourceStyles.group)}>
+                <span {...stylex.attrs(sourceStyles.label)}>view</span>
                 <a
+                    {...stylex.attrs(sourceStyles.action)}
                     href={commands.source.markdownRoute}
                     rel="alternate noopener"
                     target="_blank"
@@ -132,6 +135,7 @@ function SourceLinks(props: SourceLinksProps) {
                     .md
                 </a>
                 <a
+                    {...stylex.attrs(sourceStyles.action)}
                     href={commands.source.textRoute}
                     rel="alternate noopener"
                     target="_blank"
@@ -141,9 +145,10 @@ function SourceLinks(props: SourceLinksProps) {
                 </a>
             </span>
 
-            <span class="source-actions__group">
-                <span class="source-actions__label">copy</span>
+            <span {...stylex.attrs(sourceStyles.group)}>
+                <span {...stylex.attrs(sourceStyles.label)}>copy</span>
                 <button
+                    {...stylex.attrs(sourceStyles.action)}
                     aria-label="Copy Markdown"
                     onClick={() => commands.copy("md")}
                     type="button"
@@ -151,6 +156,7 @@ function SourceLinks(props: SourceLinksProps) {
                     {commands.state() === "md" ? "copied" : ".md"}
                 </button>
                 <button
+                    {...stylex.attrs(sourceStyles.action)}
                     aria-label="Copy text"
                     onClick={() => commands.copy("txt")}
                     type="button"

@@ -1,5 +1,8 @@
 import { A } from "@solidjs/router";
 import { For } from "solid-js";
+import * as stylex from "@stylexjs/stylex";
+
+import { breadcrumbStyles } from "./publication.stylex";
 
 export type Breadcrumb = {
     /// The breadcrumb destination when it is navigable.
@@ -17,7 +20,7 @@ type BreadcrumbsProps = {
 /// Render one compact navigable content path.
 export function Breadcrumbs(props: BreadcrumbsProps) {
     return (
-        <nav aria-label="Breadcrumb" class="breadcrumbs">
+        <nav aria-label="Breadcrumb" {...stylex.attrs(breadcrumbStyles.root)}>
             <For each={props.items}>
                 {(item, index) => (
                     <>
@@ -25,7 +28,7 @@ export function Breadcrumbs(props: BreadcrumbsProps) {
                         {item.href == undefined ? (
                             <span>{item.label}</span>
                         ) : (
-                            <A href={item.href}>{item.label}</A>
+                            <A {...stylex.attrs(breadcrumbStyles.link)} href={item.href}>{item.label}</A>
                         )}
                     </>
                 )}

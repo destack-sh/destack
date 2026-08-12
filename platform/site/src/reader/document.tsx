@@ -1,11 +1,12 @@
 import { A } from "@solidjs/router";
 import { For, Show } from "solid-js";
+import * as stylex from "@stylexjs/stylex";
 
 import { commandEvents } from "../command/command";
 import { type Document, type DocumentContent, documents } from "../generated/documents";
 import { Breadcrumbs, type Breadcrumb } from "./breadcrumbs";
+import { manualStyles } from "./publication.stylex";
 import { Reader } from "./reader";
-import "../style/manual.css";
 
 /// Properties for one rendered manual chapter.
 type DocumentArticleProps = {
@@ -26,7 +27,7 @@ export function DocumentArticle(props: DocumentArticleProps) {
             publication="manual"
             source={props.document}
         >
-            <header class="manual-folio">
+            <header {...stylex.attrs(manualStyles.folio)}>
                 <span>
                     {String(props.document.order).padStart(2, "0")} / technical field manual
                 </span>
@@ -46,30 +47,36 @@ type DocumentNavigationProps = {
 /// Render the ordered manual chapters and local search.
 function DocumentNavigation(props: DocumentNavigationProps) {
     return (
-        <nav aria-label="manual" class="docs-book">
-            <A class="docs-book__title" href="/docs/">
+        <nav aria-label="manual" {...stylex.attrs(manualStyles.book)}>
+            <A {...stylex.attrs(manualStyles.bookTitle)} href="/docs/">
                 field manual
             </A>
 
             <button
-                class="docs-search"
+                {...stylex.attrs(manualStyles.search)}
                 onClick={() => document.dispatchEvent(new CustomEvent(commandEvents.open))}
                 type="button"
             >
-                <span aria-hidden="true">/</span>
+                <span aria-hidden="true" {...stylex.attrs(manualStyles.searchPrompt)}>/</span>
                 <span>search everything</span>
             </button>
 
-            <ol>
+            <ol {...stylex.attrs(manualStyles.bookList)}>
                 <For each={documents}>
                     {(document) => (
-                        <li style={{ "--docs-depth": documentDepth(document) }}>
+                        <li>
                             <A
-                                activeClass="docs-book__active"
+                                {...stylex.attrs(
+                                    manualStyles.bookLink,
+                                    manualStyles.depth(documentDepth(document)),
+                                    document.route === props.current.route && manualStyles.active,
+                                )}
                                 end
                                 href={document.route}
                             >
-                                <span>{String(document.order).padStart(2, "0")}</span>
+                                <span {...stylex.attrs(manualStyles.bookNumber)}>
+                                    {String(document.order).padStart(2, "0")}
+                                </span>
                                 {document.title}
                             </A>
                         </li>
@@ -87,7 +94,7 @@ function documentDepth(document: Document) {
     const isDirectoryIndex = segments.at(-1) === "index.md";
     const depth = segments.length - (isDirectoryIndex ? 2 : 1);
 
-    return String(Math.max(0, depth));
+    return Math.max(0, depth);
 }
 
 /// Properties for the manual chapter location.
@@ -130,7 +137,7 @@ function DocumentPagination(props: DocumentPaginationProps) {
     const next = () => documents[index() + 1];
 
     return (
-        <nav aria-label="chapter navigation" class="docs-pagination">
+        <nav aria-label="chapter navigation" {...stylex.attrs(manualStyles.pagination)}>
             <Show when={previous()}>
                 {(document) => <A href={document().route}>← {document().title}</A>}
             </Show>

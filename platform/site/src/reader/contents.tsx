@@ -1,4 +1,7 @@
 import { type Accessor, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import * as stylex from "@stylexjs/stylex";
+
+import { contentsStyles } from "./publication.stylex";
 
 /// One article heading in the rendered contents.
 export type ContentsEntry = {
@@ -19,20 +22,29 @@ type ContentsProps = {
 
     /// The document headings.
     entries: readonly ContentsEntry[];
+
+    /// Whether the contents render inside a compact menu.
+    isMenu?: boolean;
 };
 
 /// Render the active article outline.
 export function Contents(props: ContentsProps) {
     return (
         <Show when={props.entries.length > 0}>
-            <nav aria-label="contents" class="contents">
-                <p>contents</p>
-                <ol>
+            <nav
+                aria-label="contents"
+                {...stylex.attrs(contentsStyles.root, props.isMenu && contentsStyles.rootMenu)}
+            >
+                <p {...stylex.attrs(contentsStyles.heading)}>contents</p>
+                <ol {...stylex.attrs(contentsStyles.list)}>
                     <For each={props.entries}>
                         {(entry) => (
-                            <li classList={{ "contents__nested": entry.depth > 2 }}>
+                            <li {...stylex.attrs(entry.depth > 2 && contentsStyles.nested)}>
                                 <a
-                                    classList={{ "contents__active": props.activeId() === entry.id }}
+                                    {...stylex.attrs(
+                                        contentsStyles.link,
+                                        props.activeId() === entry.id && contentsStyles.active,
+                                    )}
                                     href={`#${entry.id}`}
                                 >
                                     {entry.text}

@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
+import * as stylex from "@stylexjs/stylex";
 
 import {
     type Command,
@@ -13,6 +14,7 @@ import type { SearchEntry } from "../content/search";
 import { siteSearchEntries } from "../content/site";
 import type { PageFormats } from "../content/source";
 import { isExternalLink } from "../navigation/link";
+import { styles } from "./palette.stylex";
 
 /// The maximum number of visible command results.
 const resultLimit = 12;
@@ -107,7 +109,7 @@ export function CommandPalette() {
         <>
             <button
                 aria-label="Search"
-                class="site-search-toggle"
+                {...stylex.attrs(styles.toggle)}
                 onClick={() => void openPalette()}
                 title="Search"
                 type="button"
@@ -118,7 +120,7 @@ export function CommandPalette() {
             <Portal>
                 <dialog
                     aria-label="Search Destack"
-                    class="command-palette"
+                    {...stylex.attrs(styles.palette)}
                     onClick={(event) => {
                         if (event.target === dialog) {
                             dialog.close();
@@ -126,10 +128,11 @@ export function CommandPalette() {
                     }}
                     ref={dialog}
                 >
-                    <div class="command-palette__frame">
-                        <label class="command-palette__input">
-                            <span>&gt;</span>
+                    <div {...stylex.attrs(styles.frame)}>
+                        <label {...stylex.attrs(styles.inputLabel)}>
+                            <span {...stylex.attrs(styles.inputPrompt)}>&gt;</span>
                             <input
+                                {...stylex.attrs(styles.input)}
                                 aria-activedescendant={
                                     results().length === 0 ? undefined : `search-result-${selected()}`
                                 }
@@ -149,19 +152,25 @@ export function CommandPalette() {
                                 type="search"
                                 value={query()}
                             />
-                            <button aria-label="Close search" onClick={() => dialog?.close()} type="button">
+                            <button
+                                {...stylex.attrs(styles.close)}
+                                aria-label="Close search"
+                                onClick={() => dialog?.close()}
+                                type="button"
+                            >
                                 close
                             </button>
                         </label>
 
-                        <ol class="command-palette__results" id="search-results" role="listbox">
+                        <ol {...stylex.attrs(styles.resultList)} id="search-results" role="listbox">
                             <For each={results()}>
                                 {(match, index) => (
-                                    <li
-                                        classList={{ "command-palette__selected": selected() === index() }}
-                                        role="none"
-                                    >
+                                    <li {...stylex.attrs(styles.resultRow, index() === 0 && styles.resultRowFirst)} role="none">
                                         <button
+                                            {...stylex.attrs(
+                                                styles.resultButton,
+                                                selected() === index() && styles.selected,
+                                            )}
                                             aria-selected={selected() === index()}
                                             id={`search-result-${index()}`}
                                             onClick={(event) => {
@@ -172,25 +181,25 @@ export function CommandPalette() {
                                             role="option"
                                             type="button"
                                         >
-                                            <span aria-hidden="true" class="command-palette__indicator">
+                                            <span aria-hidden="true" {...stylex.attrs(styles.indicator)}>
                                                 {selected() === index() ? ">" : ""}
                                             </span>
-                                            <span class="command-palette__context">
+                                            <span {...stylex.attrs(styles.context, styles.resultContextMobile)}>
                                                 <Highlight match={match} text={match.command.context} />
                                             </span>
-                                            <span class="command-palette__result">
-                                                <strong>
+                                            <span {...stylex.attrs(styles.result)}>
+                                                <strong {...stylex.attrs(styles.resultLabel)}>
                                                     <Highlight match={match} text={match.command.label} />
                                                 </strong>
                                                 <Show when={match.excerpt !== ""}>
-                                                    <span class="command-palette__excerpt">
+                                                    <span {...stylex.attrs(styles.excerpt)}>
                                                         <Highlight match={match} text={match.excerpt} />
                                                     </span>
                                                 </Show>
                                             </span>
                                             <Show when={match.command.shortcut}>
                                                 {(shortcut) => (
-                                                    <kbd class="command-palette__shortcut">
+                                                    <kbd {...stylex.attrs(styles.shortcut)}>
                                                         alt+{shortcut()}
                                                     </kbd>
                                                 )}
@@ -202,7 +211,7 @@ export function CommandPalette() {
                         </ol>
 
                         <Show when={results().length === 0}>
-                            <p class="command-palette__empty">no matches</p>
+                            <p {...stylex.attrs(styles.empty)}>no matches</p>
                         </Show>
                     </div>
                 </dialog>
@@ -239,7 +248,7 @@ type HighlightProps = {
 function Highlight(props: HighlightProps) {
     return (
         <For each={highlightParts(props.text, props.match.terms)}>
-            {(part) => part.isMatch ? <mark>{part.text}</mark> : part.text}
+            {(part) => part.isMatch ? <mark {...stylex.attrs(styles.mark)}>{part.text}</mark> : part.text}
         </For>
     );
 }

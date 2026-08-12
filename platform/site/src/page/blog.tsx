@@ -1,9 +1,11 @@
 import { A } from "@solidjs/router";
 import { For } from "solid-js";
+import * as stylex from "@stylexjs/stylex";
 
 import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
 import { posts, type Post } from "../generated/posts";
+import { styles } from "./blog.stylex";
 
 /// Render the blog archive.
 export function BlogPage() {
@@ -20,16 +22,18 @@ export function BlogPage() {
                 title="Blog"
             />
 
-            <section class="blog-index">
-                <header class="blog-index__header">
-                    <h1 class="display">Blog</h1>
-                    <span>
+            <section {...stylex.attrs(styles.index)}>
+                <header {...stylex.attrs(styles.header)}>
+                    <h1 {...stylex.attrs(styles.heading)}>Blog</h1>
+                    <span {...stylex.attrs(styles.postCount)}>
                         {orderedPosts.length} {orderedPosts.length === 1 ? "post" : "posts"}
                     </span>
                 </header>
 
-                <ol class="blog-archive">
-                    <For each={orderedPosts}>{(post) => <PostRow post={post} />}</For>
+                <ol {...stylex.attrs(styles.archive)}>
+                    <For each={orderedPosts}>
+                        {(post, index) => <PostRow isFirst={index() === 0} post={post} />}
+                    </For>
                 </ol>
             </section>
         </Shell>
@@ -37,6 +41,9 @@ export function BlogPage() {
 }
 
 type PostRowProps = {
+    /// Whether the post begins the archive.
+    isFirst: boolean;
+
     /// The archive post.
     post: Post;
 };
@@ -44,13 +51,13 @@ type PostRowProps = {
 /// Render one archive row.
 function PostRow(props: PostRowProps) {
     return (
-        <li>
-            <A href={props.post.route}>
-                <time>{props.post.date}</time>
+        <li {...stylex.attrs(styles.postRow, props.isFirst && styles.postRowFirst)}>
+            <A {...stylex.attrs(styles.postLink)} href={props.post.route}>
+                <time {...stylex.attrs(styles.date)}>{props.post.date}</time>
 
-                <span class="blog-archive__copy">
-                    <strong>{props.post.title}</strong>
-                    <span>{props.post.subtitle}</span>
+                <span {...stylex.attrs(styles.copy)}>
+                    <strong {...stylex.attrs(styles.title)}>{props.post.title}</strong>
+                    <span {...stylex.attrs(styles.subtitle)}>{props.post.subtitle}</span>
                 </span>
             </A>
         </li>

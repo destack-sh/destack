@@ -1,15 +1,17 @@
 import { A } from "@solidjs/router";
+import type { StyleXStyles } from "@stylexjs/stylex";
+import * as stylex from "@stylexjs/stylex";
 import type { JSX } from "solid-js";
 
 type SiteLinkProps = {
     /// The visible link content.
     children: JSX.Element;
 
-    /// The optional CSS class.
-    class?: string;
-
     /// The link destination.
     href: string;
+
+    /// The optional compiled presentation.
+    style?: StyleXStyles;
 
     /// The optional global keyboard shortcut.
     shortcut?: string;
@@ -21,10 +23,10 @@ type SiteLinkProps = {
 /// Render internal navigation or a safely isolated external link.
 export function SiteLink(props: SiteLinkProps) {
     const attributes = {
-        class: props.class,
         "data-shortcut": props.shortcut,
         href: props.href,
         title: props.title,
+        ...stylex.attrs(props.style),
     };
 
     if (isExternalLink(props.href)) {

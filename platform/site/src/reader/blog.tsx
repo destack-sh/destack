@@ -1,8 +1,10 @@
 import { A } from "@solidjs/router";
 import { For, Show } from "solid-js";
+import * as stylex from "@stylexjs/stylex";
 
 import { type Post, type PostContent } from "../generated/posts";
 import { Breadcrumbs } from "./breadcrumbs";
+import { journalStyles } from "./publication.stylex";
 import { Reader } from "./reader";
 
 /// Properties for one rendered blog article.
@@ -43,10 +45,11 @@ type BlogLocationProps = {
 /// Render the post path and publication metadata.
 function BlogLocation(props: BlogLocationProps) {
     return (
-        <div class="blog-location">
+        <div {...stylex.attrs(journalStyles.location)}>
             <Breadcrumbs items={[{ href: "/blog/", label: "blog" }]} />
             <span>
-                <time>{props.post.date}</time> / {props.post.author}
+                <time {...stylex.attrs(journalStyles.locationDate)}>{props.post.date}</time>
+                {" / "}{props.post.author}
             </span>
         </div>
     );
@@ -64,20 +67,23 @@ type BlogNavigationProps = {
 /// Render the blog collection beside an article.
 function BlogNavigation(props: BlogNavigationProps) {
     return (
-        <nav aria-label="blog" class="blog-book">
-            <A class="blog-book__title" href="/blog/">
+        <nav aria-label="blog" {...stylex.attrs(journalStyles.book)}>
+            <A {...stylex.attrs(journalStyles.bookTitle)} href="/blog/">
                 blog
             </A>
 
-            <ol>
+            <ol {...stylex.attrs(journalStyles.bookList)}>
                 <For each={props.posts}>
                     {(post) => (
                         <li>
                             <A
-                                classList={{ "blog-book__active": post.slug === props.current.slug }}
+                                {...stylex.attrs(
+                                    journalStyles.bookLink,
+                                    post.slug === props.current.slug && journalStyles.active,
+                                )}
                                 href={post.route}
                             >
-                                <time>{post.date.slice(0, 4)}</time>
+                                <time {...stylex.attrs(journalStyles.date)}>{post.date.slice(0, 4)}</time>
                                 <span>{post.title}</span>
                             </A>
                         </li>
@@ -97,9 +103,9 @@ type BlogArticleHeaderProps = {
 /// Render the post title and metadata.
 function BlogArticleHeader(props: BlogArticleHeaderProps) {
     return (
-        <header class="blog-article__header">
-            <h1>{props.post.title}</h1>
-            <p>{props.post.subtitle}</p>
+        <header {...stylex.attrs(journalStyles.articleHeader)}>
+            <h1 {...stylex.attrs(journalStyles.articleTitle)}>{props.post.title}</h1>
+            <p {...stylex.attrs(journalStyles.articleSubtitle)}>{props.post.subtitle}</p>
         </header>
     );
 }
@@ -121,7 +127,7 @@ function PostNavigation(props: PostNavigationProps) {
     const older = () => props.posts[index() + 1];
 
     return (
-        <nav aria-label="post navigation" class="blog-post-navigation">
+        <nav aria-label="post navigation" {...stylex.attrs(journalStyles.pagination)}>
             <Show when={newer()}>
                 {(post) => <PostNavigationLink direction="newer" post={post()} />}
             </Show>

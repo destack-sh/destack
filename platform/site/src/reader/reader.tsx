@@ -1,4 +1,5 @@
 import type { Accessor, JSX } from "solid-js";
+import * as stylex from "@stylexjs/stylex";
 
 import type { PageSource } from "../content/source";
 import { Contents, type ContentsEntry, trackActiveHeading } from "./contents";
@@ -7,6 +8,7 @@ import {
     type PageSourceCommands,
     SourceActions,
 } from "./source";
+import { readerStyles } from "./publication.stylex";
 
 /// Properties for the shared reading frame.
 type ReaderProps = {
@@ -35,7 +37,7 @@ type ReaderToolbarProps = {
     activeHeading: Accessor<string>;
 
     /// The toolbar placement.
-    class: string;
+    placement: "bottom" | "top";
 
     /// The current article headings.
     contents: readonly ContentsEntry[];
@@ -56,24 +58,27 @@ export function Reader(props: ReaderProps) {
     const sourceCommands = createPageSourceCommands(props.source);
 
     return (
-        <div class={`reader reader--${props.publication}`}>
-            <aside class="reader__sidebar">
+        <div
+            {...stylex.attrs(readerStyles.reader, readerStyles.readerPublication)}
+            data-publication={props.publication}
+        >
+            <aside {...stylex.attrs(readerStyles.sidebar)}>
                 {props.navigation()}
                 <Contents activeId={activeHeading} entries={props.contents} />
             </aside>
 
             <article
-                class="reader__article"
+                {...stylex.attrs(readerStyles.article, readerStyles.articlePublication)}
                 data-markdown-route={props.source.markdownRoute}
                 data-page-source
                 data-text-route={props.source.textRoute}
             >
                 <ReaderToolbar
                     activeHeading={activeHeading}
-                    class="reader__toolbar--top"
                     contents={props.contents}
                     location={props.location}
                     navigation={props.navigation}
+                    placement="top"
                     sourceCommands={sourceCommands}
                 />
 
@@ -81,10 +86,10 @@ export function Reader(props: ReaderProps) {
 
                 <ReaderToolbar
                     activeHeading={activeHeading}
-                    class="reader__toolbar--bottom"
                     contents={props.contents}
                     location={props.location}
                     navigation={props.navigation}
+                    placement="bottom"
                     sourceCommands={sourceCommands}
                 />
             </article>
@@ -95,16 +100,29 @@ export function Reader(props: ReaderProps) {
 /// Render one toolbar at its responsive DOM position.
 function ReaderToolbar(props: ReaderToolbarProps) {
     return (
-        <header class={`reader__toolbar ${props.class}`}>
-            <details class="reader-menu" name="reader-tools">
-                <summary>menu</summary>
-                <div class="reader-menu__body">
+        <header
+            {...stylex.attrs(
+                readerStyles.toolbar,
+                readerStyles.toolbarPublication,
+                props.placement === "top" ? readerStyles.toolbarTop : readerStyles.toolbarBottom,
+            )}
+        >
+            <details {...stylex.attrs(readerStyles.menu)} name="reader-tools">
+                <summary {...stylex.attrs(readerStyles.menuSummary)}>menu</summary>
+                <div {...stylex.attrs(readerStyles.menuBody)}>
                     {props.navigation()}
-                    <Contents activeId={props.activeHeading} entries={props.contents} />
+                    <Contents activeId={props.activeHeading} entries={props.contents} isMenu />
                 </div>
             </details>
 
-            <div class="reader__location">{props.location()}</div>
+            <div
+                {...stylex.attrs(
+                    readerStyles.location,
+                    props.placement === "bottom" && readerStyles.locationBottom,
+                )}
+            >
+                {props.location()}
+            </div>
             <SourceActions commands={props.sourceCommands} />
         </header>
     );
