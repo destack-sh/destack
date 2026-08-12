@@ -61,12 +61,12 @@ impl Repository {
             .map_err(|error| RepositoryError::ArtifactStore {
                 message: error.to_string(),
             })?;
-        self.files.cache.retain(&reachable_blobs);
+        self.file_cache.retain(&reachable_blobs);
 
         Ok(())
     }
 
-    /// Collect all file revisions reachable from refs and revision pins.
+    /// Collect all file revisions reachable from revision pins.
     fn reachable_file_revisions(&self) -> HashSet<Revision> {
         self.retained_revisions().into_iter().collect()
     }
@@ -100,7 +100,7 @@ impl Repository {
             .collect::<Vec<_>>();
 
         // collect file Blobs from shared tree nodes once
-        for entry in self.files.entries.unique_values(roots) {
+        for entry in self.file_tree.unique_values(roots) {
             reachable.insert(entry.blob.id);
         }
 
@@ -121,7 +121,7 @@ impl Repository {
             .map(|revision| revision.write_files())
             .collect::<Vec<_>>();
         let mut files = file_guards.iter().map(|files| **files).collect::<Vec<_>>();
-        self.files.entries.compact(&mut files);
+        self.file_tree.compact(&mut files);
         for (guard, files) in file_guards.iter_mut().zip(files) {
             **guard = files;
         }
@@ -130,21 +130,11 @@ impl Repository {
 
     /// Collect all retained revisions.
     fn retained_revisions(&self) -> Vec<Revision> {
-        let mut retained_revisions = self
-            .refs
+        self.revisions
             .iter()
-            .map(|entry| *entry.value())
-            .collect::<Vec<_>>();
-
-        // revision pins
-        retained_revisions.extend(
-            self.revisions
-                .iter()
-                .filter(|entry| entry.value().is_pinned())
-                .map(|entry| *entry.key()),
-        );
-
-        retained_revisions
+            .filter(|entry| entry.value().is_pinned())
+            .map(|entry| *entry.key())
+            .collect()
     }
 }
 
@@ -243,11 +233,11 @@ mod tests {
     };
     use indexmap::IndexMap;
 
-    use crate::repository::{Edit, Ref, Repository, Revision};
+    use crate::repository::{Edit, Repository, Revision};
     use crate::{DestackLayout, DestackLayoutOverride, Environment, Host, Settings};
 
     /// Create one repository for a test root.
-    fn test_repository(root: &Path) -> Repository {
+    fn test_repository(root: &Path) -> (Repository, Revision) {
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
         let environment = Environment::capture_process();
         let layout = DestackLayout::resolve(
@@ -264,9 +254,9 @@ mod tests {
         Repository::new(root.to_path_buf(), host, Settings::default(), layout)
     }
 
-    /// Keep one anonymous revision alive while it is pinned.
+    /// Keep one revision alive only while it is pinned.
     #[test]
-    fn test_keep_anonymous_revision_alive_while_pinned() {
+    fn test_prune_revision_after_pin_drops() {
         let root = unique_test_root("repository-pin");
         fs::create_dir_all(&root).expect("repository pin test root should exist");
 
@@ -281,17 +271,10 @@ mod tests {
             None,
         );
         let host = Host::new(BuildId::test(), environment, file_system);
-        let repository = Arc::new(Repository::new(
-            root.clone(),
-            host,
-            Settings::default(),
-            layout,
-        ));
-        let reference = Ref::for_root(&root);
-        let base_revision = repository
-            .current(&reference)
-            .expect("root ref should exist");
-        let anonymous_revision = repository
+        let (repository, base_revision) =
+            Repository::new(root.clone(), host, Settings::default(), layout);
+        let repository = Arc::new(repository);
+        let edited_revision = repository
             .edit(
                 base_revision,
                 [Edit::add_file(
@@ -301,33 +284,24 @@ mod tests {
                         .expect("source Blob should store"),
                 )],
             )
-            .expect("anonymous revision should publish")
+            .expect("edited revision should publish")
             .after;
         let revision_pin = repository
-            .pin(anonymous_revision)
-            .expect("anonymous revision should pin");
-
-        // move the named ref elsewhere and prune anonymous state
-        publish_edits(
-            repository.as_ref(),
-            &reference,
-            [Edit::add_file(
-                "src/other.ts",
-                repository
-                    .put_blob(b"export const other = 2")
-                    .expect("source Blob should store"),
-            )],
-        );
+            .pin(edited_revision)
+            .expect("edited revision should pin");
 
         // pinned revision
-        assert!(repository.revision(anonymous_revision).is_ok());
+        assert!(repository.revision(edited_revision).is_ok());
 
-        // after the last pin drops, the anonymous revision becomes collectible
+        // after the last pin drops, the edited revision becomes collectible
         drop(revision_pin);
         repository
             .prune_unreachable()
             .expect("repository should prune");
-        assert!(repository.revision(anonymous_revision).is_err());
+        assert!(repository.revision(edited_revision).is_err());
+
+        // unpinned base revision
+        assert!(repository.revision(base_revision).is_err());
 
         let _ = fs::remove_dir_all(&root);
     }
@@ -338,11 +312,11 @@ mod tests {
         let root = unique_test_root("repository-blob-load");
         fs::create_dir_all(&root).expect("repository Blob load test root should exist");
 
-        let repository = test_repository(&root);
+        let (repository, _revision) = test_repository(&root);
         let bytes = b"cached bytes\n";
         let blob = repository.put_blob(bytes).expect("Blob should store");
 
-        let repository = test_repository(&root);
+        let (repository, _revision) = test_repository(&root);
         let loaded = repository
             .blob_store()
             .open(blob)
@@ -359,10 +333,7 @@ mod tests {
         let root = unique_test_root("repository-artifact-load");
         fs::create_dir_all(&root).expect("repository artifact load test root should exist");
 
-        let repository = test_repository(&root);
-        let revision = repository
-            .current(&Ref::for_root(&root))
-            .expect("root ref should exist");
+        let (repository, revision) = test_repository(&root);
         let package = PackageId::new(1);
         let target = TargetId::new(package, "browser");
         let blob = repository
@@ -395,7 +366,7 @@ mod tests {
             .flush_artifacts()
             .expect("artifact store should flush");
 
-        let repository = test_repository(&root);
+        let (repository, _revision) = test_repository(&root);
         let version = repository.artifact_identity(key, &[]);
         let loaded = repository
             .load_artifact(version)
@@ -419,10 +390,7 @@ mod tests {
         let root = unique_test_root("repository-artifact-strings-load");
         fs::create_dir_all(&root).expect("repository artifact strings load test root should exist");
 
-        let repository = test_repository(&root);
-        let revision = repository
-            .current(&Ref::for_root(&root))
-            .expect("root ref should exist");
+        let (repository, revision) = test_repository(&root);
         let package = PackageId::new(1);
         let module = ModuleId::new(package, 1);
         let profile = ProfileId::new(1);
@@ -458,7 +426,7 @@ mod tests {
             .flush_artifacts()
             .expect("artifact store should flush");
 
-        let repository = test_repository(&root);
+        let (repository, _revision) = test_repository(&root);
         let version = repository.artifact_identity(key, &[]);
         let loaded = repository
             .load_artifact(version)
@@ -505,17 +473,12 @@ mod tests {
             None,
         );
         let host = Host::new(BuildId::test(), environment, file_system);
-        let repository = Arc::new(Repository::new(
-            root.clone(),
-            host,
-            Settings::default(),
-            layout,
-        ));
-        let reference = Ref::for_root(&root);
-
-        let revision_1 = publish_edits(
+        let (repository, initial) =
+            Repository::new(root.clone(), host, Settings::default(), layout);
+        let repository = Arc::new(repository);
+        let revision_1 = apply_edits(
             repository.as_ref(),
-            &reference,
+            initial,
             [Edit::add_file(
                 "src/example.ts",
                 repository
@@ -523,9 +486,9 @@ mod tests {
                     .expect("source Blob should store"),
             )],
         );
-        let revision_2 = publish_edits(
+        let revision_2 = apply_edits(
             repository.as_ref(),
-            &reference,
+            revision_1,
             [Edit::set_file(
                 "src/example.ts",
                 repository
@@ -533,9 +496,10 @@ mod tests {
                     .expect("source Blob should store"),
             )],
         );
+        let _revision_pin = repository.pin(revision_2).expect("pin retained revision");
         let file_id = repository.file_id(&root.join("src/example.ts"));
 
-        // current ref state
+        // retained revision
         let file = repository
             .file(revision_2, file_id)
             .expect("retained file lookup should succeed")
@@ -561,11 +525,11 @@ mod tests {
         let root = unique_test_root("repository-artifact-version-prune");
         fs::create_dir_all(&root).expect("repository artifact version test root should exist");
 
-        let repository = test_repository(&root);
-        let reference = Ref::for_root(&root);
-        let first_revision = publish_edits(
+        let (repository, initial) = test_repository(&root);
+        let repository = Arc::new(repository);
+        let first_revision = apply_edits(
             &repository,
-            &reference,
+            initial,
             [Edit::add_file(
                 "src/input.ds",
                 repository
@@ -616,15 +580,14 @@ mod tests {
                 None,
             )
             .expect("first artifact version should publish");
-        let branch = Ref::new("branch:artifact-version-prune");
-        repository
-            .fork_ref(&reference, branch.clone())
-            .expect("artifact branch should fork");
+        let first_pin = repository
+            .pin(first_revision)
+            .expect("first artifact revision should pin");
 
         // publish a different version with the same payload
-        let second_revision = publish_edits(
+        let second_revision = apply_edits(
             &repository,
-            &reference,
+            first_revision,
             [Edit::set_file(
                 "src/input.ds",
                 repository
@@ -632,6 +595,9 @@ mod tests {
                     .expect("source Blob should store"),
             )],
         );
+        let _second_pin = repository
+            .pin(second_revision)
+            .expect("second artifact revision should pin");
         let second_blob = repository
             .file_blob(second_revision, file_id)
             .expect("second source Blob should resolve")
@@ -661,10 +627,10 @@ mod tests {
             .flush_artifacts()
             .expect("artifact versions should persist");
 
-        // retain both exact versions while separate refs select them
+        // retain both exact versions while separate pins select them
         repository
             .prune_unreachable()
-            .expect("repository should retain both branches");
+            .expect("repository should retain both revisions");
         assert!(
             repository
                 .artifact_table()
@@ -678,10 +644,8 @@ mod tests {
                 .is_some()
         );
 
-        // release the first branch and prune its exact version
-        repository
-            .set_ref(&branch, second_revision)
-            .expect("artifact branch should advance");
+        // release the first revision and prune its exact version
+        drop(first_pin);
         repository
             .prune_unreachable()
             .expect("repository should prune");
@@ -698,10 +662,10 @@ mod tests {
                 .is_some()
         );
 
-        // reuse released binding storage while continuing from the retained branch
-        let third_revision = publish_edits(
+        // reuse released binding storage while continuing from the retained revision
+        let third_revision = apply_edits(
             &repository,
-            &reference,
+            second_revision,
             [Edit::set_file(
                 "src/input.ds",
                 repository
@@ -747,7 +711,7 @@ mod tests {
         );
 
         // retain the same exact version on disk
-        let repository = test_repository(&root);
+        let (repository, _revision) = test_repository(&root);
         assert!(
             repository
                 .load_artifact(first_version)
@@ -764,17 +728,17 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    /// Reuse one result across branches with different exact projection owners.
+    /// Reuse one result across revisions with different exact projection owners.
     #[test]
-    fn test_reuse_artifact_version_across_branch_projection_bindings() {
-        let root = unique_test_root("repository-artifact-projection-branches");
+    fn test_reuse_artifact_version_across_revision_projection_bindings() {
+        let root = unique_test_root("repository-artifact-projection-revisions");
         fs::create_dir_all(&root).expect("repository projection test root should exist");
 
-        let repository = Arc::new(test_repository(&root));
-        let reference = Ref::for_root(&root);
-        let first_revision = publish_edits(
+        let (repository, initial) = test_repository(&root);
+        let repository = Arc::new(repository);
+        let first_revision = apply_edits(
             &repository,
-            &reference,
+            initial,
             [Edit::add_file(
                 "src/input.ds",
                 repository
@@ -782,12 +746,7 @@ mod tests {
                     .expect("source Blob should store"),
             )],
         );
-        let branch = Ref::new("branch:artifact-projection");
-        repository
-            .fork_ref(&reference, branch.clone())
-            .expect("artifact branch should fork");
-
-        // build one projected owner and dependent result on the first branch
+        // build one projected owner and dependent result on the first revision
         let package = PackageId::new(1);
         let module = ModuleId::new(package, 1);
         let profile = ProfileId::new(1);
@@ -847,10 +806,10 @@ mod tests {
             )
             .expect("dependent result should publish");
 
-        // change only the owner's exact source observation on the second branch
-        let second_revision = publish_edits(
+        // change only the owner's exact source observation on the second revision
+        let second_revision = apply_edits(
             &repository,
-            &reference,
+            first_revision,
             [Edit::set_file(
                 "src/input.ds",
                 repository
@@ -891,19 +850,19 @@ mod tests {
         assert_eq!(resolved, Some(dependent));
         let first_base = repository
             .artifact_base(first_revision, dependent_key)
-            .expect("first branch binding should resolve")
-            .expect("first branch binding should exist");
+            .expect("first revision binding should resolve")
+            .expect("first revision binding should exist");
         let second_base = repository
             .artifact_base(second_revision, dependent_key)
-            .expect("second branch binding should resolve")
-            .expect("second branch binding should exist");
+            .expect("second revision binding should resolve")
+            .expect("second revision binding should exist");
         let [ArtifactDependency::Projection(first_projection)] = first_base.dependencies.as_ref()
         else {
-            panic!("first branch should select one projection dependency");
+            panic!("first revision should select one projection dependency");
         };
         let [ArtifactDependency::Projection(second_projection)] = second_base.dependencies.as_ref()
         else {
-            panic!("second branch should select one projection dependency");
+            panic!("second revision should select one projection dependency");
         };
         assert_eq!(first_base.version, dependent);
         assert_eq!(second_base.version, dependent);
@@ -917,21 +876,14 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    /// Publish repository edits to one ref.
-    fn publish_edits<I>(repository: &Repository, reference: &Ref, edits: I) -> Revision
+    /// Apply repository edits to one exact revision.
+    fn apply_edits<I>(repository: &Repository, revision: Revision, edits: I) -> Revision
     where
         I: IntoIterator<Item = Edit>,
     {
-        let revision = repository
-            .current(reference)
-            .expect("repository ref should have a current revision");
-        let revision = repository
+        repository
             .edit(revision, edits)
             .expect("repository edits should apply")
-            .after;
-
-        repository
-            .set_ref(reference, revision)
-            .expect("repository ref should advance")
+            .after
     }
 }

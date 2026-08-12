@@ -3,9 +3,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_core::{Blob, BlobId, Treap};
-use destack_source::{File, FileId, FileMetadata, FileType, PathExt, StringId, Uri};
+use destack_core::{Blob, BlobId};
+use destack_serde::Reflect;
+use destack_source as source;
+use destack_source::{FileId, FileMetadata, FileType, PathExt, StringId, Uri};
 use rustc_hash::FxHashSet;
+use serde::{Deserialize, Serialize};
 
 use crate::DestackFile;
 use crate::repository::{Repository, RepositoryError, Revision};
@@ -13,51 +16,19 @@ use crate::repository::{Repository, RepositoryError, Revision};
 /// The logical path prefix for mounted dependency roots.
 pub(crate) const MOUNT_PREFIX: &str = "mount:";
 
-/// Repository-owned source state tables.
-#[derive(Debug)]
-pub(crate) struct Files {
-    /// Shared file entry treap.
-    pub(crate) entries: Treap<FileId, FileEntry>,
-    /// Loaded file state.
-    pub(crate) cache: FileCache,
-}
-
-impl Files {
-    /// Create empty source state tables.
-    pub(crate) fn new() -> Self {
-        Self {
-            entries: Treap::new(),
-            cache: FileCache::new(),
-        }
-    }
-}
-
-/// Loaded and parsed file state keyed by exact Blobs.
-#[derive(Debug, Default)]
-pub(crate) struct FileCache {
-    /// Loaded Files by identity and exact Blob.
-    pub(crate) files: DashMap<(FileId, BlobId), Arc<File>>,
-    /// Parsed Destack files by path and exact Blob.
-    pub(crate) destack: DashMap<(FileId, BlobId), Result<Arc<DestackFile>, String>>,
-}
-
-impl FileCache {
-    /// Create one empty file cache.
-    pub(crate) fn new() -> Self {
-        Self::default()
-    }
-
-    /// Retain entries backed by reachable Blobs.
-    pub(crate) fn retain(&self, reachable: &HashSet<BlobId>) {
-        self.files
-            .retain(|(_file, blob), _| reachable.contains(blob));
-        self.destack
-            .retain(|(_file, blob), _| reachable.contains(blob));
-    }
+/// One file bound into an immutable repository revision.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct File {
+    /// Path-derived file identity.
+    pub id: FileId,
+    /// Normalized repository-relative path.
+    pub path: String,
+    /// Exact content Blob.
+    pub blob: Blob,
 }
 
 /// The file binding for one file in one revision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) struct FileEntry {
     /// The logical path for this file in this revision.
     pub logical_path: StringId,
@@ -72,16 +43,51 @@ impl FileEntry {
     }
 }
 
+/// Loaded and parsed file state keyed by exact Blobs.
+#[derive(Debug, Default)]
+pub(crate) struct FileCache {
+    /// Loaded source files by identity and exact Blob.
+    pub(crate) files: DashMap<(FileId, BlobId), Arc<source::File>>,
+    /// Parsed Destack files by path and exact Blob.
+    pub(crate) destack: DashMap<(FileId, BlobId), Result<Arc<DestackFile>, String>>,
+}
+
+impl FileCache {
+    /// Retain entries backed by reachable Blobs.
+    pub(crate) fn retain(&self, reachable: &HashSet<BlobId>) {
+        self.files
+            .retain(|(_file, blob), _| reachable.contains(blob));
+        self.destack
+            .retain(|(_file, blob), _| reachable.contains(blob));
+    }
+}
+
 impl Repository {
-    /// Return dense editable file bindings for one revision.
-    pub(crate) fn revision_files(
+    /// List files bound into one immutable revision in path order.
+    pub fn files(&self, revision: Revision) -> Result<Vec<File>, RepositoryError> {
+        let files = self.file_entries(revision)?;
+        let mut files = files
+            .iter()
+            .map(|(id, entry)| File {
+                id: *id,
+                path: self.logical_path_text(entry.logical_path).to_string(),
+                blob: entry.blob,
+            })
+            .collect::<Vec<_>>();
+        files.sort_unstable_by(|left, right| left.path.cmp(&right.path));
+
+        Ok(files)
+    }
+
+    /// Return the dense file entries for one revision.
+    pub(crate) fn file_entries(
         &self,
         revision: Revision,
     ) -> Result<Arc<[(FileId, FileEntry)]>, RepositoryError> {
         let revision = self.revision(revision)?;
         let cache = revision.cache();
         let files = cache.files.get_or_init(|| {
-            let files = self.files.entries.entries(revision.files());
+            let files = self.file_tree.entries(revision.files());
 
             Arc::from(files.into_boxed_slice())
         });
@@ -206,7 +212,7 @@ impl Repository {
         &self,
         revision: Revision,
         file_id: FileId,
-    ) -> Result<Option<Arc<File>>, RepositoryError> {
+    ) -> Result<Option<Arc<source::File>>, RepositoryError> {
         // resolve embedded Builtin FileIds from their immutable table
         if let Some(builtin) = self.embedded_builtin.file(file_id) {
             return Ok(Some(builtin.clone()));
@@ -214,13 +220,13 @@ impl Repository {
 
         // read editable revision files
         let revision = self.revision(revision)?;
-        let Some(entry) = self.files.entries.get(revision.files(), &file_id) else {
+        let Some(entry) = self.file_tree.get(revision.files(), &file_id) else {
             return Ok(None);
         };
 
         // reuse retained Blob memory and line offsets for this exact file binding
         let cache_key = (file_id, entry.blob.id);
-        if let Some(file) = self.files.cache.files.get(&cache_key) {
+        if let Some(file) = self.file_cache.files.get(&cache_key) {
             return Ok(Some(file.clone()));
         }
 
@@ -239,18 +245,16 @@ impl Repository {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_else(|| logical_path.to_string());
         let file_type = FileType::from_path_or_unknown(&path);
-        let file = File::from_blob(file_id, name, uri, Some(path), file_type, memory).map_err(
-            |error| RepositoryError::InvalidFile {
+        let file = source::File::from_blob(file_id, name, uri, Some(path), file_type, memory)
+            .map_err(|error| RepositoryError::InvalidFile {
                 file: file_id,
                 message: error.to_string(),
-            },
-        )?;
+            })?;
 
         // publish one shared File when concurrent readers loaded the same binding
         let file = Arc::new(file);
         let file = self
-            .files
-            .cache
+            .file_cache
             .files
             .entry(cache_key)
             .or_insert(file)
@@ -284,7 +288,7 @@ impl Repository {
 
         let revision_state = self.revision(revision)?;
         let revision_cache = revision_state.cache();
-        let files = self.revision_files(revision)?;
+        let files = self.file_entries(revision)?;
         let normalized_path = path.normalize();
         let directory_paths = revision_cache
             .directory_paths
@@ -312,8 +316,7 @@ impl Repository {
         // read editable revision files
         let revision = self.revision(revision)?;
         let blob = self
-            .files
-            .entries
+            .file_tree
             .get(revision.files(), &file_id)
             .map(|entry| entry.blob);
 
@@ -334,8 +337,7 @@ impl Repository {
         // read editable revision files
         let revision = self.revision(revision)?;
         let logical_path = self
-            .files
-            .entries
+            .file_tree
             .get(revision.files(), &file_id)
             .map(|entry| self.logical_path_text(entry.logical_path).to_string());
 
@@ -347,7 +349,7 @@ impl Repository {
         &self,
         revision: Revision,
     ) -> Result<Vec<(FileId, StringId)>, RepositoryError> {
-        let files = self.revision_files(revision)?;
+        let files = self.file_entries(revision)?;
         let mut logical_paths = Vec::new();
 
         // collect editable file paths from the revision root
@@ -362,7 +364,7 @@ impl Repository {
     pub fn file_ids(&self, revision: Revision) -> Result<Vec<FileId>, RepositoryError> {
         // start with editable revision files
         let mut file_ids = self
-            .revision_files(revision)?
+            .file_entries(revision)?
             .iter()
             .copied()
             .map(|(file_id, _entry)| file_id)

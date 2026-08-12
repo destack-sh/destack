@@ -6,21 +6,22 @@ use dashmap::DashMap;
 use destack_artifact::{
     ArtifactDependency, ArtifactStore, ArtifactTable, ArtifactVersion, BuildId,
 };
-use destack_core::{Blob, BlobMemory, StringPool, TreapRoot};
-use destack_source::FileSystem;
+use destack_core::{Blob, BlobMemory, StringPool, Treap, TreapRoot};
+use destack_source as source;
+use destack_source::{FileId, FileSystem, MemoryFileSystem};
 use rustc_hash::FxBuildHasher;
 
 use crate::repository::{
-    EmbeddedBuiltinPackage, Files, Ref, RepositoryError, Revision, RevisionEntry, RevisionState,
+    EmbeddedBuiltinPackage, FileCache, FileEntry, RepositoryError, Revision, RevisionEntry,
+    RevisionState,
 };
 use crate::{
-    ArtifactBindingTable, BlobStore, DestackLayout, Host, Root, RootKind, Settings, artifact,
+    ArtifactBindingTable, BlobStore, DestackLayout, DestackLayoutOverride, Environment, Host,
+    MemoryBlobStore, Root, RootKind, Settings, SourceRoot, artifact,
 };
 
 #[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
 use crate::DiskBlobStore;
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-use crate::MemoryBlobStore;
 
 /// Content-addressed store for revision source state and derived artifacts.
 #[derive(Debug)]
@@ -28,8 +29,6 @@ pub struct Repository {
     /// The repository root directory.
     pub(crate) root: PathBuf,
 
-    /// Movable refs pointing at revision identities.
-    pub(crate) refs: DashMap<Ref, Revision, FxBuildHasher>,
     /// Immutable source states keyed by revision identity.
     pub(crate) revisions: DashMap<Revision, Arc<RevisionEntry>, FxBuildHasher>,
 
@@ -43,8 +42,10 @@ pub struct Repository {
     pub(crate) blobs: Arc<dyn BlobStore>,
     /// Embedded Builtin Package shipped with the current build.
     pub(crate) embedded_builtin: EmbeddedBuiltinPackage,
-    /// Repository-owned source state.
-    pub(crate) files: Files,
+    /// Persistent file entry tree.
+    pub(crate) file_tree: Treap<FileId, FileEntry>,
+    /// Loaded source state caches.
+    pub(crate) file_cache: FileCache,
     /// Shared typed derived artifacts.
     pub(crate) artifact_table: Arc<ArtifactTable>,
     /// Persistent artifact records.
@@ -67,45 +68,111 @@ struct Storage {
 }
 
 impl Repository {
-    /// Create one repository from explicit parts.
-    pub fn new(root: PathBuf, host: Host, settings: Settings, layout: DestackLayout) -> Self {
-        let revisions = DashMap::default();
-        let refs = DashMap::default();
-        let root_reference = Ref::for_root(&root);
+    /// Open one repository and return its imported physical revision.
+    pub fn open(
+        path: PathBuf,
+        host: Host,
+        settings: Settings,
+        layout_override: DestackLayoutOverride,
+    ) -> Result<(Self, Revision), RepositoryError> {
+        let root = PathBuf::from(SourceRoot::discover(host.files().as_ref(), &path)?);
+        let environment = host.environment();
+        let cwd = environment.cwd.as_deref().unwrap_or(&path);
+        let layout =
+            DestackLayout::resolve(&root, cwd, environment, &settings, &layout_override, None);
 
+        // create repository at the selected source root
+        let (repository, base) = Self::new(root.clone(), host, settings, layout);
+
+        // import the complete physical tree
+        let edits = repository.scan(&root, base)?;
+        let revision = repository.edit(base, edits)?.after;
+
+        Ok((repository, revision))
+    }
+
+    /// Open one repository and return its imported in-memory revision.
+    pub fn memory(
+        root: PathBuf,
+        edits: Vec<source::Edit>,
+        environment: Environment,
+        settings: Settings,
+        layout_override: DestackLayoutOverride,
+    ) -> Result<(Self, Revision), RepositoryError> {
+        let file_system = Arc::new(MemoryFileSystem::new());
+        file_system
+            .create_dir_all(&root)
+            .map_err(|error| RepositoryError::FileSystem {
+                operation: "create_dir_all",
+                path: root.clone(),
+                message: error.to_string(),
+            })?;
+
+        // materialize the supplied physical source state
+        for edit in edits {
+            let path = edit
+                .path()
+                .map(|path| root.join(path))
+                .unwrap_or_else(|| root.clone());
+            edit.apply(&root, file_system.as_ref()).map_err(|error| {
+                RepositoryError::FileSystem {
+                    operation: "apply",
+                    path,
+                    message: error.to_string(),
+                }
+            })?;
+        }
+
+        // keep source Blobs and derived artifacts in memory
+        let build_id = BuildId::current().map_err(|error| RepositoryError::ArtifactStore {
+            message: format!("failed to identify Destack build: {error}"),
+        })?;
+        let blobs: Arc<dyn BlobStore> = Arc::new(MemoryBlobStore::new());
+        let host = Host::new(build_id, environment, file_system).with_blob_store(blobs);
+        let (repository, revision) = Self::open(root, host, settings, layout_override)?;
+        let repository = repository.with_artifact_store(Arc::new(artifact::MemoryStore::new()));
+
+        Ok((repository, revision))
+    }
+
+    /// Create one empty repository and return its empty revision.
+    pub fn new(
+        root: PathBuf,
+        host: Host,
+        settings: Settings,
+        layout: DestackLayout,
+    ) -> (Self, Revision) {
+        // create one immutable empty revision
+        let revisions = DashMap::default();
+        let empty = Arc::new(RevisionState::new(
+            TreapRoot::new(),
+            Arc::new(host.environment().clone()),
+            ArtifactBindingTable::new(),
+        ));
+        let empty_revision = empty.revision();
+        revisions.insert(empty_revision, Arc::new(RevisionEntry::new(empty)));
+
+        // open durable storage selected by this repository
         let storage = Storage::open(&root, &layout, host.build_id(), host.blob_store().cloned());
 
         let repository = Self {
             root,
-            host,
             revisions,
-            refs,
-            files: Files::new(),
+            host,
+            layout,
+            settings,
+            blobs: storage.blobs,
+            embedded_builtin: EmbeddedBuiltinPackage::new(),
+            file_tree: Treap::new(),
+            file_cache: FileCache::default(),
             artifact_table: Arc::new(ArtifactTable::default()),
             artifact_store: storage.artifacts,
             pending_artifacts: DashMap::default(),
-            blobs: storage.blobs,
             mounts: DashMap::default(),
-            embedded_builtin: EmbeddedBuiltinPackage::new(),
             strings: Arc::new(StringPool::new()),
-            layout,
-            settings,
         };
 
-        // create initial repository revision
-        let initial_revision = Arc::new(RevisionState::new(
-            TreapRoot::new(),
-            Arc::new(repository.host.environment().clone()),
-            ArtifactBindingTable::new(),
-        ));
-        let initial_revision_id = initial_revision.revision();
-        repository.revisions.insert(
-            initial_revision_id,
-            Arc::new(RevisionEntry::new(initial_revision)),
-        );
-        repository.refs.insert(root_reference, initial_revision_id);
-
-        repository
+        (repository, empty_revision)
     }
 
     /// Override the persistent artifact store.
@@ -192,16 +259,6 @@ impl Repository {
     /// Resolve the repository cache directory.
     pub fn cache_directory(&self) -> PathBuf {
         self.layout.workspace_cache.clone()
-    }
-
-    /// Return the current revision for one ref.
-    pub fn current(&self, reference: &Ref) -> Result<Revision, RepositoryError> {
-        self.refs
-            .get(reference)
-            .map(|entry| *entry.value())
-            .ok_or_else(|| RepositoryError::MissingRef {
-                reference: reference.clone(),
-            })
     }
 
     /// Return one immutable revision state.

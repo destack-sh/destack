@@ -586,10 +586,7 @@ mod tests {
     use destack_source::{Edit, FileId, ModuleId};
 
     use super::{EmbeddedBuiltinPackage, RepositoryError, Uri};
-    use crate::{
-        DestackLayoutOverride, Environment, PackageKind, Ref, Repository, Revision, Settings,
-        open_repository_from_memory,
-    };
+    use crate::{DestackLayoutOverride, Environment, PackageKind, Repository, Revision, Settings};
 
     const BUILTIN_MANIFEST: &str =
         r#"{"name":"destack","exports":{"./error":{"path":"./src/error/index.ds"}}}"#;
@@ -614,7 +611,7 @@ mod tests {
                     text: text.to_string(),
                 })
                 .collect();
-            let repository = open_repository_from_memory(
+            let (repository, revision) = Repository::memory(
                 PathBuf::from("/workspace"),
                 edits,
                 Environment::default(),
@@ -622,9 +619,6 @@ mod tests {
                 DestackLayoutOverride::default(),
             )
             .expect("test repository should open");
-            let revision = repository
-                .current(&Ref::for_root(repository.path()))
-                .expect("test repository revision should exist");
 
             Self {
                 repository,

@@ -1,5 +1,4 @@
 use std::fmt::{self, Display, Formatter};
-use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -49,57 +48,12 @@ impl Display for Revision {
     }
 }
 
-/// A movable name pointing at one repository revision.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
-#[serde(transparent)]
-pub struct Ref(String);
-
-impl Ref {
-    /// Build a ref from one name.
-    pub fn new(name: impl Into<String>) -> Self {
-        Self(name.into())
-    }
-
-    /// Build the canonical ref for one repository root.
-    pub fn for_root(root: &Path) -> Self {
-        Self::new(format!("root:{}", root.display()))
-    }
-
-    /// Return the ref name.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// Consume the ref into its name.
-    pub fn into_inner(self) -> String {
-        self.0
-    }
-}
-
-impl Display for Ref {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.as_str())
-    }
-}
-
-impl From<String> for Ref {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for Ref {
-    fn from(value: &str) -> Self {
-        Self::new(value)
-    }
-}
-
 /// One retained repository revision.
 #[derive(Debug)]
 pub(crate) struct RevisionEntry {
     /// The retained revision state.
     state: Arc<RevisionState>,
-    /// The active anonymous pin count.
+    /// The active pin count.
     pin_count: AtomicUsize,
 }
 
@@ -117,12 +71,12 @@ impl RevisionEntry {
         self.state.clone()
     }
 
-    /// Increment the anonymous pin count.
+    /// Increment the pin count.
     pub(crate) fn pin(&self) {
         self.pin_count.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Decrement the anonymous pin count.
+    /// Decrement the pin count.
     pub(crate) fn unpin(&self) {
         let result = self
             .pin_count
@@ -134,7 +88,7 @@ impl RevisionEntry {
         }
     }
 
-    /// Return whether this revision has active anonymous pins.
+    /// Return whether this revision has active pins.
     pub(crate) fn is_pinned(&self) -> bool {
         self.pin_count.load(Ordering::Relaxed) > 0
     }

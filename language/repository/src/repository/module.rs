@@ -355,7 +355,7 @@ impl Repository {
         }
 
         let packages = self.package_index(revision)?;
-        let files = self.revision_files(revision)?;
+        let files = self.file_entries(revision)?;
         let modules = self.module_index_for_files(revision, files.as_ref(), packages.as_ref())?;
         let modules = revision_cache.modules.get_or_init(|| Arc::new(modules));
 

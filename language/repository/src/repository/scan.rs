@@ -2,137 +2,28 @@ use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::str;
-use std::sync::Arc;
 
-use destack_artifact::BuildId;
-use destack_source as source;
-use destack_source::{
-    File, FileId, FileMetadata, FilePatch, FileSystem, FileType, MemoryFileSystem, Patch, Span,
-    TextPatch, Uri, apply_file_patch, matches,
-};
+use destack_source::{FileId, FileMetadata, FileType, matches};
 
-use crate::{
-    BlobStore, Dependency, DestackFile, DestackLayout, DestackLayoutOverride, Edit, Environment,
-    Host, MemoryBlobStore, Ref, Repository, RepositoryError, Revision, Settings, artifact,
-};
+use crate::{Dependency, DestackFile, Edit, Repository, RepositoryError, Revision};
 
-/// Open one repository after discovering the source root from one path.
-pub fn open_repository_from_fs(
-    path: PathBuf,
-    file_system: Arc<dyn FileSystem>,
-    environment: Environment,
-    settings: Settings,
-    layout_override: DestackLayoutOverride,
-) -> Result<Repository, RepositoryError> {
-    let build_id = BuildId::current().map_err(|error| RepositoryError::ArtifactStore {
-        message: format!("failed to identify Destack build: {error}"),
-    })?;
-    let host = Host::new(build_id, environment, file_system);
-
-    open_repository(path, host, settings, layout_override)
-}
-
-/// Open one repository from one in-memory source.
-pub fn open_repository_from_memory(
-    root: PathBuf,
-    edits: Vec<source::Edit>,
-    environment: Environment,
-    settings: Settings,
-    layout_override: DestackLayoutOverride,
-) -> Result<Repository, RepositoryError> {
-    let file_system = Arc::new(MemoryFileSystem::new());
-    apply_edits(file_system.as_ref(), &root, edits)?;
-
-    // keep memory repositories fully in memory
-    let blob_store: Arc<dyn BlobStore> = Arc::new(MemoryBlobStore::new());
-    let build_id = BuildId::current().map_err(|error| RepositoryError::ArtifactStore {
-        message: format!("failed to identify Destack build: {error}"),
-    })?;
-    let host = Host::new(build_id, environment, file_system).with_blob_store(blob_store);
-    let repository = open_repository(root, host, settings, layout_override)?;
-
-    Ok(repository.with_artifact_store(Arc::new(artifact::MemoryStore::new())))
-}
-
-/// Open one repository from explicit host capabilities.
-pub fn open_repository(
-    path: PathBuf,
-    host: Host,
-    settings: Settings,
-    layout_override: DestackLayoutOverride,
-) -> Result<Repository, RepositoryError> {
-    let root = PathBuf::from(SourceRoot::discover(host.files().as_ref(), &path)?);
-    let environment = host.environment();
-    let cwd = environment.cwd.as_deref().unwrap_or(&path);
-    let layout = DestackLayout::resolve(&root, cwd, environment, &settings, &layout_override, None);
-
-    // create repository at the selected source root
-    let repository = Repository::new(root.clone(), host, settings, layout);
-    let root_ref = Ref::for_root(&root);
-    let base_revision = repository.current(&root_ref)?;
-
-    // read the complete source tree
-    let edits = repository.scan(&root, base_revision)?;
-    let revision = repository.edit(base_revision, edits)?.after;
-
-    repository.set_ref(&root_ref, revision)?;
-
-    Ok(repository)
-}
-
-/// A source root discovered from one filesystem path.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SourceRoot {
-    /// A root declared by a `destack.json` manifest.
-    Declared(PathBuf),
-    /// A root implied by a source path outside a declared package.
-    Implicit(PathBuf),
-}
-
-impl SourceRoot {
-    /// Discover the nearest source root for one filesystem path.
-    pub fn discover(file_system: &dyn FileSystem, path: &Path) -> Result<Self, RepositoryError> {
-        let metadata = file_system
-            .metadata(path)
-            .map_err(|error| RepositoryError::FileSystem {
-                operation: "metadata",
-                path: path.to_path_buf(),
-                message: error.to_string(),
-            })?;
-
-        // normalize file inputs to their containing directory
-        let directory = if metadata.is_file {
-            path.parent()
-                .map(Path::to_path_buf)
-                .unwrap_or_else(|| path.to_path_buf())
-        } else {
-            path.to_path_buf()
-        };
-        let mut current = directory.clone();
-
-        // walk up directories looking for a declared source root
-        loop {
-            if DestackFile::read(file_system, &current)?.is_some() {
-                return Ok(Self::Declared(current));
-            }
-
-            let Some(parent) = current.parent() else {
-                break;
-            };
-            current = parent.to_path_buf();
-        }
-
-        Ok(Self::Implicit(directory))
-    }
-}
-
-impl From<SourceRoot> for PathBuf {
-    /// Consume one discovered source root.
-    fn from(root: SourceRoot) -> Self {
-        match root {
-            SourceRoot::Declared(path) | SourceRoot::Implicit(path) => path,
-        }
-    }
+/// One physical repository scan.
+#[derive(Debug)]
+struct Scan<'a> {
+    /// The repository compared with physical state.
+    repository: &'a Repository,
+    /// The base repository revision.
+    base: Revision,
+    /// The physical repository root.
+    root: &'a Path,
+    /// Repository edits built by this scan.
+    edits: Vec<Edit>,
+    /// File ids seen during this scan.
+    seen_file_ids: HashSet<FileId>,
+    /// Package roots still to scan.
+    pending_packages: Vec<(PathBuf, DestackFile)>,
+    /// Package roots already queued.
+    queued_package_roots: HashSet<PathBuf>,
 }
 
 impl Repository {
@@ -160,25 +51,6 @@ impl Repository {
     pub fn scan(&self, root: &Path, base: Revision) -> Result<Vec<Edit>, RepositoryError> {
         Scan::new(self, root, base).scan()
     }
-}
-
-/// One physical repository scan.
-#[derive(Debug)]
-struct Scan<'a> {
-    /// The repository compared with physical state.
-    repository: &'a Repository,
-    /// The base repository revision.
-    base: Revision,
-    /// The physical repository root.
-    root: &'a Path,
-    /// Repository edits built by this scan.
-    edits: Vec<Edit>,
-    /// File ids seen during this scan.
-    seen_file_ids: HashSet<FileId>,
-    /// Package roots still to scan.
-    pending_packages: Vec<(PathBuf, DestackFile)>,
-    /// Package roots already queued.
-    queued_package_roots: HashSet<PathBuf>,
 }
 
 impl<'a> Scan<'a> {
@@ -244,7 +116,7 @@ impl<'a> Scan<'a> {
         Ok(None)
     }
 
-    /// Return whether one physical path belongs to its effective package source set.
+    /// Return whether one physical path belongs to its workspace repository.
     fn includes(&self, path: &Path) -> Result<bool, RepositoryError> {
         let directory = path.parent().unwrap_or(self.root);
         let Some(config) = self.package(directory)? else {
@@ -252,7 +124,8 @@ impl<'a> Scan<'a> {
         };
         let package_path = self.package_path(&config.directory, path)?;
 
-        Ok(config.includes_source(&package_path))
+        Ok(!config.excludes_source(&package_path)
+            && (Self::tracks_path(path) || config.includes_source(&package_path)))
     }
 
     /// Return whether effective package configuration excludes one physical path.
@@ -352,8 +225,8 @@ impl<'a> Scan<'a> {
         Ok(configs)
     }
 
-    /// Scan source files for one package root.
-    fn scan_package_sources(
+    /// Scan repository files for one package root.
+    fn scan_package_files(
         &mut self,
         package_root: &Path,
         config: &DestackFile,
@@ -375,11 +248,11 @@ impl<'a> Scan<'a> {
             }
         }
 
-        self.scan_include_paths(package_root, config)
+        self.scan_files(package_root, config)
     }
 
-    /// Scan included source files under one package root.
-    fn scan_include_paths(
+    /// Scan recognized and explicitly selected files under one package root.
+    fn scan_files(
         &mut self,
         package_root: &Path,
         config: &DestackFile,
@@ -405,9 +278,10 @@ impl<'a> Scan<'a> {
                     continue;
                 }
 
-                // collect matching files
+                // collect recognized and explicitly selected files
                 let package_path = self.package_path(package_root, &path)?;
-                if metadata.is_file && config.includes_source(&package_path) {
+                let is_included = Self::tracks_path(&path) || config.includes_source(&package_path);
+                if metadata.is_file && is_included {
                     self.import_file(&path)?;
                 }
             }
@@ -742,7 +616,7 @@ impl Scan<'_> {
             let (package_root, config) = self.pending_packages[index].clone();
             index += 1;
 
-            self.scan_package_sources(&package_root, &config)?;
+            self.scan_package_files(&package_root, &config)?;
             self.queue_path_dependencies(&package_root, &config)?;
         }
 
@@ -778,214 +652,4 @@ impl Scan<'_> {
 
         Ok(())
     }
-}
-
-/// Apply source edits to one filesystem root.
-fn apply_edits(
-    file_system: &dyn FileSystem,
-    root: &Path,
-    edits: Vec<source::Edit>,
-) -> Result<(), RepositoryError> {
-    file_system
-        .create_dir_all(root)
-        .map_err(|error| RepositoryError::FileSystem {
-            operation: "create_dir_all",
-            path: root.to_path_buf(),
-            message: error.to_string(),
-        })?;
-
-    // apply edits in input order
-    for edit in edits {
-        apply_edit(file_system, root, edit)?;
-    }
-
-    Ok(())
-}
-
-/// Apply one source edit to one filesystem root.
-fn apply_edit(
-    file_system: &dyn FileSystem,
-    root: &Path,
-    edit: source::Edit,
-) -> Result<(), RepositoryError> {
-    match edit {
-        source::Edit::SetText { path, text } => {
-            let path = root.join(path);
-
-            write_text(file_system, &path, &text)
-        }
-        source::Edit::SetBytes { path, bytes } => {
-            let path = root.join(path);
-
-            write_bytes(file_system, &path, &bytes)
-        }
-        source::Edit::EditText { path, patches } => {
-            let full_path = root.join(&path);
-
-            patch_text(file_system, &full_path, &path, patches)
-        }
-        source::Edit::Remove { path } => {
-            let path = root.join(path);
-
-            remove_path(file_system, &path)
-        }
-        source::Edit::Move { from, to } => {
-            let from = root.join(from);
-            let to = root.join(to);
-
-            move_path(file_system, &from, &to)
-        }
-    }
-}
-
-/// Write one text file.
-fn write_text(
-    file_system: &dyn FileSystem,
-    path: &Path,
-    text: &str,
-) -> Result<(), RepositoryError> {
-    create_parent_directory(file_system, path)?;
-
-    file_system
-        .write_string(path, text)
-        .map_err(|error| RepositoryError::FileSystem {
-            operation: "write_string",
-            path: path.to_path_buf(),
-            message: error.to_string(),
-        })?;
-
-    Ok(())
-}
-
-/// Write one binary file.
-fn write_bytes(
-    file_system: &dyn FileSystem,
-    path: &Path,
-    bytes: &[u8],
-) -> Result<(), RepositoryError> {
-    create_parent_directory(file_system, path)?;
-
-    file_system
-        .write(path, bytes)
-        .map_err(|error| RepositoryError::FileSystem {
-            operation: "write",
-            path: path.to_path_buf(),
-            message: error.to_string(),
-        })?;
-
-    Ok(())
-}
-
-/// Apply text patches to one text file.
-fn patch_text(
-    file_system: &dyn FileSystem,
-    path: &Path,
-    logical_path: &Path,
-    patches: Vec<TextPatch>,
-) -> Result<(), RepositoryError> {
-    let text = file_system
-        .read_to_string(path)
-        .map_err(|error| RepositoryError::FileSystem {
-            operation: "read_to_string",
-            path: path.to_path_buf(),
-            message: error.to_string(),
-        })?;
-
-    // reject files outside source coordinates
-    let length = text.len();
-    if length > File::MAX_BYTES {
-        return Err(RepositoryError::InvalidFile {
-            file: FileId::from_logical_path(logical_path),
-            message: format!("File contains {length} bytes beyond the source limit"),
-        });
-    }
-
-    // build the source file for patch application
-    let file_id = FileId::from_logical_path(logical_path);
-    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-        return Err(RepositoryError::InvalidEditPath {
-            path: logical_path.to_string_lossy().into_owned(),
-            message: "text edit path must name a UTF-8 file".to_string(),
-        });
-    };
-    let name = name.to_string();
-    let file = File::from_text(
-        file_id,
-        name,
-        Uri::from_file_path(path),
-        Some(path.to_path_buf()),
-        FileType::from_path_or_unknown(path),
-        text,
-    )
-    .map_err(|error| RepositoryError::InvalidFile {
-        file: file_id,
-        message: error.to_string(),
-    })?;
-
-    // lower path level text patches into source patches
-    let patches = patches
-        .into_iter()
-        .map(|patch| {
-            Patch::replace(
-                Span::new(file_id, patch.range.start, patch.range.end),
-                patch.text,
-            )
-        })
-        .collect();
-    let file_patch = FilePatch::with_patches(file_id, patches);
-    let text =
-        apply_file_patch(&file, &file_patch).map_err(|error| RepositoryError::FileSystem {
-            operation: "apply_file_patch",
-            path: path.to_path_buf(),
-            message: error.to_string(),
-        })?;
-
-    write_text(file_system, path, &text)
-}
-
-/// Remove one path.
-fn remove_path(file_system: &dyn FileSystem, path: &Path) -> Result<(), RepositoryError> {
-    file_system
-        .remove_path(path)
-        .map_err(|error| RepositoryError::FileSystem {
-            operation: "remove_path",
-            path: path.to_path_buf(),
-            message: error.to_string(),
-        })?;
-
-    Ok(())
-}
-
-/// Move one file path.
-fn move_path(file_system: &dyn FileSystem, from: &Path, to: &Path) -> Result<(), RepositoryError> {
-    let bytes = file_system
-        .read(from)
-        .map_err(|error| RepositoryError::FileSystem {
-            operation: "read",
-            path: from.to_path_buf(),
-            message: error.to_string(),
-        })?;
-
-    write_bytes(file_system, to, &bytes)?;
-    remove_path(file_system, from)
-}
-
-/// Create the parent directory for one file path.
-fn create_parent_directory(
-    file_system: &dyn FileSystem,
-    path: &Path,
-) -> Result<(), RepositoryError> {
-    let Some(parent) = path.parent() else {
-        return Ok(());
-    };
-
-    file_system
-        .create_dir_all(parent)
-        .map_err(|error| RepositoryError::FileSystem {
-            operation: "create_dir_all",
-            path: parent.to_path_buf(),
-            message: error.to_string(),
-        })?;
-
-    Ok(())
 }

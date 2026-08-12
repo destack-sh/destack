@@ -171,7 +171,7 @@ impl Repository {
         }
         // explicit workspace packages
         else {
-            let files = self.revision_files(revision)?;
+            let files = self.file_entries(revision)?;
             for (_file_id, entry) in files.iter().copied() {
                 let path = PathBuf::from(self.logical_path_text(entry.logical_path));
                 let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
@@ -235,7 +235,7 @@ impl Repository {
     fn has_package_config(&self, file_root: TreapRoot, package_root: &Path) -> bool {
         let file_id = self.file_id(&package_root.join("destack.json"));
 
-        self.files.entries.contains(file_root, &file_id)
+        self.file_tree.contains(file_root, &file_id)
     }
 
     /// Return the package index for one revision.

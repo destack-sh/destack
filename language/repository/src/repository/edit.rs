@@ -7,7 +7,7 @@ use destack_core::{Blob, TreapRoot};
 use destack_source::FileId;
 
 use crate::repository::{
-    Change, Commit, Delta, Discovery, FileEntry, Ref, Repository, RepositoryError, Revision,
+    Change, Commit, Delta, Discovery, FileEntry, Repository, RepositoryError, Revision,
     RevisionEntry, RevisionState, normalize_logical_path,
 };
 
@@ -111,7 +111,7 @@ impl Repository {
                 let before_packages = self.package_ids(before)?;
                 let before_modules = self.module_ids(before)?;
                 let after_packages = self.package_index_for_files(before, after_files)?;
-                let listing = self.files.entries.entries(after_files);
+                let listing = self.file_tree.entries(after_files);
                 let after_modules =
                     self.module_index_for_files(before, &listing, &after_packages)?;
                 let mut after_packages = after_packages.package_ids().collect::<Vec<_>>();
@@ -164,7 +164,12 @@ impl Repository {
         // project canonical changes only from files touched by this edit batch
         let mut changes = changed_files
             .into_iter()
-            .filter_map(|file| Change::between(self, before_files, after_files, file))
+            .filter_map(|file| {
+                let before = self.file_tree.get(before_files, &file);
+                let after = self.file_tree.get(after_files, &file);
+
+                Change::between(self, file, before, after)
+            })
             .collect::<Vec<_>>();
         changes.sort_unstable_by(|left, right| left.path.cmp(&right.path));
 
@@ -173,43 +178,6 @@ impl Repository {
             after,
             changes,
         })
-    }
-
-    /// Apply edits and atomically advance one repository ref.
-    pub fn commit<I>(
-        self: &Arc<Self>,
-        reference: &Ref,
-        before: Revision,
-        edits: I,
-    ) -> Result<Commit, RepositoryError>
-    where
-        I: IntoIterator<Item = Edit>,
-    {
-        let current = self.current(reference)?;
-        if current != before {
-            return Err(RepositoryError::RefChanged {
-                reference: reference.clone(),
-                expected: before,
-                current,
-            });
-        }
-
-        // retain both revisions until their ref transition completes
-        let _before = self.pin(before)?;
-        let commit = self.edit(before, edits)?;
-        let _after = self.pin(commit.after)?;
-        let was_committed = self.advance_ref(reference, before, commit.after)?;
-        if !was_committed {
-            let current = self.current(reference)?;
-
-            return Err(RepositoryError::RefChanged {
-                reference: reference.clone(),
-                expected: before,
-                current,
-            });
-        }
-
-        Ok(commit)
     }
 
     /// Apply edits to one file tree and collect their incremental consequences.
@@ -236,7 +204,7 @@ impl Repository {
 
                     let logical_path = normalize_logical_path(&logical_path);
                     let file = FileId::from_logical_str(&logical_path);
-                    if self.files.entries.contains(files, &file) {
+                    if self.file_tree.contains(files, &file) {
                         return Err(RepositoryError::FileAlreadyExists { path: logical_path });
                     }
 
@@ -249,10 +217,9 @@ impl Repository {
                     self.observe_module_path(before, file, &mut invalidated)?;
 
                     let logical_path = self.intern_logical_path(logical_path);
-                    files =
-                        self.files
-                            .entries
-                            .insert(files, file, FileEntry::new(logical_path, blob));
+                    files = self
+                        .file_tree
+                        .insert(files, file, FileEntry::new(logical_path, blob));
                 }
 
                 // replace one file binding
@@ -261,7 +228,7 @@ impl Repository {
 
                     let logical_path = normalize_logical_path(&logical_path);
                     let file = FileId::from_logical_str(&logical_path);
-                    let previous = self.files.entries.get(files, &file);
+                    let previous = self.file_tree.get(files, &file);
                     let change = if is_package_config_path(&logical_path) {
                         Discovery::Config
                     } else if previous.is_none() {
@@ -279,17 +246,16 @@ impl Repository {
                     }
 
                     let logical_path = self.intern_logical_path(logical_path);
-                    files =
-                        self.files
-                            .entries
-                            .insert(files, file, FileEntry::new(logical_path, blob));
+                    files = self
+                        .file_tree
+                        .insert(files, file, FileEntry::new(logical_path, blob));
                 }
 
                 // remove one existing file binding
                 Edit::RemoveFile { logical_path } => {
                     let logical_path = normalize_logical_path(&logical_path);
                     let file = FileId::from_logical_str(&logical_path);
-                    let previous = self.files.entries.get(files, &file).ok_or_else(|| {
+                    let previous = self.file_tree.get(files, &file).ok_or_else(|| {
                         RepositoryError::MissingFile {
                             path: logical_path.clone(),
                         }
@@ -303,7 +269,7 @@ impl Repository {
                     invalidated.push(SourceDependency::file(file, previous.blob.id));
                     self.observe_module_path(before, file, &mut invalidated)?;
 
-                    files = self.files.entries.remove(files, &file);
+                    files = self.file_tree.remove(files, &file);
                 }
 
                 // move one existing file binding
@@ -321,12 +287,11 @@ impl Repository {
                     };
                     let source = FileId::from_logical_str(&from);
                     let source_entry = self
-                        .files
-                        .entries
+                        .file_tree
                         .get(files, &source)
                         .ok_or(RepositoryError::MissingFile { path: from })?;
                     let destination = FileId::from_logical_str(&to);
-                    if self.files.entries.contains(files, &destination) {
+                    if self.file_tree.contains(files, &destination) {
                         return Err(RepositoryError::FileAlreadyExists { path: to });
                     }
 
@@ -335,13 +300,10 @@ impl Repository {
                     self.observe_module_path(before, source, &mut invalidated)?;
                     self.observe_module_path(before, destination, &mut invalidated)?;
 
-                    files = self.files.entries.remove(files, &source);
+                    files = self.file_tree.remove(files, &source);
                     let to = self.intern_logical_path(to);
                     let destination_entry = FileEntry::new(to, source_entry.blob);
-                    files = self
-                        .files
-                        .entries
-                        .insert(files, destination, destination_entry);
+                    files = self.file_tree.insert(files, destination, destination_entry);
                 }
             }
         }

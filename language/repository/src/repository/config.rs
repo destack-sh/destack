@@ -49,7 +49,7 @@ impl Repository {
 
         // cached parse result
         let cache_key = (file_id, blob.id);
-        if let Some(config) = self.files.cache.destack.get(&cache_key) {
+        if let Some(config) = self.file_cache.destack.get(&cache_key) {
             return config
                 .value()
                 .as_ref()
@@ -77,7 +77,7 @@ impl Repository {
                 });
 
         // populate cache
-        self.files.cache.destack.insert(cache_key, config);
+        self.file_cache.destack.insert(cache_key, config);
 
         destack_config
     }

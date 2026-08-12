@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use destack_artifact::{ArtifactBindingId, ArtifactKey, ArtifactVersion};
 use destack_source::{FileId, ModuleId, PackageId, ProfileId, TargetId};
 
-use crate::repository::{Ref, Revision};
+use crate::repository::Revision;
 
 /// One error raised by repository operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,17 +29,6 @@ pub enum RepositoryError {
         base: PathBuf,
     },
 
-    /// The requested ref does not exist.
-    MissingRef { reference: Ref },
-    /// One ref moved away from the revision expected by its writer.
-    RefChanged {
-        /// The ref that moved.
-        reference: Ref,
-        /// The revision expected by the writer.
-        expected: Revision,
-        /// The current ref revision.
-        current: Revision,
-    },
     /// The requested revision does not exist.
     MissingRevision { revision: Revision },
     /// The repository BlobStore failed.
@@ -174,19 +163,6 @@ impl fmt::Display for RepositoryError {
                 write!(
                     formatter,
                     "dependency mount '{name}' maps to {existing:?} and {base:?}"
-                )
-            }
-            Self::MissingRef { reference } => {
-                write!(formatter, "missing repository ref '{reference}'")
-            }
-            Self::RefChanged {
-                reference,
-                expected,
-                current,
-            } => {
-                write!(
-                    formatter,
-                    "repository ref '{reference}' changed from {expected} to {current}"
                 )
             }
             Self::MissingRevision { revision } => {
