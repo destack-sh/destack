@@ -137,10 +137,6 @@ function validateDocuments(documents) {
     const orders = new Set();
     const paths = new Set(documents.map((document) => document.path));
 
-    if (!paths.has("index.md")) {
-        throw new Error("documentation root is missing index.md");
-    }
-
     for (const document of documents) {
         if (!documentPathPattern.test(document.path)) {
             throw new Error(`invalid documentation path: ${document.path}`);
@@ -496,7 +492,7 @@ function resolveAssets(html: string, assets: Record<string, string>) {
 
 /// Generate the complete prerender route list.
 function renderRouteModule(posts, documents) {
-    const routes = ["/", "/blog/", ...posts.map((post) => post.route), ...documents.map((document) => document.route)];
+    const routes = ["/", "/blog/", "/docs/", ...posts.map((post) => post.route), ...documents.map((document) => document.route)];
 
     return `export const prerenderRoutes = ${JSON.stringify(routes, null, 4)} as const;\n`;
 }
