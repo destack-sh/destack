@@ -1,4 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
+import { createSignal, type Setter } from "solid-js";
 
 import type { HomeExample, HomeListing } from "../content/home";
 import { homeHighlights } from "../generated/home-highlights";
@@ -24,21 +25,33 @@ export function Chapter(props: ChapterProps) {
                 <header {...stylex.attrs(chapterStyles.brief)}>
                     <div {...stylex.attrs(chapterStyles.heading)}>
                         <span {...stylex.attrs(chapterStyles.headingNumber)}>{number}</span>
-                        <h2 {...stylex.attrs(chapterStyles.headingTitle)}>{props.example.action}</h2>
+                        <h2 {...stylex.attrs(chapterStyles.headingTitle)}>
+                            {props.example.action}
+                        </h2>
                     </div>
 
                     <div {...stylex.attrs(chapterStyles.copy)}>
-                        <strong {...stylex.attrs(chapterStyles.claim)}>{props.example.claim}</strong>
-                        <p {...stylex.attrs(chapterStyles.description)}>{props.example.description}</p>
+                        <strong {...stylex.attrs(chapterStyles.claim)}>
+                            {props.example.claim}
+                        </strong>
+                        <p {...stylex.attrs(chapterStyles.description)}>
+                            {props.example.description}
+                        </p>
                     </div>
 
                     <div {...stylex.attrs(chapterStyles.comparison)}>
                         <span {...stylex.attrs(chapterStyles.comparisonLabel)}>like</span>
-                        <ul aria-label="Comparable technologies" {...stylex.attrs(chapterStyles.comparisonList)}>
+                        <ul
+                            aria-label="Comparable technologies"
+                            {...stylex.attrs(chapterStyles.comparisonList)}
+                        >
                             {props.example.like.map((item, index) => (
                                 <li {...stylex.attrs(chapterStyles.comparisonItem)}>
                                     {index > 0 && (
-                                        <span aria-hidden="true" {...stylex.attrs(chapterStyles.comparisonSeparator)}>
+                                        <span
+                                            aria-hidden="true"
+                                            {...stylex.attrs(chapterStyles.comparisonSeparator)}
+                                        >
                                             ·
                                         </span>
                                     )}
@@ -57,12 +70,109 @@ export function Chapter(props: ChapterProps) {
 
 /// Render the technical listings for one product chapter.
 function Listings(props: { example: HomeExample }) {
-    const highlighted = homeHighlights[props.example.action] as readonly (readonly string[])[];
+    const highlighted = homeHighlights[props.example.action];
+    const editors = props.example.editors.map((listing, index) => ({
+        lines: highlighted.editors[index],
+        listing,
+    }));
 
     return (
         <div {...stylex.attrs(listingStyles.listings)}>
-            {props.example.listings.map((listing, index) => (
-                <Listing listing={listing} lines={highlighted[index]} />
+            <Editors action={props.example.action} listings={editors} />
+            {props.example.output !== undefined && highlighted.output !== null && (
+                <Output
+                    isAttached={editors.length > 0}
+                    listing={props.example.output}
+                    lines={highlighted.output}
+                />
+            )}
+        </div>
+    );
+}
+
+type HighlightedListing = {
+    /// The listing content.
+    listing: HomeListing;
+
+    /// Highlighted HTML for each listing line.
+    lines: readonly string[];
+};
+
+type EditorsProps = {
+    /// The chapter action used to identify the tabs.
+    action: string;
+
+    /// The chapter editor listings.
+    listings: readonly HighlightedListing[];
+};
+
+/// Render one editor or a tabbed group of editors.
+function Editors(props: EditorsProps) {
+    if (props.listings.length === 0) {
+        return null;
+    }
+    if (props.listings.length === 1) {
+        const [{ listing, lines }] = props.listings;
+
+        return <Editor listing={listing} lines={lines} />;
+    }
+
+    return <EditorTabs action={props.action} listings={props.listings} />;
+}
+
+/// Render a tabbed group of editors.
+function EditorTabs(props: EditorsProps) {
+    const [activeIndex, setActiveIndex] = createSignal(0);
+
+    return (
+        <div {...stylex.attrs(listingStyles.editors)}>
+            <div
+                aria-label={`${props.action} editors`}
+                role="tablist"
+                {...stylex.attrs(listingStyles.tabs)}
+            >
+                {props.listings.map(({ listing }, index) => {
+                    const tabId = `${props.action}-tab-${index}`;
+                    const panelId = `${props.action}-panel-${index}`;
+
+                    return (
+                        <button
+                            aria-controls={panelId}
+                            aria-selected={activeIndex() === index}
+                            id={tabId}
+                            onClick={() => setActiveIndex(index)}
+                            onKeyDown={(event) =>
+                                selectListingTab(
+                                    event,
+                                    index,
+                                    props.listings.length,
+                                    setActiveIndex,
+                                )
+                            }
+                            role="tab"
+                            tabIndex={activeIndex() === index ? 0 : -1}
+                            type="button"
+                            {...stylex.attrs(
+                                listingStyles.tab,
+                                activeIndex() === index && listingStyles.activeTab,
+                            )}
+                        >
+                            {listing.title}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {props.listings.map(({ listing, lines }, index) => (
+                <div
+                    aria-labelledby={`${props.action}-tab-${index}`}
+                    hidden={activeIndex() !== index}
+                    id={`${props.action}-panel-${index}`}
+                    role="tabpanel"
+                    tabIndex={0}
+                >
+                    <ListingBody listing={listing} lines={lines} />
+                </div>
             ))}
         </div>
     );
@@ -76,36 +186,96 @@ type ListingProps = {
     lines: readonly string[];
 };
 
-/// Render one file, command, configuration, or result listing.
-function Listing(props: ListingProps) {
-    const hasLineNumbers = props.listing.language === "destack" || props.listing.language === "json";
+type OutputProps = ListingProps & {
+    /// Whether the output follows an editor.
+    isAttached: boolean;
+};
 
+/// Render one file or configuration editor.
+function Editor(props: ListingProps) {
     return (
-        <figure
-            {...stylex.attrs(
-                listingStyles.listing,
-                props.listing.width === "full" && listingStyles.full,
-            )}
-        >
+        <figure {...stylex.attrs(listingStyles.listing)}>
             <figcaption {...stylex.attrs(listingStyles.caption)}>
                 <span aria-hidden="true" />
                 <span>{props.listing.title}</span>
             </figcaption>
 
-            <div {...stylex.attrs(listingStyles.body)} data-syntax>
-                <ol aria-label={props.listing.title} {...stylex.attrs(listingStyles.lines)}>
-                    {props.lines.map((line, index) => (
-                        <li {...stylex.attrs(listingStyles.line)}>
-                            <span aria-hidden="true" {...stylex.attrs(listingStyles.lineNumber)}>
-                                {hasLineNumbers ? index + 1 : ""}
-                            </span>
-                            <code {...stylex.attrs(listingStyles.code)} innerHTML={line || " "} />
-                        </li>
-                    ))}
-                </ol>
-            </div>
+            <ListingBody listing={props.listing} lines={props.lines} />
         </figure>
     );
+}
+
+/// Render one terminal or diagnostic output beneath the editors.
+function Output(props: OutputProps) {
+    return (
+        <figure
+            {...stylex.attrs(
+                listingStyles.output,
+                props.isAttached && listingStyles.attachedOutput,
+            )}
+        >
+            <figcaption {...stylex.attrs(listingStyles.outputTitle)}>
+                <span aria-hidden="true" />
+                <span>{props.listing.title}</span>
+            </figcaption>
+            <ListingBody listing={props.listing} lines={props.lines} />
+        </figure>
+    );
+}
+
+/// Render the highlighted body shared by editors and outputs.
+function ListingBody(props: ListingProps) {
+    const hasLineNumbers =
+        props.listing.language === "destack" || props.listing.language === "json";
+
+    return (
+        <div {...stylex.attrs(listingStyles.body)} data-syntax>
+            <ol aria-label={props.listing.title} {...stylex.attrs(listingStyles.lines)}>
+                {props.lines.map((line, index) => (
+                    <li {...stylex.attrs(listingStyles.line)}>
+                        <span aria-hidden="true" {...stylex.attrs(listingStyles.lineNumber)}>
+                            {hasLineNumbers ? index + 1 : ""}
+                        </span>
+                        <code {...stylex.attrs(listingStyles.code)} innerHTML={line || " "} />
+                    </li>
+                ))}
+            </ol>
+        </div>
+    );
+}
+
+/// Select an adjacent listing tab with standard keyboard controls.
+function selectListingTab(
+    event: KeyboardEvent & { currentTarget: HTMLButtonElement },
+    index: number,
+    count: number,
+    setActiveIndex: Setter<number>,
+): void {
+    // resolve a standard tab navigation key
+    const nextIndex =
+        event.key === "ArrowRight"
+            ? (index + 1) % count
+            : event.key === "ArrowLeft"
+              ? (index - 1 + count) % count
+              : event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? count - 1
+                  : undefined;
+
+    // ignore keys owned by the button or page
+    if (nextIndex === undefined) {
+        return;
+    }
+
+    // select the adjacent listing
+    event.preventDefault();
+    setActiveIndex(nextIndex);
+
+    // move focus with the selected tab
+    const tabs =
+        event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role='tab']");
+    tabs?.[nextIndex]?.focus();
 }
 
 /// Product chapter styles.
@@ -222,6 +392,14 @@ const chapterStyles = stylex.create({
 
 /// Technical listing styles.
 const listingStyles = stylex.create({
+    attachedOutput: {
+        borderTopColor: tokens.ink,
+        borderTopStyle: "solid",
+        borderTopWidth: tokens.stroke,
+    },
+    editors: {
+        minWidth: 0,
+    },
     listing: {
         backgroundColor: tokens.code,
         color: tokens.cream,
@@ -231,19 +409,15 @@ const listingStyles = stylex.create({
         minWidth: 0,
     },
     listings: {
-        backgroundColor: tokens.ink,
+        backgroundColor: tokens.code,
         borderBottomColor: tokens.ink,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.stroke,
         borderTopColor: tokens.ink,
         borderTopStyle: "solid",
         borderTopWidth: tokens.stroke,
-        display: "grid",
-        gap: tokens.stroke,
-        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
         minWidth: 0,
         [mobile]: {
-            gridTemplateColumns: "minmax(0, 1fr)",
             order: 2,
         },
     },
@@ -270,9 +444,6 @@ const listingStyles = stylex.create({
     code: {
         whiteSpace: "pre",
     },
-    full: {
-        gridColumn: "1 / -1",
-    },
     line: {
         display: "grid",
         gridTemplateColumns: "2.2rem minmax(0, 1fr)",
@@ -286,5 +457,67 @@ const listingStyles = stylex.create({
         listStyle: "none",
         margin: 0,
         paddingInline: "1rem",
+    },
+    output: {
+        backgroundColor: "#223a42",
+        color: tokens.cream,
+        margin: 0,
+        minWidth: 0,
+    },
+    outputTitle: {
+        alignItems: "baseline",
+        borderBottomColor: tokens.line,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        color: tokens.line,
+        display: "grid",
+        fontFamily: tokens.monoFont,
+        fontSize: "0.72rem",
+        fontWeight: 600,
+        gridTemplateColumns: "2.2rem minmax(0, 1fr)",
+        letterSpacing: "0.04em",
+        padding: "0.45rem 1rem",
+        textTransform: "uppercase",
+    },
+    tabs: {
+        alignItems: "stretch",
+        borderBottomColor: tokens.line,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        display: "flex",
+        minWidth: 0,
+        overflowX: "auto",
+    },
+    tab: {
+        ":focus-visible": {
+            outline: `2px solid ${tokens.orange}`,
+            outlineOffset: "-4px",
+        },
+        ":hover": {
+            color: tokens.cream,
+        },
+        appearance: "none",
+        backgroundColor: "transparent",
+        borderBottomColor: "transparent",
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.stroke,
+        borderLeftWidth: 0,
+        borderRightWidth: 0,
+        borderTopWidth: 0,
+        color: tokens.line,
+        cursor: "pointer",
+        fontFamily: tokens.monoFont,
+        fontSize: "0.78rem",
+        fontWeight: 600,
+        letterSpacing: "0.04em",
+        margin: 0,
+        padding: "0.65rem 1rem 0.5rem",
+        textAlign: "left",
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+    },
+    activeTab: {
+        borderBottomColor: tokens.orange,
+        color: tokens.cream,
     },
 });

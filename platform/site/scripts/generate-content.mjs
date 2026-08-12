@@ -76,9 +76,13 @@ if (isCheck) {
 /// Generate parser-backed syntax spans for every homepage technical listing.
 function renderHomeHighlightModule() {
     const entries = homeExamples.map((example) => {
-        const highlighted = example.listings.map((listing) =>
+        const editors = example.editors.map((listing) =>
             highlightCode(listing.text, listing.language).split("\n")
         );
+        const output = example.output === undefined
+            ? null
+            : highlightCode(example.output.text, example.output.language).split("\n");
+        const highlighted = { editors, output };
 
         return `    ${JSON.stringify(example.action)}: ${JSON.stringify(highlighted)},`;
     }).join("\n");
