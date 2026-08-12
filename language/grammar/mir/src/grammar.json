@@ -213,7 +213,7 @@
             },
             {
               "type": "STRING",
-              "value": "panic.resume"
+              "value": "unwind.resume"
             },
             {
               "type": "STRING",
@@ -567,5 +567,6 @@
   "precedences": [],
   "externals": [],
   "inline": [],
-  "supertypes": []
+  "supertypes": [],
+  "reserved": {}
 }

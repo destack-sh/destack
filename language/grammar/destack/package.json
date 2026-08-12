@@ -1,37 +1,35 @@
 {
   "name": "tree-sitter-destack",
   "private": true,
-  "version": "0.23.2",
+  "version": "0.55.4",
   "description": "Destack grammar for tree-sitter",
-  "repository": "https://github.com/symbol-industries/destack",
+  "repository": "https://github.com/destack-sh/destack",
   "license": "MIT",
   "keywords": [
     "destack",
     "incremental",
     "parsing",
     "tree-sitter",
-    "typescript",
-    "tsx"
+    "typescript"
   ],
   "files": [
     "queries/*",
-    "destack/grammar.js",
-    "destack/src/**",
+    "grammar.js",
+    "src/**",
     "tree-sitter.json",
-    "common/scanner.h",
     "*.wasm"
   ],
   "dependencies": {
-    "tree-sitter-javascript": "^0.23.1"
+    "tree-sitter-javascript": "0.25.0"
   },
   "devDependencies": {
-    "eslint": ">=9.14.0",
-    "eslint-config-treesitter": "^1.0.2",
-    "tree-sitter-cli": "^0.24.4"
+    "eslint": "9.39.5",
+    "eslint-config-treesitter": "1.0.2",
+    "tree-sitter-cli": "0.26.12"
   },
   "scripts": {
-    "lint": "eslint destack/grammar.js common/define-grammar.js",
-    "report:docs": "node ../scripts/check-docs.mjs",
-    "test": "tree-sitter test"
+    "generate": "tree-sitter generate --abi 15",
+    "lint": "eslint grammar.js",
+    "test": "bash ../scripts/test-grammar.sh destack"
   }
 }

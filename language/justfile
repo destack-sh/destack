@@ -193,34 +193,21 @@ test-conformance-formatter-update:
 
 # run Destack Tree-sitter corpus tests
 test-grammar-destack:
-    bash grammar/scripts/test-tree-sitter-destack.sh destack
+    bash grammar/scripts/test-grammar.sh destack
 
 # run MIR Tree-sitter corpus tests
 test-grammar-mir:
-    cd grammar/mir && bunx tree-sitter-cli@0.24.4 test --rebuild
+    bash grammar/scripts/test-grammar.sh mir
 
 # run Destack Bytecode Assembly Tree-sitter corpus tests
 test-grammar-bytecode:
-    cd grammar/bytecode && bunx tree-sitter-cli@0.24.4 test --rebuild
-
-# validate language examples in documentation
-test-grammar-docs:
-    cd grammar/destack && npm run report:docs -- --fail
+    bash grammar/scripts/test-grammar.sh bytecode
 
 # run the grammar validation stack
 test-grammar:
     just test-grammar-destack
     just test-grammar-bytecode
     just test-grammar-mir
-
-# run broader grammar audits
-test-grammar-audit:
-    just test-grammar
-    just test-grammar-docs
-
-# profile Tree-sitter grammar state deltas
-profile-grammar-delta args="--target destack --baseline tsx --top 30":
-    bun grammar/scripts/profile-grammar-delta.mjs {{args}}
 
 # run query tests
 test-query:

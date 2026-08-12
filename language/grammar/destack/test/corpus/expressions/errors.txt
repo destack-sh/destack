@@ -21,6 +21,21 @@ finally {}
       body: (statement_block))))
 
 =======================================
+Throw statements are rejected
+:language(destack)
+=======================================
+
+throw error;
+
+---
+
+(program
+  (ERROR
+    (identifier))
+  (expression_statement
+    (identifier)))
+
+=======================================
 Try propagation expression continuations
 :language(destack)
 =======================================

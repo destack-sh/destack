@@ -1,0 +1,20 @@
+struct Packet {
+// <- keyword
+//     ^ type
+    value: uint8,
+//  ^ property
+//         ^ type
+}
+
+function main(port: uint16) {
+// <- keyword
+//       ^ function
+//            ^ variable
+    const message = `port ${port}`;
+//  ^ keyword
+//        ^ variable
+//                  ^ string
+    console.log(message);
+//  ^ variable.builtin
+//          ^ function.method
+}

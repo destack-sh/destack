@@ -116,7 +116,7 @@ block9:
   (terminator_keyword)
   (block_identifier)
   (punctuation)
-  (identifier)
+  (terminator_keyword)
   (block_identifier)
   (punctuation)
   (terminator_keyword)

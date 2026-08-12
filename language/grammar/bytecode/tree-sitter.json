@@ -15,7 +15,7 @@
     }
   ],
   "metadata": {
-    "version": "0.1.0",
+    "version": "0.55.4",
     "license": "MIT",
     "description": "Destack Bytecode Assembly grammar for Tree-sitter",
     "authors": [
