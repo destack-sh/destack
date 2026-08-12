@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use destack_repository::Revision;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -16,13 +15,11 @@ pub struct OpenWorkspaceRequest {
 pub struct OpenWorkspaceResponse {
     /// Canonical workspace root.
     pub root: PathBuf,
-    /// Current semantic revision.
-    pub revision: Revision,
 }
 
-/// Request to close one daemon workspace.
+/// Request to release one daemon workspace from the calling connection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CloseWorkspaceRequest {
-    /// Workspace root to close.
+    /// Canonical workspace root returned when it was opened.
     pub root: PathBuf,
 }

@@ -9,14 +9,12 @@ use destack_runtime::service::{
 };
 use destack_runtime::world::{Run, RunOutcome};
 use destack_source::{Edit, FileId};
-use destack_workspace::{
-    ApplySourceUpdateRequest, ReadRevisionRequest, SourceUpdate, WatchEvent, WatchRequest,
-};
+use destack_workspace::{EditRequest, RevisionRequest, WatchEvent, WatchRequest};
 
 use super::harness::TestDaemon;
 use crate::{
-    BYTE_STREAM_CHUNK_BYTE_LEN, CloseWorldRequest, CreateWorldRequest, OpenWorkspaceRequest,
-    ReadBlobRequest, RestoreWorldRequest,
+    BYTE_STREAM_CHUNK_BYTE_LEN, CloseWorkspaceRequest, CloseWorldRequest, CreateWorldRequest,
+    OpenWorkspaceRequest, ReadBlobRequest, RestoreWorldRequest,
 };
 
 /// Round trip workspace operations and daemon shutdown over IPC RPC.
@@ -31,25 +29,28 @@ fn test_serve_workspace_connection() {
         .expect("root should open")
         .value;
     assert_eq!(opened.root, root);
+    let before = connection
+        .workspace()
+        .revision(RevisionRequest { root: root.clone() })
+        .expect("revision should read")
+        .value;
 
     let path = root.join("main.ds");
     let commit = connection
         .workspace()
-        .apply_source_update(ApplySourceUpdateRequest {
+        .edit(EditRequest {
             root: root.clone(),
-            update: SourceUpdate {
-                base: Some(opened.revision),
-                edits: vec![Edit::SetText {
-                    path,
-                    text: "export const answer = 42;\n".to_string(),
-                }],
-            },
+            revision: before,
+            edits: vec![Edit::SetText {
+                path,
+                text: "export const answer = 42;\n".to_string(),
+            }],
         })
-        .expect("source update should apply")
+        .expect("source edits should apply")
         .value;
     let revision = connection
         .workspace()
-        .read_revision(ReadRevisionRequest { root })
+        .revision(RevisionRequest { root })
         .expect("revision should read")
         .value;
 
@@ -296,7 +297,7 @@ fn test_serve_world_connection() {
     daemon.shutdown(connection);
 }
 
-/// Keep one workspace root alive when another client disconnects.
+/// Keep one workspace root alive when another client releases it.
 #[test]
 fn test_share_workspace_root_across_connections() {
     let daemon = TestDaemon::start("daemon_shared_workspace_root");
@@ -316,15 +317,25 @@ fn test_share_workspace_root_across_connections() {
 
     assert_eq!(first_opened, second_opened);
 
-    first.close().expect("first connection should close");
-    let revision = second
+    first
+        .daemon()
+        .close_workspace(CloseWorkspaceRequest { root: root.clone() })
+        .expect("first root should close");
+    let first_error = first
         .workspace()
-        .read_revision(ReadRevisionRequest { root })
-        .expect("shared root should remain open")
-        .value;
+        .revision(RevisionRequest { root: root.clone() })
+        .expect_err("released root should not resolve");
+    second
+        .workspace()
+        .revision(RevisionRequest { root })
+        .expect("shared root should remain open");
 
-    assert_eq!(revision, second_opened.revision);
+    let CallError::Status(first_status) = first_error else {
+        panic!("released root should return RPC status, got {first_error}");
+    };
+    assert_eq!(first_status.code, Code::NotFound);
 
+    first.close().expect("first connection should close");
     daemon.shutdown(second);
 }
 
@@ -335,6 +346,14 @@ fn test_share_physical_workspace_commit_across_connections() {
     let first = daemon.connect();
     let second = daemon.connect();
     let root = daemon.root().to_path_buf();
+    first
+        .daemon()
+        .open_workspace(OpenWorkspaceRequest { root: root.clone() })
+        .expect("root should open");
+    second
+        .daemon()
+        .open_workspace(OpenWorkspaceRequest { root: root.clone() })
+        .expect("second root should open");
     let mut first_watch = first
         .workspace()
         .watch(WatchRequest { root: root.clone() })
@@ -382,7 +401,7 @@ fn test_share_physical_workspace_commit_across_connections() {
     );
     let revision = second
         .workspace()
-        .read_revision(ReadRevisionRequest { root })
+        .revision(RevisionRequest { root })
         .expect("shared revision should read")
         .value;
     assert_eq!(commit.after, revision);

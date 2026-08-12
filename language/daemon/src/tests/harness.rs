@@ -5,12 +5,10 @@ use std::time::{Duration, Instant};
 
 use destack_artifact::BuildId;
 use destack_repository::{
-    DestackLayoutOverride, Environment, Execution, Host, Settings, open_repository,
+    DestackLayoutOverride, Environment, Execution, Host, Repository, Settings,
 };
 use destack_session::Executor;
-use destack_source::{
-    FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem,
-};
+use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
 use destack_workspace::Workspace;
 
 use crate::{
@@ -89,14 +87,14 @@ impl TestDaemon {
             ..DestackLayoutOverride::default()
         };
         let physical: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
-        let file_system = Arc::new(OverlayFileSystem::with_inner(physical));
-        let host = Host::new(BuildId::test(), environment, file_system.clone());
-        let repository = open_repository(root.root().to_path_buf(), host, settings, layout)
-            .expect("test repository should open");
+        let host = Host::new(BuildId::test(), environment, physical);
+        let (repository, physical) =
+            Repository::open(root.root().to_path_buf(), host, settings, layout)
+                .expect("test repository should open");
         let repository = Arc::new(repository);
         let executor = Executor::new(Execution::Threaded, 1).expect("create executor");
 
-        Workspace::new(repository, Some(file_system), executor).expect("test workspace should open")
+        Workspace::new(repository, physical, executor).expect("test workspace should open")
     }
 
     /// Request shutdown and join the daemon.

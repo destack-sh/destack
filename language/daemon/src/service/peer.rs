@@ -1,5 +1,11 @@
-use destack_rpc::{Request, Response, Status};
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use destack_rpc::{Code, Request, Response, Status};
 use destack_runtime::service::WorldId;
+use destack_workspace::Workspace;
+use parking_lot::RwLock;
 
 use crate::{
     CloseWorkspaceRequest, CloseWorldRequest, ConnectionId, CreateWorldRequest, Daemon,
@@ -13,12 +19,48 @@ pub(crate) struct DaemonPeer {
     daemon: Daemon,
     /// Calling connection.
     connection: ConnectionId,
+    /// Workspace roots opened by this connection.
+    workspace_roots: Arc<RwLock<HashSet<PathBuf>>>,
 }
 
 impl DaemonPeer {
     /// Bind daemon operations to one connection.
-    pub(crate) const fn new(daemon: Daemon, connection: ConnectionId) -> Self {
-        Self { daemon, connection }
+    pub(crate) fn new(daemon: Daemon, connection: ConnectionId) -> Self {
+        Self {
+            daemon,
+            connection,
+            workspace_roots: Arc::new(RwLock::new(HashSet::new())),
+        }
+    }
+
+    /// Open one shared workspace for this connection.
+    pub(crate) fn open_workspace(&self, root: &Path) -> Result<Arc<Workspace>, Status> {
+        let workspace = self.daemon.workspaces().open(root)?;
+        self.workspace_roots
+            .write()
+            .insert(workspace.root().to_path_buf());
+
+        Ok(workspace)
+    }
+
+    /// Return one workspace by its canonical root opened on this connection.
+    pub(crate) fn workspace(&self, root: &Path) -> Result<Arc<Workspace>, Status> {
+        if !self.workspace_roots.read().contains(root) {
+            return Err(Status::new(
+                Code::NotFound,
+                format!(
+                    "workspace is not open on this connection: {}",
+                    root.display()
+                ),
+            ));
+        }
+
+        self.daemon.workspaces().workspace(root)
+    }
+
+    /// Release one canonical workspace root from this connection.
+    pub(crate) fn close_workspace(&self, root: &Path) {
+        self.workspace_roots.write().remove(root);
     }
 }
 
@@ -28,19 +70,18 @@ impl DaemonService for DaemonPeer {
         &self,
         request: Request<OpenWorkspaceRequest>,
     ) -> Result<Response<OpenWorkspaceResponse>, Status> {
-        let workspace = self.daemon.workspaces().open(&request.value.root)?;
+        let workspace = self.open_workspace(&request.value.root)?;
         let root = workspace.root().to_path_buf();
-        let revision = workspace.revision()?;
 
-        Ok(Response::new(OpenWorkspaceResponse { root, revision }))
+        Ok(Response::new(OpenWorkspaceResponse { root }))
     }
 
-    /// Close one workspace in this daemon.
+    /// Release one workspace from this connection.
     async fn close_workspace(
         &self,
         request: Request<CloseWorkspaceRequest>,
     ) -> Result<Response<()>, Status> {
-        self.daemon.workspaces().close(&request.value.root)?;
+        self.close_workspace(&request.value.root);
 
         Ok(Response::new(()))
     }

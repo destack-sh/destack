@@ -16,7 +16,7 @@ pub trait DaemonService {
     #[rpc(name = "OpenWorkspace", idempotency = "idempotent")]
     fn open_workspace(request: OpenWorkspaceRequest) -> OpenWorkspaceResponse;
 
-    /// Close one workspace in this daemon.
+    /// Release one workspace from the calling connection.
     #[rpc(name = "CloseWorkspace", idempotency = "idempotent")]
     fn close_workspace(request: CloseWorkspaceRequest) -> ();
 

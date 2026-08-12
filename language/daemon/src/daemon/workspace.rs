@@ -1,20 +1,22 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::ArtifactPayload;
 use destack_core::Blob;
+use destack_repository as repository;
 use destack_repository::{
-    BlobStore, Commit, DestackLayoutOverride, Host, Revision, Settings, open_repository,
+    BlobStore, Commit, DestackLayoutOverride, Host, Repository, Revision, Settings,
 };
 use destack_rpc::{Code, Request, Response, ResponseSender, Status};
 use destack_session::Executor;
-use destack_source::OverlayFileSystem;
 use destack_workspace as workspace;
 use parking_lot::RwLock;
 use workspace::{ProgressEvent, WatchEvent, Workspace, WorkspaceService};
 
 use super::{DaemonError, WorkspaceWatch};
+use crate::DaemonPeer;
 
 /// Root-bound workspaces hosted by one daemon process.
 #[derive(Clone)]
@@ -27,23 +29,20 @@ pub(crate) struct WorkspaceRegistry {
     settings: Settings,
     /// Machine layout shared while workspace-local paths remain root-relative.
     layout: DestackLayoutOverride,
-    /// Editor overlay shared by workspace repositories.
-    overlay_file_system: Option<Arc<OverlayFileSystem>>,
     /// Live workspaces keyed by canonical root.
-    registration_by_root: Arc<RwLock<HashMap<PathBuf, Registration>>>,
+    registrations: Arc<RwLock<HashMap<PathBuf, WorkspaceRegistration>>>,
 }
 
-impl std::fmt::Debug for WorkspaceRegistry {
+impl fmt::Debug for WorkspaceRegistry {
     /// Format the visible daemon workspace state.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("WorkspaceRegistry")
             .field("executor", &self.executor)
             .field("host", &self.host)
             .field("settings", &self.settings)
             .field("layout", &self.layout)
-            .field("overlay_file_system", &self.overlay_file_system.is_some())
-            .field("registration_by_root", &self.registration_by_root)
+            .field("registrations", &self.registrations)
             .finish()
     }
 }
@@ -63,18 +62,16 @@ impl WorkspaceRegistry {
             packages: Some(repository.layout().packages.clone()),
             workspace_cache: None,
         };
-        let overlay_file_system = workspace.overlay_file_system();
         let root = workspace.root().to_path_buf();
-        let registration = Registration::new(Arc::new(workspace))?;
-        let registration_by_root = HashMap::from([(root, registration)]);
+        let registration = WorkspaceRegistration::new(Arc::new(workspace))?;
+        let registrations = HashMap::from([(root, registration)]);
 
         Ok(Self {
             executor,
             host,
             settings,
             layout,
-            overlay_file_system,
-            registration_by_root: Arc::new(RwLock::new(registration_by_root)),
+            registrations: Arc::new(RwLock::new(registrations)),
         })
     }
 
@@ -86,11 +83,11 @@ impl WorkspaceRegistry {
         }
 
         // serialize construction so one root always has one workspace and watch
-        let mut registrations = self.registration_by_root.write();
+        let mut registrations = self.registrations.write();
         if let Some(registration) = registrations.get(&root) {
             return Ok(registration.workspace.clone());
         }
-        let repository = open_repository(
+        let (repository, physical) = Repository::open(
             root.clone(),
             self.host.clone(),
             self.settings.clone(),
@@ -98,34 +95,18 @@ impl WorkspaceRegistry {
         )
         .map_err(workspace::Error::from)?;
         let repository = Arc::new(repository);
-        let workspace = Workspace::new(
-            repository,
-            self.overlay_file_system.clone(),
-            self.executor.clone(),
-        )?;
+        let workspace = Workspace::new(repository, physical, self.executor.clone())?;
         let workspace = Arc::new(workspace);
-        let registration = Registration::new(workspace.clone())?;
+        let registration = WorkspaceRegistration::new(workspace.clone())?;
         registrations.insert(root, registration);
 
         Ok(workspace)
     }
 
-    /// Close one physical workspace.
-    pub(crate) fn close(&self, root: &Path) -> Result<(), DaemonError> {
-        let registration = self.registration_by_root.write().remove(root);
-        let Some(registration) = registration else {
-            return Ok(());
-        };
-
-        registration.close()?;
-
-        Ok(())
-    }
-
     /// Close every registered workspace and physical watch.
     pub(crate) fn close_all(&self) -> Result<(), DaemonError> {
         let registrations = self
-            .registration_by_root
+            .registrations
             .write()
             .drain()
             .map(|(_, registration)| registration)
@@ -153,7 +134,7 @@ impl WorkspaceRegistry {
 
     /// Return one registered workspace without resolving its root.
     fn get(&self, root: &Path) -> Option<Arc<Workspace>> {
-        self.registration_by_root
+        self.registrations
             .read()
             .get(root)
             .map(|registration| registration.workspace.clone())
@@ -171,16 +152,16 @@ impl WorkspaceRegistry {
 }
 
 /// One registered workspace and its physical observation.
-struct Registration {
+struct WorkspaceRegistration {
     /// Root-bound semantic workspace.
     workspace: Arc<Workspace>,
     /// Physical changes feeding the workspace.
     watch: WorkspaceWatch,
 }
 
-impl std::fmt::Debug for Registration {
+impl fmt::Debug for WorkspaceRegistration {
     /// Format the visible workspace registration.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Registration")
             .field("workspace", &self.workspace)
@@ -189,7 +170,7 @@ impl std::fmt::Debug for Registration {
     }
 }
 
-impl Registration {
+impl WorkspaceRegistration {
     /// Register one workspace under physical observation.
     fn new(workspace: Arc<Workspace>) -> Result<Self, DaemonError> {
         let watch = WorkspaceWatch::start(workspace.clone())?;
@@ -206,7 +187,17 @@ impl Registration {
     }
 }
 
-impl WorkspaceService for WorkspaceRegistry {
+impl WorkspaceService for DaemonPeer {
+    /// Read one workspace's physical revision.
+    async fn revision(
+        &self,
+        request: Request<workspace::RevisionRequest>,
+    ) -> Result<Response<Revision>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::revision(&workspace, request).await
+    }
+
     /// Reload one workspace from its host.
     async fn reload(
         &self,
@@ -217,44 +208,104 @@ impl WorkspaceService for WorkspaceRegistry {
         WorkspaceService::reload(&workspace, request).await
     }
 
-    /// Read one workspace revision.
-    async fn read_revision(
+    /// List branches in one workspace.
+    async fn list_branches(
         &self,
-        request: Request<workspace::ReadRevisionRequest>,
+        request: Request<workspace::ListBranchesRequest>,
+    ) -> Result<Response<Vec<workspace::Branch>>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::list_branches(&workspace, request).await
+    }
+
+    /// Create one workspace branch.
+    async fn create_branch(
+        &self,
+        request: Request<workspace::CreateBranchRequest>,
+    ) -> Result<Response<workspace::Branch>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::create_branch(&workspace, request).await
+    }
+
+    /// Read one workspace branch revision.
+    async fn branch_revision(
+        &self,
+        request: Request<workspace::BranchRevisionRequest>,
     ) -> Result<Response<Revision>, Status> {
         let workspace = self.workspace(&request.value.root)?;
 
-        WorkspaceService::read_revision(&workspace, request).await
+        WorkspaceService::branch_revision(&workspace, request).await
     }
 
-    /// Apply one editor file operation.
-    async fn apply_file_operation(
+    /// Remove one workspace branch.
+    async fn remove_branch(
         &self,
-        request: Request<workspace::ApplyFileOperationRequest>,
-    ) -> Result<Response<Option<Commit>>, Status> {
+        request: Request<workspace::RemoveBranchRequest>,
+    ) -> Result<Response<()>, Status> {
         let workspace = self.workspace(&request.value.root)?;
 
-        WorkspaceService::apply_file_operation(&workspace, request).await
+        WorkspaceService::remove_branch(&workspace, request).await
     }
 
-    /// Apply one atomic source update.
-    async fn apply_source_update(
+    /// Commit source edits to physical workspace state.
+    async fn edit(
         &self,
-        request: Request<workspace::ApplySourceUpdateRequest>,
+        request: Request<workspace::EditRequest>,
     ) -> Result<Response<Commit>, Status> {
         let workspace = self.workspace(&request.value.root)?;
 
-        WorkspaceService::apply_source_update(&workspace, request).await
+        WorkspaceService::edit(&workspace, request).await
     }
 
-    /// Return whether one source file is open.
-    async fn is_file_open(
+    /// Commit source edits to one exact branch revision.
+    async fn edit_branch(
         &self,
-        request: Request<workspace::IsFileOpenRequest>,
-    ) -> Result<Response<bool>, Status> {
+        request: Request<workspace::EditBranchRequest>,
+    ) -> Result<Response<Commit>, Status> {
         let workspace = self.workspace(&request.value.root)?;
 
-        WorkspaceService::is_file_open(&workspace, request).await
+        WorkspaceService::edit_branch(&workspace, request).await
+    }
+
+    /// Save selected branch files to physical state.
+    async fn save_branch(
+        &self,
+        request: Request<workspace::SaveBranchRequest>,
+    ) -> Result<Response<Commit>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::save_branch(&workspace, request).await
+    }
+
+    /// Restore selected branch files from physical state.
+    async fn restore_branch(
+        &self,
+        request: Request<workspace::RestoreBranchRequest>,
+    ) -> Result<Response<Commit>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::restore_branch(&workspace, request).await
+    }
+
+    /// Compare two exact workspace revisions.
+    async fn diff(
+        &self,
+        request: Request<workspace::DiffRequest>,
+    ) -> Result<Response<Vec<repository::Change>>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::diff(&workspace, request).await
+    }
+
+    /// List files at one exact workspace revision.
+    async fn list_files(
+        &self,
+        request: Request<workspace::ListFilesRequest>,
+    ) -> Result<Response<Vec<repository::File>>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::list_files(&workspace, request).await
     }
 
     /// Format one source file or selected range.
@@ -511,5 +562,16 @@ impl WorkspaceService for WorkspaceRegistry {
         let workspace = self.workspace(&request.value.root)?;
 
         WorkspaceService::watch(&workspace, request, responses).await
+    }
+
+    /// Watch one workspace branch until cancellation.
+    async fn watch_branch(
+        &self,
+        request: Request<workspace::WatchBranchRequest>,
+        responses: ResponseSender<WatchEvent>,
+    ) -> Result<Response<()>, Status> {
+        let workspace = self.workspace(&request.value.root)?;
+
+        WorkspaceService::watch_branch(&workspace, request, responses).await
     }
 }

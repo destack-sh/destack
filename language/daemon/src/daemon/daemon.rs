@@ -273,23 +273,24 @@ impl Daemon {
 
     /// Build connection-scoped RPC services.
     fn rpc_server(&self, connection: ConnectionId) -> Result<Server, DaemonError> {
-        // bind typed services to shared daemon state
-        let daemon = DaemonServer::new(DaemonPeer::new(self.clone(), connection))?;
+        // bind daemon control and workspace access to one connection
+        let peer = DaemonPeer::new(self.clone(), connection);
+        let daemon = DaemonServer::new(peer.clone())?;
+        let workspace = WorkspaceServer::new(peer)?;
 
+        // bind process services to their shared owners
         let blob = BlobServer::new(self.blobs.clone())?;
-        let workspace = WorkspaceServer::new(self.workspaces.clone())?;
         let world = WorldServer::new(self.worlds.clone())?;
         let host = HostServer::new(self.worlds.clone())?;
         let debugger = DebuggerServer::new(self.worlds.clone())?;
 
-        // register each independently versioned service
+        // register connection services
         let mut services = Registry::new();
         services.insert(daemon)?;
-
-        services.insert(blob)?;
-
         services.insert(workspace)?;
 
+        // register shared process services
+        services.insert(blob)?;
         services.insert(world)?;
         services.insert(host)?;
         services.insert(debugger)?;
