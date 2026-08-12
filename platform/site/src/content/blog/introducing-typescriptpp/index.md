@@ -179,6 +179,11 @@ requirements, wishlist:
 - strictly ESM imports and exports
 - no CommonJS
 
+## TSX, too, of course
+
+- but how?
+- trees, generalised tree litearls, lowercase tree builders, ..?
+
 ## constrained dynamic (?)
 
 - shape mutation
