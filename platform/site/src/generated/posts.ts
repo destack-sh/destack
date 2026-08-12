@@ -25,16 +25,16 @@ export type TableOfContentsEntry = {
 export const posts = [
     {
         author: "Florian",
-        date: "2026-06-18",
-        markdownRoute: "/blog/introducing-typescript++.md",
-        route: "/blog/introducing-typescript++/",
-        slug: "introducing-typescript++",
-        subtitle: "the absurdly integrated stack for humans building correct, optimal, integrated software systems on TypeScript++",
-        tableOfContents: [{"depth":2,"id":"higher-order-programming","text":"higher-order programming"},{"depth":2,"id":"the-system-is-the-specification","text":"the system is the specification"},{"depth":2,"id":"correctness-alignment-visibility","text":"correctness = alignment + visibility"},{"depth":2,"id":"one-language-one-toolchain-one-stack","text":"one language, one toolchain, one stack"},{"depth":2,"id":"human-first-design","text":"human-first design"},{"depth":2,"id":"typescript","text":"typescript++"},{"depth":2,"id":"optimality-requires-expressivity","text":"optimality requires expressivity"},{"depth":2,"id":"homoiconicity-hackability","text":"homoiconicity -> hackability"},{"depth":2,"id":"bootstrapping-an-ecosystem","text":"bootstrapping an ecosystem"}],
+        date: "2026-08-18",
+        markdownRoute: "/blog/introducing-typescriptpp.md",
+        route: "/blog/introducing-typescriptpp/",
+        slug: "introducing-typescriptpp",
+        subtitle: "evolving TypeScript into the last programming language",
+        tableOfContents: [{"depth":1,"id":"introduction","text":"introduction"},{"depth":1,"id":"why","text":"why"},{"depth":2,"id":"why-even-bother-with-programming-languages","text":"why even bother with programming languages"},{"depth":2,"id":"why-do-we-need-a-universal-language","text":"why do we need a universal language"},{"depth":2,"id":"why-combine-typescript-and-rust","text":"why combine typescript and rust"},{"depth":2,"id":"why-stay-within-the-lines","text":"why stay within the lines"},{"depth":2,"id":"why-now","text":"why now"},{"depth":1,"id":"how","text":"how"},{"depth":2,"id":"no-backward-compatibility","text":"no backward compatibility"},{"depth":2,"id":"obviously-no-soundness-hole","text":"obviously, no <soundness hole>"},{"depth":2,"id":"strictest-ts","text":"strictest TS"},{"depth":2,"id":"esm-modules","text":"ESM modules"},{"depth":2,"id":"constrained-dynamic","text":"constrained dynamic (?)"},{"depth":2,"id":"proper-primitives","text":"proper primitives"},{"depth":2,"id":"no-exceptions-results-only","text":"no exceptions, results only"},{"depth":2,"id":"patterns","text":"patterns"},{"depth":2,"id":"decorators","text":"decorators"},{"depth":2,"id":"nominality","text":"nominality"},{"depth":2,"id":"extensions","text":"extensions"},{"depth":2,"id":"operator-overloading","text":"operator overloading"},{"depth":2,"id":"objects-as-types","text":"objects as types"},{"depth":2,"id":"classes-yes-but-which-ones","text":"classes, yes, but which ones"},{"depth":2,"id":"dynamic-and-structural-interfaces","text":"Dynamic and structural interfaces"},{"depth":2,"id":"generics-and-variance","text":"generics and variance"},{"depth":2,"id":"structs-and-value-types","text":"structs and value types"},{"depth":2,"id":"ownership","text":"ownership"},{"depth":2,"id":"borrowing","text":"borrowing"},{"depth":2,"id":"lifetimes","text":"lifetimes"},{"depth":2,"id":"access-mutability-exclusive","text":"access, mutability, exclusive"},{"depth":2,"id":"local-and-shared-memory-spaces","text":"local and shared memory spaces"},{"depth":2,"id":"async-promise-tasks","text":"async, promise, tasks"},{"depth":2,"id":"panics-traps","text":"panics, traps"}],
         tags: ["language","runtime","platform"],
-        textRoute: "/blog/introducing-typescript++.txt",
-        title: "introducing destack",
-        tokens: 3355,
+        textRoute: "/blog/introducing-typescriptpp.txt",
+        title: "introducing typescript++",
+        tokens: 3026,
     }
 ] as const satisfies readonly Post[];
 
@@ -43,7 +43,7 @@ export const postBySlug: ReadonlyMap<string, Post> = new Map(
 );
 
 const postLoaders: Record<string, () => Promise<{ default: PostContent }>> = {
-    "introducing-typescript++": () => import("./post/introducing-typescript++"),
+    "introducing-typescriptpp": () => import("./post/introducing-typescriptpp"),
 };
 
 /// Load one rendered post body by slug.

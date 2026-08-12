@@ -13,15 +13,16 @@ author: "Florian"
 - we would like typescript to run "native" very much, since that would mean we can finally have predictable systems-ish performance out of the same language we already like and that runs the web, which happens to be the biggest software platform in the world
 
 - we live in an age of miracles, and you can now actually ask your computer to build a typescript compiler *for you*! 
-- and it will go off and after a few hours it will (hopefully) come back with something that maybe kinda sorta works! we didn't learn anything in the process, and it's not entirely clear what to do with 1M lines of unaudited C code (the LLM chose C because that's easier to bootstrap or something), but the tests are green! and after some 
+- and it will go off and after a few hours it will (hopefully) come back with something that maybe kinda sorta works! 
+- we didn't learn anything in the process, of course, and it's not entirely clear what to _do_ with 1M lines of unaudited C code - the LLM chose C because that's easier to bootstrap, apparently - but the tests it wrote are green! 
+- and after some twiddling it can even compile its own hello world program
 
+- it's genuinely cool that we can even try to do something like this, even if today the output is not really usable in any meaningful way.
+- the more interesting question however is: now that we can translate software with ease, now that most code is no longer written directly by humans, and now that .. which language and stack should we end up with?
+
+- there is a popular current of "agent first design", but I don't really know what that means, beyond just building software in the way we should have done anyway.
 - human-first design
 - curious trend of "agent native" programming tools
-- upon closer inspection, it is never quite clear what exactly makes some piece of software or infrastructure more "agent native" than something engineered for, say, mere humans
-- doesn't really mean anything
-- "agent native" mostly seems to mean "churning out as much code as possible while delegating review to even more agents", which is the exact opposite of what I want
-- (relatedly, "how to manage dozens of agents" is not a problem I experience nor does Destack do anything _specific_ to "solve" that "problem")
-
 - common theme seems to be in _removing_ me from the details, and "just have humans give high level direction"
 - I've tried that, it doesn't work, I don't want to do that
 - I want to be _more_ in the details than ever, I want the code to be right and look right, I want to understand every byte, every cycle, every pixel.
@@ -107,6 +108,8 @@ requirements, wishlist:
 - I'm not proposing a radical change in how we program, necessarily, or even any wild new programming concepts that don't already exist. the language is quite conservative, and os on
 - it's just putting it all togetherin a coherent and sensible way
 
+- the ergonomic ladder of TS++ between TS -> Rust
+
 ## why stay within the lines
 
 - why not extend what already exists
@@ -157,6 +160,7 @@ requirements, wishlist:
 - any
 - sneaky casts
 - JS shenanigans
+- monkey patching
 - array holes
 - no predicate functions (e.g. `isUser(user: any): user is User` is unsound)
 
@@ -212,12 +216,16 @@ requirements, wishlist:
 - proper nominality and newtypes
 - newtype traits
 
+## extensions
+
+- inherent, anonymous, named extensions
+
 ## operator overloading
 
 - serious math-y applications want operator overloading
 - `Add`, `Subtract`, `Multiply`, `Divide`, etc.
 
-## object types, but how
+## objects as types
 
 - what doees `type Point = { x: number; y: number }` mean?
 - can I pass `{ x: 0, y: 1, z: 2 }` to a function expecting a `Point`?
@@ -233,19 +241,23 @@ requirements, wishlist:
 - can I read through index signatures? can I call through them?
 - call signatures
 
-## value types
+## generics and variance
+
+- stay the same basically
+- in, out, in out, measured variance
+- new `comptime` parameter for value generics
+
+## structs and value types
 
 - every serious programming language eventually cares about memory layout
 - need fixed no overhead shapes
 
-## generics and variance
-
-- stay the same basically
-- new `comptime` parameter for value generics
-
 ## ownership
 
+- bare T just means whatever the default form is
+- reference types are reference types, value types are value types
 - ^T, T, &T, *T, ...
+- Managed<T>, Owned<T>, ...
 
 ## borrowing
 
