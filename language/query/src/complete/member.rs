@@ -9,7 +9,6 @@ impl CompletionCollector<'_, '_, '_> {
         &self,
         site: dir::MemberSite,
     ) -> QueryResult<Vec<CompletionCandidate>> {
-        // FUGU #Incomplete: MemberDeclaration must identify selected read and write declarations
         let members = self.module.members()?;
         let subject = members
             .subject(site)
@@ -36,8 +35,8 @@ impl CompletionCollector<'_, '_, '_> {
                 CompletionCandidate::new(label, member.kind.into(), CompletionOrigin::Member)
                     .with_member(site, member.key)
                     .with_type_id(type_id);
-            let completion = match member.declarations.as_slice() {
-                [declaration] => {
+            let completion = match member.read_declaration() {
+                Some(declaration) => {
                     let completion = self.collect_declaration(completion, declaration.symbol)?;
                     if completion.kind.is_callable() {
                         completion.with_call()
@@ -45,7 +44,7 @@ impl CompletionCollector<'_, '_, '_> {
                         completion
                     }
                 }
-                _ => completion,
+                None => completion,
             };
             results.push(completion);
         }
@@ -67,10 +66,7 @@ impl CompletionCollector<'_, '_, '_> {
             .ok_or(QueryError::missing(format!(
                 "completion member binding: {site:?}, {key:?}"
             )))?;
-        let declaration = match member.declarations.as_slice() {
-            [declaration] => Some(declaration),
-            _ => None,
-        };
+        let declaration = member.read_declaration();
 
         // render the selected access type
         let type_id = member

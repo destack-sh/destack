@@ -58,7 +58,7 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
                 }
                 // emit protocol calls stored by operator resolutions
                 dir::Decision::Operator(resolution) => {
-                    for application in resolution.iter() {
+                    for application in resolution.arms() {
                         if let Some(call) = application.call() {
                             self.push_call(source, caller, span, call);
                         }
@@ -117,7 +117,7 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
         span: Span,
         resolution: &dir::CallDecision,
     ) {
-        for call in resolution.iter() {
+        for call in resolution.arms() {
             self.push_call(source, caller, span, call);
         }
     }
@@ -130,7 +130,7 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
         span: Span,
         resolution: &dir::MemberDecision,
     ) {
-        for access in resolution.iter() {
+        for access in resolution.arms() {
             self.push_member_target(source, caller, span, &access.target);
         }
     }
@@ -176,7 +176,7 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
         span: Span,
         resolution: &dir::SubscriptDecision,
     ) {
-        for subscript in resolution.iter() {
+        for subscript in resolution.arms() {
             match &subscript.target {
                 dir::SubscriptTarget::Member(member) => {
                     self.push_member_access(source, caller, span, member);
@@ -197,7 +197,7 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
         span: Span,
         resolution: &dir::DereferenceResolution,
     ) {
-        for dereference in resolution.iter() {
+        for dereference in resolution.arms() {
             if let dir::DereferenceTarget::Call(call) = &dereference.target {
                 self.push_call(source, caller, span, call);
             }

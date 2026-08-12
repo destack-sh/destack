@@ -43,6 +43,7 @@ impl Formatter<'_, '_, '_> {
     pub(super) fn local_type(&self, type_value: &dir::Type) -> QueryResult<String> {
         let text = match type_value {
             dir::Type::Error => "<error>".to_string(),
+            dir::Type::Hole(_) => "_".to_string(),
             dir::Type::Never => "never".to_string(),
             dir::Type::Any => "any".to_string(),
             dir::Type::Unknown => "unknown".to_string(),

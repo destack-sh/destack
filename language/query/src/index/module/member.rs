@@ -23,16 +23,23 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         // collect symbol-backed definition members
         indexer.collect_members();
 
-        // FUGU #Incomplete: retain class override selections in checked DIR
-        // retain exact checked implementation edges
-        let implementations = module
-            .definitions()
-            .member_conformances()
-            .map(|conformance| dir::MemberImplementation {
-                declaration: conformance.requirement,
-                implementation: conformance.member,
-            })
-            .collect();
+        // retain exact checked interface conformance and class override edges
+        let definitions = module.definitions();
+        let conformances =
+            definitions
+                .member_conformances()
+                .map(|conformance| dir::MemberImplementation {
+                    declaration: conformance.requirement,
+                    implementation: conformance.member,
+                });
+        let overrides =
+            definitions
+                .member_overrides()
+                .map(|(member, base)| dir::MemberImplementation {
+                    declaration: base,
+                    implementation: member,
+                });
+        let implementations = conformances.chain(overrides).collect();
 
         dir::MemberIndex::new(indexer.entries, implementations)
     }

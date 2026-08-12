@@ -20,7 +20,7 @@ const result = add(1, 2);
 @signature_help.parameter signature=0 index=1 label="right: int32" active=true
 ```
 
-### [ignored] Select an argument after a trailing comma
+### Select an argument after a trailing comma
 
 A cursor gap after a comma selects the next parameter.
 
@@ -37,6 +37,25 @@ const result = add(1, );
 @signature_help.signature index=0 label="add(left: int32, right: int32): int32" active=true
 @signature_help.parameter signature=0 index=0 label="left: int32"
 @signature_help.parameter signature=0 index=1 label="right: int32" active=true
+```
+
+### Select the first parameter of an unsupplied call
+
+A call with no written arguments selects its first parameter.
+
+```ds main.ds
+function add(left: int32, right: int32): int32 {
+    return left + right;
+}
+
+const result = add();
+                   ^ cursor
+```
+
+```query signature_help main.ds#cursor
+@signature_help.signature index=0 label="add(left: int32, right: int32): int32" active=true
+@signature_help.parameter signature=0 index=0 label="left: int32" active=true
+@signature_help.parameter signature=0 index=1 label="right: int32"
 ```
 
 ### Return a zero-parameter signature

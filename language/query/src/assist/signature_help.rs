@@ -59,7 +59,6 @@ impl ModuleQueryContext<'_> {
         request: SignatureHelpRequest,
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<SignatureHelpResponse> {
-        // FUGU #Incomplete: DirChecked must retain call bindings through cursor gaps
         let position = request.position;
         let file_id = position.file_id;
         let offset = position.offset;
@@ -81,7 +80,7 @@ impl ModuleQueryContext<'_> {
                 dir::Expression::Call {
                     left, arguments, ..
                 } => {
-                    let call = self.decisions()?.call_decision(global_id);
+                    let call = self.decisions()?.selected_calls(global_id);
                     let construct = self.decisions()?.construct_decision(global_id);
                     if call.is_some() && construct.is_some() {
                         return Err(QueryError::conflict(format!(
@@ -98,15 +97,15 @@ impl ModuleQueryContext<'_> {
                             Some(resolution.arguments.as_slice()),
                         )
                     } else {
-                        let Some(resolution) = call else {
+                        let Some(calls) = call else {
                             return Ok(SignatureHelpResponse { help: None });
                         };
-                        let signatures = self.call_signature_items(program, *left, resolution)?;
+                        let signatures = self.call_signature_items(program, *left, calls)?;
 
                         (
                             signatures,
                             arguments.as_slice(),
-                            resolution.shared_arguments(),
+                            self.decisions()?.agreed_call_arguments(global_id),
                         )
                     }
                 }
@@ -147,10 +146,10 @@ impl ModuleQueryContext<'_> {
         &self,
         program: &ProgramQueryContext<'_>,
         callee_id: dir::LocalNodeId<dir::Expression>,
-        resolution: &dir::CallDecision,
+        calls: &[dir::Call],
     ) -> QueryResult<Vec<SignatureItem>> {
         let mut signatures = Vec::new();
-        for call in resolution.iter() {
+        for call in calls {
             let signature = match &call.target {
                 dir::CallTarget::Symbol { function, .. } => self.call_signature_item(
                     program,
@@ -544,9 +543,13 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<usize>> {
         let view = self.view()?;
 
-        // use the checker binding for an existing source argument
+        // count the arguments before the cursor, and take the binding of the one under it
+        let mut written = 0;
         for argument_id in arguments.iter().copied() {
             let span = self.node_span(view, argument_id.into_any())?;
+            if span.end < offset {
+                written += 1;
+            }
             if offset < span.start || offset > span.end {
                 continue;
             }
@@ -560,6 +563,33 @@ impl ModuleQueryContext<'_> {
             };
 
             return Ok(Some(parameter));
+        }
+
+        // select the parameter slot the cursor stands in when no argument is written there
+        self.gap_signature_parameter(bindings, written)
+    }
+
+    /// Return the parameter slot standing after a counted run of written arguments.
+    fn gap_signature_parameter(
+        &self,
+        bindings: &[dir::ArgumentBinding],
+        written: usize,
+    ) -> QueryResult<Option<usize>> {
+        let mut slot = 0;
+        for (parameter, binding) in bindings.iter().enumerate() {
+            match &binding.source {
+                // a rest parameter absorbs every argument from its own slot on
+                dir::ArgumentSource::Rest(_) => return Ok(Some(parameter)),
+                // positional slots advance one written argument at a time
+                dir::ArgumentSource::Provided(_) | dir::ArgumentSource::Omitted => {
+                    if slot == written {
+                        return Ok(Some(parameter));
+                    }
+                    slot += 1;
+                }
+                // checker-inserted arguments occupy no authored slot
+                dir::ArgumentSource::Static(_) | dir::ArgumentSource::Write => {}
+            }
         }
 
         Ok(None)

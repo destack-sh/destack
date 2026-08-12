@@ -59,6 +59,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 // record symbol-backed call selections
                 dir::Decision::Call(resolution) => {
                     let targets = resolution
+                        .arms()
                         .iter()
                         .filter_map(|call| call.target.symbol())
                         .collect::<Vec<_>>();
@@ -150,7 +151,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 }
                 // collect protocol operator targets
                 dir::Decision::Operator(resolution) => {
-                    for application in resolution.iter() {
+                    for application in resolution.arms() {
                         if let Some(call) = application.call() {
                             self.index_call(source, call)?;
                         }
@@ -189,7 +190,6 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
     /// Collect authored declarations that differ from their targets.
     fn collect_reference_declarations(&mut self) -> ProviderResult<()> {
-        // FUGU #Incomplete: DIR must retain declaration symbols for namespace references
         for (source, reference) in &self.module.resolved().references.declaration_by_node {
             // dependency names use their exact imported-name occurrence
             if source.local_id.ty == dir::NodeType::DependencyItem {
@@ -665,7 +665,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         source: dir::GlobalNodeIdAny,
         resolution: &dir::MemberDecision,
     ) -> ProviderResult<()> {
-        for access in resolution.iter() {
+        for access in resolution.arms() {
             self.index_member_target(source, &access.target)?;
         }
 
@@ -717,7 +717,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         let member_span = self.string_subscript_span(source)?;
         let mut member_symbols = Vec::new();
 
-        for subscript in resolution.iter() {
+        for subscript in resolution.arms() {
             match &subscript.target {
                 dir::SubscriptTarget::Member(member) if member_span.is_some() => {
                     member.target.collect_symbols(&mut member_symbols)
@@ -795,7 +795,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         source: dir::GlobalNodeIdAny,
         resolution: &dir::DereferenceResolution,
     ) -> ProviderResult<()> {
-        for dereference in resolution.iter() {
+        for dereference in resolution.arms() {
             if let dir::DereferenceTarget::Call(call) = &dereference.target {
                 self.index_call(source, call)?;
             }

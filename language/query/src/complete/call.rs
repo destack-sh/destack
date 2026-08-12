@@ -341,7 +341,7 @@ impl ModuleQueryContext<'_> {
         let argument = argument_id.into_global_any(self.module_id());
         let mut types = call
             .into_iter()
-            .flat_map(dir::CallDecision::iter)
+            .flat_map(dir::CallDecision::arms)
             .flat_map(|selection| selection.arguments.iter())
             .chain(
                 construct

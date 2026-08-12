@@ -11,7 +11,7 @@ impl ModuleContext {
         // prefer selected member declarations
         if let Some(resolution) = self.decisions().member_decision(node) {
             let mut symbols = Vec::new();
-            for access in resolution.iter() {
+            for access in resolution.arms() {
                 access.target.collect_symbols(&mut symbols);
             }
 

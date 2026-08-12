@@ -486,7 +486,7 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         };
         let mut symbols = Vec::new();
-        for subscript in resolution.iter() {
+        for subscript in resolution.arms() {
             if let dir::SubscriptTarget::Member(member) = &subscript.target {
                 member.target.collect_symbols(&mut symbols);
             }
@@ -732,7 +732,7 @@ impl ModuleQueryContext<'_> {
 
         Ok(Some(SymbolOccurrence {
             symbols,
-            type_id: resolution.shared_callable_type(),
+            type_id: resolution.agreed_callable_type(),
             span,
         }))
     }

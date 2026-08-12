@@ -194,7 +194,7 @@ impl CompletionScorer<'_> {
                 expected_type: Some(expected_type),
                 ..
             } => {
-                // FUGU #Incomplete: rank compatible candidates from exact checked type relations
+                // rank by exact type identity
                 u8::from(completion.type_id != Some(*expected_type))
             }
             CompletionContext::MemberAccess { .. } => u8::from(!completion.kind.is_member_like()),

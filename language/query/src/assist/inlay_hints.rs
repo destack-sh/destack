@@ -171,7 +171,7 @@ impl ModuleQueryContext<'_> {
                 // collect selected calls
                 dir::Decision::Call(resolution) => {
                     // omit ambiguous hints when selected arms bind arguments differently
-                    let Some(arguments) = resolution.shared_arguments() else {
+                    let Some(arguments) = self.decisions()?.agreed_call_arguments(call) else {
                         continue;
                     };
 
@@ -197,10 +197,10 @@ impl ModuleQueryContext<'_> {
         call: dir::GlobalNodeIdAny,
         resolution: &dir::CallDecision,
     ) -> QueryResult<Vec<Option<String>>> {
-        let mut signatures = Vec::with_capacity(resolution.iter().len());
+        let mut signatures = Vec::with_capacity(resolution.arms().len());
 
         // read parameter names from every selected call arm
-        for selected in resolution.iter() {
+        for selected in resolution.arms() {
             let names = match &selected.target {
                 dir::CallTarget::Symbol { function, .. } => {
                     self.symbol_call_parameter_names(program, call, function.symbol)?
@@ -225,6 +225,7 @@ impl ModuleQueryContext<'_> {
 
         // retain a name only when every selected declaration agrees
         let parameter_count = resolution
+            .arms()
             .iter()
             .map(|call| call.arguments.len())
             .max()

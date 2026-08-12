@@ -314,7 +314,7 @@ const label = point.la;
 @completion.item label=label kind=field replace=main.ds#prefix suffix=": string" preselect=true matches=0,1
 ```
 
-### [ignored] Complete an accessor property
+### Complete an accessor property
 
 Getter and setter declarations form one property completion.
 
@@ -563,6 +563,36 @@ function read(box: Box<string>): string {
 
 ```query completion main.ds#prefix@end trigger=.
 @completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: Value" preselect=true matches=0,1,2
+```
+
+### Take a generic method type from a later use
+
+A method signature uses the type argument a later call pins down.
+
+```ds main.ds
+struct Box<Value> {
+    value: Value;
+}
+
+extension<Value> of Box<Value> {
+    get(): Value {
+        return this.value;
+    }
+}
+
+declare function make<Value>(): Box<Value>;
+declare function take(box: Box<int32>): void;
+
+function read(): void {
+    const box = make();
+    box.ge;
+        ^^ prefix
+    take(box);
+}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=get kind=method replace=main.ds#prefix suffix="(): int32" declaration="Box.get(): Value" insert="get()" preselect=true matches=0,1
 ```
 
 ### Complete a constrained parameter member
@@ -1012,6 +1042,31 @@ const box: Box<string> = {
 
 ```query completion main.ds#prefix@end
 @completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: Value" insert="value: ${1}" snippet=true preselect=true matches=0,1,2
+```
+
+### Take a generic field type from a later use
+
+An object field uses the type argument a later call pins down.
+
+```ds main.ds
+struct Box<Value> {
+    value: Value;
+}
+
+declare function wrap<Value>(box: Box<Value>): Box<Value>;
+declare function take(box: Box<int32>): void;
+
+function main(): void {
+    const box = wrap({
+        val
+        ^^^ prefix
+    });
+    take(box);
+}
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=value kind=field replace=main.ds#prefix suffix=": int32" declaration="Box.value: Value" insert="value: ${1}" snippet=true preselect=true matches=0,1,2
 ```
 
 ### Complete a nested field

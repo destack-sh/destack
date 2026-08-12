@@ -788,6 +788,30 @@ api.ping();
 @find_references.reference location=main.ds#second_reference symbol=main.ds#api@1
 ```
 
+### Find a namespace segment in a qualified type reference
+
+A namespace segment written in a type path references its import declaration.
+
+```ds library.ds
+export type Handler = () => void;
+export function ping(): void {}
+```
+
+```ds main.ds
+import * as api from "./library.ds";
+            ^^^ declaration
+
+const handler: api.Handler = api.ping;
+               ^^^ type_reference
+                             ^^^ value_reference
+```
+
+```query find_references main.ds#declaration include_declaration=true
+@find_references.reference location=main.ds#declaration symbol=main.ds#api@1
+@find_references.reference location=main.ds#type_reference symbol=main.ds#api@1
+@find_references.reference location=main.ds#value_reference symbol=main.ds#api@1
+```
+
 ### Find default import binding occurrences
 
 A default import binding remains a local alias in the importing module.

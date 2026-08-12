@@ -52,7 +52,7 @@ impl ModuleQueryContext<'_> {
         request: HoverRequest,
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<HoverResponse> {
-        // FUGU #Incomplete: DirChecked must retain overload family value selections
+        // FUGU #Incomplete: check rejects overload families read as values, see infer_name_expression
         // resolve source documentation and every exact named declaration
         let position = request.position;
         let file_id = position.file_id;

@@ -214,7 +214,7 @@ class StringContainer implements Container {
 @goto_implementation.target origin=main.ds#target location=main.ds#declaration selection=main.ds#implementation symbol=main.ds#Item@5
 ```
 
-### [ignored] Find overrides of a class method
+### Find overrides of a class method
 
 An abstract class method resolves to every overriding member.
 

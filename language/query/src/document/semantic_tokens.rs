@@ -463,7 +463,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         resolution: &dir::ProjectionResolution,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
         let mut token: Option<(SemanticTokenType, SemanticTokenModifiers)> = None;
-        for projection in resolution.iter() {
+        for projection in resolution.arms() {
             let candidate = match projection {
                 dir::Projection::Absent { .. } => {
                     Some((SemanticTokenType::Property, SemanticTokenModifiers::NONE))
@@ -629,7 +629,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         }
 
         // symbol-free selections tokenize structural members as properties
-        let structural = resolution.iter().any(|access| {
+        let structural = resolution.arms().iter().any(|access| {
             matches!(
                 access.target,
                 dir::MemberTarget::Field(_) | dir::MemberTarget::Projection { .. }
