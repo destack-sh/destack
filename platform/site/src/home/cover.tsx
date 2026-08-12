@@ -1,5 +1,6 @@
 import { A } from "@solidjs/router";
 import * as stylex from "@stylexjs/stylex";
+import { createSignal, onCleanup } from "solid-js";
 
 import { commandEvents } from "../command/command";
 import { installCommand } from "../content/home";
@@ -92,6 +93,27 @@ function Pitch() {
 
 /// Render the installation call to action.
 function Installation() {
+    const [copyState, setCopyState] = createSignal<"copy" | "copied" | "failed">("copy");
+    let reset: ReturnType<typeof setTimeout> | undefined;
+
+    // clear feedback after the plate leaves the page
+    onCleanup(() => clearTimeout(reset));
+
+    // copy the canonical install command and report the outcome in place
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(installCommand);
+            setCopyState("copied");
+        } catch (error: unknown) {
+            console.error(error);
+            setCopyState("failed");
+        }
+
+        // reset transient feedback
+        clearTimeout(reset);
+        reset = setTimeout(() => setCopyState("copy"), 1600);
+    };
+
     return (
         <aside {...stylex.attrs(installationStyles.installation)}>
             {/* Identification */}
@@ -128,10 +150,18 @@ function Installation() {
 
             {/* Installation action */}
             <footer {...stylex.attrs(installationStyles.footer)}>
-                <div {...stylex.attrs(installationStyles.command)}>
+                <button
+                    {...stylex.attrs(installationStyles.command)}
+                    aria-label="Copy install command"
+                    onClick={() => void copy()}
+                    type="button"
+                >
                     <span aria-hidden="true">$</span>
                     <code {...stylex.attrs(installationStyles.commandCode)}>{installCommand}</code>
-                </div>
+                    <span aria-live="polite" {...stylex.attrs(installationStyles.copyState)}>
+                        {copyState()}
+                    </span>
+                </button>
                 <a {...stylex.attrs(installationStyles.action)} href="/docs/">
                     get started
                     <span aria-hidden="true" {...stylex.attrs(installationStyles.arrow)}>→</span>
@@ -365,15 +395,22 @@ const installationStyles = stylex.create({
     command: {
         alignItems: "center",
         backgroundColor: tokens.code,
+        borderWidth: 0,
         color: tokens.orangeLight,
         display: "grid",
+        cursor: "pointer",
+        font: "inherit",
         fontFamily: tokens.monoFont,
-        fontSize: "0.82rem",
+        fontSize: "0.76rem",
         gap: "0.7rem",
-        gridTemplateColumns: "auto minmax(0, 1fr)",
+        gridTemplateColumns: "auto minmax(0, 1fr) auto",
         minWidth: 0,
         overflow: "hidden",
         padding: "0.8rem 1rem",
+        textAlign: "left",
+        ":hover": {
+            backgroundColor: tokens.night,
+        },
     },
     commandCode: {
         color: tokens.cream,
@@ -381,12 +418,19 @@ const installationStyles = stylex.create({
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
     },
+    copyState: {
+        color: tokens.orangeLight,
+        fontSize: "0.68rem",
+        fontWeight: 600,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+    },
     footer: {
         display: "grid",
         fontFamily: tokens.monoFont,
         fontSize: "0.8rem",
         fontWeight: 400,
-        gridTemplateColumns: "minmax(0, 1fr) 10.5rem",
+        gridTemplateColumns: "minmax(0, 1fr) 9.25rem",
         letterSpacing: "0.035em",
         minHeight: "3.25rem",
         [mobile]: {
