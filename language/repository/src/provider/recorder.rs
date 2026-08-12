@@ -61,6 +61,18 @@ impl ArtifactAttemptRecorder {
         self.timed(name, TraceSpanKind::Breakdown, work)
     }
 
+    /// Record one timed breakdown around a closure when a recorder is present.
+    pub fn breakdown_maybe<T>(
+        recorder: Option<&Self>,
+        name: &'static str,
+        work: impl FnOnce() -> T,
+    ) -> T {
+        match recorder {
+            Some(recorder) => recorder.breakdown(name, work),
+            None => work(),
+        }
+    }
+
     /// Record one timed span of one kind around a closure.
     fn timed<T>(&self, name: &'static str, kind: TraceSpanKind, work: impl FnOnce() -> T) -> T {
         if !self.is_enabled {

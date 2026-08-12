@@ -97,8 +97,8 @@ pub struct ArtifactAttempt {
 pub struct TraceAggregate {
     /// Aggregated attempt rows keyed by artifact kind name.
     attempts: BTreeMap<&'static str, TraceAggregateAttempts>,
-    /// Aggregated interior span totals keyed by span name.
-    spans: BTreeMap<&'static str, TraceAggregateSpan>,
+    /// Aggregated interior span totals keyed by artifact kind name and span name.
+    spans: BTreeMap<(&'static str, &'static str), TraceAggregateSpan>,
     /// The number of merged traces.
     runs: u64,
     /// The summed duration of merged traces.
@@ -118,7 +118,7 @@ struct TraceAggregateAttempts {
     time: Duration,
 }
 
-/// Aggregated count and time for one interior span name.
+/// Aggregated count and time for one artifact kind's interior span.
 #[derive(Debug, Default)]
 struct TraceAggregateSpan {
     /// The number of recorded spans.
@@ -149,7 +149,10 @@ impl TraceAggregate {
                 }
             }
             for span in &attempt.spans {
-                let totals = self.spans.entry(span.name).or_default();
+                let totals = self
+                    .spans
+                    .entry((attempt.key.name(), span.name))
+                    .or_default();
                 totals.count += 1;
                 totals.time += span.duration;
             }
@@ -188,12 +191,12 @@ impl TraceAggregate {
         let mut spans = self.spans.iter().collect::<Vec<_>>();
         spans.sort_by_key(|(_, totals)| Reverse(totals.time));
         output.push_str(&format!(
-            "\n{:<24} {:>9} {:>10}\n",
-            "span", "count", "seconds"
+            "\n{:<24} {:<18} {:>9} {:>10}\n",
+            "kind", "span", "count", "seconds"
         ));
-        for (name, totals) in spans {
+        for ((kind, name), totals) in spans {
             output.push_str(&format!(
-                "{name:<24} {:>9} {:>10.3}\n",
+                "{kind:<24} {name:<18} {:>9} {:>10.3}\n",
                 totals.count,
                 totals.time.as_secs_f64(),
             ));
