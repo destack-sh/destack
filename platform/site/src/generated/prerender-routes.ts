@@ -1,10 +1,9 @@
 export const prerenderRoutes = [
     "/",
     "/blog/",
-    "/blog/introducing-typescriptpp/",
     "/docs/",
+    "/blog/introducing-typescriptpp/",
     "/docs/overview/",
-    "/docs/comparison/",
     "/docs/language/",
     "/docs/language/types/",
     "/docs/language/expressions/",
