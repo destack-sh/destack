@@ -26,13 +26,13 @@ export const posts = [
     {
         author: "Florian",
         date: "2026-06-18",
-        markdownRoute: "/blog/introducing-destack.md",
-        route: "/blog/introducing-destack/",
-        slug: "introducing-destack",
+        markdownRoute: "/blog/introducing-typescript++.md",
+        route: "/blog/introducing-typescript++/",
+        slug: "introducing-typescript++",
         subtitle: "the absurdly integrated stack for humans building correct, optimal, integrated software systems on TypeScript++",
         tableOfContents: [{"depth":2,"id":"higher-order-programming","text":"higher-order programming"},{"depth":2,"id":"the-system-is-the-specification","text":"the system is the specification"},{"depth":2,"id":"correctness-alignment-visibility","text":"correctness = alignment + visibility"},{"depth":2,"id":"one-language-one-toolchain-one-stack","text":"one language, one toolchain, one stack"},{"depth":2,"id":"human-first-design","text":"human-first design"},{"depth":2,"id":"typescript","text":"typescript++"},{"depth":2,"id":"optimality-requires-expressivity","text":"optimality requires expressivity"},{"depth":2,"id":"homoiconicity-hackability","text":"homoiconicity -> hackability"},{"depth":2,"id":"bootstrapping-an-ecosystem","text":"bootstrapping an ecosystem"}],
         tags: ["language","runtime","platform"],
-        textRoute: "/blog/introducing-destack.txt",
+        textRoute: "/blog/introducing-typescript++.txt",
         title: "introducing destack",
         tokens: 3355,
     }
@@ -43,7 +43,7 @@ export const postBySlug: ReadonlyMap<string, Post> = new Map(
 );
 
 const postLoaders: Record<string, () => Promise<{ default: PostContent }>> = {
-    "introducing-destack": () => import("./post/introducing-destack"),
+    "introducing-typescript++": () => import("./post/introducing-typescript++"),
 };
 
 /// Load one rendered post body by slug.

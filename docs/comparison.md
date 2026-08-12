@@ -157,8 +157,8 @@ Object shapes are static and exact: no prototype tricks, no runtime mutation, an
 
 #### Type vs Interface
 
-In TypeScript, `type` and `interface` are mostly interchangeable.
-In Destack, they diverge in storage positions: closed aliases are exact data shapes, while interfaces are constraints and erase to `Dynamic<T>` when stored.
+In TypeScript, `type` and `interface` are mostly interchangeable, while in Destack, `interface` is the explicit "open" type. 
+Closed aliases are exact data shapes, while interfaces are constraints and erase to `Dynamic<T>` when stored.
 
 ```ds
 type Point = { x: number; y: number };

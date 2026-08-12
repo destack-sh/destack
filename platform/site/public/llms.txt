@@ -9,7 +9,7 @@
 
 - Home and fiddle (browsable demo workspace): https://destack.sh/
 - Blog: https://destack.sh/blog/
-- Introducing Destack: https://destack.sh/blog/introducing-destack/
+- Introducing Destack: https://destack.sh/blog/introducing-typescript++/
 
 ## Source
 
