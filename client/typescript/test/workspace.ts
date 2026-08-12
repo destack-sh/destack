@@ -83,8 +83,8 @@ test("compiler rechecks an edited workspace revision incrementally", async () =>
             // drain progress until the terminal response
         }
         const first = await firstCall.response();
-        const commit = await workspace.applySourceUpdate({
-            base: before.value,
+        const commit = await workspace.edit({
+            revision: before,
             edits: [
                 {
                     kind: "setText",
@@ -108,8 +108,8 @@ test("compiler rechecks an edited workspace revision incrementally", async () =>
 
         expect(first.value.success).toBe(true);
         expect(second.value.success).toBe(true);
-        expect(commit.value.before).toEqual(before.value);
-        expect(commit.value.after).toEqual(after.value);
+        expect(commit.before).toEqual(before);
+        expect(commit.after).toEqual(after);
         expect(secondTrace?.stats.built).toBeGreaterThan(0n);
         expect(secondTrace?.stats.built).toBeLessThan(firstTrace?.stats.built ?? 0n);
     } finally {
@@ -128,11 +128,11 @@ test("workspace watch emits its exact revision and later commits", async () => {
         // establish the root subscription before changing source
         const before = await workspace.revision();
         const ready = await watch.receive();
-        expect(ready).toEqual({ kind: "ready", revision: before.value });
+        expect(ready).toEqual({ kind: "ready", revision: before });
 
         // observe the same commit returned by the mutating operation
-        const commit = await workspace.applySourceUpdate({
-            base: before.value,
+        const commit = await workspace.edit({
+            revision: before,
             edits: [
                 {
                     kind: "setText",
@@ -143,9 +143,45 @@ test("workspace watch emits its exact revision and later commits", async () => {
         });
         const event = await watch.receive();
 
-        expect(event).toEqual({ kind: "commit", commit: commit.value });
+        expect(event).toEqual({ kind: "commit", commit });
     } finally {
         await watch.cancel();
+        workspace.connection.close();
+    }
+});
+
+test("workspace branch isolates edits and saves physical state", async () => {
+    const workspace = await openProject({
+        config: { name: "@test/app" },
+        files: { "main.ds": "export const value = 1;\n" },
+    });
+
+    try {
+        const physical = await workspace.revision();
+        const branch = await workspace.createBranch("studio", physical);
+        const commit = await branch.edit({
+            revision: physical,
+            edits: [
+                {
+                    kind: "setText",
+                    path: "main.ds",
+                    text: "export const value = 2;\n",
+                },
+            ],
+        });
+
+        // keep branch state private until the explicit save
+        expect(await branch.revision()).toEqual(commit.after);
+        expect(await workspace.revision()).toEqual(physical);
+        expect((await workspace.branches()).map(({ name }) => name)).toEqual(["studio"]);
+
+        // publish the same source state physically and release the branch
+        const saved = await branch.save({ kind: "all" });
+        expect(saved.before).toEqual(physical);
+        expect(await workspace.revision()).toEqual(commit.after);
+        await branch.remove();
+        expect(await workspace.branches()).toEqual([]);
+    } finally {
         workspace.connection.close();
     }
 });

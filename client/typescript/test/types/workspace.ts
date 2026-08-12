@@ -1,23 +1,33 @@
+import type { Change } from "../../src/_generated/repository/change.js";
+import type { Commit } from "../../src/_generated/repository/commit.js";
+import type { File } from "../../src/_generated/repository/file.js";
+import type { Revision } from "../../src/_generated/repository/revision.js";
 import type { TextRange } from "../../src/_generated/source/edit/text.js";
 import type { CheckInput } from "../../src/_generated/workspace/command/check.js";
 import type { InfoInput } from "../../src/_generated/workspace/command/info.js";
-import type { FileOperation } from "../../src/_generated/workspace/file/image.js";
-import type { SourceUpdate } from "../../src/_generated/workspace/update.js";
+import type { FileSelection } from "../../src/_generated/workspace/branch.js";
 import type { ArtifactRequest, ExportRequest } from "../../src/_generated/workspace/service/artifact.js";
 import type * as Command from "../../src/_generated/workspace/service/command.js";
 import type {
     ResolveQueryFileRequest,
     RunQueryRequest,
 } from "../../src/_generated/workspace/service/query.js";
-import type { ReadFilesRequest } from "../../src/_generated/workspace/service/source.js";
-import type { Blob, Workspace } from "../../src/index.js";
+import type {
+    EditBranchRequest,
+    EditRequest,
+    ReadFilesRequest,
+} from "../../src/_generated/workspace/service/source.js";
+import type { Blob, Workspace, WorkspaceBranch } from "../../src/index.js";
 import { openWorkspace } from "../../src/index.js";
 
 declare const workspace: Workspace;
+declare const branch: WorkspaceBranch;
+declare const revision: Revision;
 declare const checkInput: CheckInput;
 declare const infoInput: InfoInput;
-declare const fileOperation: FileOperation;
-declare const sourceUpdate: SourceUpdate;
+declare const editBranchRequest: Omit<EditBranchRequest, "root" | "name">;
+declare const editRequest: Omit<EditRequest, "root">;
+declare const files: FileSelection;
 declare const range: TextRange;
 declare const artifact: ArtifactRequest["artifact"];
 declare const exportInput: ExportRequest["input"];
@@ -47,11 +57,24 @@ const remote: Promise<Workspace> = openWorkspace({
     root: "/project",
 });
 
-workspace.revision();
+const physicalRevision: Promise<Revision> = workspace.revision();
+const boundBranch: WorkspaceBranch = workspace.branch("studio");
+const branches: Promise<WorkspaceBranch[]> = workspace.branches();
+const exactBranch: Promise<WorkspaceBranch> = workspace.createBranch("studio", revision);
+const currentBranch: Promise<WorkspaceBranch> = workspace.createBranch("studio");
 workspace.reload();
-workspace.watch();
-workspace.applyFileOperation(fileOperation);
-workspace.applySourceUpdate(sourceUpdate);
+const written: Promise<Commit> = workspace.edit(editRequest);
+const changes: Promise<readonly Change[]> = workspace.diff({
+    before: revision,
+    after: revision,
+});
+const repositoryFiles: Promise<readonly File[]> = workspace.files(revision);
+const branchRevision: Promise<Revision> = branch.revision();
+const edited: Promise<Commit> = branch.edit(editBranchRequest);
+const persisted: Promise<Commit> = branch.save(files);
+branch.restore(files);
+branch.watch();
+branch.remove();
 workspace.check(checkInput);
 workspace.format(formatInput);
 workspace.query(queryInput);
@@ -67,23 +90,33 @@ workspace.settings(settingsInput);
 workspace.doctor(doctorInput);
 workspace.task(taskInput);
 workspace.clean(cleanInput);
-workspace.formatFile({ path: "main.ds", range });
-workspace.isFileOpen("main.ds");
+workspace.formatFile({ revision, path: "main.ds", range });
 workspace.readFiles(readFiles);
 workspace.artifact(artifact);
 const artifactBlob: Promise<Blob> = workspace.blob(artifact);
 workspace.export(exportInput);
-workspace.diagnose();
-workspace.resolveQueryFile(queryPath);
+workspace.diagnose(revision);
+workspace.resolveQueryFile({ revision, path: queryPath });
 workspace.runQuery(queryRun);
 
 void physical;
 void memory;
 void remote;
 void artifactBlob;
+void physicalRevision;
+void boundBranch;
+void branches;
+void exactBranch;
+void currentBranch;
+void written;
+void changes;
+void repositoryFiles;
+void branchRevision;
+void edited;
+void persisted;
 
 // @ts-expect-error the workspace supplies its own root
 workspace.check({ root: "/wrong", input: checkInput });
 
 // @ts-expect-error the workspace supplies its own root
-workspace.formatFile({ root: "/wrong", path: "main.ds", range });
+workspace.formatFile({ root: "/wrong", revision, path: "main.ds", range });

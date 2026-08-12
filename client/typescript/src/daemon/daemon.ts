@@ -42,7 +42,7 @@ export class Daemon {
         return new Workspace(this.connection, response.value.root);
     }
 
-    /** Close one root-bound workspace in this daemon. */
+    /** Release one root-bound workspace from this connection. */
     closeWorkspace(workspace: Workspace) {
         return this.client.closeWorkspace({ root: workspace.root });
     }
