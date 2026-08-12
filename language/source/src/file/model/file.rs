@@ -292,9 +292,7 @@ impl File {
     /// Return the string slice for one file-local byte range.
     #[inline]
     pub fn get_range_str(&self, range: ByteRange) -> Option<&str> {
-        if self.line_index.is_none() {
-            return None;
-        }
+        self.line_index.as_ref()?;
 
         self.text().get(range.start as usize..range.end as usize)
     }

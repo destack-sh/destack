@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crossbeam_channel::{Receiver, TrySendError, bounded};
+use crossbeam_channel::{Receiver, bounded};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use parking_lot::Mutex;
 
@@ -59,16 +59,12 @@ impl FileWatch {
                     drop(pending);
 
                     if !is_notified {
-                        match change_sender.try_send(()) {
-                            Ok(()) | Err(TrySendError::Full(())) => {}
-                            Err(TrySendError::Disconnected(())) => return,
-                        }
+                        let _ = change_sender.try_send(());
                     }
                 }
-                Err(error) => match error_sender.try_send(error.into()) {
-                    Ok(()) | Err(TrySendError::Full(_)) => {}
-                    Err(TrySendError::Disconnected(_)) => return,
-                },
+                Err(error) => {
+                    let _ = error_sender.try_send(error.into());
+                }
             },
             notify::Config::default(),
         )?;
