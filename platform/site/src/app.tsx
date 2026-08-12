@@ -2,8 +2,10 @@ import ibmPlexMono from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400
 import { Link, MetaProvider } from "@solidjs/meta";
 import { Router } from "@solidjs/router";
 import { FileRoutes } from "@solidjs/start/router";
+import * as stylex from "@stylexjs/stylex";
 import { Suspense } from "solid-js";
 
+import { styles } from "./style/app.stylex";
 import "./style/site.css";
 
 /// Render the site router and shared document providers.
@@ -20,12 +22,7 @@ export default function App() {
                         type="font/woff2"
                     />
                     <Suspense>
-                        <div
-                            class={
-                                "min-h-screen bg-destack-page text-destack-text " +
-                                "selection:bg-destack-accent selection:text-neutral-950"
-                            }
-                        >
+                        <div {...stylex.attrs(styles.root)}>
                             {props.children}
                         </div>
                     </Suspense>

@@ -1,0 +1,30 @@
+import * as stylex from "@stylexjs/stylex";
+
+/// Shared publication constants compiled to CSS variables.
+export const tokens = stylex.defineVars({
+    accent: "#dc5b2d",
+    code: "#1b3037",
+    cream: "#f1eadb",
+    creamDeep: "#e4dbc9",
+    diagnostic: "#c22b12",
+    displayFont: '"IBM Plex Sans Variable", Helvetica, Arial, sans-serif',
+    gutterLeft: "calc(1.5rem + env(safe-area-inset-left))",
+    gutterRight: "calc(1.5rem + env(safe-area-inset-right))",
+    ink: "#171512",
+    line: "#c9beaa",
+    monoFont: '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
+    night: "#12313c",
+    orange: "#dc5b2d",
+    orangeLight: "#e77443",
+    page: "#f1eadb",
+    panelRadius: "0.4rem",
+    rust: "#a44328",
+    siteControlHeight: "2.5rem",
+    siteFontSize: "0.95rem",
+    siteWidth: "72rem",
+    soft: "#625c52",
+    stroke: "3px",
+    text: "#171512",
+    textFont: '"IBM Plex Sans Variable", Helvetica, Arial, sans-serif',
+    textStroke: "1.5px",
+});
