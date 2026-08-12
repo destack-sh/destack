@@ -10,7 +10,7 @@ import { decodeRevision, encodeRevision, fromJsonRevision, toJsonRevision } from
 
 /** Revision selection policy for one query. */
 export type RevisionPolicy =
-    /** Use the ref's latest revision when execution starts. */
+    /** Use the current physical workspace revision when execution starts. */
     | {
           readonly kind: "latest";
       }
@@ -19,7 +19,7 @@ export type RevisionPolicy =
           readonly kind: "exact";
           readonly exact: Revision;
       }
-    /** Use one revision only if the ref still points at it. */
+    /** Use one revision only if physical workspace state still selects it. */
     | {
           readonly kind: "current";
           readonly current: Revision;
@@ -27,7 +27,7 @@ export type RevisionPolicy =
 ;
 
 export const RevisionPolicy = {
-    /** Use the ref's latest revision when execution starts. */
+    /** Use the current physical workspace revision when execution starts. */
     latest(): RevisionPolicy {
         return { kind: "latest" };
     },
@@ -37,7 +37,7 @@ export const RevisionPolicy = {
         return { kind: "exact", exact };
     },
 
-    /** Use one revision only if the ref still points at it. */
+    /** Use one revision only if physical workspace state still selects it. */
     current(current: Revision): RevisionPolicy {
         return { kind: "current", current };
     },

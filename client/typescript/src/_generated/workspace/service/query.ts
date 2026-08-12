@@ -93,6 +93,8 @@ export function fromJsonQueryFileResponse(value: Json): QueryFileResponse {
 export type ResolveQueryFileRequest = {
     /** Owning workspace root. */
     readonly root: string;
+    /** Exact semantic revision. */
+    readonly revision: Revision;
     /** Source path to resolve. */
     readonly path: string;
 };
@@ -122,16 +124,19 @@ export const ResolveQueryFileRequest = {
 /** Encode one ResolveQueryFileRequest. */
 export function encodeResolveQueryFileRequest(writer: BinaryWriter, value: ResolveQueryFileRequest): void {
     writer.writeString(value.root);
+    encodeRevision(writer, value.revision);
     writer.writeString(value.path);
 }
 
 /** Decode one ResolveQueryFileRequest. */
 export function decodeResolveQueryFileRequest(reader: BinaryReader): ResolveQueryFileRequest {
     const root = reader.readString();
+    const revision = decodeRevision(reader);
     const path = reader.readString();
 
     return {
         root,
+        revision,
         path,
     };
 }
@@ -140,6 +145,7 @@ export function decodeResolveQueryFileRequest(reader: BinaryReader): ResolveQuer
 export function toJsonResolveQueryFileRequest(value: ResolveQueryFileRequest): Json {
     return {
         root: value.root,
+        revision: toJsonRevision(value.revision),
         path: value.path,
     };
 }
@@ -150,6 +156,7 @@ export function fromJsonResolveQueryFileRequest(value: Json): ResolveQueryFileRe
 
     return {
         root: jsonString(jsonField(object, "root")),
+        revision: fromJsonRevision(jsonField(object, "revision")),
         path: jsonString(jsonField(object, "path")),
     };
 }

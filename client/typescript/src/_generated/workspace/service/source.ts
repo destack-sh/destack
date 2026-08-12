@@ -4,145 +4,244 @@ import { BinaryReader, BinaryWriter, Json, jsonArray, jsonField, jsonObject, jso
 import type { Revision } from "../../repository/revision.js";
 import type { Patch } from "../../source/edit/edit.js";
 import type { TextRange } from "../../source/edit/text.js";
+import type { Edit } from "../../source/edit/update.js";
 import type { FileId } from "../../source/file/model/file.js";
+import type { FileSelection } from "../branch.js";
 import type { FileImage } from "../file/image.js";
-import type { FileOperation } from "../file/image.js";
-import type { SourceUpdate } from "../update.js";
 import { decodeRevision, encodeRevision, fromJsonRevision, toJsonRevision } from "../../repository/revision.js";
 import { decodePatch, encodePatch, fromJsonPatch, toJsonPatch } from "../../source/edit/edit.js";
 import { decodeTextRange, encodeTextRange, fromJsonTextRange, toJsonTextRange } from "../../source/edit/text.js";
+import { decodeEdit, encodeEdit, fromJsonEdit, toJsonEdit } from "../../source/edit/update.js";
 import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../../source/file/model/file.js";
+import { decodeFileSelection, encodeFileSelection, fromJsonFileSelection, toJsonFileSelection } from "../branch.js";
 import { decodeFileImage, encodeFileImage, fromJsonFileImage, toJsonFileImage } from "../file/image.js";
-import { decodeFileOperation, encodeFileOperation, fromJsonFileOperation, toJsonFileOperation } from "../file/image.js";
-import { decodeSourceUpdate, encodeSourceUpdate, fromJsonSourceUpdate, toJsonSourceUpdate } from "../update.js";
 
-/** Request to apply one workspace file operation. */
-export type ApplyFileOperationRequest = {
-    /** Root receiving the file operation. */
+/** Request to compare two exact workspace revisions. */
+export type DiffRequest = {
+    /** Owning workspace root. */
     readonly root: string;
-    /** File operation to apply. */
-    readonly operation: FileOperation;
+    /** Previous revision. */
+    readonly before: Revision;
+    /** Updated revision. */
+    readonly after: Revision;
 };
 
-export const ApplyFileOperationRequest = {
+export const DiffRequest = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: ApplyFileOperationRequest): void {
-        encodeApplyFileOperationRequest(writer, value);
+    encode(writer: BinaryWriter, value: DiffRequest): void {
+        encodeDiffRequest(writer, value);
     },
 
-    /** Decode one ApplyFileOperationRequest. */
-    decode(reader: BinaryReader): ApplyFileOperationRequest {
-        return decodeApplyFileOperationRequest(reader);
+    /** Decode one DiffRequest. */
+    decode(reader: BinaryReader): DiffRequest {
+        return decodeDiffRequest(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: ApplyFileOperationRequest): Json {
-        return toJsonApplyFileOperationRequest(value);
+    toJson(value: DiffRequest): Json {
+        return toJsonDiffRequest(value);
     },
 
-    /** Return one ApplyFileOperationRequest from one JSON value. */
-    fromJson(value: Json): ApplyFileOperationRequest {
-        return fromJsonApplyFileOperationRequest(value);
+    /** Return one DiffRequest from one JSON value. */
+    fromJson(value: Json): DiffRequest {
+        return fromJsonDiffRequest(value);
     },
 };
 
-/** Encode one ApplyFileOperationRequest. */
-export function encodeApplyFileOperationRequest(writer: BinaryWriter, value: ApplyFileOperationRequest): void {
+/** Encode one DiffRequest. */
+export function encodeDiffRequest(writer: BinaryWriter, value: DiffRequest): void {
     writer.writeString(value.root);
-    encodeFileOperation(writer, value.operation);
+    encodeRevision(writer, value.before);
+    encodeRevision(writer, value.after);
 }
 
-/** Decode one ApplyFileOperationRequest. */
-export function decodeApplyFileOperationRequest(reader: BinaryReader): ApplyFileOperationRequest {
+/** Decode one DiffRequest. */
+export function decodeDiffRequest(reader: BinaryReader): DiffRequest {
     const root = reader.readString();
-    const operation = decodeFileOperation(reader);
+    const before = decodeRevision(reader);
+    const after = decodeRevision(reader);
 
     return {
         root,
-        operation,
+        before,
+        after,
     };
 }
 
-/** Return one JSON value for one ApplyFileOperationRequest. */
-export function toJsonApplyFileOperationRequest(value: ApplyFileOperationRequest): Json {
+/** Return one JSON value for one DiffRequest. */
+export function toJsonDiffRequest(value: DiffRequest): Json {
     return {
         root: value.root,
-        operation: toJsonFileOperation(value.operation),
+        before: toJsonRevision(value.before),
+        after: toJsonRevision(value.after),
     };
 }
 
-/** Return one ApplyFileOperationRequest from one JSON value. */
-export function fromJsonApplyFileOperationRequest(value: Json): ApplyFileOperationRequest {
+/** Return one DiffRequest from one JSON value. */
+export function fromJsonDiffRequest(value: Json): DiffRequest {
     const object = jsonObject(value);
 
     return {
         root: jsonString(jsonField(object, "root")),
-        operation: fromJsonFileOperation(jsonField(object, "operation")),
+        before: fromJsonRevision(jsonField(object, "before")),
+        after: fromJsonRevision(jsonField(object, "after")),
     };
 }
 
-/** Request to apply one atomic source update. */
-export type ApplySourceUpdateRequest = {
-    /** Root receiving the source update. */
+/** Request to edit one workspace branch. */
+export type EditBranchRequest = {
+    /** Owning workspace root. */
     readonly root: string;
-    /** Source update to apply. */
-    readonly update: SourceUpdate;
+    /** Branch receiving the source edits. */
+    readonly name: string;
+    /** Exact expected branch revision. */
+    readonly revision: Revision;
+    /** Source file edits. */
+    readonly edits: ReadonlyArray<Edit>;
 };
 
-export const ApplySourceUpdateRequest = {
+export const EditBranchRequest = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: ApplySourceUpdateRequest): void {
-        encodeApplySourceUpdateRequest(writer, value);
+    encode(writer: BinaryWriter, value: EditBranchRequest): void {
+        encodeEditBranchRequest(writer, value);
     },
 
-    /** Decode one ApplySourceUpdateRequest. */
-    decode(reader: BinaryReader): ApplySourceUpdateRequest {
-        return decodeApplySourceUpdateRequest(reader);
+    /** Decode one EditBranchRequest. */
+    decode(reader: BinaryReader): EditBranchRequest {
+        return decodeEditBranchRequest(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: ApplySourceUpdateRequest): Json {
-        return toJsonApplySourceUpdateRequest(value);
+    toJson(value: EditBranchRequest): Json {
+        return toJsonEditBranchRequest(value);
     },
 
-    /** Return one ApplySourceUpdateRequest from one JSON value. */
-    fromJson(value: Json): ApplySourceUpdateRequest {
-        return fromJsonApplySourceUpdateRequest(value);
+    /** Return one EditBranchRequest from one JSON value. */
+    fromJson(value: Json): EditBranchRequest {
+        return fromJsonEditBranchRequest(value);
     },
 };
 
-/** Encode one ApplySourceUpdateRequest. */
-export function encodeApplySourceUpdateRequest(writer: BinaryWriter, value: ApplySourceUpdateRequest): void {
+/** Encode one EditBranchRequest. */
+export function encodeEditBranchRequest(writer: BinaryWriter, value: EditBranchRequest): void {
     writer.writeString(value.root);
-    encodeSourceUpdate(writer, value.update);
+    writer.writeString(value.name);
+    encodeRevision(writer, value.revision);
+    writer.writeUnsigned(value.edits.length);
+    for (const item3 of value.edits) {
+        encodeEdit(writer, item3);
+    }
 }
 
-/** Decode one ApplySourceUpdateRequest. */
-export function decodeApplySourceUpdateRequest(reader: BinaryReader): ApplySourceUpdateRequest {
+/** Decode one EditBranchRequest. */
+export function decodeEditBranchRequest(reader: BinaryReader): EditBranchRequest {
     const root = reader.readString();
-    const update = decodeSourceUpdate(reader);
+    const name = reader.readString();
+    const revision = decodeRevision(reader);
+    const edits = (() => { const length3 = reader.readNumber(); const items3: Array<Edit> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeEdit(reader)); } return items3; })();
 
     return {
         root,
-        update,
+        name,
+        revision,
+        edits,
     };
 }
 
-/** Return one JSON value for one ApplySourceUpdateRequest. */
-export function toJsonApplySourceUpdateRequest(value: ApplySourceUpdateRequest): Json {
+/** Return one JSON value for one EditBranchRequest. */
+export function toJsonEditBranchRequest(value: EditBranchRequest): Json {
     return {
         root: value.root,
-        update: toJsonSourceUpdate(value.update),
+        name: value.name,
+        revision: toJsonRevision(value.revision),
+        edits: value.edits.map((item0) => toJsonEdit(item0)),
     };
 }
 
-/** Return one ApplySourceUpdateRequest from one JSON value. */
-export function fromJsonApplySourceUpdateRequest(value: Json): ApplySourceUpdateRequest {
+/** Return one EditBranchRequest from one JSON value. */
+export function fromJsonEditBranchRequest(value: Json): EditBranchRequest {
     const object = jsonObject(value);
 
     return {
         root: jsonString(jsonField(object, "root")),
-        update: fromJsonSourceUpdate(jsonField(object, "update")),
+        name: jsonString(jsonField(object, "name")),
+        revision: fromJsonRevision(jsonField(object, "revision")),
+        edits: jsonArray(jsonField(object, "edits")).map((item0) => fromJsonEdit(item0)),
+    };
+}
+
+/** Request to edit physical workspace state. */
+export type EditRequest = {
+    /** Owning workspace root. */
+    readonly root: string;
+    /** Exact expected physical revision. */
+    readonly revision: Revision;
+    /** Source file edits. */
+    readonly edits: ReadonlyArray<Edit>;
+};
+
+export const EditRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: EditRequest): void {
+        encodeEditRequest(writer, value);
+    },
+
+    /** Decode one EditRequest. */
+    decode(reader: BinaryReader): EditRequest {
+        return decodeEditRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: EditRequest): Json {
+        return toJsonEditRequest(value);
+    },
+
+    /** Return one EditRequest from one JSON value. */
+    fromJson(value: Json): EditRequest {
+        return fromJsonEditRequest(value);
+    },
+};
+
+/** Encode one EditRequest. */
+export function encodeEditRequest(writer: BinaryWriter, value: EditRequest): void {
+    writer.writeString(value.root);
+    encodeRevision(writer, value.revision);
+    writer.writeUnsigned(value.edits.length);
+    for (const item2 of value.edits) {
+        encodeEdit(writer, item2);
+    }
+}
+
+/** Decode one EditRequest. */
+export function decodeEditRequest(reader: BinaryReader): EditRequest {
+    const root = reader.readString();
+    const revision = decodeRevision(reader);
+    const edits = (() => { const length2 = reader.readNumber(); const items2: Array<Edit> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeEdit(reader)); } return items2; })();
+
+    return {
+        root,
+        revision,
+        edits,
+    };
+}
+
+/** Return one JSON value for one EditRequest. */
+export function toJsonEditRequest(value: EditRequest): Json {
+    return {
+        root: value.root,
+        revision: toJsonRevision(value.revision),
+        edits: value.edits.map((item0) => toJsonEdit(item0)),
+    };
+}
+
+/** Return one EditRequest from one JSON value. */
+export function fromJsonEditRequest(value: Json): EditRequest {
+    const object = jsonObject(value);
+
+    return {
+        root: jsonString(jsonField(object, "root")),
+        revision: fromJsonRevision(jsonField(object, "revision")),
+        edits: jsonArray(jsonField(object, "edits")).map((item0) => fromJsonEdit(item0)),
     };
 }
 
@@ -215,6 +314,8 @@ export function fromJsonFileEditResponse(value: Json): FileEditResponse {
 export type FormatFileRequest = {
     /** Owning workspace root. */
     readonly root: string;
+    /** Exact source revision. */
+    readonly revision: Revision;
     /** Source path to format. */
     readonly path: string;
     /** Optional UTF-16 source range. */
@@ -246,20 +347,23 @@ export const FormatFileRequest = {
 /** Encode one FormatFileRequest. */
 export function encodeFormatFileRequest(writer: BinaryWriter, value: FormatFileRequest): void {
     writer.writeString(value.root);
+    encodeRevision(writer, value.revision);
     writer.writeString(value.path);
-    writer.writeOption(value.range, (value2) => {
-        encodeTextRange(writer, value2);
+    writer.writeOption(value.range, (value3) => {
+        encodeTextRange(writer, value3);
     });
 }
 
 /** Decode one FormatFileRequest. */
 export function decodeFormatFileRequest(reader: BinaryReader): FormatFileRequest {
     const root = reader.readString();
+    const revision = decodeRevision(reader);
     const path = reader.readString();
     const range = reader.readOption(() => decodeTextRange(reader));
 
     return {
         root,
+        revision,
         path,
         ...(range === undefined ? {} : { range }),
     };
@@ -269,6 +373,7 @@ export function decodeFormatFileRequest(reader: BinaryReader): FormatFileRequest
 export function toJsonFormatFileRequest(value: FormatFileRequest): Json {
     return {
         root: value.root,
+        revision: toJsonRevision(value.revision),
         path: value.path,
         ...(value.range === undefined ? {} : { range: toJsonTextRange(value.range) }),
     };
@@ -280,73 +385,74 @@ export function fromJsonFormatFileRequest(value: Json): FormatFileRequest {
 
     return {
         root: jsonString(jsonField(object, "root")),
+        revision: fromJsonRevision(jsonField(object, "revision")),
         path: jsonString(jsonField(object, "path")),
         range: jsonOptional(object, "range", (value) => fromJsonTextRange(value)),
     };
 }
 
-/** Request to inspect whether one file is open. */
-export type IsFileOpenRequest = {
+/** Request to list files at one exact workspace revision. */
+export type ListFilesRequest = {
     /** Owning workspace root. */
     readonly root: string;
-    /** Source path to inspect. */
-    readonly path: string;
+    /** Exact source revision. */
+    readonly revision: Revision;
 };
 
-export const IsFileOpenRequest = {
+export const ListFilesRequest = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: IsFileOpenRequest): void {
-        encodeIsFileOpenRequest(writer, value);
+    encode(writer: BinaryWriter, value: ListFilesRequest): void {
+        encodeListFilesRequest(writer, value);
     },
 
-    /** Decode one IsFileOpenRequest. */
-    decode(reader: BinaryReader): IsFileOpenRequest {
-        return decodeIsFileOpenRequest(reader);
+    /** Decode one ListFilesRequest. */
+    decode(reader: BinaryReader): ListFilesRequest {
+        return decodeListFilesRequest(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: IsFileOpenRequest): Json {
-        return toJsonIsFileOpenRequest(value);
+    toJson(value: ListFilesRequest): Json {
+        return toJsonListFilesRequest(value);
     },
 
-    /** Return one IsFileOpenRequest from one JSON value. */
-    fromJson(value: Json): IsFileOpenRequest {
-        return fromJsonIsFileOpenRequest(value);
+    /** Return one ListFilesRequest from one JSON value. */
+    fromJson(value: Json): ListFilesRequest {
+        return fromJsonListFilesRequest(value);
     },
 };
 
-/** Encode one IsFileOpenRequest. */
-export function encodeIsFileOpenRequest(writer: BinaryWriter, value: IsFileOpenRequest): void {
+/** Encode one ListFilesRequest. */
+export function encodeListFilesRequest(writer: BinaryWriter, value: ListFilesRequest): void {
     writer.writeString(value.root);
-    writer.writeString(value.path);
+    encodeRevision(writer, value.revision);
 }
 
-/** Decode one IsFileOpenRequest. */
-export function decodeIsFileOpenRequest(reader: BinaryReader): IsFileOpenRequest {
+/** Decode one ListFilesRequest. */
+export function decodeListFilesRequest(reader: BinaryReader): ListFilesRequest {
     const root = reader.readString();
-    const path = reader.readString();
+    const revision = decodeRevision(reader);
 
     return {
         root,
-        path,
+        revision,
     };
 }
 
-/** Return one JSON value for one IsFileOpenRequest. */
-export function toJsonIsFileOpenRequest(value: IsFileOpenRequest): Json {
+/** Return one JSON value for one ListFilesRequest. */
+export function toJsonListFilesRequest(value: ListFilesRequest): Json {
     return {
         root: value.root,
-        path: value.path,
+        revision: toJsonRevision(value.revision),
     };
 }
 
-/** Return one IsFileOpenRequest from one JSON value. */
-export function fromJsonIsFileOpenRequest(value: Json): IsFileOpenRequest {
+/** Return one ListFilesRequest from one JSON value. */
+export function fromJsonListFilesRequest(value: Json): ListFilesRequest {
     const object = jsonObject(value);
 
     return {
         root: jsonString(jsonField(object, "root")),
-        path: jsonString(jsonField(object, "path")),
+        revision: fromJsonRevision(jsonField(object, "revision")),
     };
 }
 
@@ -422,5 +528,177 @@ export function fromJsonReadFilesRequest(value: Json): ReadFilesRequest {
         root: jsonString(jsonField(object, "root")),
         revision: fromJsonRevision(jsonField(object, "revision")),
         fileIds: jsonArray(jsonField(object, "fileIds")).map((item0) => fromJsonFileId(item0)),
+    };
+}
+
+/** Request to restore one branch from physical workspace state. */
+export type RestoreBranchRequest = {
+    /** Owning workspace root. */
+    readonly root: string;
+    /** Branch receiving restored files. */
+    readonly name: string;
+    /** Expected branch revision. */
+    readonly revision: Revision;
+    /** Expected physical workspace revision. */
+    readonly physical: Revision;
+    /** Files to restore. */
+    readonly files: FileSelection;
+};
+
+export const RestoreBranchRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: RestoreBranchRequest): void {
+        encodeRestoreBranchRequest(writer, value);
+    },
+
+    /** Decode one RestoreBranchRequest. */
+    decode(reader: BinaryReader): RestoreBranchRequest {
+        return decodeRestoreBranchRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: RestoreBranchRequest): Json {
+        return toJsonRestoreBranchRequest(value);
+    },
+
+    /** Return one RestoreBranchRequest from one JSON value. */
+    fromJson(value: Json): RestoreBranchRequest {
+        return fromJsonRestoreBranchRequest(value);
+    },
+};
+
+/** Encode one RestoreBranchRequest. */
+export function encodeRestoreBranchRequest(writer: BinaryWriter, value: RestoreBranchRequest): void {
+    writer.writeString(value.root);
+    writer.writeString(value.name);
+    encodeRevision(writer, value.revision);
+    encodeRevision(writer, value.physical);
+    encodeFileSelection(writer, value.files);
+}
+
+/** Decode one RestoreBranchRequest. */
+export function decodeRestoreBranchRequest(reader: BinaryReader): RestoreBranchRequest {
+    const root = reader.readString();
+    const name = reader.readString();
+    const revision = decodeRevision(reader);
+    const physical = decodeRevision(reader);
+    const files = decodeFileSelection(reader);
+
+    return {
+        root,
+        name,
+        revision,
+        physical,
+        files,
+    };
+}
+
+/** Return one JSON value for one RestoreBranchRequest. */
+export function toJsonRestoreBranchRequest(value: RestoreBranchRequest): Json {
+    return {
+        root: value.root,
+        name: value.name,
+        revision: toJsonRevision(value.revision),
+        physical: toJsonRevision(value.physical),
+        files: toJsonFileSelection(value.files),
+    };
+}
+
+/** Return one RestoreBranchRequest from one JSON value. */
+export function fromJsonRestoreBranchRequest(value: Json): RestoreBranchRequest {
+    const object = jsonObject(value);
+
+    return {
+        root: jsonString(jsonField(object, "root")),
+        name: jsonString(jsonField(object, "name")),
+        revision: fromJsonRevision(jsonField(object, "revision")),
+        physical: fromJsonRevision(jsonField(object, "physical")),
+        files: fromJsonFileSelection(jsonField(object, "files")),
+    };
+}
+
+/** Request to save one branch to the physical workspace. */
+export type SaveBranchRequest = {
+    /** Owning workspace root. */
+    readonly root: string;
+    /** Branch to save. */
+    readonly name: string;
+    /** Exact branch revision to save. */
+    readonly revision: Revision;
+    /** Expected physical workspace revision. */
+    readonly physical: Revision;
+    /** Files to save. */
+    readonly files: FileSelection;
+};
+
+export const SaveBranchRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: SaveBranchRequest): void {
+        encodeSaveBranchRequest(writer, value);
+    },
+
+    /** Decode one SaveBranchRequest. */
+    decode(reader: BinaryReader): SaveBranchRequest {
+        return decodeSaveBranchRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: SaveBranchRequest): Json {
+        return toJsonSaveBranchRequest(value);
+    },
+
+    /** Return one SaveBranchRequest from one JSON value. */
+    fromJson(value: Json): SaveBranchRequest {
+        return fromJsonSaveBranchRequest(value);
+    },
+};
+
+/** Encode one SaveBranchRequest. */
+export function encodeSaveBranchRequest(writer: BinaryWriter, value: SaveBranchRequest): void {
+    writer.writeString(value.root);
+    writer.writeString(value.name);
+    encodeRevision(writer, value.revision);
+    encodeRevision(writer, value.physical);
+    encodeFileSelection(writer, value.files);
+}
+
+/** Decode one SaveBranchRequest. */
+export function decodeSaveBranchRequest(reader: BinaryReader): SaveBranchRequest {
+    const root = reader.readString();
+    const name = reader.readString();
+    const revision = decodeRevision(reader);
+    const physical = decodeRevision(reader);
+    const files = decodeFileSelection(reader);
+
+    return {
+        root,
+        name,
+        revision,
+        physical,
+        files,
+    };
+}
+
+/** Return one JSON value for one SaveBranchRequest. */
+export function toJsonSaveBranchRequest(value: SaveBranchRequest): Json {
+    return {
+        root: value.root,
+        name: value.name,
+        revision: toJsonRevision(value.revision),
+        physical: toJsonRevision(value.physical),
+        files: toJsonFileSelection(value.files),
+    };
+}
+
+/** Return one SaveBranchRequest from one JSON value. */
+export function fromJsonSaveBranchRequest(value: Json): SaveBranchRequest {
+    const object = jsonObject(value);
+
+    return {
+        root: jsonString(jsonField(object, "root")),
+        name: jsonString(jsonField(object, "name")),
+        revision: fromJsonRevision(jsonField(object, "revision")),
+        physical: fromJsonRevision(jsonField(object, "physical")),
+        files: fromJsonFileSelection(jsonField(object, "files")),
     };
 }

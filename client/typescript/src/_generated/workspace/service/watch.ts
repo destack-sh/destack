@@ -2,6 +2,71 @@
 
 import { BinaryReader, BinaryWriter, Json, jsonField, jsonObject, jsonString } from "../../../protocol/serde.js";
 
+/** Request to watch one workspace branch. */
+export type WatchBranchRequest = {
+    /** Owning workspace root. */
+    readonly root: string;
+    /** Branch to watch. */
+    readonly name: string;
+};
+
+export const WatchBranchRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: WatchBranchRequest): void {
+        encodeWatchBranchRequest(writer, value);
+    },
+
+    /** Decode one WatchBranchRequest. */
+    decode(reader: BinaryReader): WatchBranchRequest {
+        return decodeWatchBranchRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: WatchBranchRequest): Json {
+        return toJsonWatchBranchRequest(value);
+    },
+
+    /** Return one WatchBranchRequest from one JSON value. */
+    fromJson(value: Json): WatchBranchRequest {
+        return fromJsonWatchBranchRequest(value);
+    },
+};
+
+/** Encode one WatchBranchRequest. */
+export function encodeWatchBranchRequest(writer: BinaryWriter, value: WatchBranchRequest): void {
+    writer.writeString(value.root);
+    writer.writeString(value.name);
+}
+
+/** Decode one WatchBranchRequest. */
+export function decodeWatchBranchRequest(reader: BinaryReader): WatchBranchRequest {
+    const root = reader.readString();
+    const name = reader.readString();
+
+    return {
+        root,
+        name,
+    };
+}
+
+/** Return one JSON value for one WatchBranchRequest. */
+export function toJsonWatchBranchRequest(value: WatchBranchRequest): Json {
+    return {
+        root: value.root,
+        name: value.name,
+    };
+}
+
+/** Return one WatchBranchRequest from one JSON value. */
+export function fromJsonWatchBranchRequest(value: Json): WatchBranchRequest {
+    const object = jsonObject(value);
+
+    return {
+        root: jsonString(jsonField(object, "root")),
+        name: jsonString(jsonField(object, "name")),
+    };
+}
+
 /** Request to watch one workspace root. */
 export type WatchRequest = {
     /** Root to watch. */

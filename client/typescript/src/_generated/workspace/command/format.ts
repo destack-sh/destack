@@ -387,11 +387,6 @@ export type FormatSource =
           readonly kind: "files";
           readonly files: ReadonlyArray<string>;
       }
-    /** Format one open file. */
-    | {
-          readonly kind: "openFile";
-          readonly open_file: string;
-      }
     /** Format explicit text. */
     | {
           readonly kind: "text";
@@ -408,11 +403,6 @@ export const FormatSource = {
     /** Format files or directories. */
     files(files: ReadonlyArray<string>): FormatSource {
         return { kind: "files", files };
-    },
-
-    /** Format one open file. */
-    openFile(open_file: string): FormatSource {
-        return { kind: "openFile", open_file };
     },
 
     /** Format explicit text. */
@@ -451,12 +441,8 @@ export function encodeFormatSource(writer: BinaryWriter, value: FormatSource): v
                 writer.writeString(item0);
             }
             return;
-        case "openFile":
-            writer.writeUnsigned(1);
-            writer.writeString(value.open_file);
-            return;
         case "text":
-            writer.writeUnsigned(2);
+            writer.writeUnsigned(1);
             writer.writeString(value.name);
             encodeFileType(writer, value.fileType);
             writer.writeString(value.text);
@@ -477,11 +463,6 @@ export function decodeFormatSource(reader: BinaryReader): FormatSource {
             return { kind: "files", files };
         }
         case 1: {
-            const open_file = reader.readString();
-
-            return { kind: "openFile", open_file };
-        }
-        case 2: {
             const name = reader.readString();
             const fileType = decodeFileType(reader);
             const text = reader.readString();
@@ -506,11 +487,6 @@ export function toJsonFormatSource(value: FormatSource): Json {
                 kind: "files",
                 files: value.files.map((item0) => item0),
             };
-        case "openFile":
-            return {
-                kind: "openFile",
-                open_file: value.open_file,
-            };
         case "text":
             return {
                 kind: "text",
@@ -533,11 +509,6 @@ export function fromJsonFormatSource(value: Json): FormatSource {
             return {
                 kind,
                 files: jsonArray(jsonField(object, "files")).map((item0) => jsonString(item0)),
-            };
-        case "openFile":
-            return {
-                kind,
-                open_file: jsonString(jsonField(object, "open_file")),
             };
         case "text":
             return {

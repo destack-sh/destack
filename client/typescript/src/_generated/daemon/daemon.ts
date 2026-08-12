@@ -115,7 +115,7 @@ const openWorkspaceMethodResponse: Decoder<daemonServiceWorkspace.OpenWorkspaceR
 const openWorkspaceMethod: Method<daemonServiceWorkspace.OpenWorkspaceRequest, daemonServiceWorkspace.OpenWorkspaceResponse, never, never> = {
     service: 6560093225869906995n,
     method: 11799363674283201022n,
-    fingerprint: 298415161261777843722366481601939134464n,
+    fingerprint: 111230863365615880338386566366884850939n,
     kind: "unary",
     idempotency: "idempotent",
     request: openWorkspaceMethodRequest,

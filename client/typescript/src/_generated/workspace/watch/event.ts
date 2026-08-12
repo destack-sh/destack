@@ -6,15 +6,15 @@ import type { Revision } from "../../repository/revision.js";
 import { decodeCommit, encodeCommit, fromJsonCommit, toJsonCommit } from "../../repository/commit.js";
 import { decodeRevision, encodeRevision, fromJsonRevision, toJsonRevision } from "../../repository/revision.js";
 
-/** One semantic workspace change observed for an opened root. */
+/** One semantic workspace change observed from physical state or a branch. */
 export type WatchEvent =
-    /** The exact root revision at subscription time. */
+    /** The exact watched revision at subscription time. */
     | {
           readonly kind: "ready";
-          /** Current root revision. */
+          /** Current watched revision. */
           readonly revision: Revision;
       }
-    /** One committed root revision transition. */
+    /** One committed watched revision transition. */
     | {
           readonly kind: "commit";
           readonly commit: Commit;
@@ -22,12 +22,12 @@ export type WatchEvent =
 ;
 
 export const WatchEvent = {
-    /** The exact root revision at subscription time. */
+    /** The exact watched revision at subscription time. */
     ready(revision: Revision): WatchEvent {
         return { kind: "ready", revision };
     },
 
-    /** One committed root revision transition. */
+    /** One committed watched revision transition. */
     commit(commit: Commit): WatchEvent {
         return { kind: "commit", commit };
     },

@@ -491,11 +491,11 @@ export function fromJsonCommandOutputFile(value: Json): CommandOutputFile {
 
 /** Revision selection for command execution. */
 export type CommandRevision =
-    /** Execute from the current root revision. */
+    /** Execute from the current physical workspace revision. */
     | {
           readonly kind: "current";
       }
-    /** Execute only if the root is still at this revision. */
+    /** Execute only if physical workspace state remains at this revision. */
     | {
           readonly kind: "exact";
           readonly exact: Revision;
@@ -503,12 +503,12 @@ export type CommandRevision =
 ;
 
 export const CommandRevision = {
-    /** Execute from the current root revision. */
+    /** Execute from the current physical workspace revision. */
     current(): CommandRevision {
         return { kind: "current" };
     },
 
-    /** Execute only if the root is still at this revision. */
+    /** Execute only if physical workspace state remains at this revision. */
     exact(exact: Revision): CommandRevision {
         return { kind: "exact", exact };
     },
