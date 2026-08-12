@@ -2,16 +2,17 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::BuildId;
 use destack_query::{QueryRequest, QueryResponse};
 use destack_repository::{
-    Edit, Execution, Ref, Repository, Revision, Trace, TraceSnapshot, TraceView,
+    DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore, Repository,
+    Revision, Settings, Trace, TraceSnapshot, TraceView,
 };
 use destack_session::Executor;
+use destack_source::{FileSystem, MemoryFileSystem};
 use destack_workspace::{RevisionPolicy, RunQueryInput, Workspace};
 use futures::executor::block_on;
 use indexmap::IndexMap;
-
-use crate::core::SharedMemoryWorkspace;
 
 use super::{QueryChange, QueryFile};
 
@@ -57,9 +58,24 @@ pub(super) struct QueryExecution {
 impl QueryWorkspace {
     /// Create one shared query workspace.
     pub(super) fn new(root: impl Into<PathBuf>) -> Result<Self, String> {
+        // open one empty in memory repository
         let root = root.into();
-        let memory_workspace = SharedMemoryWorkspace::new(root.clone());
-        let repository = memory_workspace.repository();
+        let file_system = Arc::new(MemoryFileSystem::new());
+        file_system
+            .create_dir_all(&root)
+            .map_err(|error| format!("failed to create query workspace: {error}"))?;
+        let host = Host::new(BuildId::test(), Environment::capture_process(), file_system)
+            .with_blob_store(Arc::new(MemoryBlobStore::new()));
+        let (repository, revision) = Repository::open(
+            root.clone(),
+            host,
+            Settings::default(),
+            DestackLayoutOverride::default(),
+        )
+        .map_err(|error| format!("failed to open query repository: {error}"))?;
+        let repository = Arc::new(repository);
+
+        // create one threaded semantic workspace
         let worker_count = match env::var(WORKERS_ENV) {
             Ok(value) => value
                 .parse::<usize>()
@@ -71,20 +87,16 @@ impl QueryWorkspace {
         };
         let executor = Executor::new(Execution::Threaded, worker_count)
             .map_err(|error| format!("failed to create query artifact executor: {error}"))?;
-        let workspace = Workspace::new(repository.clone(), None, executor)
+        let workspace = Workspace::new(repository.clone(), revision, executor)
             .map_err(|error| format!("failed to open query workspace: {error}"))?;
         let has_timings =
             env::var_os(TIMINGS_ENV).is_some_and(|value| !value.is_empty() && value != "0");
-        let reference = Ref::for_root(&root);
-        let base_revision = repository
-            .current(&reference)
-            .map_err(|error| format!("failed to read query base revision: {error}"))?;
 
         Ok(Self {
             root,
             repository,
             workspace,
-            base_revision,
+            base_revision: revision,
             has_timings,
         })
     }
@@ -112,7 +124,7 @@ impl QueryWorkspace {
             edits.push(Edit::add_file("destack.json", blob));
         }
 
-        // publish every fixture file into the isolated revision
+        // commit every fixture file to the isolated revision
         for file in files.values() {
             let logical_path = query_logical_path(&file.path)?;
             let blob = self

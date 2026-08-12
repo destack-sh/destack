@@ -1,18 +1,13 @@
 use std::collections::HashMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, mpsc};
+use std::sync::mpsc;
 use std::time::Duration;
 use std::{io, thread};
 
-use destack_artifact::{BuildId, Output, Platform, Runtime};
-use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, Execution, Host, MemoryBlobStore, Mode,
-    Profile, Repository, Revision, Settings,
-};
-use destack_session::Executor;
-use destack_source::{FileSystem, MemoryFileSystem, ModuleId, TargetId};
-use destack_workspace::Workspace;
+use destack_artifact::{Output, Platform, Runtime};
+use destack_repository::{Mode, Profile, Repository, Revision};
+use destack_source::{ModuleId, TargetId};
 use indexmap::IndexSet;
 
 use crate::core::{CaseResult, discover_file_cases};
@@ -230,64 +225,6 @@ fn parse_emit_format(value: &str) -> Output {
         "program" | "bytecode" | "wasm" | "webassembly" | "native" => Output::Program,
         _ => panic!("invalid mdtest emit value '{value}'"),
     }
-}
-
-/// Set up an in memory test environment from a markdown test case.
-pub fn setup_test_environment_with_repository(
-    test: &MdTestCase,
-    repository: Arc<Repository>,
-    memory_fs: Arc<MemoryFileSystem>,
-    root: PathBuf,
-) -> (Arc<Repository>, PathBuf, PathBuf) {
-    // populate filesystem with test files
-    let mut main_path: Option<PathBuf> = None;
-    for file in &test.files {
-        let file_path = root.join(&file.path);
-        memory_fs
-            .add_file(&file_path, file.content.as_bytes())
-            .expect("failed to add test file");
-
-        if file.path == "main.ds" || main_path.is_none() {
-            main_path = Some(file_path);
-        }
-    }
-
-    // choose the main file and import the workspace root
-    let main_path = main_path.expect("test should have at least one file");
-    let executor =
-        Executor::new(Execution::Threaded, 1).expect("failed to create mdtest artifact executor");
-    let _workspace = Workspace::new(repository.clone(), None, executor)
-        .expect("failed to materialize mdtest workspace");
-
-    (repository, root, main_path)
-}
-
-/// Set up an in memory test environment from a markdown test case.
-pub fn setup_test_environment(test: &MdTestCase) -> (Arc<Repository>, PathBuf, PathBuf) {
-    // setup memory filesystem and repository
-    let memory_fs = Arc::new(MemoryFileSystem::new());
-    let cwd = PathBuf::from("/test");
-    let fs: Arc<dyn FileSystem> = memory_fs.clone();
-    let environment = Environment::capture_process();
-    let layout = DestackLayout::resolve(
-        &cwd,
-        &cwd,
-        &environment,
-        &Settings::default(),
-        &DestackLayoutOverride::default(),
-        None,
-    );
-    let host = Host::new(BuildId::test(), environment, fs)
-        .with_blob_store(Arc::new(MemoryBlobStore::new()));
-    let repository = Arc::new(Repository::new(
-        cwd.clone(),
-        host,
-        Settings::default(),
-        layout,
-    ));
-
-    // delegate to repository based setup
-    setup_test_environment_with_repository(test, repository, memory_fs, cwd)
 }
 
 /// Run a test function with a timeout.

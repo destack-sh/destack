@@ -8,7 +8,6 @@ mod options;
 pub mod print;
 mod runner;
 mod suite;
-mod workspace;
 
 pub use case::*;
 pub use context::*;
@@ -20,4 +19,3 @@ pub use options::*;
 pub use print::*;
 pub use runner::*;
 pub use suite::*;
-pub use workspace::*;
