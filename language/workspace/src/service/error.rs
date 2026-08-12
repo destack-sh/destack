@@ -1,4 +1,5 @@
 use destack_query::QueryError;
+use destack_repository::RepositoryError;
 use destack_rpc::{Code, Status};
 
 use crate::{CommandError, CommandErrorKind, Error};
@@ -10,17 +11,20 @@ impl From<Error> for Status {
             Error::PathNotInRoot { .. }
             | Error::FileMissing { .. }
             | Error::ModuleNotLoadable { .. } => Code::NotFound,
-            Error::StaleOpenFile { .. } => Code::Aborted,
             Error::InvalidTextChange { .. } | Error::InvalidEdit { .. } => Code::InvalidArgument,
             Error::Query(error) if matches!(error.as_ref(), QueryError::Invalid(_)) => {
                 Code::InvalidArgument
             }
             Error::WorkspaceClosed
-            | Error::OpenFileWrite { .. }
             | Error::StaleRevision { .. }
             | Error::TargetNotSelected { .. } => Code::FailedPrecondition,
+            Error::FileChanged { .. } => Code::Aborted,
             Error::WatchLagged { .. } => Code::ResourceExhausted,
             Error::WatchClosed { .. } => Code::Aborted,
+            Error::MissingBranch { .. }
+            | Error::WatchRemoved { .. }
+            | Error::Repository(RepositoryError::MissingRevision { .. }) => Code::NotFound,
+            Error::BranchExists { .. } => Code::AlreadyExists,
             Error::WatchFailed { .. } => Code::Unavailable,
             Error::Repository(_)
             | Error::Session(_)

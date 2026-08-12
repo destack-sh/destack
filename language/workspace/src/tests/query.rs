@@ -14,9 +14,10 @@ fn test_resolve_query_file_requires_target() {
     let source = "export const value = 1;\n";
     let path = test.write_text("main.ds", source);
     let _ = test.apply_text(&path, source);
+    let revision = test.workspace.revision().expect("read revision");
     let error = test
         .workspace
-        .resolve_query_file(path)
+        .resolve_query_file(revision, path)
         .expect_err("query file without target should fail");
 
     assert!(matches!(error, Error::TargetNotSelected { .. }));
@@ -104,7 +105,7 @@ fn test_diagnose_successive_source_revisions() {
     // read the complete diagnostic result for the first revision
     let first = block_on(
         test.workspace
-            .diagnose(DiagnosticsRequest::File(path.clone())),
+            .diagnose(first_revision, DiagnosticsRequest::File(path.clone())),
     )
     .expect("first diagnostics");
     let first_diagnostics = first[0]
@@ -131,8 +132,11 @@ fn test_diagnose_successive_source_revisions() {
         .workspace
         .revision()
         .expect("second diagnostic revision");
-    let second = block_on(test.workspace.diagnose(DiagnosticsRequest::File(path)))
-        .expect("second diagnostics");
+    let second = block_on(
+        test.workspace
+            .diagnose(second_revision, DiagnosticsRequest::File(path)),
+    )
+    .expect("second diagnostics");
     assert_ne!(first_revision, second_revision);
     assert_eq!(second[0].revision, second_revision);
     assert_eq!(second[0].diagnostics, Vec::new());

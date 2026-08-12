@@ -1,20 +1,21 @@
 mod artifact;
+mod branch;
 mod command;
 mod diagnostic;
 mod error;
+mod physical;
 mod progress;
 mod query;
-mod root;
-mod service;
 mod source;
 mod watch;
 mod workspace;
 
 pub use artifact::*;
+pub use branch::*;
 pub use command::*;
 pub use diagnostic::*;
+pub use physical::*;
 pub use query::*;
-pub use root::*;
-pub use service::*;
 pub use source::*;
 pub use watch::*;
+pub use workspace::*;

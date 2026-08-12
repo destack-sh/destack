@@ -379,7 +379,7 @@ impl CommandContext<'_> {
             .collect::<CommandResult<Vec<_>>>()?;
         let commit = self
             .workspace
-            .write_source_edits_if_current(self.base, edits)
+            .edit(self.base, edits)
             .map_err(|error| CommandError::source(error.to_string()))?;
 
         Ok(Some(commit))

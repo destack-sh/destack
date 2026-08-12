@@ -1,18 +1,249 @@
 use destack_artifact::ArtifactPayload;
 use destack_core::Blob;
+use destack_repository as repository;
 use destack_repository::{Commit, Revision};
 use destack_rpc::{Request, Response, ResponseSender, Status};
 use futures::{FutureExt, pin_mut, select_biased};
 
 use super::*;
 use crate::{
-    BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandProgress, DocOutput,
-    DoctorOutput, ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent, QueryOutput,
-    RewriteOutput, RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput, TestOutput,
-    WatchEvent, Workspace,
+    BenchOutput, Branch, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandProgress,
+    DocOutput, DoctorOutput, ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent,
+    QueryOutput, RewriteOutput, RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput,
+    TestOutput, Watch, WatchEvent, Workspace,
 };
 
+/// RPC operations over one Destack workspace.
+#[destack_rpc::service(name = "destack.workspace.Workspace")]
+pub trait WorkspaceService {
+    // =============================================================================
+    // Workspace
+    // =============================================================================
+
+    /// Read one workspace's physical revision.
+    #[rpc(name = "Revision", idempotency = "no_side_effects")]
+    fn revision(request: RevisionRequest) -> Revision;
+
+    /// Reload one workspace root from its host.
+    #[rpc(name = "Reload", idempotency = "idempotent")]
+    fn reload(request: ReloadRequest) -> Option<Commit>;
+
+    // =============================================================================
+    // Branch
+    // =============================================================================
+
+    /// List branches in one workspace.
+    #[rpc(name = "ListBranches", idempotency = "no_side_effects")]
+    fn list_branches(request: ListBranchesRequest) -> Vec<Branch>;
+
+    /// Create one workspace branch.
+    #[rpc(name = "CreateBranch")]
+    fn create_branch(request: CreateBranchRequest) -> Branch;
+
+    /// Read one workspace branch revision.
+    #[rpc(name = "BranchRevision", idempotency = "no_side_effects")]
+    fn branch_revision(request: BranchRevisionRequest) -> Revision;
+
+    /// Remove one workspace branch.
+    #[rpc(name = "RemoveBranch")]
+    fn remove_branch(request: RemoveBranchRequest) -> ();
+
+    // =============================================================================
+    // Source
+    // =============================================================================
+
+    /// Commit source edits to physical workspace state.
+    #[rpc(name = "Edit")]
+    fn edit(request: EditRequest) -> Commit;
+
+    /// Commit source edits to one exact branch revision.
+    #[rpc(name = "EditBranch")]
+    fn edit_branch(request: EditBranchRequest) -> Commit;
+
+    /// Save selected branch files to physical state.
+    #[rpc(name = "SaveBranch")]
+    fn save_branch(request: SaveBranchRequest) -> Commit;
+
+    /// Restore selected branch files from physical state.
+    #[rpc(name = "RestoreBranch")]
+    fn restore_branch(request: RestoreBranchRequest) -> Commit;
+
+    /// Compare two exact workspace revisions.
+    #[rpc(name = "Diff", idempotency = "no_side_effects")]
+    fn diff(request: DiffRequest) -> Vec<repository::Change>;
+
+    /// List files at one exact workspace revision.
+    #[rpc(name = "ListFiles", idempotency = "no_side_effects")]
+    fn list_files(request: ListFilesRequest) -> Vec<repository::File>;
+
+    /// Format one source file or selected range.
+    #[rpc(name = "FormatFile", idempotency = "no_side_effects")]
+    fn format_file(request: FormatFileRequest) -> Option<FileEditResponse>;
+
+    /// Read source files from one exact revision.
+    #[rpc(name = "ReadFiles", idempotency = "no_side_effects")]
+    fn read_files(request: ReadFilesRequest) -> Vec<FileImage>;
+
+    // =============================================================================
+    // Analysis
+    // =============================================================================
+
+    /// Check source state.
+    #[rpc(
+        name = "Check",
+        response_stream(ProgressEvent),
+        idempotency = "no_side_effects"
+    )]
+    fn check(request: CheckRequest) -> CheckOutput;
+
+    /// Format source files or content.
+    #[rpc(name = "Format", response_stream(ProgressEvent))]
+    fn format(request: FormatRequest) -> FormatOutput;
+
+    /// Query source files with one structural pattern.
+    #[rpc(
+        name = "Query",
+        response_stream(ProgressEvent),
+        idempotency = "no_side_effects"
+    )]
+    fn query(request: QueryRequest) -> QueryOutput;
+
+    /// Rewrite source files with one structural pattern.
+    #[rpc(name = "Rewrite", response_stream(ProgressEvent))]
+    fn rewrite(request: RewriteRequest) -> RewriteOutput;
+
+    // =============================================================================
+    // Build
+    // =============================================================================
+
+    /// Build target artifacts.
+    #[rpc(name = "Build", response_stream(ProgressEvent))]
+    fn build(request: BuildRequest) -> BuildOutput;
+
+    /// Run workspace tests.
+    #[rpc(name = "Test", response_stream(ProgressEvent))]
+    fn test(request: TestRequest) -> TestOutput;
+
+    /// Generate workspace documentation.
+    #[rpc(name = "Doc", response_stream(ProgressEvent))]
+    fn doc(request: DocRequest) -> DocOutput;
+
+    /// Run workspace benchmarks.
+    #[rpc(name = "Bench", response_stream(ProgressEvent))]
+    fn bench(request: BenchRequest) -> BenchOutput;
+
+    // =============================================================================
+    // Configuration
+    // =============================================================================
+
+    /// Return workspace information.
+    #[rpc(
+        name = "Info",
+        response_stream(ProgressEvent),
+        idempotency = "no_side_effects"
+    )]
+    fn info(request: InfoRequest) -> InfoOutput;
+
+    /// Return configured targets.
+    #[rpc(
+        name = "Targets",
+        response_stream(ProgressEvent),
+        idempotency = "no_side_effects"
+    )]
+    fn targets(request: TargetsRequest) -> TargetsOutput;
+
+    /// Return cache locations.
+    #[rpc(
+        name = "Cache",
+        response_stream(ProgressEvent),
+        idempotency = "no_side_effects"
+    )]
+    fn cache(request: CacheRequest) -> CacheOutput;
+
+    /// Return resolved settings.
+    #[rpc(
+        name = "Settings",
+        response_stream(ProgressEvent),
+        idempotency = "no_side_effects"
+    )]
+    fn settings(request: SettingsRequest) -> SettingsOutput;
+
+    /// Diagnose workspace configuration and state.
+    #[rpc(
+        name = "Doctor",
+        response_stream(ProgressEvent),
+        idempotency = "no_side_effects"
+    )]
+    fn doctor(request: DoctorRequest) -> DoctorOutput;
+
+    // =============================================================================
+    // Task
+    // =============================================================================
+
+    /// Execute configured workspace tasks.
+    #[rpc(name = "Task", response_stream(ProgressEvent))]
+    fn task(request: TaskRequest) -> TaskOutput;
+
+    /// Clean generated workspace state.
+    #[rpc(name = "Clean", response_stream(ProgressEvent))]
+    fn clean(request: CleanRequest) -> CleanOutput;
+
+    // =============================================================================
+    // Artifact
+    // =============================================================================
+
+    /// Read one exact artifact payload.
+    #[rpc(name = "Artifact", idempotency = "no_side_effects")]
+    fn artifact(request: ArtifactRequest) -> ArtifactPayload;
+
+    /// Publish one artifact's storage bytes as a Blob.
+    #[rpc(name = "Blob", idempotency = "idempotent")]
+    fn blob(request: ArtifactRequest) -> Blob;
+
+    /// Materialize one artifact on the workspace host.
+    #[rpc(name = "Export")]
+    fn export(request: ExportRequest) -> ExportResult;
+
+    // =============================================================================
+    // Language
+    // =============================================================================
+
+    /// Read exact diagnostics.
+    #[rpc(name = "Diagnose", idempotency = "no_side_effects")]
+    fn diagnose(request: DiagnoseRequest) -> Vec<FileDiagnosticsResponse>;
+
+    /// Resolve one source file for semantic queries.
+    #[rpc(name = "ResolveQueryFile", idempotency = "no_side_effects")]
+    fn resolve_query_file(request: ResolveQueryFileRequest) -> Option<QueryFileResponse>;
+
+    /// Execute one semantic query.
+    #[rpc(name = "RunQuery", idempotency = "no_side_effects")]
+    fn run_query(request: RunQueryRequest) -> RunQueryResponse;
+
+    // =============================================================================
+    // Watch
+    // =============================================================================
+
+    /// Watch one workspace root until cancellation.
+    #[rpc(name = "Watch", response_stream(WatchEvent))]
+    fn watch(request: WatchRequest) -> ();
+
+    /// Watch one workspace branch until cancellation.
+    #[rpc(name = "WatchBranch", response_stream(WatchEvent))]
+    fn watch_branch(request: WatchBranchRequest) -> ();
+}
+
 impl WorkspaceService for Workspace {
+    /// Read one workspace's physical revision.
+    async fn revision(
+        &self,
+        request: Request<RevisionRequest>,
+    ) -> Result<Response<Revision>, Status> {
+        self.resolve_root(&request.value.root)?;
+
+        Ok(Response::new(Workspace::revision(self)?))
+    }
+
     /// Reload one workspace root from its host.
     async fn reload(
         &self,
@@ -24,51 +255,131 @@ impl WorkspaceService for Workspace {
         Ok(Response::new(commit))
     }
 
-    /// Read one workspace root revision.
-    async fn read_revision(
+    /// List branches in one workspace.
+    async fn list_branches(
         &self,
-        request: Request<ReadRevisionRequest>,
-    ) -> Result<Response<Revision>, Status> {
+        request: Request<ListBranchesRequest>,
+    ) -> Result<Response<Vec<Branch>>, Status> {
         self.resolve_root(&request.value.root)?;
-        let revision = Workspace::revision(self)?;
+
+        Ok(Response::new(Workspace::branches(self)?))
+    }
+
+    /// Create one workspace branch.
+    async fn create_branch(
+        &self,
+        request: Request<CreateBranchRequest>,
+    ) -> Result<Response<Branch>, Status> {
+        let request = request.value;
+        self.resolve_root(&request.root)?;
+        let branch = Workspace::create_branch(self, request.name, request.revision)?;
+
+        Ok(Response::new(branch))
+    }
+
+    /// Read one workspace branch revision.
+    async fn branch_revision(
+        &self,
+        request: Request<BranchRevisionRequest>,
+    ) -> Result<Response<Revision>, Status> {
+        let request = request.value;
+        self.resolve_root(&request.root)?;
+        let revision = Workspace::branch_revision(self, &request.name)?;
 
         Ok(Response::new(revision))
     }
 
-    /// Apply one editor file operation.
-    async fn apply_file_operation(
+    /// Remove one workspace branch.
+    async fn remove_branch(
         &self,
-        request: Request<ApplyFileOperationRequest>,
-    ) -> Result<Response<Option<Commit>>, Status> {
+        request: Request<RemoveBranchRequest>,
+    ) -> Result<Response<()>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let commit = Workspace::apply_file_operation(self, request.operation)?;
+        Workspace::remove_branch(self, &request.name)?;
+
+        Ok(Response::new(()))
+    }
+
+    /// Commit source edits to physical workspace state.
+    async fn edit(&self, request: Request<EditRequest>) -> Result<Response<Commit>, Status> {
+        let request = request.value;
+        self.resolve_root(&request.root)?;
+        let commit = Workspace::edit(self, request.revision, request.edits)?;
 
         Ok(Response::new(commit))
     }
 
-    /// Apply one atomic source update.
-    async fn apply_source_update(
+    /// Commit source edits to one exact branch revision.
+    async fn edit_branch(
         &self,
-        request: Request<ApplySourceUpdateRequest>,
+        request: Request<EditBranchRequest>,
     ) -> Result<Response<Commit>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let commit = Workspace::edit(self, request.update)?;
+        let commit = Workspace::edit_branch(self, &request.name, request.revision, request.edits)?;
 
         Ok(Response::new(commit))
     }
 
-    /// Return whether one source file is open.
-    async fn is_file_open(
+    /// Save selected branch files to physical state.
+    async fn save_branch(
         &self,
-        request: Request<IsFileOpenRequest>,
-    ) -> Result<Response<bool>, Status> {
+        request: Request<SaveBranchRequest>,
+    ) -> Result<Response<Commit>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let is_open = Workspace::is_file_open(self, &request.path)?;
+        let commit = Workspace::save_branch(
+            self,
+            &request.name,
+            request.revision,
+            request.physical,
+            request.files,
+        )?;
 
-        Ok(Response::new(is_open))
+        Ok(Response::new(commit))
+    }
+
+    /// Restore selected branch files from physical state.
+    async fn restore_branch(
+        &self,
+        request: Request<RestoreBranchRequest>,
+    ) -> Result<Response<Commit>, Status> {
+        let request = request.value;
+        self.resolve_root(&request.root)?;
+        let commit = Workspace::restore_branch(
+            self,
+            &request.name,
+            request.revision,
+            request.physical,
+            request.files,
+        )?;
+
+        Ok(Response::new(commit))
+    }
+
+    /// Compare two exact workspace revisions.
+    async fn diff(
+        &self,
+        request: Request<DiffRequest>,
+    ) -> Result<Response<Vec<repository::Change>>, Status> {
+        let request = request.value;
+        self.resolve_root(&request.root)?;
+        let changes = Workspace::diff(self, request.before, request.after)?;
+
+        Ok(Response::new(changes))
+    }
+
+    /// List files at one exact workspace revision.
+    async fn list_files(
+        &self,
+        request: Request<ListFilesRequest>,
+    ) -> Result<Response<Vec<repository::File>>, Status> {
+        let request = request.value;
+        self.resolve_root(&request.root)?;
+        let files = Workspace::files(self, request.revision)?;
+
+        Ok(Response::new(files))
     }
 
     /// Format one source file or selected range.
@@ -78,7 +389,7 @@ impl WorkspaceService for Workspace {
     ) -> Result<Response<Option<FileEditResponse>>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let edit = Workspace::format_file(self, request.path, request.range)?;
+        let edit = Workspace::format_file(self, request.revision, request.path, request.range)?;
         let edit = edit.as_ref().map(FileEditResponse::from);
 
         Ok(Response::new(edit))
@@ -350,7 +661,7 @@ impl WorkspaceService for Workspace {
     ) -> Result<Response<Vec<FileDiagnosticsResponse>>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let diagnostics = Workspace::diagnose(self, request.request).await?;
+        let diagnostics = Workspace::diagnose(self, request.revision, request.request).await?;
         let diagnostics = diagnostics
             .iter()
             .map(FileDiagnosticsResponse::from)
@@ -366,7 +677,7 @@ impl WorkspaceService for Workspace {
     ) -> Result<Response<Option<QueryFileResponse>>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let file = Workspace::resolve_query_file(self, request.path)?;
+        let file = Workspace::resolve_query_file(self, request.revision, request.path)?;
         let file = file.as_ref().map(QueryFileResponse::from);
 
         Ok(Response::new(file))
@@ -384,20 +695,42 @@ impl WorkspaceService for Workspace {
         Ok(Response::new(response))
     }
 
-    /// Watch one workspace root until cancellation.
+    /// Watch physical workspace state until cancellation.
     async fn watch(
         &self,
         request: Request<WatchRequest>,
-        mut responses: ResponseSender<WatchEvent>,
+        responses: ResponseSender<WatchEvent>,
     ) -> Result<Response<()>, Status> {
         self.resolve_root(&request.value.root)?;
-        let mut watch = Workspace::watch(self)?;
+        let watch = Workspace::watch(self)?;
 
+        watch.send(responses).await
+    }
+
+    /// Watch one workspace branch until cancellation.
+    async fn watch_branch(
+        &self,
+        request: Request<WatchBranchRequest>,
+        responses: ResponseSender<WatchEvent>,
+    ) -> Result<Response<()>, Status> {
+        self.resolve_root(&request.value.root)?;
+        let watch = Workspace::watch_branch(self, &request.value.name)?;
+
+        watch.send(responses).await
+    }
+}
+
+impl Watch {
+    /// Send this watch over one RPC response stream.
+    async fn send(
+        mut self,
+        mut responses: ResponseSender<WatchEvent>,
+    ) -> Result<Response<()>, Status> {
         loop {
             // wait for cancellation or the next committed change
             let event = {
                 let canceled = responses.canceled().fuse();
-                let event = watch.next().fuse();
+                let event = self.next().fuse();
                 pin_mut!(canceled, event);
 
                 select_biased! {

@@ -14,6 +14,8 @@ use crate::Error;
 pub struct Watch {
     /// Watched workspace root.
     root: PathBuf,
+    /// Watched branch, absent for physical workspace state.
+    branch: Option<String>,
     /// Initial revision not yet returned to the caller.
     ready: Option<Revision>,
     /// Pending commits and their result revision pins.
@@ -36,6 +38,7 @@ impl std::fmt::Debug for Watch {
         formatter
             .debug_struct("Watch")
             .field("root", &self.root)
+            .field("branch", &self.branch)
             .field("ready", &self.ready)
             .field("end", &self.end)
             .finish()
@@ -46,15 +49,17 @@ impl Watch {
     /// Register one watch beginning at an exact workspace revision.
     pub(crate) fn new(
         root: PathBuf,
+        branch: Option<String>,
         revision: Revision,
         repository: &Arc<Repository>,
         state: Arc<Mutex<WatchState>>,
     ) -> Result<Self, Error> {
         let after = repository.pin(revision)?;
-        let (identifier, receiver, end) = state.lock().subscribe(&root)?;
+        let (identifier, receiver, end) = state.lock().subscribe(&root, branch.as_deref())?;
 
         Ok(Self {
             root,
+            branch,
             ready: Some(revision),
             receiver,
             before: None,
@@ -73,7 +78,7 @@ impl Watch {
 
         let commit = self.receiver.next().await;
         if let Some(end) = self.end.lock().clone() {
-            return Err(end.error(self.root.clone()));
+            return Err(end.error(self.root.clone(), self.branch.clone()));
         }
         let Some((commit, after)) = commit else {
             return Err(Error::Internal {
@@ -115,7 +120,7 @@ pub(crate) struct WatchState {
     subscriptions: HashMap<u64, Subscription>,
     /// Next subscription identifier.
     next_identifier: u64,
-    /// Latest host watch failure blocking new subscriptions.
+    /// Latest host watch failure blocking physical subscriptions.
     failure: Option<String>,
     /// Whether the workspace has closed.
     is_closed: bool,
@@ -138,6 +143,7 @@ impl WatchState {
     fn subscribe(
         &mut self,
         root: &Path,
+        branch: Option<&str>,
     ) -> Result<
         (
             u64,
@@ -150,8 +156,11 @@ impl WatchState {
         if self.is_closed {
             return Err(Error::WatchClosed {
                 root: root.to_path_buf(),
+                branch: branch.map(str::to_string),
             });
-        } else if let Some(detail) = &self.failure {
+        } else if branch.is_none()
+            && let Some(detail) = &self.failure
+        {
             return Err(Error::WatchFailed {
                 root: root.to_path_buf(),
                 detail: detail.clone(),
@@ -164,6 +173,7 @@ impl WatchState {
         let identifier = self.next_identifier;
         self.next_identifier += 1;
         let subscription = Subscription {
+            branch: branch.map(str::to_string),
             sender,
             end: end.clone(),
         };
@@ -173,20 +183,23 @@ impl WatchState {
     }
 
     /// Publish one committed workspace transition to every active watch.
-    pub(crate) fn publish(
-        &mut self,
-        commit: &Commit,
-        repository: &Arc<Repository>,
-    ) -> Result<(), Error> {
-        if self.subscriptions.is_empty() {
-            return Ok(());
+    pub(crate) fn publish(&mut self, branch: Option<&str>, commit: &Commit, after: RevisionPin) {
+        let is_watched = self
+            .subscriptions
+            .values()
+            .any(|subscription| subscription.branch.as_deref() == branch);
+        if !is_watched {
+            return;
         }
 
-        let after = repository.pin(commit.after)?;
         let commit = (commit.clone(), after);
 
         // retain subscriptions that accepted this exact commit
         self.subscriptions.retain(|_, subscription| {
+            if subscription.branch.as_deref() != branch {
+                return true;
+            }
+
             match subscription.sender.try_send(commit.clone()) {
                 Ok(()) => true,
                 Err(error) if error.is_full() => {
@@ -197,8 +210,6 @@ impl WatchState {
                 Err(_) => false,
             }
         });
-
-        Ok(())
     }
 
     /// Close every active watch because the workspace closed.
@@ -216,16 +227,34 @@ impl WatchState {
     pub(crate) fn fail(&mut self, detail: String) {
         self.failure = Some(detail.clone());
 
-        // terminate active subscriptions without exposing host events
-        for subscription in self.subscriptions.values() {
+        // terminate physical subscriptions without exposing host events
+        self.subscriptions.retain(|_, subscription| {
+            if subscription.branch.is_some() {
+                return true;
+            }
+
             *subscription.end.lock() = Some(WatchEnd::Failed(detail.clone()));
-        }
-        self.subscriptions.clear();
+
+            false
+        });
     }
 
     /// Accept new watches after one successful host reload.
     pub(crate) fn recover(&mut self) {
         self.failure = None;
+    }
+
+    /// Terminate every subscription for one removed branch.
+    pub(crate) fn remove_branch(&mut self, branch: &str) {
+        self.subscriptions.retain(|_, subscription| {
+            if subscription.branch.as_deref() != Some(branch) {
+                return true;
+            }
+
+            *subscription.end.lock() = Some(WatchEnd::Removed(branch.to_string()));
+
+            false
+        });
     }
 
     /// Remove one exact subscription.
@@ -237,6 +266,8 @@ impl WatchState {
 /// One semantic commit subscription.
 #[derive(Debug)]
 struct Subscription {
+    /// Branch selected by this subscription, absent for physical state.
+    branch: Option<String>,
     /// Pending semantic event sender.
     sender: Sender<(Commit, RevisionPin)>,
     /// Terminal reason shared with the receiving watch.
@@ -250,16 +281,19 @@ enum WatchEnd {
     Lagged,
     /// The workspace closed.
     Closed,
+    /// The watched branch was removed.
+    Removed(String),
     /// The workspace host watcher failed.
     Failed(String),
 }
 
 impl WatchEnd {
     /// Convert this terminal reason into a public workspace failure.
-    fn error(self, root: PathBuf) -> Error {
+    fn error(self, root: PathBuf, branch: Option<String>) -> Error {
         match self {
-            Self::Lagged => Error::WatchLagged { root },
-            Self::Closed => Error::WatchClosed { root },
+            Self::Lagged => Error::WatchLagged { root, branch },
+            Self::Closed => Error::WatchClosed { root, branch },
+            Self::Removed(branch) => Error::WatchRemoved { root, branch },
             Self::Failed(detail) => Error::WatchFailed { root, detail },
         }
     }

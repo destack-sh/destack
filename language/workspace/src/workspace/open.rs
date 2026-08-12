@@ -1,19 +1,15 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::Path;
-
+use destack_artifact::BuildId;
 use destack_repository::{
-    DestackLayoutOverride, Environment, Settings, open_repository_from_memory,
+    DestackLayoutOverride, Environment, Host, Repository, RepositoryError, Settings,
 };
 use destack_session::Executor;
 use destack_source::Edit;
 
 #[cfg(not(target_arch = "wasm32"))]
-use destack_repository::open_repository_from_fs;
-#[cfg(not(target_arch = "wasm32"))]
-use destack_source::{OverlayFileSystem, PhysicalFileSystem};
+use destack_source::PhysicalFileSystem;
 
 use super::Workspace;
 use crate::Error;
@@ -22,20 +18,21 @@ impl Workspace {
     /// Open a local workspace from one filesystem path.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn open(path: impl Into<PathBuf>, executor: Arc<Executor>) -> Result<Self, Error> {
-        let path = workspace_path(&path.into())?;
-        let file_system = Arc::new(OverlayFileSystem::with_inner(Arc::new(PhysicalFileSystem)));
-        let repository = Arc::new(
-            open_repository_from_fs(
-                path,
-                file_system.clone(),
-                Environment::capture_process(),
-                Settings::default(),
-                DestackLayoutOverride::default(),
-            )
-            .map_err(Error::from)?,
-        );
+        let path = path.into();
+        let path = std::fs::canonicalize(&path).map_err(|source| Error::Io { path, source })?;
+        let file_system = Arc::new(PhysicalFileSystem);
+        let build_id = BuildId::current().map_err(|error| RepositoryError::ArtifactStore {
+            message: format!("failed to identify Destack build: {error}"),
+        })?;
+        let host = Host::new(build_id, Environment::capture_process(), file_system);
+        let (repository, physical) = Repository::open(
+            path,
+            host,
+            Settings::default(),
+            DestackLayoutOverride::default(),
+        )?;
 
-        Self::new(repository, Some(file_system), executor)
+        Self::new(Arc::new(repository), physical, executor)
     }
 
     /// Open a local workspace from in-memory source edits.
@@ -45,26 +42,14 @@ impl Workspace {
         executor: Arc<Executor>,
     ) -> Result<Self, Error> {
         let root = root.into();
-        let repository = Arc::new(
-            open_repository_from_memory(
-                root.clone(),
-                edits,
-                Environment::default(),
-                Settings::default(),
-                DestackLayoutOverride::default(),
-            )
-            .map_err(Error::from)?,
-        );
+        let (repository, physical) = Repository::memory(
+            root,
+            edits,
+            Environment::default(),
+            Settings::default(),
+            DestackLayoutOverride::default(),
+        )?;
 
-        Self::new(repository, None, executor)
+        Self::new(Arc::new(repository), physical, executor)
     }
-}
-
-/// Return one stable local workspace path.
-#[cfg(not(target_arch = "wasm32"))]
-fn workspace_path(path: &Path) -> Result<PathBuf, Error> {
-    std::fs::canonicalize(path).map_err(|source| Error::Io {
-        path: path.to_path_buf(),
-        source,
-    })
 }

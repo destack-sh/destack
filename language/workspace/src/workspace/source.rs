@@ -1,11 +1,8 @@
 use std::path::Path;
-use std::sync::Arc;
 
 use destack_repository as repository;
-use destack_repository::{Commit, RepositoryError, Revision, RevisionPin};
-use destack_source::{
-    Edit, File, FileId, FilePatch, ModuleId, Patch, Span, TextPatch, apply_file_patch,
-};
+use destack_repository::{Change, Commit, Revision, RevisionPin};
+use destack_source::{Edit, FileId, FilePatch, ModuleId, Patch, Span, TextPatch, apply_file_patch};
 
 use crate::Error;
 use crate::file::normalize_path;
@@ -13,6 +10,53 @@ use crate::file::normalize_path;
 use super::Workspace;
 
 impl Workspace {
+    /// Compare two exact workspace revisions.
+    pub fn diff(&self, before: Revision, after: Revision) -> Result<Vec<Change>, Error> {
+        let _before = self.repository.pin(before)?;
+        let _after = self.repository.pin(after)?;
+
+        self.repository.changes(before, after).map_err(Error::from)
+    }
+
+    /// List files at one exact workspace revision.
+    pub fn files(&self, revision: Revision) -> Result<Vec<repository::File>, Error> {
+        let _revision = self.repository.pin(revision)?;
+
+        self.repository.files(revision).map_err(Error::from)
+    }
+
+    /// Commit source edits to one exact branch revision.
+    pub fn edit_branch(
+        &self,
+        name: &str,
+        revision: Revision,
+        edits: Vec<Edit>,
+    ) -> Result<Commit, Error> {
+        let mut state = self.lock()?;
+        let current = state.branch(name)?.revision();
+        if current != revision {
+            return Err(Error::StaleRevision {
+                expected: revision,
+                current,
+            });
+        }
+
+        let edits = edits
+            .into_iter()
+            .map(|edit| self.resolve_edit(edit))
+            .collect::<Result<Vec<_>, _>>()?;
+        let edits = edits
+            .into_iter()
+            .map(|edit| self.lower(revision, edit))
+            .collect::<Result<Vec<_>, _>>()?;
+        let commit = self.repository.edit(revision, edits)?;
+        let after = self.repository.pin(commit.after)?;
+        state.branches.insert(name.to_string(), after.clone());
+        self.publish(Some(name), &commit, after);
+
+        Ok(commit)
+    }
+
     /// Return one workspace-relative logical path.
     pub(crate) fn logical_path(&self, path: &Path) -> Result<String, Error> {
         let path = if let Ok(path) = self.repository.file_system().canonicalize(path) {
@@ -29,26 +73,6 @@ impl Workspace {
             .map_err(|_| Error::PathNotInRoot { path: path.clone() })?;
 
         Ok(Self::path_text(logical_path))
-    }
-
-    /// Return one workspace-relative file id.
-    pub(crate) fn file_id(&self, path: &Path) -> Result<FileId, Error> {
-        let path = self.logical_path(path)?;
-
-        Ok(FileId::from_logical_str(&path))
-    }
-
-    /// Return the shared file for one path in one revision.
-    pub(crate) fn file(&self, revision: Revision, path: &Path) -> Result<Arc<File>, Error> {
-        let file_id = self.file_id(path)?;
-        let file = self
-            .repository
-            .file(revision, file_id)?
-            .ok_or_else(|| Error::Internal {
-                detail: format!("file is missing from revision: {}", path.display()),
-            })?;
-
-        Ok(file)
     }
 
     /// Load one filesystem module into a private revision.
@@ -83,41 +107,6 @@ impl Workspace {
         };
 
         Ok((revision, module_id))
-    }
-
-    /// Commit source edits against this workspace's exact revision.
-    pub(crate) fn commit(&self, revision: Revision, edits: Vec<Edit>) -> Result<Commit, Error> {
-        let current = self.revision()?;
-        if current != revision {
-            return Err(Error::StaleRevision {
-                expected: revision,
-                current,
-            });
-        }
-
-        // lower every source edit against the same immutable revision
-        let edits = edits
-            .into_iter()
-            .map(|edit| self.lower(revision, edit))
-            .collect::<Result<Vec<_>, _>>()?;
-
-        self.advance(revision, edits)
-    }
-
-    /// Advance this workspace with repository edits.
-    pub(crate) fn advance(
-        &self,
-        revision: Revision,
-        edits: Vec<repository::Edit>,
-    ) -> Result<Commit, Error> {
-        self.repository
-            .commit(&self.head, revision, edits)
-            .map_err(|error| match error {
-                RepositoryError::RefChanged {
-                    expected, current, ..
-                } => Error::StaleRevision { expected, current },
-                error => Error::from(error),
-            })
     }
 
     /// Lower one source edit into one repository edit.

@@ -22,13 +22,14 @@ impl Workspace {
     /// Format one source file or selected text range.
     pub fn format_file(
         &self,
+        revision: Revision,
         path: PathBuf,
         range: Option<TextRange>,
     ) -> Result<Option<FileEdit>, Error> {
         let path = self.resolve_path(&path)?;
 
         // read the file and formatter options from one revision
-        let session = self.pin()?;
+        let session = self.pin(revision)?;
         let Some(file_id) = session.file_id(&path)? else {
             return Ok(None);
         };

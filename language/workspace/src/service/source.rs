@@ -3,36 +3,83 @@ use std::sync::Arc;
 
 use destack_repository::Revision;
 use destack_serde::Reflect;
-use destack_source::{FileId, Patch, TextRange};
+use destack_source::{Edit, FileId, Patch, TextRange};
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, FileEdit, FileImage, FileOperation, SourceUpdate};
+use crate::{Error, FileEdit, FileImage, FileSelection};
 
-/// Request to apply one workspace file operation.
+/// Request to edit physical workspace state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct ApplyFileOperationRequest {
-    /// Root receiving the file operation.
-    pub root: PathBuf,
-    /// File operation to apply.
-    pub operation: FileOperation,
-}
-
-/// Request to apply one atomic source update.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct ApplySourceUpdateRequest {
-    /// Root receiving the source update.
-    pub root: PathBuf,
-    /// Source update to apply.
-    pub update: SourceUpdate,
-}
-
-/// Request to inspect whether one file is open.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct IsFileOpenRequest {
+pub struct EditRequest {
     /// Owning workspace root.
     pub root: PathBuf,
-    /// Source path to inspect.
-    pub path: PathBuf,
+    /// Exact expected physical revision.
+    pub revision: Revision,
+    /// Source file edits.
+    pub edits: Vec<Edit>,
+}
+
+/// Request to edit one workspace branch.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct EditBranchRequest {
+    /// Owning workspace root.
+    pub root: PathBuf,
+    /// Branch receiving the source edits.
+    pub name: String,
+    /// Exact expected branch revision.
+    pub revision: Revision,
+    /// Source file edits.
+    pub edits: Vec<Edit>,
+}
+
+/// Request to save one branch to the physical workspace.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct SaveBranchRequest {
+    /// Owning workspace root.
+    pub root: PathBuf,
+    /// Branch to save.
+    pub name: String,
+    /// Exact branch revision to save.
+    pub revision: Revision,
+    /// Expected physical workspace revision.
+    pub physical: Revision,
+    /// Files to save.
+    pub files: FileSelection,
+}
+
+/// Request to restore one branch from physical workspace state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct RestoreBranchRequest {
+    /// Owning workspace root.
+    pub root: PathBuf,
+    /// Branch receiving restored files.
+    pub name: String,
+    /// Expected branch revision.
+    pub revision: Revision,
+    /// Expected physical workspace revision.
+    pub physical: Revision,
+    /// Files to restore.
+    pub files: FileSelection,
+}
+
+/// Request to compare two exact workspace revisions.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct DiffRequest {
+    /// Owning workspace root.
+    pub root: PathBuf,
+    /// Previous revision.
+    pub before: Revision,
+    /// Updated revision.
+    pub after: Revision,
+}
+
+/// Request to list files at one exact workspace revision.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ListFilesRequest {
+    /// Owning workspace root.
+    pub root: PathBuf,
+    /// Exact source revision.
+    pub revision: Revision,
 }
 
 /// Request to format one source file or selected range.
@@ -40,6 +87,8 @@ pub struct IsFileOpenRequest {
 pub struct FormatFileRequest {
     /// Owning workspace root.
     pub root: PathBuf,
+    /// Exact source revision.
+    pub revision: Revision,
     /// Source path to format.
     pub path: PathBuf,
     /// Optional UTF-16 source range.

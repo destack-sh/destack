@@ -42,6 +42,11 @@ impl WorkspacePin {
         self.revision.revision()
     }
 
+    /// Return the retained repository revision.
+    pub(crate) fn into_revision(self) -> RevisionPin {
+        self.revision
+    }
+
     /// Return the repository backing this revision.
     pub(crate) fn repository(&self) -> &Repository {
         self.revision.repository()
@@ -223,9 +228,20 @@ impl WorkspacePin {
 }
 
 impl Workspace {
-    /// Pin this workspace at its current revision.
-    pub(crate) fn pin(&self) -> Result<WorkspacePin, Error> {
-        let revision = self.revision()?;
+    /// Pin current physical workspace state.
+    pub(crate) fn pin_physical(&self) -> Result<WorkspacePin, Error> {
+        let state = self.lock()?;
+        let revision = state.physical.clone();
+
+        Ok(WorkspacePin::new(
+            self.root.clone(),
+            self.session(),
+            revision,
+        ))
+    }
+
+    /// Pin this workspace at one exact revision.
+    pub(crate) fn pin(&self, revision: Revision) -> Result<WorkspacePin, Error> {
         let revision = self.repository.pin(revision)?;
 
         Ok(WorkspacePin::new(

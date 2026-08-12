@@ -72,10 +72,10 @@ impl CommandTargetOverrides {
 /// Revision selection for command execution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, Default)]
 pub enum CommandRevision {
-    /// Execute from the current root revision.
+    /// Execute from the current physical workspace revision.
     #[default]
     Current,
-    /// Execute only if the root is still at this revision.
+    /// Execute only if physical workspace state remains at this revision.
     Exact(Revision),
 }
 

@@ -13,6 +13,8 @@ use crate::{Error, FileImage, QueryFile, RunQueryInput};
 pub struct ResolveQueryFileRequest {
     /// Owning workspace root.
     pub root: PathBuf,
+    /// Exact semantic revision.
+    pub revision: Revision,
     /// Source path to resolve.
     pub path: PathBuf,
 }

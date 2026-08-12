@@ -51,11 +51,15 @@ impl QueryFile {
 
 impl Workspace {
     /// Resolve one source file for semantic queries.
-    pub fn resolve_query_file(&self, path: PathBuf) -> Result<Option<QueryFile>, Error> {
+    pub fn resolve_query_file(
+        &self,
+        revision: Revision,
+        path: PathBuf,
+    ) -> Result<Option<QueryFile>, Error> {
         let path = self.resolve_path(&path)?;
 
         // pin the workspace and resolve the requested source
-        let session = self.pin()?;
+        let session = self.pin(revision)?;
         let Some(file_id) = session.file_id(&path)? else {
             return Ok(None);
         };
@@ -219,11 +223,11 @@ impl QueryRun {
 /// Revision selection policy for one query.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum RevisionPolicy {
-    /// Use the ref's latest revision when execution starts.
+    /// Use the current physical workspace revision when execution starts.
     Latest,
     /// Use one exact immutable revision.
     Exact(Revision),
-    /// Use one revision only if the ref still points at it.
+    /// Use one revision only if physical workspace state still selects it.
     Current(Revision),
 }
 
@@ -232,8 +236,8 @@ impl Workspace {
     pub fn start_query(&self, request: RunQueryInput, is_tracing: bool) -> Result<QueryRun, Error> {
         // pin the session selected by the revision policy
         let session = match request.revision {
-            // select the latest ref state
-            RevisionPolicy::Latest => self.pin()?,
+            // select current physical workspace state
+            RevisionPolicy::Latest => self.pin_physical()?,
 
             // pin the exact immutable revision
             RevisionPolicy::Exact(revision) => {
@@ -242,9 +246,9 @@ impl Workspace {
                 WorkspacePin::new(self.root.clone(), self.session(), revision)
             }
 
-            // require the ref to remain at the caller's revision
+            // require physical state to remain at the caller's revision
             RevisionPolicy::Current(expected) => {
-                let session = self.pin()?;
+                let session = self.pin_physical()?;
                 let current = session.revision();
                 if current != expected {
                     return Err(Error::StaleRevision { expected, current });

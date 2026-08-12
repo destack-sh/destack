@@ -92,8 +92,6 @@ impl_command_input_options!(FormatInput {
 pub enum FormatSource {
     /// Format files or directories.
     Files(Vec<PathBuf>),
-    /// Format one open file.
-    OpenFile(PathBuf),
     /// Format explicit text.
     Text {
         /// Input label.
@@ -220,9 +218,6 @@ impl CommandContext<'_> {
                 for path in files {
                     paths.push(path.clone());
                 }
-            }
-            FormatSource::OpenFile(path) => {
-                paths.push(path.clone());
             }
             FormatSource::Text { .. } => {}
         }

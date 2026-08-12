@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_repository::Revision;
 use destack_serde::Reflect;
-use destack_source::{Diagnostic, Uri};
+use destack_source::Diagnostic;
 use serde::{Deserialize, Serialize};
 
 use crate::{DiagnosticsRequest, Error, FileDiagnostics, FileImage};
@@ -13,6 +13,8 @@ use crate::{DiagnosticsRequest, Error, FileDiagnostics, FileImage};
 pub struct DiagnoseRequest {
     /// Owning workspace root.
     pub root: PathBuf,
+    /// Exact semantic revision.
+    pub revision: Revision,
     /// Diagnostic selection within the workspace.
     pub request: DiagnosticsRequest,
 }
@@ -24,10 +26,6 @@ pub struct FileDiagnosticsResponse {
     pub revision: Revision,
     /// Source file image used for range conversion.
     pub file: FileImage,
-    /// URI published to the editor.
-    pub uri: Uri,
-    /// Editor document version when the file is open.
-    pub version: Option<i32>,
     /// Diagnostics for the source file.
     pub diagnostics: Vec<Diagnostic>,
 }
@@ -42,8 +40,6 @@ impl TryFrom<FileDiagnosticsResponse> for FileDiagnostics {
         Ok(Self {
             revision: response.revision,
             file: Arc::new(file),
-            uri: response.uri,
-            version: response.version,
             diagnostics: response.diagnostics,
         })
     }
@@ -55,8 +51,6 @@ impl From<&FileDiagnostics> for FileDiagnosticsResponse {
         Self {
             revision: diagnostics.revision,
             file: FileImage::from(diagnostics.file.as_ref()),
-            uri: diagnostics.uri.clone(),
-            version: diagnostics.version,
             diagnostics: diagnostics.diagnostics.clone(),
         }
     }

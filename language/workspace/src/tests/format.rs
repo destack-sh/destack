@@ -10,11 +10,12 @@ fn test_format_file_without_query_target() {
     let source = "export const value=1;\n";
     let path = test.write_text("main.ds", source);
     test.apply_text(&path, source);
+    let revision = test.workspace.revision().expect("read revision");
 
     // format the exact workspace file without semantic module resolution
     let edit = test
         .workspace
-        .format_file(path, None)
+        .format_file(revision, path, None)
         .expect("format file")
         .expect("format edit");
 

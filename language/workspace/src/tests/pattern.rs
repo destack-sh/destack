@@ -3,8 +3,7 @@ use destack_source::{FileId, FileType, Span};
 
 use crate::FileImage;
 use crate::command::{
-    CommandErrorKind, QueryCapture, QueryCaptureValue, QueryMatch, QueryPayload, RewriteMode,
-    RewritePayload,
+    QueryCapture, QueryCaptureValue, QueryMatch, QueryPayload, RewriteMode, RewritePayload,
 };
 use crate::tests::harness::TestPattern;
 
@@ -278,32 +277,6 @@ fn test_rewrite_source_pattern_write() {
         files[0].text(),
         "client.fetch(\"/a\");\nclient.fetch(\"/b\");\n"
     );
-}
-
-/// Reject filesystem rewrites for open editor source.
-#[test]
-fn test_rewrite_rejects_open_source_write() {
-    let disk_source = "fetch(\"disk\");\n";
-    let open_source = "fetch(\"open\");\n";
-    let test = TestPattern::new("rewrite-open-source").input("main.ds", disk_source);
-    test.open("main.ds", open_source);
-    let before = test.revision();
-    let error = test
-        .rewrite("fetch($URL)", "client.fetch($URL)")
-        .mode(RewriteMode::Write)
-        .error();
-    let main = test.path("main.ds");
-
-    assert_eq!(error.kind, CommandErrorKind::Source);
-    assert_eq!(
-        error.message,
-        format!(
-            "cannot write open editor source to disk: {}",
-            main.display()
-        )
-    );
-    assert_eq!(test.source("main.ds"), disk_source);
-    assert_eq!(test.revision(), before);
 }
 
 /// Select and rewrite contextual MatchArm roots through the same command model.

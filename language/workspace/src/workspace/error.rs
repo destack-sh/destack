@@ -1,5 +1,7 @@
+use std::io;
 use std::path::PathBuf;
 
+use destack_core::Blob;
 use destack_query::QueryError;
 use destack_repository::{RepositoryError, Revision};
 use destack_session::SessionError;
@@ -27,19 +29,15 @@ pub enum Error {
         /// The failure detail.
         detail: String,
     },
-    /// The incoming open file version is not newer than the tracked version.
-    StaleOpenFile {
-        /// The open file path.
-        path: PathBuf,
-        /// The incoming client file version.
-        incoming: i32,
-        /// The current tracked client file version.
-        current: i32,
+    /// The requested branch does not exist.
+    MissingBranch {
+        /// Missing branch name.
+        name: String,
     },
-    /// A disk write targeted an open editor document.
-    OpenFileWrite {
-        /// The open file path.
-        path: PathBuf,
+    /// The requested branch already exists.
+    BranchExists {
+        /// Existing branch name.
+        name: String,
     },
     /// The requested text change is invalid.
     InvalidTextChange {
@@ -55,13 +53,24 @@ pub enum Error {
     },
     /// A semantic workspace watch fell behind its root.
     WatchLagged {
-        /// Root whose changes exceeded the watch capacity.
+        /// Root that advanced beyond the pending watch commit.
         root: PathBuf,
+        /// Watched branch, absent for physical state.
+        branch: Option<String>,
     },
     /// A semantic workspace watch lost its closed root.
     WatchClosed {
         /// Root closed while it was watched.
         root: PathBuf,
+        /// Watched branch, absent for physical state.
+        branch: Option<String>,
+    },
+    /// A semantic workspace watch lost its removed branch.
+    WatchRemoved {
+        /// Root containing the removed branch.
+        root: PathBuf,
+        /// Removed branch name.
+        branch: String,
     },
     /// The host stopped watching a workspace root.
     WatchFailed {
@@ -76,6 +85,15 @@ pub enum Error {
         expected: Revision,
         /// The current revision.
         current: Revision,
+    },
+    /// A physical file no longer matches the workspace revision.
+    FileChanged {
+        /// Physical file that changed.
+        path: PathBuf,
+        /// Blob expected by the workspace revision.
+        expected: Option<Blob>,
+        /// Blob observed on the filesystem.
+        actual: Option<Blob>,
     },
     /// A package has no selected query target.
     TargetNotSelected {
@@ -93,16 +111,14 @@ pub enum Error {
         /// The path that failed.
         path: PathBuf,
         /// The filesystem failure.
-        source: std::io::Error,
+        source: io::Error,
     },
     /// Restoring source files after a failed operation also failed.
     RollbackFailed {
         /// The original operation failure.
         operation: Box<Error>,
-        /// The path that could not be restored.
-        path: PathBuf,
-        /// The restoration failure.
-        source: std::io::Error,
+        /// Every restoration failure.
+        failures: Vec<Error>,
     },
     /// Internal workspace failure.
     Internal {
@@ -132,23 +148,9 @@ impl std::fmt::Display for Error {
                     path.display()
                 )
             }
-            Error::StaleOpenFile {
-                path,
-                incoming,
-                current,
-            } => {
-                write!(
-                    formatter,
-                    "stale open file for {}: incoming {incoming}, current {current}",
-                    path.display()
-                )
-            }
-            Error::OpenFileWrite { path } => {
-                write!(
-                    formatter,
-                    "cannot write open editor source to disk: {}",
-                    path.display()
-                )
+            Error::MissingBranch { name } => write!(formatter, "missing workspace branch '{name}'"),
+            Error::BranchExists { name } => {
+                write!(formatter, "workspace branch already exists: '{name}'")
             }
             Error::InvalidTextChange { path, detail } => {
                 write!(
@@ -160,24 +162,41 @@ impl std::fmt::Display for Error {
             Error::InvalidEdit { detail } => {
                 write!(formatter, "invalid edit: {detail}")
             }
-            Error::WatchLagged { root } => {
+            Error::WatchLagged { root, branch } => {
                 write!(
                     formatter,
                     "workspace watch lagged behind {}",
                     root.display()
-                )
+                )?;
+                if let Some(branch) = branch {
+                    write!(formatter, " for branch '{branch}'")?;
+                }
+
+                Ok(())
             }
-            Error::WatchClosed { root } => {
+            Error::WatchClosed { root, branch } => {
                 write!(
                     formatter,
-                    "watched workspace root closed: {}",
+                    "workspace closed while {} was watched",
+                    root.display()
+                )?;
+                if let Some(branch) = branch {
+                    write!(formatter, " on branch '{branch}'")?;
+                }
+
+                Ok(())
+            }
+            Error::WatchRemoved { root, branch } => {
+                write!(
+                    formatter,
+                    "workspace branch '{branch}' was removed while watched: {}",
                     root.display()
                 )
             }
             Error::WatchFailed { root, detail } => {
                 write!(
                     formatter,
-                    "workspace host watch failed for {}: {detail}",
+                    "workspace watch failed for {}: {detail}",
                     root.display()
                 )
             }
@@ -185,6 +204,17 @@ impl std::fmt::Display for Error {
                 write!(
                     formatter,
                     "stale revision: expected {expected}, current {current}"
+                )
+            }
+            Error::FileChanged {
+                path,
+                expected,
+                actual,
+            } => {
+                write!(
+                    formatter,
+                    "physical file changed at {}: expected {expected:?}, actual {actual:?}",
+                    path.display()
                 )
             }
             Error::TargetNotSelected { package_id } => {
@@ -211,14 +241,19 @@ impl std::fmt::Display for Error {
             }
             Error::RollbackFailed {
                 operation,
-                path,
-                source,
+                failures,
             } => {
-                write!(
-                    formatter,
-                    "{operation}; restoring {} also failed: {source}",
-                    path.display()
-                )
+                write!(formatter, "{operation}; rollback failed: ")?;
+
+                // append every restoration failure without a trailing separator
+                for (index, failure) in failures.iter().enumerate() {
+                    if index > 0 {
+                        write!(formatter, "; ")?;
+                    }
+                    write!(formatter, "{failure}")?;
+                }
+
+                Ok(())
             }
             Error::Internal { detail } => {
                 write!(formatter, "workspace internal error: {detail}")

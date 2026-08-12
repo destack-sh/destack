@@ -1,26 +1,47 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_repository::{Commit, Revision};
+use destack_repository::{Commit, Revision, RevisionPin};
 use destack_session::{ArtifactPriority, Session};
 use parking_lot::MutexGuard;
 
 use crate::{Error, Watch, Workspace};
 
+/// Mutable state of one workspace.
+#[derive(Debug)]
+pub(crate) struct State {
+    /// Current workspace lifecycle.
+    pub(crate) lifecycle: Lifecycle,
+    /// Current physical workspace revision.
+    pub(crate) physical: RevisionPin,
+    /// Current retained revision for every branch.
+    pub(crate) branches: HashMap<String, RevisionPin>,
+}
+
 /// Lifecycle of one workspace.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum State {
+pub(crate) enum Lifecycle {
     /// The workspace accepts operations.
     Open,
     /// The workspace rejects operations.
     Closed,
 }
 
+impl State {
+    /// Return one retained workspace branch.
+    pub(crate) fn branch(&self, name: &str) -> Result<&RevisionPin, Error> {
+        self.branches.get(name).ok_or_else(|| Error::MissingBranch {
+            name: name.to_string(),
+        })
+    }
+}
+
 impl Workspace {
     /// Lock this workspace for one mutation while it remains open.
-    pub(crate) fn write(&self) -> Result<MutexGuard<'_, State>, Error> {
+    pub(crate) fn lock(&self) -> Result<MutexGuard<'_, State>, Error> {
         let state = self.state.lock();
-        if *state == State::Closed {
+        if state.lifecycle == Lifecycle::Closed {
             return Err(Error::WorkspaceClosed);
         }
 
@@ -30,13 +51,10 @@ impl Workspace {
     /// Close this workspace and its dependent state.
     pub fn close(&self) {
         let mut state = self.state.lock();
-        if *state == State::Closed {
+        if state.lifecycle == Lifecycle::Closed {
             return;
         }
-        *state = State::Closed;
-
-        // remove editor state before terminating workspace operations
-        self.remove_open_files();
+        state.lifecycle = Lifecycle::Closed;
 
         // cancel background work and terminate semantic subscriptions
         let background_run = self.background_run.lock().take();
@@ -44,18 +62,21 @@ impl Workspace {
         self.watch.lock().close();
     }
 
-    /// Return the revision currently published by this workspace.
+    /// Return the exact physical workspace revision.
     pub fn revision(&self) -> Result<Revision, Error> {
-        self.repository.current(&self.head).map_err(Error::from)
+        let state = self.lock()?;
+
+        Ok(state.physical.revision())
     }
 
-    /// Open one semantic watch at the current workspace revision.
+    /// Watch physical workspace state.
     pub fn watch(&self) -> Result<Watch, Error> {
-        let _write = self.write()?;
-        let revision = self.revision()?;
+        let state = self.lock()?;
+        let revision = state.physical.revision();
 
         Watch::new(
             self.root.clone(),
+            None,
             revision,
             &self.repository,
             self.watch.clone(),
@@ -63,12 +84,10 @@ impl Workspace {
     }
 
     /// Publish one committed transition to semantic watches.
-    pub(crate) fn publish(&self, commit: Commit) -> Result<Commit, Error> {
+    pub(crate) fn publish(&self, branch: Option<&str>, commit: &Commit, after: RevisionPin) {
         if commit.before != commit.after {
-            self.watch.lock().publish(&commit, &self.repository)?;
+            self.watch.lock().publish(branch, commit, after);
         }
-
-        Ok(commit)
     }
 
     /// Schedule proactive editor artifacts for one revision.
@@ -77,7 +96,7 @@ impl Workspace {
         revision: Revision,
         artifacts: &[ArtifactKey],
     ) -> Result<(), Error> {
-        let _write = self.write()?;
+        let _state = self.lock()?;
         let run = if artifacts.is_empty() {
             None
         } else {
@@ -96,7 +115,7 @@ impl Workspace {
 
     /// Terminate semantic subscriptions after one host watch failure.
     pub fn fail_watch(&self, detail: String) -> Result<(), Error> {
-        let _write = self.write()?;
+        let _state = self.lock()?;
         self.watch.lock().fail(detail);
 
         Ok(())
@@ -104,7 +123,7 @@ impl Workspace {
 
     /// Resume semantic watches after host observation becomes active.
     pub fn resume_watch(&self) -> Result<(), Error> {
-        let _write = self.write()?;
+        let _state = self.lock()?;
         self.watch.lock().recover();
 
         Ok(())

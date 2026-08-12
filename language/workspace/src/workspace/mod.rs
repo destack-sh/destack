@@ -1,21 +1,21 @@
+mod branch;
 mod error;
 mod format;
-mod lifecycle;
 mod message;
 mod open;
 mod path;
 mod pin;
 mod query;
 mod source;
-mod update;
+mod state;
 mod workspace;
 
-pub use error::Error;
-pub use format::FileEdit;
-pub use message::{Message, MessageKind};
-pub use query::{QueryFile, QueryRun, RevisionPolicy, RunQueryInput, RunQueryResponse};
-pub use update::SourceUpdate;
-pub use workspace::Workspace;
+pub use branch::*;
+pub use error::*;
+pub use format::*;
+pub use message::*;
+pub use query::*;
+pub use workspace::*;
 
-pub(crate) use lifecycle::State;
-pub(crate) use pin::WorkspacePin;
+pub(crate) use pin::*;
+pub(crate) use state::*;

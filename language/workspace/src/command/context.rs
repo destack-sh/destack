@@ -94,10 +94,8 @@ impl<'a> CommandContext<'a> {
         let root = workspace.root().to_path_buf();
 
         // select and privately configure the command revision
-        let base = Self::resolve_command_revision(workspace, revision)?;
-        let revision = repository.pin(base).map_err(|error| {
-            CommandError::internal(format!("failed to pin command revision: {error}"))
-        })?;
+        let revision = Self::resolve_command_revision(workspace, revision)?;
+        let base = revision.revision();
         let revision = Self::apply_overrides(&root, &repository, revision, &common.overrides)?;
 
         // bind the command to the shared workspace executor
@@ -204,16 +202,19 @@ impl<'a> CommandContext<'a> {
     fn resolve_command_revision(
         workspace: &Workspace,
         revision: CommandRevision,
-    ) -> CommandResult<Revision> {
-        match revision {
-            CommandRevision::Current => workspace.revision().map_err(|error| {
-                CommandError::internal(format!(
-                    "command workspace revision is missing for {}: {error}",
-                    workspace.root().display()
-                ))
-            }),
-            CommandRevision::Exact(revision) => Ok(revision),
+    ) -> CommandResult<RevisionPin> {
+        let revision = match revision {
+            CommandRevision::Current => workspace.pin_physical(),
+            CommandRevision::Exact(revision) => workspace.pin(revision),
         }
+        .map_err(|error| {
+            CommandError::internal(format!(
+                "failed to select command revision for {}: {error}",
+                workspace.root().display()
+            ))
+        })?;
+
+        Ok(revision.into_revision())
     }
 
     /// Apply manifest overrides to one private command revision.

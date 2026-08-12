@@ -1,269 +1,295 @@
 use std::collections::HashSet;
-use std::io::ErrorKind;
+use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
 
-use destack_repository::{Commit, Revision};
+use destack_core::{Blob, BlobId, StableHasher};
+use destack_repository::{Change, Commit, Revision};
 use destack_source::Edit;
 
-use crate::Error;
-use crate::workspace::Workspace;
-
-/// Previous filesystem content retained until one commit publishes.
-struct Backup {
-    /// The source path.
-    path: PathBuf,
-    /// The previous bytes, or `None` when the path did not exist.
-    content: Option<Vec<u8>>,
-}
+use crate::workspace::{State, Workspace};
+use crate::{Error, FileSelection};
 
 impl Workspace {
-    /// Reload this workspace from its host filesystem.
+    /// Reload physical workspace state from its complete host filesystem.
     pub fn reload(&self) -> Result<Option<Commit>, Error> {
-        let _write = self.write()?;
-        let before = self.revision()?;
+        let mut state = self.lock()?;
+        let before = state.physical.revision();
         let edits = self.repository.scan(&self.root, before)?;
-        let commit = self.advance(before, edits)?;
+        let commit = self.repository.edit(before, edits)?;
 
         if commit.before == commit.after {
             return Ok(None);
         }
+        self.publish_physical(&mut state, &commit)?;
 
-        Ok(Some(self.publish(commit)?))
+        Ok(Some(commit))
     }
 
-    /// Reconcile changed host paths through this workspace.
+    /// Reconcile changed physical paths into the workspace.
     pub fn reconcile(&self, paths: Vec<PathBuf>) -> Result<Option<Commit>, Error> {
-        let _write = self.write()?;
-
-        // resolve physical paths against this workspace
+        let mut state = self.lock()?;
         let logical_paths = paths
             .into_iter()
             .map(|path| self.logical_path(&path).map(PathBuf::from))
             .collect::<Result<Vec<_>, _>>()?;
-        let before = self.revision()?;
+        let before = state.physical.revision();
         let edits = self
             .repository
             .scan_paths(&self.root, before, logical_paths)?;
-        let commit = self.advance(before, edits)?;
+        let commit = self.repository.edit(before, edits)?;
 
-        // publish only an observable repository transition
         if commit.before == commit.after {
             return Ok(None);
         }
+        self.publish_physical(&mut state, &commit)?;
 
-        Ok(Some(self.publish(commit)?))
+        Ok(Some(commit))
     }
 
-    /// Write one edit to the host filesystem and workspace.
-    pub fn write_file(&self, edit: Edit) -> Result<Commit, Error> {
-        let _write = self.write()?;
-        let edit = self.resolve_edit(edit)?;
-        let revision = self.revision()?;
+    /// Commit source edits to disk and physical workspace state.
+    pub fn edit(&self, revision: Revision, edits: Vec<Edit>) -> Result<Commit, Error> {
+        let mut state = self.lock()?;
+        let current = state.physical.revision();
+        if current != revision {
+            return Err(Error::StaleRevision {
+                expected: revision,
+                current,
+            });
+        }
 
-        self.persist(revision, vec![edit])
-    }
-
-    /// Write source edits when the current revision still matches.
-    pub(crate) fn write_source_edits_if_current(
-        &self,
-        revision: Revision,
-        edits: Vec<Edit>,
-    ) -> Result<Commit, Error> {
-        let _write = self.write()?;
         let edits = edits
             .into_iter()
             .map(|edit| self.resolve_edit(edit))
             .collect::<Result<Vec<_>, _>>()?;
+        let edits = edits
+            .into_iter()
+            .map(|edit| self.lower(revision, edit))
+            .collect::<Result<Vec<_>, _>>()?;
+        let commit = self.repository.edit(revision, edits)?;
 
-        self.persist(revision, edits)
+        self.persist(&mut state, commit)
     }
 
-    /// Commit source edits to disk and one exact workspace revision.
-    fn persist(&self, revision: Revision, edits: Vec<Edit>) -> Result<Commit, Error> {
-        let backups = self.backups(&edits)?;
-
-        // write every file while the workspace remains locked
-        for edit in &edits {
-            if let Err(error) = self.write_edit(edit) {
-                return Err(self.restore(error, &backups));
-            }
-        }
-
-        // publish only after every filesystem write succeeds
-        match self.commit(revision, edits) {
-            Ok(commit) => self.publish(commit),
-            Err(error) => Err(self.restore(error, &backups)),
-        }
-    }
-
-    /// Retain original filesystem bytes for every edited path.
-    fn backups(&self, edits: &[Edit]) -> Result<Vec<Backup>, Error> {
-        let mut paths = HashSet::new();
-        let mut backups = Vec::new();
-
-        // read every distinct path before performing any write
-        for edit in edits {
-            match edit {
-                Edit::SetText { path, .. }
-                | Edit::SetBytes { path, .. }
-                | Edit::Remove { path } => self.backup(path, &mut paths, &mut backups)?,
-                Edit::Move { from, to } => {
-                    if from == to {
-                        return Err(Error::InvalidEdit {
-                            detail: "move source and destination must differ".to_string(),
-                        });
-                    }
-
-                    self.backup(from, &mut paths, &mut backups)?;
-                    self.backup(to, &mut paths, &mut backups)?;
-                }
-                Edit::EditText { .. } => {
-                    return Err(Error::InvalidEdit {
-                        detail: "text patch edits cannot be written directly to disk".to_string(),
-                    });
-                }
-            }
-        }
-
-        Ok(backups)
-    }
-
-    /// Retain one original filesystem path once.
-    fn backup(
+    /// Save selected files from one branch to physical workspace state.
+    pub fn save_branch(
         &self,
-        path: &Path,
-        paths: &mut HashSet<PathBuf>,
-        backups: &mut Vec<Backup>,
-    ) -> Result<(), Error> {
-        // reject disk writes while editor content owns the path
-        if self.has_open_file(path) {
-            return Err(Error::OpenFileWrite {
-                path: path.to_path_buf(),
+        name: &str,
+        revision: Revision,
+        physical: Revision,
+        files: FileSelection,
+    ) -> Result<Commit, Error> {
+        let mut state = self.lock()?;
+        let current_physical = state.physical.revision();
+        if current_physical != physical {
+            return Err(Error::StaleRevision {
+                expected: physical,
+                current: current_physical,
             });
         }
 
-        // retain each physical path once
-        if !paths.insert(path.to_path_buf()) {
-            return Ok(());
+        let current_branch = state.branch(name)?.revision();
+        if current_branch != revision {
+            return Err(Error::StaleRevision {
+                expected: revision,
+                current: current_branch,
+            });
         }
 
-        // retain the current bytes or absence
-        let file_system = self.repository.file_system();
-        let content = if file_system.exists(path).map_err(|source| Error::Io {
-            path: path.to_path_buf(),
-            source,
-        })? {
-            Some(file_system.read(path).map_err(|source| Error::Io {
-                path: path.to_path_buf(),
-                source,
-            })?)
-        } else {
-            None
+        let changes = self.changes(physical, revision, files)?;
+        let edits = changes.iter().map(Change::forward);
+        let commit = self.repository.edit(physical, edits)?;
+
+        self.persist(&mut state, commit)
+    }
+
+    /// Restore selected branch files from physical workspace state.
+    pub fn restore_branch(
+        &self,
+        name: &str,
+        revision: Revision,
+        physical: Revision,
+        files: FileSelection,
+    ) -> Result<Commit, Error> {
+        let mut state = self.lock()?;
+        let current_branch = state.branch(name)?.revision();
+        if current_branch != revision {
+            return Err(Error::StaleRevision {
+                expected: revision,
+                current: current_branch,
+            });
+        }
+
+        let current_physical = state.physical.revision();
+        if current_physical != physical {
+            return Err(Error::StaleRevision {
+                expected: physical,
+                current: current_physical,
+            });
+        }
+
+        let changes = self.changes(revision, physical, files)?;
+        let edits = changes.iter().map(Change::forward);
+        let commit = self.repository.edit(revision, edits)?;
+        let after = self.repository.pin(commit.after)?;
+        state.branches.insert(name.to_string(), after.clone());
+        self.publish(Some(name), &commit, after);
+
+        Ok(commit)
+    }
+
+    /// Select canonical changes between two exact revisions.
+    fn changes(
+        &self,
+        before: Revision,
+        after: Revision,
+        files: FileSelection,
+    ) -> Result<Vec<Change>, Error> {
+        let mut changes = self.repository.changes(before, after)?;
+        let FileSelection::Paths(paths) = files else {
+            return Ok(changes);
         };
-        backups.push(Backup {
-            path: path.to_path_buf(),
-            content,
-        });
+
+        let paths = paths
+            .into_iter()
+            .map(|path| self.logical_path(&self.resolve_path(&path)?))
+            .collect::<Result<HashSet<_>, Error>>()?;
+        changes.retain(|change| paths.contains(&change.path));
+
+        Ok(changes)
+    }
+
+    /// Write canonical changes before advancing physical workspace state.
+    fn persist(&self, state: &mut State, commit: Commit) -> Result<Commit, Error> {
+        // retain the unpublished revision throughout physical writes
+        let _after = self.repository.pin(commit.after)?;
+
+        // select files that have not already reached the requested state
+        let mut writes = Vec::new();
+        for change in &commit.changes {
+            if self.requires_write(change)? {
+                writes.push(change);
+            }
+        }
+
+        // write every changed file while Workspace mutations remain serialized
+        for (index, change) in writes.iter().enumerate() {
+            if let Err(error) = self.apply(change) {
+                return Err(self.rollback(error, &writes[..index]));
+            }
+        }
+
+        // publish repository state only after every physical write succeeds
+        if let Err(error) = self.publish_physical(state, &commit) {
+            return Err(self.rollback(error, &writes));
+        }
+
+        Ok(commit)
+    }
+
+    /// Advance physical workspace state and publish its exact transition.
+    fn publish_physical(&self, state: &mut State, commit: &Commit) -> Result<(), Error> {
+        let after = self.repository.pin(commit.after)?;
+        state.physical = after.clone();
+        self.publish(None, commit, after);
 
         Ok(())
     }
 
-    /// Restore original filesystem content after a failed source commit.
-    fn restore(&self, operation: Error, backups: &[Backup]) -> Error {
+    /// Restore original Blob bindings after a failed operation.
+    fn rollback(&self, operation: Error, changes: &[&Change]) -> Error {
+        let mut failures = Vec::new();
+
         // restore every path even when one restoration fails
-        let mut failure = None;
-        for backup in backups.iter().rev() {
-            let result = match &backup.content {
-                Some(content) => self.repository.file_system().write(&backup.path, content),
-                None => self.repository.file_system().remove_file(&backup.path),
-            };
-            if let Err(source) = result
-                && source.kind() != ErrorKind::NotFound
-                && failure.is_none()
-            {
-                failure = Some((backup.path.clone(), source));
+        for change in changes.iter().rev() {
+            let path = self.repository.physical_path(&change.path);
+            if let Err(error) = self.replace(&path, change.before) {
+                failures.push(error);
             }
         }
 
-        match failure {
-            Some((path, source)) => Error::RollbackFailed {
+        if failures.is_empty() {
+            operation
+        } else {
+            Error::RollbackFailed {
                 operation: Box::new(operation),
-                path,
-                source,
-            },
-            None => operation,
+                failures,
+            }
         }
     }
 
-    /// Write one edit to disk.
-    fn write_edit(&self, edit: &Edit) -> Result<(), Error> {
-        match edit {
-            Edit::SetText { path, text } => {
-                self.create_parent(path)?;
-                self.repository
-                    .file_system()
-                    .write_string(path, text)
-                    .map_err(|source| Error::Io {
-                        path: path.to_path_buf(),
-                        source,
-                    })?;
-            }
-            Edit::SetBytes { path, bytes } => {
-                self.create_parent(path)?;
-                self.repository
-                    .file_system()
-                    .write(path, bytes)
-                    .map_err(|source| Error::Io {
-                        path: path.to_path_buf(),
-                        source,
-                    })?;
-            }
-            Edit::Remove { path } => {
-                if let Err(source) = self.repository.file_system().remove_file(path)
-                    && source.kind() != ErrorKind::NotFound
-                {
-                    return Err(Error::Io {
-                        path: path.to_path_buf(),
-                        source,
-                    });
-                }
-            }
-            Edit::EditText { .. } => {
-                return Err(Error::InvalidEdit {
-                    detail: "text patch edits cannot be written directly to disk".to_string(),
+    /// Return whether one physical file still requires its repository change.
+    fn requires_write(&self, change: &Change) -> Result<bool, Error> {
+        let path = self.repository.physical_path(&change.path);
+        let actual = self.physical_blob(&path)?;
+        if actual == change.before {
+            Ok(true)
+        } else if actual == change.after {
+            Ok(false)
+        } else {
+            Err(Error::FileChanged {
+                path,
+                expected: change.before,
+                actual,
+            })
+        }
+    }
+
+    /// Identify one physical file without retaining its bytes.
+    fn physical_blob(&self, path: &Path) -> Result<Option<Blob>, Error> {
+        let mut input = match self.repository.file_system().open(path) {
+            Ok(input) => input,
+            Err(source) if source.kind() == ErrorKind::NotFound => return Ok(None),
+            Err(source) => {
+                return Err(Error::Io {
+                    path: path.to_path_buf(),
+                    source,
                 });
             }
-            Edit::Move { from, to } => {
-                let bytes =
-                    self.repository
-                        .file_system()
-                        .read(from)
-                        .map_err(|source| Error::Io {
-                            path: from.to_path_buf(),
-                            source,
-                        })?;
-                self.create_parent(to)?;
-                self.repository
-                    .file_system()
-                    .write(to, &bytes)
-                    .map_err(|source| Error::Io {
-                        path: to.to_path_buf(),
-                        source,
-                    })?;
-                self.repository
-                    .file_system()
-                    .remove_file(from)
-                    .map_err(|source| Error::Io {
-                        path: from.to_path_buf(),
-                        source,
-                    })?;
-            }
-        }
+        };
+        let mut hasher = StableHasher::new();
+        let byte_len = io::copy(&mut input, &mut hasher).map_err(|source| Error::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        let blob = Blob::new(BlobId::new(hasher.finish_bytes()), byte_len);
 
-        Ok(())
+        Ok(Some(blob))
     }
 
-    /// Create the parent directory for one file path.
+    /// Apply one canonical repository change to disk.
+    fn apply(&self, change: &Change) -> Result<(), Error> {
+        let path = self.repository.physical_path(&change.path);
+
+        self.replace(&path, change.after)
+    }
+
+    /// Replace one physical file with one optional Blob binding.
+    fn replace(&self, path: &Path, blob: Option<Blob>) -> Result<(), Error> {
+        let Some(blob) = blob else {
+            if let Err(source) = self.repository.file_system().remove_file(path)
+                && source.kind() != ErrorKind::NotFound
+            {
+                return Err(Error::Io {
+                    path: path.to_path_buf(),
+                    source,
+                });
+            }
+
+            return Ok(());
+        };
+
+        self.create_parent(path)?;
+        let memory = self.repository.open_blob(blob)?;
+        self.repository
+            .file_system()
+            .write(path, memory.bytes())
+            .map_err(|source| Error::Io {
+                path: path.to_path_buf(),
+                source,
+            })
+    }
+
+    /// Create the parent directory for one physical file path.
     fn create_parent(&self, path: &Path) -> Result<(), Error> {
         let Some(parent) = path.parent() else {
             return Ok(());

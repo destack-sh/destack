@@ -1,5 +1,4 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -8,7 +7,7 @@ use destack_query::Module;
 use destack_repository::Revision;
 use destack_serde::Reflect;
 use destack_session::{ArtifactPriority, ArtifactRun};
-use destack_source::{Diagnostic, File, FileId, Uri};
+use destack_source::{Diagnostic, File, FileId};
 use serde::{Deserialize, Serialize};
 
 use crate::Error;
@@ -30,10 +29,6 @@ pub struct FileDiagnostics {
     pub revision: Revision,
     /// The file used for range conversion.
     pub file: Arc<File>,
-    /// The URI published to the editor.
-    pub uri: Uri,
-    /// The editor document version when the file is open.
-    pub version: Option<i32>,
     /// The diagnostics for this file.
     pub diagnostics: Vec<Diagnostic>,
 }
@@ -71,23 +66,14 @@ impl FileDiagnostics {
     /// Read diagnostics for one exact file.
     fn read(
         session: &WorkspacePin,
-        open_files: &HashMap<FileId, (Uri, Option<i32>)>,
         file_id: FileId,
         diagnostics: Vec<Diagnostic>,
     ) -> Result<Self, Error> {
         let file = session.file(file_id)?;
-        let open_file = open_files.get(&file_id);
-        let uri = open_file
-            .map(|(uri, _)| uri.clone())
-            .or_else(|| file.path.as_ref().map(Uri::from_file_path))
-            .unwrap_or_else(|| file.uri.clone());
-        let version = open_file.and_then(|(_, version)| *version);
 
         Ok(Self {
             revision: session.revision(),
             file,
-            uri,
-            version,
             diagnostics,
         })
     }
@@ -133,8 +119,6 @@ struct DiagnosticRead {
     session: WorkspacePin,
     /// Files selected from this workspace.
     selection: DiagnosticSelection,
-    /// Open file protocol identities at the pinned revision.
-    open_files: HashMap<FileId, (Uri, Option<i32>)>,
     /// Exact diagnostic artifact roots for this workspace.
     artifact_keys: Vec<ArtifactKey>,
     /// Foreground provisioning for the diagnostic artifacts.
@@ -146,7 +130,6 @@ impl DiagnosticRead {
     fn new(
         session: WorkspacePin,
         selection: DiagnosticSelection,
-        open_files: HashMap<FileId, (Uri, Option<i32>)>,
         modules: &[Module],
     ) -> Result<Self, Error> {
         let artifact_keys = session.diagnostic_artifacts(modules);
@@ -159,7 +142,6 @@ impl DiagnosticRead {
         Ok(Self {
             session,
             selection,
-            open_files,
             artifact_keys,
             artifact_run,
         })
@@ -170,7 +152,6 @@ impl DiagnosticRead {
         let Self {
             session,
             selection,
-            open_files,
             artifact_keys,
             artifact_run,
         } = self;
@@ -192,15 +173,10 @@ impl DiagnosticRead {
         };
         let mut diagnostics_by_file = diagnostics.group_by_file();
 
-        // include selected open files even when they have no diagnostics
-        for file_id in open_files.keys() {
-            diagnostics_by_file.entry(*file_id).or_default();
-        }
-
         // retain only the requested file when this is a file read
         if let DiagnosticSelection::File(file_id) = selection {
             let diagnostics = diagnostics_by_file.remove(&file_id).unwrap_or_default();
-            match FileDiagnostics::read(&session, &open_files, file_id, diagnostics) {
+            match FileDiagnostics::read(&session, file_id, diagnostics) {
                 Ok(file) => outcome.diagnostics.push(file),
                 Err(error) => outcome.failures.push(error),
             }
@@ -210,8 +186,7 @@ impl DiagnosticRead {
 
         // build stable workspace diagnostics
         for (file_id, file_diagnostics) in diagnostics_by_file {
-            let file = match FileDiagnostics::read(&session, &open_files, file_id, file_diagnostics)
-            {
+            let file = match FileDiagnostics::read(&session, file_id, file_diagnostics) {
                 Ok(file) => file,
                 Err(error) => {
                     outcome.failures.push(error);
@@ -227,7 +202,7 @@ impl DiagnosticRead {
                 return paths;
             }
 
-            left.uri.to_string().cmp(&right.uri.to_string())
+            left.file.uri.to_string().cmp(&right.file.uri.to_string())
         });
 
         outcome
@@ -237,7 +212,7 @@ impl DiagnosticRead {
 /// Files selected from one diagnostic request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DiagnosticSelection {
-    /// Every file carrying diagnostics or open editor state.
+    /// Every file carrying diagnostics.
     All,
     /// One exact source file.
     File(FileId),
@@ -245,8 +220,12 @@ enum DiagnosticSelection {
 
 impl Workspace {
     /// Schedule exact diagnostics selected by one request.
-    pub fn start_diagnostics(&self, request: DiagnosticsRequest) -> Result<DiagnosticRun, Error> {
-        let session = self.pin()?;
+    pub fn start_diagnostics(
+        &self,
+        revision: Revision,
+        request: DiagnosticsRequest,
+    ) -> Result<DiagnosticRun, Error> {
+        let session = self.pin(revision)?;
         let revision = session.revision();
         let read = match request {
             DiagnosticsRequest::All => Some(self.start_all_diagnostics(session)?),
@@ -268,7 +247,6 @@ impl Workspace {
         let Some(file_id) = session.file_id(path)? else {
             return Ok(None);
         };
-        let file = session.file(file_id)?;
         let module_id = repository.module_id_for_file(revision, file_id)?;
         let modules = module_id
             .map(|module_id| session.module(module_id))
@@ -277,21 +255,7 @@ impl Workspace {
             .collect::<Vec<_>>();
         self.schedule_program_indexes(&session)?;
 
-        // retain open protocol identity only when it matches this revision
-        let mut open_files = HashMap::new();
-        if let Some(path) = file.path.as_deref()
-            && let Some(open_file) = self.find_open_file(path)
-        {
-            let version = open_file.version_at(repository, revision, file_id)?;
-            open_files.insert(file_id, (open_file.uri, version));
-        }
-
-        let read = DiagnosticRead::new(
-            session,
-            DiagnosticSelection::File(file_id),
-            open_files,
-            &modules,
-        )?;
+        let read = DiagnosticRead::new(session, DiagnosticSelection::File(file_id), &modules)?;
 
         Ok(Some(read))
     }
@@ -304,17 +268,7 @@ impl Workspace {
         let modules = session.selected_modules(&module_ids)?;
         self.schedule_program_indexes(&session)?;
 
-        // retain open protocol identities that match this revision
-        let mut open_files = HashMap::new();
-        for (path, file) in self.open_files() {
-            let Some(file_id) = session.file_id(&path)? else {
-                return Err(Error::FileMissing { path });
-            };
-            let version = file.version_at(repository, revision, file_id)?;
-            open_files.insert(file_id, (file.uri, version));
-        }
-
-        DiagnosticRead::new(session, DiagnosticSelection::All, open_files, &modules)
+        DiagnosticRead::new(session, DiagnosticSelection::All, &modules)
     }
 
     /// Schedule program indexes for one selected revision.
@@ -328,8 +282,12 @@ impl Workspace {
     /// Return exact diagnostics selected by one request.
     pub async fn diagnose(
         &self,
+        revision: Revision,
         request: DiagnosticsRequest,
     ) -> Result<Vec<FileDiagnostics>, Error> {
-        self.start_diagnostics(request)?.wait().await.into_result()
+        self.start_diagnostics(revision, request)?
+            .wait()
+            .await
+            .into_result()
     }
 }

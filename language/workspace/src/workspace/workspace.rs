@@ -1,19 +1,18 @@
+use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use dashmap::DashMap;
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product,
 };
 use destack_core::Blob;
-use destack_repository::{Commit, Ref, Repository, Revision, Trace, TraceSnapshot, TraceView};
+use destack_repository::{Repository, Revision, Trace, TraceSnapshot, TraceView};
 use destack_session::{ArtifactRun, Executor, Session};
-use destack_source::{File, FileId, OverlayFileSystem};
+use destack_source::{File, FileId};
 use futures::future::BoxFuture;
 use parking_lot::Mutex;
 
-use super::{State, WorkspacePin};
-use crate::file::OpenFile;
+use super::{Lifecycle, State, WorkspacePin};
 use crate::{
     BenchInput, BenchOptions, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOptions,
     CacheOutput, CheckInput, CheckOutput, CleanInput, CleanOptions, CleanOutput, CommandContext,
@@ -21,24 +20,18 @@ use crate::{
     DocInput, DocOptions, DocOutput, DoctorInput, DoctorOptions, DoctorOutput, Error, ExportInput,
     ExportResult, ExportedFile, FormatInput, FormatOutput, InfoInput, InfoOptions, InfoOutput,
     Output, OutputBuffer, QueryInput, QueryOutput, RewriteInput, RewriteOutput, SettingsInput,
-    SettingsOptions, SettingsOutput, SourceUpdate, TargetsInput, TargetsOptions, TargetsOutput,
-    TaskInput, TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput, WatchState,
+    SettingsOptions, SettingsOutput, TargetsInput, TargetsOptions, TargetsOutput, TaskInput,
+    TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput, WatchState,
 };
 
 /// One live Destack workspace rooted at one repository path.
 pub struct Workspace {
     /// Canonical workspace root.
     pub(crate) root: PathBuf,
-    /// Moving repository ref published by this workspace.
-    pub(crate) head: Ref,
     /// Repository for workspace resolution.
     pub(crate) repository: Arc<Repository>,
     /// Repository-specific artifact computation session.
     pub(crate) session: Arc<Session>,
-    /// Open files keyed by source path.
-    pub(crate) open_file_by_path: DashMap<PathBuf, OpenFile>,
-    /// Overlay filesystem used by workspace source operations.
-    pub(crate) overlay_file_system: Option<Arc<OverlayFileSystem>>,
     /// Serialized workspace lifecycle and mutation state.
     pub(crate) state: Mutex<State>,
     /// Semantic watch state.
@@ -53,11 +46,8 @@ impl std::fmt::Debug for Workspace {
         formatter
             .debug_struct("Workspace")
             .field("root", &self.root)
-            .field("head", &self.head)
             .field("repository", &self.repository)
             .field("session", &self.session)
-            .field("open_file_by_path", &self.open_file_by_path.len())
-            .field("overlay_file_system", &self.overlay_file_system.is_some())
             .field("state", &self.state)
             .field("watch", &self.watch)
             .field(
@@ -73,41 +63,32 @@ impl std::fmt::Debug for Workspace {
 }
 
 impl Workspace {
-    /// Create one workspace over an opened repository.
+    /// Create one workspace over an exact physical repository revision.
     pub fn new(
         repository: Arc<Repository>,
-        overlay_file_system: Option<Arc<OverlayFileSystem>>,
+        physical: Revision,
         executor: Arc<Executor>,
     ) -> Result<Self, Error> {
         let root = repository.path().to_path_buf();
-        let head = Ref::for_root(&root);
-        let _revision = repository.current(&head)?;
+        let physical = repository.pin(physical)?;
         let session = Arc::new(Session::new(repository.clone(), executor)?);
-        let workspace = Self {
+        Ok(Self {
             root,
-            head,
             repository,
             session,
-            open_file_by_path: DashMap::new(),
-            overlay_file_system,
-            state: Mutex::new(State::Open),
+            state: Mutex::new(State {
+                lifecycle: Lifecycle::Open,
+                physical,
+                branches: HashMap::new(),
+            }),
             watch: Arc::new(Mutex::new(WatchState::default())),
             background_run: Mutex::new(None),
-        };
-
-        workspace.reload()?;
-
-        Ok(workspace)
+        })
     }
 
     /// Return this workspace's canonical root.
     pub fn root(&self) -> &Path {
         &self.root
-    }
-
-    /// Return the editor overlay used by this workspace.
-    pub fn overlay_file_system(&self) -> Option<Arc<OverlayFileSystem>> {
-        self.overlay_file_system.clone()
     }
 
     /// Snapshot one workspace operation trace with repository display names.
@@ -213,22 +194,6 @@ impl Workspace {
                 path: path.to_path_buf(),
                 source: error,
             })
-    }
-
-    /// Return whether one file is currently open.
-    pub fn is_file_open(&self, path: &Path) -> Result<bool, Error> {
-        let path = self.resolve_path(path)?;
-
-        Ok(self.has_open_file(&path))
-    }
-
-    /// Apply one atomic source update.
-    pub fn edit(&self, update: SourceUpdate) -> Result<Commit, Error> {
-        if let Some(base) = update.base {
-            self.apply_source_edits_if_current(base, update.edits)
-        } else {
-            self.apply_source_edits(update.edits)
-        }
     }
 
     /// Check source state.
