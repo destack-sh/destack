@@ -226,11 +226,23 @@ impl Project {
             return Ok(());
         };
 
+        self.merge(revision, commit)?;
+
+        Ok(())
+    }
+
+    /// Reconcile selected physical paths into the editor branch.
+    pub(super) fn reconcile(&mut self, paths: Vec<PathBuf>) -> jsonrpc::Result<bool> {
+        let revision = self.revision()?;
+        let Some(commit) = self.workspace.reconcile(paths).map_err(workspace_error)? else {
+            return Ok(false);
+        };
+
         self.merge(revision, commit)
     }
 
     /// Merge closed physical files from one commit into the editor branch.
-    fn merge(&mut self, revision: Revision, commit: Commit) -> jsonrpc::Result<()> {
+    fn merge(&mut self, revision: Revision, commit: Commit) -> jsonrpc::Result<bool> {
         // merge physical changes for files not owned by open editor documents
         let paths = commit
             .changes
@@ -243,7 +255,7 @@ impl Project {
             .map(|change| PathBuf::from(&change.path))
             .collect::<Vec<_>>();
         if paths.is_empty() {
-            return Ok(());
+            return Ok(false);
         }
 
         self.workspace
@@ -255,7 +267,7 @@ impl Project {
             )
             .map_err(workspace_error)?;
 
-        Ok(())
+        Ok(true)
     }
 
     /// Return one exact open document identity.
@@ -385,6 +397,30 @@ impl ProjectSet {
         }
 
         Ok(())
+    }
+
+    /// Reconcile changed physical paths through their most specific projects.
+    pub(super) fn reconcile(
+        &mut self,
+        paths: Vec<PathBuf>,
+    ) -> jsonrpc::Result<Vec<Arc<Workspace>>> {
+        // group paths by their most specific project
+        let mut selected = vec![Vec::new(); self.projects.len()];
+        for path in paths {
+            if let Some(index) = self.select_index(&path) {
+                selected[index].push(path);
+            }
+        }
+
+        // reconcile each selected project and retain semantic changes
+        let mut changed = Vec::new();
+        for (project, paths) in self.projects.iter_mut().zip(selected) {
+            if !paths.is_empty() && project.reconcile(paths)? {
+                changed.push(project.workspace());
+            }
+        }
+
+        Ok(changed)
     }
 
     /// Return one opened project's current editor revision.

@@ -493,18 +493,30 @@ impl DestackLanguageServer {
         Ok(())
     }
 
-    /// Reload watched filesystem state and schedule current diagnostics.
+    /// Reconcile watched filesystem changes and schedule current diagnostics.
     async fn change_watched_files(
         &self,
         params: lsp::DidChangeWatchedFilesParams,
     ) -> jsonrpc::Result<()> {
-        if params.changes.is_empty() {
-            return Ok(());
+        let mut paths = Vec::with_capacity(params.changes.len());
+        for change in params.changes {
+            let path = change
+                .uri
+                .to_file_path()
+                .map(|path| path.into_owned())
+                .ok_or_else(|| {
+                    jsonrpc::Error::invalid_params("watched file URI is not a file URI")
+                })?;
+            paths.push(path);
         }
 
-        self.reload_workspace()?;
+        // reconcile exact physical paths and schedule changed editor branches
+        let workspaces = self.session()?.reconcile(paths)?;
+        for workspace in workspaces {
+            self.schedule_diagnostics(workspace)?;
+        }
 
-        self.schedule_workspace_diagnostics()
+        Ok(())
     }
 
     /// Clear diagnostics for one renamed file when neither path remains open.
@@ -799,7 +811,7 @@ impl LanguageServer for DestackLanguageServer {
     async fn did_change_watched_files(&self, params: lsp::DidChangeWatchedFilesParams) {
         if let Err(error) = self.change_watched_files(params).await {
             self.client
-                .report_error("watched_files.reload", error)
+                .report_error("watched_files.reconcile", error)
                 .await;
         }
     }

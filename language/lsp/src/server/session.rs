@@ -197,6 +197,16 @@ impl ServerSession {
         self.projects.write().reload()
     }
 
+    /// Reconcile selected physical paths and return changed project workspaces.
+    pub(super) fn reconcile(&self, paths: Vec<PathBuf>) -> jsonrpc::Result<Vec<Arc<Workspace>>> {
+        let paths = paths
+            .into_iter()
+            .map(|path| Self::normalize(&path))
+            .collect::<jsonrpc::Result<Vec<_>>>()?;
+
+        self.projects.write().reconcile(paths)
+    }
+
     /// Register one editor folder and open its declared source root.
     pub(super) fn open_editor_folder(
         &self,
