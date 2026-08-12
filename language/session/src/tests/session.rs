@@ -5,11 +5,12 @@ use std::thread;
 use destack_artifact::{ArtifactKey, ArtifactVersion, BuildId};
 use destack_repository as repository;
 use destack_repository::{
-    DestackLayoutOverride, Environment, Execution, Host, MemoryBlobStore, Ref, Repository,
-    Revision, Settings, Trace, TraceSnapshot, TraceView, open_repository,
+    DestackLayoutOverride, Environment, Execution, Host, MemoryBlobStore, Repository, Revision,
+    RevisionPin, Settings, Trace, TraceSnapshot, TraceView,
 };
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 use futures::executor::block_on;
+use parking_lot::Mutex;
 
 use crate::{ArtifactPriority, Executor, Session, SessionError};
 
@@ -21,6 +22,8 @@ pub(crate) struct TestSession {
     root: PathBuf,
     /// The repository imported by the session.
     repository: Arc<Repository>,
+    /// Current retained source revision.
+    revision: Mutex<RevisionPin>,
     /// The live session under test.
     session: Session,
 }
@@ -78,14 +81,14 @@ impl TestSession {
             .expect("test root directory should be created");
 
         for (path, content) in files {
-            fs.write_string(&root.join(path), content)
+            fs.write(&root.join(path), content.as_bytes())
                 .expect("test file should write");
         }
 
         let host = Host::new(BuildId::test(), Environment::default(), fs.clone())
             .with_blob_store(Arc::new(MemoryBlobStore::new()))
             .with_execution(execution);
-        let repository = open_repository(
+        let (repository, revision) = Repository::open(
             root.clone(),
             host,
             Settings::default(),
@@ -93,11 +96,13 @@ impl TestSession {
         )?;
         let repository = Arc::new(repository);
         let root = repository.path().to_path_buf();
+        let revision = repository.pin(revision).map_err(SessionError::from)?;
         let session = Session::new(repository.clone(), executor)?;
 
         Ok(Self {
             root,
             repository,
+            revision: Mutex::new(revision),
             session,
         })
     }
@@ -115,16 +120,11 @@ impl TestSession {
             .edit(before, vec![edit])
             .expect("test source edit should commit")
             .after;
-        let after_pin = self
+        let after = self
             .repository
             .pin(after)
             .expect("test source revision should remain live");
-        let was_published = self
-            .repository
-            .advance_ref(&self.head(), before, after_pin.revision())
-            .expect("test source edit should publish");
-
-        assert!(was_published, "test repository head should remain current");
+        *self.revision.lock() = after;
     }
 
     /// Check one module target.
@@ -153,16 +153,9 @@ impl TestSession {
         (version, trace)
     }
 
-    /// Return the current head revision.
+    /// Return the current retained revision.
     pub(crate) fn revision(&self) -> Revision {
-        self.repository
-            .current(&self.head())
-            .expect("test revision should exist")
-    }
-
-    /// Return the default session ref.
-    fn head(&self) -> Ref {
-        Ref::for_root(&self.root)
+        self.revision.lock().revision()
     }
 
     /// Return one module id at one revision.

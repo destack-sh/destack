@@ -11,7 +11,7 @@ use destack_artifact::{
 use destack_dir as dir;
 use destack_mir::{FormatOptions, Formatter};
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore, Ref,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore,
     Repository, Revision, RevisionPin, Settings, Trace, TraceAggregate, TraceReport, TraceSnapshot,
     TraceView,
 };
@@ -129,10 +129,10 @@ impl TestSession {
         } else {
             let (repository, revision) = shared_repository_revision();
 
-            (repository.clone(), *revision)
+            (repository.clone(), revision.revision())
         };
 
-        // publish sealed test files
+        // commit sealed test files
         let edits = files
             .iter()
             .map(|(path, source)| {
@@ -145,7 +145,7 @@ impl TestSession {
             .collect::<Vec<_>>();
         let revision = repository
             .edit(revision, edits)
-            .expect("test repository revision should publish")
+            .expect("test repository revision should commit")
             .after;
         let revision = repository
             .pin(revision)
@@ -1705,8 +1705,8 @@ fn current_test_name() -> Option<String> {
 }
 
 /// Return the shared compiler-test repository and default-config revision.
-fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
-    static BASE: OnceLock<(Arc<Repository>, Revision)> = OnceLock::new();
+fn shared_repository_revision() -> &'static (Arc<Repository>, RevisionPin) {
+    static BASE: OnceLock<(Arc<Repository>, RevisionPin)> = OnceLock::new();
 
     BASE.get_or_init(|| {
         let (repository, revision) = cold_repository_revision();
@@ -1720,7 +1720,7 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
         //  while the warmup checks under it
         let revision = repository
             .edit(revision, [Edit::set_file(WARM_ANCHOR_PATH, blob)])
-            .expect("warmup anchor should publish")
+            .expect("warmup anchor should commit")
             .after;
 
         // start one warmup session on the shared base
@@ -1775,6 +1775,9 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
             )
             .expect("warmup anchor should retire")
             .after;
+        let base = repository
+            .pin(base)
+            .expect("shared compiler test revision should remain live");
 
         (repository, base)
     })
@@ -1804,29 +1807,20 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
     )
     .with_blob_store(shared_blob_store())
     .with_execution(execution);
-    let repository = Arc::new(
-        Repository::new(root, host, Settings::default(), layout)
-            .with_artifact_store(Arc::new(NullArtifactStore::new())),
-    );
-    let reference = Ref::for_root(repository.path());
-    let revision = repository
-        .current(&reference)
-        .expect("test repository root ref should exist");
+    let (repository, revision) = Repository::new(root, host, Settings::default(), layout);
+    let repository = repository.with_artifact_store(Arc::new(NullArtifactStore::new()));
+    let repository = Arc::new(repository);
 
     // store the default compiler test configuration
     let blob = repository
         .put_blob(DEFAULT_DESTACK_JSON.as_bytes())
         .expect("test configuration Blob should store");
 
-    // publish the default compiler-test configuration
+    // commit the default compiler test configuration
     let revision = repository
         .edit(revision, [Edit::add_file("destack.json", blob)])
-        .expect("test repository default config should publish")
+        .expect("test repository default config should commit")
         .after;
-    repository
-        .set_ref(&reference, revision)
-        .expect("test repository default config should become current");
-
     (repository, revision)
 }
 

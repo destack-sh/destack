@@ -8,7 +8,7 @@ use destack_artifact::{
 use destack_core::StringPool;
 use destack_repository::{
     ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host,
-    MemoryBlobStore, Ref, Repository, Revision, Settings,
+    MemoryBlobStore, Repository, Revision, RevisionPin, Settings,
 };
 use destack_session::{ArtifactPriority, Executor, Session};
 use destack_source::{File, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
@@ -32,6 +32,8 @@ const TEST_MANIFEST: &str = r#"{
 pub(crate) struct TestProgram {
     /// The in-memory artifact repository.
     repository: Arc<Repository>,
+    /// The empty repository revision.
+    revision: RevisionPin,
     /// The workspace root.
     root: PathBuf,
 }
@@ -44,6 +46,11 @@ impl TestProgram {
     ) -> (Arc<File>, ModuleId, ProgramContext, Arc<StringPool>) {
         let program = Self::new();
         let revision = program.write(source, dependencies);
+        let retained_revision = program
+            .repository
+            .pin(revision)
+            .expect("checked test revision should remain live");
+        let revision = retained_revision.revision();
         let source_path = program.root.join("main.ds");
         let paths = std::iter::once(source_path.clone())
             .chain(dependencies.iter().map(|(path, _)| program.root.join(path)))
@@ -129,22 +136,23 @@ impl TestProgram {
         );
         let host = Host::new(BuildId::test(), environment, files)
             .with_blob_store(Arc::new(MemoryBlobStore::new()));
-        let repository = Arc::new(Repository::new(
-            root.clone(),
-            host,
-            Settings::default(),
-            layout,
-        ));
-        Self { repository, root }
+        let (repository, revision) =
+            Repository::new(root.clone(), host, Settings::default(), layout);
+        let repository = Arc::new(repository);
+        let revision = repository
+            .pin(revision)
+            .expect("empty pattern test revision should remain live");
+
+        Self {
+            repository,
+            revision,
+            root,
+        }
     }
 
     /// Write the fixture manifest and sources into one revision.
     fn write(&self, source: &str, dependencies: &[(String, String)]) -> Revision {
-        let head = Ref::for_root(&self.root);
-        let revision = self
-            .repository
-            .current(&head)
-            .expect("read checked test revision");
+        let revision = self.revision.revision();
         let manifest = self
             .repository
             .put_blob(TEST_MANIFEST.as_bytes())
@@ -164,16 +172,10 @@ impl TestProgram {
                 .expect("test dependency Blob should store");
             edits.push(Edit::set_file(path, blob));
         }
-        let revision = self
-            .repository
+        self.repository
             .edit(revision, edits)
             .expect("write checked test program")
-            .after;
-        self.repository
-            .set_ref(&head, revision)
-            .expect("publish checked test program");
-
-        revision
+            .after
     }
 
     /// Return the built-in default target profile.

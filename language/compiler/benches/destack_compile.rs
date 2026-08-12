@@ -3,7 +3,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use destack_artifact::{ArtifactKey, BuildId};
 use destack_core::FxIndexSet;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Repository, Revision,
     Settings,
 };
 use destack_session::{ArtifactPriority, Executor, Session};
@@ -115,7 +115,10 @@ fn load_sources(workspace_root: &Path) -> (Vec<SourceFile>, u64) {
 }
 
 /// Create a compiler, session, and materialize modules.
-fn build_workspace(workspace_root: &Path, sources: &[SourceFile]) -> (Arc<Session>, Vec<ModuleId>) {
+fn build_workspace(
+    workspace_root: &Path,
+    sources: &[SourceFile],
+) -> (Arc<Session>, Revision, Vec<ModuleId>) {
     // repository
     let workspace_root = workspace_root.to_path_buf();
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
@@ -131,47 +134,34 @@ fn build_workspace(workspace_root: &Path, sources: &[SourceFile]) -> (Arc<Sessio
     let build_id = BuildId::current()
         .unwrap_or_else(|error| panic!("failed to identify compiler benchmark build: {error}"));
     let host = Host::new(build_id, environment, file_system);
-    let repository = Arc::new(Repository::new(
-        workspace_root.clone(),
-        host,
-        Settings::default(),
-        layout,
-    ));
+    let (repository, revision) =
+        Repository::new(workspace_root.clone(), host, Settings::default(), layout);
+    let repository = Arc::new(repository);
 
-    // materialize modules into the workspace revision
-    let mut modules = Vec::with_capacity(sources.len());
-    let reference = Ref::for_root(&workspace_root);
-    for source in sources.iter() {
+    // store every source Blob and build one atomic edit
+    let mut edits = Vec::with_capacity(sources.len());
+    for source in sources {
         let logical_path = repository.logical_path(&source.path);
-
-        // current repository state
-        let revision = repository
-            .current(&reference)
-            .unwrap_or_else(|error| panic!("missing workspace revision: {error}"));
-
-        // store exact source bytes
         let blob = repository
             .put_blob(source.content.as_bytes())
             .expect("benchmark source Blob should store");
-
-        // edited repository state
-        let revision = repository
-            .edit(revision, [Edit::set_file(&logical_path, blob)])
-            .unwrap_or_else(|error| panic!("failed to materialize benchmark source: {error}"))
-            .after;
-
-        // publish the new state
-        repository
-            .set_ref(&reference, revision)
-            .unwrap_or_else(|error| panic!("failed to publish benchmark source: {error}"));
-
-        // resolve the materialized module
-        let module_id = repository
-            .module_id_for_path(revision, &source.path)
-            .unwrap_or_else(|error| panic!("failed to resolve benchmark module: {error}"))
-            .unwrap_or_else(|| panic!("missing benchmark module for {}", source.path.display()));
-        modules.push(module_id);
+        edits.push(Edit::set_file(logical_path, blob));
     }
+    let revision = repository
+        .edit(revision, edits)
+        .unwrap_or_else(|error| panic!("failed to materialize benchmark sources: {error}"))
+        .after;
+
+    // resolve every module from the complete revision
+    let modules = sources
+        .iter()
+        .map(|source| {
+            repository
+                .module_id_for_path(revision, &source.path)
+                .unwrap_or_else(|error| panic!("failed to resolve benchmark module: {error}"))
+                .unwrap_or_else(|| panic!("missing benchmark module for {}", source.path.display()))
+        })
+        .collect();
 
     // session
     let executor = Executor::new(Execution::Threaded, 1)
@@ -180,16 +170,12 @@ fn build_workspace(workspace_root: &Path, sources: &[SourceFile]) -> (Arc<Sessio
         .unwrap_or_else(|error| panic!("failed to create benchmark session: {error}"));
     let session = Arc::new(session);
 
-    (session, modules)
+    (session, revision, modules)
 }
 
 /// Run a compiler pass for the selected mode.
-fn run_compile(session: &Session, modules: &[ModuleId], mode: CompileMode) {
+fn run_compile(session: &Session, revision: Revision, modules: &[ModuleId], mode: CompileMode) {
     let repository = session.repository();
-    let reference = Ref::for_root(repository.path());
-    let revision = repository
-        .current(&reference)
-        .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"));
     let mut artifact_keys = FxIndexSet::with_capacity_and_hasher(modules.len(), Default::default());
 
     // collect root artifacts
@@ -246,10 +232,11 @@ fn bench_compile(criterion: &mut Criterion) {
         |bencher, source_files| {
             bencher.iter(|| {
                 // build session
-                let (session, modules) = build_workspace(&workspace_root_path, source_files);
+                let (session, revision, modules) =
+                    build_workspace(&workspace_root_path, source_files);
 
                 // run compile
-                run_compile(session.as_ref(), &modules, CompileMode::Check);
+                run_compile(session.as_ref(), revision, &modules, CompileMode::Check);
             });
         },
     );
@@ -261,10 +248,11 @@ fn bench_compile(criterion: &mut Criterion) {
         |bencher, source_files| {
             bencher.iter(|| {
                 // build session
-                let (session, modules) = build_workspace(&workspace_root_path, source_files);
+                let (session, revision, modules) =
+                    build_workspace(&workspace_root_path, source_files);
 
                 // run compile
-                run_compile(session.as_ref(), &modules, CompileMode::Lint);
+                run_compile(session.as_ref(), revision, &modules, CompileMode::Lint);
             });
         },
     );

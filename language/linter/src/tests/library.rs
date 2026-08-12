@@ -10,10 +10,11 @@ use super::session::{executor, render_diagnostics, shared_repository};
 fn test_lint_library() {
     let (repository, revision) = shared_repository();
     let repository = repository.clone();
+    let revision = revision.revision();
     let package = repository.embedded_builtin();
     let target = TargetId::new(package.package_id(), "default");
     let profile = repository
-        .profile_for_target(*revision, target)
+        .profile_for_target(revision, target)
         .expect("library profile should resolve")
         .id();
 
@@ -25,15 +26,15 @@ fn test_lint_library() {
     keys.push(ArtifactKey::program_linted(profile, target));
     let session =
         Session::new(repository.clone(), executor()).expect("library lint session should open");
-    let run = session.provide(*revision, &keys, ArtifactPriority::Foreground);
+    let run = session.provide(revision, &keys, ArtifactPriority::Foreground);
     let result = block_on(run.wait());
 
     // collect every compiler and linter diagnostic together
     let diagnostics = repository
-        .diagnostics(*revision, None)
+        .diagnostics(revision, None)
         .expect("library diagnostics should be readable");
     let rendered = (!diagnostics.is_empty())
-        .then(|| render_diagnostics(repository.as_ref(), *revision, &diagnostics));
+        .then(|| render_diagnostics(repository.as_ref(), revision, &diagnostics));
 
     // report diagnostics and provider failures without suppressing either
     match (rendered, result) {

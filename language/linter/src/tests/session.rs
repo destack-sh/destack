@@ -7,8 +7,8 @@ use destack_artifact::{
 };
 use destack_mir as mir;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore, Ref,
-    Repository, Revision, Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore,
+    Repository, Revision, RevisionPin, Settings,
 };
 use destack_session::{Executor, Session};
 use destack_source::{
@@ -127,8 +127,8 @@ impl TestSession {
             Edit::add_file(SOURCE_PATH, source),
         ];
         let revision = repository
-            .edit(*base, edits)
-            .expect("lint test revision should publish")
+            .edit(base.revision(), edits)
+            .expect("lint test revision should commit")
             .after;
         let revision_pin = repository
             .pin(revision)
@@ -428,8 +428,8 @@ fn lint_configuration(selected: &Lint) -> String {
 }
 
 /// Return the shared linter test repository and its empty revision.
-pub(super) fn shared_repository() -> &'static (Arc<Repository>, Revision) {
-    static REPOSITORY: OnceLock<(Arc<Repository>, Revision)> = OnceLock::new();
+pub(super) fn shared_repository() -> &'static (Arc<Repository>, RevisionPin) {
+    static REPOSITORY: OnceLock<(Arc<Repository>, RevisionPin)> = OnceLock::new();
 
     REPOSITORY.get_or_init(|| {
         let root = PathBuf::new();
@@ -450,13 +450,12 @@ pub(super) fn shared_repository() -> &'static (Arc<Repository>, Revision) {
         )
         .with_blob_store(Arc::new(MemoryBlobStore::new()))
         .with_execution(Execution::Cooperative);
-        let repository = Repository::new(root, host, settings, layout)
-            .with_artifact_store(Arc::new(NullArtifactStore::new()));
+        let (repository, revision) = Repository::new(root, host, settings, layout);
+        let repository = repository.with_artifact_store(Arc::new(NullArtifactStore::new()));
         let repository = Arc::new(repository);
-        let reference = Ref::for_root(repository.path());
         let revision = repository
-            .current(&reference)
-            .expect("lint test repository ref should exist");
+            .pin(revision)
+            .expect("shared linter test revision should remain live");
 
         (repository, revision)
     })
