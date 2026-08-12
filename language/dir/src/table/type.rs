@@ -281,6 +281,7 @@ impl<'a> TypeTable<'a> {
         match ty {
             // leaves without child types
             Type::Variable(_)
+            | Type::Hole(_)
             | Type::Error
             | Type::Never
             | Type::Any
@@ -1071,24 +1072,6 @@ impl TypeTail {
         tail
     }
 
-    /// Return one owned row structurally equal to the type, when interned.
-    pub fn find_type(&self, ty: &Type) -> Option<LocalTypeId> {
-        let hash = fx_hash(ty);
-        let slots = self.index.get(&hash)?;
-
-        slots
-            .iter()
-            .find(|slot| self.segment.owned_type(**slot) == ty)
-            .copied()
-    }
-
-    /// Overwrite one owned row with its resolved content.
-    pub fn resolve_row(&mut self, id: LocalTypeId, ty: Type, flags: TypeFlags) {
-        let slot = id.0 - self.segment.first_type_id;
-        *self.segment.types.get_mut(slot) = ty;
-        *self.segment.flags.get_mut(slot) = flags;
-    }
-
     /// Finish this tail into its pure row segment.
     pub fn finish(self) -> TypeSegment {
         self.segment
@@ -1127,9 +1110,11 @@ impl TypeTail {
         ty: Type,
         child_flags: TypeFlags,
     ) -> (LocalTypeId, bool) {
-        // probe the committed segments beneath this tail first
+        // probe the committed segments beneath this tail, skipping pass-local variables
         let hash = fx_hash(&ty);
-        if let Some(slots) = self.committed_index.get(&hash) {
+        if !matches!(ty, Type::Variable(_))
+            && let Some(slots) = self.committed_index.get(&hash)
+        {
             for slot in slots {
                 let committed = self
                     .committed

@@ -2,15 +2,15 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{GlobalSymbolId, ReceiverKind, StaticKey};
+use crate::{GlobalSymbolId, StaticKey};
 
 /// Root of one value access path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum AccessRoot {
     /// A source binding symbol.
     Symbol(GlobalSymbolId),
-    /// A contextual receiver.
-    Receiver(ReceiverKind),
+    /// The contextual receiver instance, named by `this` and by `super`.
+    Receiver,
 }
 
 /// Structural path to one value access.
@@ -31,10 +31,10 @@ impl AccessPath {
         }
     }
 
-    /// Create a path rooted at one contextual receiver.
-    pub fn receiver(receiver: ReceiverKind) -> Self {
+    /// Create a path rooted at the contextual receiver instance.
+    pub fn receiver() -> Self {
         Self {
-            root: AccessRoot::Receiver(receiver),
+            root: AccessRoot::Receiver,
             keys: SmallVec::new(),
         }
     }

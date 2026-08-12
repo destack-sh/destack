@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Access, Call, CallDecision, Dereference, DereferenceResolution, FieldResolution,
     GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, MemberAccess, MemberDecision,
-    OperationResolution, ScalarLiteral, StaticKey, Subscript, SubscriptDecision, VariantCase,
+    OperationResolution, ScalarLiteral, StaticKey, Subscript, SubscriptDecision, TypeFold,
+    VariantCase,
 };
 
 /// Value projection selected during checking.
@@ -27,7 +28,7 @@ use crate::{
 /// ^value                // Move
 /// *box                  // Dereference
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum Projection {
     /// Produce `undefined` for one statically absent destructuring field.
     ///
@@ -318,7 +319,7 @@ impl From<MemberDecision> for ProjectionResolution {
 }
 
 /// One source field used to materialize an object rest value.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct ObjectRestField {
     /// The materialized field key.
     pub key: StaticKey,

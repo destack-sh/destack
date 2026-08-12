@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::ModuleId;
 
-use crate::{FunctionSignature, GlobalTypeId, ScalarLiteral, StaticKey, StringId};
+use crate::{FunctionSignature, GlobalTypeId, ScalarLiteral, StaticKey, StringId, TypeFold};
 
 /// A concrete static value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum StaticTerm {
     /// Scalar literal.
     ScalarLiteral { value: ScalarLiteral },
@@ -114,7 +114,7 @@ impl StaticTerm {
 }
 
 /// Static object property in a checked static context.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum StaticProperty {
     /// Static field.
     Field {

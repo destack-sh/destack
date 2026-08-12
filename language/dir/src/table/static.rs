@@ -6,7 +6,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, GlobalStaticId, GlobalSymbolId, LocalNodeIdAny, LocalStaticId, SegmentView, StaticTerm,
+    Arena, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LocalNodeIdAny, LocalStaticId,
+    SegmentView, StaticTerm, TypeFold,
 };
 
 /// Cumulative static values for one DIR module.
@@ -286,5 +287,18 @@ impl StaticSegment {
     /// Return whether this segment contains the given static id.
     fn contains_static_id(&self, static_id: LocalStaticId) -> bool {
         static_id.0 >= self.first_static_id && static_id.0 < self.static_count()
+    }
+}
+
+impl TypeFold for StaticSegment {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        for term in self.statics.iter_mut() {
+            term.map_types(map)?;
+        }
+
+        Ok(())
     }
 }

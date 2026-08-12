@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, Argument, ArgumentBinding, Decorator, Expression, GenericArgument, GlobalNodeId,
     GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalNodeId,
-    NewtypeSelection, SegmentView,
+    NewtypeSelection, SegmentView, TypeFold,
 };
 
 /// Cumulative decorator applications for one DIR module.
@@ -243,6 +243,19 @@ impl DecoratorSegment {
     }
 }
 
+impl TypeFold for DecoratorSegment {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        for application in self.applications.iter_mut() {
+            application.map_types(map)?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Unique identifier for a decorator application.
 #[repr(transparent)]
 #[derive(
@@ -275,7 +288,7 @@ pub struct DecoratorUse {
 }
 
 /// Checked decorator application attached to one owner node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct DecoratorApplication {
     /// The decorator node.
     pub source: GlobalNodeId<Decorator>,
@@ -290,7 +303,7 @@ pub struct DecoratorApplication {
 }
 
 /// Checked resolution of one decorator application.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct DecoratorResolution {
     /// The resolved decorator declaration.
     pub target: DecoratorTarget,
@@ -301,7 +314,7 @@ pub struct DecoratorResolution {
 }
 
 /// Resolved decorator declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum DecoratorTarget {
     /// Toolchain language item decorator.
     LanguageItem {
@@ -328,7 +341,7 @@ impl DecoratorTarget {
 }
 
 /// Selection used to construct one checked decorator value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum DecoratorSelection {
     /// Arguments matched against one newtype backing.
     Newtype {
@@ -345,7 +358,7 @@ pub enum DecoratorSelection {
 }
 
 /// One provider selected by a compiler-owned derive decorator.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct DeriveProvider {
     /// The source provider argument.
     pub argument: GlobalNodeId<Argument>,

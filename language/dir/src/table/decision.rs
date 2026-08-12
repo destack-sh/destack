@@ -1,4 +1,5 @@
 use destack_serde::Reflect;
+use std::slice;
 use std::sync::Arc;
 
 use destack_core::FxIndexMap as IndexMap;
@@ -6,14 +7,14 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AccessResolution, AssignPatternDecision, AssignmentDecision, CallDecision, ConstructDecision,
-    GlobalNodeIdAny, GuardDecision, InstantiationDecision, MemberDecision, OperatorDecision,
-    PatternDecision, PlaceResolution, ReceiverDecision, SegmentView, SubscriptDecision,
-    TreeDecision,
+    AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, Call,
+    CallDecision, ConstructDecision, GlobalNodeIdAny, GlobalTypeId, GuardDecision,
+    InstantiationDecision, MemberDecision, OperatorDecision, PatternDecision, PlaceResolution,
+    ReceiverDecision, SegmentView, SubscriptDecision, TreeDecision, TypeFold,
 };
 
 /// The one decision inference made for a DIR node.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum Decision {
     /// Resolved explicit generic application.
     Instantiation(InstantiationDecision),
@@ -41,8 +42,8 @@ pub enum Decision {
     Pattern(PatternDecision),
     /// Resolved assignment pattern meaning.
     AssignPattern(AssignPatternDecision),
-    /// Rejected node with its retained best-attempt decision.
-    Attempted(Box<Decision>),
+    /// Rejected node with the one call it reached for.
+    Attempted(Box<Call>),
     /// Rejected node with reported diagnostics.
     Rejected,
     /// Poisoned node with an already-reported error.
@@ -168,6 +169,33 @@ impl<'a> DecisionTable<'a> {
             Some(Decision::Call(decision)) => Some(decision),
             _ => None,
         }
+    }
+
+    /// Get the calls selected at a node, reading through a retained attempt.
+    pub fn selected_calls(&self, node_id: GlobalNodeIdAny) -> Option<&[Call]> {
+        match self.decision(node_id)? {
+            Decision::Call(decision) => Some(decision.arms()),
+            Decision::Attempted(attempt) => Some(slice::from_ref(attempt.as_ref())),
+            _ => None,
+        }
+    }
+
+    /// Get the arguments every call arm selected at a node binds identically.
+    pub fn agreed_call_arguments(&self, node_id: GlobalNodeIdAny) -> Option<&[ArgumentBinding]> {
+        let calls = self.selected_calls(node_id)?;
+        let first = calls.first()?.arguments.as_slice();
+
+        // require every arm to bind the same sources in the same order
+        let is_agreed = calls.iter().all(|call| {
+            call.arguments.len() == first.len()
+                && call
+                    .arguments
+                    .iter()
+                    .zip(first)
+                    .all(|(left, right)| left.source == right.source)
+        });
+
+        is_agreed.then_some(first)
     }
 
     /// Get the subscript decision for a node.
@@ -499,5 +527,21 @@ impl DecisionSegment {
     /// Return whether this segment has no decisions.
     pub fn is_empty(&self) -> bool {
         self.decisions.is_empty() && self.accesses.is_empty() && self.places.is_empty()
+    }
+}
+
+impl TypeFold for DecisionSegment {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        for decision in self.decisions.values_mut() {
+            decision.map_types(map)?;
+        }
+        for place in self.places.values_mut() {
+            place.map_types(map)?;
+        }
+
+        Ok(())
     }
 }

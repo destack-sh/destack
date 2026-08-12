@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     GlobalTypeId, PrimitiveType, Projection, RangeEnd, RangeType, ScalarLiteral, StaticKey,
+    TypeFold,
 };
 
 /// Executable predicate selected during checking.
@@ -14,7 +15,7 @@ use crate::{
 /// "name" in value       // Membership
 /// value is "a" | "b"    // Any
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Predicate {
     /// The test to execute.
     pub test: PredicateTest,
@@ -72,7 +73,7 @@ impl Predicate {
 /// value          // projection: none
 /// dynamic.type   // projection: DynamicType
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum PredicateOperand {
     /// Direct input value.
     Direct(GlobalTypeId),
@@ -108,7 +109,7 @@ impl PredicateOperand {
 /// "name" in value       // Membership
 /// value is "a" | "b"    // Any
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum PredicateTest {
     /// Unary test over one input value.
     ///
@@ -141,7 +142,7 @@ pub enum PredicateTest {
 /// value is string       // input: value, condition: Primitive
 /// value is Shape.Circle // input: VariantTag, condition: Literal
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct PredicateUnaryTest {
     /// The value tested by this predicate.
     pub input: PredicateOperand,
@@ -161,7 +162,7 @@ pub struct PredicateUnaryTest {
 /// value is UserId  // Type
 /// value is Animal  // Subtype
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum PredicateCondition {
     /// Condition that accepts any projected input.
     ///
@@ -221,7 +222,7 @@ pub enum PredicateCondition {
 /// "name" in value
 /// key in value
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct PredicateMembershipTest {
     /// The receiver value.
     pub receiver: PredicateOperand,
@@ -236,7 +237,7 @@ pub struct PredicateMembershipTest {
 /// "name" in value // Static
 /// key in value    // Dynamic
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum PredicateKey {
     /// Statically known property key.
     ///
@@ -261,7 +262,7 @@ pub enum PredicateKey {
 /// 0..=255
 /// "a".."z"
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct PredicateRange {
     /// The scalar domain constrained by the range.
     pub domain: GlobalTypeId,

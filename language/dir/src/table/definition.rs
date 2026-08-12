@@ -10,6 +10,7 @@ use crate::{
     AutoInterface, EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny,
     GlobalStaticId, GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind,
     MemberSlot, MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey,
+    TypeFold,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -154,6 +155,13 @@ impl<'a> DefinitionTable<'a> {
             .flat_map(|conformance| &conformance.members)
     }
 
+    /// Iterate checked override selections as overriding member and inherited base.
+    pub fn member_overrides(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalSymbolId)> + '_ {
+        self.iter_definitions()
+            .flat_map(|(_, definition)| definition.members())
+            .filter_map(|member| Some((member.symbol()?, member.overrides()?)))
+    }
+
     /// Return true when this table has no definitions.
     pub fn is_empty(&self) -> bool {
         self.segments.iter().all(|segment| segment.is_empty())
@@ -270,8 +278,21 @@ impl DefinitionSegment {
     }
 }
 
+impl TypeFold for DefinitionSegment {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        for definition in self.definitions.values_mut() {
+            definition.map_types(map)?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Checked declaration data for one symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum Definition {
     /// Transparent type alias declaration.
     TypeAlias(TypeAliasDefinition),
@@ -382,7 +403,7 @@ impl Definition {
 }
 
 /// Checked declaration data for one transparent type alias.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct TypeAliasDefinition {
     /// The generic template declared by the alias.
     pub template: Option<LocalGenericTemplateId>,
@@ -391,7 +412,7 @@ pub struct TypeAliasDefinition {
 }
 
 /// Checked declaration data for one nominal struct.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct StructDefinition {
     /// The intrinsic instance space, or relative when absent.
     pub space: Option<Space>,
@@ -408,7 +429,7 @@ pub struct StructDefinition {
 }
 
 /// Checked declaration data for one nominal class.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct ClassDefinition {
     /// The intrinsic instance space, or relative when absent.
     pub space: Option<Space>,
@@ -447,7 +468,7 @@ impl ClassDefinition {
 }
 
 /// One class construct candidate.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct ClassConstructorDefinition {
     /// The selected constructor.
     pub constructor: ClassConstructor,
@@ -456,7 +477,7 @@ pub struct ClassConstructorDefinition {
 }
 
 /// Class construct candidate origin.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum ClassConstructor {
     /// Constructor explicitly declared by this class.
     Declared {
@@ -500,7 +521,7 @@ impl ClassConstructor {
 }
 
 /// Checked declaration data for one nominal interface.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct InterfaceDefinition {
     /// The intrinsic instance space, or relative when absent.
     pub space: Option<Space>,
@@ -515,7 +536,7 @@ pub struct InterfaceDefinition {
 }
 
 /// Checked declaration data for one nominal enum.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct EnumDefinition {
     /// The intrinsic instance space, or relative when absent.
     pub space: Option<Space>,
@@ -534,7 +555,7 @@ pub struct EnumDefinition {
 }
 
 /// Checked declaration data for one nominal type alias.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct NewtypeDefinition {
     /// The intrinsic instance space, or relative when absent.
     pub space: Option<Space>,
@@ -559,7 +580,7 @@ pub struct NewtypeDefinition {
 }
 
 /// One constructable newtype backing alternative.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct NewtypeConstructor {
     /// The reduced backing alternative selected by this constructor.
     pub backing: GlobalTypeId,
@@ -569,7 +590,18 @@ pub struct NewtypeConstructor {
 
 /// How an extension declaration relates to its target type.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Reflect,
+    TypeFold,
 )]
 pub enum ExtensionForm {
     /// Extension visible only inside its declaring module.
@@ -579,7 +611,7 @@ pub enum ExtensionForm {
 }
 
 /// Checked declaration data for one extension.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct ExtensionDefinition {
     /// The extension declaration's symbol.
     pub symbol: GlobalSymbolId,
@@ -639,7 +671,7 @@ impl ExtensionDefinition {
 }
 
 /// Extension lookup target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum ExtensionTarget {
     /// Extension whose receiver type has a lookup root.
     Rooted {
@@ -658,7 +690,7 @@ pub enum ExtensionTarget {
 }
 
 /// Receiver coverage one blanket extension's declared bound decides.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum BlanketCoverage {
     /// The blanket covers every receiver type.
     Every,
@@ -699,7 +731,7 @@ impl ExtensionTarget {
 }
 
 /// One nominal heritage.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct NominalHeritage {
     /// The source heritage node.
     pub source: GlobalNodeIdAny,
@@ -708,7 +740,7 @@ pub struct NominalHeritage {
 }
 
 /// One explicit interface conformance.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct NominalConformance {
     /// The source `implements` node.
     pub source: GlobalNodeIdAny,
@@ -719,7 +751,7 @@ pub struct NominalConformance {
 }
 
 /// One member satisfying an interface requirement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct MemberConformance {
     /// The implementing member symbol.
     pub member: GlobalSymbolId,
@@ -728,7 +760,7 @@ pub struct MemberConformance {
 }
 
 /// One field member.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct FieldDefinition {
     /// The member space declaring the field.
     pub space: MemberSpace,
@@ -755,7 +787,7 @@ pub struct FieldDefinition {
 }
 
 /// One method member.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct MethodDefinition {
     /// The member space declaring the method.
     pub space: MemberSpace,
@@ -778,7 +810,7 @@ pub struct MethodDefinition {
 }
 
 /// How one method receives its implementation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum MethodImplementation {
     /// Implementers must supply a body.
     Required,
@@ -789,7 +821,7 @@ pub enum MethodImplementation {
 }
 
 /// One associated type.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct AssociatedTypeDefinition {
     /// The associated type symbol.
     pub symbol: GlobalSymbolId,
@@ -804,7 +836,7 @@ pub struct AssociatedTypeDefinition {
 }
 
 /// One associated constant.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct AssociatedConstDefinition {
     /// The associated const symbol.
     pub symbol: GlobalSymbolId,
@@ -817,7 +849,7 @@ pub struct AssociatedConstDefinition {
 }
 
 /// One declared enum variant.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct EnumVariantDefinition {
     /// The variant symbol.
     pub symbol: GlobalSymbolId,
@@ -830,7 +862,7 @@ pub struct EnumVariantDefinition {
 }
 
 /// Written Tagged derive options recorded on a declared newtype.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct TaggedOptionsDefinition {
     /// The explicitly selected discriminator property.
     pub discriminator: Option<StaticKey>,
@@ -841,7 +873,7 @@ pub struct TaggedOptionsDefinition {
 }
 
 /// One declared tagged newtype variant identity.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct TaggedKeyDefinition {
     /// The variant symbol.
     pub symbol: GlobalSymbolId,
@@ -852,7 +884,7 @@ pub struct TaggedKeyDefinition {
 }
 
 /// One case derived from a tagged newtype backing, filled while checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct TaggedVariantDefinition {
     /// The variant symbol.
     pub symbol: GlobalSymbolId,
@@ -869,7 +901,7 @@ pub struct TaggedVariantDefinition {
 }
 
 /// One symbol-free signature member.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct SignatureDefinition {
     /// The source member node.
     pub source: GlobalNodeIdAny,
@@ -878,7 +910,7 @@ pub struct SignatureDefinition {
 }
 
 /// One structural index signature member.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct IndexSignatureDefinition {
     /// The source member node.
     pub source: GlobalNodeIdAny,
@@ -895,7 +927,7 @@ pub struct IndexSignatureDefinition {
 }
 
 /// One declaration member.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum DefinitionMember {
     /// Field member.
     Field(FieldDefinition),
@@ -1033,6 +1065,22 @@ impl DefinitionMember {
             Self::TaggedKey(variant) => Some(variant.symbol),
             Self::TaggedVariant(variant) => Some(variant.symbol),
             Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => None,
+        }
+    }
+
+    /// Return the inherited member this member was checked to override.
+    pub fn overrides(&self) -> Option<GlobalSymbolId> {
+        match self {
+            Self::Field(field) => field.overrides,
+            Self::Method(method) => method.overrides,
+            Self::AssociatedType(_)
+            | Self::AssociatedConst(_)
+            | Self::EnumVariant(_)
+            | Self::TaggedKey(_)
+            | Self::TaggedVariant(_)
+            | Self::CallSignature(_)
+            | Self::ConstructSignature(_)
+            | Self::IndexSignature(_) => None,
         }
     }
 
@@ -1239,10 +1287,29 @@ impl Definition {
             | Self::Newtype(_) => SmallVec::new(),
         }
     }
+
+    /// Return every heritage edge, extended bases before implemented interfaces.
+    pub fn heritage_edges(&self) -> SmallVec<[NominalHeritage; 4]> {
+        let mut edges = self
+            .bases()
+            .into_iter()
+            .cloned()
+            .collect::<SmallVec<[NominalHeritage; 4]>>();
+        edges.extend(
+            self.implementations()
+                .iter()
+                .map(|conformance| NominalHeritage {
+                    source: conformance.source,
+                    ty: conformance.interface,
+                }),
+        );
+
+        edges
+    }
 }
 
 /// Runtime representation selected for one nominal declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Representation {
     /// The representation family.
     pub kind: RepresentationKind,
@@ -1253,7 +1320,7 @@ pub struct Representation {
 }
 
 /// Runtime representation family for one nominal declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum RepresentationKind {
     /// The native Destack layout.
     #[default]

@@ -5,7 +5,7 @@ use destack_core::FxIndexMap as IndexMap;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Arena, GlobalScopeId, GlobalSymbolId, GlobalTypeId, SegmentView, StringId};
+use crate::{Arena, GlobalScopeId, GlobalSymbolId, GlobalTypeId, SegmentView, StringId, TypeFold};
 
 /// Cumulative captures for one DIR module.
 #[derive(Debug, Clone)]
@@ -234,6 +234,22 @@ impl CaptureSegment {
     }
 }
 
+impl TypeFold for CaptureSegment {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        for frame in self.frames.iter_mut() {
+            frame.map_types(map)?;
+        }
+        for capture in self.capture_by_function.values_mut() {
+            capture.map_types(map)?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Unique identifier for a capture frame.
 #[repr(transparent)]
 #[derive(
@@ -249,7 +265,7 @@ impl LocalCaptureFrameId {
 }
 
 /// Lexical bindings lifted for one scope.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct CaptureFrame {
     /// The lexical scope lifted into this frame.
     pub scope: GlobalScopeId,
@@ -260,7 +276,7 @@ pub struct CaptureFrame {
 }
 
 /// One binding stored in a capture frame.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct CaptureFrameField {
     /// The captured symbol.
     pub symbol: GlobalSymbolId,
@@ -297,7 +313,7 @@ impl<'a> TryFrom<&'a str> for CaptureMode {
 }
 
 /// A capture rule keyed by name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct CaptureRule {
     /// The binding name to override.
     pub name: StringId,
@@ -306,7 +322,7 @@ pub struct CaptureRule {
 }
 
 /// The capture directive for a closure.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct CaptureDirective {
     /// The default capture mode.
     pub default: CaptureMode,
@@ -326,7 +342,7 @@ impl CaptureDirective {
 }
 
 /// A single captured lexical binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum CapturedBinding {
     /// Preserve the variable through compiler-managed storage.
     Manage {
@@ -401,7 +417,7 @@ impl CapturedBinding {
 }
 
 /// A captured lexical receiver.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct CapturedReceiver {
     /// The receiver symbol.
     pub symbol: GlobalSymbolId,
@@ -412,7 +428,7 @@ pub struct CapturedReceiver {
 }
 
 /// Captures for a function declaration.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Capture {
     /// The lexical frames used by this function.
     pub frames: Vec<LocalCaptureFrameId>,

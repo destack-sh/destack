@@ -4,7 +4,7 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, SegmentView};
+use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, SegmentView, TypeFold};
 
 /// Interface whose implementation can be provided by compiler rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -269,7 +269,7 @@ impl From<AutoInterface> for LanguageItem {
 }
 
 /// One checked marker conformance.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct AutoConformance {
     /// The satisfied marker interface.
     pub interface: AutoInterface,
@@ -278,7 +278,7 @@ pub struct AutoConformance {
 }
 
 /// Generated implementation for one auto interface.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct AutoDerivedImplementation {
     /// The source node that requested this implementation.
     pub source: GlobalNodeIdAny,
@@ -291,7 +291,7 @@ pub struct AutoDerivedImplementation {
 }
 
 /// Member generated for one auto-derived implementation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct AutoImplementationMember {
     /// The source node that owns the generated member.
     pub source: GlobalNodeIdAny,
@@ -429,5 +429,21 @@ impl AutoSegment {
     /// Return whether this segment has no implementations or conformances.
     pub fn is_empty(&self) -> bool {
         self.implementations.is_empty() && self.conformances.is_empty()
+    }
+}
+
+impl TypeFold for AutoSegment {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        for conformance in &mut self.conformances {
+            conformance.map_types(map)?;
+        }
+        for implementation in &mut self.implementations {
+            implementation.map_types(map)?;
+        }
+
+        Ok(())
     }
 }

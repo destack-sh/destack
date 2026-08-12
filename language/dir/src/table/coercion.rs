@@ -5,7 +5,9 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{CastOrigin, GenericArgumentBinding, GlobalNodeIdAny, GlobalTypeId, SegmentView, Type};
+use crate::{
+    CastOrigin, GenericArgumentBinding, GlobalNodeIdAny, GlobalTypeId, SegmentView, Type, TypeFold,
+};
 
 /// Cumulative checked coercions for one DIR module.
 #[derive(Debug, Clone)]
@@ -96,7 +98,7 @@ impl<'a> CoercionTable<'a> {
 }
 
 /// One checked coercion from a source type to a target type.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Coercion {
     /// The source type before coercion.
     pub source: GlobalTypeId,
@@ -107,7 +109,7 @@ pub struct Coercion {
 }
 
 /// One adjustment in a checked coercion path.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum CoercionAdjustment {
     /// Borrow one value with the target lifetime and access.
     Borrow {
@@ -161,7 +163,7 @@ pub enum CoercionAdjustment {
 }
 
 /// One selected conversion for a possible union source type.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct CoercionCase {
     /// The source type entering this case.
     pub source: GlobalTypeId,
@@ -357,5 +359,18 @@ impl CoercionSegment {
     /// Return whether this segment has no coercions.
     pub fn is_empty(&self) -> bool {
         self.coercions.is_empty()
+    }
+}
+
+impl TypeFold for CoercionSegment {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        for coercion in self.coercions.values_mut() {
+            coercion.map_types(map)?;
+        }
+
+        Ok(())
     }
 }

@@ -6,7 +6,7 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalNodeIdAny,
     GlobalStaticId, GlobalSymbolId, LanguageItem, MappedTypeModifier, RangeEnd, ScalarDomain,
-    ScalarLiteral, StaticKey, StringId, TypeLiteral, UnaryOperator,
+    ScalarLiteral, StaticKey, StringId, TypeFold, TypeLiteral, UnaryOperator,
 };
 
 use super::{FloatType, IntegerType, MemoryParameter, PrimitiveType};
@@ -16,6 +16,8 @@ use super::{FloatType, IntegerType, MemoryParameter, PrimitiveType};
 pub enum Type {
     /// One open inference variable.
     Variable(TypeVariableId),
+    /// One declared inference hole, named by the node that authored it.
+    Hole(GlobalNodeIdAny),
 
     /// Placeholder type for an already-reported error.
     Error,
@@ -173,6 +175,7 @@ impl Type {
     pub fn variant_name(&self) -> &'static str {
         match self {
             Self::Variable(_) => "Variable",
+            Self::Hole(_) => "Hole",
             Self::Error => "Error",
             Self::Never => "Never",
             Self::Any => "Any",
@@ -225,6 +228,7 @@ impl Type {
         !matches!(
             self,
             Self::Error
+                | Self::Hole(_)
                 | Self::Never
                 | Self::Void
                 | Self::Null
@@ -241,6 +245,7 @@ impl Type {
             self,
             Self::Parameter(_)
                 | Self::Variable(_)
+                | Self::Hole(_)
                 | Self::This
                 | Self::Member(_)
                 | Self::Operation(_)
@@ -342,6 +347,7 @@ impl Type {
         match self {
             // symbolic leaves, one bit each
             Self::Variable(_) => TypeFlags::HAS_VARIABLE,
+            Self::Hole(_) => TypeFlags::HAS_HOLE,
             Self::Error => TypeFlags::HAS_ERROR,
             Self::Parameter(_) => TypeFlags::HAS_PARAMETER,
             Self::Erased(_) => TypeFlags::HAS_PARAMETER,
@@ -398,6 +404,7 @@ impl Type {
                 collect(variant.variant.module_id);
             }
             Self::Static(value) => collect(value.module_id),
+            Self::Hole(node) => collect(node.module_id),
 
             // wrapped value heads
             Self::Form(form) => collect(form.value.module_id),
@@ -468,7 +475,7 @@ impl Type {
 
 /// The symbolic leaf kinds contained in one type graph, computed once at intern time.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct TypeFlags(u8);
+pub struct TypeFlags(u16);
 
 impl TypeFlags {
     /// A ground type graph without symbolic leaves.
@@ -489,6 +496,8 @@ impl TypeFlags {
     pub const HAS_OPERATION: Self = Self(1 << 6);
     /// The graph contains a conditional infer binding.
     pub const HAS_INFER: Self = Self(1 << 7);
+    /// The graph contains a declared inference hole.
+    pub const HAS_HOLE: Self = Self(1 << 8);
 
     /// Return whether every bit of `other` is set.
     pub fn contains(self, other: Self) -> bool {
@@ -498,6 +507,7 @@ impl TypeFlags {
     /// Return whether the graph contains no open or symbolic leaves.
     pub fn is_ground(self) -> bool {
         let symbolic = Self::HAS_VARIABLE
+            | Self::HAS_HOLE
             | Self::HAS_PARAMETER
             | Self::HAS_THIS
             | Self::HAS_REFERENCE
@@ -551,6 +561,16 @@ impl TypeFlags {
     /// Return whether the graph contains a conditional infer binding.
     pub fn has_infer(self) -> bool {
         self.contains(Self::HAS_INFER)
+    }
+
+    /// Return whether the graph contains a declared inference hole.
+    pub fn has_hole(self) -> bool {
+        self.contains(Self::HAS_HOLE)
+    }
+
+    /// Return whether the graph awaits inference through a variable or a hole.
+    pub fn is_open(self) -> bool {
+        self.contains_any(Self::HAS_VARIABLE | Self::HAS_HOLE)
     }
 }
 
@@ -2342,7 +2362,7 @@ impl TypeProperty {
 }
 
 /// The value types exposed by one structural property.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum PropertyAccess {
     /// A readable property.
     Read(GlobalTypeId),

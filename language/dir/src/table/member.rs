@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     DefinitionMember, FunctionRole, GlobalGenericTemplateId, GlobalNodeIdAny, GlobalSymbolId,
-    GlobalTypeId, NameResolution, PropertyAccess, SegmentView, StaticKey,
+    GlobalTypeId, NameResolution, PropertyAccess, SegmentView, StaticKey, TypeFold,
 };
 
 /// Cumulative member bindings for one DIR module.
@@ -262,7 +262,7 @@ impl MemberSite {
 }
 
 /// One member selected by lookup.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct MemberBinding {
     /// The available member key.
     pub key: StaticKey,
@@ -294,6 +294,16 @@ impl MemberBinding {
         }
     }
 
+    /// Return the declaration a read of this member selects.
+    pub fn read_declaration(&self) -> Option<&MemberDeclaration> {
+        match self.declarations.as_slice() {
+            [declaration] => Some(declaration),
+            declarations => declarations
+                .iter()
+                .find(|declaration| declaration.role == MemberRole::Getter),
+        }
+    }
+
     /// Return the selected declarations as a name resolution.
     pub fn declaration_resolution(&self) -> Option<NameResolution> {
         let symbols = self
@@ -310,7 +320,7 @@ impl MemberBinding {
 }
 
 /// One declaration contributing to a checked member binding.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct MemberDeclaration {
     /// The selected declaration symbol.
     pub symbol: GlobalSymbolId,

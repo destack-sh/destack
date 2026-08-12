@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Dereference, GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, ScalarLiteral, StaticKey,
-    VariantCase,
+    TypeFold, VariantCase,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -13,7 +13,7 @@ use crate::{
 /// this.name      // declaration: the enclosing class, ty: its instance type
 /// super.render() // declaration: the enclosing class, ty: its superclass type
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct ReceiverDecision {
     /// The receiver syntax kind.
     pub kind: ReceiverKind,
@@ -30,7 +30,7 @@ pub struct ReceiverDecision {
 /// this
 /// super
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum ReceiverKind {
     /// The active `this` receiver.
     ///
@@ -49,7 +49,7 @@ pub enum ReceiverKind {
 }
 
 /// One receiver and its ordered implicit transformations.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct AdjustedReceiver {
     /// The receiver type before adjustment.
     pub source: GlobalTypeId,
@@ -81,7 +81,7 @@ impl AdjustedReceiver {
 }
 
 /// Receiver selected for one member access.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum MemberReceiver {
     /// Member selected directly from the adjusted receiver.
     Direct(AdjustedReceiver),
@@ -137,7 +137,7 @@ impl MemberReceiver {
 }
 
 /// Erased receiver selected for dynamic dispatch.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct DynamicDispatch {
     /// The erased receiver.
     pub receiver: AdjustedReceiver,
@@ -154,7 +154,7 @@ pub struct DynamicDispatch {
 /// userId.length        // NewtypePayload, when the backing string exposes `length`
 /// shape.radius         // VariantPayload, when a precise variant exposes its payload
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum ReceiverAdjustment {
     /// Borrow the receiver for one method call.
     Borrow {

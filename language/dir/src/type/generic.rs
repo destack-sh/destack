@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalScopeId, StringId,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalScopeId, StringId, TypeFold,
     VarianceModifier, WhereRelation,
 };
 
@@ -314,7 +314,7 @@ impl GenericParameterBinding {
 }
 
 /// One selected generic argument bound to its declaration parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct GenericArgumentBinding {
     /// The declaration parameter selected by the argument.
     pub parameter: GlobalGenericParameterId,
@@ -338,7 +338,7 @@ impl GenericArgumentBinding {
 }
 
 /// One selected parameter bound to its runtime argument source.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct ArgumentBinding {
     /// The complete parameter type after static substitutions.
     pub parameter_type: GlobalTypeId,
@@ -360,7 +360,7 @@ impl ArgumentBinding {
 }
 
 /// Source argument bound to one selected parameter slot.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum ArgumentSource {
     /// One source argument was supplied.
     Provided(GlobalNodeIdAny),

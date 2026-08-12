@@ -1,4 +1,5 @@
 mod access;
+mod fold;
 mod generic;
 mod predicate;
 mod primitive;
@@ -9,6 +10,7 @@ mod scalar;
 mod r#type;
 
 pub use access::*;
+pub use fold::*;
 pub use generic::*;
 pub use predicate::*;
 pub use primitive::*;
