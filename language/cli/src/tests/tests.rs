@@ -2,14 +2,14 @@
 
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_artifact::BuildId;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, MemoryBlobStore, Ref,
-    Repository, Revision, Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, MemoryBlobStore, Repository,
+    Revision, RevisionPin, Settings,
 };
 use destack_source::{File, FileSystem, MemoryFileSystem};
 use futures::executor::block_on;
@@ -28,6 +28,8 @@ pub(super) struct TestProgram {
     pub fs: Arc<MemoryFileSystem>,
     /// The repository under test.
     pub repository: Arc<Repository>,
+    /// Current retained repository revision.
+    pub revision: Mutex<RevisionPin>,
 }
 
 impl TestProgram {
@@ -49,13 +51,18 @@ impl TestProgram {
         );
         let host = Host::new(BuildId::test(), environment, fs.clone())
             .with_blob_store(Arc::new(MemoryBlobStore::new()));
-        let repository = Repository::new(root.clone(), host, Settings::default(), layout);
+        let (repository, revision) =
+            Repository::new(root.clone(), host, Settings::default(), layout);
         let repository = Arc::new(repository);
+        let revision = repository
+            .pin(revision)
+            .expect("initial CLI test revision should pin");
 
         Self {
             root,
             fs,
             repository,
+            revision: Mutex::new(revision),
         }
     }
 
@@ -71,10 +78,10 @@ impl TestProgram {
 
     /// Return the current workspace revision.
     pub(super) fn current_revision(&self) -> Revision {
-        let reference = Ref::for_root(&self.root);
-        self.repository
-            .current(&reference)
-            .expect("expected current workspace revision")
+        self.revision
+            .lock()
+            .expect("CLI test revision lock should remain available")
+            .revision()
     }
 
     /// Build program arguments rooted at this test directory.
@@ -101,18 +108,9 @@ impl TestProgram {
         // write the file contents
         write_file(self.fs.as_ref(), &path, contents);
 
+        // commit the same contents to semantic state
         let logical_path = self.repository.logical_path(&path);
-        let reference = Ref::for_root(&self.root);
-
-        // current repository state
-        let revision = self.repository.current(&reference).unwrap_or_else(|error| {
-            panic!(
-                "failed to read repository revision for '{}' after write: {error}",
-                path.display()
-            )
-        });
-
-        // edited repository state
+        let revision = self.current_revision();
         let blob = self
             .repository
             .put_blob(contents.as_bytes())
@@ -128,15 +126,15 @@ impl TestProgram {
             })
             .after;
 
-        // publish the new state
-        self.repository
-            .set_ref(&reference, revision)
-            .unwrap_or_else(|error| {
-                panic!(
-                    "failed to publish repository for '{}' after write: {error}",
-                    path.display()
-                )
-            });
+        // retain the new state
+        let revision = self
+            .repository
+            .pin(revision)
+            .expect("edited CLI test revision should pin");
+        *self
+            .revision
+            .lock()
+            .expect("CLI test revision lock should remain available") = revision;
 
         path
     }

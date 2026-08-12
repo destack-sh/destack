@@ -10,10 +10,10 @@ use destack_daemon::{
 };
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Execution, FormatterOptions, Host,
-    MemoryBlobStore, Ref, Repository, Settings, SourceRoot, open_repository,
+    MemoryBlobStore, Repository, Revision, Settings, SourceRoot,
 };
 use destack_session::Executor;
-use destack_source::{FileSystem, IndentStyle, LineEnding, OverlayFileSystem, PhysicalFileSystem};
+use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{ManifestOverride, Workspace};
 
 use crate::common::{ReportArgs, overrides_from_program, report_error};
@@ -319,18 +319,9 @@ impl ProgramArgs {
         self
     }
 
-    /// Open a repository from these arguments.
-    pub(crate) fn open_repository(&self) -> ConsoleResult<Arc<Repository>> {
+    /// Open a repository and its imported physical revision from these arguments.
+    pub(crate) fn open_repository(&self) -> ConsoleResult<(Arc<Repository>, Revision)> {
         let file_system = self.file_system();
-
-        self.open_repository_with_file_system(file_system)
-    }
-
-    /// Open a repository using explicit host storage.
-    fn open_repository_with_file_system(
-        &self,
-        file_system: Arc<dyn FileSystem>,
-    ) -> ConsoleResult<Arc<Repository>> {
         let cwd = self.effective_cwd()?;
         let workspace_path = self.workspace_path()?;
         let mut environment = Environment::capture_process();
@@ -360,31 +351,25 @@ impl ProgramArgs {
         } else {
             host
         };
-        let repository = open_repository(workspace_path, host, settings, layout_override)
-            .map_err(|error| ConsoleError::message(format!("failed to open workspace: {error}")))?;
+        let (repository, revision) =
+            Repository::open(workspace_path, host, settings, layout_override).map_err(|error| {
+                ConsoleError::message(format!("failed to open workspace: {error}"))
+            })?;
 
         let repository = Arc::new(repository);
-        let reference = Ref::for_root(repository.path());
-        let revision = repository.current(&reference).map_err(|error| {
-            ConsoleError::message(format!(
-                "failed to resolve current workspace revision: {error}"
-            ))
-        })?;
         repository
             .root(revision)
             .map_err(|error| ConsoleError::message(format!("failed to derive root: {error}")))?;
 
-        Ok(repository)
+        Ok((repository, revision))
     }
 
-    /// Open a daemon workspace over one shared editor overlay.
+    /// Open a daemon workspace from these arguments.
     pub(crate) fn daemon_workspace(&self) -> ConsoleResult<Workspace> {
-        let file_system = self.file_system();
-        let overlay = Arc::new(OverlayFileSystem::with_inner(file_system));
-        let repository = self.open_repository_with_file_system(overlay.clone())?;
+        let (repository, physical) = self.open_repository()?;
         let executor = self.executor()?;
 
-        Workspace::new(repository, Some(overlay), executor)
+        Workspace::new(repository, physical, executor)
             .map_err(|error| ConsoleError::message(format!("workspace open failed: {error}")))
     }
 
@@ -398,9 +383,9 @@ impl ProgramArgs {
 
     /// Open a local workspace from these arguments.
     pub(crate) fn workspace(&self) -> ConsoleResult<Arc<Workspace>> {
-        let repository = self.open_repository()?;
+        let (repository, physical) = self.open_repository()?;
         let executor = self.executor()?;
-        let workspace = Workspace::new(repository, None, executor)
+        let workspace = Workspace::new(repository, physical, executor)
             .map_err(|error| ConsoleError::message(format!("workspace open failed: {error}")))?;
 
         Ok(Arc::new(workspace))
