@@ -93,6 +93,8 @@ requirements, wishlist:
 
 ## why combine typescript and rust
 
+- JVM/CLR by default, Rust on demand
+
 - okay it's basically a meme at this point
 - what do we mean by "optimal" and why does it even matter
 - we're going to run a _lot_ more software, and ideally, we're also going to run a lot of it in "simulation" and speculative modes - the faster we can do this, the better, and it really adds up
@@ -114,6 +116,9 @@ requirements, wishlist:
 
 - why not extend what already exists
 - static hermes, assembly script, ...
+- don't try to be cute or clever or fancy
+- don't "fix" what's not badly broken
+- only use boring ideas already proven by other languages / libraries / ..
 
 - "second system effect"
 - "why not fix all the problems"
@@ -154,6 +159,11 @@ requirements, wishlist:
 ## no backward compatibility
 
 - first and most serious cut is to drop support for existing .ts/.tsx
+- no NPM, no JS bridge, no TS "best effort"
+
+## destack.json
+
+- combine electron, expo, package.json, Cargo.toml, ...
 
 ## obviously, no <soundness hole>
 
@@ -179,12 +189,32 @@ requirements, wishlist:
 - strictly ESM imports and exports
 - no CommonJS
 
-## TSX, too, of course
+## TSX, of course
 
 - but how?
-- trees, generalised tree litearls, lowercase tree builders, ..?
+- trees, generalised tree litearls,
+- lowercase tree builders, ..?
 
-## constrained dynamic (?)
+## patterns and match
+
+- expressions as values
+- patterns
+- match
+- catch match
+
+## decorators
+
+- extended placement
+- newtypes as decorators
+
+## no exceptions, results only
+
+- most subjective of the bunch
+- but exceptions have proven troubling over and over and over again
+- checked exceptions are even worse
+- the only sane error handling method is the Swift-y Rust-y ? operator 
+
+## structural interfaces, `Dynamic` (?)
 
 - shape mutation
 - excess properties
@@ -196,24 +226,6 @@ requirements, wishlist:
 
 - number, yes, but int32, int64, float32, character too
 - tuples slices inline arrays and the rest
-
-## no exceptions, results only
-
-- most subjective of the bunch
-- but exceptions have proven troubling over and over and over again
-- checked exceptions are even worse
-- the only sane error handling method is the Swift-y Rust-y ? operator 
-
-## patterns
-
-- patterns
-- match
-- catch match
-
-## decorators
-
-- extended placement
-- newtypes as decorators
 
 ## nominality
 
@@ -300,3 +312,14 @@ requirements, wishlist:
 - overflows / underflows
 - out of bounds
 - deliberate unreachable
+
+## automatic, implicit effects
+
+- proper colored functions
+- stdlib based on explicit @bindings
+- effect tracking
+- @binding
+
+## durability
+
+- rewind, fork
