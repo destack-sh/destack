@@ -1,6 +1,7 @@
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
 import javascript from "highlight.js/lib/languages/javascript";
+import json from "highlight.js/lib/languages/json";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
 import { execFileSync } from "node:child_process";
@@ -32,6 +33,7 @@ const languages = {
 hljs.registerLanguage("bash", bash);
 hljs.registerLanguage("javascript", javascript);
 hljs.registerLanguage("js", javascript);
+hljs.registerLanguage("json", json);
 hljs.registerLanguage("typescript", typescript);
 hljs.registerLanguage("ts", typescript);
 hljs.registerLanguage("tsx", typescript);
@@ -83,6 +85,10 @@ function resolveQuery(directory, query) {
 
 export function highlightCode(source, language) {
     const normalized = normalizeLanguage(language);
+    if (normalized === "text") {
+        return escapeHtml(source);
+    }
+
     const grammar = grammarFor(normalized);
     if (grammar != undefined) {
         return highlightGrammarSource(source, grammar);
@@ -104,7 +110,7 @@ function normalizeLanguage(language) {
 }
 
 function grammarFor(language) {
-    if (language === "ds" || language === "destack") {
+    if (language === "ds" || language === "destack" || language === "pattern") {
         return languages.destack;
     }
 

@@ -21,7 +21,7 @@ import {
 import { plainTextFor, searchTextFor, tokenEstimateFor } from "./text.mjs";
 import { writePageSources } from "./sources.mjs";
 import { highlightCode } from "./highlight.mjs";
-import { homeExamples } from "../src/content/site.ts";
+import { homeExamples } from "../src/content/home.ts";
 
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const siteDirectory = join(repositoryDirectory, "platform/site");
@@ -73,10 +73,12 @@ if (isCheck) {
     writeGeneratedFile(generatedSearchFile, searchSource);
 }
 
-/// Generate parser-backed syntax spans for every homepage listing.
+/// Generate parser-backed syntax spans for every homepage technical listing.
 function renderHomeHighlightModule() {
     const entries = homeExamples.map((example) => {
-        const highlighted = highlightCode(example.source.code, example.source.language).split("\n");
+        const highlighted = example.listings.map((listing) =>
+            highlightCode(listing.text, listing.language).split("\n")
+        );
 
         return `    ${JSON.stringify(example.action)}: ${JSON.stringify(highlighted)},`;
     }).join("\n");
