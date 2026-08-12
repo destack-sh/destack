@@ -37,8 +37,11 @@ type ContentsProps = {
 
 /// Render the active article outline.
 export function Contents(props: ContentsProps) {
-    const entries = createMemo(() =>
-        props.isMenu ? props.entries : visibleContents(props.entries, props.activeId())
+    const rootDepth = createMemo(() =>
+        props.entries.reduce(
+            (depth, entry) => Math.min(depth, entry.depth),
+            props.entries[0]?.depth ?? 0,
+        )
     );
 
     return (
@@ -49,41 +52,33 @@ export function Contents(props: ContentsProps) {
             >
                 <p {...stylex.attrs(styles.heading)}>contents</p>
                 <ol {...stylex.attrs(styles.list)}>
-                    <For each={entries()}>
-                        {(entry) => (
-                            <li {...stylex.attrs(entry.depth > 2 && styles.nested)}>
-                                <a
+                    <For each={props.entries}>
+                        {(entry) => {
+                            const isNested = entry.depth > rootDepth();
+
+                            return (
+                                <li
                                     {...stylex.attrs(
-                                        styles.link,
-                                        props.activeId() === entry.id && styles.active,
+                                        isNested ? styles.nested : styles.topLevel,
                                     )}
-                                    href={`#${entry.id}`}
                                 >
-                                    {entry.text}
-                                </a>
-                            </li>
-                        )}
+                                    <a
+                                        {...stylex.attrs(
+                                            styles.link,
+                                            props.activeId() === entry.id && styles.active,
+                                        )}
+                                        href={`#${entry.id}`}
+                                    >
+                                        {entry.text}
+                                    </a>
+                                </li>
+                            );
+                        }}
                     </For>
                 </ol>
             </nav>
         </Show>
     );
-}
-
-/// Return the active heading and a compact window around it.
-function visibleContents(entries: readonly ContentsEntry[], activeId: string) {
-    const maximumEntries = 13;
-
-    // preserve short outlines in full
-    if (entries.length <= maximumEntries) {
-        return entries;
-    }
-
-    // center the current heading with slightly more lookahead
-    const activeIndex = Math.max(0, entries.findIndex((entry) => entry.id === activeId));
-    const start = Math.max(0, Math.min(activeIndex - 4, entries.length - maximumEntries));
-
-    return entries.slice(start, start + maximumEntries);
 }
 
 const styles = stylex.create({
@@ -117,6 +112,10 @@ const styles = stylex.create({
         padding: 0,
     },
     nested: {
+        borderLeftColor: tokens.line,
+        borderLeftStyle: "solid",
+        borderLeftWidth: "1px",
+        marginLeft: "0.55rem",
         paddingLeft: "0.65rem",
     },
     root: {
@@ -134,6 +133,10 @@ const styles = stylex.create({
     },
     rootMenu: {
         display: "block",
+    },
+    topLevel: {
+        color: tokens.text,
+        fontWeight: 600,
     },
 });
 

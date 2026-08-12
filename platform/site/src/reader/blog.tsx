@@ -172,10 +172,10 @@ const styles = stylex.create({
     },
     articleSubtitle: {
         color: tokens.soft,
-        fontSize: "0.86rem",
-        lineHeight: 1.5,
+        fontSize: "clamp(1rem, 1.4vw, 1.12rem)",
+        lineHeight: 1.4,
         margin: 0,
-        maxWidth: "39rem",
+        maxWidth: "44rem",
     },
     articleTitle: {
         fontFamily: tokens.monoFont,
