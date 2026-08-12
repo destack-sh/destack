@@ -440,20 +440,20 @@ impl BodyState<'_, '_> {
                 continue;
             }
 
-            // only a declaration implementing an interface can satisfy the goal
+            // read the target and the interfaces the declaration implements
+            let target_type = extension.target.r#type();
             let interfaces = extension
                 .implements
                 .iter()
                 .map(|conformance| conformance.interface)
                 .collect::<SmallVec<[_; 2]>>();
-            if interfaces.is_empty() {
+
+            // keep only declarations whose conformances reach the requested interface
+            if !self.reaches_requested_interface(&interfaces, interface.symbol)? {
                 continue;
             }
 
-            // match in one confirming attempt: a match that solves outer
-            //  variables rejects itself, so argument inference keeps first
-            //  claim on them and only clean matches commit
-            let target_type = extension.target.r#type();
+            // match in one confirming attempt
             let template = self.symbol_template(extension_symbol)?;
             let trail_from = self.check.infer.trail.len();
             let variables = self.check.infer.variable_count();
@@ -522,6 +522,27 @@ impl BodyState<'_, '_> {
             false => (Verdict::Ambiguous, None),
             true => (Verdict::Fails, None),
         })
+    }
+
+    /// Return whether one declaration's conformances reach a requested interface.
+    fn reaches_requested_interface(
+        &mut self,
+        interfaces: &[dir::GlobalTypeId],
+        interface: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        for implemented in interfaces {
+            // a conformance written over a parameter or an alias reaches every interface
+            let Some((_, instance)) = self.nominal_application_maybe(*implemented)? else {
+                return Ok(true);
+            };
+
+            // follow the heritage above the named declaration
+            if self.reaches_heritage(instance.symbol, interface)? {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Match one extension target and implemented interface.
@@ -826,7 +847,7 @@ impl BodyState<'_, '_> {
             return Ok(Vec::new());
         }
 
-        // read the extension members
+        // require a declaration this module can see
         let extension = match self.definition(extension_symbol)? {
             Some(dir::Definition::Extension(extension)) => extension,
             Some(_) => {
@@ -843,27 +864,14 @@ impl BodyState<'_, '_> {
             return Ok(Vec::new());
         }
 
-        // read the members and conformances the extension declares
-        let target_type = extension.target.r#type();
-        let declared = extension.members.clone();
-        let implements = extension.implements.clone();
-
         // close recursive lookups of this extension coinductively
         if !self.check.extending.insert((extension_symbol, subject)) {
             return Ok(Vec::new());
         }
 
         // collect the candidates, then release the re-entry mark
-        let result = self.collect_extension_candidates(
-            origin,
-            receiver,
-            subject,
-            extension_symbol,
-            space,
-            target_type,
-            &declared,
-            &implements,
-        );
+        let result =
+            self.collect_extension_candidates(origin, receiver, subject, extension_symbol, space);
         self.check
             .extending
             .swap_remove(&(extension_symbol, subject));
@@ -872,7 +880,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Collect one extension's declared and conformance member candidates.
-    #[allow(clippy::too_many_arguments)]
     fn collect_extension_candidates(
         &mut self,
         origin: Origin,
@@ -880,68 +887,70 @@ impl BodyState<'_, '_> {
         subject: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         space: dir::MemberSpace,
-        target_type: dir::GlobalTypeId,
-        declared: &[dir::DefinitionMember],
-        implements: &[dir::NominalConformance],
     ) -> CompilerResult<Vec<(dir::StaticKey, MemberCandidate)>> {
-        // resolve the members declared in the requested space, keeping keys
-        let mut keys = Vec::new();
+        // read the extension's target and the interfaces it implements
+        let Some(dir::Definition::Extension(extension)) = self.definition_maybe(extension_symbol)
+        else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "loaded extension symbol {extension_symbol:?} has no extension definition"
+                ),
+            });
+        };
+        let target_type = extension.target.r#type();
+        let implements = extension
+            .implements
+            .iter()
+            .map(|conformance| conformance.interface)
+            .collect::<SmallVec<[_; 2]>>();
+
+        // keep the members this extension declares in the requested space
         let mut members = Vec::new();
-        for member in declared {
-            let (member_space, Some(key)) = (member.space(), member.key()) else {
-                continue;
-            };
-            if member_space != space {
+        for member in &extension.members {
+            if member.space() != space {
                 continue;
             }
 
-            let Some(member) = self.declared_member(member)? else {
+            let Some(declared) = DeclaredMember::from_definition(member)? else {
                 continue;
             };
 
-            keys.push(key);
-            members.push(member);
+            members.push(declared);
         }
 
         // fill the keys the extension left open with conformance defaults
-        let mut conformance_bindings = Vec::new();
-        for conformance in implements {
+        let mut conformances = SmallVec::<[(ModuleId, dir::GenericApplication); 2]>::new();
+        for implemented in implements {
             let Some((interface_module, interface)) =
-                self.nominal_application_maybe(conformance.interface)?
+                self.nominal_application_maybe(implemented)?
             else {
                 continue;
             };
-            let Some(dir::Definition::Interface(definition)) =
-                self.definition(interface.symbol)?.cloned()
+            let Some(dir::Definition::Interface(definition)) = self.definition(interface.symbol)?
             else {
                 continue;
             };
 
-            // read the interface's own view of its parameters
-            let substitution = self.instance_substitution(interface_module, &interface)?;
-
-            // take each default member the extension left unkeyed
-            let mut served = false;
+            // take each default member whose key the extension left open
+            let first_default = members.len();
             for member in &definition.members {
-                let (member_space, Some(key)) = (member.space(), member.key()) else {
-                    continue;
-                };
-                if member_space != space || keys.contains(&key) || !member.is_default() {
+                if member.space() != space || !member.is_default() {
                     continue;
                 }
 
-                let Some(member) = self.declared_member(member)? else {
+                let Some(declared) = DeclaredMember::from_definition(member)? else {
                     continue;
                 };
+                if members.iter().any(|kept| kept.key == declared.key) {
+                    continue;
+                }
 
-                keys.push(key);
-                members.push(member);
-                served = true;
+                members.push(declared);
             }
 
-            // carry the interface bindings that the taken defaults need
-            if served {
-                conformance_bindings.extend(substitution.bindings);
+            // keep the interface whose defaults the extension took
+            if members.len() > first_default {
+                conformances.push((interface_module, interface));
             }
         }
 
@@ -952,36 +961,40 @@ impl BodyState<'_, '_> {
         // open extension generics and match the receiver once
         let template = self.symbol_template(extension_symbol)?;
         let result = self.confirm_candidate(|state| {
-            match state.match_extension(
-                origin,
-                receiver,
-                subject,
-                extension_symbol,
-                template,
-                target_type,
-                &members,
-                &conformance_bindings,
-            )? {
-                Some(candidates) => Ok(CandidateOutcome::Accepted(candidates)),
-                None => Ok(CandidateOutcome::Rejected(())),
+            let Some(mut substitution) =
+                state.match_extension(origin, receiver, subject, template, target_type)?
+            else {
+                return Ok(CandidateOutcome::Rejected(()));
+            };
+
+            // read the checked type of each member the matched extension exposes
+            state.resolve_declared_types(&mut members)?;
+
+            // rewrite conformance interface parameters into subject terms
+            for (interface_module, interface) in &conformances {
+                let interface_substitution =
+                    state.instance_substitution(*interface_module, interface)?;
+                for binding in interface_substitution.bindings {
+                    let argument = state.substitute_type(binding.argument, &substitution)?;
+                    substitution.bind(binding.parameter, argument)?;
+                }
             }
+
+            // substitute the matched arguments into every declared member
+            let candidates = state.extension_member_candidates(
+                origin,
+                extension_symbol,
+                &substitution,
+                &members,
+            )?;
+            if candidates.is_empty() {
+                return Ok(CandidateOutcome::Rejected(()));
+            }
+
+            Ok(CandidateOutcome::Accepted(candidates))
         })?;
 
-        match result {
-            Some(candidates) => {
-                // candidates keep declaration order, pairing keys positionally
-                if candidates.len() != keys.len() {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "extension {extension_symbol:?} candidates disagree with its members"
-                        ),
-                    });
-                }
-
-                Ok(keys.into_iter().zip(candidates).collect())
-            }
-            None => Ok(Vec::new()),
-        }
+        Ok(result.unwrap_or_default())
     }
 
     /// Look up matching static members from one extension declaration.
@@ -1068,18 +1081,22 @@ impl BodyState<'_, '_> {
         // expose the matching members under that substitution
         let candidates =
             self.extension_member_candidates(origin, extension_symbol, &substitution, &members)?;
+        let candidates = candidates
+            .into_iter()
+            .map(|(_, candidate)| candidate)
+            .collect();
 
         Ok(MemberLookup::from_candidates(candidates))
     }
 
-    /// Return substituted member candidates for one matched extension.
+    /// Return the substituted member candidates one matched extension exposes per key.
     pub(in crate::check) fn extension_member_candidates(
         &mut self,
         origin: Origin,
         extension_symbol: dir::GlobalSymbolId,
         substitution: &TypeSubstitution,
         members: &[DeclaredMember],
-    ) -> CompilerResult<Vec<MemberCandidate>> {
+    ) -> CompilerResult<Vec<(dir::StaticKey, MemberCandidate)>> {
         // blanket declarations sit farther than rooted extensions
         let member_origin = match self.definition(extension_symbol)? {
             Some(dir::Definition::Extension(extension)) if extension.target.is_blanket() => {
@@ -1117,7 +1134,7 @@ impl BodyState<'_, '_> {
 
             // carry the solved extension arguments onto the candidate
             let generic_arguments = self.settled_argument_bindings(&substitution.bindings)?;
-            candidates.push(MemberCandidate {
+            let candidate = MemberCandidate {
                 symbol: member.symbol,
                 owner: extension_symbol,
                 origin: member_origin,
@@ -1132,49 +1149,31 @@ impl BodyState<'_, '_> {
                 value: member.value,
                 value_type: written,
                 receiver: LookupReceiver::Direct(ReceiverSteps::new()),
-            });
+            };
+
+            candidates.push((member.key, candidate));
         }
 
         Ok(candidates)
     }
 
-    /// Match one extension member declaration against a receiver.
+    /// Match one extension target against a receiver and its widened lookup subject.
     pub(in crate::check) fn match_extension(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
         subject: dir::GlobalTypeId,
-        extension_symbol: dir::GlobalSymbolId,
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
-        members: &[DeclaredMember],
-        conformance_bindings: &[dir::GenericArgumentBinding],
-    ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
+    ) -> CompilerResult<Option<TypeSubstitution>> {
         // match the exact receiver first, then its widened lookup subject
-        let mut substitution =
+        let substitution =
             self.match_extension_subject(origin, receiver, receiver, template, target_type)?;
         if substitution.is_none() && subject != receiver {
-            substitution =
-                self.match_extension_subject(origin, receiver, subject, template, target_type)?;
-        }
-        let Some(mut substitution) = substitution else {
-            return Ok(None);
-        };
-
-        // rewrite conformance interface parameters into subject terms
-        for binding in conformance_bindings {
-            let argument = self.substitute_type(binding.argument, &substitution)?;
-            substitution.bind(binding.parameter, argument)?;
+            return self.match_extension_subject(origin, receiver, subject, template, target_type);
         }
 
-        // substitute the matched arguments into every declared member
-        let candidates =
-            self.extension_member_candidates(origin, extension_symbol, &substitution, members)?;
-        if candidates.is_empty() {
-            return Ok(None);
-        }
-
-        Ok(Some(candidates))
+        Ok(substitution)
     }
 
     /// Match one lookup subject against an extension target and its constraints.

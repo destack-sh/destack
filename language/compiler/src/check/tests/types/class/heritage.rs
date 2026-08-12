@@ -991,3 +991,162 @@ class Child extends Base {
 "#,
     );
 }
+
+#[test]
+fn test_call_an_inherited_method_through_super() {
+    let session = TestSession::single(
+        r#"
+class Animal {
+    virtual speak(): string {
+        return "sound";
+    }
+}
+
+class Dog extends Animal {
+    override speak(): string {
+        return super.speak();
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Animal {
+    virtual speak(): string {
+        return "sound";
+    }
+}
+
+class Dog extends Animal {
+    override speak(): string {
+        return super.speak();
+    }
+}
+
+=== checked ===
+class Animal {
+/// @type.symbol symbol=Animal type=Animal
+/// @definition.class symbol=Animal
+/// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=(this: this) => string
+
+    virtual speak(): string {
+    /// @type.symbol symbol=Animal.speak type=(this: this) => string
+
+        return "sound";
+    }
+}
+
+class Dog extends Animal {
+/// @type.symbol symbol=Dog type=Dog
+/// @definition.class symbol=Dog
+/// @definition.extends symbol=Dog source=Animal target=Animal
+/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=(this: this) => string
+/// @resolution.name source=Animal target=Animal
+
+    override speak(): string {
+    /// @type.symbol symbol=Dog.speak type=(this: this) => string
+
+        return super.speak();
+        /// @resolution.member source=super.speak receiver=Animal type=(this: Animal) => string kind=symbol target_receiver=Animal target=Animal.speak
+        /// @resolution.call source=super.speak() parameters=() return=string kind=symbol target=Animal.speak receiver=Animal
+        /// @resolution.receiver source=super kind=super declaration=Dog type=Animal
+        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=super root=this
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_call_an_inherited_method_through_super_from_a_closure() {
+    let session = TestSession::single(
+        r#"
+class Animal {
+    virtual speak(): string {
+        return "sound";
+    }
+}
+
+class Dog extends Animal {
+    override speak(): string {
+        const inherited = () => super.speak();
+
+        return inherited();
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_capture(),
+        r#"
+=== annotated ===
+class Animal {
+    virtual speak(): string {
+        return "sound";
+    }
+}
+
+class Dog extends Animal {
+    override speak(): string {
+        const inherited: () => string = (): string => super.speak();
+
+        return inherited();
+    }
+}
+
+=== checked ===
+class Animal {
+/// @type.symbol symbol=Animal type=Animal
+/// @definition.class symbol=Animal
+/// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=(this: this) => string
+
+    virtual speak(): string {
+    /// @type.symbol symbol=Animal.speak type=(this: this) => string
+    /// @capture.function function=Animal.speak bindings=0
+
+        return "sound";
+    }
+}
+
+class Dog extends Animal {
+/// @type.symbol symbol=Dog type=Dog
+/// @definition.class symbol=Dog
+/// @definition.extends symbol=Dog source=Animal target=Animal
+/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=(this: this) => string
+/// @resolution.name source=Animal target=Animal
+
+    override speak(): string {
+    /// @type.symbol symbol=Dog.speak type=(this: this) => string
+    /// @capture.function function=Dog.speak bindings=0
+
+        const inherited = () => super.speak();
+        /// @type.symbol symbol=Dog.speak.inherited source=inherited type=Function<(), string>
+        /// @resolution.pattern source=inherited kind=binding target=Dog.speak.inherited
+        /// @type.symbol symbol=Dog.speak.symbol7 source=() => super.speak() type=Function<(), string>
+        /// @capture.function function=Dog.speak.symbol7 bindings=0
+        /// @capture.receiver function=Dog.speak.symbol7 symbol=this#2 mode=manage type=Dog
+        /// @resolution.member source=super.speak receiver=Animal type=(this: Animal) => string kind=symbol target_receiver=Animal target=Animal.speak
+        /// @resolution.call source=super.speak() parameters=() return=string kind=symbol target=Animal.speak receiver=Animal
+        /// @resolution.receiver source=super kind=super declaration=Dog type=Animal
+        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=super root=this
+
+        return inherited();
+        /// @resolution.name source=inherited target=Dog.speak.inherited
+        /// @resolution.call source=inherited() parameters=() return=string kind=expression target=expression
+        /// @resolution.place source=inherited placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=inherited root=Dog.speak.inherited
+
+    }
+}
+"#,
+    );
+}

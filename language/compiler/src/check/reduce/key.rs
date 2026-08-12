@@ -245,8 +245,10 @@ impl CheckState<'_> {
         let left = self.normalize(origin, index.left)?;
         let key = self.normalize(origin, index.index)?;
 
-        // poisoned operands project their poison
-        if self.ty(left)?.is_error() || self.ty(key)?.is_error() {
+        // poisoned operands and unsolved holes project their poison
+        if matches!(self.ty(left)?, dir::Type::Error | dir::Type::Hole(_))
+            || matches!(self.ty(key)?, dir::Type::Error | dir::Type::Hole(_))
+        {
             let error = self.intern_type(dir::Type::Error)?;
 
             return Ok(OperationReduction::Projected(error));

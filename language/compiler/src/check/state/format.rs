@@ -59,7 +59,7 @@ impl CheckState<'_> {
             dir::Type::Undefined => "undefined".to_string(),
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::This => "this".to_string(),
-            dir::Type::Variable(_) => "_".to_string(),
+            dir::Type::Variable(_) | dir::Type::Hole(_) => "_".to_string(),
             dir::Type::Erased(_) => "*".to_string(),
 
             dir::Type::Primitive(primitive) => format_primitive(&primitive),

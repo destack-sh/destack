@@ -72,6 +72,7 @@ impl DirSnapshotBuilder<'_> {
                 self.type_id_list_label(types, types.type_ids(union.elements), " | ")
             }
             dir::Type::Variable(variable) => format!("?{}", variable.0),
+            dir::Type::Hole(_) => "_".to_string(),
             dir::Type::Memory(literal) => self.memory_literal_type_label(literal),
             dir::Type::Static(static_id) => self.global_static_label(*static_id),
             dir::Type::Intersection(intersection) => {

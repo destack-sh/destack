@@ -888,6 +888,7 @@ impl CheckState<'_> {
             | dir::Type::Parameter(_)
             | dir::Type::Erased(_)
             | dir::Type::Variable(_)
+            | dir::Type::Hole(_)
             | dir::Type::This
             | dir::Type::Member(_)
             | dir::Type::Operation(_)

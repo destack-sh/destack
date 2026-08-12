@@ -439,7 +439,7 @@ function run(): void {
     require(@if(false) 1);
     /// @type.node source="require(@if(false) 1)" type=<error>
     /// @resolution.name source=require target=require
-    /// @resolution.call source="require(@if(false) 1)" parameters=() return=<error> kind=symbol target=require
+    /// @resolution.call source="require(@if(false) 1)" parameters=(int32) arguments=(omitted as int32) return=void kind=symbol target=require
 
 }
 "#,

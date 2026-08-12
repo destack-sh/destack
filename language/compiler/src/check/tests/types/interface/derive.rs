@@ -927,3 +927,68 @@ const strict = a === b;
 "#,
     );
 }
+
+#[test]
+fn test_check_rejects_clone_bound_on_late_settled_generic_argument() {
+    let session = TestSession::single(
+        r#"
+struct Blocker {
+    run: () => void;
+}
+
+struct Holder<Value> {
+    value: Value;
+}
+
+declare function hold<Value>(): Holder<Value>;
+declare function holdBlocker(): Holder<Blocker>;
+
+function requireClone<T: Clone>(value: T, seed: T): T {
+    return value;
+}
+
+const cloned = requireClone(hold(), holdBlocker());
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Holder<Blocker>' does not satisfy 'Clone'"
+/// @diagnostic.label line=17 column=16 span="requireClone(hold(), holdBlocker())" line_source="const cloned = requireClone(hold(), holdBlocker());"
+/// @diagnostic.related line=13 column=23 span="T" line_source="function requireClone<T: Clone>(value: T, seed: T): T {" message="required by this bound on 'T'"
+"#,
+    );
+}
+
+#[test]
+fn test_check_rejects_clone_bound_on_settled_function_field() {
+    let session = TestSession::single(
+        r#"
+struct Blocker {
+    run: () => void;
+}
+
+struct Holder<Value> {
+    value: Value;
+}
+
+declare const held: Holder<Blocker>;
+
+function requireClone<T: Clone>(value: T): T {
+    return value;
+}
+
+const cloned = requireClone(held);
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Holder<Blocker>' does not satisfy 'Clone'"
+/// @diagnostic.label line=16 column=16 span="requireClone(held)" line_source="const cloned = requireClone(held);"
+/// @diagnostic.related line=12 column=23 span="T" line_source="function requireClone<T: Clone>(value: T): T {" message="required by this bound on 'T'"
+"#,
+    );
+}

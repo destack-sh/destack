@@ -4,26 +4,27 @@ use crate::CompilerResult;
 use crate::check::{CheckState, Receiver, ReceiverBinding};
 
 impl CheckState<'_> {
-    /// Commit the receiver decision visible at the current walk point.
+    /// Commit the receiver decision one receiver kind makes at the current walk point.
     pub(in crate::check) fn commit_active_receiver_decision(
         &mut self,
         source: dir::GlobalNodeIdAny,
+        kind: dir::ReceiverKind,
     ) -> CompilerResult<Option<Receiver>> {
         // prefer receiver from an active function frame
         if let Some((index, receiver)) = self.flow.lexical_receiver() {
-            let is_current = self.flow.is_current_function(index);
-
-            // select local receiver directly
-            if is_current {
-                self.commit_receiver_binding_decision(source, receiver)?;
-            }
-            // capture receiver from an outer function
-            else {
+            // capture the receiver of an outer function
+            if !self.flow.is_current_function(index) {
                 self.flow.capture_receiver(receiver);
-                let resolution = dir::NameResolution::new(receiver.symbol);
-                self.commit_name(source, resolution)?;
-                self.commit_access(source, dir::AccessPath::symbol(receiver.symbol))?;
+
+                // name the captured binding `this` reads
+                if kind == dir::ReceiverKind::This {
+                    let resolution = dir::NameResolution::new(receiver.symbol);
+                    self.commit_name(source, resolution)?;
+                }
             }
+
+            // select the receiver the frame binds
+            self.commit_receiver_binding_decision(source, receiver, kind)?;
 
             return Ok(Some(receiver.receiver));
         }
@@ -35,7 +36,7 @@ impl CheckState<'_> {
 
         // use contextual receiver outside function bodies
         if let Some(receiver) = self.flow.current_receiver() {
-            self.commit_receiver_decision(source, receiver)?;
+            self.commit_receiver_decision(source, receiver, kind)?;
 
             return Ok(Some(receiver));
         }
@@ -110,13 +111,14 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         receiver: ReceiverBinding,
+        kind: dir::ReceiverKind,
     ) -> CompilerResult<()> {
         // select bare receiver symbols directly
         let Some(declaration) = receiver.receiver.declaration else {
             let resolution = dir::NameResolution::new(receiver.symbol);
             self.commit_name(source, resolution)?;
 
-            return self.commit_access(source, dir::AccessPath::symbol(receiver.symbol));
+            return self.commit_access(source, dir::AccessPath::receiver());
         };
 
         self.commit_receiver_decision(
@@ -127,6 +129,7 @@ impl CheckState<'_> {
                 ty: receiver.receiver.ty,
                 super_ty: receiver.receiver.super_ty,
             },
+            kind,
         )
     }
 
@@ -135,21 +138,29 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         receiver: Receiver,
+        kind: dir::ReceiverKind,
     ) -> CompilerResult<()> {
-        let Some(declaration) = receiver.declaration else {
+        // name the instance for `this` and the superclass above it for `super`
+        let ty = match kind {
+            dir::ReceiverKind::This => Some(receiver.ty),
+            dir::ReceiverKind::Super => receiver.super_ty,
+        };
+
+        // skip a receiver the context leaves without a declaration or a type
+        let (Some(declaration), Some(ty)) = (receiver.declaration, ty) else {
             return Ok(());
         };
 
         // commit receiver with declaration context
         let resolution = dir::ReceiverDecision {
-            kind: dir::ReceiverKind::This,
+            kind,
             declaration,
-            ty: receiver.ty,
+            ty,
         };
 
         self.commit_decision(source, dir::Decision::Receiver(resolution))?;
 
-        self.commit_access(source, dir::AccessPath::receiver(dir::ReceiverKind::This))
+        self.commit_access(source, dir::AccessPath::receiver())
     }
 }
 

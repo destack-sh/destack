@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_type_alias_field_reifies_exact_storage() {
+fn test_type_alias_field_keeps_the_written_alias_face() {
     let session = TestSession::single(
         r#"
 type Point = {
@@ -33,7 +33,7 @@ type Point = {
 };
 
 struct Rectangle {
-    start: { x: int32; y: int32 };
+    start: Point;
 }
 
 const rectangle: Rectangle = Rectangle {
@@ -55,10 +55,10 @@ type Point = {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.field symbol=Rectangle.start source="start: Point" key=start type={ x: int32; y: int32 }
+/// @definition.field symbol=Rectangle.start source="start: Point" key=start type=Point
 
     start: Point;
-    /// @type.symbol symbol=Rectangle.start source="start: Point" type={ x: int32; y: int32 }
+    /// @type.symbol symbol=Rectangle.start source="start: Point" type=Point
     /// @resolution.name source=Point target=Point
 
 }
@@ -124,7 +124,7 @@ type Point = {
 };
 
 struct Rectangle {
-    start: { x: int32; y: int32 };
+    start: Point;
 }
 
 const rectangle: Rectangle = Rectangle {
@@ -143,10 +143,10 @@ type Point = {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.field symbol=Rectangle.start source="start: Point" key=start type={ x: int32; y: int32 }
+/// @definition.field symbol=Rectangle.start source="start: Point" key=start type=Point
 
     start: Point;
-    /// @type.symbol symbol=Rectangle.start source="start: Point" type={ x: int32; y: int32 }
+    /// @type.symbol symbol=Rectangle.start source="start: Point" type=Point
     /// @resolution.name source=Point target=Point
 
 }
@@ -160,7 +160,7 @@ const rectangle = Rectangle {
 };
 "#,
         r#"
-/// @diagnostic.error id=excess-property message="unknown property 'z' in object literal for type '{ x: int32; y: int32 }'"
+/// @diagnostic.error id=excess-property message="unknown property 'z' in object literal for type 'Point'"
 /// @diagnostic.label line=12 column=12 span="{ x: 0, y: 0, z: 0 }" line_source="start: { x: 0, y: 0, z: 0 },"
 /// @diagnostic.related line=11 column=19 span="Rectangle {\n    start: { x: 0, y: 0, z: 0 },\n}" line_source="const rectangle = Rectangle {" message="expected due to the type of this target"
 /// @diagnostic.note message="object literals may only specify known properties"
@@ -527,7 +527,7 @@ player.mode satisfies Mode;
 }
 
 #[test]
-fn test_struct_and_class_fields_reify_alias_storage() {
+fn test_struct_and_class_fields_keep_the_written_alias_face() {
     let session = TestSession::single(
         r#"
 type Point = { x: int32; y: int32 };
@@ -556,11 +556,11 @@ marker.position satisfies Point;
 type Point = { x: int32; y: int32 };
 
 struct Segment {
-    start: { x: int32; y: int32 };
+    start: Point;
 }
 
 class Marker {
-    position!: { x: int32; y: int32 };
+    position!: Point;
 }
 
 declare const segment: Segment;
@@ -577,10 +577,10 @@ type Point = { x: int32; y: int32 };
 struct Segment {
 /// @type.symbol symbol=Segment type=Segment
 /// @definition.struct symbol=Segment
-/// @definition.field symbol=Segment.start source="start: Point" key=start type={ x: int32; y: int32 }
+/// @definition.field symbol=Segment.start source="start: Point" key=start type=Point
 
     start: Point;
-    /// @type.symbol symbol=Segment.start source="start: Point" type={ x: int32; y: int32 }
+    /// @type.symbol symbol=Segment.start source="start: Point" type=Point
     /// @resolution.name source=Point target=Point
 
 }
@@ -588,10 +588,10 @@ struct Segment {
 class Marker {
 /// @type.symbol symbol=Marker type=Marker
 /// @definition.class symbol=Marker
-/// @definition.field symbol=Marker.position source="position!: Point" key=position type={ x: int32; y: int32 }
+/// @definition.field symbol=Marker.position source="position!: Point" key=position type=Point
 
     position!: Point;
-    /// @type.symbol symbol=Marker.position source="position!: Point" type={ x: int32; y: int32 }
+    /// @type.symbol symbol=Marker.position source="position!: Point" type=Point
     /// @resolution.name source=Point target=Point
 
 }

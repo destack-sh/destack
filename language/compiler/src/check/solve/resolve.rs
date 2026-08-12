@@ -678,6 +678,11 @@ impl CheckState<'_> {
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
+        // skip the scan when the interned flags name no variable
+        if !self.type_flags(id)?.has_variable() {
+            return Ok(SmallVec::new());
+        }
+
         // scan the type graph without following symbol references
         let mut variables = SmallVec::new();
         let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
@@ -707,6 +712,41 @@ impl CheckState<'_> {
         }
 
         Ok(variables)
+    }
+
+    /// Collect the declared holes one type graph contains.
+    pub(in crate::check) fn type_holes(
+        &self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<SmallVec<[dir::GlobalNodeIdAny; 2]>> {
+        // skip the scan when the interned flags name no hole
+        if !self.type_flags(id)?.has_hole() {
+            return Ok(SmallVec::new());
+        }
+
+        // scan the type graph without following symbol references
+        let mut holes = SmallVec::new();
+        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        let mut visited = FxIndexSet::default();
+        pending.push(id);
+        while let Some(id) = pending.pop() {
+            if !visited.insert(id) || !self.type_flags(id)?.has_hole() {
+                continue;
+            }
+
+            let ty = self.ty(id)?;
+            if let dir::Type::Hole(node) = ty {
+                if !holes.contains(&node) {
+                    holes.push(node);
+                }
+
+                continue;
+            }
+
+            self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
+        }
+
+        Ok(holes)
     }
 
     /// Return whether one type contains a variable root.

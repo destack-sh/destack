@@ -20,8 +20,9 @@ impl CheckState<'_> {
         let target_signature = self.callable_signature(target)?;
 
         let decision = match (self.ty(source)?, self.ty(target)?) {
-            // top and error types absorb everything
-            (dir::Type::Error, _) | (_, dir::Type::Error) => true,
+            // top, error, and hole types absorb everything
+            (dir::Type::Error | dir::Type::Hole(_), _)
+            | (_, dir::Type::Error | dir::Type::Hole(_)) => true,
             // box values into an existential target, which never widens
             (_, dir::Type::Any) | (_, dir::Type::Unknown) => !widens,
             (dir::Type::Any, _) => !widens,

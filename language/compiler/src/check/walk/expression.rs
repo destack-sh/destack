@@ -197,7 +197,7 @@ impl WalkState<'_, '_> {
             dir::Expression::This => {
                 let receiver = {
                     let node = id.into_global_any(self.module);
-                    self.commit_active_receiver_decision(node)?
+                    self.commit_active_receiver_decision(node, dir::ReceiverKind::This)?
                 };
                 match receiver {
                     Some(receiver) => {
@@ -217,7 +217,7 @@ impl WalkState<'_, '_> {
             dir::Expression::Super => {
                 let receiver = {
                     let node = id.into_global_any(self.module);
-                    self.commit_active_receiver_decision(node)?
+                    self.commit_active_receiver_decision(node, dir::ReceiverKind::Super)?
                 };
                 match receiver.and_then(|receiver| receiver.super_ty) {
                     Some(super_ty) => {

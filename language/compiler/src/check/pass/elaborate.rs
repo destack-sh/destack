@@ -1,4 +1,5 @@
 use destack_artifact::{DiagnosticRecord, DirElaborated};
+use destack_repository::ArtifactAttemptRecorder;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
@@ -12,6 +13,7 @@ use crate::check::{
 impl CheckState<'_> {
     /// Run the elaborate pass: flatten every declared owner into stored bindings.
     pub(in crate::check) fn run_elaborate(&mut self) -> CompilerResult<()> {
+        let recorder = self.recorder;
         self.with_scope(|state| {
             state.import_external_modules()?;
             state.derive_tagged_definitions()?;
@@ -20,7 +22,9 @@ impl CheckState<'_> {
             state.translate_declared_types()?;
 
             state.flatten_declared_owners()?;
-            state.check_decorators()?;
+            ArtifactAttemptRecorder::breakdown_maybe(recorder, "decorators", || {
+                state.check_decorators()
+            })?;
 
             // derive variances, constructor rows, and marker conformances
             let module = state.module_id;
@@ -93,6 +97,9 @@ impl CheckState<'_> {
         module: ModuleId,
     ) -> CompilerResult<(DirElaborated, Vec<DiagnosticRecord>)> {
         self.write_back()?;
+
+        // settle every member site this pass recorded before the artifact publishes it
+        self.settle_member_subjects(module)?;
         let diagnostics = self.collect_diagnostics()?;
 
         Ok((self.into_elaborated(module)?, diagnostics))

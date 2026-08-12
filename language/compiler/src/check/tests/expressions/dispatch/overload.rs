@@ -317,7 +317,7 @@ const value = greet("hi");
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=greet target=greet
-/// @resolution.call source="greet(\"hi\")" parameters=() return=<error> kind=symbol target=greet
+/// @resolution.call source="greet(\"hi\")" parameters=(string, int32) arguments=(provided("hi") as string, omitted as int32) return=string kind=symbol target=greet
 "#,
         r#"
 /// @diagnostic.error id=wrong-argument-count message="expected 2 arguments, but got 1 argument(s)"

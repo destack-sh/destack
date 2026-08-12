@@ -91,7 +91,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<bool> {
-        // conformance over settled types is a durable fact
+        // decide conformance once over variable-free types, since a hole stands still
         let flags = self.type_flags(ty)?;
         let key = if flags.has_variable() {
             None

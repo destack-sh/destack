@@ -765,7 +765,7 @@ impl BodyState<'_, '_> {
         receiver: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::GlobalSymbolId> {
         match self.module(module).view().get(receiver) {
-            dir::Expression::This => self.initializes,
+            dir::Expression::This | dir::Expression::Super => self.initializes,
             _ => None,
         }
     }

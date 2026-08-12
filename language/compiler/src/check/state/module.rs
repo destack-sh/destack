@@ -1006,7 +1006,7 @@ impl CheckState<'_> {
         // read own declared-stage symbol types, treating open holes as absent
         if let Some(module) = self.module_maybe(symbol.module_id)
             && let Some(ty) = module.types.get_symbol_type_id(symbol)
-            && !self.type_flags(ty).is_ok_and(|flags| flags.has_variable())
+            && !self.type_flags(ty).is_ok_and(|flags| flags.is_open())
         {
             return Some(ty);
         }

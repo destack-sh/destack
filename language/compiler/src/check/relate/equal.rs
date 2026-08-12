@@ -14,8 +14,9 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let decision = match (self.ty(source)?, self.ty(target)?) {
-            // error types poison silently instead of cascading
-            (dir::Type::Error, _) | (_, dir::Type::Error) => true,
+            // error and hole types poison silently instead of cascading
+            (dir::Type::Error | dir::Type::Hole(_), _)
+            | (_, dir::Type::Error | dir::Type::Hole(_)) => true,
             // compare lifetime pairs equal, MIR Verify enforces outlives
             (_, _)
                 if self.is_lifetime_slot_type(source)? && self.is_lifetime_slot_type(target)? =>

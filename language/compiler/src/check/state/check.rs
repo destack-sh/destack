@@ -6,7 +6,7 @@ use destack_artifact::{
 };
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
-use destack_repository::{ArtifactReader, Environment, ProviderContext};
+use destack_repository::{ArtifactAttemptRecorder, ArtifactReader, Environment, ProviderContext};
 use destack_source::{ModuleId, ProfileId, StringId};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
@@ -14,9 +14,9 @@ use smallvec::SmallVec;
 use crate::check::{
     Cause, CauseId, CheckCounters, CheckModuleState, CheckTrace, DecoratorApplication,
     ExternalModuleTable, FlowBranch, FlowState, Fulfillment, FunctionBody, GenericParameterId,
-    InducedParameterSite, InferContext, MemberSubject, MemberTable, Origin, OriginId, Relation,
-    RelationKey, Scope, Selection, SelectionKey, VarianceForm, VarianceState, Verdict,
-    should_stream_check_events,
+    HeritageReach, InducedParameterSite, InferContext, MemberSubject, MemberTable, Origin,
+    OriginId, Relation, RelationKey, Scope, Selection, SelectionKey, VarianceForm, VarianceState,
+    Verdict, should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -119,6 +119,8 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) compiler: &'a Compiler,
     /// The provider context that owns artifact reads and diagnostics.
     pub(in crate::check) context: &'a dyn ProviderContext,
+    /// The provider's trace recorder, absent outside traced runs.
+    pub(in crate::check) recorder: Option<&'a ArtifactAttemptRecorder>,
     /// The provider-scoped artifact reader.
     pub(in crate::check) artifacts: &'a ArtifactReader<'a>,
     /// The active profile.
@@ -161,10 +163,14 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) counters: CheckCounters,
     /// Normalized heads of closed types.
     pub(in crate::check) normalizations: FxIndexMap<(dir::GlobalTypeId, Scope), dir::GlobalTypeId>,
+    /// Barrier-erased forms of closed contextual targets.
+    pub(in crate::check) erasures: FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     /// Extension member tables of closed subjects, grouped by key.
     pub(in crate::check) members: FxIndexMap<MemberSubject, MemberTable>,
     /// Decided auto interface conformances of closed types.
     pub(in crate::check) conforms: FxIndexMap<(dir::GlobalTypeId, dir::AutoInterface, Scope), bool>,
+    /// Declarations reached by each declaration's heritage.
+    pub(in crate::check) heritages: FxIndexMap<dir::GlobalSymbolId, HeritageReach>,
     /// Active derivability goals closed coinductively on re-entry.
     pub(in crate::check) deriving: FxIndexSet<(dir::GlobalTypeId, dir::AutoInterface)>,
     /// Active extension member lookups closed coinductively on re-entry.
@@ -291,6 +297,7 @@ impl<'a> CheckState<'a> {
         let state = Self {
             compiler,
             context,
+            recorder: context.recorder(),
             artifacts,
             profile,
             environment_bound,
@@ -306,8 +313,10 @@ impl<'a> CheckState<'a> {
             extensions: FxIndexMap::default(),
             counters: CheckCounters::default(),
             normalizations: FxIndexMap::default(),
+            erasures: FxIndexMap::default(),
             members: FxIndexMap::default(),
             conforms: FxIndexMap::default(),
+            heritages: FxIndexMap::default(),
             deriving: FxIndexSet::default(),
             extending: FxIndexSet::default(),
             storable: FxIndexSet::default(),
@@ -1295,6 +1304,7 @@ impl CheckState<'_> {
         let ty = match ty {
             // leaves without child types
             dir::Type::Variable(_)
+            | dir::Type::Hole(_)
             | dir::Type::Error
             | dir::Type::Never
             | dir::Type::Any

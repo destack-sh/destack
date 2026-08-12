@@ -622,7 +622,7 @@ impl BodyState<'_, '_> {
         let target = match (declarator.value, written) {
             // transcribe the written type while declaring
             (Some(_), Some(written)) if self.is_declaration() => {
-                match self.check.type_flags(written)?.has_variable() {
+                match self.check.type_flags(written)?.is_open() {
                     true => None,
                     false => Some(written),
                 }
@@ -700,7 +700,7 @@ impl BodyState<'_, '_> {
             }
             // uninitialized declarators take their written type
             (None, Some(written)) => {
-                match self.is_declaration() && self.check.type_flags(written)?.has_variable() {
+                match self.is_declaration() && self.check.type_flags(written)?.is_open() {
                     true => None,
                     false => Some(written),
                 }
@@ -906,12 +906,21 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         ty: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
-        // reuse a settled committed type; open holes re-walk fresh
-        if let Some(committed) = self.check.committed_node_type(ty.into_global_any(module))
-            && !self.check.type_flags(committed)?.has_variable()
+        // reuse the annotation an earlier pass walked, holes and all
+        let node = ty.into_global_any(module);
+        if let Some(declared) = &self.check.module.declared
+            && declared.types.get_node_type_id(node).is_some()
         {
             return Ok(());
         }
+
+        // reuse a settled commit; one still open re-walks fresh
+        if let Some(committed) = self.check.committed_node_type(node)
+            && !self.check.type_flags(committed)?.is_open()
+        {
+            return Ok(());
+        }
+
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
 

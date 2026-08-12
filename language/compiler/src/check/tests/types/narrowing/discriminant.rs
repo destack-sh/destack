@@ -1483,3 +1483,440 @@ class Cell<T> {
 "#,
     );
 }
+
+#[test]
+fn test_narrow_a_super_member_and_clear_it_on_assignment() {
+    let session = TestSession::single(
+        r#"
+class Base {
+    label: string | undefined = undefined;
+}
+
+class Child extends Base {
+    read(next: string | undefined): string | undefined {
+        if (super.label == undefined) {
+            return undefined;
+        }
+
+        const kept = super.label;
+        super.label = next;
+        const cleared = super.label;
+
+        return cleared;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Base {
+    label: string | undefined = undefined as string | undefined;
+}
+
+class Child extends Base {
+    read(next: string | undefined): string | undefined {
+        if (super.label == undefined) {
+            return undefined as string | undefined;
+        }
+
+        const kept: string = super.label;
+        super.label = next;
+        const cleared: string | undefined = super.label;
+
+        return cleared;
+    }
+}
+
+=== checked ===
+class Base {
+/// @type.symbol symbol=Base type=Base
+/// @definition.class symbol=Base
+/// @definition.field symbol=Base.label source="label: string | undefined = undefined" key=label type=string | undefined
+
+    label: string | undefined = undefined;
+    /// @type.symbol symbol=Base.label source="label: string | undefined = undefined" type=string | undefined
+
+}
+
+class Child extends Base {
+/// @type.symbol symbol=Child type=Child
+/// @definition.class symbol=Child
+/// @definition.extends symbol=Child source=Base target=Base
+/// @definition.method symbol=Child.read slot=read type=(this: this, string | undefined) => string | undefined
+/// @resolution.name source=Base target=Base
+
+    read(next: string | undefined): string | undefined {
+    /// @type.symbol symbol=Child.read type=(this: this, string | undefined) => string | undefined
+    /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
+
+        if (super.label == undefined) {
+        /// @resolution.member source=super.label receiver=Base type=string | undefined kind=field target_receiver=Base key=label target=Base.label target_type=string | undefined
+        /// @resolution.operator source="super.label == undefined" type=boolean operator="==" kind=builtin operands=[super.label as string | undefined families=(string | undefined), undefined as undefined families=(undefined)]
+        /// @resolution.receiver source=super kind=super declaration=Child type=Base
+        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=super root=this
+        /// @resolution.place source=super.label placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=super.label root=this keys=[label]
+
+            return undefined;
+        }
+
+        const kept = super.label;
+        /// @type.symbol symbol=Child.read.kept source=kept type=string
+        /// @resolution.pattern source=kept kind=binding target=Child.read.kept
+        /// @resolution.member source=super.label receiver=Base type=string | undefined kind=field target_receiver=Base key=label target=Base.label target_type=string | undefined
+        /// @resolution.receiver source=super kind=super declaration=Child type=Base
+        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=super root=this
+        /// @resolution.access source=super.label root=this keys=[label]
+
+        super.label = next;
+        /// @resolution.receiver source=super kind=super declaration=Child type=Base
+        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=super root=this
+        /// @resolution.pattern.assign source=super.label kind=place
+        /// @resolution.access source=super.label root=this keys=[label]
+        /// @resolution.assignment source=super.label write="receiver=Base, target=field(receiver=Base, target=Base.label, type=string | undefined), type=string | undefined" type=string | undefined
+        /// @resolution.name source=next target=Child.read.next
+        /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=next root=Child.read.next
+
+        const cleared = super.label;
+        /// @type.symbol symbol=Child.read.cleared source=cleared type=string | undefined
+        /// @resolution.pattern source=cleared kind=binding target=Child.read.cleared
+        /// @resolution.member source=super.label receiver=Base type=string | undefined kind=field target_receiver=Base key=label target=Base.label target_type=string | undefined
+        /// @resolution.receiver source=super kind=super declaration=Child type=Base
+        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=super root=this
+        /// @resolution.access source=super.label root=this keys=[label]
+
+        return cleared;
+        /// @resolution.name source=cleared target=Child.read.cleared
+        /// @resolution.place source=cleared placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=cleared root=Child.read.cleared
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_share_a_narrowed_member_across_this_and_super() {
+    let session = TestSession::single(
+        r#"
+class Base {
+    label: string | undefined = undefined;
+}
+
+class Child extends Base {
+    read(next: string | undefined): string | undefined {
+        if (this.label == undefined) {
+            return undefined;
+        }
+
+        const shared = super.label;
+        super.label = next;
+        const cleared = this.label;
+
+        return cleared;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class Base {
+    label: string | undefined = undefined as string | undefined;
+}
+
+class Child extends Base {
+    read(next: string | undefined): string | undefined {
+        if (this.label == undefined) {
+            return undefined as string | undefined;
+        }
+
+        const shared: string = super.label;
+        super.label = next;
+        const cleared: string | undefined = this.label;
+
+        return cleared;
+    }
+}
+
+=== checked ===
+class Base {
+/// @type.symbol symbol=Base type=Base
+/// @definition.class symbol=Base
+/// @definition.field symbol=Base.label source="label: string | undefined = undefined" key=label type=string | undefined
+
+    label: string | undefined = undefined;
+    /// @type.symbol symbol=Base.label source="label: string | undefined = undefined" type=string | undefined
+
+}
+
+class Child extends Base {
+/// @type.symbol symbol=Child type=Child
+/// @definition.class symbol=Child
+/// @definition.extends symbol=Child source=Base target=Base
+/// @definition.method symbol=Child.read slot=read type=(this: this, string | undefined) => string | undefined
+/// @resolution.name source=Base target=Base
+
+    read(next: string | undefined): string | undefined {
+    /// @type.symbol symbol=Child.read type=(this: this, string | undefined) => string | undefined
+    /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
+
+        if (this.label == undefined) {
+        /// @resolution.member source=this.label receiver=Child type=string | undefined kind=field target_receiver=Child key=label target=Base.label target_type=string | undefined
+        /// @resolution.operator source="this.label == undefined" type=boolean operator="==" kind=builtin operands=[this.label as string | undefined families=(string | undefined), undefined as undefined families=(undefined)]
+        /// @resolution.receiver source=this kind=this declaration=Child type=Child
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.label placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.label root=this keys=[label]
+
+            return undefined;
+        }
+
+        const shared = super.label;
+        /// @type.symbol symbol=Child.read.shared source=shared type=string
+        /// @resolution.pattern source=shared kind=binding target=Child.read.shared
+        /// @resolution.member source=super.label receiver=Base type=string | undefined kind=field target_receiver=Base key=label target=Base.label target_type=string | undefined
+        /// @resolution.receiver source=super kind=super declaration=Child type=Base
+        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=super root=this
+        /// @resolution.access source=super.label root=this keys=[label]
+
+        super.label = next;
+        /// @resolution.receiver source=super kind=super declaration=Child type=Base
+        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=super root=this
+        /// @resolution.pattern.assign source=super.label kind=place
+        /// @resolution.access source=super.label root=this keys=[label]
+        /// @resolution.assignment source=super.label write="receiver=Base, target=field(receiver=Base, target=Base.label, type=string | undefined), type=string | undefined" type=string | undefined
+        /// @resolution.name source=next target=Child.read.next
+        /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=next root=Child.read.next
+
+        const cleared = this.label;
+        /// @type.symbol symbol=Child.read.cleared source=cleared type=string | undefined
+        /// @resolution.pattern source=cleared kind=binding target=Child.read.cleared
+        /// @resolution.member source=this.label receiver=Child type=string | undefined kind=field target_receiver=Child key=label target=Base.label target_type=string | undefined
+        /// @resolution.receiver source=this kind=this declaration=Child type=Child
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.access source=this.label root=this keys=[label]
+
+        return cleared;
+        /// @resolution.name source=cleared target=Child.read.cleared
+        /// @resolution.place source=cleared placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=cleared root=Child.read.cleared
+
+    }
+}
+"#);
+}
+
+#[test]
+fn test_share_a_narrowed_member_across_this_and_super_in_a_closure() {
+    let session = TestSession::single(
+        r#"
+class Base {
+    label: string | undefined = undefined;
+}
+
+class Child extends Base {
+    read(next: string | undefined): () => string | undefined {
+        return () => {
+            if (this.label == undefined) {
+                return undefined;
+            }
+
+            const shared = super.label;
+            super.label = next;
+            const cleared = this.label;
+
+            return cleared;
+        };
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class Base {
+    label: string | undefined = undefined as string | undefined;
+}
+
+class Child extends Base {
+    read(next: string | undefined): () => string | undefined {
+        return (): string | undefined => {
+            if (this.label == undefined) {
+                return undefined as string | undefined;
+            }
+
+            const shared: string = super.label;
+            super.label = next;
+            const cleared: string | undefined = this.label;
+
+            return cleared;
+        };
+    }
+}
+
+=== checked ===
+class Base {
+/// @type.symbol symbol=Base type=Base
+/// @definition.class symbol=Base
+/// @definition.field symbol=Base.label source="label: string | undefined = undefined" key=label type=string | undefined
+
+    label: string | undefined = undefined;
+    /// @type.symbol symbol=Base.label source="label: string | undefined = undefined" type=string | undefined
+
+}
+
+class Child extends Base {
+/// @type.symbol symbol=Child type=Child
+/// @definition.class symbol=Child
+/// @definition.extends symbol=Child source=Base target=Base
+/// @definition.method symbol=Child.read slot=read type=(this: this, string | undefined) => Function<(), string | undefined>
+/// @resolution.name source=Base target=Base
+
+    read(next: string | undefined): () => string | undefined {
+    /// @type.symbol symbol=Child.read type=(this: this, string | undefined) => Function<(), string | undefined>
+    /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
+
+        return () => {
+        /// @type.symbol symbol=Child.read.symbol8 type=Function<(), string | undefined>
+
+            if (this.label == undefined) {
+            /// @resolution.name source=this target=Child.read.this
+            /// @resolution.member source=this.label receiver=Child type=string | undefined kind=field target_receiver=Child key=label target=Base.label target_type=string | undefined
+            /// @resolution.operator source="this.label == undefined" type=boolean operator="==" kind=builtin operands=[this.label as string | undefined families=(string | undefined), undefined as undefined families=(undefined)]
+            /// @resolution.receiver source=this kind=this declaration=Child type=Child
+            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=this root=this
+            /// @resolution.place source=this.label placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=this.label root=this keys=[label]
+
+                return undefined;
+            }
+
+            const shared = super.label;
+            /// @type.symbol symbol=Child.read.symbol8.shared source=shared type=string
+            /// @resolution.pattern source=shared kind=binding target=Child.read.symbol8.shared
+            /// @resolution.member source=super.label receiver=Base type=string | undefined kind=field target_receiver=Base key=label target=Base.label target_type=string | undefined
+            /// @resolution.receiver source=super kind=super declaration=Child type=Base
+            /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=super root=this
+            /// @resolution.access source=super.label root=this keys=[label]
+
+            super.label = next;
+            /// @resolution.receiver source=super kind=super declaration=Child type=Base
+            /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=super root=this
+            /// @resolution.pattern.assign source=super.label kind=place
+            /// @resolution.access source=super.label root=this keys=[label]
+            /// @resolution.assignment source=super.label write="receiver=Base, target=field(receiver=Base, target=Base.label, type=string | undefined), type=string | undefined" type=string | undefined
+            /// @resolution.name source=next target=Child.read.next
+            /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=next root=Child.read.next
+
+            const cleared = this.label;
+            /// @type.symbol symbol=Child.read.symbol8.cleared source=cleared type=string | undefined
+            /// @resolution.pattern source=cleared kind=binding target=Child.read.symbol8.cleared
+            /// @resolution.name source=this target=Child.read.this
+            /// @resolution.member source=this.label receiver=Child type=string | undefined kind=field target_receiver=Child key=label target=Base.label target_type=string | undefined
+            /// @resolution.receiver source=this kind=this declaration=Child type=Child
+            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=this root=this
+            /// @resolution.access source=this.label root=this keys=[label]
+
+            return cleared;
+            /// @resolution.name source=cleared target=Child.read.symbol8.cleared
+            /// @resolution.place source=cleared placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=cleared root=Child.read.symbol8.cleared
+
+        };
+    }
+}
+"#);
+}
+
+#[test]
+fn test_narrow_a_member_through_an_explicit_this_parameter() {
+    let session = TestSession::single(
+        r#"
+class Box {
+    label: string | undefined = undefined;
+}
+
+function read(this: Box): string {
+    if (this.label == undefined) {
+        return "";
+    }
+
+    return this.label;
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class Box {
+    label: string | undefined = undefined as string | undefined;
+}
+
+function read(this: Box): string {
+    if (this.label == undefined) {
+        return "";
+    }
+
+    return this.label;
+}
+
+=== checked ===
+class Box {
+/// @type.symbol symbol=Box type=Box
+/// @definition.class symbol=Box
+/// @definition.field symbol=Box.label source="label: string | undefined = undefined" key=label type=string | undefined
+
+    label: string | undefined = undefined;
+    /// @type.symbol symbol=Box.label source="label: string | undefined = undefined" type=string | undefined
+
+}
+
+function read(this: Box): string {
+/// @type.symbol symbol=read type=(this: Box) => string
+/// @type.symbol symbol=read.this source="this: Box" type=Box
+/// @resolution.name source=Box target=Box
+
+    if (this.label == undefined) {
+    /// @resolution.name source=this target=read.this
+    /// @resolution.member source=this.label receiver=Box type=string | undefined kind=field target_receiver=Box key=label target=Box.label target_type=string | undefined
+    /// @resolution.operator source="this.label == undefined" type=boolean operator="==" kind=builtin operands=[this.label as string | undefined families=(string | undefined), undefined as undefined families=(undefined)]
+    /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=this root=this
+    /// @resolution.place source=this.label placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=this.label root=this keys=[label]
+
+        return "";
+    }
+
+    return this.label;
+    /// @resolution.name source=this target=read.this
+    /// @resolution.member source=this.label receiver=Box type=string | undefined kind=field target_receiver=Box key=label target=Box.label target_type=string | undefined
+    /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=this root=this
+    /// @resolution.place source=this.label placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=this.label root=this keys=[label]
+
+}
+"#);
+}

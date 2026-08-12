@@ -31,10 +31,15 @@ impl WalkState<'_, '_> {
                     return self.walk_name_path_assigned_place(id);
                 }
 
-                // walk the receiver and keep direct fields of this as places
+                // walk the receiver and keep direct fields of the instance as places
                 self.walk_expression(left, self.tree.get(left))?;
-                let place = match (self.tree.get(left), name, self.assigned_receiver_type()) {
-                    (dir::Expression::This, Some(name), Some(receiver)) => {
+                let receiver_type = self.check.assigned_receiver_type();
+                let place = match (self.tree.get(left), name, receiver_type) {
+                    (
+                        dir::Expression::This | dir::Expression::Super,
+                        Some(name),
+                        Some(receiver),
+                    ) => {
                         let key = dir::StaticKey::Name(name);
 
                         Some(AssignedPlace::Member { receiver, key })
@@ -154,22 +159,5 @@ impl WalkState<'_, '_> {
         }
 
         Some(AssignedPlace::Symbol(symbol))
-    }
-
-    /// Return the receiver type whose direct fields count for definite assignment.
-    fn assigned_receiver_type(&self) -> Option<dir::GlobalTypeId> {
-        // a lexical receiver counts inside the function that captured it
-        if let Some((index, receiver)) = self.flow().lexical_receiver()
-            && self.flow().is_current_function(index)
-        {
-            return Some(receiver.receiver.ty);
-        }
-
-        // outside any function body the current receiver counts
-        if self.flow().current_function().is_none() {
-            return self.flow().current_receiver().map(|receiver| receiver.ty);
-        }
-
-        None
     }
 }

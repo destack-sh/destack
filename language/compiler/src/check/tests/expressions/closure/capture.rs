@@ -609,10 +609,11 @@ class Counter {
         /// @type.node source=this.value type=int32
         /// @resolution.name source=this target=Counter.make.this
         /// @resolution.member source=this.value receiver=Counter type=int32 kind=field target_receiver=Counter key=value target=Counter.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=this root=Counter.make.this
+        /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=this.value root=Counter.make.this keys=[value]
+        /// @resolution.access source=this.value root=this keys=[value]
 
     }
 }

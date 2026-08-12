@@ -36,6 +36,7 @@ impl CheckState<'_> {
             dir::Type::Variable(_) => Ok(false),
             // reject valueless and scalar types, they have no capability
             dir::Type::Error
+            | dir::Type::Hole(_)
             | dir::Type::Never
             | dir::Type::Void
             | dir::Type::Null

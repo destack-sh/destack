@@ -300,6 +300,7 @@ impl BodyState<'_, '_> {
             }
             dir::Type::Dynamic(_) => dir::PredicateCondition::Type(target),
             dir::Type::Error
+            | dir::Type::Hole(_)
             | dir::Type::Void
             | dir::Type::Variable(_)
             | dir::Type::Key(_)

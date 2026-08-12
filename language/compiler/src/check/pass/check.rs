@@ -1,6 +1,7 @@
 use destack_artifact::{DiagnosticRecord, DirChecked};
 use destack_core::FxIndexMap;
 use destack_dir as dir;
+use destack_repository::ArtifactAttemptRecorder;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
@@ -9,12 +10,15 @@ use crate::check::{AnnotatedSource, CheckState, Origin, VariableRole, Widening};
 impl CheckState<'_> {
     /// Run the check pass: infer the module's bodies against the elaborated rows.
     pub(in crate::check) fn run_check(&mut self) -> CompilerResult<()> {
+        let recorder = self.recorder;
         self.with_scope(|state| {
             state.adopt_declared_holes()?;
-            state.walk()?;
+            ArtifactAttemptRecorder::breakdown_maybe(recorder, "walk", || state.walk())?;
             state.induce_signature_lifetimes()?;
             state.apply_capture_directives()?;
-            state.check_decorators()
+            ArtifactAttemptRecorder::breakdown_maybe(recorder, "decorators", || {
+                state.check_decorators()
+            })
         })?;
         self.report_constant_conditions()?;
         self.bind_underivable_exports()?;
@@ -29,13 +33,12 @@ impl CheckState<'_> {
             return Ok(());
         };
 
-        // re-mint each stale hole into one fresh variable
-        let mut fresh: FxIndexMap<dir::TypeVariableId, dir::GlobalTypeId> = FxIndexMap::default();
+        // adopt each declared hole as one fresh variable
+        let mut fresh: FxIndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId> = FxIndexMap::default();
 
         // shadow persisted symbol types that still carry holes
         for (symbol, ty) in declared.types.symbol_types() {
-            let origin = Origin::Symbol(symbol);
-            let Some(adopted) = self.adopt_holes(module, ty, origin, &mut fresh)? else {
+            let Some(adopted) = self.adopt_holes(module, ty, &mut fresh)? else {
                 continue;
             };
 
@@ -50,8 +53,7 @@ impl CheckState<'_> {
 
         // shadow persisted node types that still carry holes
         for (node, ty) in declared.types.node_types() {
-            let origin = Origin::Node(node, None);
-            let Some(adopted) = self.adopt_holes(module, ty, origin, &mut fresh)? else {
+            let Some(adopted) = self.adopt_holes(module, ty, &mut fresh)? else {
                 continue;
             };
             self.commit_node_type(node, adopted)?;
@@ -60,36 +62,35 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Re-mint one persisted type's open holes as this pass's variables.
+    /// Adopt one persisted type's declared holes as this pass's variables.
     fn adopt_holes(
         &mut self,
         module: ModuleId,
         ty: dir::GlobalTypeId,
-        origin: Origin,
-        fresh: &mut FxIndexMap<dir::TypeVariableId, dir::GlobalTypeId>,
+        fresh: &mut FxIndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let variables = self.type_variables(ty)?;
-        if variables.is_empty() {
+        let holes = self.type_holes(ty)?;
+        if holes.is_empty() {
             return Ok(None);
         }
 
-        // substitute each hole with one fresh variable per identity
+        // substitute each hole with one fresh variable per authoring node
         let mut adopted = ty;
-        for variable in variables {
-            let to = match fresh.get(&variable) {
+        for hole in holes {
+            let to = match fresh.get(&hole) {
                 Some(to) => *to,
                 None => {
-                    let origin = self.intern_origin(origin);
-                    let origin = self.infer.origin(origin);
+                    // origin the variable at the hole's node, so an unsolved one re-exports it
+                    let origin = Origin::Node(hole, None);
                     let minted =
                         self.allocate_variable(origin, Widening::Always, VariableRole::Regular);
                     let minted = self.variable_type(minted)?;
-                    fresh.insert(variable, minted);
+                    fresh.insert(hole, minted);
 
                     minted
                 }
             };
-            let from = self.intern_type(dir::Type::Variable(variable))?;
+            let from = self.intern_type(dir::Type::Hole(hole))?;
             adopted = self.replace_type(module, adopted, from, to)?;
         }
 
@@ -108,7 +109,9 @@ impl CheckState<'_> {
             false => Vec::new(),
         };
         self.write_back()?;
-        self.write_module(module)?;
+
+        let recorder = self.recorder;
+        ArtifactAttemptRecorder::breakdown_maybe(recorder, "write", || self.write_module(module))?;
         let diagnostics = self.collect_diagnostics()?;
 
         // keep only resolutions the declared stage already carries

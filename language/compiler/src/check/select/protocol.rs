@@ -551,8 +551,14 @@ impl BodyState<'_, '_> {
         else {
             return Ok(None);
         };
+
+        // drop the key the protocol request already selected
         let candidates =
             self.extension_member_candidates(origin, extension_symbol, &substitution, members)?;
+        let candidates = candidates
+            .into_iter()
+            .map(|(_, candidate)| candidate)
+            .collect::<Vec<_>>();
         if candidates.is_empty() {
             return Ok(None);
         }

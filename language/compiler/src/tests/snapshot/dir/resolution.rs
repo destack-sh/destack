@@ -56,11 +56,9 @@ impl SnapshotTable for dir::DecisionTable<'_> {
                 dir::Decision::Operator(resolution) => {
                     add_operator_decision_row(builder, node_id, resolution);
                 }
-                // render the decision an attempted node retained
+                // render the call an attempted node reached for
                 dir::Decision::Attempted(attempt) => {
-                    if let dir::Decision::Call(resolution) = attempt.as_ref() {
-                        add_call_decision_row(builder, node_id, resolution);
-                    }
+                    add_call_row(builder, node_id, attempt);
                 }
                 dir::Decision::Call(resolution) => {
                     add_call_decision_row(builder, node_id, resolution);
@@ -427,7 +425,7 @@ fn add_access_resolution_row(
     let path = resolution.path();
     let root = match path.root() {
         dir::AccessRoot::Symbol(symbol) => builder.symbol_path_label(symbol),
-        dir::AccessRoot::Receiver(receiver) => receiver_kind_label(receiver).to_string(),
+        dir::AccessRoot::Receiver => "this".to_string(),
     };
     let keys = (!path.keys().is_empty()).then(|| {
         let keys = path
@@ -550,18 +548,38 @@ fn add_call_decision_row(
     node_id: dir::GlobalNodeIdAny,
     resolution: &dir::CallDecision,
 ) {
+    match resolution {
+        // render a singular call in full
+        dir::OperationResolution::One(call) => add_call_row(builder, node_id, call),
+        // render a union as its labeled arms
+        dir::OperationResolution::Union { arms, ty } => {
+            let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "call")
+                .optional_field("source", builder.node_source(node_id))
+                .type_field("return", builder.global_type_label(*ty))
+                .field("kind", "union")
+                .list_field("arms", arms.iter().map(|call| call_label(builder, call)));
+
+            builder.push(row);
+            for call in arms {
+                add_call_generic_instances(builder, node_id, call);
+            }
+        }
+    }
+}
+
+/// Add one singular call row.
+fn add_call_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    call: &dir::Call,
+) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "call")
         .optional_field("source", builder.node_source(node_id));
-    let row = add_call_decision_fields(builder, row, resolution);
-    let row = match resolution {
-        dir::OperationResolution::One(call) => add_call_target_fields(builder, row, &call.target),
-        dir::OperationResolution::Union { arms, .. } => row
-            .field("kind", "union")
-            .list_field("arms", arms.iter().map(|call| call_label(builder, call))),
-    };
+    let row = add_call_fields(builder, row, call);
+    let row = add_call_target_fields(builder, row, &call.target);
 
     builder.push(row);
-    add_call_decision_generic_instances(builder, node_id, resolution);
+    add_call_generic_instances(builder, node_id, call);
 }
 
 /// Add one subscript resolution row.
@@ -584,20 +602,6 @@ fn add_subscript_decision_row(
 
     builder.push(row);
     add_subscript_decision_generic_instances(builder, node_id, resolution);
-}
-
-/// Add fields shared by call and operator resolutions.
-fn add_call_decision_fields(
-    builder: &DirSnapshotBuilder<'_>,
-    row: SnapshotRow,
-    resolution: &dir::CallDecision,
-) -> SnapshotRow {
-    match resolution {
-        dir::OperationResolution::One(call) => add_call_fields(builder, row, call),
-        dir::OperationResolution::Union { ty, .. } => {
-            row.type_field("return", builder.global_type_label(*ty))
-        }
-    }
 }
 
 /// Add fields for one singular call.
@@ -2012,22 +2016,6 @@ fn add_operator_application_generic_instances(
             target: dir::OperatorTarget::Builtin(_),
             ..
         } => {}
-    }
-}
-
-/// Add generic instance rows from one call resolution.
-fn add_call_decision_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::CallDecision,
-) {
-    match resolution {
-        dir::OperationResolution::One(call) => add_call_generic_instances(builder, node_id, call),
-        dir::OperationResolution::Union { arms, .. } => {
-            for call in arms {
-                add_call_generic_instances(builder, node_id, call);
-            }
-        }
     }
 }
 

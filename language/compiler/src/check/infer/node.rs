@@ -215,10 +215,7 @@ impl BodyState<'_, '_> {
         mut expectation: Expectation,
     ) -> CompilerResult<ValueCheck> {
         // remove inference barriers once the complete contextual type closes
-        if self.type_variables(expectation.target)?.is_empty() {
-            expectation.target =
-                self.erase_inference_barriers(expectation.target.module_id, expectation.target)?;
-        }
+        expectation.target = self.erase_inference_barriers_if_closed(expectation.target)?;
 
         // barrier targets check once their variables close, after the body
         if let Some(no_infer) = self.no_infer_target(expectation.target)? {

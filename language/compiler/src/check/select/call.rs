@@ -853,8 +853,10 @@ impl BodyState<'_, '_> {
     /// Build one retained call attempt from an unmatched candidate.
     fn attempted_call(
         &mut self,
+        origin: Origin,
         candidate: &CallableCandidate,
-    ) -> CompilerResult<Option<dir::CallDecision>> {
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<Option<dir::Call>> {
         // name the callable the candidate reached for
         let target = match &candidate.target {
             CallableTarget::Symbol(symbol) => dir::CallTarget::Symbol {
@@ -872,15 +874,33 @@ impl BodyState<'_, '_> {
             _ => return Ok(None),
         };
 
-        // return an error type when no arguments matched
-        let return_type = self.intern_type(dir::Type::Error)?;
+        // bind the authored arguments against the declared parameters the candidate reached for
+        let signature = self.callable_signature_type(origin, candidate.ty)?;
+        let (arguments, return_type) = match signature {
+            // bind against the parameters the signature declares
+            Some((signature_type, signature)) => {
+                let parameters = self
+                    .signature_parameters(signature_type.module_id, signature.parameters)?
+                    .to_vec();
+                let arguments =
+                    self.argument_bindings(origin, origin.module(), argument_nodes, &parameters)?;
+                let return_type = match signature.return_type {
+                    Some(return_type) => return_type,
+                    None => self.intern_type(dir::Type::Error)?,
+                };
 
-        Ok(Some(dir::OperationResolution::One(dir::Call {
+                (arguments, return_type)
+            }
+            // leave a callable without a signature unbound
+            None => (Vec::new(), self.intern_type(dir::Type::Error)?),
+        };
+
+        Ok(Some(dir::Call {
             target,
             callable_type: candidate.ty,
-            arguments: Vec::new(),
+            arguments,
             return_type,
-        })))
+        }))
     }
 
     /// Commit one rejected call node and produce its failed check.
@@ -897,14 +917,13 @@ impl BodyState<'_, '_> {
         &mut self,
         node: dir::GlobalNodeIdAny,
         expectation: Option<Expectation>,
-        attempt: Option<dir::CallDecision>,
+        attempt: Option<dir::Call>,
     ) -> CompilerResult<ValueCheck> {
-        // wrap a retained attempt, or commit a bare rejection
+        // retain the call the node reached for, or commit a bare rejection
         match attempt {
-            Some(attempt) => self.commit_decision(
-                node,
-                dir::Decision::Attempted(Box::new(dir::Decision::Call(attempt))),
-            )?,
+            Some(attempt) => {
+                self.commit_decision(node, dir::Decision::Attempted(Box::new(attempt)))?
+            }
             None => self.commit_decision(node, dir::Decision::Rejected)?,
         }
 
@@ -1008,7 +1027,8 @@ impl BodyState<'_, '_> {
                 if matches!(self.module(module).view().get(value), dir::Expression::This)
                     && self.check.decision(value_node).is_none()
                 {
-                    self.check.commit_active_receiver_decision(value_node)?;
+                    self.check
+                        .commit_active_receiver_decision(value_node, dir::ReceiverKind::This)?;
                 }
             }
         }
@@ -1256,7 +1276,7 @@ impl BodyState<'_, '_> {
                     if is_single_candidate && rejection.is_precise() =>
                 {
                     self.report_signature_rejection(origin, rejection)?;
-                    let attempt = self.attempted_call(candidate)?;
+                    let attempt = self.attempted_call(origin, candidate, argument_nodes)?;
 
                     return self.reject_call_attempted(node, expectation, attempt);
                 }
@@ -1273,7 +1293,7 @@ impl BodyState<'_, '_> {
 
         // retain the first candidate so downstream passes keep a target
         let attempt = match overload.candidates.first() {
-            Some(candidate) => self.attempted_call(candidate)?,
+            Some(candidate) => self.attempted_call(origin, candidate, argument_nodes)?,
             None => None,
         };
 

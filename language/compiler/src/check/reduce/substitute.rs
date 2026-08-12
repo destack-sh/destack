@@ -499,6 +499,32 @@ impl CheckState<'_> {
         self.substitute_graph(target, id, SubstitutionRule::EraseNoInfer)
     }
 
+    /// Remove the inference barriers of one contextual target whose variables closed.
+    pub(in crate::check) fn erase_inference_barriers_if_closed(
+        &mut self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // erase a flagged graph only once its variables close
+        if self.type_flags(id)?.has_variable() {
+            if !self.type_variables(id)?.is_empty() {
+                return Ok(id);
+            }
+
+            return self.erase_inference_barriers(id.module_id, id);
+        }
+
+        // replay the decided erasure of a variable-free graph
+        if let Some(erased) = self.erasures.get(&id) {
+            return Ok(*erased);
+        }
+
+        // decide the erasure once
+        let erased = self.erase_inference_barriers(id.module_id, id)?;
+        self.erasures.insert(id, erased);
+
+        Ok(erased)
+    }
+
     /// Return the target directly wrapped by `NoInfer`.
     pub(in crate::check) fn no_infer_target(
         &mut self,

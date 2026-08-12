@@ -475,7 +475,7 @@ impl CheckState<'_> {
         let mut expanding = FxIndexSet::default();
         let reduced = self.normalize_chain(origin, id, &mut expanding)?;
 
-        // decide closed reductions once, keeping variable heads open
+        // decide variable-free reductions once, keeping variable heads open
         if !flags.has_variable()
             && !self.type_flags(reduced)?.has_variable()
             && !self.is_declaration()
@@ -609,8 +609,8 @@ impl CheckState<'_> {
                 let owner = member.owner;
                 let peeled = self.strip_form(origin, owner)?;
 
-                // error owners poison their projections
-                if matches!(self.ty(peeled)?, dir::Type::Error) {
+                // error and hole owners poison their projections
+                if matches!(self.ty(peeled)?, dir::Type::Error | dir::Type::Hole(_)) {
                     let error = self.intern_type(dir::Type::Error)?;
 
                     return Ok(error);

@@ -41,6 +41,15 @@ pub(in crate::check) struct HeritageClosure {
     pub(in crate::check) cycles: SmallVec<[HeritageCycle; 2]>,
 }
 
+/// The declarations one declaration's heritage reaches.
+#[derive(Debug, Clone)]
+pub(in crate::check) enum HeritageReach {
+    /// The heritage reaches exactly these declarations, the root included.
+    Closed(SmallVec<[dir::GlobalSymbolId; 8]>),
+    /// The heritage passes through a parameter or an alias, so it reaches every declaration.
+    Open,
+}
+
 impl HeritageClosure {
     /// Return the first application naming one symbol.
     fn application<'a>(
@@ -790,29 +799,19 @@ impl CheckState<'_> {
             }
         };
 
-        // bases and implemented interfaces are both heritage edges
-        let mut heritages = definition
-            .bases()
-            .iter()
-            .map(|heritage| (heritage.source, heritage.ty))
-            .collect::<SmallVec<[_; 2]>>();
-        heritages.extend(
-            definition
-                .implementations()
-                .iter()
-                .map(|conformance| (conformance.source, conformance.interface)),
-        );
+        // read the bases and implemented interfaces this declaration inherits from
+        let heritages = definition.heritage_edges();
 
         // apply this instance's arguments to every edge below
         let substitution =
             self.qualified_instance_substitution(instance_module, instance, receiver)?;
 
         // walk direct heritage edges with applied arguments
-        for (source, heritage) in heritages {
-            let ty = self.substitute_type(heritage, &substitution)?;
+        for heritage in heritages {
+            let ty = self.substitute_type(heritage.ty, &substitution)?;
             let (application_module, instance) = self.nominal_application(ty)?;
             let application = HeritageApplication {
-                source: branch_source.unwrap_or(source),
+                source: branch_source.unwrap_or(heritage.source),
                 ty,
             };
 
@@ -864,6 +863,67 @@ impl CheckState<'_> {
         }
 
         Ok(())
+    }
+
+    /// Return whether one declaration's heritage reaches a target declaration.
+    ///
+    /// The answer over-approximates the applied closure: heritage written through a parameter
+    /// or an alias reaches every declaration.
+    pub(in crate::check) fn reaches_heritage(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        target: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        // decide the reach once per declaration
+        if !self.heritages.contains_key(&symbol) {
+            let reach = self.collect_heritage_reach(symbol)?;
+            self.heritages.insert(symbol, reach);
+        }
+
+        Ok(match &self.heritages[&symbol] {
+            HeritageReach::Closed(symbols) => symbols.contains(&target),
+            HeritageReach::Open => true,
+        })
+    }
+
+    /// Collect the declarations one declaration's heritage reaches, walking its edges.
+    fn collect_heritage_reach(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<HeritageReach> {
+        // seed the walk with the declaration itself
+        let mut reached = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
+        let mut frontier = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
+        reached.push(symbol);
+        frontier.push(symbol);
+
+        while let Some(current) = frontier.pop() {
+            // an unchecked or aliased declaration leaves the heritage open
+            let Some(definition) = self.definition(current)? else {
+                return Ok(HeritageReach::Open);
+            };
+            if matches!(definition, dir::Definition::TypeAlias(_)) {
+                return Ok(HeritageReach::Open);
+            }
+
+            // read the bases and implemented interfaces this declaration inherits from
+            let edges = definition.heritage_edges();
+
+            // an edge written over a parameter or an alias leaves the heritage open
+            for edge in edges {
+                let Some((_, instance)) = self.nominal_application_maybe(edge.ty)? else {
+                    return Ok(HeritageReach::Open);
+                };
+
+                // queue each newly reached declaration
+                if !reached.contains(&instance.symbol) {
+                    reached.push(instance.symbol);
+                    frontier.push(instance.symbol);
+                }
+            }
+        }
+
+        Ok(HeritageReach::Closed(reached))
     }
 
     /// Find one heritage application naming a target symbol, transitively.

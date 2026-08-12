@@ -74,6 +74,9 @@ impl CheckState<'_> {
                 self.satisfies_copy(origin, refined.base, active)
             }
 
+            // a declared hole answers like the error it stands for
+            dir::Type::Hole(_) => Ok(true),
+
             // copy owned scalar values directly
             dir::Type::Error
             | dir::Type::Never

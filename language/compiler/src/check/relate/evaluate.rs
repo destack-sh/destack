@@ -359,7 +359,8 @@ impl CheckState<'_> {
         // decide inclusion by constructor pair
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // empty and indeterminate domains
-            (dir::Type::Error, _) | (_, dir::Type::Error) => true,
+            (dir::Type::Error | dir::Type::Hole(_), _)
+            | (_, dir::Type::Error | dir::Type::Hole(_)) => true,
             (dir::Type::Never, _) => true,
             (_, dir::Type::Any | dir::Type::Unknown) => true,
             (dir::Type::Any | dir::Type::Unknown, _) => false,

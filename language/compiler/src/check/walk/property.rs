@@ -342,7 +342,10 @@ impl WalkState<'_, '_> {
                 let is_readonly = *is_readonly;
                 let (is_definite, is_abstract, is_override) =
                     (*is_definite, *is_abstract, *is_override);
-                if declared_type.is_none() && default.is_none() {
+
+                // report a field declared without an annotation and without a default
+                let is_uninferable = declared_type.is_none() && default.is_none();
+                if is_uninferable {
                     self.check
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
@@ -362,6 +365,7 @@ impl WalkState<'_, '_> {
 
                 // derive the field type
                 let field_type = match declared_type {
+                    // take the written annotation as storage
                     Some(declared_type) => {
                         let written = self.walk_type_expression(declared_type)?;
                         let origin = Origin::Node(
@@ -372,6 +376,9 @@ impl WalkState<'_, '_> {
 
                         Some(written)
                     }
+                    // settle the reported field on the error type
+                    None if is_uninferable => Some(self.intern_type(dir::Type::Error)?),
+                    // infer the field from its default through the binding slot
                     None => symbol
                         .map(|symbol| self.binding_type_slot(symbol, Widening::Always))
                         .transpose()?,

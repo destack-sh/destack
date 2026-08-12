@@ -29,8 +29,8 @@ impl CheckState<'_> {
 
                 Some(dir::AccessPath::symbol(symbol))
             }
-            // receiver
-            dir::Expression::This => Some(dir::AccessPath::receiver(dir::ReceiverKind::This)),
+            // root `this` and `super` at the receiver instance
+            dir::Expression::This | dir::Expression::Super => Some(dir::AccessPath::receiver()),
             // value.member
             dir::Expression::Member {
                 left,
@@ -84,18 +84,23 @@ impl CheckState<'_> {
 
 impl CheckState<'_> {
     /// Return the receiver type place assignments write through.
-    fn assigned_receiver_type(&self) -> Option<dir::GlobalTypeId> {
-        if let Some((index, receiver)) = self.flow.lexical_receiver()
+    pub(in crate::check) fn assigned_receiver_type(&self) -> Option<dir::GlobalTypeId> {
+        // take the lexical receiver inside the function that captured it
+        let receiver = if let Some((index, receiver)) = self.flow.lexical_receiver()
             && self.flow.is_current_function(index)
         {
-            return Some(receiver.receiver.ty);
+            receiver.receiver
         }
-
-        if self.flow.current_function().is_none() {
-            return self.flow.current_receiver().map(|receiver| receiver.ty);
+        // take the contextual receiver outside any function body
+        else if self.flow.current_function().is_none() {
+            self.flow.current_receiver()?
         }
+        // leave writes without a receiver untracked
+        else {
+            return None;
+        };
 
-        None
+        Some(receiver.ty)
     }
 
     /// Derive the assigned place one expression writes, when trackable.
@@ -119,15 +124,22 @@ impl CheckState<'_> {
                     _ => None,
                 }
             }
-            // this.member
+            // this.member, super.member
             dir::Expression::Member {
                 left,
                 name: Some(name),
                 ..
             } => {
-                let receiver = self.assigned_receiver_type()?;
+                // keep writes that go through the receiver instance
                 let left = self.module(self.module_id).view().get(left).clone();
-                matches!(left, dir::Expression::This).then(|| AssignedPlace::Member {
+                if !matches!(left, dir::Expression::This | dir::Expression::Super) {
+                    return None;
+                }
+
+                // name the type the write lands on
+                let receiver = self.assigned_receiver_type()?;
+
+                Some(AssignedPlace::Member {
                     receiver,
                     key: dir::StaticKey::Name(name),
                 })

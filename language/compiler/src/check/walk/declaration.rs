@@ -1264,7 +1264,7 @@ impl WalkState<'_, '_> {
                     dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
                         dir::EnumVariantValue::String(value)
                     }
-                    dir::Type::Error => return Ok(None),
+                    dir::Type::Error | dir::Type::Hole(_) => return Ok(None),
                     _ => {
                         let ty = self.check.format_type(static_type);
                         let anchor = self

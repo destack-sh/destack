@@ -994,8 +994,8 @@ impl BodyState<'_, '_> {
         // read the base instance committed on the super callee
         let super_ty = self.require_node_type(callee.into_global_any(module))?;
 
-        // poison the call when the super type already reported an error
-        if matches!(self.ty(super_ty)?, dir::Type::Error) {
+        // poison the call when the super type carries a reported error or a hole
+        if matches!(self.ty(super_ty)?, dir::Type::Error | dir::Type::Hole(_)) {
             return self.poison_call(node, None);
         }
         let (base_module, instance) = self.nominal_application(super_ty)?;

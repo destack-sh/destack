@@ -1,5 +1,7 @@
-use destack_core::FxIndexSet;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
+use destack_dir::TypeFold;
+use destack_repository::ArtifactAttemptRecorder;
 use destack_source::ModuleId;
 
 use crate::check::{CheckState, Origin};
@@ -83,46 +85,123 @@ impl CheckState<'_> {
         // write closure capture frames and bindings
         self.write_captures(module)?;
 
-        // store member bindings, then the source resolutions reading them
-        if !self.is_declaration() {
-            self.write_member_bindings(module)?;
-            self.write_path_segment_resolutions(module)?;
-            self.write_member_type_resolutions(module)?;
+        // settle every member site this pass recorded, then store what they select
+        if self.is_declaration() {
+            self.settle_member_subjects(module)?;
+        } else {
+            let recorder = self.recorder;
+            ArtifactAttemptRecorder::breakdown_maybe(recorder, "write.members", || {
+                self.write_member_bindings(module)
+            })?;
+            ArtifactAttemptRecorder::breakdown_maybe(recorder, "write.resolutions", || {
+                self.write_path_segment_resolutions(module)?;
+                self.write_member_type_resolutions(module)
+            })?;
         }
 
         Ok(())
     }
 
-    /// Store the member bindings each subject this pass recorded selects.
-    fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
-        // collect the recorded sites before mutating the segment
-        let sites = self
-            .module(module)
-            .iter_member_subjects()
-            .collect::<Vec<_>>();
-
-        // resolve each subject once, at the first site that selected it
-        for (site, subject) in sites {
-            if self
-                .module(module)
-                .member_subject_bindings(&subject)
-                .is_some()
-            {
-                continue;
-            }
-
-            // resolve the subject in its declared form and store what it selects
-            let origin = Origin::Node(site.node(), subject.scope);
-            let declared = self.declared_member_subject(subject)?;
-            let bindings = self
-                .body()
-                .subject_member_bindings(origin, module, declared)?;
-            self.module_mut(module)
-                .members_tail
-                .set_bindings(subject, bindings);
+    /// Re-key every recorded member site on the subject inference settled on.
+    pub(in crate::check) fn settle_member_subjects(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<()> {
+        for (site, recorded) in self.recorded_member_sites(module) {
+            self.settle_member_site(module, site, recorded)?;
         }
 
         Ok(())
+    }
+
+    /// Return the member sites this pass recorded, in selection order.
+    fn recorded_member_sites(
+        &self,
+        module: ModuleId,
+    ) -> Vec<(dir::MemberSite, dir::MemberSubject)> {
+        self.module(module)
+            .iter_member_subjects()
+            .collect::<Vec<_>>()
+    }
+
+    /// Re-key one recorded member site on the subject inference settled on.
+    fn settle_member_site(
+        &mut self,
+        module: ModuleId,
+        site: dir::MemberSite,
+        recorded: dir::MemberSubject,
+    ) -> CompilerResult<dir::MemberSubject> {
+        let subject = self.settle_member_subject(recorded)?;
+        if subject != recorded {
+            self.module_mut(module)
+                .members_tail
+                .record_subject(site, subject);
+        }
+
+        Ok(subject)
+    }
+
+    /// Store the member bindings each subject this pass recorded selects.
+    fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
+        // resolve each settled subject once, at the first site that selected it
+        let mut first_recorded: FxIndexMap<dir::MemberSubject, dir::MemberSubject> =
+            FxIndexMap::default();
+        for (site, recorded) in self.recorded_member_sites(module) {
+            // re-key the site, since inference solved its subject after selection
+            let subject = self.settle_member_site(module, site, recorded)?;
+
+            // store what this subject selects the first time it settles
+            if self
+                .module(module)
+                .member_subject_bindings(&subject)
+                .is_none()
+            {
+                let bindings = self.settled_member_bindings(module, site, subject)?;
+                self.module_mut(module)
+                    .members_tail
+                    .set_bindings(subject, bindings);
+                first_recorded.insert(subject, recorded);
+            }
+            // require a second recorded form settling on this subject to select the same members
+            else if let Some(first) = first_recorded.get(&subject).copied()
+                && first != recorded
+            {
+                let bindings = self.settled_member_bindings(module, site, subject)?;
+                let stored = self.module(module).member_subject_bindings(&subject);
+                if stored != Some(bindings.as_slice()) {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "member subjects {first:?} and {recorded:?} settle to {subject:?} with conflicting bindings"
+                        ),
+                    });
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Resolve the member bindings one subject selects, over the types inference settled on.
+    fn settled_member_bindings(
+        &mut self,
+        module: ModuleId,
+        site: dir::MemberSite,
+        subject: dir::MemberSubject,
+    ) -> CompilerResult<Vec<dir::MemberBinding>> {
+        // resolve the subject in its declared form and read what it selects
+        let origin = Origin::Node(site.node(), subject.scope);
+        let declared = self.declared_member_subject(subject)?;
+        let mut bindings = self
+            .body()
+            .subject_member_bindings(origin, module, declared)?;
+
+        // settle the access and callable types each selected binding carries
+        let intact = FxIndexSet::default();
+        for binding in &mut bindings {
+            binding.map_types(&mut |ty| self.fully_resolve(ty, &intact))?;
+        }
+
+        Ok(bindings)
     }
 
     /// Write the declaration selected for each source path segment.
@@ -270,6 +349,24 @@ impl CheckState<'_> {
             .set_path_resolution(node, segment, resolution);
 
         Ok(())
+    }
+
+    /// Re-derive one member lookup subject over the types inference settled on.
+    fn settle_member_subject(
+        &mut self,
+        subject: dir::MemberSubject,
+    ) -> CompilerResult<dir::MemberSubject> {
+        let intact = FxIndexSet::default();
+        let receiver = self.fully_resolve(subject.receiver, &intact)?;
+        let target = self.fully_resolve(subject.target, &intact)?;
+        let key_type = self.fully_resolve(subject.key_type, &intact)?;
+
+        Ok(dir::MemberSubject {
+            receiver,
+            target,
+            key_type,
+            ..subject
+        })
     }
 
     /// Bind bare generic subject references through their declared applications.

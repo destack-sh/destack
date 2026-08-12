@@ -606,7 +606,7 @@ class Dog extends Animal {
     /// @type.symbol symbol=Dog.constructor.tricks source="tricks: int32" type=int32
 
         super(name);
-        /// @resolution.receiver source=super kind=this declaration=Dog type=Dog
+        /// @resolution.receiver source=super kind=super declaration=Dog type=Animal
         /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=super root=this
         /// @resolution.construct source=super(name) parameters=(string) arguments=(provided(name) as string) return=void kind=class target=Animal constructor=Animal.constructor

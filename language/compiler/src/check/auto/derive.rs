@@ -64,7 +64,7 @@ impl CheckState<'_> {
 
         // decide the remaining structural forms
         match kind {
-            // FUGU #Suspicious: open variables optimistically conform
+            // an open variable answers optimistically, its retained bound re-decides once solved
             dir::Type::Variable(_) => Ok(true),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
@@ -72,6 +72,9 @@ impl CheckState<'_> {
 
                 self.satisfies_derivable(origin, refined.base, interface)
             }
+
+            // a declared hole answers like the error it stands for
+            dir::Type::Hole(_) => Ok(true),
 
             // trivial singletons conform to every field-wise interface
             dir::Type::Error

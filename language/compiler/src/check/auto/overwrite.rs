@@ -58,6 +58,7 @@ impl CheckState<'_> {
             }
 
             dir::Type::Error
+            | dir::Type::Hole(_)
             | dir::Type::Never
             | dir::Type::Void
             | dir::Type::Null

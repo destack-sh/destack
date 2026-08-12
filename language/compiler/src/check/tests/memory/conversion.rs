@@ -2023,7 +2023,7 @@ duplicate(32);
 
 duplicate(session);
 /// @resolution.name source=duplicate target=duplicate
-/// @resolution.call source=duplicate(session) parameters=(Owned<Session>) arguments=(provided(session) as Owned<Session>) return=Owned<Owned<Session>> kind=symbol target=duplicate instance=duplicate<Owned<Session>>
+/// @resolution.call source=duplicate(session) parameters=(Owned<Session>) arguments=(provided(session) as Owned<Session>) return=Owned<Session> kind=symbol target=duplicate instance=duplicate<Owned<Session>>
 /// @generic.instance source=duplicate(session) id=duplicate<Owned<Session>>
 /// @resolution.name source=session target=session
 /// @resolution.place source=session placement="local" lifetime="static" access="exclusive"

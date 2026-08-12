@@ -1,3 +1,5 @@
+use destack_repository::ArtifactAttemptRecorder;
+
 use crate::CompilerResult;
 use crate::check::{CheckState, FallbackStage, InferenceScope, Pass, WalkState};
 
@@ -114,12 +116,20 @@ impl CheckState<'_> {
             return Ok(());
         }
 
+        // drain the pass's own scope, timed as one phase
+        let recorder = self.recorder;
+        ArtifactAttemptRecorder::breakdown_maybe(recorder, "drain", || self.drain_scope(mark))?;
+        self.infer.scope_depth -= 1;
+
+        Ok(())
+    }
+
+    /// Drain the outermost scope, reporting whatever stays open.
+    fn drain_scope(&mut self, mark: ScopeMark) -> CompilerResult<()> {
         self.fulfill_scope(mark.scope, Settle::Complete)?;
 
         // leave declaration holes open for elaborate
         if self.pass == Pass::Declare {
-            self.infer.scope_depth -= 1;
-
             return Ok(());
         }
 
@@ -131,10 +141,7 @@ impl CheckState<'_> {
         self.report_unresolved(mark.scope, &explained)?;
 
         // step the remainder over the poisoned holes
-        self.fulfill_scope(mark.scope, Settle::Final)?;
-        self.infer.scope_depth -= 1;
-
-        Ok(())
+        self.fulfill_scope(mark.scope, Settle::Final)
     }
 
     /// Close the inference one statement opened.

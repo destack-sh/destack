@@ -50,7 +50,7 @@ entry(v0: int32, v1: int32):
 }
 
 #[test]
-fn test_lower_pick_alias_field_to_an_inline_object() {
+fn test_lower_pick_alias_field_to_the_named_alias_struct() {
     let session = TestSession::single(
         r#"
 struct Full {
@@ -79,18 +79,18 @@ type Full {
     dropped: int64;
 }
 
-@copy
-type Holder {
-    slice: ref<{ kept: int32 }, managed, mutable>;
-}
-
 type Kept {
     kept: int32;
 }
 
+@copy
+type Holder {
+    slice: ref<Kept, managed, mutable>;
+}
+
 function test.main.read(v0: Holder): int32 {
 entry(v0: Holder):
-    v1: ref<{ kept: int32 }, managed, mutable> = field.get v0, 0
+    v1: ref<Kept, managed, mutable> = field.get v0, 0
     v2: ref<int32, borrowed, mutable> = field.address v1, 0
     v3: int32 = load v2
     return v3
@@ -98,12 +98,10 @@ entry(v0: Holder):
 /// @layout.struct name=Full size=16 align=8
 /// @layout.field owner=Full index=0 name=kept offset=8 size=4 align=4
 /// @layout.field owner=Full index=1 name=dropped offset=0 size=8 align=8
-/// @layout.struct name=Holder size=8 align=8
-/// @layout.field owner=Holder index=0 name=slice offset=0 size=8 align=8
 /// @layout.struct name=Kept size=4 align=4
 /// @layout.field owner=Kept index=0 name=kept offset=0 size=4 align=4
-/// @layout.struct name=type@7 size=4 align=4
-/// @layout.field owner=type@7 index=0 name=kept offset=0 size=4 align=4
+/// @layout.struct name=Holder size=8 align=8
+/// @layout.field owner=Holder index=0 name=slice offset=0 size=8 align=8
 "#,
     );
 }

@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use destack_core::FxIndexMap;
 use destack_dir as dir;
+use destack_dir::TypeFold;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
@@ -219,6 +220,10 @@ impl FieldLookup {
 pub(in crate::check) struct DeclaredMember {
     /// The declaring member symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
+    /// The symbol whose checked type carries this member's value.
+    pub(in crate::check) type_symbol: Option<dir::GlobalSymbolId>,
+    /// The static key selecting this member.
+    pub(in crate::check) key: dir::StaticKey,
     /// The member space.
     pub(in crate::check) space: dir::MemberSpace,
     /// The member type when the declaration has one.
@@ -414,6 +419,38 @@ impl MemberLookup {
 }
 
 impl DeclaredMember {
+    /// Read one definition member, carrying the type its declaration writes.
+    ///
+    /// The written type stays unresolved until the member's target matches.
+    pub(in crate::check) fn from_definition(
+        member: &dir::DefinitionMember,
+    ) -> CompilerResult<Option<Self>> {
+        let Some(role) = MemberRole::from_definition(member) else {
+            return Ok(None);
+        };
+        let Some(key) = member.key() else {
+            return Ok(None);
+        };
+        let Some(symbol) = member.symbol() else {
+            return Err(CompilerError::Internal {
+                message: format!("keyed definition member {member:?} has no symbol"),
+            });
+        };
+
+        Ok(Some(Self {
+            symbol,
+            type_symbol: member.type_symbol(),
+            key,
+            space: member.space(),
+            ty: member.value_type(),
+            value: member.static_value(),
+            role,
+            kind: member.kind(),
+            is_writable: member.is_writable(),
+            is_optional: member.is_optional(),
+        }))
+    }
+
     /// Return the value type exposed by this member at a use site.
     pub(in crate::check) fn access_type(
         &self,
@@ -839,10 +876,20 @@ impl BodyState<'_, '_> {
         if subject.key_type == subject.target
             && let Some(instance) = self.apparent_instance(subject.target)?
         {
-            let inherent = self
+            let mut inherent = self
                 .member_bindings(origin, instance.symbol, subject.space)?
                 .map(|bindings| bindings.to_vec())
                 .unwrap_or_default();
+
+            // apply this instance, since the memoized bindings name the owner's parameters
+            let receiver_value = self.strip_form(origin, subject.receiver)?;
+            let substitution = instance
+                .substitution(self.check)?
+                .with_receiver(receiver_value);
+            for binding in &mut inherent {
+                binding.map_types(&mut |ty| self.substitute_type(ty, &substitution))?;
+            }
+
             let extensions = self.subject_extension_members(
                 origin,
                 module,
@@ -886,27 +933,28 @@ impl BodyState<'_, '_> {
         &mut self,
         member: &dir::DefinitionMember,
     ) -> CompilerResult<Option<DeclaredMember>> {
-        let Some(role) = MemberRole::from_definition(member) else {
+        let Some(mut declared) = DeclaredMember::from_definition(member)? else {
             return Ok(None);
         };
-        let Some(symbol) = member.symbol() else {
-            return Err(CompilerError::Internal {
-                message: format!("keyed definition member {member:?} has no symbol"),
-            });
-        };
+        declared.ty = self.definition_member_type(member)?;
 
-        let ty = self.definition_member_type(member)?;
+        Ok(Some(declared))
+    }
 
-        Ok(Some(DeclaredMember {
-            symbol,
-            space: member.space(),
-            ty,
-            value: member.static_value(),
-            role,
-            kind: member.kind(),
-            is_writable: member.is_writable(),
-            is_optional: member.is_optional(),
-        }))
+    /// Resolve the checked type of each member declared through its own symbol.
+    pub(in crate::check) fn resolve_declared_types(
+        &mut self,
+        members: &mut [DeclaredMember],
+    ) -> CompilerResult<()> {
+        for member in members {
+            let Some(type_symbol) = member.type_symbol else {
+                continue;
+            };
+
+            member.ty = Some(self.symbol_type(type_symbol)?);
+        }
+
+        Ok(())
     }
 
     /// Select the readable resolution exposed by one member lookup.
@@ -2086,6 +2134,7 @@ impl BodyState<'_, '_> {
 
         let result = match self.ty(ty)? {
             dir::Type::Error
+            | dir::Type::Hole(_)
             | dir::Type::Never
             | dir::Type::Any
             | dir::Type::Unknown

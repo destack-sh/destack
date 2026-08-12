@@ -101,7 +101,7 @@ impl CheckState<'_> {
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
         // require every access along the resolved chain to be writable
-        for access in member.iter() {
+        for access in member.arms() {
             let check = self.check_writable_member_access(origin, source, access, mode)?;
             match check {
                 ObligationCheck::Holds => {}
@@ -195,7 +195,7 @@ impl CheckState<'_> {
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
         // require every access along the resolved chain to be writable
-        for subscript in subscript.iter() {
+        for subscript in subscript.arms() {
             let check = match &subscript.target {
                 dir::SubscriptTarget::Member(member) => {
                     self.check_writable_member_access(origin, source, member, mode)?

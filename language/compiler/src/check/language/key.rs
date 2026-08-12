@@ -50,6 +50,7 @@ impl CheckState<'_> {
             | dir::Type::Unknown
             | dir::Type::Error
             | dir::Type::Variable(_)
+            | dir::Type::Hole(_)
             | dir::Type::Parameter(_)
             | dir::Type::Erased(_)
             | dir::Type::This

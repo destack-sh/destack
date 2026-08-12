@@ -372,7 +372,7 @@ impl BodyState<'_, '_> {
             dir::Expression::This => {
                 let receiver = self
                     .check
-                    .commit_active_receiver_decision(node.into_any())?;
+                    .commit_active_receiver_decision(node.into_any(), dir::ReceiverKind::This)?;
                 match receiver {
                     Some(receiver) => {
                         self.check.commit_node_type(node.into_any(), receiver.ty)?;
@@ -390,7 +390,7 @@ impl BodyState<'_, '_> {
             dir::Expression::Super => {
                 let receiver = self
                     .check
-                    .commit_active_receiver_decision(node.into_any())?;
+                    .commit_active_receiver_decision(node.into_any(), dir::ReceiverKind::Super)?;
                 match receiver.and_then(|receiver| receiver.super_ty) {
                     Some(super_ty) => {
                         self.check.commit_node_type(node.into_any(), super_ty)?;

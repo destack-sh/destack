@@ -17,4 +17,5 @@ mod widen;
 
 pub(in crate::check) use evaluate::*;
 pub(in crate::check) use interface::*;
+pub(in crate::check) use nominal::*;
 pub(in crate::check) use variance::*;
