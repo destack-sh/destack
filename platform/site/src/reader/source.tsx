@@ -3,7 +3,10 @@ import * as stylex from "@stylexjs/stylex";
 
 import { commandEvents } from "../command/command";
 import type { PageSource } from "../content/source";
-import { sourceStyles } from "./publication.stylex";
+import { tokens } from "../style/tokens.stylex";
+
+const narrow = "@media (width < 60rem)";
+const tiny = "@media (max-width: 360px)";
 
 /// Properties for the page source controls.
 type SourceActionsProps = {
@@ -91,19 +94,14 @@ export function SourceActions(props: SourceActionsProps) {
     const commands = props.commands;
 
     return (
-        <div {...stylex.attrs(sourceStyles.controls)}>
-            <nav aria-label="Page formats" {...stylex.attrs(sourceStyles.actions)}>
-                <SourceLinks commands={commands} />
-                <span {...stylex.attrs(sourceStyles.tokens)}>{commands.tokenLabel()}</span>
-            </nav>
-
-            <details {...stylex.attrs(sourceStyles.menu)} name="reader-tools">
-                <summary {...stylex.attrs(sourceStyles.menuSummary)}>
+        <div {...stylex.attrs(styles.controls)}>
+            <details {...stylex.attrs(styles.menu)} name="reader-tools">
+                <summary {...stylex.attrs(styles.menuSummary)}>
                     <span>source</span>
-                    <span {...stylex.attrs(sourceStyles.tokens)}>{commands.tokenLabel()}</span>
+                    <span {...stylex.attrs(styles.tokens)}>{commands.tokenLabel()}</span>
                 </summary>
-                <nav aria-label="Page formats" {...stylex.attrs(sourceStyles.menuBody)}>
-                    <span {...stylex.attrs(sourceStyles.menuTokens)}>{commands.tokenLabel()}</span>
+                <nav aria-label="Page formats" {...stylex.attrs(styles.menuBody)}>
+                    <span {...stylex.attrs(styles.menuTokens)}>{commands.tokenLabel()}</span>
                     <SourceLinks commands={commands} />
                 </nav>
             </details>
@@ -123,10 +121,10 @@ function SourceLinks(props: SourceLinksProps) {
 
     return (
         <>
-            <span {...stylex.attrs(sourceStyles.group)}>
-                <span {...stylex.attrs(sourceStyles.label)}>view</span>
+            <span {...stylex.attrs(styles.group)}>
+                <span {...stylex.attrs(styles.label)}>view</span>
                 <a
-                    {...stylex.attrs(sourceStyles.action)}
+                    {...stylex.attrs(styles.action)}
                     href={commands.source.markdownRoute}
                     rel="alternate noopener"
                     target="_blank"
@@ -135,7 +133,7 @@ function SourceLinks(props: SourceLinksProps) {
                     .md
                 </a>
                 <a
-                    {...stylex.attrs(sourceStyles.action)}
+                    {...stylex.attrs(styles.action)}
                     href={commands.source.textRoute}
                     rel="alternate noopener"
                     target="_blank"
@@ -145,10 +143,10 @@ function SourceLinks(props: SourceLinksProps) {
                 </a>
             </span>
 
-            <span {...stylex.attrs(sourceStyles.group)}>
-                <span {...stylex.attrs(sourceStyles.label)}>copy</span>
+            <span {...stylex.attrs(styles.group)}>
+                <span {...stylex.attrs(styles.label)}>copy</span>
                 <button
-                    {...stylex.attrs(sourceStyles.action)}
+                    {...stylex.attrs(styles.action)}
                     aria-label="Copy Markdown"
                     onClick={() => commands.copy("md")}
                     type="button"
@@ -156,7 +154,7 @@ function SourceLinks(props: SourceLinksProps) {
                     {commands.state() === "md" ? "copied" : ".md"}
                 </button>
                 <button
-                    {...stylex.attrs(sourceStyles.action)}
+                    {...stylex.attrs(styles.action)}
                     aria-label="Copy text"
                     onClick={() => commands.copy("txt")}
                     type="button"
@@ -178,3 +176,84 @@ function formatTokens(tokens: number) {
 
     return `${(tokens / 1000).toFixed(precision)}k`;
 }
+
+const styles = stylex.create({
+    action: {
+        backgroundColor: "transparent",
+        borderWidth: 0,
+        color: tokens.text,
+        font: "inherit",
+        padding: 0,
+        textDecoration: "none",
+        ":hover": {
+            color: tokens.accent,
+        },
+    },
+    controls: {
+        minWidth: 0,
+        [narrow]: {
+            gridColumn: 2,
+            gridRow: 1,
+        },
+    },
+    group: {
+        alignItems: "baseline",
+        display: "inline-flex",
+        gap: "0.5rem",
+        whiteSpace: "nowrap",
+    },
+    label: {
+        color: tokens.soft,
+    },
+    menu: {
+        display: "block",
+        position: "relative",
+    },
+    menuBody: {
+        backgroundColor: tokens.page,
+        borderColor: tokens.ink,
+        borderRadius: tokens.panelRadius,
+        borderStyle: "solid",
+        borderWidth: "1px",
+        display: "flex",
+        flexWrap: "wrap",
+        fontFamily: tokens.monoFont,
+        fontSize: "0.78rem",
+        gap: "0.25rem 0.75rem",
+        justifyContent: "flex-end",
+        padding: "0.5rem 0.75rem",
+        position: "absolute",
+        right: 0,
+        top: "100%",
+        width: `min(22rem, calc(100vw - ${tokens.gutterLeft} - ${tokens.gutterRight}))`,
+        zIndex: 4,
+    },
+    menuSummary: {
+        alignItems: "center",
+        color: tokens.text,
+        cursor: "pointer",
+        display: "flex",
+        fontFamily: tokens.monoFont,
+        fontSize: "0.78rem",
+        fontWeight: 600,
+        gap: "0.75rem",
+        listStyle: "none",
+        minHeight: tokens.siteControlHeight,
+    },
+    menuTokens: {
+        color: tokens.soft,
+        display: "none",
+        minHeight: tokens.siteControlHeight,
+        width: "100%",
+        [tiny]: {
+            alignItems: "center",
+            display: "inline-flex",
+        },
+    },
+    tokens: {
+        whiteSpace: "nowrap",
+        [tiny]: {
+            display: "none",
+        },
+    },
+});

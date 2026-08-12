@@ -2,7 +2,7 @@ import { A } from "@solidjs/router";
 import { For } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
-import { breadcrumbStyles } from "./publication.stylex";
+import { tokens } from "../style/tokens.stylex";
 
 export type Breadcrumb = {
     /// The breadcrumb destination when it is navigable.
@@ -20,7 +20,7 @@ type BreadcrumbsProps = {
 /// Render one compact navigable content path.
 export function Breadcrumbs(props: BreadcrumbsProps) {
     return (
-        <nav aria-label="Breadcrumb" {...stylex.attrs(breadcrumbStyles.root)}>
+        <nav aria-label="Breadcrumb" {...stylex.attrs(styles.root)}>
             <For each={props.items}>
                 {(item, index) => (
                     <>
@@ -28,7 +28,7 @@ export function Breadcrumbs(props: BreadcrumbsProps) {
                         {item.href == undefined ? (
                             <span>{item.label}</span>
                         ) : (
-                            <A {...stylex.attrs(breadcrumbStyles.link)} href={item.href}>{item.label}</A>
+                            <A {...stylex.attrs(styles.link)} href={item.href}>{item.label}</A>
                         )}
                     </>
                 )}
@@ -36,3 +36,19 @@ export function Breadcrumbs(props: BreadcrumbsProps) {
         </nav>
     );
 }
+
+const styles = stylex.create({
+    link: {
+        color: tokens.text,
+        fontWeight: 600,
+        ":hover": {
+            color: tokens.accent,
+        },
+    },
+    root: {
+        alignItems: "baseline",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "0.5rem",
+    },
+});

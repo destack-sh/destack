@@ -3,7 +3,7 @@ import type { JSX } from "solid-js";
 
 import { KeyboardShortcuts } from "../navigation/shortcut";
 import { TopBar } from "../navigation/topbar";
-import { styles } from "./shell.stylex";
+import { tokens } from "../style/tokens.stylex";
 
 /// Properties for the persistent site frame.
 type ShellProps = {
@@ -31,3 +31,41 @@ export function Shell(props: ShellProps) {
         </div>
     );
 }
+
+const styles = stylex.create({
+    main: {
+        display: "grid",
+        minHeight: 0,
+        minWidth: 0,
+        width: "100%",
+    },
+    paper: {
+        isolation: "isolate",
+        position: "relative",
+    },
+    paperGrain: {
+        backgroundImage: 'url("/grain.svg")',
+        backgroundRepeat: "repeat",
+        backgroundSize: "8rem 8rem",
+        inset: 0,
+        mixBlendMode: "multiply",
+        opacity: 0.24,
+        pointerEvents: "none",
+        position: "fixed",
+        zIndex: 0,
+    },
+    paperLayer: {
+        position: "relative",
+        zIndex: 1,
+    },
+    root: {
+        backgroundColor: tokens.page,
+        color: tokens.text,
+        display: "grid",
+        fontFamily: tokens.textFont,
+        gridTemplateRows: "auto minmax(0, 1fr)",
+        minHeight: "100svh",
+        minWidth: 0,
+        overflowX: "clip",
+    },
+});

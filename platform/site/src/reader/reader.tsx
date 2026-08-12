@@ -8,7 +8,7 @@ import {
     type PageSourceCommands,
     SourceActions,
 } from "./source";
-import { readerStyles } from "./publication.stylex";
+import { tokens } from "../style/tokens.stylex";
 
 /// Properties for the shared reading frame.
 type ReaderProps = {
@@ -59,16 +59,16 @@ export function Reader(props: ReaderProps) {
 
     return (
         <div
-            {...stylex.attrs(readerStyles.reader, readerStyles.readerPublication)}
+            {...stylex.attrs(styles.reader, styles.readerPublication)}
             data-publication={props.publication}
         >
-            <aside {...stylex.attrs(readerStyles.sidebar)}>
+            <aside {...stylex.attrs(styles.sidebar)}>
                 {props.navigation()}
                 <Contents activeId={activeHeading} entries={props.contents} />
             </aside>
 
             <article
-                {...stylex.attrs(readerStyles.article, readerStyles.articlePublication)}
+                {...stylex.attrs(styles.article, styles.articlePublication)}
                 data-markdown-route={props.source.markdownRoute}
                 data-page-source
                 data-text-route={props.source.textRoute}
@@ -102,14 +102,14 @@ function ReaderToolbar(props: ReaderToolbarProps) {
     return (
         <header
             {...stylex.attrs(
-                readerStyles.toolbar,
-                readerStyles.toolbarPublication,
-                props.placement === "top" ? readerStyles.toolbarTop : readerStyles.toolbarBottom,
+                styles.toolbar,
+                styles.toolbarPublication,
+                props.placement === "top" ? styles.toolbarTop : styles.toolbarBottom,
             )}
         >
-            <details {...stylex.attrs(readerStyles.menu)} name="reader-tools">
-                <summary {...stylex.attrs(readerStyles.menuSummary)}>menu</summary>
-                <div {...stylex.attrs(readerStyles.menuBody)}>
+            <details {...stylex.attrs(styles.menu)} name="reader-tools">
+                <summary {...stylex.attrs(styles.menuSummary)}>menu</summary>
+                <div {...stylex.attrs(styles.menuBody)}>
                     {props.navigation()}
                     <Contents activeId={props.activeHeading} entries={props.contents} isMenu />
                 </div>
@@ -117,8 +117,8 @@ function ReaderToolbar(props: ReaderToolbarProps) {
 
             <div
                 {...stylex.attrs(
-                    readerStyles.location,
-                    props.placement === "bottom" && readerStyles.locationBottom,
+                    styles.location,
+                    props.placement === "bottom" && styles.locationBottom,
                 )}
             >
                 {props.location()}
@@ -127,3 +127,155 @@ function ReaderToolbar(props: ReaderToolbarProps) {
         </header>
     );
 }
+
+const narrow = "@media (width < 60rem)";
+const mobile = "@media (max-width: 767px)";
+
+/// Shared reader styles.
+const styles = stylex.create({
+    article: {
+        alignContent: "start",
+        display: "grid",
+        gap: "2.5rem",
+        maxWidth: "100%",
+        minWidth: 0,
+        width: "100%",
+        [narrow]: {
+            gap: "2rem",
+        },
+    },
+    articlePublication: {
+        color: tokens.ink,
+        gap: 0,
+    },
+    location: {
+        minWidth: 0,
+        [narrow]: {
+            gridColumn: "1 / -1",
+            gridRow: 2,
+        },
+    },
+    locationBottom: {
+        [mobile]: {
+            display: "none",
+        },
+    },
+    menu: {
+        minWidth: 0,
+        "@media (min-width: 60rem)": {
+            display: "none",
+        },
+        [narrow]: {
+            gridColumn: 1,
+            gridRow: 1,
+        },
+    },
+    menuBody: {
+        alignContent: "start",
+        display: "grid",
+        gap: "2rem",
+        maxHeight: "min(32rem, calc(100svh - 10rem))",
+        overflowY: "auto",
+        padding: "1rem 0 0.5rem",
+    },
+    menuSummary: {
+        alignItems: "center",
+        color: tokens.text,
+        cursor: "pointer",
+        display: "flex",
+        fontWeight: 600,
+        gap: "0.75rem",
+        justifyContent: "flex-start",
+        listStyle: "none",
+        minHeight: tokens.siteControlHeight,
+    },
+    reader: {
+        display: "grid",
+        fontSize: "1rem",
+        gridTemplateColumns: "minmax(0, 1fr)",
+        justifyContent: "center",
+        marginInline: "auto",
+        maxWidth: "45rem",
+        padding: `3rem ${tokens.gutterRight} 6rem ${tokens.gutterLeft}`,
+        width: "100%",
+        "@media (min-width: 60rem)": {
+            gap: "3rem",
+            gridTemplateColumns: "16rem minmax(0, 42rem)",
+            justifyContent: "start",
+            maxWidth: tokens.siteWidth,
+        },
+        [narrow]: {
+            padding: `1.25rem ${tokens.gutterRight} 4rem ${tokens.gutterLeft}`,
+        },
+        [mobile]: {
+            paddingBottom: "2rem",
+        },
+    },
+    readerPublication: {
+        fontFamily: tokens.monoFont,
+        fontSize: "0.9rem",
+        gap: "clamp(2rem, 4vw, 2.75rem)",
+        gridTemplateColumns: "12.5rem minmax(0, 50rem)",
+        justifyContent: "start",
+        maxWidth: tokens.siteWidth,
+        paddingTop: "clamp(2rem, 4vw, 3rem)",
+        [narrow]: {
+            display: "block",
+            maxWidth: "46rem",
+        },
+        "@media (max-width: 600px)": {
+            paddingTop: "1rem",
+        },
+    },
+    sidebar: {
+        alignContent: "start",
+        display: "none",
+        fontSize: tokens.siteFontSize,
+        gap: "2rem",
+        "@media (min-width: 60rem)": {
+            display: "grid",
+            maxHeight: "calc(100svh - 8rem)",
+            overflow: "auto",
+            padding: "0 0.25rem 1rem 0",
+            position: "sticky",
+            top: "5rem",
+        },
+    },
+    toolbar: {
+        alignItems: "baseline",
+        color: tokens.soft,
+        display: "flex",
+        flexWrap: "wrap",
+        fontSize: tokens.siteFontSize,
+        gap: "0.5rem",
+        justifyContent: "space-between",
+        paddingBottom: "0.75rem",
+        [narrow]: {
+            alignItems: "start",
+            display: "grid",
+            gap: "0.25rem 0.75rem",
+            gridTemplateColumns: "minmax(0, 1fr) auto",
+            justifyContent: "stretch",
+        },
+    },
+    toolbarBottom: {
+        display: "none",
+        [mobile]: {
+            borderTopColor: tokens.line,
+            borderTopStyle: "solid",
+            borderTopWidth: "1px",
+            display: "grid",
+            marginTop: "1rem",
+            paddingBottom: 0,
+            paddingTop: "0.75rem",
+        },
+    },
+    toolbarPublication: {
+        fontSize: "0.7rem",
+    },
+    toolbarTop: {
+        [mobile]: {
+            display: "none",
+        },
+    },
+});

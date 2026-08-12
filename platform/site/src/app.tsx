@@ -5,8 +5,8 @@ import { FileRoutes } from "@solidjs/start/router";
 import * as stylex from "@stylexjs/stylex";
 import { Suspense } from "solid-js";
 
-import { styles } from "./style/app.stylex";
 import "./style/site.css";
+import { tokens } from "./style/tokens.stylex";
 
 /// Render the site router and shared document providers.
 export default function App() {
@@ -33,3 +33,15 @@ export default function App() {
         </Router>
     );
 }
+
+const styles = stylex.create({
+    root: {
+        backgroundColor: tokens.page,
+        color: tokens.text,
+        minHeight: "100vh",
+        "::selection": {
+            backgroundColor: tokens.accent,
+            color: tokens.ink,
+        },
+    },
+});

@@ -4,7 +4,7 @@ import * as stylex from "@stylexjs/stylex";
 
 import { type Post, type PostContent } from "../generated/posts";
 import { Breadcrumbs } from "./breadcrumbs";
-import { journalStyles } from "./publication.stylex";
+import { tokens } from "../style/tokens.stylex";
 import { Reader } from "./reader";
 
 /// Properties for one rendered blog article.
@@ -45,10 +45,10 @@ type BlogLocationProps = {
 /// Render the post path and publication metadata.
 function BlogLocation(props: BlogLocationProps) {
     return (
-        <div {...stylex.attrs(journalStyles.location)}>
+        <div {...stylex.attrs(styles.location)}>
             <Breadcrumbs items={[{ href: "/blog/", label: "blog" }]} />
             <span>
-                <time {...stylex.attrs(journalStyles.locationDate)}>{props.post.date}</time>
+                <time {...stylex.attrs(styles.locationDate)}>{props.post.date}</time>
                 {" / "}{props.post.author}
             </span>
         </div>
@@ -67,23 +67,23 @@ type BlogNavigationProps = {
 /// Render the blog collection beside an article.
 function BlogNavigation(props: BlogNavigationProps) {
     return (
-        <nav aria-label="blog" {...stylex.attrs(journalStyles.book)}>
-            <A {...stylex.attrs(journalStyles.bookTitle)} href="/blog/">
+        <nav aria-label="blog" {...stylex.attrs(styles.book)}>
+            <A {...stylex.attrs(styles.bookTitle)} href="/blog/">
                 blog
             </A>
 
-            <ol {...stylex.attrs(journalStyles.bookList)}>
+            <ol {...stylex.attrs(styles.bookList)}>
                 <For each={props.posts}>
                     {(post) => (
                         <li>
                             <A
                                 {...stylex.attrs(
-                                    journalStyles.bookLink,
-                                    post.slug === props.current.slug && journalStyles.active,
+                                    styles.bookLink,
+                                    post.slug === props.current.slug && styles.active,
                                 )}
                                 href={post.route}
                             >
-                                <time {...stylex.attrs(journalStyles.date)}>{post.date.slice(0, 4)}</time>
+                                <time {...stylex.attrs(styles.date)}>{post.date.slice(0, 4)}</time>
                                 <span>{post.title}</span>
                             </A>
                         </li>
@@ -103,9 +103,9 @@ type BlogArticleHeaderProps = {
 /// Render the post title and metadata.
 function BlogArticleHeader(props: BlogArticleHeaderProps) {
     return (
-        <header {...stylex.attrs(journalStyles.articleHeader)}>
-            <h1 {...stylex.attrs(journalStyles.articleTitle)}>{props.post.title}</h1>
-            <p {...stylex.attrs(journalStyles.articleSubtitle)}>{props.post.subtitle}</p>
+        <header {...stylex.attrs(styles.articleHeader)}>
+            <h1 {...stylex.attrs(styles.articleTitle)}>{props.post.title}</h1>
+            <p {...stylex.attrs(styles.articleSubtitle)}>{props.post.subtitle}</p>
         </header>
     );
 }
@@ -127,7 +127,7 @@ function PostNavigation(props: PostNavigationProps) {
     const older = () => props.posts[index() + 1];
 
     return (
-        <nav aria-label="post navigation" {...stylex.attrs(journalStyles.pagination)}>
+        <nav aria-label="post navigation" {...stylex.attrs(styles.pagination)}>
             <Show when={newer()}>
                 {(post) => <PostNavigationLink direction="newer" post={post()} />}
             </Show>
@@ -158,3 +158,89 @@ function PostNavigationLink(props: PostNavigationLinkProps) {
         </A>
     );
 }
+
+/// Journal navigation and article styles.
+const styles = stylex.create({
+    active: {
+        color: tokens.text,
+        fontWeight: 600,
+    },
+    articleHeader: {
+        display: "grid",
+        gap: "0.6rem",
+        marginTop: "0.9rem",
+    },
+    articleSubtitle: {
+        color: tokens.soft,
+        fontSize: "0.86rem",
+        lineHeight: 1.5,
+        margin: 0,
+        maxWidth: "39rem",
+    },
+    articleTitle: {
+        fontFamily: tokens.monoFont,
+        fontSize: "clamp(1.85rem, 4vw, 2.3rem)",
+        fontWeight: 600,
+        letterSpacing: "-0.025em",
+        lineHeight: 1.1,
+        margin: 0,
+    },
+    book: {
+        alignContent: "start",
+        display: "grid",
+        gap: "0.75rem",
+    },
+    bookLink: {
+        color: tokens.soft,
+        display: "grid",
+        fontSize: "0.78rem",
+        gap: "0.1rem",
+        ":hover": {
+            color: tokens.text,
+        },
+    },
+    bookList: {
+        display: "grid",
+        gap: "0.4rem",
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+    },
+    bookTitle: {
+        fontFamily: tokens.monoFont,
+        fontSize: "0.78rem",
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        width: "max-content",
+        ":hover": {
+            color: tokens.accent,
+        },
+    },
+    date: {
+        fontFamily: tokens.monoFont,
+        fontSize: "0.72rem",
+    },
+    location: {
+        alignItems: "baseline",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "0.5rem 1.5rem",
+    },
+    locationDate: {
+        fontFamily: tokens.monoFont,
+        fontSize: "0.78rem",
+    },
+    pagination: {
+        borderTopColor: tokens.line,
+        borderTopStyle: "solid",
+        borderTopWidth: "1px",
+        display: "flex",
+        flexWrap: "wrap",
+        fontFamily: tokens.monoFont,
+        fontWeight: 600,
+        gap: "1rem 2rem",
+        justifyContent: "space-between",
+        paddingTop: "1.25rem",
+    },
+});

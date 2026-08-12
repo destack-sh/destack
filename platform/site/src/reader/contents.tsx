@@ -1,7 +1,15 @@
-import { type Accessor, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import {
+    type Accessor,
+    createMemo,
+    createSignal,
+    For,
+    onCleanup,
+    onMount,
+    Show,
+} from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
-import { contentsStyles } from "./publication.stylex";
+import { tokens } from "../style/tokens.stylex";
 
 /// One article heading in the rendered contents.
 export type ContentsEntry = {
@@ -29,21 +37,25 @@ type ContentsProps = {
 
 /// Render the active article outline.
 export function Contents(props: ContentsProps) {
+    const entries = createMemo(() =>
+        props.isMenu ? props.entries : visibleContents(props.entries, props.activeId())
+    );
+
     return (
         <Show when={props.entries.length > 0}>
             <nav
                 aria-label="contents"
-                {...stylex.attrs(contentsStyles.root, props.isMenu && contentsStyles.rootMenu)}
+                {...stylex.attrs(styles.root, props.isMenu && styles.rootMenu)}
             >
-                <p {...stylex.attrs(contentsStyles.heading)}>contents</p>
-                <ol {...stylex.attrs(contentsStyles.list)}>
-                    <For each={props.entries}>
+                <p {...stylex.attrs(styles.heading)}>contents</p>
+                <ol {...stylex.attrs(styles.list)}>
+                    <For each={entries()}>
                         {(entry) => (
-                            <li {...stylex.attrs(entry.depth > 2 && contentsStyles.nested)}>
+                            <li {...stylex.attrs(entry.depth > 2 && styles.nested)}>
                                 <a
                                     {...stylex.attrs(
-                                        contentsStyles.link,
-                                        props.activeId() === entry.id && contentsStyles.active,
+                                        styles.link,
+                                        props.activeId() === entry.id && styles.active,
                                     )}
                                     href={`#${entry.id}`}
                                 >
@@ -57,6 +69,73 @@ export function Contents(props: ContentsProps) {
         </Show>
     );
 }
+
+/// Return the active heading and a compact window around it.
+function visibleContents(entries: readonly ContentsEntry[], activeId: string) {
+    const maximumEntries = 13;
+
+    // preserve short outlines in full
+    if (entries.length <= maximumEntries) {
+        return entries;
+    }
+
+    // center the current heading with slightly more lookahead
+    const activeIndex = Math.max(0, entries.findIndex((entry) => entry.id === activeId));
+    const start = Math.max(0, Math.min(activeIndex - 4, entries.length - maximumEntries));
+
+    return entries.slice(start, start + maximumEntries);
+}
+
+const styles = stylex.create({
+    active: {
+        color: tokens.text,
+        fontWeight: 600,
+        boxShadow: `inset 2px 0 ${tokens.orange}`,
+    },
+    heading: {
+        color: tokens.soft,
+        fontFamily: tokens.monoFont,
+        fontSize: "0.72rem",
+        fontWeight: 600,
+        letterSpacing: "0.06em",
+        margin: "0 0 0.35rem",
+        textTransform: "uppercase",
+    },
+    link: {
+        display: "block",
+        paddingLeft: "0.5rem",
+        paddingBlock: "0.22rem",
+        ":hover": {
+            color: tokens.text,
+        },
+    },
+    list: {
+        display: "grid",
+        gap: 0,
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+    },
+    nested: {
+        paddingLeft: "0.65rem",
+    },
+    root: {
+        color: tokens.soft,
+        display: "none",
+        fontSize: "0.74rem",
+        lineHeight: 1.4,
+        borderTopColor: tokens.line,
+        borderTopStyle: "solid",
+        borderTopWidth: "1px",
+        paddingTop: "1rem",
+        "@media (min-width: 60rem)": {
+            display: "block",
+        },
+    },
+    rootMenu: {
+        display: "block",
+    },
+});
 
 /// Track the last heading above the reading position.
 export function trackActiveHeading(entries: readonly ContentsEntry[]) {
