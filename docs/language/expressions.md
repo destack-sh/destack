@@ -427,7 +427,7 @@ struct Box<T> {
     ptr: ^T;
 }
 
-extension<T, comptime A: Access = "readonly"> of Box<T> implements Dereference<A> {
+extension<T, const A: Access = "readonly"> of Box<T> implements Dereference<A> {
     type Output = T;
 
     dereference(): WithAccess<&T, A> {
@@ -938,7 +938,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -1105,7 +1105,7 @@ Static ifs may annotate any meaningfully "removable" source contribution:
 | Declaration members | struct fields, class / interface / extension members, enum variants | profile, module metadata, literals, closed constants |
 | Expression positions | statements, match cases, call / tree / generic arguments, tuple elements, object and type literal fields | profile, module metadata, literals, closed constants |
 
-When a choice depends on generic parameters, static terms don't work (since they must be evaluated ahead of inference), and we can use type algebra and regular `comptime` gating instead for concrete specialisation.
+When a choice depends on generic parameters, static terms don't work (since they must be evaluated ahead of inference), and we can use type algebra and regular `const` gating instead for concrete specialisation.
 
 ## Module
 
@@ -1141,12 +1141,12 @@ global {
 }
 ```
 
-## Comptime
+## Const Evaluation
 
-Inspired by modern languages like Zig and Jai, Destack supports compile-time evaluation with `comptime` expressions: ordinary code to be evaluated by the compiler, during compile time, and the results baked into the emitted artifact.
+Inspired by modern languages like Zig and Jai, Destack supports compile-time evaluation with `const` expressions: ordinary code evaluated by the compiler, with the results baked into the emitted artifact.
 
 ```ds
-const LOOKUP_TABLE: uint8[] = comptime {
+const LOOKUP_TABLE: uint8[] = const {
     let table: uint8[] = [];
     for (let i = 0; i < 256; i++) {
         table.push(computeCRC(i));
@@ -1155,7 +1155,7 @@ const LOOKUP_TABLE: uint8[] = comptime {
 };
 ```
 
-Functions do not need to declare themselves as either "comptime" or "runtime": the same function can run at compile time when all inputs are static, and at runtime when some input is only known at runtime:
+Functions do not need to declare themselves as compile-time or runtime: the same function can run at compile time when all inputs are static, and at runtime when some input is only known at runtime:
 
 ```ds
 function factorial(n: int): int {
@@ -1166,53 +1166,53 @@ function factorial(n: int): int {
     }
 }
 
-const COMPTIME_CONST = comptime factorial(10);    // compile time
-COMPTIME_CONST satisfies int;
+const BAKED = const factorial(10);      // compile time
+BAKED satisfies int;
 
-const RUNTIME_CONST = factorial(getUserInput()); // runtime (in this case, at module initialization time)
-RUNTIME_CONST satisfies int;
+const COMPUTED = factorial(getUserInput()); // runtime (in this case, at module initialization time)
+COMPUTED satisfies int;
 ```
 
-When runtime execution would be meaningless or unsafe, a function can be declared `comptime function` to declare that a function has no runtime callable form, but otherwise uses normal function syntax.
-(This is in some way the opposite of the usual `constexpr` based keyword, that is, Destack functions are evaluated at `comptime` by usage, and can be marked `comptime` to force compile-time evaluation.)
+When runtime execution would be meaningless or unsafe, a function can be declared `const function` to declare that a function has no runtime callable form, but otherwise uses normal function syntax.
+(This is the reverse of a `constexpr`-style keyword: Destack functions run at compile time by usage, and `const function` marks the ones with no runtime form.)
 
 ```ds
-comptime function fieldOffset<T>(name: string): usize {
+const function fieldOffset<T>(name: string): usize {
     // inspect `T` at compile time
 }
 
-const offset = comptime fieldOffset<User>("name");
+const offset = const fieldOffset<User>("name");
 ```
 
-The evaluation scope for each comptime expression is isolated to its declaration site, and the only way to get a value "out" is to use comptime as an expression - no reaching into statics or globals allowed.
+The evaluation scope for each const expression is isolated to its declaration site, and the only way to get a value "out" is to use const as an expression: no reaching into statics or globals is allowed.
 (Locals _inside_ the expression may of course be mutated.)
 
 ```ds
-const WIDTH = comptime {
+const WIDTH = const {
     let width = 4;
     width *= 2;
     width
 };
 
 let counter = 0;
-comptime {
+const {
     counter += 1; // ERROR: outer mutation
 }
 ```
 
-Comptime blocks can also appear as members on object-like types for static checks, where they run in the static environment of the declaration or instantiation that they appear in post-inference, and they can access the same [static terms](./types.md#static) as `@if`.
+Const blocks can also appear as members on object-like types for static checks, where they run in the static environment of the declaration or instantiation that they appear in post-inference, and they can access the same [static terms](./types.md#static) as `@if`.
 
 ```ds
-struct Buffer<comptime size: uint> {
-    comptime {
-        assert(size > 0 && size <= 65536);
+struct Buffer<const Size: uint> {
+    const {
+        assert(Size > 0 && Size <= 65536);
     }
 
-    data: [uint8; size];
+    data: [uint8; Size];
 }
 ```
 
-Because comptime expressions are late-evaluated expressions, comptime conditions type check like ordinary conditions.
+Because const expressions are late-evaluated expressions, const conditions type check like ordinary conditions.
 Both branches are analyzed, and the expression type is still the joined branch type.
 The compiler may eliminate the untaken branch before final lowering when the condition is computed from static inputs:
 
@@ -1233,41 +1233,46 @@ function isPowerOfTwo(value: uint): boolean {
     return true;
 }
 
-function blockCost<comptime Width: uint>(): int32 {
-    if (comptime isPowerOfTwo(Width)) {
+function blockCost(width: uint): int32 {
+    if (isPowerOfTwo(width)) {
         return 1;
     } else {
         return 2;
     }
 }
 
-function blockMultiply<comptime Width: uint>(a: int32, b: int32): int32 {
-    comptime {
+const COST = const blockCost(8); // evaluated by the compiler
+
+function blockMultiply<const Width: uint>(a: [int32; Width], b: [int32; Width]): int32 {
+    const {
         assert(isPowerOfTwo(Width));
     }
 }
 ```
 
-Of course, comptime results must also be lowerable into the target artifact.
+A const parameter read as a value must appear in the signature, as `Width` does in the operand types above.
+A value used only in the body belongs in an ordinary parameter: `blockCost` takes one, and `const blockCost(8)` evaluates the call at compile time.
+
+Of course, const results must also be lowerable into the target artifact.
 Plain data such as numbers, strings, arrays, tuples, objects, structs, and enums are all fine, but dynamic runtime resources like pointers and handles and such don't work because we can't meaningfully serialize them.
 
 ### Dynamic Code
 
-Generating and evaluating arbitrary code is supported via `eval` at _compile-time_ by passing a string computed at comptime:
+Generating and evaluating arbitrary code is supported via `eval` at _compile-time_ by passing a string computed at compile time:
 
 ```ds
 import * as dir from "destack:reflect/dir";
 
-const source = comptime renderParser(grammar);
-const parser = comptime eval<dir.FunctionDeclaration>(source);
+const source = const renderParser(grammar);
+const parser = const eval<dir.FunctionDeclaration>(source);
 ```
 
-The source passed to `eval` must itself be available to comptime evaluation.
+The source passed to `eval` must itself be available to const evaluation.
 Generated code is parsed and typechecked as `.ds`, attached to the same module graph as a virtual source file, and tracked for diagnostics and artifact caching.
 
 ## Macros
 
-Destack is statically typed and compiled, but supports macros as decorators backed by `comptime` execution and a bounded module-editing context.
+Destack is statically typed and compiled, but supports macros as decorators backed by const evaluation and a bounded module-editing context.
 As an example, consider a `memoize` decorator that turns a function into a cached ("memoized") version of itself that stores results in a cache to avoid recomputation on equal arguments.
 
 ```ds
@@ -1314,7 +1319,7 @@ extension of memoize implements Macro<FunctionDeclaration, MemoizeState>
         config: this,
     ): MemoizeState {
         const innerName = `${context.name}Inner`;
-        const wrapper = comptime eval<Declaration>(ds`
+        const wrapper = const eval<Declaration>(ds`
             function ${context.name}(id: UserId): Result<User, Error> {
                 // placeholder
             }
@@ -1335,7 +1340,7 @@ extension of memoize implements Macro<FunctionDeclaration, MemoizeState>
         config: this,
         state: MemoizeState,
     ): void {
-        const implementation = comptime eval<Declaration>(ds`
+        const implementation = const eval<Declaration>(ds`
             function ${context.name}(id: UserId): Result<User, Error> {
                 const cached = cache.get(id);
                 if (cached != undefined) {

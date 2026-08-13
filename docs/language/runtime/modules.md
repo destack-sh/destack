@@ -99,7 +99,7 @@ Top-level dependencies are always part of the source graph, while `conditionalDe
 
 ## Import Meta
 
-`import.meta` exposes profile metadata and current module metadata during static and comptime evaluation.
+`import.meta` exposes profile metadata and current module metadata during static and const evaluation.
 
 | Field | Description | Type | Examples |
 |-------|-------------|------|----------|

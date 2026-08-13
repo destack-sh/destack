@@ -122,7 +122,7 @@ newtype Port = 1..=65535;
 Intervals can also constrain static parameters:
 
 ```ds
-struct InlineBuffer<T, comptime N: 0..=4096> {
+struct InlineBuffer<T, const N: 0..=4096> {
     storage: [T; N];
 }
 ```
@@ -561,35 +561,35 @@ user.tags[0] = "admin";      // ERROR: readonly view
 ## Generics
 
 Destack supports classic TypeScript-shaped generics: inference, constraints, defaults, conditional types, mapped types, indexed access types, and the rest of the usual machinery.
-Unlike in TypeScript, however, Destack's parameters can also represent _values_ that are then substituted into expressions _and_ both values and types are available during inference.
+Generic bounds are written with the `<T: Constraint>` form.
 
-To distinguish static value parameters from static type parameters (and literal value types), we use the `comptime` modifier on the generic parameter declaration (akin to Rust's `const` modifier, alas this was already taken in TypeScript):
-
-```ds
-type Buffer<comptime N: uint> = [uint8; N];
-```
-
-Generic bounds can use the cleaner `<T: Constraint>` form, just like dynamic parameters.
-Unlike with `comptime <expr>` (discussed later), the `comptime` modifier merely means that `N` is a generic value parameter that has to be evaluatable as a static term during inference.
-
-```ds
-function copy<T, comptime N: uint>(src: [T; N]): [T; N] {
-    let dst: [T; N];
-    for (let i = 0; i < N; i++) {
-        dst[i] = src[i];
-    }
-    dst
-}
-```
-
-As in TypeScript, type parameters may include a `const` modifier to retain "fresh" precision in arguments.
-To be clear, `const T` is about type widening, and `const T` parameters are still _type_ parameters (unlike `comptime N`), and they're also the reason we had to use a different syntax for true value parameters in the first place.
+As in TypeScript, the `const` modifier retains "fresh" literal precision in arguments:
 
 ```ds
 declare function freeze<const T>(value: T): T;
 
 const value = freeze({ kind: "ready", level: 1 });
 value.kind satisfies "ready";
+```
+
+Destack extends the same modifier into value space.
+Literal types carry their values, so a const parameter that solves to a single literal type can be used directly in expressions:
+
+```ds
+type Buffer<const N: uint> = [uint8; N];
+```
+
+Using a const parameter as a value makes the parameter demand singleton arguments: every instantiation must pin exactly one literal type, and `Buffer<uint>` is rejected at the instantiation site.
+Arguments for const parameters are ordinary type arguments, so `Buffer<1024>` passes the literal type `1024`, and its value fills every expression position where `N` appears.
+
+```ds
+function copy<T, const N: uint>(src: [T; N]): [T; N] {
+    let dst: [T; N];
+    for (let i = 0; i < N; i++) {
+        dst[i] = src[i];
+    }
+    dst
+}
 ```
 
 Generic parameters also support `...` forms:
@@ -679,17 +679,17 @@ To do this, we need to consider three different "evaluation times" between the s
 | World | Meaning | Example |
 |-------|---------|---------|
 | Static | types, values, and relations known while checking | `T`, `N`, `this.Width`, `T extends string? A : B` |
-| Comptime | ordinary code explicitly evaluated by the compiler | `comptime factorial(10)` |
+| Const | ordinary code explicitly evaluated by the compiler | `const factorial(10)` |
 | Runtime | ordinary program execution | `readFile(path)`, `worker.postMessage(msg)` |
 
 Type inference and static term evaluation are one and the same, which is why we get both fast generics and powerful type evaluation using **static terms**: a small subset of the language (like TypeScript type operators) available during type inference.
-All dynamic `comptime <expr>` _execution_ happens _after_ type inference, so it can do anything that runtime code can do.
+All dynamic `const <expr>` _execution_ happens _after_ type inference, so it can do anything that runtime code can do.
 This keeps compilation fast and predictable, and thanks to TypeScript's flexible type algebra, static terms are still pretty powerful:
 
 | Input | Example |
 |-------|---------|
 | Type parameters | `T` |
-| Static value parameters | `N` in `function f<comptime N: uint>()` |
+| Static const parameters | `N` in `function f<const N: uint>()` |
 | Type aliases and generic applications | `Buffer<N>`, `Payload<T>` |
 | Associated types and constants | `I.Item`, `Register.Width` |
 | Static `const`s and imports | `N` imported from `./a.ds` |
@@ -705,24 +705,24 @@ Static terms are required wherever the language needs an inference-known answer:
 Type inference may flow _out_ of modules, but Destack does not support circular static inference or inference across modules in any way.
 
 ```ds
-type Block<comptime N: uint> = [uint8; N];
+type Block<const N: uint> = [uint8; N];
 type Payload<T> = T extends string ? Utf8Payload : BinaryPayload;
 type BufferIndex<Mode> = Mode == "inline" ? InlineIndex : ExternalIndex;
 
-struct Buffer<T, comptime Mode: "inline" | "external"> {
+struct Buffer<T, const Mode: "inline" | "external"> {
     index: BufferIndex<Mode>;
     data: T[];
 }
 ```
 
-In the `Buffer` example, `Mode` is carried as a generic value and used by a conditional type.
+In the `Buffer` example, `Mode` is a const parameter whose literal value selects the field type through a conditional type.
 The declaration still has one checked field named `index`; only the field type changes by instantiation.
 Generic-dependent static terms may select types, constants, layouts, and overloads, but they do not remove source nodes from a generic declaration.
 That keeps generic declarations checked once, Rust-style, instead of turning generic instantiation into template expansion.
 
 ```ds
-function size<comptime Wide: boolean>(): Wide extends true ? 8 : 4 {
-    if (comptime Wide) {
+function size<const Wide: boolean>(): Wide extends true ? 8 : 4 {
+    if (const Wide) {
         return 8;
     } else {
         return 4;
@@ -759,26 +759,26 @@ interface BufferPool {
 }
 ```
 
-Associated types can have their _own_ generic parameters with the same generic parameter forms as ordinary declarations, including type parameters and `comptime` value parameters (these are generic associated types, often called GATs).
+Associated types can have their _own_ generic parameters with the same generic parameter forms as ordinary declarations, including type parameters and `const` parameters (these are generic associated types, often called GATs).
 
 ```ds
 interface Storage {
     type Handle<T>;
-    type Page<comptime Size: uint>;
+    type Page<const Size: uint>;
 }
 
 struct SharedStorage implements Storage {
     type Handle<T> = shared StorageHandle<T>;
-    type Page<comptime Size: uint> = shared StoragePage<Size>;
+    type Page<const Size: uint> = shared StoragePage<Size>;
 }
 ```
 
 In addition to associated types, nominal type declarations also support associated constant members as static compile-time values.
-Like `static` members, `comptime const`s require no instance storage, but unlike `static` members, `comptime const`s are statically evaluated _during_ compilation.
+Like `static` members, const members require no instance storage, but unlike `static` members, they are evaluated during compilation.
 
 ```ds
 interface RegisterBlock {
-    comptime const Width: uint;
+    const Width: uint;
 
     read(): [uint8; this.Width];
     write(bytes: &[uint8; this.Width]): void;
@@ -789,15 +789,15 @@ Associated members participate in the same static evaluation / inference world, 
 
 ```ds
 interface Matrix<Row> {
-    comptime const Width: uint = Row extends string ? 8 : 4;
+    const Width: uint = Row extends string ? 8 : 4;
     type Bytes = [uint8; this.Width];
 }
 ```
 
-Associated members (both types and constants) can be refined explicitly at application sites whenever an erased or constrained value needs a concrete associated surface with `type Name = T` for types and `comptime Name = value` for constants.
+Associated members (both types and constants) can be refined explicitly at application sites whenever an erased or constrained value needs a concrete associated type with `type Name = T` for types and `const Name = value` for constants.
 
 ```ds
-declare function readBlock<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16];
+declare function readBlock<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16];
 ```
 
 ## Constraints
@@ -919,14 +919,14 @@ const UserType = Type.of<User>();      // explicit, same thing
 This also works for generic APIs that operate on types as static values:
 
 ```ds
-function parse<comptime T: Type>(raw: string): T {
+function parse<const T: Type>(raw: string): T {
 }
 
 const user = parse<User>("...");
 ```
 
 ```ds
-const userSize = comptime sizeOf<User>();
-const requestLayout = comptime layoutOf<Request<Body>>();
+const userSize = const sizeOf<User>();
+const requestLayout = const layoutOf<Request<Body>>();
 type InlineBytes<T: Concrete> = [uint8; sizeOf<T>()];
 ```

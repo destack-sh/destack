@@ -184,7 +184,7 @@ if (value != undefined) {
 ## Lifetimes
 
 Lifetimes are how we tie a borrow to its source, and for the most part, they are inferred and we don't need to think about them too much.
-In source, lifetimes are modeled as ordinary comptime parameters (`<comptime L: Lifetime>` on `Borrowed<T, L>`), with the familiar compact tick form `'a` for the common cases:
+In source, lifetimes are modeled as ordinary const parameters (`<const L: Lifetime>` on `Borrowed<T, L>`), with the familiar compact tick form `'a` for the common cases:
 
 | Source | Lifetime root |
 |--------|---------------|
@@ -192,8 +192,8 @@ In source, lifetimes are modeled as ordinary comptime parameters (`<comptime L: 
 | owned frame storage | `"frame"` |
 | local managed storage | the current synchronous region, which ends at the next suspension point |
 
-Like `Access`, `Space`, and `Place`, `Lifetime` is a kind of static _value_, which is why memory form parameters need the `comptime` modifier.
-Fortunately, the tick spelling for lifetimes (e.g. `'a`) is much nicer and almost always sufficient, as `<'a>` declares the comptime lifetime parameter `'a`, `&'a T` names a borrow's lifetime, and `View<'a>` binds it as an ordinary generic argument.
+Like `Access`, `Space`, and `Place`, `Lifetime` is a kind of static _value_, which is why memory form parameters need the `const` modifier.
+Fortunately, the tick spelling for lifetimes (e.g. `'a`) is much nicer and almost always sufficient, as `<'a>` declares the const lifetime parameter `'a`, `&'a T` names a borrow's lifetime, and `View<'a>` binds it as an ordinary generic argument.
 
 ```ds
 function read(user: &User): &string {
@@ -411,10 +411,10 @@ const localBox: local Box = new Box(localUser);   // Box.user is a local User he
 const sharedBox: shared Box = new Box(sharedUser); // and a shared User here
 ```
 
-To work with values from more than one space, we can use the ordinary comptime `Space` parameter:
+To work with values from more than one space, we can use the ordinary const `Space` parameter:
 
 ```ds
-function inspectIn<comptime S: Space>(
+function inspectIn<const S: Space>(
     value: Placed<&readonly User, S>,
 ): void;
 
@@ -426,11 +426,11 @@ An unconstrained type parameter may include explicit placement, so its body must
 An operation that only some placements grant therefore moves into the signature, where each caller supplies it from concrete storage:
 
 ```ds
-function reset<T extends Resettable>(item: T): void {
+function reset<T: Resettable>(item: T): void {
     item.reset(); // ERROR: reset() needs &exclusive this, unprovable for every T
 }
 
-function reset<T extends Resettable>(item: &exclusive T): void {
+function reset<T: Resettable>(item: &exclusive T): void {
     item.reset(); // OK: the caller acquires where placement is concrete
 }
 
@@ -498,13 +498,13 @@ Reference conversions follow directly from [the five memory rules](#memory), and
 When a managed or owned value appears where a borrow is required, the compiler inserts a borrow coercion whose lifetime and placement are inferred from the source and use:
 
 ```ds
-declare function inspect<comptime S: Space>(
+declare function inspect<const S: Space>(
     value: Placed<&readonly User, S>,
 ): void;
-declare function modify<comptime S: Space>(
+declare function modify<const S: Space>(
     value: Placed<&User, S>,
 ): void;
-declare function replace<comptime S: Space>(
+declare function replace<const S: Space>(
     value: Placed<&exclusive User, S>,
 ): void;
 
@@ -579,11 +579,11 @@ newtype Managed<T> = intrinsic;
 /// Owned T (`^T`).
 newtype Owned<T> = intrinsic;
 /// Borrowed T (`&T`).
-newtype Borrowed<T, comptime L: Lifetime, comptime A: Access = "mutable"> = intrinsic;
+newtype Borrowed<T, const L: Lifetime, const A: Access = "mutable"> = intrinsic;
 /// Raw T (`*T`).
 newtype Raw<T> = intrinsic;
 /// Placed T (`local T` or `shared T`).
-newtype Placed<T, comptime P: Place> = intrinsic;
+newtype Placed<T, const P: Place> = intrinsic;
 ```
 
 Specifically, all memory sigils and keywords are compact syntax for intrinsic forms that normalize through the same algebra:
@@ -699,7 +699,7 @@ PlaceOf<typeof sharedBuffer> satisfies "shared";
 
 ## Polymorphism
 
-Since ownership, access, lifetime, and placement are all exposed as ordinary comptime values, contracts and implementors can be polymorphic and conditional over ownership, space, and access.
+Since ownership, access, lifetime, and placement are all exposed as ordinary const values, interfaces and implementors can be polymorphic and conditional over ownership, space, and access.
 The caller chooses the level of control through the expression and its type; owned arguments move in by position without a prefix operator:
 
 ```ds
@@ -756,7 +756,7 @@ Destack encodes memory capabilities as trait-like interfaces, usable as ordinary
 | `Clone` | Code can explicitly create another value, possibly by running code or allocating. |
 | `SharedSafe` | Values of the type may be stored in [shared space](#shared-space). |
 | `OverwriteStable` | Place can be [overwritten](#stability) through a non-exclusive mutable access. |
-| `DynamicSafe` | Type can be erased behind a [`dynamic`](./types.md#representation) carrier. |
+| `DynamicSafe` | Type can be erased behind a [`Dynamic<T>`](./types.md#representation) carrier. |
 | `AtomicSafe` | Value has a supported atomic storage representation. |
 | `Concrete` | Type has one complete storage representation. |
 | `Zeroable` | Type is valid when all bytes are zero. |
