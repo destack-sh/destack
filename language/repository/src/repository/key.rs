@@ -56,10 +56,10 @@ pub(crate) fn profile_key_for_target(
     )?;
     let output = target.output;
 
-    // comptime environment
+    // const evaluation environment
     let env = profile_config
-        .and_then(|profile| profile.comptime_env.as_ref())
-        .or(compiler_options.comptime_env.as_ref())
+        .and_then(|profile| profile.const_env.as_ref())
+        .or(compiler_options.const_env.as_ref())
         .map(|keys| environment.key_whitelist(keys))
         .unwrap_or_else(|| environment.key_all());
 

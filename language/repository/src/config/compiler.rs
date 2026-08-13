@@ -30,8 +30,8 @@ pub struct CompilerOptions {
     pub features: Vec<String>,
     /// Default active source graph tags.
     pub tags: Vec<String>,
-    /// Comptime environment whitelist (if omitted, all env keys are visible).
-    pub comptime_env: Option<Vec<String>>,
+    /// Const evaluation environment whitelist (if omitted, all env keys are visible).
+    pub const_env: Option<Vec<String>>,
     /// Default tree tag builder provider.
     pub tree: Option<String>,
     /// Global provider modules added to every target profile.

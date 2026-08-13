@@ -17,8 +17,8 @@ pub struct ProfileOptions {
     pub platform: Option<Platform>,
     /// Target host environment for this profile.
     pub host: Option<Host>,
-    /// Comptime environment whitelist.
-    pub comptime_env: Option<Vec<String>>,
+    /// Const evaluation environment whitelist.
+    pub const_env: Option<Vec<String>>,
     /// Active source graph modes for this profile.
     pub modes: Vec<String>,
     /// Active source graph roles for this profile.

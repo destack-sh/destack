@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// Unique identifier for profiles.
 ///
-/// A profile represents a semantic configuration (comptime world) that determines
+/// A profile represents a semantic configuration (const evaluation world) that determines
 /// which symbols exist and how types resolve. Multiple targets can share the same
 /// profile, allowing them to share canonical DIR.
 #[repr(transparent)]

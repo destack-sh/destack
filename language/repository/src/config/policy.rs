@@ -10,7 +10,7 @@ use super::runtime::RuntimeIdentitySelector;
 #[serde(rename_all = "camelCase")]
 pub enum PolicyDomain {
     /// Compile-time program execution.
-    Comptime,
+    Const,
     /// Ordinary program execution.
     #[default]
     Runtime,

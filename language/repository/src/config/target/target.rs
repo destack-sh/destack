@@ -164,8 +164,8 @@ impl Target {
         target
     }
 
-    /// Create a new target for comptime execution.
-    pub fn comptime() -> Self {
+    /// Create a new target for const evaluation.
+    pub fn const_evaluation() -> Self {
         Self::bytecode()
     }
 
