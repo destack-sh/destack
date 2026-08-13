@@ -460,6 +460,8 @@ pub struct DirChecked {
     pub coercions: Arc<dir::CoercionSegment>,
     /// New captures.
     pub captures: Arc<dir::CaptureSegment>,
+    /// Flow conclusions.
+    pub flows: Arc<dir::FlowSegment>,
 }
 
 impl DirChecked {
