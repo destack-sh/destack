@@ -60,7 +60,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 matches!(
                     view.get(member),
                     dir::Member::StaticBlock { body: member_body }
-                        | dir::Member::ComptimeBlock { body: member_body }
+                        | dir::Member::ConstBlock { body: member_body }
                         if *member_body == body
                 )
             }) {

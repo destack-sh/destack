@@ -25,7 +25,7 @@ class Panel {
 extension of Panel implements TreeBuilder {
     type Tags = { hr: {} };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -52,7 +52,7 @@ class Panel {
 extension of Panel implements TreeBuilder {
     type Tags = { hr: {} };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -156,7 +156,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,

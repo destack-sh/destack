@@ -91,14 +91,14 @@ fn nesting_depth(module: &DirModule<'_>, expression: dir::LocalNodeId<dir::Expre
     // climb through the current evaluation context
     while let Some(node) = parent {
         // stop at callable and static initialization boundaries
-        let is_static_or_comptime_block =
+        let is_static_or_const_block =
             node.try_into_typed::<dir::Member>().is_ok_and(|member| {
                 matches!(
                     view.get(member),
-                    dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. }
+                    dir::Member::StaticBlock { .. } | dir::Member::ConstBlock { .. }
                 )
             });
-        if module.callable_body(node).is_some() || is_static_or_comptime_block {
+        if module.callable_body(node).is_some() || is_static_or_const_block {
             break;
         }
 
