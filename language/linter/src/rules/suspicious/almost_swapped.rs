@@ -141,7 +141,7 @@ warning[almost-swapped]: assignments overwrite a value instead of swapping
 6 │     pair.left = pair.right;
   │     ^^^^^^^^^^^^^^^^^^^^^^^
 7 │     pair.right = pair.left;
-  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │     ^^^^^^^^^^^^^^^^^^^^^^
 8 │ }
   │
 

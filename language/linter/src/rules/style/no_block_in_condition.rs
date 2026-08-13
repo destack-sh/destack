@@ -214,11 +214,11 @@ warning[no-block-in-condition]: control-flow input is a block expression
 2 │     return do {
   │            ^^^^
 3 │         isReady;
-  │ ^^^^^^^^^^^^^^^^
+  │         ^^^^^^^^
 4 │         isReady
-  │ ^^^^^^^^^^^^^^^
+  │         ^^^^^^^
 5 │     }
-  │ ^^^^^
+  │     ^
 6 │         ? "ready"
 7 │         : "waiting";
   │

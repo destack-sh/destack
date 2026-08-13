@@ -304,9 +304,9 @@ warning[prefer-find]: filtered array is only used for its first element
 2 │     return values
   │            ^^^^^^
 3 │         .filter((value) => value > 0) /* retain */
-  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 4 │         .first();
-  │ ^^^^^^^^^^^^^^^^
+  │         ^^^^^^^^
 5 │ }
   │
 "#,

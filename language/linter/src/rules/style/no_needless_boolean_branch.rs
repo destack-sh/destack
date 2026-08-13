@@ -159,13 +159,13 @@ warning[no-needless-boolean-branch]: boolean branches only restate the condition
 2 │     if (condition) {
   │     ^^^^^^^^^^^^^^^^
 3 │         return false;
-  │ ^^^^^^^^^^^^^^^^^^^^^
+  │         ^^^^^^^^^^^^^
 4 │     } else {
-  │ ^^^^^^^^^^^^
+  │     ^^^^^^^^
 5 │         return true;
-  │ ^^^^^^^^^^^^^^^^^^^^
+  │         ^^^^^^^^^^^^
 6 │     }
-  │ ^^^^^
+  │     ^
 7 │ }
   │
 

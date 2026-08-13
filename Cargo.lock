@@ -1442,6 +1442,7 @@ dependencies = [
  "dashmap",
  "destack_core",
  "destack_serde",
+ "destack_unicode",
  "indexmap",
  "notify",
  "parking_lot",
