@@ -185,6 +185,7 @@ function increments(values: int32[]): int32[] {
 warning[unnecessary-filter-map]: filterMap callback always returns a defined value
  ──▶ main.ds:6:12
   │
+4 │
 5 │ function increments(values: int32[]): int32[] {
 6 │     return values.filterMap(increment);
   │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
