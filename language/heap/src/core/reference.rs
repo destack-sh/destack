@@ -683,7 +683,7 @@ pub(crate) fn visit_references<R: ReferenceClass>(
     }
 }
 
-/// Visit read-only references from one compact trace row.
+/// Visit read-only references from one compact trace entry.
 pub(crate) fn visit_trace_references<R: ReferenceClass>(
     trace_view: TraceView<'_>,
     trace_id: TraceId,

@@ -108,7 +108,7 @@ impl TraceTable {
     }
 }
 
-/// Borrowed compact heap trace rows.
+/// Borrowed compact heap trace entries.
 #[derive(Debug, Clone, Copy)]
 pub struct TraceView<'a> {
     /// Top-level trace roots indexed by TraceId.
