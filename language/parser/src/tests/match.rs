@@ -83,6 +83,11 @@ match (x) {
     let mut parser = test.prepare();
 
     let match_id = parser.parse_match(Default::default()).unwrap();
+    let main_span = parser
+        .tree
+        .get_main_span(match_id)
+        .expect("expected match keyword main span");
+    assert_eq!(parser.span_str(main_span), "match");
 
     assert_node!(parser.tree, match_id, Expression::Match { value, arms } => {
         // value: path x
@@ -326,17 +331,36 @@ match (value) {
 }
 
 #[test]
-fn test_parse_switch_keeps_keyword_in_source_span() {
-    let test = TestParser::new("switch (value) { default: break }");
+fn test_parse_switch_records_expression_and_selector_spans() {
+    let test = TestParser::new("switch (value) { case 1: break; default: break }");
     let mut parser = test.prepare();
 
     let switch_id = parser.parse_switch(Default::default()).unwrap();
     let switch_span = parser.tree.get_span(switch_id);
+    let main_span = parser
+        .tree
+        .get_main_span(switch_id)
+        .expect("expected switch keyword main span");
 
     assert_eq!(
         parser.span_str(switch_span),
-        "switch (value) { default: break }"
+        "switch (value) { case 1: break; default: break }"
     );
+    assert_eq!(parser.span_str(main_span), "switch");
+
+    assert_node!(parser.tree, switch_id, Expression::Switch { cases, .. } => {
+        let case_span = parser
+            .tree
+            .get_main_span(cases[0])
+            .expect("expected switch selector main span");
+        assert_eq!(parser.span_str(case_span), "case 1");
+
+        let default_span = parser
+            .tree
+            .get_main_span(cases[1])
+            .expect("expected switch selector main span");
+        assert_eq!(parser.span_str(default_span), "default");
+    });
 }
 
 #[test]

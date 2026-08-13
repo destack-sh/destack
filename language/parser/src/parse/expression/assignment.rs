@@ -234,6 +234,7 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<AssignPatternField>> {
         let node = self.tree.get(property).clone();
         let range = self.tree.get_range(property);
+        let main_range = self.tree.get_main_range(property);
         let field = match node {
             Property::Field {
                 key: Key::Name(name),
@@ -264,7 +265,13 @@ impl Parser {
             }
         };
 
-        Ok(self.insert_node(field, range))
+        // preserve the property key as the assignment field's main range
+        let field = self.insert_node(field, range);
+        if let Some(main_range) = main_range {
+            self.tree.set_main_range(field, main_range);
+        }
+
+        Ok(field)
     }
 
     /// Return whether one expression denotes a writable place.

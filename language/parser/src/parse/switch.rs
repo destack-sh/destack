@@ -14,7 +14,7 @@ impl Parser {
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
-        self.eat_keyword(Keyword::Switch)?;
+        let keyword_range = self.eat_keyword(Keyword::Switch)?.range();
         let value = self.parse_parenthesized_expression(ExpressionContext {
             function,
             ..ExpressionContext::default()
@@ -26,10 +26,14 @@ impl Parser {
         let cases = self.parse_switch_cases(function)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::SwitchCase)?;
 
-        Ok(self.insert_node(
+        // retain the complete switch and its keyword
+        let expression = self.insert_node(
             Expression::Switch { value, cases },
             self.range_since(&start),
-        ))
+        );
+        self.tree.set_main_range(expression, keyword_range);
+
+        Ok(expression)
     }
 
     /// Parse switch cases until the closing brace.
@@ -117,6 +121,7 @@ impl Parser {
             })?;
             SwitchSelector::Case(value)
         };
+        let selector_range = self.range_since(&start);
         self.eat_token(TokenType::Colon)?;
         let body_start = self.mark_parse_start();
 
@@ -152,8 +157,11 @@ impl Parser {
             self.range_since(&body_start),
         );
 
-        // attach case documentation and decorators
+        // retain the complete case and its selector
         let case = self.insert_node(SwitchCase { selector, body }, self.range_since(&start));
+        self.tree.set_main_range(case, selector_range);
+
+        // attach case documentation and decorators
         self.attach_documentation(case, documentation);
         self.attach_decorators(case.id, decorators);
 

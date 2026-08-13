@@ -12,6 +12,8 @@ use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 struct IfHead {
     /// The source start for the if expression.
     start: ParseStart,
+    /// The `if` keyword range.
+    keyword_range: ByteRange,
     /// The if condition.
     condition: Condition,
 }
@@ -79,10 +81,8 @@ impl Parser {
     fn parse_if_head(&mut self, function: FunctionContext) -> ParserResult<IfHead> {
         let start = self.mark_parse_start();
 
-        // NOTE: leave ternary if to the expression loop
-
         // keyword
-        self.eat_keyword(Keyword::If)?;
+        let keyword_range = self.eat_keyword(Keyword::If)?.range();
 
         // open parenthesis
         self.eat_token(TokenType::OpenParenthesis)?;
@@ -98,7 +98,11 @@ impl Parser {
             },
         )?;
 
-        Ok(IfHead { start, condition })
+        Ok(IfHead {
+            start,
+            keyword_range,
+            condition,
+        })
     }
 
     /// Parse one if condition.
@@ -228,6 +232,7 @@ impl Parser {
             },
             self.range_since(&head.start),
         );
+        self.tree.set_main_range(if_id, head.keyword_range);
 
         // attach the else clause span
         if let Some(clause) = else_clause {

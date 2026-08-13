@@ -874,6 +874,12 @@ fn test_parse_pattern_struct_computed_field() {
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 1);
         assert_node!(parser.tree, fields[0], PatternField::Computed { key, pattern } => {
+            let main_span = parser
+                .tree
+                .get_main_span(fields[0])
+                .expect("expected computed key main span");
+            assert_eq!(parser.span_str(main_span), "[key]");
+
             assert_node!(parser.tree, *key, Expression::Identifier { name } => {
                 assert_string!(parser, *name, "key");
             });

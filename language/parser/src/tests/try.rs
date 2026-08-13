@@ -14,6 +14,12 @@ try foo()
     let mut parser = test.prepare();
 
     let try_id = parser.parse_try(Default::default()).unwrap();
+    let main_span = parser
+        .tree
+        .get_main_span(try_id)
+        .expect("expected try keyword main span");
+    assert_eq!(parser.span_str(main_span), "try");
+
     assert_node!(parser.tree, try_id, Expression::Try { body, catch: None, finally: None } => {
         assert_node!(parser.tree, *body, Expression::Call { left, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
@@ -33,6 +39,12 @@ try {
     let mut parser = test.prepare();
 
     let try_id = parser.parse_try(Default::default()).unwrap();
+    let main_span = parser
+        .tree
+        .get_main_span(try_id)
+        .expect("expected try keyword main span");
+    assert_eq!(parser.span_str(main_span), "try");
+
     assert_node!(parser.tree, try_id, Expression::Try { body, catch: None, finally: None } => {
         assert_node!(parser.tree, *body, Expression::Block(block_id) => {
             assert_node!(parser.tree, *block_id, Block { .. } => {

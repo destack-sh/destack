@@ -14,7 +14,7 @@ impl Parser {
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
-        self.eat_keyword(Keyword::Try)?;
+        let keyword_range = self.eat_keyword(Keyword::Try)?.range();
 
         // try { body } catch ... finally ...
         if self.peek_block() {
@@ -43,6 +43,8 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
+            self.tree.set_main_range(try_id, keyword_range);
+
             Ok(try_id)
         }
         // try expression
@@ -59,6 +61,8 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
+            self.tree.set_main_range(try_id, keyword_range);
+
             Ok(try_id)
         }
     }

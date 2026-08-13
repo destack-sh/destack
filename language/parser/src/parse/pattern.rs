@@ -527,8 +527,9 @@ impl Parser {
     ) -> ParserResult<(PatternField, Option<ByteRange>)> {
         // computed property
         if self.peek_is(TokenType::OpenBracket) {
-            let pattern_field = self.parse_computed_pattern_field(field_start, context)?;
-            return Ok((pattern_field, None));
+            let (pattern_field, key_range) =
+                self.parse_computed_pattern_field(field_start, context)?;
+            return Ok((pattern_field, Some(key_range)));
         }
 
         // named property or rest property
@@ -580,7 +581,7 @@ impl Parser {
         &mut self,
         field_start: ParseStart,
         context: PatternContext,
-    ) -> ParserResult<PatternField> {
+    ) -> ParserResult<(PatternField, ByteRange)> {
         self.eat_token(TokenType::OpenBracket)?;
         let key = self.parse_expression(ExpressionContext {
             function: context.function,
@@ -594,12 +595,15 @@ impl Parser {
                     || token_type == TokenType::Colon
             },
         )?;
+
+        // retain the complete computed key as the field's main range
+        let key_range = self.range_since(&field_start);
         self.eat_token(TokenType::Colon)?;
         let pattern = self.parse_pattern(context).in_node(NodeType::Pattern)?;
         let pattern =
             self.parse_pattern_default(pattern, self.range_since(&field_start), context)?;
 
-        Ok(PatternField::Computed { key, pattern })
+        Ok((PatternField::Computed { key, pattern }, key_range))
     }
 
     /// Parse either a named object property or an object rest property.

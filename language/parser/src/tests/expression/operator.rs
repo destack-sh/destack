@@ -770,10 +770,20 @@ fn test_parse_object_destructuring_assignment_defaults() {
                 assert_node!(parser.tree, fields[1], AssignPatternField::Named { name, is_shorthand, pattern } => {
                     assert_name!(parser, *name, "y");
                     assert!(!*is_shorthand);
+                    let main_span = parser
+                        .tree
+                        .get_main_span(fields[1])
+                        .expect("expected assignment key main span");
+                    assert_eq!(parser.span_str(main_span), "y");
                     assert_defaulted_assign_pattern(&parser, *pattern, "z", "other");
                 });
 
                 assert_node!(parser.tree, fields[2], AssignPatternField::Computed { key, pattern } => {
+                    let main_span = parser
+                        .tree
+                        .get_main_span(fields[2])
+                        .expect("expected computed assignment key main span");
+                    assert_eq!(parser.span_str(main_span), "[key]");
                     assert_expression_path!(parser, parser.tree.get(*key), "key");
                     assert_assign_pattern_path(&parser, *pattern, "target");
                 });

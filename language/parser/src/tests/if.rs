@@ -15,6 +15,12 @@ fn test_parse_if_basic() {
     let mut parser = test.prepare();
 
     let if_id = parser.parse_if(Default::default()).unwrap();
+    let main_span = parser
+        .tree
+        .get_main_span(if_id)
+        .expect("expected if keyword main span");
+    assert_eq!(parser.span_str(main_span), "if");
+
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         // condition is boolean true
         let condition_id = condition.as_expression().expect("expected expression condition");

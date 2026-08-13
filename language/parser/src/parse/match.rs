@@ -22,7 +22,7 @@ impl Parser {
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
-        self.eat_keyword(Keyword::Match)?;
+        let keyword_range = self.eat_keyword(Keyword::Match)?.range();
         let value = self.parse_parenthesized_expression(ExpressionContext {
             function,
             ..ExpressionContext::default()
@@ -34,7 +34,12 @@ impl Parser {
         let arms = self.parse_match_arms(function)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::MatchArm)?;
 
-        Ok(self.insert_node(Expression::Match { value, arms }, self.range_since(&start)))
+        // retain the complete match and its keyword
+        let expression =
+            self.insert_node(Expression::Match { value, arms }, self.range_since(&start));
+        self.tree.set_main_range(expression, keyword_range);
+
+        Ok(expression)
     }
 
     /// Parse match arms until the closing brace.
