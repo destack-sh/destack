@@ -73,16 +73,12 @@ fn bless_snapshot(file: &str, line: u32, expected: &str, actual: &str) {
         })
         .unwrap_or(0);
     let call_offset = line_offset(&source, (line as i64 + shift).max(1) as u32);
-    let range = raw_strings(&source)
-        .into_iter()
-        .filter(|(start, end)| source[*start..*end].trim_matches('\n') == expected)
-        .min_by_key(|(start, _)| start.abs_diff(call_offset))
-        .unwrap_or_else(|| {
-            panic!(
-                "snapshot at {}:{line} must be one raw string",
-                path.display()
-            )
-        });
+    let range = select_snapshot_range(&source, call_offset, expected).unwrap_or_else(|| {
+        panic!(
+            "snapshot at {}:{line} must be one raw string",
+            path.display()
+        )
+    });
 
     // preserve the conventional leading and trailing newline around snapshots
     let replacement = format!("\n{actual}\n");
@@ -108,6 +104,19 @@ fn source_path(file: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(path)
+}
+
+/// Return the first expected raw string after one call site, which owns its literals.
+fn select_snapshot_range(
+    source: &str,
+    call_offset: usize,
+    expected: &str,
+) -> Option<(usize, usize)> {
+    raw_strings(source)
+        .into_iter()
+        .filter(|(start, end)| source[*start..*end].trim_matches('\n') == expected)
+        .filter(|(start, _)| *start >= call_offset)
+        .min_by_key(|(start, _)| *start)
 }
 
 /// Return the byte offset of one-based source line.
@@ -178,7 +187,22 @@ fn raw_string_end(bytes: &[u8], mut cursor: usize, hashes: usize) -> Option<usiz
 
 #[cfg(test)]
 mod tests {
-    use super::raw_strings;
+    use super::{raw_strings, select_snapshot_range};
+
+    /// Skip an identical earlier literal that belongs to another call.
+    #[test]
+    fn test_select_the_expected_literal_after_the_call_site() {
+        let source = r####"
+first(r#"
+"#);
+second(r#"
+"#);
+"####;
+        let call_offset = source.find("second").unwrap();
+        let range = select_snapshot_range(source, call_offset, "").unwrap();
+
+        assert!(range.0 > call_offset);
+    }
 
     /// Find ordinary and hash-delimited raw string contents.
     #[test]
