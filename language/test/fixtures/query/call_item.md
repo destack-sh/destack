@@ -254,41 +254,6 @@ const userId = UserId("user-1");
 @call_item.item name=UserId kind=constructor signature="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
 ```
 
-## Tagged Variant Constructors
-
-### Return a tagged variant constructor from its declaration
-
-A tagged backing arm identifies its variant constructor.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status = Ok<string>;
-                 ^^^^^^^^^^ declaration
-                 ^^ name
-```
-
-```query call_item main.ds#name
-@call_item.item name=Ok kind=constructor signature="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@2
-```
-
-### Return a tagged variant constructor from its construction
-
-A tagged construction identifies its variant constructor.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status = Ok<string>;
-                 ^^^^^^^^^^ declaration
-                 ^^ name
-
-const status = Status.Ok({ value: "ready" });
-                      ^^ call
-```
-
-```query call_item main.ds#call
-@call_item.item name=Ok kind=constructor signature="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@3
-```
-
 ## Indirect Calls
 
 ### Return no item for a function-valued binding

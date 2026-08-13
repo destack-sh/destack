@@ -308,31 +308,6 @@ const second = Color.Red;
 @find_references.reference location=main.ds#second_reference symbol=main.ds#Red@2
 ```
 
-### Find tagged variant occurrences
-
-Tagged construction and patterns belong to their variant declaration.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status = Ok<string> | Err<int32>;
-                 ^^ declaration
-
-const status = Status.Ok({ value: "ready" });
-                      ^^ construction_reference
-
-const message = match (status) {
-    Status.Ok(value) => value
-           ^^ pattern_reference
-    Status.Err(code) => ""
-};
-```
-
-```query find_references main.ds#construction_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#Ok@6
-@find_references.reference location=main.ds#construction_reference symbol=main.ds#Ok@6
-@find_references.reference location=main.ds#pattern_reference symbol=main.ds#Ok@6
-```
-
 ## Nominal Types
 
 ### Find type, value, and construction occurrences

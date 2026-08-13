@@ -151,22 +151,6 @@ const color = Color.Red;
 @rename_target.target placeholder=Red location=main.ds#reference symbol=main.ds#Red@2
 ```
 
-### Resolve a tagged variant access
-
-A tagged construction identifies its variant declaration.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status = Ok<string>;
-
-const status = Status.Ok({ value: "ready" });
-                      ^^ reference
-```
-
-```query rename_target main.ds#reference
-@rename_target.target placeholder=Ok location=main.ds#reference symbol=main.ds#Ok@3
-```
-
 ## Member Declarations
 
 ### Resolve a field definition

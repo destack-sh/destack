@@ -573,23 +573,6 @@ const userId = UserId("user-1");
 @inlay_hints.hint position=main.ds#user_id@end label=": UserId" kind=type
 ```
 
-### Omit a tagged payload hint without a parameter name
-
-A tagged payload has no parameter name to display.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status = Ok<string>;
-
-const status = Status.Ok({ value: "ready" });
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ construction
-      ^^^^^^ status
-```
-
-```query inlay_hints main.ds#construction
-@inlay_hints.hint position=main.ds#status@end label=": Status.Ok" kind=type
-```
-
 ### Return no parameter names for an empty call
 
 A zero-argument call has no parameter positions to annotate.

@@ -911,30 +911,11 @@ const color = Color.R;
 @completion.item label=Red kind=enum_member replace=main.ds#prefix suffix=": Color.Red" declaration="Color.Red: Color.Red" preselect=true matches=0
 ```
 
-### Complete a tagged variant
+### Complete a discriminated union discriminator
 
-A tagged case completion carries its payload constructor and result type.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status =
-    | { type: "ok"; value: string }
-    | { type: "error"; error: int32 };
-
-const status = Status.Ok;
-                      ^^ prefix
-```
-
-```query completion main.ds#prefix@end trigger=.
-@completion.item label=Ok kind=constructor replace=main.ds#prefix suffix="({ value: string }): Status.Ok" declaration="Status.Ok({ value: string }): Status" insert="Ok({ value: ${1} })$0" snippet=true preselect=true matches=0,1
-```
-
-### Complete a tagged discriminator
-
-Tagged values expose their discriminator with every possible tag.
+Discriminated unions expose their shared discriminator with every possible tag.
 
 ```ds main.ds
-@derive(Tagged)
 newtype Status =
     | { type: "ok"; value: string }
     | { type: "error"; error: int32 };

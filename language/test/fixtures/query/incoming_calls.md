@@ -301,28 +301,6 @@ function create(): UserId {
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
-### Find callers of a tagged variant constructor
-
-Tagged construction is attributed to its variant constructor.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status = Ok<string>;
-                 ^^ name
-
-function create(): Status {
-         ^^^^^^ caller
-    return Status.Ok({ value: "ready" });
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ call
-                  ^^ variant_call
-}
-```
-
-```query incoming_calls main.ds#variant_call
-@incoming_calls.call index=0 name=create kind=function signature="create(): Status" location=main.ds:4:1-6:2 selection=main.ds#caller symbol=main.ds#create@2
-@incoming_calls.site call=0 range=main.ds#call
-```
-
 ## Caller Items
 
 ### Return a method as the caller

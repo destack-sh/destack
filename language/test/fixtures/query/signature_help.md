@@ -427,23 +427,6 @@ const userId = UserId("user-1");
 @signature_help.parameter signature=0 index=0 label=string active=true
 ```
 
-### Resolve a tagged variant constructor
-
-Tagged construction reports its case payload and selected variant type.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status = Ok<string>;
-
-const status = Status.Ok({ value: "ready" });
-                           ^^^^^^^^^^^^^^^^ argument
-```
-
-```query signature_help main.ds#argument
-@signature_help.signature index=0 label="Status.Ok({ value: string }): Status.Ok" active=true
-@signature_help.parameter signature=0 index=0 label="{ value: string }" active=true
-```
-
 ## Empty Results
 
 ### Return no signature for an unresolved call

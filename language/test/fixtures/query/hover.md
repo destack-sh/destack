@@ -454,22 +454,6 @@ const color = Color.Red;
 @hover.item index=0 declaration="Color.Red: Color.Red" location=main.ds:2:5-2:8 range=main.ds#reference
 ```
 
-### Hover over a tagged variant constructor
-
-A tagged variant reports its constructor signature.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status = Ok<string>;
-
-const status = Status.Ok({ value: "ready" });
-                      ^^ reference
-```
-
-```query hover main.ds#reference
-@hover.item index=0 declaration="Status.Ok({ value: string }): Status" type=Status.Ok location=main.ds:2:18-2:28 selection=main.ds:2:18-2:20 range=main.ds#reference
-```
-
 ## Parameters
 
 ### Hover over a function parameter

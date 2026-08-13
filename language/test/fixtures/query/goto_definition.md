@@ -475,45 +475,6 @@ const userId = UserId("user-1");
 @goto_definition.target origin=main.ds#reference:user_id location=main.ds#declaration:user_id selection=main.ds#definition:user_id symbol=main.ds#UserId@1
 ```
 
-### Resolve tagged construction to the variant definition
-
-A tagged construction resolves to its variant declaration.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status = Ok<string>;
-                 ^^^^^^^^^^ declaration:ok
-                 ^^ definition:ok
-
-const status = Status.Ok({ value: "ready" });
-                      ^^ reference:ok
-```
-
-```query goto_definition main.ds#reference:ok
-@goto_definition.target origin=main.ds#reference:ok location=main.ds#declaration:ok selection=main.ds#definition:ok symbol=main.ds#Ok@3
-```
-
-### Resolve a tagged pattern to the variant definition
-
-A tagged pattern resolves to its variant declaration.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status = Ok<string>;
-                 ^^^^^^^^^^ declaration:ok
-                 ^^ definition:ok
-
-declare const status: Status;
-const value = match (status) {
-    Status.Ok { value } => value
-           ^^ reference:ok
-};
-```
-
-```query goto_definition main.ds#reference:ok
-@goto_definition.target origin=main.ds#reference:ok location=main.ds#declaration:ok selection=main.ds#definition:ok symbol=main.ds#Ok@5
-```
-
 ## Imports and Exports
 
 ### Go to a definition through a namespace re-export

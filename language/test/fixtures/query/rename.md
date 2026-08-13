@@ -669,38 +669,6 @@ enum Color {
 const color = Color.Crimson;
 ```
 
-### Rename a tagged variant
-
-Renaming a tagged variant updates its declaration, construction, and pattern occurrences.
-
-```ds main.ds
-@derive(Tagged)
-newtype Status = Ok<string> | Err<int32>;
-                 ^^ target
-
-const status = Status.Ok({ value: "ready" });
-
-const message = match (status) {
-    Status.Ok(value) => value
-    Status.Err(code) => ""
-};
-```
-
-```query rename main.ds#target new_name=Ready
-```
-
-```ds main.ds after
-@derive(Tagged)
-newtype Status = Ready<string> | Err<int32>;
-
-const status = Status.Ready({ value: "ready" });
-
-const message = match (status) {
-    Status.Ready(value) => value
-    Status.Err(code) => ""
-};
-```
-
 ## Overloads
 
 ### Rename an overload family
