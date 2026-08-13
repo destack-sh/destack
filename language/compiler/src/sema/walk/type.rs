@@ -809,7 +809,7 @@ impl WalkState<'_, '_> {
 
         // apply written type arguments and open omitted slots
         let applied = self.walk_generic_arguments(generic_arguments)?;
-        let ty = self.referenced_symbol_type(id.into_any(), symbol, &applied)?;
+        let ty = self.apply_written_reference(id.into_any(), symbol, &applied)?;
 
         Ok(ty)
     }
@@ -841,8 +841,8 @@ impl WalkState<'_, '_> {
         Ok(Some(receiver.ty))
     }
 
-    /// Return the type for one declaration symbol application.
-    fn referenced_symbol_type(
+    /// Apply one written declaration reference and return its type.
+    fn apply_written_reference(
         &mut self,
         source: dir::LocalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -869,23 +869,7 @@ impl WalkState<'_, '_> {
                 .map(|argument| argument.ty)
                 .collect::<Vec<_>>();
 
-            // build carrier applications as their canonical memory forms
-            if let Some(item) = self.check.language_item(symbol)?
-                && item.is_memory_carrier()
-            {
-                let ty = self.carrier_type(source, item, symbol, &positional)?;
-
-                return self.apply_named_refinements(ty, applied);
-            }
-
-            // keep every other head symbolic
-            let arguments = self.intern_type_ids(&positional)?;
-            let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
-                symbol,
-                arguments,
-            }))?;
-
-            return self.apply_named_refinements(ty, applied);
+            return self.build_application_type(source, symbol, &positional, applied);
         }
 
         // load foreign declarations before reading their templates
@@ -893,50 +877,27 @@ impl WalkState<'_, '_> {
             self.check.import_external_module(symbol.module_id)?;
         }
 
-        // reject positional arguments on non-generic declarations
-        let Some(template) = self.check.symbol_template(symbol)? else {
-            let positional = applied
-                .iter()
-                .filter(|argument| argument.name.is_none())
-                .count();
-            if positional > 0 {
-                let name = self.check.format_symbol(symbol);
-                self.check
-                    .report_wrong_generic_arity(self.module, source, name, 0, positional);
-
-                return self.intern_type(dir::Type::Error);
-            }
-
-            let arguments = self.intern_type_ids(&[])?;
-            let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
-                symbol,
-                arguments,
-            }))?;
-
-            return self.apply_named_refinements(ty, applied);
+        // bind written arguments to the declaration's parameter slots
+        let Some(arguments) = self.bind_written_arguments(source, symbol, applied)? else {
+            return self.intern_type(dir::Type::Error);
         };
 
-        // reject impossible arities before instantiating
-        let parameters = self.check.generic_template_parameters(template)?;
-        let written_count = self.check.writable_parameter_count(&parameters);
-        let positional = applied
-            .iter()
-            .filter(|argument| argument.name.is_none())
-            .count();
-        if positional > written_count {
-            let name = self.check.format_symbol(symbol);
-            self.check.report_wrong_generic_arity(
-                self.module,
-                source,
-                name,
-                written_count,
-                positional,
-            );
+        self.build_application_type(source, symbol, &arguments, applied)
+    }
 
-            return self.intern_type(dir::Type::Error);
-        }
-
-        // bind every parameter in declaration order
+    /// Bind written arguments to a declaration's parameter slots in order.
+    ///
+    /// Returns `None` after reporting when the written arity cannot bind.
+    fn bind_written_arguments(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+        applied: &[GenericArgument],
+    ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
+        let parameters = match self.check.symbol_template(symbol)? {
+            Some(template) => self.check.generic_template_parameters(template)?,
+            None => SmallVec::new(),
+        };
         let written = applied
             .iter()
             .filter(|argument| argument.name.is_none())
@@ -945,6 +906,7 @@ impl WalkState<'_, '_> {
             source.into_global(self.module),
             self.flow().template_scope(),
         );
+
         let mut substitution = TypeSubstitution::default();
         let mut cursor = 0;
         for parameter in parameters.iter().copied() {
@@ -1000,16 +962,9 @@ impl WalkState<'_, '_> {
             }
             // reject unbound parameters
             else {
-                let name = self.check.format_symbol(symbol);
-                self.check.report_wrong_generic_arity(
-                    self.module,
-                    source,
-                    name,
-                    written_count,
-                    applied.len(),
-                );
+                self.report_binding_arity(source, symbol, &parameters, written.len());
 
-                return self.intern_type(dir::Type::Error);
+                return Ok(None);
             };
 
             // store memory arguments canonically
@@ -1025,30 +980,56 @@ impl WalkState<'_, '_> {
                 .push(dir::GenericArgumentBinding::new(parameter, argument));
         }
 
-        let arguments = substitution.arguments().collect::<Vec<_>>();
+        // reject written arguments no slot consumed
+        if cursor < written.len() {
+            self.report_binding_arity(source, symbol, &parameters, written.len());
 
-        // build carrier applications as their canonical memory forms
-        if let Some(item) = self.check.language_item(symbol)?
-            && item.is_memory_carrier()
-        {
-            let ty = self.carrier_type(source, item, symbol, &arguments)?;
-
-            return self.apply_named_refinements(ty, applied);
+            return Ok(None);
         }
 
-        // build the application before attaching its argument checks
-        let argument_list = self.intern_type_ids(&arguments)?;
-        let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
-            symbol,
-            arguments: argument_list,
-        }))?;
-        let ty = self.apply_named_refinements(ty, applied)?;
+        Ok(Some(substitution.arguments().collect()))
+    }
 
-        Ok(ty)
+    /// Report one written application arity against its writable slots.
+    fn report_binding_arity(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+        parameters: &[dir::GlobalGenericParameterId],
+        written: usize,
+    ) {
+        let name = self.check.format_symbol(symbol);
+        let expected = self.check.writable_parameter_count(parameters);
+        self.check
+            .report_wrong_generic_arity(self.module, source, name, expected, written);
+    }
+
+    /// Build one application type and apply its written refinements.
+    fn build_application_type(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[dir::GlobalTypeId],
+        applied: &[GenericArgument],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // build carrier applications as their canonical memory forms
+        let ty = if let Some(item) = self.check.language_item(symbol)?
+            && item.is_memory_carrier()
+        {
+            self.build_carrier_form(source, item, symbol, arguments)?
+        } else {
+            let arguments = self.intern_type_ids(arguments)?;
+            self.intern_type(dir::Type::Application(dir::GenericApplication {
+                symbol,
+                arguments,
+            }))?
+        };
+
+        self.apply_named_refinements(ty, applied)
     }
 
     /// Build one written carrier application as its canonical memory form.
-    fn carrier_type(
+    fn build_carrier_form(
         &mut self,
         source: dir::LocalNodeIdAny,
         item: dir::LanguageItem,
@@ -1172,7 +1153,7 @@ impl WalkState<'_, '_> {
         self.commit_reference_name(source, base)?;
 
         // start from the resolved base symbol
-        let mut ty = self.referenced_symbol_type(id.into_any(), base, &[])?;
+        let mut ty = self.apply_written_reference(id.into_any(), base, &[])?;
 
         // append each remaining path segment as a type member
         for (index, segment) in tail.iter().copied().enumerate() {
