@@ -258,7 +258,7 @@ impl TestProgram {
         )
     }
 
-    /// Build Program function rows from one self-contained bytecode object.
+    /// Build Program function entries from one self-contained bytecode object.
     fn functions(
         &self,
         object: &bytecode::Object,
