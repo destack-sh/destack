@@ -22,15 +22,15 @@ export type TableOfContentsEntry = {
 
 export const documents = [
     {
-        description: "The language, toolchain, runtime, and the case for an integrated computing stack.",
+        description: "Destack is an absurdly integrated universal computing stack.",
         markdownRoute: "/docs/overview.md",
         order: 10,
         path: "overview.md",
         route: "/docs/overview/",
-        tableOfContents: [{"depth":2,"id":"universality-and-completeness","text":"Universality and Completeness"}],
+        tableOfContents: [],
         textRoute: "/docs/overview.txt",
         title: "Overview",
-        tokens: 604,
+        tokens: 55,
     },
     {
         description: "The Destack language and its relationship to strict modern TypeScript.",
@@ -85,7 +85,7 @@ export const documents = [
         tableOfContents: [],
         textRoute: "/docs/language/runtime/index.txt",
         title: "Runtime",
-        tokens: 121,
+        tokens: 128,
     },
     {
         description: "Conditional sources, typed modules, metadata, and import attributes.",

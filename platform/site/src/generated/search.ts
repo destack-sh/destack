@@ -4,14 +4,8 @@ export const searchEntries = [
     {
         "context": "docs",
         "route": "/docs/overview/",
-        "text": "The language, toolchain, runtime, and the case for an integrated computing stack. The Destack language ( .ds ) is a superset of \"strict modern\" TypeScript with support for .ts and .tsx files, true native AOT compilation and a fully integrated toolchain, and it can also \"compile\" nicely to standard JS/TS targets. Strict TypeScript code \"just works\", but Destack has absolutely no JavaScript or NPM interoperability . We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated computing stack, and thus by \"language\" (\"TypeScript++\") we mean much more than \"just\" the programming language itself: a language, a runtime, a toolchain, plugins, libraries, and ultimately, a way of programming. It's all connected, and to leave out a part would be to betray the whole, which is why we need to begin with an actual programming language.",
+        "text": "Destack is an absurdly integrated universal computing stack. Destack is an absurdly integrated universal computing stack, beginning with its own programming language (affectionately \"TypeScript++\") and runtime ( .ds ) basically a superset of \"strict modern\" TypeScript.",
         "title": "Overview"
-    },
-    {
-        "context": "docs / Overview",
-        "route": "/docs/overview/#universality-and-completeness",
-        "text": "We're very early in software, and we're still figuring out how to build optimal, correct, and integrated software systems. Over 50 years, we have grown more and more layers of software sediment and need ever more tools to get any code out the door, and yet confidence and performance have plummeted. We can do better, but not by adding more and more inscrutable pieces. The best possible stack would be fully integrated across the language itself, the toolchain, the runtime, and basically anything that touches the software stack. To be fully integrated, we need a base programming language that can actually run all modern software efficiently across all relevant target platforms. Only TypeScript is seriously close to being a universal software foundation: it is the most popular and familiar programming language, it runs directly on the web, and the web is the most ubiquitous software platform. The TypeScript ecosystem has good if not perfect conceptions of answers to all modern software needs, from great developer tools to rich interactive frontends to reasonably performant backends. Disregarding the legacy JavaScript baggage, modern TypeScript is surprisingly close to a fully statically compilable language indeed, most browsers retrofit compilation internally already based on this assumption. Embracing TypeScript and \"the web ecosystem\" lets us build a new toolchain that covers the full stack, is immediately familiar to millions of developers, runs transparently on existing targets, and can be made to run as fast as the machine allows.",
-        "title": "Universality and Completeness"
     },
     {
         "context": "docs",
@@ -508,7 +502,7 @@ export const searchEntries = [
     {
         "context": "docs",
         "route": "/docs/language/runtime/",
-        "text": "Execution, effects, observability, and the integrated Destack runtime. The runtime is where code actually runs , and it's where pure computation touches the real world via our well defined host bindings. This is nice because it means we get to capture and analyze all effects through a relatively thin well known boundary, which enables great observability and debugging. And because Destack is a fully integrated stack, the runtime has been co designed as part of the entire language toolchain, and the standard library takes advantage of this.",
+        "text": "Execution, effects, observability, and the integrated Destack runtime. The runtime is where Destack ( .ds ) code actually runs , and it's the only place where \"pure computation\" touches the real world via our well defined @binding s. This is nice because it means we get to capture and analyze all effects through a relatively thin well known boundary, which enables great observability and debugging. And because Destack is a fully integrated stack, the runtime has been co designed as part of the entire language toolchain, and the standard library takes advantage of this.",
         "title": "Runtime"
     },
     {
@@ -562,187 +556,205 @@ export const searchEntries = [
     {
         "context": "blog / 2026-08-18",
         "route": "/blog/introducing-typescriptpp/",
-        "text": "evolving TypeScript into the last programming language introduction TypeScript is tantalizingly close to being a serious, natively compilable programming language (this shouldn't be that surprising considering its forebearer was loosely based and slowly evolved next to Java, and ofc course its creator is also the author of C , itself a very respectable and pretty fast language) we would like typescript to run \"native\" very much, since that would mean we can finally have predictable systems ish performance out of the same language we already like and that runs the web, which happens to be the biggest software platform in the world we live in an age of miracles, and you can now actually ask your computer to build a typescript compiler for you ! and it will go off and after a few hours it will (hopefully) come back with something that maybe kinda sorta works! we didn't learn anything in the process, of course, and it's not entirely clear what to do with 1M lines of unaudited C code the LLM chose C because that's easier to bootstrap, apparently but the tests it wrote are green! and after some twiddling it can even compile its own hello world program it's genuinely cool that we can even try to do something like this, even if today the output is not really usable in any meaningful way. the more interesting question however is: now that we can translate software with ease, now that most code is no longer written directly by humans, and now that .. which language and stack should we end up with? there is a popular current of \"agent first design\", but I don't really know what that means, beyond just building software in the way we should have done anyway. human first design curious trend of \"agent native\" programming tools common theme seems to be in removing me from the details, and \"just have humans give high level direction\" I've tried that, it doesn't work, I don't want to do that I want to be more in the details than ever, I want the code to be right and look right, I want to understand every byte, every cycle, every pixel. tools for those who still care on one hand, I'm lazy, and don't want to learn new stuff unless absolutely necessary (or really interesting) The raison d'être of Destack is to enable the precise manufacture of high quality software at scale why why even bother with programming languages just as we have long tried to rise higher up the ladder of abstraction in code, we have also tried to somehow remove ourselves from the troubling burden of having to actually spell out what exactly it is we want the machine to be doing oh, how great software could be, how magnificient, how accessible, if only we could make programming as simple as natural language? if we didn't have to write code at all, nor trouble ourselves with any of the nuances and rigor imposed by the trouble is, in software, there is no meaningful separation of the system and its specification there is no magic abstraction on top of code that will solve all our problems every attempt to put something \"above\" code and then have it define the behavior of the software with sufficient specificity ends up reinventing code in a worse way (config languages, Gherkin tests, drag and drop coding tools, etc.) now, many of these higher level specifications have legitimate use cases there is not a single test, or suite of tests, mathematical proof, or specific gate that you can run to convince me that some non trivial program is correct (irrespective of human written or not) correctness = alignment + visibility correctness is ultimately about alignment, and we can only align on what we can see I don't know what I want until I see it, and I also don'T know what I don't want until I see it correctness is iterative, the shape is changing correctness must be specified acrosss many layers to systematically exclude all the things we do not want incremental precision who measures the measurer? how do we know that the 1kg calibration stone is really exactly 1kg? alignment requires precision precision must be built on a solid foundation, incrementally precision requires looking at the code, systems .. from many angles, in detail, high low, in motion, statically, all sorts of dynamics, ... incremental granularity (a la casey muratori) you can't engineer precision and alignment (i.e. understanding) into a system post hoc (or at least, only with great difficulty that far exceeds the cost of doing it properly from the start) why do we need a universal language universalism, minimalism, and expressivity there is something beautiful about doing the most with the fewest possible parts a minimal, simple language like C or even Go it's genuinely pleasing to get so much out of relatively little syntax that covers so many use cases the carcinisation of (managed) languages Go and generics, Java / C and unsafe / structs / ref, ... we want beautiful code, we want minimal code, we want expressive code these are not in conflict, we need expressivity for beauty, we need clarity for brevity, etc. const foo = \"Hello, World!\"; const foo = &foo; console.log(foo + foo) what do we need out of a language stack, ... requirements, wishlist: familiar to the majority of developers runs directly on the web capable of running natively at machine speed why a new language why fuse typescript and rust why a universal language why now but alas, hardware is real, and if we want to make fast software, we need to control those low level pesky details somehow typescript is tantalizingly close to a systems language remove all the dynamic / JS baggage, add a little bit of layout and memory control, and we're looking at a surprisingly presentable low level language why combine typescript and rust okay it's basically a meme at this point what do we mean by \"optimal\" and why does it even matter we're going to run a lot more software, and ideally, we're also going to run a lot of it in \"simulation\" and speculative modes the faster we can do this, the better, and it really adds up performance aware programming not about esoteric data structures or curious just want to get within the ballpark of what the amazing machines we have are actually capable of currently wildly inefficient because they're pointer chasing across unpredictable, poorly laid out memory ownership systems and tight memory control lots of interesting ways to make this work pragmatic perfection all things considered, if you take this premise I have laid out and contrast it with the actual Destack design, it's quite conservative I'm not proposing a radical change in how we program, necessarily, or even any wild new programming concepts that don't already exist. the language is quite conservative, and os on it's just putting it all togetherin a coherent and sensible way the ergonomic ladder of TS++ between TS Rust why stay within the lines why not extend what already exists static hermes, assembly script, ... \"second system effect\" \"why not fix all the problems\" \"boiling the ocean\" the \"ideal system\" if we can port to whatever we want, why not do something entirely new? safety, safety, and \"safety\" aliasing mutable borrows, the loss of a bit of entropy with &T colored functions are fine, and nice and familiar, it's just an effect Promises are fine actually number is okay as a type actually bigint and string are fine all in all, it's fine, and most importantly: it's familiar (... and it's how the web works!) why now up until less than a year ago, seriously proposing new languages and software ecosystems would have been insane it took years of iteration and development for Rust, Mojo, Zig, .. to get off the ground and reach respectable levels of maturity and adoption having a language that looks like typescript but doesn't directly run most existing typescript appears to be an odd positioning; however, the goal is not to be a 1:1 mapping since it's impossible to \"just run TS\" without making significant tradeoffs in either direction. \"one shot portable\" (should be locally portable by going file by file without global context) thousands of supply chain attacks in waiting explicit policy controls per package vendoring encouraged for smaller dependencies (shadcn registry style over big bowl of dependencies) how what is the minimum set of changes / additions we need to good prior art to get what we need safe, sound, predictable about two dozen or so key decisions to be made when building \"typescript++\" how dynamic do we want to support? do we want to support \"escape hatches\"? any sort of backward compatibility no backward compatibility first and most serious cut is to drop support for existing .ts/.tsx obviously, no any sneaky casts JS shenanigans monkey patching array holes no predicate functions (e.g. isUser(user: any): user is User is unsound) strictest TS need strict sound TS with predictable module boundaries and type behavior isolatedDeclarations strictNullChecks strictFunctionTypes strictPropertyInitialization no \"truthiness\", conditionals always take booleans ... ESM modules strictly ESM imports and exports no CommonJS TSX, too, of course but how? trees, generalised tree litearls, lowercase tree builders, ..? constrained dynamic (?) shape mutation excess properties declaration exprsesions dynamic prototypes all sorts of JS hacks that everyone hates anyway proper primitives number, yes, but int32, int64, float32, character too tuples slices inline arrays and the rest no exceptions, results only most subjective of the bunch but exceptions have proven troubling over and over and over again checked exceptions are even worse the only sane error handling method is the Swift y Rust y ? operator patterns patterns match catch match decorators extended placement newtypes as decorators nominality usually use symbol branding in TS, which is kinda icky proper nominality and newtypes newtype traits extensions inherent, anonymous, named extensions operator overloading serious math y applications want operator overloading Add , Subtract , Multiply , Divide , etc. objects as types what doees type Point = { x: number; y: number } mean? can I pass { x: 0, y: 1, z: 2 } to a function expecting a Point ? classes, yes, but which ones zero overhead? vtable pointers? Dynamic and structural interfaces how dynamic do we want to go index signatures can I read through index signatures? can I call through them? call signatures generics and variance stay the same basically in, out, in out, measured variance new comptime parameter for value generics structs and value types every serious programming language eventually cares about memory layout need fixed no overhead shapes ownership bare T just means whatever the default form is reference types are reference types, value types are value types ^T, T, &T, T, ... Managed , Owned , ... borrowing if we want value types and we want to pass them around, we need some form of borrowing we could do this asthe C way and have in / inout / out style params, which is half the solution but we want to be unviversal, and we want ot be safe, lifetimes as soon as we pass and store references, we need to make sure those are safe too well wouldn't you know, lifetimes tried a bunch of things to make this more TS native, but ultimately, the Rust model really is best (inference only locally within functions, no induced generics beyond that) access, mutability, exclusive readonly &T default to mutable exclusive ownership worker local, borrowing local and shared memory spaces SharedArrayBuffer and friends? worker first, local first, shared nothing first memory model async, promise, tasks proper async keep Promise for aliased async introduce Task for structured affine concurrency (same async/await model) fiber based execution (e.g. JVM's new model) panics, traps overflows / underflows out of bounds deliberate unreachable",
-        "title": "introducing typescript++"
+        "text": "Evolving TypeScript into the Last Programming Language Introduction We need a new universal programming language: a language that compiles very fast, is easy analyze statically and dynamically, runs seamlssly on the web, and can run native systems software at machine speed. TypeScript is tantalizingly close to being a serious, native, universal programming language (this shouldn't be that surprising considering its forebearer was loosely based and slowly evolved next to Java, and ofc course its creator is also the author of C , itself a very respectable and pretty fast language) we would like typescript to run like a native systems language very much, since that would mean we can finally have predictable systems ish performance out of the same language we already like, and the very same language that runs the web, which happens to be the biggest software platform in the world Why just as we have long tried to rise higher up the ladder of abstraction in code, we have also tried to somehow remove ourselves from the troubling burden of having to actually spell out what exactly it is we want the machine to be doing oh, how great software could be, how magnificient, how accessible, if only we could make programming as simple as natural language? if we didn't have to write code at all, nor trouble ourselves with any of the nuances and rigor imposed by formal languages and, this sorta kinda works, sometimes, actually! spreadsheets are old, game dev people have been doing this for a while, we have now figured out a new way to prompt simple software into existence the trouble is, in software, there is no meaningful separation of the system and its specification there is no magic abstraction on top of code that will solve all our problems every attempt to put something \"above\" code and then have it define the behavior of the software with sufficient specificity ends up reinventing code in a worse way (config languages, Gherkin tests, drag and drop coding tools, etc.) now, many of these higher level specifications have legitimate use cases why not extend what already exists static hermes, assembly script, ... Why Human First Design there is a popular current of \"agent first design\", but I don't really know what that means, beyond just building software in the way we should have done anyway. human first design curious trend of \"agent native\" programming tools common theme seems to be in removing me from the details, and \"just have humans give high level direction\" I've tried that, it doesn't work, I don't want to do that I want to be more in the details than ever, I want the code to be right and look right, I want to understand every byte, every cycle, every pixel. tools for those who still care on one hand, I'm lazy, and don't want to learn new stuff unless absolutely necessary (or really interesting) The raison d'être of Destack is to enable the precise manufacture of high quality software at scale there is not a single test, or suite of tests, mathematical proof, or specific gate that you can run to convince me that some non trivial program is correct (irrespective of human written or not) correctness = alignment + visibility correctness is ultimately about alignment, and we can only align on what we can see I don't know what I want until I see it, and I also don'T know what I don't want until I see it correctness is iterative, the shape is changing correctness must be specified acrosss many layers to systematically exclude all the things we do not want incremental precision who measures the measurer? how do we know that the 1kg calibration stone is really exactly 1kg? alignment requires precision precision must be built on a solid foundation, incrementally precision requires looking at the code, systems .. from many angles, in detail, high low, in motion, statically, all sorts of dynamics, ... incremental granularity (a la casey muratori) you can't engineer precision and alignment (i.e. understanding) into a system post hoc (or at least, only with great difficulty that far exceeds the cost of doing it properly from the start) Why Does It Need to Be \"Universal\" universalism, minimalism, and expressivity there is something beautiful about doing the most with the fewest possible parts a minimal, simple language like C or even Go it's genuinely pleasing to get so much out of relatively little syntax that covers so many use cases the carcinisation of (managed) languages Go and generics, Java / C and unsafe / structs / ref, ... we want beautiful code, we want minimal code, we want expressive code these are not in conflict, we need expressivity for beauty, we need clarity for brevity, etc. const foo = \"Hello, World!\"; const foo = &foo; console.log(foo + foo) what do we need out of a language stack, ... requirements, wishlist: familiar to the majority of developers runs directly on the web capable of running natively at machine speed why a new language why fuse typescript and rust why a universal language why now but alas, hardware is real, and if we want to make fast software, we need to control those low level pesky details somehow typescript is tantalizingly close to a systems language remove all the dynamic / JS baggage, add a little bit of layout and memory control, and we're looking at a surprisingly presentable low level language Why \"Combine\" TypeScript and Rust JVM/CLR by default, Rust on demand okay it's basically a meme at this point what do we mean by \"optimal\" and why does it even matter we're going to run a lot more software, and ideally, we're also going to run a lot of it in \"simulation\" and speculative modes the faster we can do this, the better, and it really adds up performance aware programming not about esoteric data structures or curious just want to get within the ballpark of what the amazing machines we have are actually capable of currently wildly inefficient because they're pointer chasing across unpredictable, poorly laid out memory ownership systems and tight memory control lots of interesting ways to make this work pragmatic perfection all things considered, if you take this premise I have laid out and contrast it with the actual Destack design, it's quite conservative I'm not proposing a radical change in how we program, necessarily, or even any wild new programming concepts that don't already exist. the language is quite conservative, and os on it's just putting it all togetherin a coherent and sensible way the ergonomic ladder of TS++ between TS Rust Why Stay Within the Lines don't try to be cute or clever or fancy don't \"fix\" what's not badly broken only use boring ideas already proven by other languages / libraries / .. \"second system effect\" \"why not fix all the problems\" \"boiling the ocean\" the \"ideal system\" if we can port to whatever we want, why not do something entirely new? safety, safety, and \"safety\" aliasing mutable borrows, the loss of a bit of entropy with &T colored functions are fine, and nice and familiar, it's just an effect Promises are fine actually number is okay as a type actually bigint and string are fine all in all, it's fine, and most importantly: it's familiar (... and it's how the web works!) How we live in an age of miracles, and you can now actually ask your computer to build a typescript compiler for you ! and it will go off and after a few hours it will (hopefully) come back with something that maybe kinda sorta works! (it's not entirely clear what to do with 1M lines of unaudited C code, but the tests it wrote are green) the more interesting question however is: now that we can translate software with ease, now that most code is no longer written directly by humans, and now that .. which language and stack should we end up with? what is the minimum set of changes / additions we need to good prior art to get what we need safe, sound, predictable about two dozen or so key decisions to be made when building \"typescript++\" how dynamic do we want to support? do we want to support \"escape hatches\"? any sort of backward compatibility No Backward Compatibility first and most serious cut is to drop support for existing .ts/.tsx no NPM, no JS bridge, no TS \"best effort\" destack.json combine electron, expo, package.json, Cargo.toml, ... Obviously, No Soundness Holes any sneaky casts JS shenanigans monkey patching array holes no predicate functions (e.g. isUser(user: any): user is User is unsound) Strictest TS need strict sound TS with predictable module boundaries and type behavior isolatedDeclarations strictNullChecks strictFunctionTypes strictPropertyInitialization no \"truthiness\", conditionals always take booleans ... ESM Modules strictly ESM imports and exports no CommonJS Proper Primitives number, yes, but int32, int64, float32, character too tuples slices inline arrays and the rest Nominality usually use symbol branding in TS, which is kinda icky proper nominality and newtypes newtype traits TSX tag based trees are pretty useful and broadly applicable there are other ways of doing UI, but this is a pretty good one, and it's very familiar trees, generalised tree litearls, lowercase tree builders, ..? Patterns and Match expressions as values patterns match catch match Decorators extended placement newtypes as decorators incl. union newtypes queryable @if static gating No Exceptions, Results Only most subjective of the bunch but exceptions have proven troubling over and over and over again checked exceptions are even worse the only sane error handling method is the Swift y Rust y ? operator Structural Interfaces, Dynamic (?) shape mutation excess properties declaration exprsesions dynamic prototypes all sorts of JS hacks that everyone hates anyway Record is read only Extensions inherent, anonymous, named extensions Operator Overloading serious math y applications want operator overloading Add , Subtract , Multiply , Divide , etc. Objects as Types what doees type Point = { x: number; y: number } mean? can I pass { x: 0, y: 1, z: 2 } to a function expecting a Point ? Classes, Yes, but Which Ones zero overhead? vtable pointers? Dynamic and Structural Interfaces how dynamic do we want to go index signatures can I read through index signatures? can I call through them? call signatures Generics and Variance stay the same basically in, out, in out, measured variance new comptime parameter for value generics Structs and Value Types every serious programming language eventually cares about memory layout need fixed no overhead shapes Ownership bare T just means whatever the default form is reference types are reference types, value types are value types ^T, T, &T, T, ... Managed , Owned , ... Borrowing if we want value types and we want to pass them around, we need some form of borrowing we could do this asthe C way and have in / inout / out style params, which is half the solution but we want to be unviversal, and we want ot be safe, Lifetimes as soon as we pass and store references, we need to make sure those are safe too well wouldn't you know, lifetimes tried a bunch of things to make this more TS native, but ultimately, the Rust model really is best (inference only locally within functions, no induced generics beyond that) Access, Mutability, Exclusive readonly &T default to mutable &readonly for explicit readonly \"third rung\" on the mutability ladder exclusive ownership worker local, borrowing Local and Shared Memory Spaces SharedArrayBuffer and friends? worker first, local first, shared nothing first memory model Async, Promise, Tasks proper async keep Promise for aliased async introduce Task for structured affine concurrency (same async/await model) fiber based execution (e.g. JVM's new model) Panics, Traps overflows / underflows out of bounds deliberate unreachable Automatic, Implicit Effects proper colored functions stdlib based on explicit @bindings effect tracking @binding Durability rewind, fork Generalied Module x.ds, x.test.ds, x.whatever.ds",
+        "title": "Introducing TypeScript++"
     },
     {
-        "context": "blog / introducing typescript++",
-        "route": "/blog/introducing-typescriptpp/#why-even-bother-with-programming-languages",
-        "text": "just as we have long tried to rise higher up the ladder of abstraction in code, we have also tried to somehow remove ourselves from the troubling burden of having to actually spell out what exactly it is we want the machine to be doing oh, how great software could be, how magnificient, how accessible, if only we could make programming as simple as natural language? if we didn't have to write code at all, nor trouble ourselves with any of the nuances and rigor imposed by the trouble is, in software, there is no meaningful separation of the system and its specification there is no magic abstraction on top of code that will solve all our problems every attempt to put something \"above\" code and then have it define the behavior of the software with sufficient specificity ends up reinventing code in a worse way (config languages, Gherkin tests, drag and drop coding tools, etc.) now, many of these higher level specifications have legitimate use cases there is not a single test, or suite of tests, mathematical proof, or specific gate that you can run to convince me that some non trivial program is correct (irrespective of human written or not) correctness = alignment + visibility correctness is ultimately about alignment, and we can only align on what we can see I don't know what I want until I see it, and I also don'T know what I don't want until I see it correctness is iterative, the shape is changing correctness must be specified acrosss many layers to systematically exclude all the things we do not want incremental precision who measures the measurer? how do we know that the 1kg calibration stone is really exactly 1kg? alignment requires precision precision must be built on a solid foundation, incrementally precision requires looking at the code, systems .. from many angles, in detail, high low, in motion, statically, all sorts of dynamics, ... incremental granularity (a la casey muratori) you can't engineer precision and alignment (i.e. understanding) into a system post hoc (or at least, only with great difficulty that far exceeds the cost of doing it properly from the start)",
-        "title": "why even bother with programming languages"
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#why-human-first-design",
+        "text": "there is a popular current of \"agent first design\", but I don't really know what that means, beyond just building software in the way we should have done anyway. human first design curious trend of \"agent native\" programming tools common theme seems to be in removing me from the details, and \"just have humans give high level direction\" I've tried that, it doesn't work, I don't want to do that I want to be more in the details than ever, I want the code to be right and look right, I want to understand every byte, every cycle, every pixel. tools for those who still care on one hand, I'm lazy, and don't want to learn new stuff unless absolutely necessary (or really interesting) The raison d'être of Destack is to enable the precise manufacture of high quality software at scale there is not a single test, or suite of tests, mathematical proof, or specific gate that you can run to convince me that some non trivial program is correct (irrespective of human written or not) correctness = alignment + visibility correctness is ultimately about alignment, and we can only align on what we can see I don't know what I want until I see it, and I also don'T know what I don't want until I see it correctness is iterative, the shape is changing correctness must be specified acrosss many layers to systematically exclude all the things we do not want incremental precision who measures the measurer? how do we know that the 1kg calibration stone is really exactly 1kg? alignment requires precision precision must be built on a solid foundation, incrementally precision requires looking at the code, systems .. from many angles, in detail, high low, in motion, statically, all sorts of dynamics, ... incremental granularity (a la casey muratori) you can't engineer precision and alignment (i.e. understanding) into a system post hoc (or at least, only with great difficulty that far exceeds the cost of doing it properly from the start)",
+        "title": "Why Human First Design"
     },
     {
-        "context": "blog / introducing typescript++",
-        "route": "/blog/introducing-typescriptpp/#why-do-we-need-a-universal-language",
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#why-does-it-need-to-be-universal",
         "text": "universalism, minimalism, and expressivity there is something beautiful about doing the most with the fewest possible parts a minimal, simple language like C or even Go it's genuinely pleasing to get so much out of relatively little syntax that covers so many use cases the carcinisation of (managed) languages Go and generics, Java / C and unsafe / structs / ref, ... we want beautiful code, we want minimal code, we want expressive code these are not in conflict, we need expressivity for beauty, we need clarity for brevity, etc. const foo = \"Hello, World!\"; const foo = &foo; console.log(foo + foo) what do we need out of a language stack, ... requirements, wishlist: familiar to the majority of developers runs directly on the web capable of running natively at machine speed why a new language why fuse typescript and rust why a universal language why now but alas, hardware is real, and if we want to make fast software, we need to control those low level pesky details somehow typescript is tantalizingly close to a systems language remove all the dynamic / JS baggage, add a little bit of layout and memory control, and we're looking at a surprisingly presentable low level language",
-        "title": "why do we need a universal language"
+        "title": "Why Does It Need to Be \"Universal\""
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#why-combine-typescript-and-rust",
-        "text": "okay it's basically a meme at this point what do we mean by \"optimal\" and why does it even matter we're going to run a lot more software, and ideally, we're also going to run a lot of it in \"simulation\" and speculative modes the faster we can do this, the better, and it really adds up performance aware programming not about esoteric data structures or curious just want to get within the ballpark of what the amazing machines we have are actually capable of currently wildly inefficient because they're pointer chasing across unpredictable, poorly laid out memory ownership systems and tight memory control lots of interesting ways to make this work pragmatic perfection all things considered, if you take this premise I have laid out and contrast it with the actual Destack design, it's quite conservative I'm not proposing a radical change in how we program, necessarily, or even any wild new programming concepts that don't already exist. the language is quite conservative, and os on it's just putting it all togetherin a coherent and sensible way the ergonomic ladder of TS++ between TS Rust",
-        "title": "why combine typescript and rust"
+        "text": "JVM/CLR by default, Rust on demand okay it's basically a meme at this point what do we mean by \"optimal\" and why does it even matter we're going to run a lot more software, and ideally, we're also going to run a lot of it in \"simulation\" and speculative modes the faster we can do this, the better, and it really adds up performance aware programming not about esoteric data structures or curious just want to get within the ballpark of what the amazing machines we have are actually capable of currently wildly inefficient because they're pointer chasing across unpredictable, poorly laid out memory ownership systems and tight memory control lots of interesting ways to make this work pragmatic perfection all things considered, if you take this premise I have laid out and contrast it with the actual Destack design, it's quite conservative I'm not proposing a radical change in how we program, necessarily, or even any wild new programming concepts that don't already exist. the language is quite conservative, and os on it's just putting it all togetherin a coherent and sensible way the ergonomic ladder of TS++ between TS Rust",
+        "title": "Why \"Combine\" TypeScript and Rust"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#why-stay-within-the-lines",
-        "text": "why not extend what already exists static hermes, assembly script, ... \"second system effect\" \"why not fix all the problems\" \"boiling the ocean\" the \"ideal system\" if we can port to whatever we want, why not do something entirely new? safety, safety, and \"safety\" aliasing mutable borrows, the loss of a bit of entropy with &T colored functions are fine, and nice and familiar, it's just an effect Promises are fine actually number is okay as a type actually bigint and string are fine all in all, it's fine, and most importantly: it's familiar (... and it's how the web works!)",
-        "title": "why stay within the lines"
+        "text": "don't try to be cute or clever or fancy don't \"fix\" what's not badly broken only use boring ideas already proven by other languages / libraries / .. \"second system effect\" \"why not fix all the problems\" \"boiling the ocean\" the \"ideal system\" if we can port to whatever we want, why not do something entirely new? safety, safety, and \"safety\" aliasing mutable borrows, the loss of a bit of entropy with &T colored functions are fine, and nice and familiar, it's just an effect Promises are fine actually number is okay as a type actually bigint and string are fine all in all, it's fine, and most importantly: it's familiar (... and it's how the web works!)",
+        "title": "Why Stay Within the Lines"
     },
     {
-        "context": "blog / introducing typescript++",
-        "route": "/blog/introducing-typescriptpp/#why-now",
-        "text": "up until less than a year ago, seriously proposing new languages and software ecosystems would have been insane it took years of iteration and development for Rust, Mojo, Zig, .. to get off the ground and reach respectable levels of maturity and adoption having a language that looks like typescript but doesn't directly run most existing typescript appears to be an odd positioning; however, the goal is not to be a 1:1 mapping since it's impossible to \"just run TS\" without making significant tradeoffs in either direction. \"one shot portable\" (should be locally portable by going file by file without global context) thousands of supply chain attacks in waiting explicit policy controls per package vendoring encouraged for smaller dependencies (shadcn registry style over big bowl of dependencies)",
-        "title": "why now"
-    },
-    {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#no-backward-compatibility",
-        "text": "first and most serious cut is to drop support for existing .ts/.tsx",
-        "title": "no backward compatibility"
+        "text": "first and most serious cut is to drop support for existing .ts/.tsx no NPM, no JS bridge, no TS \"best effort\"",
+        "title": "No Backward Compatibility"
     },
     {
-        "context": "blog / introducing typescript++",
-        "route": "/blog/introducing-typescriptpp/#obviously-no-soundness-hole",
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#destack-json",
+        "text": "combine electron, expo, package.json, Cargo.toml, ...",
+        "title": "destack.json"
+    },
+    {
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#obviously-no-soundness-holes",
         "text": "any sneaky casts JS shenanigans monkey patching array holes no predicate functions (e.g. isUser(user: any): user is User is unsound)",
-        "title": "obviously, no <soundness hole>"
+        "title": "Obviously, No Soundness Holes"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#strictest-ts",
         "text": "need strict sound TS with predictable module boundaries and type behavior isolatedDeclarations strictNullChecks strictFunctionTypes strictPropertyInitialization no \"truthiness\", conditionals always take booleans ...",
-        "title": "strictest TS"
+        "title": "Strictest TS"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#esm-modules",
         "text": "strictly ESM imports and exports no CommonJS",
-        "title": "ESM modules"
+        "title": "ESM Modules"
     },
     {
-        "context": "blog / introducing typescript++",
-        "route": "/blog/introducing-typescriptpp/#tsx-too-of-course",
-        "text": "but how? trees, generalised tree litearls, lowercase tree builders, ..?",
-        "title": "TSX, too, of course"
-    },
-    {
-        "context": "blog / introducing typescript++",
-        "route": "/blog/introducing-typescriptpp/#constrained-dynamic",
-        "text": "shape mutation excess properties declaration exprsesions dynamic prototypes all sorts of JS hacks that everyone hates anyway",
-        "title": "constrained dynamic (?)"
-    },
-    {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#proper-primitives",
         "text": "number, yes, but int32, int64, float32, character too tuples slices inline arrays and the rest",
-        "title": "proper primitives"
+        "title": "Proper Primitives"
     },
     {
-        "context": "blog / introducing typescript++",
-        "route": "/blog/introducing-typescriptpp/#no-exceptions-results-only",
-        "text": "most subjective of the bunch but exceptions have proven troubling over and over and over again checked exceptions are even worse the only sane error handling method is the Swift y Rust y ? operator",
-        "title": "no exceptions, results only"
-    },
-    {
-        "context": "blog / introducing typescript++",
-        "route": "/blog/introducing-typescriptpp/#patterns",
-        "text": "patterns match catch match",
-        "title": "patterns"
-    },
-    {
-        "context": "blog / introducing typescript++",
-        "route": "/blog/introducing-typescriptpp/#decorators",
-        "text": "extended placement newtypes as decorators",
-        "title": "decorators"
-    },
-    {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#nominality",
         "text": "usually use symbol branding in TS, which is kinda icky proper nominality and newtypes newtype traits",
-        "title": "nominality"
+        "title": "Nominality"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#tsx",
+        "text": "tag based trees are pretty useful and broadly applicable there are other ways of doing UI, but this is a pretty good one, and it's very familiar trees, generalised tree litearls, lowercase tree builders, ..?",
+        "title": "TSX"
+    },
+    {
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#patterns-and-match",
+        "text": "expressions as values patterns match catch match",
+        "title": "Patterns and Match"
+    },
+    {
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#decorators",
+        "text": "extended placement newtypes as decorators incl. union newtypes queryable @if static gating",
+        "title": "Decorators"
+    },
+    {
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#no-exceptions-results-only",
+        "text": "most subjective of the bunch but exceptions have proven troubling over and over and over again checked exceptions are even worse the only sane error handling method is the Swift y Rust y ? operator",
+        "title": "No Exceptions, Results Only"
+    },
+    {
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#structural-interfaces-dynamic",
+        "text": "shape mutation excess properties declaration exprsesions dynamic prototypes all sorts of JS hacks that everyone hates anyway Record is read only",
+        "title": "Structural Interfaces, Dynamic (?)"
+    },
+    {
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#extensions",
         "text": "inherent, anonymous, named extensions",
-        "title": "extensions"
+        "title": "Extensions"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#operator-overloading",
         "text": "serious math y applications want operator overloading Add , Subtract , Multiply , Divide , etc.",
-        "title": "operator overloading"
+        "title": "Operator Overloading"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#objects-as-types",
         "text": "what doees type Point = { x: number; y: number } mean? can I pass { x: 0, y: 1, z: 2 } to a function expecting a Point ?",
-        "title": "objects as types"
+        "title": "Objects as Types"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#classes-yes-but-which-ones",
         "text": "zero overhead? vtable pointers?",
-        "title": "classes, yes, but which ones"
+        "title": "Classes, Yes, but Which Ones"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#dynamic-and-structural-interfaces",
         "text": "how dynamic do we want to go index signatures can I read through index signatures? can I call through them? call signatures",
-        "title": "Dynamic and structural interfaces"
+        "title": "Dynamic and Structural Interfaces"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#generics-and-variance",
         "text": "stay the same basically in, out, in out, measured variance new comptime parameter for value generics",
-        "title": "generics and variance"
+        "title": "Generics and Variance"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#structs-and-value-types",
         "text": "every serious programming language eventually cares about memory layout need fixed no overhead shapes",
-        "title": "structs and value types"
+        "title": "Structs and Value Types"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#ownership",
         "text": "bare T just means whatever the default form is reference types are reference types, value types are value types ^T, T, &T, T, ... Managed , Owned , ...",
-        "title": "ownership"
+        "title": "Ownership"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#borrowing",
         "text": "if we want value types and we want to pass them around, we need some form of borrowing we could do this asthe C way and have in / inout / out style params, which is half the solution but we want to be unviversal, and we want ot be safe,",
-        "title": "borrowing"
+        "title": "Borrowing"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#lifetimes",
         "text": "as soon as we pass and store references, we need to make sure those are safe too well wouldn't you know, lifetimes tried a bunch of things to make this more TS native, but ultimately, the Rust model really is best (inference only locally within functions, no induced generics beyond that)",
-        "title": "lifetimes"
+        "title": "Lifetimes"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#access-mutability-exclusive",
-        "text": "readonly &T default to mutable exclusive ownership worker local, borrowing",
-        "title": "access, mutability, exclusive"
+        "text": "readonly &T default to mutable &readonly for explicit readonly \"third rung\" on the mutability ladder exclusive ownership worker local, borrowing",
+        "title": "Access, Mutability, Exclusive"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#local-and-shared-memory-spaces",
         "text": "SharedArrayBuffer and friends? worker first, local first, shared nothing first memory model",
-        "title": "local and shared memory spaces"
+        "title": "Local and Shared Memory Spaces"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#async-promise-tasks",
         "text": "proper async keep Promise for aliased async introduce Task for structured affine concurrency (same async/await model) fiber based execution (e.g. JVM's new model)",
-        "title": "async, promise, tasks"
+        "title": "Async, Promise, Tasks"
     },
     {
-        "context": "blog / introducing typescript++",
+        "context": "blog / Introducing TypeScript++",
         "route": "/blog/introducing-typescriptpp/#panics-traps",
         "text": "overflows / underflows out of bounds deliberate unreachable",
-        "title": "panics, traps"
+        "title": "Panics, Traps"
+    },
+    {
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#automatic-implicit-effects",
+        "text": "proper colored functions stdlib based on explicit @bindings effect tracking @binding",
+        "title": "Automatic, Implicit Effects"
+    },
+    {
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#durability",
+        "text": "rewind, fork",
+        "title": "Durability"
+    },
+    {
+        "context": "blog / Introducing TypeScript++",
+        "route": "/blog/introducing-typescriptpp/#generalied-module",
+        "text": "x.ds, x.test.ds, x.whatever.ds",
+        "title": "Generalied Module"
     }
 ] as const satisfies readonly SearchEntry[];
