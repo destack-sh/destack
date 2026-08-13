@@ -6,9 +6,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    BodyState, CandidateOutcome, Cause, CauseKind, DeclaredMember, GenericParameterId,
-    GenericTemplateId, LookupReceiver, MemberCandidate, MemberLookup, MemberSubject, MemberTable,
-    Origin, ReceiverSteps, Relation, TypeSubstitution, Verdict,
+    BodyState, CandidateOutcome, Cause, CauseKind, CheckOutcome, DeclaredMember,
+    GenericParameterId, GenericTemplateId, LookupReceiver, MemberCandidate, MemberLookup,
+    MemberSubject, MemberTable, Origin, ReceiverSteps, Relation, Settle, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -597,14 +597,32 @@ impl BodyState<'_, '_> {
             return Ok(None);
         };
 
-        // register the declared bounds and predicates with the candidate
-        // NOTE: coherence forbids overlapping implementations, so the solver
-        //  can defer the sole candidate's constraints to settle
+        // prove the declared bounds and predicates for the candidate
         if let Some(template) = template {
             let constraints =
                 self.substitute_application_constraints(origin, template, &substitution)?;
             for constraint in constraints {
-                self.check.register_constraint(constraint);
+                let closed = self.check.type_variables(constraint.source)?.is_empty()
+                    && self.check.type_variables(constraint.target)?.is_empty();
+
+                // decide a closed bound now, rejecting an inapplicable candidate
+                if closed {
+                    let id = self.check.register_constraint(constraint);
+                    self.check.solve_constraint(id, Settle::Final)?;
+
+                    // an unprovable closed bound rejects the candidate
+                    let failed = matches!(
+                        self.check.fulfill.constraints.result(id)?,
+                        Some(result) if matches!(result.outcome, CheckOutcome::Fails(_))
+                    );
+                    if failed {
+                        return Ok(None);
+                    }
+                }
+                // defer an open bound, which the sole candidate settles
+                else {
+                    self.check.register_constraint(constraint);
+                }
             }
         }
 

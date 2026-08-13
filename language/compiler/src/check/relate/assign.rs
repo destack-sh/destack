@@ -126,8 +126,11 @@ impl CheckState<'_> {
 
                 self.relate_all_sources(origin, cause, relation, &elements, target)?
             }
-            // widen literal and constructed values into a union target by membership
-            (dir::Type::Literal(_) | dir::Type::Object(_), dir::Type::Union(union)) if widens => {
+            // widen literal, constructed, and scalar values into a union target by membership
+            (
+                dir::Type::Literal(_) | dir::Type::Object(_) | dir::Type::Primitive(_),
+                dir::Type::Union(union),
+            ) if widens => {
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(target.module_id, union.elements)?.into();
 

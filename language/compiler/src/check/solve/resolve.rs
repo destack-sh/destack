@@ -453,13 +453,14 @@ impl CheckState<'_> {
                     Widening::Aggregate => false,
                     Widening::Multiple => self.has_distinct_types(origin, &candidates)?,
                     Widening::Always => true,
+                    Widening::Comptime => self.has_only_literal_types(&candidates)?,
                 };
 
             // defer literal widening to the final fallback stage
             if widens && stage != FallbackStage::Widened {
                 for bound in &variable_lower {
                     if matches!(bound.relation, Relation::Assignable | Relation::Castable)
-                        && self.widen_type(bound.ty)? != bound.ty
+                        && self.widen_bound_type(state.widening, bound.ty)? != bound.ty
                     {
                         return Ok(None);
                     }
@@ -474,7 +475,7 @@ impl CheckState<'_> {
                 let ty = if widens
                     && matches!(bound.relation, Relation::Assignable | Relation::Castable)
                 {
-                    self.widen_type(bound.ty)?
+                    self.widen_bound_type(state.widening, bound.ty)?
                 } else {
                     bound.ty
                 };
@@ -558,6 +559,9 @@ impl CheckState<'_> {
             None
         } else if bounds.has_open_context && stage != FallbackStage::Final {
             // wait for the contextual expectation to close before choosing
+            None
+        } else if bounds.has_external_bound && lower.is_none() && stage != FallbackStage::Final {
+            // wait for open lower bounds to close before adopting the context
             None
         } else if let Some(lower) = lower {
             if self.solution_satisfies_bounds(
@@ -678,6 +682,32 @@ impl CheckState<'_> {
         }
 
         Ok(true)
+    }
+
+    /// Widen one literal lower bound under a variable's widening policy.
+    fn widen_bound_type(
+        &mut self,
+        widening: Widening,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        match widening {
+            Widening::Comptime => self.widen_comptime_type(ty),
+            Widening::Never | Widening::Aggregate | Widening::Multiple | Widening::Always => {
+                self.widen_type(ty)
+            }
+        }
+    }
+
+    /// Return whether every candidate is an exact literal type.
+    fn has_only_literal_types(&mut self, types: &[dir::GlobalTypeId]) -> CompilerResult<bool> {
+        for ty in types {
+            let ty = self.shallow_resolve(*ty)?;
+            if !matches!(self.ty(ty)?, dir::Type::Literal(_)) {
+                return Ok(false);
+            }
+        }
+
+        Ok(!types.is_empty())
     }
 
     /// Return whether a closed type list contains unequal types.

@@ -1517,3 +1517,65 @@ function build(value: float64): Box<int32> {
 "#,
     );
 }
+
+#[test]
+fn test_infer_a_chained_generic_method_call_through_its_contextual_callbacks() {
+    let session = TestSession::single(
+        r#"
+declare const values: ^int32[];
+
+const kept = values
+    .map((value) => value)
+    .filter((value) => value !== undefined);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const values: ^int32[];
+
+const kept: ^Array<int32> = values.map<int32, int32>((value: int32): int32 => value).filter<int32>(
+    (value: &'a readonly int32): boolean => value !== undefined,
+);
+
+=== checked ===
+declare const values: ^int32[];
+/// @type.symbol symbol=values source=values type=Owned<Array<int32>>
+/// @resolution.pattern source=values kind=binding target=values
+
+const kept = values
+/// @type.symbol symbol=kept source=kept type=Owned<Array<int32>>
+/// @resolution.pattern source=kept kind=binding target=kept
+/// @resolution.name source=values target=values
+/// @resolution.member receiver=Owned<Array<int32>> type=(this: Owned<Array<int32>>, Function<(&type_expression.'a readonly int32, usize), boolean>) => Owned<Array<int32>> & (this: Owned<Array<int32>>, Function<(int32, usize), boolean>) => Owned<Array<int32>> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
+/// @resolution.member receiver=Owned<Array<int32>> type=<collections.array.map.U#1>(this: Owned<Array<int32>>, Function<(int32, usize), collections.array.map.U#1>) => Owned<Array<collections.array.map.U#1>> & <collections.array.map.U#2>(this: Owned<Array<int32>>, Function<(int32, usize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=existential targets=[collections.array.map#1, collections.array.map#2]
+/// @resolution.call parameters=(Function<(&type_expression.'a readonly int32, usize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32, usize), boolean>) return=Owned<Array<int32>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#1>>.<extension#1>.filter#1
+/// @resolution.call parameters=(Function<(int32, usize), int32>) arguments=(provided((value) => value) as Function<(int32, usize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#1>>.<extension#1>.map#1<int32>
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+
+    .map((value) => value)
+    /// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32,), int32>
+    /// @type.symbol symbol=symbol2.value source=value type=int32
+    /// @resolution.name source=value target=symbol2.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=symbol2.value
+
+    .filter((value) => value !== undefined);
+    /// @type.symbol symbol=symbol4 source="(value) => value !== undefined" type=Function<(&type_expression.'a readonly int32,), boolean>
+    /// @type.symbol symbol=symbol4.value source=value type=&type_expression.'a readonly int32
+    /// @resolution.name source=value target=symbol4.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=symbol4.value
+
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=Owned<Array<collections.array.T#1>>.<extension#1>.filter#1 template=collections.array.filter#1 arguments=(int32)
+/// @generic.instance id=Owned<Array<collections.array.T#1>>.<extension#1>.map#1<int32> template=collections.array.map#1 arguments=(int32, int32)
+"#,
+        r#"
+"#,
+    );
+}

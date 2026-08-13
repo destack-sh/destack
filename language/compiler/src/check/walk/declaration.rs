@@ -1541,13 +1541,8 @@ impl WalkState<'_, '_> {
                 Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
             );
         if infers {
-            let role = match signature.form {
-                dir::FunctionForm::Lambda => VariableRole::Parameter,
-                _ => VariableRole::Return,
-            };
-
             return Ok((
-                Some(self.open_type_hole(source, Widening::Never, role)?),
+                Some(self.open_type_hole(source, Widening::Never, VariableRole::Return)?),
                 Vec::new(),
             ));
         }

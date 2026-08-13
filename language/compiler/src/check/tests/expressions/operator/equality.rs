@@ -597,3 +597,41 @@ const same = measure == -0.0;
 "#,
     );
 }
+
+#[test]
+fn test_compare_a_borrowed_readonly_scalar_operand() {
+    let session = TestSession::single(
+        r#"
+function positive(value: &readonly int32): boolean {
+    return value > 0;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function positive<'a>(value: &'a readonly int32): boolean {
+    return (value as int32) > 0;
+}
+
+=== checked ===
+function positive(value: &readonly int32): boolean {
+/// @generic.template symbol=positive parameters=('a)
+/// @type.symbol symbol=positive type=<positive.'a>(&positive.'a readonly int32) => boolean
+/// @type.symbol symbol=positive.value source="value: &readonly int32" type=&positive.'a readonly int32
+
+    return value > 0;
+    /// @resolution.name source=value target=positive.value
+    /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime=positive.'a access="readonly"
+    /// @resolution.access source=value root=positive.value
+
+}
+"#,
+        r#"
+"#,
+    );
+}

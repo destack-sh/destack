@@ -666,7 +666,10 @@ impl BodyState<'_, '_> {
                     .check
                     .declarator_widening(module, &declarator, binding_kind);
                 let mode = match widening {
-                    Widening::Never | Widening::Aggregate | Widening::Multiple => InferMode::Exact,
+                    Widening::Never
+                    | Widening::Aggregate
+                    | Widening::Multiple
+                    | Widening::Comptime => InferMode::Exact,
                     Widening::Always => InferMode::Widen,
                 };
                 let ty = self.infer_node(site, PlaceUse::Read, mode)?;
@@ -1031,8 +1034,8 @@ impl BodyState<'_, '_> {
         }
         walk.flush_flows()?;
 
-        // keep the registration: candidate probes re-read the body
-        let Some(body) = self.check.functions.get(&symbol).cloned() else {
+        // move the body to its value expression, which owns the check
+        let Some(body) = self.check.functions.swap_remove(&symbol) else {
             return Err(CompilerError::Internal {
                 message: format!("function value {} has no body", self.check.node_label(node)),
             });

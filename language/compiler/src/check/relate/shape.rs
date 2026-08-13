@@ -1166,10 +1166,14 @@ impl CheckState<'_> {
             ));
         }
 
-        // compare outputs covariantly
+        // compare outputs covariantly, discarding results a void target ignores
         match (source_signature.return_type, target_signature.return_type) {
             (Some(source), Some(target)) => {
-                pairs.push((Some(CauseKind::ReturnSlot), source, target));
+                let discarded = matches!(self.ty(target)?, dir::Type::Void)
+                    && !self.type_flags(source)?.has_variable();
+                if !discarded {
+                    pairs.push((Some(CauseKind::ReturnSlot), source, target));
+                }
             }
             (_, None) => {}
             (None, Some(_)) => return Ok(None),

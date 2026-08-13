@@ -33,3 +33,77 @@ if (true) {
 "#,
     );
 }
+
+#[test]
+fn test_warn_on_an_infinite_while_condition() {
+    let session = TestSession::single(
+        r#"
+while (true) {
+    break;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+while (true) {
+    break;
+}
+
+=== checked ===
+while (true) {
+    break;
+}
+"#,
+        r#"
+/// @diagnostic.warning id=constant-condition message="condition is always true"
+/// @diagnostic.label line=2 column=8 span="true" line_source="while (true) {"
+"#,
+    );
+}
+
+#[test]
+fn test_warn_on_a_constant_while_condition() {
+    let session = TestSession::single(
+        r#"
+const always = true;
+
+while (always) {
+    break;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const always: true = true;
+
+while (always) {
+    break;
+}
+
+=== checked ===
+const always = true;
+/// @type.symbol symbol=always source=always type=true
+/// @resolution.pattern source=always kind=binding target=always
+
+while (always) {
+/// @resolution.name source=always target=always
+/// @resolution.place source=always placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=always root=always
+
+    break;
+}
+"#,
+        r#"
+/// @diagnostic.warning id=constant-condition message="condition is always true"
+/// @diagnostic.label line=4 column=8 span="always" line_source="while (always) {"
+"#,
+    );
+}

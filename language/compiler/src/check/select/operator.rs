@@ -751,6 +751,10 @@ impl BodyState<'_, '_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Option<(dir::GlobalTypeId, [dir::GlobalTypeId; 2])>> {
+        // read through views, since builtin scalars operate on the pointee
+        let left = self.strip_form(origin, left)?;
+        let right = self.strip_form(origin, right)?;
+
         // classify both operands once
         let numeric =
             self.operand_is_numeric(origin, left)? && self.operand_is_numeric(origin, right)?;

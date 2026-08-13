@@ -86,8 +86,7 @@ impl CheckState<'_> {
             })?;
         }
 
-        // check every function body after the roots, rustc's body order:
-        //  bodies are their own inference scopes over committed types
+        // check every independent function body after the roots
         let bodies = walk.check.functions.values().cloned().collect::<Vec<_>>();
         for function in bodies {
             walk.check

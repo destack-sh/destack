@@ -620,3 +620,65 @@ class Counter {
 "#,
     );
 }
+
+#[test]
+fn test_return_an_object_literal_from_an_expression_bodied_lambda() {
+    let session = TestSession::single(
+        r#"
+const reset = () => ({ value: 1 });
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const reset: () => { value: 1 } = (): { value: 1 } => ({ value: 1 });
+
+=== checked ===
+const reset = () => ({ value: 1 });
+/// @type.symbol symbol=reset source=reset type=Function<(), { value: 1 }>
+/// @resolution.pattern source=reset kind=binding target=reset
+/// @type.symbol symbol=symbol1 source=() => ({ value: 1 }) type=Function<(), { value: 1 }>
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
+fn test_assign_a_capture_inside_a_returned_object_literal() {
+    let session = TestSession::single(
+        r#"
+let current = 1;
+const reset = () => ({ value: (current = 0) });
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+let current: float64 = 1;
+const reset: () => { value: 0 } = (): { value: 0 } => ({ value: (current = 0) });
+
+=== checked ===
+let current = 1;
+/// @type.symbol symbol=current source=current type=float64
+/// @resolution.pattern source=current kind=binding target=current
+
+const reset = () => ({ value: (current = 0) });
+/// @type.symbol symbol=reset source=reset type=Function<(), { value: 0 }>
+/// @resolution.pattern source=reset kind=binding target=reset
+/// @type.symbol symbol=symbol2 source=() => ({ value: (current = 0) }) type=Function<(), { value: 0 }>
+/// @resolution.name source=current target=current
+/// @resolution.pattern.assign source=current kind=place
+/// @resolution.access source=current root=current
+/// @resolution.assignment source=current write=binding(current) type=float64
+"#,
+        r#"
+"#,
+    );
+}

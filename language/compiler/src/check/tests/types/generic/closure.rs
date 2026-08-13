@@ -79,7 +79,7 @@ declare class Box<in out T> {}
 declare function load(): int32;
 declare function use(callback: () => int32 | Box<int32>): int32;
 
-const value: int32 = use((): int32 | Box<int32> => load() as int32 | Box<int32>);
+const value: int32 = use((): int32 => load());
 
 === checked ===
 declare class Box<in out T> {}
@@ -104,9 +104,8 @@ const value = use(() => load());
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => load())" parameters=(Function<(), int32 | Box<int32>>) arguments=(provided(() => load()) as Function<(), int32 | Box<int32>>) return=int32 kind=symbol target=use
 /// @generic.instance source=use id=Box<int32>
-/// @type.symbol symbol=symbol6 source=() => load() type=Function<(), int32 | Box<int32>>
-/// @type.node source=() => load() type=Function<(), int32 | Box<int32>>
-/// @generic.instance source=() => load() id=Box<int32>
+/// @type.symbol symbol=symbol6 source=() => load() type=Function<(), int32>
+/// @type.node source=() => load() type=Function<(), int32>
 /// @type.node source=load type=() => int32
 /// @type.node source=load() type=int32
 /// @resolution.name source=load target=load
@@ -362,10 +361,7 @@ const value = map(1, (item) => item);
 declare class Box<in out T> {}
 declare function map<T, U>(value: T, callback: (arg0: T) => U | Box<U>): U;
 
-const value: float64 = map<float64, float64>(
-    1,
-    (item: float64): float64 | Box<float64> => item as float64 | Box<float64>,
-);
+const value: float64 = map<float64, float64>(1, (item: float64): float64 => item);
 
 === checked ===
 declare class Box<in out T> {}
@@ -399,9 +395,8 @@ const value = map(1, (item) => item);
 /// @generic.instance source="map(1, (item) => item)" id="map<float64, float64>"
 /// @generic.instance source=map id=Box<float64>
 /// @type.node source=1 type=1
-/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(float64,), float64 | Box<float64>>
-/// @type.node source="(item) => item" type=Function<(float64,), float64 | Box<float64>>
-/// @generic.instance source="(item) => item" id=Box<float64>
+/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(float64,), float64>
+/// @type.node source="(item) => item" type=Function<(float64,), float64>
 /// @type.symbol symbol=symbol9.item source=item type=float64
 /// @type.node source=item type=float64
 /// @resolution.name source=item target=symbol9.item
@@ -438,9 +433,7 @@ declare class Box<out T> {
 }
 
 declare const box: Box<int32>;
-const value: int32 = box.map<int32, int32>(
-    (item: int32): int32 | Box<int32> => item as int32 | Box<int32>,
-);
+const value: int32 = box.map<int32, int32>((item: int32): int32 => item);
 
 === checked ===
 declare class Box<T> {
@@ -484,9 +477,8 @@ const value = box.map((item) => item);
 /// @generic.instance source=box id=Box<int32>
 /// @generic.instance source=box.map id=Box<U>
 /// @generic.instance source=box.map id=Box<int32>
-/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(int32,), int32 | Box<int32>>
-/// @type.node source="(item) => item" type=Function<(int32,), int32 | Box<int32>>
-/// @generic.instance source="(item) => item" id=Box<int32>
+/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(int32,), int32>
+/// @type.node source="(item) => item" type=Function<(int32,), int32>
 /// @type.symbol symbol=symbol9.item source=item type=int32
 /// @type.node source=item type=int32
 /// @resolution.name source=item target=symbol9.item

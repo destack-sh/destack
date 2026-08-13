@@ -3,7 +3,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Cause, CauseId, CauseKind, CheckState, Origin, Relation};
+use crate::check::{
+    CandidateOutcome, CandidateVerdict, Cause, CauseId, CauseKind, CheckState, Origin, Relation,
+};
 
 /// The outcome of deciding one relation, keeping ambiguity apart from failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,11 +60,19 @@ impl CheckState<'_> {
             target = self.fully_resolve(target, &FxIndexSet::default())?;
         }
 
-        // relate the written heads first
+        // relate the written heads first, rolling every evaluation effect back
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        let holds =
-            ensure_sufficient_stack(|| self.relate_pair(origin, cause, relation, source, target))?;
-        if holds {
+        let verdict = self.probe_candidate(|state| {
+            let holds = ensure_sufficient_stack(|| {
+                state.relate_pair(origin, cause, relation, source, target)
+            })?;
+
+            Ok(match holds {
+                true => CandidateOutcome::<(), ()>::Accepted(()),
+                false => CandidateOutcome::Rejected(()),
+            })
+        })?;
+        if verdict == CandidateVerdict::Viable {
             return Ok(true);
         }
 
@@ -96,11 +106,17 @@ impl CheckState<'_> {
             return Ok(Verdict::Ambiguous);
         }
 
-        // predicates carry their own ambiguity
+        // predicates carry their own ambiguity, judged without committing
         if relation == Relation::Satisfies {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+            let mut satisfied = Verdict::Fails;
+            self.probe_candidate(|state| {
+                satisfied = state.relate_satisfies(origin, cause, relation, source, target)?;
 
-            return self.relate_satisfies(origin, cause, relation, source, target);
+                Ok(CandidateOutcome::<(), ()>::Rejected(()))
+            })?;
+
+            return Ok(satisfied);
         }
 
         Ok(Verdict::Fails)

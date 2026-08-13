@@ -60,7 +60,12 @@ impl Relation {
     pub(in crate::check) fn distributes_over_union_target(self) -> bool {
         matches!(
             self,
-            Self::Subtype | Self::Assignable | Self::Castable | Self::Satisfies | Self::Extends
+            Self::Subtype
+                | Self::Assignable
+                | Self::Castable
+                | Self::Satisfies
+                | Self::Extends
+                | Self::Widens
         )
     }
 }

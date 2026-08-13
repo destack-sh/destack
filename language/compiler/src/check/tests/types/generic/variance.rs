@@ -830,3 +830,58 @@ class Holder {
 "#,
     );
 }
+
+#[test]
+fn test_assign_a_callable_with_a_narrower_result_to_a_wider_parameter() {
+    let session = TestSession::single(
+        r#"
+declare function take(callback: (value: int32) => int32 | undefined): void;
+
+function increment(value: int32): int32 {
+    return value + 1;
+}
+
+take(increment);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function take(callback: (arg0: int32) => int32 | undefined): void;
+
+function increment(value: int32): int32 {
+    return value + 1;
+}
+
+take(increment);
+
+=== checked ===
+declare function take(callback: (value: int32) => int32 | undefined): void;
+/// @type.symbol symbol=take source="declare function take(callback: (value: int32) => int32 | undefined): void" type=(Function<(int32,), int32 | undefined>) => void
+/// @type.symbol symbol=take.callback source="callback: (value: int32) => int32 | undefined" type=Function<(int32,), int32 | undefined>
+/// @type.symbol symbol=take.value source="value: int32" type=int32
+
+function increment(value: int32): int32 {
+/// @type.symbol symbol=increment type=(int32) => int32
+/// @type.symbol symbol=increment.value source="value: int32" type=int32
+
+    return value + 1;
+    /// @resolution.name source=value target=increment.value
+    /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=increment.value
+
+}
+
+take(increment);
+/// @resolution.name source=take target=take
+/// @resolution.call source=take(increment) parameters=(Function<(int32,), int32 | undefined>) arguments=(provided(increment) as Function<(int32,), int32 | undefined>) return=void kind=symbol target=take
+/// @resolution.name source=increment target=increment
+"#,
+        r#"
+"#,
+    );
+}

@@ -79,6 +79,18 @@ impl CheckState<'_> {
         if settle == Settle::Final {
             self.fulfill.requeue_parked();
             self.fulfill.requeue_stalled();
+
+            // drive every constraint that never reached a verdict
+            let incomplete = self
+                .fulfill
+                .constraints
+                .iter()
+                .map(|(id, _)| id)
+                .filter(|id| !self.fulfill.constraints.is_complete(*id))
+                .collect::<Vec<_>>();
+            for id in incomplete {
+                self.solve_constraint(id, Settle::Final)?;
+            }
         }
 
         loop {
