@@ -212,19 +212,6 @@ fn is_lifetime_bound(f: &DestackFormatter<'_, '_>, ty: LocalNodeId<TypeExpressio
             .is_some_and(|name| f.context().strings.get(name) == "Lifetime")
 }
 
-/// Write one parameter default value.
-fn write_parameter_default<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    default: Option<LocalNodeId<Expression>>,
-) -> FormatResult<()> {
-    // default
-    if let Some(default) = default {
-        write!(f, [space(), token("="), space(), default])?;
-    }
-
-    Ok(())
-}
-
 /// Write one signature return type annotation.
 pub(crate) fn write_signature_return_type<'ast, T>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -394,16 +381,6 @@ pub(crate) fn function_grouping_generic_parameter_is_plain(
             default,
             ..
         } => constraint.is_none() && default.is_none(),
-        GenericParameter::Value {
-            declared_type,
-            default,
-            ..
-        }
-        | GenericParameter::VariadicValue {
-            declared_type,
-            default,
-            ..
-        } => declared_type.is_none() && default.is_none(),
         GenericParameter::Error => false,
     }
 }
@@ -767,8 +744,8 @@ pub(crate) fn write_function_header_prefix(
     write_function_abstraction_prefix(f, signature.is_abstract, signature.is_override)?;
 
     // phase
-    if signature.phase == FunctionPhase::Comptime {
-        write!(f, [Keyword::Comptime, space()])?;
+    if signature.phase == FunctionPhase::Const {
+        write!(f, [Keyword::Const, space()])?;
     }
 
     // asynchrony
@@ -1112,6 +1089,16 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
                 constraint,
                 default,
             } => {
+                // normalize tick names to their bare lifetime spelling
+                let is_bare_tick = !matches!(self, GenericParameter::VariadicType { .. })
+                    && default.is_none()
+                    && f.context().strings.get(*name).starts_with('\'')
+                    && constraint.is_none_or(|ty| is_lifetime_bound(f, ty));
+                if is_bare_tick {
+                    write!(f, [*name])?;
+                    return Ok(());
+                }
+
                 // const
                 if *is_const {
                     write!(f, [Keyword::Const, space()])?;
@@ -1128,43 +1115,6 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
                 // name and trailers
                 write!(f, [*name])?;
                 write_type_parameter_constraint_and_default(f, node_id, *constraint, *default)?;
-            }
-            GenericParameter::Value {
-                name,
-                declared_type,
-                default,
-                is_comptime,
-            }
-            | GenericParameter::VariadicValue {
-                name,
-                declared_type,
-                default,
-                is_comptime,
-            } => {
-                // normalize tick names to their bare lifetime spelling
-                let is_bare_tick = !matches!(self, GenericParameter::VariadicValue { .. })
-                    && default.is_none()
-                    && f.context().strings.get(*name).starts_with('\'')
-                    && declared_type.is_none_or(|ty| is_lifetime_bound(f, ty));
-                if is_bare_tick {
-                    write!(f, [*name])?;
-                    return Ok(());
-                }
-
-                // comptime
-                if *is_comptime {
-                    write!(f, [Keyword::Comptime, space()])?;
-                }
-
-                // spread
-                if matches!(self, GenericParameter::VariadicValue { .. }) {
-                    write!(f, [token("...")])?;
-                }
-
-                // name and trailers
-                write!(f, [*name])?;
-                write_parameter_type(f, node_id, *declared_type)?;
-                write_parameter_default(f, *default)?;
             }
             GenericParameter::Error => {
                 write_source_span(f, f.context().span(node_id))?;

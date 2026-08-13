@@ -43,7 +43,8 @@ pub(crate) use self::ternary::{
     tree_chain_ternary_needs_expanded_branches,
 };
 pub(crate) use self::r#type::{
-    TypeExpressionLayout, format_type_member_block_list, write_type_expression_node,
+    TypeExpressionLayout, format_type_member_block_list, static_value_expression,
+    write_type_expression_node,
 };
 pub(crate) use super::operator::{
     format_generic_argument_list, format_generic_argument_list_with_relational_spacing,

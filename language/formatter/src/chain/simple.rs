@@ -1,5 +1,6 @@
 use super::transparent_inner_expression;
 use crate::DestackFormatContext;
+use crate::expression::static_value_expression;
 use destack_dir::{
     Argument, Expression, GenericArgument, LocalNodeId, Property, ScalarLiteral, TemplateLiteral,
     TypeExpression, UnaryOperator,
@@ -73,17 +74,18 @@ fn generic_argument_is_simple(
     argument_id: LocalNodeId<GenericArgument>,
     depth: u8,
 ) -> bool {
-    match context.tree.get(argument_id) {
-        GenericArgument::Type { .. }
-        | GenericArgument::SpreadType { .. }
-        | GenericArgument::AssociatedType { .. } => false,
-        GenericArgument::Value { value }
-        | GenericArgument::SpreadValue { value }
-        | GenericArgument::AssociatedConst { value, .. } => {
-            SimpleArgument::from(*value).is_simple_with_depth(context, depth)
-        }
-        GenericArgument::Error => false,
-    }
+    let value = match context.tree.get(argument_id) {
+        GenericArgument::Type { value }
+        | GenericArgument::SpreadType { value }
+        | GenericArgument::AssociatedType { value, .. }
+        | GenericArgument::AssociatedConst { value, .. } => *value,
+        GenericArgument::Error => return false,
+    };
+    let Some(value) = static_value_expression(context, value) else {
+        return false;
+    };
+
+    SimpleArgument::from(value).is_simple_with_depth(context, depth)
 }
 
 /// Return whether one expression node is simple at one recursion depth.
@@ -223,18 +225,16 @@ fn type_generic_argument_is_simple(
     argument_id: LocalNodeId<GenericArgument>,
     depth: u8,
 ) -> bool {
-    match context.tree.get(argument_id) {
+    let value = match context.tree.get(argument_id) {
         GenericArgument::Type { value }
         | GenericArgument::SpreadType { value }
-        | GenericArgument::AssociatedType { value, .. } => {
-            type_expression_is_simple(context, *value, depth)
-        }
-        GenericArgument::Value { value }
-        | GenericArgument::SpreadValue { value }
-        | GenericArgument::AssociatedConst { value, .. } => {
-            SimpleArgument::from(*value).is_simple_with_depth(context, depth)
-        }
-        GenericArgument::Error => false,
+        | GenericArgument::AssociatedType { value, .. }
+        | GenericArgument::AssociatedConst { value, .. } => *value,
+        GenericArgument::Error => return false,
+    };
+    match static_value_expression(context, value) {
+        Some(value) => SimpleArgument::from(value).is_simple_with_depth(context, depth),
+        None => type_expression_is_simple(context, value, depth),
     }
 }
 

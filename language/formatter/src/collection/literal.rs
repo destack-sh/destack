@@ -341,7 +341,7 @@ fn template_argument_should_indent_fit_layout(
             | Expression::Match { .. }
             | Expression::Switch { .. }
             | Expression::Try { .. }
-            | Expression::Comptime { .. }
+            | Expression::Const { .. }
             | Expression::Binary { .. }
             | Expression::Identifier { .. }
     )

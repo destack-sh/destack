@@ -78,10 +78,10 @@ extension of Buffer {
 fn test_format_variadic_generic_parameters() {
     assert_format_program_roundtrip_with_file_type(
         r#"type Callback<...Parameters, Return> = (...parameters: Parameters) => Return
-function tensor<comptime ...Shape: readonly usize[]>(value: Tensor<...Shape>): void {}
+function tensor<const ...Shape: readonly usize[]>(value: Tensor<...Shape>): void {}
 "#,
         r#"type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
-function tensor<comptime ...Shape: readonly usize[]>(value: Tensor<...Shape>): void {}
+function tensor<const ...Shape: readonly usize[]>(value: Tensor<...Shape>): void {}
 "#,
         FileType::Destack,
         DestackFormatOptions::default(),
@@ -111,18 +111,9 @@ fn test_format_pattern_parameter_default_comments() {
     );
 }
 
-/// Generic parameter constraints should normalize to colon bounds.
+/// Generic parameter constraints should print as colon bounds.
 #[test]
-fn test_format_generic_parameter_constraints_use_colon_bounds() {
-    assert_format_program_roundtrip_with_file_type(
-        r#"type Value<T extends string> = T
-"#,
-        r#"type Value<T: string> = T;
-"#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
-    );
-
+fn test_format_generic_parameter_colon_bounds() {
     assert_format_program_roundtrip_with_file_type(
         r#"type Value<T: string> = T
 "#,
@@ -435,8 +426,8 @@ class A3 {
 
 class A4 {
   publicLog<
-    E extends ClassifiedEvent<OmitMetadata<T>>,
-    T extends IGDPRProperty,
+    E: ClassifiedEvent<OmitMetadata<T>>,
+    T: IGDPRProperty,
   >(
     eventName: string, data?: object
   ) {
@@ -445,8 +436,8 @@ class A4 {
 
 const A5 = {
   publicLog<
-    E extends ClassifiedEvent<OmitMetadata<T>>,
-    T extends IGDPRProperty,
+    E: ClassifiedEvent<OmitMetadata<T>>,
+    T: IGDPRProperty,
   >(
     eventName: string,
     data?: object,

@@ -277,7 +277,7 @@ fn test_format_object_method_body_preserves_terminal_expression_without_semicolo
 #[test]
 fn test_format_extension_getter_ternary_tail_without_semicolon() {
     assert_format_program!(
-        r#"extension<T, comptime N: number> of SmallArray<T, N> implements
+        r#"extension<T, const N: number> of SmallArray<T, N> implements
     Sequence<T>,
     Index<usize>,
     IndexSet<usize, T>,
@@ -296,7 +296,7 @@ fn test_format_extension_getter_ternary_tail_without_semicolon() {
     }
 }
 "#,
-        r#"extension<T, comptime N: number> of SmallArray<T, N>
+        r#"extension<T, const N: number> of SmallArray<T, N>
     implements
         Sequence<T>,
         Index<usize>,

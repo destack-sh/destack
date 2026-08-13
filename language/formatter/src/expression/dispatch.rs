@@ -115,7 +115,7 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Await { .. }
         | Expression::AwaitMaybe { .. }
         | Expression::AwaitMust { .. }
-        | Expression::Comptime { .. }
+        | Expression::Const { .. }
         | Expression::Member { .. }
         | Expression::Index { .. }
         | Expression::Instantiation { .. }
@@ -312,7 +312,7 @@ fn format_expression_body_inner<'ast>(
         | Expression::Await { .. }
         | Expression::AwaitMaybe { .. }
         | Expression::AwaitMust { .. }
-        | Expression::Comptime { .. }
+        | Expression::Const { .. }
         | Expression::Member { .. }
         | Expression::Index { .. }
         | Expression::Instantiation { .. }

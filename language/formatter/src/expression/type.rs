@@ -1886,6 +1886,17 @@ fn callable_type_needs_parentheses_in_declaration_parent(
     !callable.is_constructor && parent_function.signature.form == FunctionForm::Lambda
 }
 
+/// Unwrap the value term one type expression carries in type space.
+pub(crate) fn static_value_expression(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<TypeExpression>,
+) -> Option<LocalNodeId<Expression>> {
+    match context.tree.get(node_id) {
+        TypeExpression::StaticValue { expression } => Some(*expression),
+        _ => None,
+    }
+}
+
 /// Return whether one type expression needs derived parentheses in its effective parent.
 pub(crate) fn type_expression_needs_parentheses_in_parent(
     context: &DestackFormatContext<'_>,
@@ -3325,10 +3336,7 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                     write!(f, [Keyword::Override, space()])?;
                 }
 
-                write!(
-                    f,
-                    [Keyword::Comptime, space(), Keyword::Const, space(), *name]
-                )?;
+                write!(f, [Keyword::Const, space(), *name])?;
 
                 if let Some(declared_type) = declared_type {
                     write!(f, [token(":"), space(), *declared_type])?;
@@ -3380,18 +3388,11 @@ impl<'ast> FormatNode<'ast, GenericArgument> for GenericArgument {
                     ]
                 )?;
             }
-            GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
-                if matches!(self, GenericArgument::SpreadValue { .. }) {
-                    write!(f, [token("...")])?;
-                }
-
-                write!(f, [value])?;
-            }
             GenericArgument::AssociatedConst { name, value } => {
                 write!(
                     f,
                     [
-                        Keyword::Comptime,
+                        Keyword::Const,
                         space(),
                         *name,
                         space(),

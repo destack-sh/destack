@@ -1,5 +1,6 @@
 use crate::annotation::{block_infix_annotations, format_dangling_comments};
 use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
+use crate::expression::static_value_expression;
 use crate::file::any_ignore_range_for_nodes;
 use crate::operator::{assign_pattern_contains_expression, expression_generic_arguments};
 use crate::{DestackFormatContext, DestackFormatter};
@@ -507,15 +508,16 @@ fn struct_literal_layout(
 
                 let generic_argument_id = LocalNodeId::<GenericArgument>::new(generic_argument_id);
                 let generic_argument_value = match f.context().tree.get(generic_argument_id) {
-                    GenericArgument::Value { value }
-                    | GenericArgument::SpreadValue { value }
+                    GenericArgument::Type { value }
+                    | GenericArgument::SpreadType { value }
+                    | GenericArgument::AssociatedType { value, .. }
                     | GenericArgument::AssociatedConst { value, .. } => *value,
-                    GenericArgument::Type { .. }
-                    | GenericArgument::SpreadType { .. }
-                    | GenericArgument::AssociatedType { .. } => {
-                        return false;
-                    }
                     GenericArgument::Error => return false,
+                };
+                let Some(generic_argument_value) =
+                    static_value_expression(f.context(), generic_argument_value)
+                else {
+                    return false;
                 };
                 if generic_argument_value.id != expression_id.id {
                     return false;

@@ -428,20 +428,20 @@ fn test_format_extension_implements_generic_item_layout() {
 #[test]
 fn test_format_extension_target_type_layout() {
     assert_format_program_reference_widths(
-        r#"extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of Tensor<T, Rank, F, Sharding<...Axes>> {
+        r#"extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of Tensor<T, Rank, F, Sharding<...Axes>> {
 }
 "#,
         FileType::Destack,
         &[
             (
                 100,
-                r#"extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of
+                r#"extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of
   Tensor<T, Rank, F, Sharding<...Axes>> {}
 "#,
             ),
             (
                 140,
-                r#"extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of Tensor<T, Rank, F, Sharding<...Axes>> {}
+                r#"extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of Tensor<T, Rank, F, Sharding<...Axes>> {}
 "#,
             ),
         ],
@@ -535,7 +535,7 @@ fn test_format_static_lifetime_roundtrip() {
     );
 }
 
-/// Bare tick generic parameters should print without comptime.
+/// Bare tick generic parameters should print without const.
 #[test]
 fn test_format_bare_lifetime_parameter_roundtrip() {
     assert_format!(
@@ -546,11 +546,11 @@ fn test_format_bare_lifetime_parameter_roundtrip() {
     );
 }
 
-/// Explicit comptime lifetime bounds should normalize to the bare tick name.
+/// Explicit const lifetime bounds should normalize to the bare tick name.
 #[test]
-fn test_format_comptime_lifetime_parameter_normalizes_bare() {
+fn test_format_const_lifetime_parameter_normalizes_bare() {
     assert_format!(
-        "declare function only<comptime 'a: Lifetime>(value: Borrowed<Node, 'a>): Borrowed<Node, 'a>;",
+        "declare function only<const 'a: Lifetime>(value: Borrowed<Node, 'a>): Borrowed<Node, 'a>;",
         "declare function only<'a>(value: Borrowed<Node, 'a>): Borrowed<Node, 'a>;",
         parse_first_expression,
         DestackFormatOptions::default()

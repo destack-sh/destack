@@ -1288,7 +1288,7 @@ fn expression_is_in_statement_context_inside_parent_member(
             body_expression_id.id == expression_id.id
                 && function_body_is_statement_context(context, signature)
         }),
-        Member::StaticBlock { body, .. } | Member::ComptimeBlock { body, .. } => {
+        Member::StaticBlock { body, .. } | Member::ConstBlock { body, .. } => {
             body.id == expression_id.id
         }
         _ => false,

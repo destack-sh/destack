@@ -303,9 +303,9 @@ pub(crate) fn format_operator_expression<'ast>(
             format_await_expression(f, node_id, *expression, Some("!"))?;
         }
 
-        // comptime
-        Expression::Comptime { body } => {
-            write!(f, [token("comptime"), space()])?;
+        // const
+        Expression::Const { body } => {
+            write!(f, [token("const"), space()])?;
 
             if let Expression::Block(block_id) = f.context().tree.get(*body) {
                 format_block_wide(f, *block_id)?;

@@ -10,7 +10,9 @@ use crate::chain::{
 };
 use crate::context::DestackFormatterSpeculationExt;
 use crate::declaration::{FormatLambdaDeclarationOptions, format_lambda_declaration_with_options};
-use crate::expression::{ExpressionLeftPath, write_expression_without_prefix_annotations};
+use crate::expression::{
+    ExpressionLeftPath, static_value_expression, write_expression_without_prefix_annotations,
+};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Comment,
@@ -121,20 +123,17 @@ fn is_complex_generic_arguments<'ast>(
         return Ok(false);
     };
 
-    match f.context().tree.get(argument_id) {
+    let argument = match f.context().tree.get(argument_id) {
         GenericArgument::Type { value }
         | GenericArgument::SpreadType { value }
-        | GenericArgument::AssociatedType { value, .. } => {
-            if type_argument_is_complex(f.context(), *value) {
-                return Ok(true);
-            }
-        }
-        GenericArgument::Value { value }
-        | GenericArgument::SpreadValue { value }
-        | GenericArgument::AssociatedConst { value, .. } => {
-            let value = transparent_inner_expression(f.context(), *value);
-
-            // value arguments use the same threshold as complex type arguments
+        | GenericArgument::AssociatedType { value, .. }
+        | GenericArgument::AssociatedConst { value, .. } => *value,
+        GenericArgument::Error => return Ok(false),
+    };
+    match static_value_expression(f.context(), argument) {
+        // value arguments use the same threshold as complex type arguments
+        Some(value) => {
+            let value = transparent_inner_expression(f.context(), value);
             if matches!(
                 f.context().tree.get(value),
                 Expression::Binary {
@@ -151,7 +150,12 @@ fn is_complex_generic_arguments<'ast>(
                 return Ok(true);
             }
         }
-        GenericArgument::Error => return Ok(false),
+        // type arguments answer from their own shape
+        None => {
+            if type_argument_is_complex(f.context(), argument) {
+                return Ok(true);
+            }
+        }
     }
 
     // measure remaining cases with one speculative render
@@ -1166,7 +1170,7 @@ impl AssignmentLike {
                     Expression::Await { .. }
                         | Expression::AwaitMaybe { .. }
                         | Expression::AwaitMust { .. }
-                        | Expression::Comptime { .. }
+                        | Expression::Const { .. }
                 );
                 let rhs_is_class_declaration =
                     expression_is_class_declaration(context, value_inner_id);

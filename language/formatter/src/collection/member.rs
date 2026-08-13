@@ -304,11 +304,8 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     write_abstract_prefix(f, *is_abstract)?;
                     write_override_prefix(f, *is_override)?;
 
-                    // keyword pair
-                    write!(
-                        f,
-                        [Keyword::Comptime, space(), Keyword::Const, space(), *name]
-                    )?;
+                    // keyword and name
+                    write!(f, [Keyword::Const, space(), *name])?;
 
                     // type and value
                     write_declared_type(f, *declared_type)?;
@@ -360,9 +357,9 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     // body
                     write!(f, [*body])?;
                 }
-                Member::ComptimeBlock { body } => {
+                Member::ConstBlock { body } => {
                     // keyword
-                    write!(f, [Keyword::Comptime, space()])?;
+                    write!(f, [Keyword::Const, space()])?;
 
                     // body
                     write!(f, [*body])?;
