@@ -25,6 +25,9 @@ pub(in crate::index) struct ModuleIndexContext<'a> {
     definitions: dir::DefinitionTable<'static>,
     /// The checked resolution table.
     resolutions: dir::ResolutionTable<'static>,
+    /// The checked member table.
+    members: dir::MemberTable<'static>,
+    /// The checked decision table.
     decisions: dir::DecisionTable<'static>,
     /// The resolved source references.
     resolved: Arc<DirResolved>,
@@ -59,6 +62,7 @@ impl<'a> ModuleIndexContext<'a> {
             decorators: checked.decorator_table(elaborated),
             definitions: checked.definition_table(elaborated),
             resolutions: checked.resolution_table(declared, elaborated),
+            members: checked.member_table(),
             decisions: checked.decision_table(declared, elaborated),
             resolved,
             strings,
@@ -105,6 +109,11 @@ impl<'a> ModuleIndexContext<'a> {
         &self.resolutions
     }
 
+    /// Return the checked member table.
+    pub(super) fn members(&self) -> &dir::MemberTable<'static> {
+        &self.members
+    }
+
     /// Return the module's decision table.
     pub(super) fn decisions(&self) -> &dir::DecisionTable<'static> {
         &self.decisions
@@ -113,13 +122,6 @@ impl<'a> ModuleIndexContext<'a> {
     /// Return the resolved source references.
     pub(super) fn resolved(&self) -> &DirResolved {
         &self.resolved
-    }
-
-    /// Return the symbol declared by one local node.
-    pub(super) fn node_symbol(&self, node_id: dir::LocalNodeIdAny) -> Option<dir::LocalSymbolId> {
-        let declaration = node_id.into_global(self.module_id);
-
-        self.bindings().declaration_symbol(declaration)
     }
 
     /// Return whether one symbol is an explicit local import alias.

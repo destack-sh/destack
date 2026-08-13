@@ -11,39 +11,6 @@ impl CompletionCollector<'_, '_, '_> {
         mut completion: CompletionCandidate,
         symbol: dir::GlobalSymbolId,
     ) -> QueryResult<CompletionCandidate> {
-        // render a derived tagged constructor from its object argument
-        let module = self.program.module(symbol.module_id)?;
-        if let Some((_, _, dir::DefinitionMember::TaggedVariant(variant))) =
-            module.definition_member(self.program, symbol)?
-        {
-            let fields = match variant.argument {
-                Some(argument) => self.program.read_type(argument, |ty, owner| {
-                    let dir::Type::Object(shape) = ty else {
-                        return Err(QueryError::invalid(format!(
-                            "tagged constructor argument: {argument:?}"
-                        )));
-                    };
-                    let formatter = Formatter::new(owner, self.program);
-                    owner
-                        .types()?
-                        .properties(shape.properties)
-                        .iter()
-                        .filter(|field| !field.is_optional)
-                        .map(|field| formatter.property_key(field.key))
-                        .collect::<QueryResult<Vec<_>>>()
-                })?,
-                None => Vec::new(),
-            };
-            let snippet = CallSnippet::object(&completion.label, &fields);
-            completion = if snippet.is_snippet {
-                completion.with_snippet(snippet.text)
-            } else {
-                completion.with_insert_text(snippet.text)
-            };
-
-            return Ok(completion);
-        }
-
         // render a callable from its declared parameter names
         let parameter_names =
             self.program

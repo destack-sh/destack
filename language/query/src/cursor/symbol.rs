@@ -424,9 +424,9 @@ impl ModuleQueryContext<'_> {
 
             // use the checked call selection for ordinary call callees
             if let Some(call_id) = self.callee_call(view, expression_id) {
-                let occurrence = self.selected_call_occurrence(call_id, span)?;
-
-                return Ok(occurrence);
+                if let Some(occurrence) = self.selected_call_occurrence(call_id, span)? {
+                    return Ok(Some(occurrence));
+                }
             }
         }
 

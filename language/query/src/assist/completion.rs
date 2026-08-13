@@ -78,6 +78,7 @@ impl From<dir::SymbolKind> for CompletionItemKind {
         match symbol_kind {
             dir::SymbolKind::Variable => CompletionItemKind::Variable,
             dir::SymbolKind::Parameter => CompletionItemKind::ValueParameter,
+            dir::SymbolKind::Label => CompletionItemKind::Label,
             dir::SymbolKind::AssociatedConst => CompletionItemKind::AssociatedConst,
             dir::SymbolKind::GenericValueParameter => CompletionItemKind::ValueParameter,
             dir::SymbolKind::Class => CompletionItemKind::Class,

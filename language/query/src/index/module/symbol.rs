@@ -58,9 +58,12 @@ impl<'a> SymbolIndexer<'a> {
                 continue;
             }
 
-            // exclude dependency bindings from program declarations
+            // exclude imports and control labels from program declarations
             let symbol = self.symbols.get_symbol(symbol_id);
-            if symbol.kind == dir::SymbolKind::Import {
+            if matches!(
+                symbol.kind,
+                dir::SymbolKind::Import | dir::SymbolKind::Label
+            ) {
                 continue;
             }
             if symbol.role == dir::SymbolRole::Local

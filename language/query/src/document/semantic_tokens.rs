@@ -67,6 +67,7 @@ impl TryFrom<dir::SymbolKind> for SemanticTokenType {
             | dir::SymbolKind::AssociatedConst
             | dir::SymbolKind::GenericValueParameter => Ok(Self::Variable),
             dir::SymbolKind::Parameter => Ok(Self::Parameter),
+            dir::SymbolKind::Label => Ok(Self::Label),
             dir::SymbolKind::Class => Ok(Self::Class),
             dir::SymbolKind::Struct => Ok(Self::Struct),
             dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface => Ok(Self::Interface),
@@ -238,6 +239,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         semantic_tokens.collect_pattern_bindings()?;
         semantic_tokens.collect_pattern_fields()?;
         semantic_tokens.collect_expressions()?;
+        semantic_tokens.collect_labels()?;
         semantic_tokens.collect_modifications()?;
         semantic_tokens.collect_members()?;
         semantic_tokens.collect_type_members()?;
@@ -524,7 +526,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
     fn collect_expressions(&mut self) -> QueryResult<()> {
         let view = self.module.view()?;
 
-        // collect labels and visible reference segments
+        // collect visible reference segments
         for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
             if self.is_decorator_name(expression_id)? {
                 continue;
@@ -543,21 +545,45 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                     self.tokens
                         .push(SemanticToken::new(main_span, token_type, modifiers));
                 }
-                dir::Expression::Break { label: Some(_), .. }
-                | dir::Expression::Continue { label: Some(_) } => {
-                    let node_id = expression_id.into_global_any(self.module.module_id());
-                    let (token_type, modifiers) = self
-                        .reference_token(node_id)?
-                        .ok_or(QueryError::missing(format!("label target: {node_id:?}")))?;
-                    let Some(main_span) = self.main_span(expression_id.into_any())? else {
-                        continue;
-                    };
-
-                    self.tokens
-                        .push(SemanticToken::new(main_span, token_type, modifiers));
-                }
                 _ => {}
             }
+        }
+
+        Ok(())
+    }
+
+    /// Collect control label declaration and reference tokens.
+    fn collect_labels(&mut self) -> QueryResult<()> {
+        let view = self.module.view()?;
+
+        // collect every authored label from its control role
+        for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
+            let token = if expression.control_label().is_some() {
+                (
+                    SemanticTokenType::Label,
+                    SemanticTokenModifiers::DECLARATION,
+                )
+            } else if matches!(
+                expression,
+                dir::Expression::Break { label: Some(_), .. }
+                    | dir::Expression::Continue { label: Some(_) }
+            ) {
+                let node_id = expression_id.into_global_any(self.module.module_id());
+                self.reference_token(node_id)?.ok_or_else(|| {
+                    QueryError::missing(format!("control label target: {node_id:?}"))
+                })?
+            } else {
+                continue;
+            };
+
+            let node_id = expression_id.into_global_any(self.module.module_id());
+            let main_span = self
+                .main_span(expression_id.into_any())?
+                .ok_or_else(|| QueryError::missing(format!("control label span: {node_id:?}")))?;
+            let (token_type, modifiers) = token;
+
+            self.tokens
+                .push(SemanticToken::new(main_span, token_type, modifiers));
         }
 
         Ok(())

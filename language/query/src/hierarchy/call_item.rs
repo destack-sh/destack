@@ -117,11 +117,6 @@ enum CallableSelection<'a> {
         /// The exact constructor call selected by checking.
         call: ConstructorCall<'a>,
     },
-    /// One generated variant constructor.
-    Variant {
-        /// The generated variant symbol.
-        symbol_id: dir::GlobalSymbolId,
-    },
 }
 
 /// The exact types selected for one generated constructor call.
@@ -170,7 +165,6 @@ impl CallItem {
             }
             dir::SymbolKind::Class => target_module.class_call_item(program, target_id),
             dir::SymbolKind::Newtype => target_module.newtype_call_item(program, target_id, None),
-            dir::SymbolKind::Variant => target_module.variant_call_item(program, target_id),
             _ => Ok(None),
         }
     }
@@ -195,8 +189,12 @@ impl CallItem {
             )))?;
         let selected = match &resolution.target {
             dir::ConstructTarget::Newtype(candidate) => candidate.symbol,
-            dir::ConstructTarget::Variant(candidate) => candidate.case.variant,
             dir::ConstructTarget::Class(_) => return Self::from_symbol(program, entry.callee),
+            dir::ConstructTarget::Variant(_) => {
+                return Err(QueryError::invalid(
+                    "generated tagged construction has no call item",
+                ));
+            }
             // skip dynamic constructions, they index no declaration edge
             dir::ConstructTarget::Dynamic { .. } => {
                 return Err(QueryError::invalid(format!(
@@ -227,8 +225,9 @@ impl CallItem {
 
                 module.newtype_call_item(program, entry.callee, Some(call))
             }
-            dir::ConstructTarget::Variant(_) => module.variant_call_item(program, entry.callee),
-            dir::ConstructTarget::Class(_) | dir::ConstructTarget::Dynamic { .. } => {
+            dir::ConstructTarget::Class(_)
+            | dir::ConstructTarget::Variant(_)
+            | dir::ConstructTarget::Dynamic { .. } => {
                 Err(QueryError::invalid("construct call item"))
             }
         }
@@ -251,16 +250,6 @@ impl CallItem {
                 let module = program.module(target_id.module_id)?;
 
                 module.newtype_call_item(program, target_id, Some(call))
-            }
-            CallableSelection::Variant { symbol_id } => {
-                let target_id = program
-                    .symbol_target(symbol_id)?
-                    .ok_or(QueryError::missing(format!(
-                        "call item symbol: {symbol_id:?}"
-                    )))?;
-                let module = program.module(target_id.module_id)?;
-
-                module.variant_call_item(program, target_id)
             }
         }
     }
@@ -359,7 +348,7 @@ impl CallableSelection<'_> {
             )));
         }
         if let Some(resolution) = construct {
-            return Ok(Self::from_resolution(resolution));
+            return Self::from_resolution(resolution);
         }
 
         // otherwise require the ordinary call selection
@@ -389,24 +378,24 @@ impl CallableSelection<'_> {
                     "call item construction: {node_id:?}"
                 )))?;
 
-        Ok(Self::from_resolution(resolution))
+        Self::from_resolution(resolution)
     }
 
     /// Return the callable represented by one construction.
-    fn from_resolution(resolution: &dir::ConstructDecision) -> CallableSelection<'_> {
+    fn from_resolution(resolution: &dir::ConstructDecision) -> QueryResult<CallableSelection<'_>> {
         match &resolution.target {
             dir::ConstructTarget::Class(candidate) => match candidate.constructor.call_symbol() {
-                Some(symbol) => CallableSelection::Symbol(symbol),
-                None => CallableSelection::Symbol(candidate.symbol),
+                Some(symbol) => Ok(CallableSelection::Symbol(symbol)),
+                None => Ok(CallableSelection::Symbol(candidate.symbol)),
             },
-            dir::ConstructTarget::Newtype(candidate) => CallableSelection::Newtype {
+            dir::ConstructTarget::Newtype(candidate) => Ok(CallableSelection::Newtype {
                 symbol_id: candidate.symbol,
                 call: ConstructorCall::new(&candidate.generic_arguments, resolution),
-            },
-            dir::ConstructTarget::Variant(candidate) => CallableSelection::Variant {
-                symbol_id: candidate.case.variant,
-            },
-            dir::ConstructTarget::Dynamic { .. } => CallableSelection::DeclarationFree,
+            }),
+            dir::ConstructTarget::Variant(_) => Err(QueryError::invalid(
+                "generated tagged construction has no call item",
+            )),
+            dir::ConstructTarget::Dynamic { .. } => Ok(CallableSelection::DeclarationFree),
         }
     }
 }
@@ -611,46 +600,6 @@ impl ModuleQueryContext<'_> {
             name,
             kind: CallItemKind::Constructor,
             signature,
-            target,
-            symbol_id,
-        }))
-    }
-
-    /// Build one generated tagged variant constructor item.
-    fn variant_call_item(
-        &self,
-        program: &ProgramQueryContext<'_>,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> QueryResult<Option<CallItem>> {
-        let (declaring, _, member) =
-            self.definition_member(program, symbol_id)?
-                .ok_or(QueryError::invalid(format!(
-                    "call item symbol: {symbol_id:?}"
-                )))?;
-        if matches!(member, dir::DefinitionMember::EnumVariant(_)) {
-            return Ok(None);
-        }
-        let dir::DefinitionMember::TaggedVariant(variant) = member else {
-            return Err(QueryError::invalid(format!(
-                "call item symbol: {symbol_id:?}"
-            )));
-        };
-
-        // read the derived constructor key
-        let dir::StaticKey::Name(name) = variant.key else {
-            return Err(QueryError::invalid(format!(
-                "tagged variant key: {symbol_id:?}"
-            )));
-        };
-        let name = self.strings().get(name).to_string();
-        let signature =
-            Formatter::new(self, program).tagged_variant_signature(declaring, variant)?;
-        let target = self.declaration_target(program, symbol_id)?;
-
-        Ok(Some(CallItem {
-            name,
-            kind: CallItemKind::Constructor,
-            signature: Some(signature),
             target,
             symbol_id,
         }))

@@ -22,14 +22,14 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
             entries: Vec::new(),
         };
 
-        // collect checked call and construct resolutions
-        indexer.collect_resolutions()?;
+        // collect call and construct decisions
+        indexer.collect_calls()?;
 
         Ok(dir::CallIndex::new(indexer.entries))
     }
 
-    /// Collect call edges from every checked node resolution.
-    fn collect_resolutions(&mut self) -> ProviderResult<()> {
+    /// Collect call edges from every checked decision.
+    fn collect_calls(&mut self) -> ProviderResult<()> {
         for (node_id, resolution) in self.module.decisions().decision_entries() {
             // resolve shared source metadata per resolved node
             let label = match resolution {
@@ -45,7 +45,7 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
             let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
                 continue;
             };
-            let caller = self.containing_symbol(node_id.local_id)?;
+            let caller = self.caller_symbol(node_id.local_id)?;
 
             match resolution {
                 // emit selected call targets
@@ -117,9 +117,42 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
         span: Span,
         resolution: &dir::CallDecision,
     ) {
-        for call in resolution.arms() {
-            self.push_call(source, caller, span, call);
+        // emit each exact declaration selected by the call
+        for callee in resolution.target_symbols() {
+            self.push_call_symbol(source, caller, span, callee);
         }
+    }
+
+    /// Push one declaration-backed call edge.
+    fn push_call_symbol(
+        &mut self,
+        source: dir::GlobalNodeId<dir::Expression>,
+        caller: Option<dir::GlobalSymbolId>,
+        span: Span,
+        callee: dir::GlobalSymbolId,
+    ) {
+        self.entries.push(dir::CallEntry {
+            source,
+            kind: dir::CallKind::Call,
+            caller,
+            callee,
+            span,
+        });
+    }
+
+    /// Push one call edge retained by another operation.
+    fn push_call(
+        &mut self,
+        source: dir::GlobalNodeId<dir::Expression>,
+        caller: Option<dir::GlobalSymbolId>,
+        span: Span,
+        call: &dir::Call,
+    ) {
+        let Some(callee) = call.target.symbol() else {
+            return;
+        };
+
+        self.push_call_symbol(source, caller, span, callee);
     }
 
     /// Push getter call edges selected by one member resolution.
@@ -248,91 +281,56 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
         }
     }
 
-    /// Push one singular call edge.
-    fn push_call(
-        &mut self,
-        source: dir::GlobalNodeId<dir::Expression>,
-        caller: Option<dir::GlobalSymbolId>,
-        span: Span,
-        call: &dir::Call,
-    ) {
-        let Some(callee) = call.target.symbol() else {
-            return;
-        };
-
-        self.entries.push(dir::CallEntry {
-            source,
-            kind: dir::CallKind::Call,
-            caller,
-            callee,
-            span,
-        });
-    }
-
-    /// Find the containing declaration or member symbol for one node.
-    fn containing_symbol(
+    /// Find the named callable that contains one node.
+    fn caller_symbol(
         &self,
         node_id: dir::LocalNodeIdAny,
     ) -> ProviderResult<Option<dir::GlobalSymbolId>> {
-        let mut current = Some(node_id);
+        let bindings = self.module.bindings();
+        let view = self.module.view();
+        let scope = bindings.scope_at(&view, node_id);
 
-        // stop at the nearest callable declaration
-        while let Some(node_id) = current {
-            if node_id.ty == dir::NodeType::Declaration {
+        // select the nearest function scope
+        let function =
+            std::iter::successors(Some(scope), |scope| bindings.get_scope(*scope).parent)
+                .find(|scope| bindings.get_scope(*scope).kind == dir::ScopeKind::Function);
+        let Some(function) = function else {
+            return Ok(None);
+        };
+        let owner = bindings.get_scope(function).owner.ok_or_else(|| {
+            ProviderError::internal(format!("function scope has no owner: {:?}", function.id))
+        })?;
+
+        // classify the exact declaration that owns the function scope
+        let symbol = bindings.get_symbol(owner);
+        let Some(declaration) = symbol.declaration else {
+            return Err(ProviderError::internal(format!(
+                "function scope owner has no declaration: {owner:?}"
+            ))
+            .into());
+        };
+        let is_caller = match declaration.local_id.ty {
+            dir::NodeType::Declaration => {
                 let declaration_id =
-                    node_id.try_into_typed::<dir::Declaration>().map_err(|_| {
-                        ProviderError::internal(format!(
-                            "declaration node id has incompatible type: {node_id:?}"
-                        ))
-                    })?;
-                let declaration = self.module.view().get(declaration_id);
-
-                // anonymous functions have no call hierarchy item
-                if let dir::Declaration::Function(function) = declaration {
-                    if function.name.is_none() {
-                        return Ok(None);
-                    }
-                    let symbol_id = self.module.node_symbol(node_id).ok_or_else(|| {
-                        ProviderError::internal(format!(
-                            "missing symbol for function declaration {declaration_id:?}"
-                        ))
-                    })?;
-
-                    return Ok(Some(dir::GlobalSymbolId::new(
-                        self.module.module_id(),
-                        symbol_id,
-                    )));
-                }
+                    dir::LocalNodeId::<dir::Declaration>::new(declaration.local_id.id);
+                matches!(
+                    view.get(declaration_id),
+                    dir::Declaration::Function(function) if function.name.is_some()
+                )
             }
-
-            // stop at the nearest method declaration
-            if node_id.ty == dir::NodeType::Member {
-                let member_id = node_id.try_into_typed::<dir::Member>().map_err(|_| {
-                    ProviderError::internal(format!(
-                        "member node id has incompatible type: {node_id:?}"
-                    ))
-                })?;
-                if matches!(
-                    self.module.view().get(member_id),
-                    dir::Member::Method { .. }
-                ) {
-                    let symbol_id = self.module.node_symbol(node_id).ok_or_else(|| {
-                        ProviderError::internal(format!(
-                            "missing symbol for method member {member_id:?}"
-                        ))
-                    })?;
-
-                    return Ok(Some(dir::GlobalSymbolId::new(
-                        self.module.module_id(),
-                        symbol_id,
-                    )));
-                }
+            dir::NodeType::Member => {
+                let member_id = dir::LocalNodeId::<dir::Member>::new(declaration.local_id.id);
+                matches!(view.get(member_id), dir::Member::Method { .. })
             }
-
-            // continue with the parent node
-            current = self.module.view().get_parent_any(node_id);
+            _ => false,
+        };
+        if !is_caller {
+            return Ok(None);
         }
 
-        Ok(None)
+        Ok(Some(dir::GlobalSymbolId::new(
+            self.module.module_id(),
+            owner,
+        )))
     }
 }

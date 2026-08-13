@@ -1,3 +1,5 @@
+use std::collections::hash_map::Entry;
+
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::Span;
@@ -43,45 +45,34 @@ impl ProgramQueryContext<'_> {
             .ok_or(QueryError::invalid(format!(
                 "call hierarchy symbol: {symbol_id:?}"
             )))?;
-        let mut callees: FxHashMap<dir::GlobalSymbolId, Vec<dir::CallEntry>> = FxHashMap::default();
+        let mut callees: FxHashMap<dir::GlobalSymbolId, (CallItem, Vec<dir::CallEntry>)> =
+            FxHashMap::default();
 
-        // collect call sites grouped by their exact target callee
+        // collect declaration backed callees and their call sites
         for entry in self.caller_calls(target_id)? {
-            let callee = self
-                .symbol_target(entry.callee)?
-                .ok_or(QueryError::invalid(format!(
-                    "call hierarchy symbol: {:?}",
-                    entry.callee
-                )))?;
-            callees.entry(callee).or_default().push(entry);
-        }
-
-        // collect indexed callees
-        let mut calls = Vec::new();
-        for (callee, entries) in callees {
-            let first_source = entries
-                .first()
-                .copied()
-                .ok_or(QueryError::missing(format!("outgoing call: {callee:?}")))?;
-            let module = self.module(first_source.source.module_id)?;
-            let to = CallItem::from_entry(&module, self, first_source)?.ok_or(
-                QueryError::invalid(format!("call hierarchy symbol: {callee:?}")),
-            )?;
-
-            // require one stable item across every grouped call selection
-            for entry in &entries[1..] {
-                let source = entry.source;
-                let module = self.module(source.module_id)?;
-                let selected = CallItem::from_entry(&module, self, *entry)?.ok_or(
-                    QueryError::invalid(format!("call hierarchy symbol: {callee:?}")),
-                )?;
-                if selected != to {
+            let module = self.module(entry.source.module_id)?;
+            let Some(item) = CallItem::from_entry(&module, self, entry)? else {
+                continue;
+            };
+            let callee = item.symbol_id;
+            match callees.entry(callee) {
+                Entry::Vacant(vacant) => {
+                    vacant.insert((item, vec![entry]));
+                }
+                Entry::Occupied(mut occupied) if occupied.get().0 == item => {
+                    occupied.get_mut().1.push(entry);
+                }
+                Entry::Occupied(_) => {
                     return Err(QueryError::conflict(format!(
                         "outgoing call item: {callee:?}"
                     )));
                 }
             }
+        }
 
+        // collect indexed callees
+        let mut calls = Vec::new();
+        for (_, (to, entries)) in callees {
             let mut ranges = entries.iter().map(|entry| entry.span).collect::<Vec<_>>();
             sort_and_dedup_spans(&mut ranges);
 

@@ -26,6 +26,9 @@ impl ModuleQueryContext<'_> {
         if let Some(resolution) = self.decisions()?.receiver_decision(node_id) {
             selections.push(vec![resolution.declaration]);
         }
+        if let Some(symbol) = self.decisions()?.label_decision(node_id) {
+            selections.push(vec![symbol]);
+        }
 
         // require one authoritative resolution column
         if selections.len() > 1 {

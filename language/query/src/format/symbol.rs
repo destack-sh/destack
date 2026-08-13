@@ -282,13 +282,10 @@ impl Formatter<'_, '_, '_> {
 
                 format!("{name}: {type_text}")
             }
-            dir::DefinitionMember::TaggedKey(_) => {
+            dir::DefinitionMember::TaggedKey(_) | dir::DefinitionMember::TaggedVariant(_) => {
                 return Err(QueryError::invalid(format!(
-                    "tagged member has no selected variant: {symbol_id:?}"
+                    "generated tagged member has no query representation: {symbol_id:?}"
                 )));
-            }
-            dir::DefinitionMember::TaggedVariant(variant) => {
-                self.tagged_variant_signature(declaring, variant)?
             }
             dir::DefinitionMember::CallSignature(_)
             | dir::DefinitionMember::ConstructSignature(_) => {
@@ -304,26 +301,6 @@ impl Formatter<'_, '_, '_> {
         };
 
         Ok(signature)
-    }
-
-    /// Format one generated tagged variant constructor.
-    pub(crate) fn tagged_variant_signature(
-        &self,
-        declaring: dir::GlobalSymbolId,
-        variant: &dir::TaggedVariantDefinition,
-    ) -> QueryResult<String> {
-        let owner = self.symbol(declaring)?;
-        let generic_parameters = self.symbol_generics(declaring)?.unwrap_or_default();
-        let name = self.property_key(variant.key)?;
-        let parameters = variant
-            .argument
-            .map(|argument| self.global_type(argument))
-            .transpose()?
-            .unwrap_or_default();
-
-        Ok(format!(
-            "{owner}.{name}{generic_parameters}({parameters}): {owner}{generic_parameters}"
-        ))
     }
 
     /// Format one parameter symbol.
