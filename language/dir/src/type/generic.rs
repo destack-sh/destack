@@ -3,8 +3,16 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalScopeId, StringId, TypeFold,
-    VarianceModifier, WhereRelation,
+    GlobalNodeIdAny,
+    GlobalSymbolId,
+    GlobalTypeId,
+    LanguageItem,
+    LocalNodeIdAny,
+    LocalScopeId,
+    StringId,
+    TypeFold,
+    VarianceModifier,
+    WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -276,6 +284,21 @@ pub struct GenericParameterBinding {
     pub is_variadic: bool,
     /// Whether type inference preserves exact argument literals.
     pub is_const: bool,
+}
+
+/// How many inhabitants one parameter's argument type may have.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum Cardinality {
+    /// The argument must be one exact value's type.
+    One {
+        /// The declared use consuming the value.
+        source: LocalNodeIdAny,
+    },
+    /// The parameter carries one callee parameter's cardinality.
+    Of {
+        /// The callee parameter the argument flows into.
+        callee: GlobalGenericParameterId,
+    },
 }
 
 impl GenericParameterBinding {

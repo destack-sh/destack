@@ -5,8 +5,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, GenericParameterBinding, GenericParameterKey, GenericTemplate, GlobalNodeIdAny,
-    GlobalSymbolId, LocalGenericParameterId, LocalGenericTemplateId, LocalScopeId, SegmentView,
+    Arena, GenericParameterBinding, GenericParameterKey, Cardinality, GenericTemplate, GlobalNodeIdAny,
+    GlobalSymbolId, LocalGenericParameterId, LocalGenericTemplateId, LocalNodeIdAny, LocalScopeId,
+    SegmentView,
     VarianceModifier,
 };
 
@@ -56,13 +57,24 @@ impl<'a> GenericTable<'a> {
     }
 
     /// Return the derived variance recorded for one parameter.
-    pub fn derived_variance(
+    pub fn variance(
         &self,
         parameter_id: LocalGenericParameterId,
     ) -> Option<VarianceModifier> {
         for segment in self.segments.iter() {
-            if let Some(variance) = segment.derived_variance(parameter_id) {
+            if let Some(variance) = segment.variance(parameter_id) {
                 return Some(variance);
+            }
+        }
+
+        None
+    }
+
+    /// Return the cardinality recorded for one parameter.
+    pub fn cardinality(&self, parameter_id: LocalGenericParameterId) -> Option<Cardinality> {
+        for segment in self.segments.iter() {
+            if let Some(cardinality) = segment.cardinality(parameter_id) {
+                return Some(cardinality);
             }
         }
 
@@ -142,7 +154,7 @@ impl<'a> GenericTable<'a> {
 
         binding
             .variance
-            .or_else(|| self.derived_variance(parameter))
+            .or_else(|| self.variance(parameter))
     }
 
     /// Get a generic template by id.
@@ -204,8 +216,10 @@ pub struct GenericSegment {
     pub(crate) templates_by_scope: Vec<Option<LocalGenericTemplateId>>,
     /// Generic parameters.
     pub(crate) parameters: Arena<GenericParameterBinding>,
-    /// Variances derived by check for unannotated earlier parameters.
-    pub(crate) derived_variances: Vec<(LocalGenericParameterId, VarianceModifier)>,
+    /// Variances derived from declared member types.
+    pub(crate) variances: Vec<(LocalGenericParameterId, VarianceModifier)>,
+    /// Cardinalities derived from declared value positions.
+    pub(crate) cardinalities: Vec<(LocalGenericParameterId, Cardinality)>,
 }
 
 impl GenericSegment {
@@ -218,7 +232,8 @@ impl GenericSegment {
             templates: Arena::new(),
             templates_by_scope: Vec::new(),
             parameters: Arena::new(),
-            derived_variances: Vec::new(),
+            variances: Vec::new(),
+            cardinalities: Vec::new(),
         }
     }
 
@@ -231,28 +246,56 @@ impl GenericSegment {
             templates: Arena::new(),
             templates_by_scope: Vec::new(),
             parameters: Arena::new(),
-            derived_variances: Vec::new(),
+            variances: Vec::new(),
+            cardinalities: Vec::new(),
         }
     }
 
     /// Record one derived variance for an unannotated parameter.
-    pub fn set_derived_variance(
+    pub fn set_variance(
         &mut self,
         parameter_id: LocalGenericParameterId,
         variance: VarianceModifier,
     ) {
-        self.derived_variances.push((parameter_id, variance));
+        self.variances.push((parameter_id, variance));
     }
 
     /// Return the derived variance recorded for one parameter.
-    pub fn derived_variance(
+    pub fn variance(
         &self,
         parameter_id: LocalGenericParameterId,
     ) -> Option<VarianceModifier> {
-        self.derived_variances
+        self.variances
             .iter()
             .find(|(recorded, _)| *recorded == parameter_id)
             .map(|(_, variance)| *variance)
+    }
+
+    /// Record the cardinality one parameter's value positions derive.
+    pub fn set_cardinality(&mut self, parameter_id: LocalGenericParameterId, cardinality: Cardinality) {
+        match self
+            .cardinalities
+            .iter_mut()
+            .find(|(recorded, _)| *recorded == parameter_id)
+        {
+            // One replaces Of, never the reverse
+            Some((_, recorded)) => {
+                if matches!(recorded, Cardinality::Of { .. })
+                    && matches!(cardinality, Cardinality::One { .. })
+                {
+                    *recorded = cardinality;
+                }
+            }
+            None => self.cardinalities.push((parameter_id, cardinality)),
+        }
+    }
+
+    /// Return the cardinality recorded for one parameter.
+    pub fn cardinality(&self, parameter_id: LocalGenericParameterId) -> Option<Cardinality> {
+        self.cardinalities
+            .iter()
+            .find(|(recorded, _)| *recorded == parameter_id)
+            .map(|(_, cardinality)| *cardinality)
     }
 
     /// Append a generic template to this segment.
