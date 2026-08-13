@@ -121,7 +121,7 @@ fn test_lower_method_returning_this_to_its_owner_representation() {
     let session = TestSession::single(
         r#"
 class User {
-    id: int32;
+    id: int32 = 0;
 
     identity(): this {
         return this;

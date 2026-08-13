@@ -4,6 +4,7 @@ mod construct;
 mod r#enum;
 mod field;
 mod import;
+mod intrinsic;
 mod newtype;
 mod object;
 mod slice;

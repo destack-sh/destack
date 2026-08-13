@@ -107,7 +107,10 @@ impl ModuleLowerer<'_> {
                     | dir::Definition::Enum(_)
                     | dir::Definition::Class(_)
             );
+            // skip the lifetime marker
+            let is_lifetime_kind = self.language_item(symbol)? == Some(dir::LanguageItem::Lifetime);
             if is_nominal
+                && !is_lifetime_kind
                 && symbol.module_id == self.module
                 && !self.definition_is_parameterized(symbol.module_id, definition)?
             {
@@ -143,7 +146,9 @@ impl TypeLowerer<'_, '_> {
         let value = definition.value;
 
         // define declared object types in place at the alias identity
-        if let dir::Type::Object(shape) = self.lowerer.ty(value)? {
+        if let dir::Type::Object(shape) = self.lowerer.ty(value)?
+            && !shape.declares_signatures()
+        {
             self.define_object_struct(&shape, value.module_id, ty)?;
 
             return Ok(Vec::new());

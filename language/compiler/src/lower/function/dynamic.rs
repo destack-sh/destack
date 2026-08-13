@@ -120,39 +120,6 @@ impl FunctionLowerer<'_, '_, '_> {
         ))
     }
 
-    /// Read one structural member through the receiver's dynamic entries.
-    pub(in crate::lower) fn lower_dynamic_field_read(
-        &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
-        constraint: dir::GlobalTypeId,
-        key: dir::StaticKey,
-    ) -> CompilerResult<mir::Value> {
-        // find the constraint slot the key declares
-        let dir::Type::Shape(shape) = self.lowerer.ty(constraint)? else {
-            return Err(CompilerError::Internal {
-                message: "a dynamic field read outside a structural constraint".to_string(),
-            });
-        };
-        let slot = self
-            .lowerer
-            .types(constraint.module_id)?
-            .properties(shape.properties)
-            .iter()
-            .position(|property| property.key == key)
-            .ok_or_else(|| CompilerError::Internal {
-                message: "a read of an undeclared structural member".to_string(),
-            })?;
-
-        // read the slot off the erased receiver
-        let result_type = self.lower_type(self.node_type_id(expression)?)?;
-        let receiver = self.lower_expression(left)?;
-
-        Ok(self
-            .builder
-            .dynamic_read(receiver, slot as u32, result_type))
-    }
-
     /// Find one computed key through the receiver's dynamic table.
     pub(in crate::lower) fn lower_dynamic_signature_read(
         &mut self,

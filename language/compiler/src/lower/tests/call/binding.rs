@@ -51,7 +51,7 @@ fn test_lower_binding_borrow_parameters_with_polymorphic_lifetimes() {
     let session = TestSession::single(
         r#"
 class User {
-    id: int32;
+    id: int32 = 0;
 }
 
 @binding("host.user.inspect", {

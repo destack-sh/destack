@@ -344,21 +344,11 @@ impl ModuleLowerer<'_> {
                 }
             },
 
-            // answer nullable unions through their reference carrier, tagged unions stay values
-            dir::Type::Union(union) => {
-                match self.decompose_nullish_union(id.module_id, &union, type_substitution)? {
-                    Some((_, carrier)) => {
-                        self.has_indirect_representation(carrier, type_substitution)
-                    }
-                    None => Ok(false),
-                }
-            }
-
-            // answer bare bases by their family default
-            other => {
-                Ok(self.base_default_ownership(&other, type_substitution)?
-                    == dir::Ownership::Managed)
-            }
+            // answer every bare base, unions included, by its family default
+            other => Ok(
+                self.base_default_ownership(id.module_id, &other, type_substitution)?
+                    == dir::Ownership::Managed,
+            ),
         }
     }
 
@@ -380,16 +370,16 @@ impl ModuleLowerer<'_> {
         })
     }
 
-    /// Return the default ownership of one base type family.
+    /// Return the default ownership of one base type family declared in one module.
     fn base_default_ownership(
         &self,
+        module: ModuleId,
         base: &dir::Type,
         type_substitution: &TypeSubstitution,
     ) -> CompilerResult<dir::Ownership> {
         Ok(match base {
             // default reference families to managed
-            dir::Type::Shape(_)
-            | dir::Type::Array(_)
+            dir::Type::Array(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Function(_)
             | dir::Type::Slice(_)
@@ -404,7 +394,9 @@ impl ModuleLowerer<'_> {
                 Some(dir::Definition::TypeAlias(alias))
                     if self.language_item(instance.symbol)?.is_none() =>
                 {
-                    self.base_default_ownership(&self.ty(alias.value)?, type_substitution)?
+                    let value = self.ty(alias.value)?;
+
+                    self.base_default_ownership(alias.value.module_id, &value, type_substitution)?
                 }
                 _ => dir::Ownership::Owned,
             },
@@ -429,7 +421,25 @@ impl ModuleLowerer<'_> {
             dir::Type::Variant(variant) => {
                 let owner = self.ty(variant.owner)?;
 
-                return self.base_default_ownership(&owner, type_substitution);
+                return self.base_default_ownership(
+                    variant.owner.module_id,
+                    &owner,
+                    type_substitution,
+                );
+            }
+
+            // follow the reference carrier of a nullish union, hold tagged unions directly
+            dir::Type::Union(union) => {
+                let Some((_, carrier)) =
+                    self.decompose_nullish_union(module, union, type_substitution)?
+                else {
+                    return Ok(dir::Ownership::Owned);
+                };
+
+                match self.has_indirect_representation(carrier, type_substitution)? {
+                    true => dir::Ownership::Managed,
+                    false => dir::Ownership::Owned,
+                }
             }
 
             // classify This through the receiver in scope
@@ -443,13 +453,14 @@ impl ModuleLowerer<'_> {
 
                 return match receiver {
                     ReceiverBinding::Application(receiver) => self.base_default_ownership(
+                        receiver.symbol.module_id,
                         &dir::Type::Application(receiver),
                         type_substitution,
                     ),
                     ReceiverBinding::Type(ty) => {
                         let receiver = self.ty(ty)?;
 
-                        self.base_default_ownership(&receiver, type_substitution)
+                        self.base_default_ownership(ty.module_id, &receiver, type_substitution)
                     }
                 };
             }

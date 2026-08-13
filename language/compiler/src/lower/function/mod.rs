@@ -5,6 +5,7 @@ mod call;
 mod capture;
 mod cast;
 mod construct;
+mod context;
 mod control;
 mod dynamic;
 mod equality;
@@ -20,3 +21,4 @@ mod tree;
 mod value;
 
 pub(in crate::lower) use body::*;
+pub(in crate::lower) use context::*;

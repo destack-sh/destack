@@ -10,6 +10,10 @@ struct Wrapper {
 
 class Node {
     wrapper: Wrapper;
+
+    constructor(wrapper: Wrapper) {
+        this.wrapper = wrapper;
+    }
 }
 "#,
     );
@@ -24,6 +28,13 @@ type Node {
 @copy
 type Wrapper {
     node: ref<Node, managed, mutable>;
+}
+
+function test.main.Node.constructor(v0: ref<Node, borrowed, exclusive>, v1: Wrapper): void {
+entry(v0: ref<Node, borrowed, exclusive>, v1: Wrapper):
+    v2: ref<Wrapper, borrowed, mutable> = field.address v0, 0
+    store v2, v1
+    return
 }
 /// @layout.struct name=Node size=8 align=8
 /// @layout.field owner=Node index=0 name=wrapper offset=0 size=8 align=8

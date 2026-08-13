@@ -22,13 +22,13 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         };
         Ok(match self.ty(alias.value)? {
+            dir::Type::Object(shape) if shape.declares_signatures() => Some(AliasForm::Value),
             dir::Type::Object(_) => Some(AliasForm::Object),
             // families whose lowering recurses into children need identity
             dir::Type::Union(_)
             | dir::Type::Tuple(_)
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
-            | dir::Type::Shape(_)
             | dir::Type::Function(_) => Some(AliasForm::Value),
             _ => None,
         })

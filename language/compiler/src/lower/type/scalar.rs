@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::ModuleLowerer;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
     /// Lower one type to its concrete scalar form.
@@ -12,9 +12,6 @@ impl ModuleLowerer<'_> {
             dir::Type::Literal(_) => Ok(mir::Type::Void),
             dir::Type::Null | dir::Type::Undefined => Ok(mir::Type::Void),
             dir::Type::Primitive(primitive) => self.lower_primitive_type(primitive),
-            dir::Type::Hole(node) => Err(CompilerError::Internal {
-                message: format!("hole survived checking at {node:?}"),
-            }),
             other => Err(LowerError::Unsupported {
                 anchor: self.module.into(),
                 construct: format!("the '{}' type", other.variant_name()),

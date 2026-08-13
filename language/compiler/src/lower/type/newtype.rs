@@ -20,7 +20,9 @@ impl TypeLowerer<'_, '_> {
 
         // take the intrinsic representation for compiler-known newtypes
         if matches!(self.lowerer.ty(definition.backing)?, dir::Type::Intrinsic) {
-            return self.lower_intrinsic(symbol, ty, arguments);
+            self.lower_intrinsic(symbol, ty, arguments)?;
+
+            return Ok(Vec::new());
         }
 
         // wrap the backing type transparently

@@ -43,9 +43,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     self.lower_method_call(expression, call, function)
                 }
                 // generic<T>(...) selects its concrete instance
-                else if function.generic_scope.is_some() {
-                    self.lower_generic_call(call)
-                } else if self.has_instance_arguments(function)? {
+                else if self.has_instance_arguments(function)? {
                     self.lower_instance_call(function, call)
                 }
                 // local or imported (...)
@@ -215,18 +213,6 @@ impl FunctionLowerer<'_, '_, '_> {
         values.extend(self.lower_call_arguments(resolution, write)?);
 
         Ok(self.builder.call_function(function, values))
-    }
-
-    /// Lower one call instantiating a generic callable.
-    fn lower_generic_call(
-        &mut self,
-        _resolution: &dir::Call,
-    ) -> CompilerResult<Option<mir::Value>> {
-        Err(LowerError::Unsupported {
-            anchor: self.lowerer.module.into(),
-            construct: "a generically scoped call".to_string(),
-        }
-        .into())
     }
 
     /// Lower one call to a concrete generic instance.

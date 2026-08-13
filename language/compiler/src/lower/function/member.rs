@@ -191,13 +191,8 @@ impl FunctionLowerer<'_, '_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
         field: &dir::FieldResolution,
     ) -> CompilerResult<mir::Value> {
-        // read structural receivers through their dynamic entries
-        let receiver = field.receiver.ty();
-        if matches!(self.lowerer.ty(receiver)?, dir::Type::Shape(_)) {
-            return self.lower_dynamic_field_read(expression, left, receiver, field.target.key());
-        }
-
         // lower the receiver the resolution selected
+        let receiver = field.receiver.ty();
         let index = self.member_field_index(field)?;
         let result_type = self.lower_type(self.node_type_id(expression)?)?;
         let value = self.lower_expression(left)?;

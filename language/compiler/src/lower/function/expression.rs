@@ -746,6 +746,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "this used outside a method body".to_string(),
             }),
 
+            // &value, &readonly value
+            dir::Expression::BorrowOf { right, .. } => {
+                let target = self.lower_type(self.node_type_id(expression)?)?;
+
+                self.lower_borrowed_place(right, target)
+            }
+
             // point.x
             dir::Expression::Member { left, .. } => self.lower_member(expression, left),
 

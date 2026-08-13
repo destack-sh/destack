@@ -149,7 +149,7 @@ struct Square {
 newtype Shape = Circle | Square;
 
 function make(radius: float64): Shape {
-    return Shape.Circle(Circle { kind: "circle", radius });
+    return Shape.Circle({ radius });
 }
 "#,
     );
@@ -174,9 +174,10 @@ type Shape = variant<uint8> { 0uint8 = Circle; 1uint8 = Square; };
 
 function test.main.make(v0: float64): Shape {
 entry(v0: float64):
-    v1: Circle = aggregate (v0)
-    v2: Shape = variant.new 0, v1
-    return v2
+    v1: { radius: float64 } = aggregate (v0)
+    v2: ref<{ radius: float64 }, managed, mutable> = new.complete v1
+    v3: Shape = variant.new 0, v2
+    return v3
 }
 /// @layout.struct name=Circle size=8 align=8
 /// @layout.field owner=Circle index=0 name=kind offset=8 size=0 align=1
@@ -188,6 +189,8 @@ entry(v0: float64):
 /// @layout.discriminant owner=Shape kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=Shape index=0 discriminant=0 payload_offset=8
 /// @layout.case owner=Shape index=1 discriminant=1 payload_offset=8
+/// @layout.struct name=type@16 size=8 align=8
+/// @layout.field owner=type@16 index=0 name=radius offset=0 size=8 align=8
 "#,
     );
 }
@@ -293,4 +296,50 @@ entry(v0: int32):
 /// @layout.case owner=type@12 index=0 discriminant=0 payload_offset=8
 /// @layout.case owner=type@12 index=1 discriminant=1 payload_offset=8
 "#);
+}
+
+#[test]
+fn test_lower_a_nullish_union_alias_field_read() {
+    let session = TestSession::single(
+        r#"
+type Label = string | undefined;
+
+struct Meter {
+    label: Label;
+}
+
+function read(meter: &readonly Meter): Label {
+    return meter.label;
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
+
+type destack.string.string.String {
+    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
+}
+
+@copy
+type Meter {
+    label: ref<destack.string.string.String, managed, mutable, undefined>;
+}
+
+type Label = ref<destack.string.string.String, managed, mutable, undefined>;
+
+function test.main.read<'a>(v0: ref<Meter, borrowed, 'a, readonly>): Label {
+entry(v0: ref<Meter, borrowed, 'a, readonly>):
+    v1: ref<Label, borrowed, readonly> = field.address v0, 0
+    v2: Label = load v1
+    return v2
+}
+/// @layout.struct name=destack.string.string.String size=16 align=8
+/// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
+/// @layout.struct name=Meter size=8 align=8
+/// @layout.field owner=Meter index=0 name=label offset=0 size=8 align=8
+"#,
+    );
 }

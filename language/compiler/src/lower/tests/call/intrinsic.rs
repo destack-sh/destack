@@ -673,3 +673,59 @@ entry(v0: int64):
 "#,
     );
 }
+
+#[test]
+fn test_lower_execution_context_operations_to_their_instructions() {
+    let session = TestSession::single(
+        r#"
+class Context {}
+
+class Variable {}
+
+@intrinsic("context.current")
+declare function currentContext(): Context;
+
+@intrinsic("context.replace")
+declare function replaceContext(context: Context): Context;
+
+@intrinsic("context.bind")
+declare function bindContext(context: Context, variable: Variable, value: int32): Context;
+
+@intrinsic("context.get")
+declare function getContextValue(context: Context, variable: Variable, defaultValue: int32): int32;
+
+function scope(variable: Variable, value: int32): int32 {
+    const bound = bindContext(currentContext(), variable, value);
+    const previous = replaceContext(bound);
+    const read = getContextValue(bound, variable, value);
+    replaceContext(previous);
+    return read;
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+type Context { }
+
+type Variable { }
+
+function test.main.scope(v0: ref<Variable, managed, mutable>, v1: int32): int32 {
+entry(v0: ref<Variable, managed, mutable>, v1: int32):
+    v2: ref<Context, managed, mutable> = context.current
+    v3: ref<Context, managed, mutable> = context.bind v2, v0, v1, { parent: ref<Context, managed, mutable>, variable: ref<Variable, managed, mutable>, value: int32 }
+    v4: ref<Context, managed, mutable> = context.replace v3
+    v5: int32 = context.get v3, v0, v1, { parent: ref<Context, managed, mutable>, variable: ref<Variable, managed, mutable>, value: int32 }
+    v6: ref<Context, managed, mutable> = context.replace v4
+    return v5
+}
+/// @layout.struct name=Context size=0 align=1
+/// @layout.struct name=Variable size=0 align=1
+/// @layout.struct name=type@14 size=24 align=8
+/// @layout.field owner=type@14 index=0 name=parent offset=0 size=8 align=8
+/// @layout.field owner=type@14 index=1 name=variable offset=8 size=8 align=8
+/// @layout.field owner=type@14 index=2 name=value offset=16 size=4 align=4
+"#,
+    );
+}

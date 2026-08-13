@@ -101,7 +101,6 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 | dir::Type::Tuple(_)
                 | dir::Type::Slice(_)
                 | dir::Type::FixedArray(_)
-                | dir::Type::Shape(_)
                 | dir::Type::Object(_)
         );
         if compound {
@@ -217,6 +216,8 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(self.insert_union_variant(payloads))
             }
+            // erase signature-bearing object types behind the dynamic carrier
+            dir::Type::Object(shape) if shape.declares_signatures() => self.lower_dynamic(id),
             // store concrete object classes behind a managed reference
             dir::Type::Object(shape) => {
                 let storage = self.lower_object_struct(&shape, id.module_id)?;
@@ -227,8 +228,8 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     storage,
                 ))
             }
-            // erase structural shapes behind the dynamic carrier
-            dir::Type::Shape(_) | dir::Type::Unknown => self.lower_dynamic(id),
+            // erase the top constraint behind the dynamic carrier
+            dir::Type::Unknown => self.lower_dynamic(id),
             // resolve memory forms through the form algebra
             dir::Type::Form(_) => self.lower_form(id, None),
             // lower slice values as fat headers over managed element storage

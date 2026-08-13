@@ -91,3 +91,46 @@ entry(v0: Frame):
 "#,
     );
 }
+
+#[test]
+fn test_lower_a_borrow_of_a_member_place() {
+    let session = TestSession::single(
+        r#"
+struct Meter {
+    name: string;
+}
+
+function read(meter: &readonly Meter): &readonly string {
+    return &readonly meter.name;
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
+
+type destack.string.string.String {
+    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
+}
+
+@copy
+type Meter {
+    name: ref<destack.string.string.String, managed, mutable>;
+}
+
+function test.main.read<'a>(v0: ref<Meter, borrowed, 'a, readonly>): ref<destack.string.string.String, borrowed, 'a, readonly> {
+entry(v0: ref<Meter, borrowed, 'a, readonly>):
+    v1: ref<ref<destack.string.string.String, managed, readonly>, borrowed, readonly> = field.address v0, 0
+    v2: ref<destack.string.string.String, managed, readonly> = load v1
+    v3: ref<destack.string.string.String, borrowed, 'a, readonly> = cast.bit v2 -> ref<destack.string.string.String, borrowed, 'a, readonly>
+    return v3
+}
+/// @layout.struct name=destack.string.string.String size=16 align=8
+/// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
+/// @layout.struct name=Meter size=8 align=8
+/// @layout.field owner=Meter index=0 name=name offset=0 size=8 align=8
+"#,
+    );
+}

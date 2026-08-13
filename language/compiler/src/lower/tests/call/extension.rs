@@ -55,3 +55,94 @@ entry:
 "#,
     );
 }
+
+#[test]
+fn test_lower_a_static_call_scoped_by_its_generic_extension() {
+    let session = TestSession::single(
+        r#"
+struct Box<T> {
+    value: T;
+}
+
+extension<T> of Box<T> {
+    static of(value: T): Box<T> {
+        return Box<T> { value };
+    }
+}
+
+function build(value: int32): Box<int32> {
+    return Box.of(value);
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Box<int32> {
+    value: int32;
+}
+
+function test.main.build(v0: int32): Box<int32> {
+entry(v0: int32):
+    v1: Box<int32> = call test.main.of<int32>(v0): (int32) => Box<int32>
+    return v1
+}
+
+function test.main.of<int32>(v0: int32): Box<int32> {
+entry(v0: int32):
+    v1: Box<int32> = aggregate (v0)
+    return v1
+}
+/// @layout.struct name=Box<int32> size=4 align=4
+/// @layout.field owner=Box<int32> index=0 name=value offset=0 size=4 align=4
+"#,
+    );
+}
+
+#[test]
+fn test_lower_a_generic_static_call_instantiated_by_its_contextual_result() {
+    let session = TestSession::single(
+        r#"
+struct Box<T> {
+    value: T;
+}
+
+extension<T> of Box<T> {
+    static of(value: T): Box<T> {
+        return Box<T> { value };
+    }
+}
+
+function build(): Box<int32> {
+    return Box.of(3);
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Box<int32> {
+    value: int32;
+}
+
+function test.main.build(): Box<int32> {
+entry:
+    v0: int32 = 3
+    v1: Box<int32> = call test.main.of<int32>(v0): (int32) => Box<int32>
+    return v1
+}
+
+function test.main.of<int32>(v0: int32): Box<int32> {
+entry(v0: int32):
+    v1: Box<int32> = aggregate (v0)
+    return v1
+}
+/// @layout.struct name=Box<int32> size=4 align=4
+/// @layout.field owner=Box<int32> index=0 name=value offset=0 size=4 align=4
+"#,
+    );
+}

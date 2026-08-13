@@ -221,7 +221,7 @@ fn test_share_one_function_body_across_lifetime_instantiations() {
     let session = TestSession::single(
         r#"
 class User {
-    id: int32;
+    id: int32 = 0;
 }
 
 function inspect<T>(marker: T, value: &readonly User): int32 {

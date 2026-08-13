@@ -498,8 +498,8 @@ impl FunctionLowerer<'_, '_, '_> {
                     };
                     class = aliased;
                 }
-                // read the properties a structural shape declares
-                dir::Type::Object(shape) | dir::Type::Shape(shape) => {
+                // read the properties an anonymous class declares
+                dir::Type::Object(shape) => {
                     let properties = self
                         .lowerer
                         .types(class.module_id)?

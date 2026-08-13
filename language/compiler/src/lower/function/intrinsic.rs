@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_mir::{IntrinsicInstruction, IntrinsicTerminator};
 
-use crate::lower::{FunctionLowerer, LayoutBuilder};
+use crate::lower::{ContextIntrinsic, FunctionLowerer, LayoutBuilder};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The target constant one intrinsic name folds to.
@@ -65,6 +65,9 @@ impl FunctionLowerer<'_, '_, '_> {
         }
         if let Some(layout) = LayoutIntrinsic::from_name(&name) {
             return self.lower_layout_intrinsic(layout, resolution);
+        }
+        if let Some(context) = ContextIntrinsic::from_name(&name) {
+            return self.lower_context_intrinsic(context, resolution);
         }
 
         Err(LowerError::Unsupported {
@@ -634,7 +637,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one provided argument's value expression.
-    fn argument_value(
+    pub(in crate::lower) fn argument_value(
         &mut self,
         resolution: &dir::Call,
         index: usize,
