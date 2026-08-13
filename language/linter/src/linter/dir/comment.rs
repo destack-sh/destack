@@ -129,7 +129,6 @@ impl<'a> CommentBlock<'a> {
         let view = module.view();
         let mut documentation = view
             .iter_node_ids()
-            .into_iter()
             .filter_map(|node| view.get_documentation_any(node))
             .map(|documentation| documentation.span)
             .collect::<Vec<_>>();
@@ -968,10 +967,10 @@ impl<'a> CommentLine<'a> {
                 }
             }
             // retain the completed run as the latest wrapping candidate
-            else if let Some(start) = run.take() {
-                if start > 0 {
-                    candidate = Some((start, index));
-                }
+            else if let Some(start) = run.take()
+                && start > 0
+            {
+                candidate = Some((start, index));
             }
 
             width += u32::from(character.terminal_display_width());

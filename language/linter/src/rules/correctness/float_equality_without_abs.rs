@@ -107,7 +107,7 @@ fn suggestion(
 
             (parentheses, format!("{source}.abs()"))
         } else {
-            let source = module.operand_source(difference, dir::OperatorPrecedence::Postfix)?;
+            let source = module.expression_source(difference, dir::OperatorPrecedence::Postfix)?;
 
             (extent, format!("{source}.abs()"))
         };

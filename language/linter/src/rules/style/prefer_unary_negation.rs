@@ -108,7 +108,7 @@ fn suggestion(
     }
 
     // group the retained value for prefix precedence
-    let value = module.operand_source(value, dir::OperatorPrecedence::Prefix)?;
+    let value = module.expression_source(value, dir::OperatorPrecedence::Prefix)?;
     let patch = Patch::replace(span, format!("-{value}"));
     let suggestion = lint.fix("use unary negation", patch)?;
 

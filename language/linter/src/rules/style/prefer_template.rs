@@ -50,7 +50,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
         let string_add = dir::LanguageItem::String.member("add");
-        if module.operator_language_member(expression)? != Some(string_add) {
+        if module.language_member(expression)? != Some(string_add) {
             continue;
         }
 
@@ -65,7 +65,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                     right,
                 },
             )) if *left == expression || *right == expression => {
-                module.operator_language_member(parent)? == Some(string_add)
+                module.language_member(parent)? == Some(string_add)
             }
             _ => false,
         };
@@ -110,7 +110,7 @@ fn append_template(
         operator: dir::BinaryOperator::Add,
         right,
     } = node
-        && module.operator_language_member(expression)? == Some(string_add)
+        && module.language_member(expression)? == Some(string_add)
     {
         let (left, right) = (*left, *right);
         let left = append_template(module, left, template, retained)?;

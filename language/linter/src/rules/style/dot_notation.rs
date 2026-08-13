@@ -60,7 +60,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // require checked named-member lookup on every selected arm
-        let Some(resolution) = module.subscript_resolution(expression)? else {
+        let Some(resolution) = module.subscript_decision(expression)? else {
             continue;
         };
         let is_member = resolution.arms().iter().all(|subscript| {
@@ -121,7 +121,7 @@ fn suggestion(
 
     // preserve the exact receiver expression
     let operator = if is_optional { "?." } else { "." };
-    let receiver = module.operand_source(receiver, dir::OperatorPrecedence::Postfix)?;
+    let receiver = module.expression_source(receiver, dir::OperatorPrecedence::Postfix)?;
     let replacement = format!("{receiver}{operator}{name}");
     let patch = Patch::replace(extent, replacement);
 

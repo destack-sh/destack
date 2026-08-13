@@ -76,17 +76,14 @@ fn additive_counter(
 ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
     let view = module.view();
     let counter = match view.get(increment) {
-        dir::Expression::Unary { operator, right }
-            if matches!(
-                operator,
+        dir::Expression::Unary {
+            operator:
                 dir::UnaryOperator::PostIncrement
-                    | dir::UnaryOperator::PreIncrement
-                    | dir::UnaryOperator::PostDecrement
-                    | dir::UnaryOperator::PreDecrement
-            ) =>
-        {
-            *right
-        }
+                | dir::UnaryOperator::PreIncrement
+                | dir::UnaryOperator::PostDecrement
+                | dir::UnaryOperator::PreDecrement,
+            right,
+        } => *right,
         dir::Expression::Assign {
             left,
             operator: dir::AssignOperator::AddAssign | dir::AssignOperator::SubtractAssign,

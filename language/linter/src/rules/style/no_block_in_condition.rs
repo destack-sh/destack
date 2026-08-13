@@ -88,10 +88,10 @@ fn report_block_input(
     // replace a trivial block with its only expression
     let span = module.source_extent(input.into_any())?;
     let mut diagnostic = lint.diagnostic("control-flow input is a block expression", span);
-    if let Some(value) = view.get(*block).only_expression() {
-        if let Some(suggestion) = suggestion(module, lint, span, value, is_ternary)? {
-            diagnostic = diagnostic.suggestion(suggestion);
-        }
+    if let Some(value) = view.get(*block).only_expression()
+        && let Some(suggestion) = suggestion(module, lint, span, value, is_ternary)?
+    {
+        diagnostic = diagnostic.suggestion(suggestion);
     }
     output.report(diagnostic);
 
@@ -113,11 +113,11 @@ fn suggestion(
 
     // retain the condition as one operand of the surrounding ternary
     let replacement = if is_ternary {
-        module.operand_source(value, dir::OperatorPrecedence::TypeRelation)?
+        module.expression_source(value, dir::OperatorPrecedence::TypeRelation)?
     } else if let Some(parentheses) = module.source_parentheses(value.into_any()) {
-        module.source(parentheses)?.to_string()
+        module.source(parentheses)?.into()
     } else {
-        module.source(value_span)?.to_string()
+        module.source(value_span)?.into()
     };
 
     // replace the complete block expression

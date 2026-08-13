@@ -114,14 +114,14 @@ fn overflow_test(
             (dir::BinaryOperator::Subtract, dir::BinaryOperator::GreaterThan) => "checkedSubtract",
             _ => continue,
         };
-        if module.is_repeated_operand(first, compared)? {
+        if module.is_same_operand(first, compared)? {
             return Ok(Some(OverflowTest {
                 receiver: first.source.local_id,
                 argument: second.source.local_id,
                 method,
             }));
         }
-        if arithmetic == dir::BinaryOperator::Add && module.is_repeated_operand(second, compared)? {
+        if arithmetic == dir::BinaryOperator::Add && module.is_same_operand(second, compared)? {
             return Ok(Some(OverflowTest {
                 receiver: second.source.local_id,
                 argument: first.source.local_id,
@@ -148,7 +148,7 @@ fn suggestion(
     }
 
     // retain both arithmetic operands in their checked order
-    let receiver = module.operand_source(test.receiver, dir::OperatorPrecedence::Postfix)?;
+    let receiver = module.expression_source(test.receiver, dir::OperatorPrecedence::Postfix)?;
     let argument = module.source(argument_span)?;
     let method = test.method;
     let replacement = format!("{receiver}.{method}({argument}) === undefined");

@@ -101,7 +101,7 @@ fn suggestion(
     }
 
     // retain authored grouping around the borrowed expression
-    let replacement = module.operand_source(value, dir::OperatorPrecedence::Prefix)?;
+    let replacement = module.expression_source(value, dir::OperatorPrecedence::Prefix)?;
     let patch = Patch::replace(extent, replacement);
     let suggestion = lint.fix("use the original value", patch)?;
 

@@ -60,7 +60,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
         let string_add = dir::LanguageItem::String.member("add");
-        if module.operator_language_member(expression)? != Some(string_add) {
+        if module.language_member(expression)? != Some(string_add) {
             continue;
         }
 

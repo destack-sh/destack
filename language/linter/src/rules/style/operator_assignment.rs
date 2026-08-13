@@ -71,7 +71,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if module.operator_decision(right.into_any())?.is_none() {
             continue;
         }
-        if !module.is_repeated_expression(*target, *repeated)? {
+        if !module.is_same_computation(*target, *repeated)? {
             continue;
         }
 

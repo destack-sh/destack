@@ -58,23 +58,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             if view.get(absence).as_scalar() != Some(dir::ScalarLiteral::Undefined) {
                 continue;
             }
-            let dir::Expression::Call {
-                left: member,
-                arguments,
-                is_optional: false,
-                ..
-            } = view.get(search)
-            else {
+            let Some(call) = module.member_call(search) else {
                 continue;
             };
-            let dir::Expression::Member {
-                left: receiver,
-                is_optional: false,
-                ..
-            } = view.get(*member)
-            else {
+            if call.is_optional || call.is_member_optional {
                 continue;
-            };
+            }
 
             // distinguish forward searches from equivalent unbounded reverse searches
             let selected = module.language_member(search)?;
@@ -82,13 +71,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let last_index_of = dir::LanguageItem::Array.member("lastIndexOf");
             let is_reverse = if selected == Some(index_of) {
                 false
-            } else if selected == Some(last_index_of) && arguments.len() == 1 {
+            } else if selected == Some(last_index_of) && call.arguments.len() == 1 {
                 true
             } else {
                 continue;
             };
 
-            membership = Some((search, *member, *receiver, is_reverse));
+            membership = Some((search, call.callee, call.receiver, is_reverse));
             break;
         }
         let Some((search, member, receiver, is_reverse)) = membership else {
@@ -96,7 +85,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
 
         // retain the defining search inside Array.includes
-        let is_this = matches!(view.get(receiver), dir::Expression::This { .. });
+        let is_this = matches!(view.get(receiver), dir::Expression::This);
         let includes = dir::LanguageItem::Array.member("includes");
         let is_implementation =
             module.is_within_language_member(expression.into_any(), includes)?;

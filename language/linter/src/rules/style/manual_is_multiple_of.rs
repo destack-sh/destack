@@ -126,7 +126,7 @@ fn suggestion(
 
     // retain the dividend and divisor in one method call
     let dividend =
-        module.operand_source(divisibility.dividend, dir::OperatorPrecedence::Postfix)?;
+        module.expression_source(divisibility.dividend, dir::OperatorPrecedence::Postfix)?;
     let divisor = module.source(divisor_span)?;
     let negation = if divisibility.is_negated { "!" } else { "" };
     let replacement = format!("{negation}{dividend}.isMultipleOf({divisor})");

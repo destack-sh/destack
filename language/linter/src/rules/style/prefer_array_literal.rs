@@ -41,14 +41,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect canonical zero-argument Array.new calls
     for expression in module.call_expressions() {
         let expression = expression?;
-        let node = view.get(expression);
-        let dir::Expression::Call {
-            left,
-            generic_arguments,
-            arguments,
-            ..
-        } = node
-        else {
+        let Some(call) = module.member_call(expression) else {
             continue;
         };
 
@@ -58,13 +51,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // require an inferred empty construction
-        if !generic_arguments.is_empty() || !arguments.is_empty() {
+        if !call.generic_arguments.is_empty() || !call.arguments.is_empty() {
             continue;
         }
-        let dir::Expression::Member { left: receiver, .. } = view.get(*left) else {
-            continue;
-        };
-        if matches!(view.get(*receiver), dir::Expression::Instantiation { .. }) {
+        if matches!(
+            view.get(call.receiver),
+            dir::Expression::Instantiation { .. }
+        ) {
             continue;
         }
 

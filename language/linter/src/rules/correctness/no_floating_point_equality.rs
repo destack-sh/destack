@@ -63,10 +63,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // retain NaN checks, self-comparisons, and equality implementations
         let has_nan = module.is_nan(left)? || module.is_nan(right)?;
-        let is_repeated = module.is_repeated_operand(left_operand, right_operand)?;
+        let is_same_operand = module.is_same_operand(left_operand, right_operand)?;
         let equality = dir::LanguageItem::PartialEqual.member("equal");
         let defines_equality = module.is_within_language_member(expression.into_any(), equality)?;
-        if has_nan || is_repeated || defines_equality {
+        if has_nan || is_same_operand || defines_equality {
             continue;
         }
 

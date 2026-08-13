@@ -93,7 +93,7 @@ fn suggestion(
     }
 
     // preserve the interpolated value under every surrounding operator
-    let value = module.operand_source(value, dir::OperatorPrecedence::Postfix)?;
+    let value = module.expression_source(value, dir::OperatorPrecedence::Postfix)?;
     let patch = Patch::replace(extent, value);
     let suggestion = lint.fix("use the value directly", patch)?;
 

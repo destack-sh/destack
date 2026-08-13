@@ -56,43 +56,65 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return the borrow form carried by one checked type.
-    pub fn get_borrow(&self, type_id: dir::GlobalTypeId) -> Result<dir::BorrowForm, ProviderError> {
-        self.read_types(type_id.module_id, |types| {
-            let ty = types.get_type_maybe(type_id.local_id).ok_or_else(|| {
+    /// Strip placement forms from one checked type id.
+    pub fn strip_form(
+        &self,
+        mut type_id: dir::GlobalTypeId,
+    ) -> Result<dir::GlobalTypeId, ProviderError> {
+        // follow placement forms to their represented value
+        while let dir::Type::Form(form) = self.get_type(type_id)? {
+            type_id = form.value;
+        }
+
+        Ok(type_id)
+    }
+
+    /// Return the checked result type id from one callable signature.
+    pub(super) fn signature_return_type_id(
+        &self,
+        signature: dir::GlobalTypeId,
+    ) -> Result<dir::GlobalTypeId, ProviderError> {
+        let ty = self.get_type(signature)?;
+        let dir::Type::FunctionSignature(signature_id) = ty else {
+            return Err(ProviderError::internal(format!(
+                "callable signature {signature:?} has non-signature type {ty:?}"
+            )));
+        };
+
+        self.read_types(signature.module_id, |types| {
+            let signature = types.signature_maybe(signature_id).ok_or_else(|| {
                 ProviderError::internal(format!(
-                    "borrow target {type_id:?} is absent from its owning type table"
+                    "callable signature {signature:?} has no function signature payload"
                 ))
             })?;
-            let dir::Type::Form(form) = ty else {
-                return Err(ProviderError::internal(format!(
-                    "borrow target {type_id:?} is not a form type"
-                )));
-            };
-            let dir::Form::Borrowed(borrow_id) = form.form else {
-                return Err(ProviderError::internal(format!(
-                    "borrow target {type_id:?} is not borrowed"
-                )));
-            };
 
-            types.borrow_form_maybe(borrow_id).copied().ok_or_else(|| {
+            signature.return_type.ok_or_else(|| {
                 ProviderError::internal(format!(
-                    "borrow target {type_id:?} has no borrow form {borrow_id:?}"
+                    "checked callable signature {signature:?} has no return type"
                 ))
             })
         })
     }
 
-    /// Return the access carried by one checked memory singleton.
-    pub fn get_access(&self, type_id: dir::GlobalTypeId) -> Result<dir::Access, ProviderError> {
+    /// Return whether one checked type includes undefined.
+    pub fn type_includes_undefined(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<bool, ProviderError> {
         let ty = self.get_type(type_id)?;
-        let dir::Type::Memory(dir::MemoryLiteral::Access(access)) = ty else {
-            return Err(ProviderError::internal(format!(
-                "DIR type {type_id:?} is not an access singleton"
-            )));
+        let dir::Type::Union(union) = ty else {
+            return Ok(ty.is_undefined());
         };
 
-        Ok(access)
+        self.read_types(type_id.module_id, |types| {
+            for element in types.type_ids(union.elements) {
+                if self.get_type(*element)?.is_undefined() {
+                    return Ok(true);
+                }
+            }
+
+            Ok(false)
+        })
     }
 
     /// Return one checked static value by global id.
@@ -236,7 +258,7 @@ impl<'a> Dir<'a> {
             .read::<DirElaborated>((module, self.profile))?;
         let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
         let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
-        let definitions = dir::DefinitionTable::from_segment(elaborated.definitions.clone());
+        let definitions = checked.definition_table(&elaborated);
 
         read(&bindings, &definitions)
     }

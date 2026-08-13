@@ -118,8 +118,8 @@ fn suggestion(
     }
 
     // retain both operands around the strict operator
-    let left = module.operand_source(comparison.left, dir::OperatorPrecedence::Comparison)?;
-    let right = module.operand_source(comparison.right, dir::OperatorPrecedence::Comparison)?;
+    let left = module.expression_source(comparison.left, dir::OperatorPrecedence::Comparison)?;
+    let right = module.expression_source(comparison.right, dir::OperatorPrecedence::Comparison)?;
     let replacement = format!("{left} {} {right}", comparison.operator.text());
     let replacement = if module.source_parentheses(expression.into_any()).is_some() {
         format!("({replacement})")

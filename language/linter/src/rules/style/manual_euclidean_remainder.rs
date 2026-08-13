@@ -105,8 +105,8 @@ fn euclidean_remainder(
         else {
             continue;
         };
-        if module.is_repeated_operand(inner_divisor, added_divisor)?
-            && module.is_repeated_operand(inner_divisor, outer_divisor)?
+        if module.is_same_operand(inner_divisor, added_divisor)?
+            && module.is_same_operand(inner_divisor, outer_divisor)?
         {
             return Ok(Some(EuclideanRemainder {
                 dividend: dividend.source.local_id,
@@ -133,7 +133,8 @@ fn suggestion(
     }
 
     // retain the dividend and one evaluation of the divisor
-    let dividend = module.operand_source(remainder.dividend, dir::OperatorPrecedence::Postfix)?;
+    let dividend =
+        module.expression_source(remainder.dividend, dir::OperatorPrecedence::Postfix)?;
     let divisor = module.source(divisor_span)?;
     let replacement = format!("{dividend}.remainderEuclidean({divisor})");
     let patch = Patch::replace(span, replacement);

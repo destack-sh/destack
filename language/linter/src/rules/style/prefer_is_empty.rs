@@ -75,7 +75,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
 
         // retain the canonical property's defining comparison
-        let is_this = matches!(view.get(receiver), dir::Expression::This { .. });
+        let is_this = matches!(view.get(receiver), dir::Expression::This);
         let is_implementation = module.is_within_language_member(
             expression.into_any(),
             language_member.owner.member("isEmpty"),
@@ -163,7 +163,7 @@ fn suggestion(
 
     // preserve the receiver and express the requested empty state
     let prefix = if is_negated { "!" } else { "" };
-    let receiver = module.operand_source(receiver, dir::OperatorPrecedence::Postfix)?;
+    let receiver = module.expression_source(receiver, dir::OperatorPrecedence::Postfix)?;
     let replacement = format!("{prefix}{receiver}.isEmpty");
     let patch = Patch::replace(extent, replacement);
     let suggestion = lint.fix("use the collection emptiness property", patch)?;

@@ -101,8 +101,8 @@ fn suggestion(
     }
 
     // retain each operand and the exact authored target type
-    let left = module.operand_source(left, dir::OperatorPrecedence::Comparison)?;
-    let right = module.operand_source(right, dir::OperatorPrecedence::Comparison)?;
+    let left = module.expression_source(left, dir::OperatorPrecedence::Comparison)?;
+    let right = module.expression_source(right, dir::OperatorPrecedence::Comparison)?;
     let target = module.source(target_span)?;
     let replacement = format!("({left} as {target}) / ({right} as {target})");
     let patch = Patch::replace(span, replacement);

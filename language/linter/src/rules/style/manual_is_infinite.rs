@@ -61,7 +61,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             Some(dir::PrimitiveType::Float(_))
         );
         if left_infinity.is_sign_negative() == right_infinity.is_sign_negative()
-            || !module.is_repeated_expression(left_value, right_value)?
+            || !module.is_same_computation(left_value, right_value)?
             || !is_float
         {
             continue;
@@ -130,7 +130,7 @@ fn suggestion(
     }
 
     // retain the checked value with postfix-safe grouping
-    let value = module.operand_source(value, dir::OperatorPrecedence::Postfix)?;
+    let value = module.expression_source(value, dir::OperatorPrecedence::Postfix)?;
     let patch = Patch::replace(span, format!("{value}.isInfinite()"));
     let suggestion = lint.suggestion("call `.isInfinite()`", patch)?;
 

@@ -62,7 +62,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             Some(dir::PrimitiveType::Float(_))
         );
         if left_bound == right_bound
-            || !module.is_repeated_expression(left_value, right_value)?
+            || !module.is_same_computation(left_value, right_value)?
             || !is_float
         {
             continue;
@@ -139,7 +139,7 @@ fn suggestion(
     }
 
     // retain the checked value with postfix-safe grouping
-    let value = module.operand_source(value, dir::OperatorPrecedence::Postfix)?;
+    let value = module.expression_source(value, dir::OperatorPrecedence::Postfix)?;
     let patch = Patch::replace(span, format!("{value}.isFinite()"));
     let suggestion = lint.suggestion("call `.isFinite()`", patch)?;
 

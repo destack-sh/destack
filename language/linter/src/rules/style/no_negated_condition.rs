@@ -111,8 +111,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // exchange ternary branches when the authored source can be retained
         let span = module.source_extent(condition.into_any())?;
         let mut diagnostic = lint.diagnostic("two-way branch uses a negated condition", span);
-        if *form == dir::IfForm::Ternary {
-            if let Some(suggestion) = suggestion(
+        if *form == dir::IfForm::Ternary
+            && let Some(suggestion) = suggestion(
                 module,
                 lint,
                 expression,
@@ -120,9 +120,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 negation,
                 *then_expression,
                 *else_expression,
-            )? {
-                diagnostic = diagnostic.suggestion(suggestion);
-            }
+            )?
+        {
+            diagnostic = diagnostic.suggestion(suggestion);
         }
 
         output.report(diagnostic);
@@ -157,7 +157,7 @@ fn suggestion(
     let mut file = FilePatch::new(extent.file);
     match negation {
         Negation::Not(value) => {
-            let value = module.operand_source(value, dir::OperatorPrecedence::TypeRelation)?;
+            let value = module.expression_source(value, dir::OperatorPrecedence::TypeRelation)?;
 
             file.replace(condition_extent, value);
         }

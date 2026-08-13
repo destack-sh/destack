@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::slice;
 
 use destack_artifact::DiagnosticAnchor;
@@ -79,6 +80,29 @@ impl DirModule<'_> {
         source.get(range).ok_or_else(|| ProviderError::Internal {
             message: format!("source span {span:?} is not a valid UTF-8 range"),
         })
+    }
+
+    /// Return authored expression text grouped for a minimum operator precedence.
+    pub(crate) fn expression_source(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        minimum_precedence: dir::OperatorPrecedence,
+    ) -> Result<Cow<'_, str>, ProviderError> {
+        let extent = self.source_extent(expression.into_any())?;
+        let parentheses = self.source_parentheses(expression.into_any());
+
+        // retain existing grouping or meet the requested precedence
+        let source = if let Some(parentheses) = parentheses {
+            Cow::Borrowed(self.source(parentheses)?)
+        } else if self.view().get(expression).precedence() >= minimum_precedence {
+            Cow::Borrowed(self.source(extent)?)
+        } else {
+            let source = self.source(extent)?;
+
+            Cow::Owned(format!("({source})"))
+        };
+
+        Ok(source)
     }
 
     /// Return whether an extent contains a comment outside the retained spans.

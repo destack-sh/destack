@@ -41,11 +41,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect canonical array at calls
     for expression in module.call_expressions() {
         let expression = expression?;
-        let node = view.get(expression);
-        let dir::Expression::Call {
-            left, arguments, ..
-        } = node
-        else {
+        let Some(call) = module.member_call(expression) else {
             continue;
         };
         if module.language_member(expression)? != Some(dir::LanguageItem::Array.member("at")) {
@@ -53,10 +49,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // read the array receiver and sole index value
-        let dir::Expression::Member { left: receiver, .. } = view.get(*left) else {
-            continue;
-        };
-        let [argument] = arguments.as_slice() else {
+        let receiver = call.receiver;
+        let [argument] = call.arguments else {
             continue;
         };
         let Some(argument) = view.get(*argument).value() else {
@@ -90,7 +84,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if module.language_member(*length)? != Some(dir::LanguageItem::Array.member("length")) {
             continue;
         }
-        if !module.is_repeated_expression(*receiver, *length_receiver)? {
+        if !module.is_same_computation(receiver, *length_receiver)? {
             continue;
         }
 
@@ -129,7 +123,7 @@ fn suggestion(
     }
 
     // negate the exact positive offset
-    let offset = module.operand_source(offset, dir::OperatorPrecedence::Prefix)?;
+    let offset = module.expression_source(offset, dir::OperatorPrecedence::Prefix)?;
     let replacement = format!("-{offset}");
     let patch = Patch::replace(extent, replacement);
     let suggestion = lint.fix("use a negative index", patch)?;

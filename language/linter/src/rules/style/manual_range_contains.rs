@@ -193,13 +193,13 @@ fn align_comparisons(
     // select the operand position repeated by both comparisons
     let [left_first, left_second] = left.operands;
     let [right_first, right_second] = right.operands;
-    let orientation = if module.is_repeated_expression(left_first, right_first)? {
+    let orientation = if module.is_same_computation(left_first, right_first)? {
         (false, false)
-    } else if module.is_repeated_expression(left_first, right_second)? {
+    } else if module.is_same_computation(left_first, right_second)? {
         (false, true)
-    } else if module.is_repeated_expression(left_second, right_first)? {
+    } else if module.is_same_computation(left_second, right_first)? {
         (true, false)
-    } else if module.is_repeated_expression(left_second, right_second)? {
+    } else if module.is_same_computation(left_second, right_second)? {
         (true, true)
     } else {
         return Ok(None);
@@ -266,8 +266,8 @@ fn suggestion(
 
     // retain one evaluation of the value and both bounds
     let value = module.source(value_span)?;
-    let start = module.operand_source(membership.start, dir::OperatorPrecedence::Range)?;
-    let end = module.operand_source(membership.end, dir::OperatorPrecedence::Range)?;
+    let start = module.expression_source(membership.start, dir::OperatorPrecedence::Range)?;
+    let end = module.expression_source(membership.end, dir::OperatorPrecedence::Range)?;
     let range_operator = match membership.end_kind {
         dir::RangeEnd::Open => "..",
         dir::RangeEnd::Inclusive => "..=",

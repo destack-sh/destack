@@ -147,7 +147,9 @@ impl BooleanLiteralComparison {
         let replacement = if !self.is_negated {
             module.source(value_span)?.to_string()
         } else {
-            module.negated_source(self.value)?
+            let value = module.expression_source(self.value, dir::OperatorPrecedence::Prefix)?;
+
+            format!("!{value}")
         };
 
         // replace the complete comparison

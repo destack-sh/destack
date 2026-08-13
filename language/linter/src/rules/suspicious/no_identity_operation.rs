@@ -142,7 +142,7 @@ fn suggestion(
     }
 
     // retain the value with grouping valid under every surrounding operator
-    let replacement = module.operand_source(value, dir::OperatorPrecedence::Postfix)?;
+    let replacement = module.expression_source(value, dir::OperatorPrecedence::Postfix)?;
     let patch = Patch::replace(extent, replacement);
     let suggestion = lint.fix("remove the identity operation", patch)?;
 

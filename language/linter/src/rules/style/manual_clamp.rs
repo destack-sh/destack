@@ -135,8 +135,8 @@ fn clamp(
         _ => false,
     };
     if outer.kind == inner.kind
-        || !module.is_repeated_expression(outer.value, inner.value)?
-        || !module.is_repeated_expression(outer.value, *value_result)?
+        || !module.is_same_computation(outer.value, inner.value)?
+        || !module.is_same_computation(outer.value, *value_result)?
         || !is_supported
     {
         return Ok(None);
@@ -173,7 +173,7 @@ fn clamp_bound(
     }
 
     // orient the comparison through the branch's returned bound
-    let (value, bound, kind) = if module.is_repeated_expression(right.source.local_id, result)? {
+    let (value, bound, kind) = if module.is_same_computation(right.source.local_id, result)? {
         let kind = if matches!(
             operator,
             dir::BinaryOperator::LessThan | dir::BinaryOperator::LessThanOrEqual
@@ -184,7 +184,7 @@ fn clamp_bound(
         };
 
         (left.source.local_id, right.source.local_id, kind)
-    } else if module.is_repeated_expression(left.source.local_id, result)? {
+    } else if module.is_same_computation(left.source.local_id, result)? {
         let kind = if matches!(
             operator,
             dir::BinaryOperator::LessThan | dir::BinaryOperator::LessThanOrEqual
@@ -228,7 +228,7 @@ fn suggestion(
     }
 
     // retain one evaluation of the value and each bound
-    let value = module.operand_source(clamp.value, dir::OperatorPrecedence::Postfix)?;
+    let value = module.expression_source(clamp.value, dir::OperatorPrecedence::Postfix)?;
     let minimum = module.source(minimum_span)?;
     let maximum = module.source(maximum_span)?;
     let replacement = format!("{value}.clamp({minimum}, {maximum})");

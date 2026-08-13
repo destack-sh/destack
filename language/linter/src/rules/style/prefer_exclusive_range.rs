@@ -93,10 +93,10 @@ fn suggestion(
 
     // retain the authored bounds around the exclusive range operator
     let start = start
-        .map(|start| module.operand_source(start, dir::OperatorPrecedence::Range))
+        .map(|start| module.expression_source(start, dir::OperatorPrecedence::Range))
         .transpose()?
         .unwrap_or_default();
-    let end = module.operand_source(end, dir::OperatorPrecedence::Range)?;
+    let end = module.expression_source(end, dir::OperatorPrecedence::Range)?;
     let replacement = format!("{start}..{end}");
     let replacement = if module.source_parentheses(expression.into_any()).is_some() {
         format!("({replacement})")

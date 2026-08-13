@@ -80,7 +80,7 @@ fn negated_pair(
         else {
             continue;
         };
-        if module.is_repeated_operand(value, operand)? {
+        if module.is_same_operand(value, operand)? {
             return Ok(Some(value.source.local_id));
         }
     }
@@ -102,7 +102,7 @@ fn suggestion(
     }
 
     // retain one evaluation of the signed integer
-    let value = module.operand_source(value, dir::OperatorPrecedence::Postfix)?;
+    let value = module.expression_source(value, dir::OperatorPrecedence::Postfix)?;
     let patch = Patch::replace(span, format!("{value}.isolateLowestOne()"));
     let suggestion = lint.fix("call `.isolateLowestOne()`", patch)?;
 

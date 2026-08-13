@@ -66,10 +66,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // align the second comparison with the first comparison's operand order
-        let is_aligned = module.is_repeated_operand(left_first, right_first)?
-            && module.is_repeated_operand(left_second, right_second)?;
-        let is_swapped = module.is_repeated_operand(left_first, right_second)?
-            && module.is_repeated_operand(left_second, right_first)?;
+        let is_aligned = module.is_same_operand(left_first, right_first)?
+            && module.is_same_operand(left_second, right_second)?;
+        let is_swapped = module.is_same_operand(left_first, right_second)?
+            && module.is_same_operand(left_second, right_first)?;
         if !is_aligned && !is_swapped {
             continue;
         }
@@ -153,8 +153,8 @@ fn suggestion(
     }
 
     // retain the first comparison's operands with their required grouping
-    let left = module.operand_source(left, dir::OperatorPrecedence::Comparison)?;
-    let right = module.operand_source(right, dir::OperatorPrecedence::Comparison)?;
+    let left = module.expression_source(left, dir::OperatorPrecedence::Comparison)?;
+    let right = module.expression_source(right, dir::OperatorPrecedence::Comparison)?;
     let replacement = format!("{left} {} {right}", operator.text());
     let patch = Patch::replace(extent, replacement);
     let suggestion = lint.fix("use one comparison", patch)?;

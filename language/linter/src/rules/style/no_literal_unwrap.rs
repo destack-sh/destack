@@ -45,14 +45,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect selected zero-argument unwrap calls
     for expression in module.call_expressions() {
         let expression = expression?;
-        let node = view.get(expression);
-        let dir::Expression::Call {
-            left, arguments, ..
-        } = node
-        else {
+        let Some(call) = module.member_call(expression) else {
             continue;
         };
-        if !arguments.is_empty() {
+        if !call.arguments.is_empty() {
             continue;
         }
         let Some(operation) = module.language_member(expression)? else {
@@ -63,13 +59,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // select the canonical result constructor receiver
-        let dir::Expression::Member { left: receiver, .. } = view.get(*left) else {
-            continue;
-        };
         let dir::Expression::Call {
             arguments: constructor_arguments,
             ..
-        } = view.get(*receiver)
+        } = view.get(call.receiver)
         else {
             continue;
         };
@@ -79,7 +72,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(value) = view.get(*argument).value() else {
             continue;
         };
-        let Some(constructor) = module.language_member(*receiver)? else {
+        let Some(constructor) = module.language_member(call.receiver)? else {
             continue;
         };
         let is_success = (operation == unwrap && constructor == ok)
@@ -94,7 +87,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let mut diagnostic =
             lint.diagnostic("result is unwrapped immediately after construction", span);
         if !module.has_unretained_comment(span, &[value_span])? {
-            let replacement = module.operand_source(value, dir::OperatorPrecedence::Postfix)?;
+            let replacement = module.expression_source(value, dir::OperatorPrecedence::Postfix)?;
             let patch = Patch::replace(span, replacement);
             let preserves_type = module.node_type_id(expression.into_any())?
                 == module.node_type_id(value.into_any())?;

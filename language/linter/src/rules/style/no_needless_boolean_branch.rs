@@ -120,7 +120,9 @@ fn suggestion(
     let condition = if !is_negated {
         module.source(condition_span)?.to_string()
     } else {
-        module.negated_source(condition)?
+        let condition = module.expression_source(condition, dir::OperatorPrecedence::Prefix)?;
+
+        format!("!{condition}")
     };
     let replacement = format!("return {condition};");
     let patch = Patch::replace(extent, replacement);

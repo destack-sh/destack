@@ -1,13 +1,39 @@
+use destack_dir as dir;
 use destack_repository::ProviderError;
+use destack_source::{DiagnosticSuggestion, Patch};
 
-use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
 
-declare_lint_stub! {
-    /// Disallow explicit iterator calls in for-of.
+declare_lint! {
+    /// Disallow explicit iterator calls in for-of loops.
     pub NO_EXPLICIT_ITERATOR_IN_FOR_OF {
         id: "no-explicit-iterator-in-for-of",
-        summary: "Disallow explicit iterator calls in for-of",
+        summary: "Disallow explicit iterator calls in for-of loops",
+        explanation: r#"
+A for-of loop obtains an iterable's iterator automatically.
+Instead, you SHOULD iterate over the iterable directly.
+"#,
+        example: {
+            reported: r#"
+function sum(values: int32[]): int32 {
+    let total: int32 = 0;
+    for (const value of values.iterator()) {
+        total += value;
+    }
+    return total;
+}
+"#,
+            accepted: r#"
+function sum(values: int32[]): int32 {
+    let total: int32 = 0;
+    for (const value of values) {
+        total += value;
+    }
+    return total;
+}
+"#,
+        },
         category: Style,
         level: Warning,
         fixable: Automatic,
@@ -15,10 +41,179 @@ declare_lint_stub! {
     }
 }
 
-/// Check no-explicit-iterator-in-for-of.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
+/// Report for-of loops over explicit canonical iterator calls.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+
+    // inspect synchronous for-of loops
+    for expression in view.iter_node_ids_of_type::<dir::Expression>() {
+        let Some(loop_) = module.for_of(expression) else {
+            continue;
+        };
+        if loop_.asynchrony != dir::Asynchrony::Sync {
+            continue;
+        }
+        let Some(call) = module.member_call(loop_.iterator) else {
+            continue;
+        };
+        if !call.arguments.is_empty() || call.is_optional || call.is_member_optional {
+            continue;
+        }
+
+        // require the selected member to be a canonical iterator operation
+        let Some(member) = module.language_member(loop_.iterator)? else {
+            continue;
+        };
+        if member != member.owner.member("iterator") {
+            continue;
+        }
+
+        // remove the redundant iterator call
+        let span = module.source_extent(loop_.iterator.into_any())?;
+        let mut diagnostic = lint.diagnostic("for-of calls iterator explicitly", span);
+        if let Some(suggestion) = suggestion(module, lint, loop_.iterator, call.receiver)? {
+            diagnostic = diagnostic.suggestion(suggestion);
+        }
+        output.report(diagnostic);
+    }
+
+    Ok(output)
+}
+
+/// Replace one explicit iterator call with its iterable receiver.
+fn suggestion(
+    module: &DirModule<'_>,
+    lint: &Lint,
+    iterator: dir::LocalNodeId<dir::Expression>,
+    receiver: dir::LocalNodeId<dir::Expression>,
+) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
+    let extent = module.source_extent(iterator.into_any())?;
+    let receiver = module.source_extent(receiver.into_any())?;
+    if module.has_unretained_comment(extent, &[receiver])? {
+        return Ok(None);
+    }
+
+    // replace the complete call to preserve receiver grouping
+    let source = module.source(receiver)?;
+    let patch = Patch::replace(extent, source);
+    let suggestion = lint.fix("iterate over the iterable directly", patch)?;
+
+    Ok(Some(suggestion))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestSession;
+
+    /// Remove an explicit Array iterator call from for-of.
+    #[test]
+    fn test_removes_array_iterator_call() {
+        let session = TestSession::dir(
+            &NO_EXPLICIT_ITERATOR_IN_FOR_OF,
+            r#"
+function sum(values: int32[]): int32 {
+    let total: int32 = 0;
+    for (const value of values.iterator()) {
+        total += value;
+    }
+    return total;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-explicit-iterator-in-for-of]: for-of calls iterator explicitly
+ ──▶ main.ds:3:25
+  │
+1 │ function sum(values: int32[]): int32 {
+2 │     let total: int32 = 0;
+3 │     for (const value of values.iterator()) {
+  │                         ^^^^^^^^^^^^^^^^^
+4 │         total += value;
+5 │     }
+  │
+
+ = fix: iterate over the iterable directly
+--- a/main.ds
++++ b/main.ds
+
+    2│     let total: int32 = 0;
+-   3│     for (const value of values.iterator()) {
++   3│     for (const value of values) {
+"#,
+        );
+        session.assert_fixes(NO_EXPLICIT_ITERATOR_IN_FOR_OF.example.accepted());
+    }
+
+    /// Preserve a comment inside the removed call.
+    #[test]
+    fn test_reports_commented_iterator_without_fix() {
+        let session = TestSession::dir(
+            &NO_EXPLICIT_ITERATOR_IN_FOR_OF,
+            r#"
+function visit(values: int32[]): void {
+    for (const value of values.iterator(/* retain */)) {
+        // intentionally empty
+    }
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-explicit-iterator-in-for-of]: for-of calls iterator explicitly
+ ──▶ main.ds:2:25
+  │
+1 │ function visit(values: int32[]): void {
+2 │     for (const value of values.iterator(/* retain */)) {
+  │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 │         // intentionally empty
+4 │     }
+  │
+"#,
+        );
+    }
+
+    /// Accept iterator calls outside for-of.
+    #[test]
+    fn test_accepts_iterator_value() {
+        let session = TestSession::dir(
+            &NO_EXPLICIT_ITERATOR_IN_FOR_OF,
+            r#"
+import { Iterator } from "destack:iter";
+
+function iterator(values: int32[]): Iterator<int32> {
+    return values.iterator();
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a user-defined iterator method.
+    #[test]
+    fn test_accepts_user_iterator_method() {
+        let session = TestSession::dir(
+            &NO_EXPLICIT_ITERATOR_IN_FOR_OF,
+            r#"
+class Values {
+    iterator(): int32[] {
+        return [];
+    }
+}
+
+function visit(values: Values): void {
+    for (const value of values.iterator()) {
+        // intentionally empty
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
 }

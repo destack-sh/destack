@@ -68,6 +68,17 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         report_empty_body(module, lint, *body, &mut output)?;
     }
 
+    // inspect nominal interface methods
+    for (_, member) in view.iter_nodes::<dir::TypeMember>() {
+        let dir::TypeMember::Method {
+            body: Some(body), ..
+        } = member
+        else {
+            continue;
+        };
+        report_empty_body(module, lint, *body, &mut output)?;
+    }
+
     Ok(output)
 }
 
@@ -134,6 +145,32 @@ warning[no-empty-function]: function body is empty
  ──▶ main.ds:2:24
   │
 1 │ class Service {
+2 │     initialize(): void {}
+  │                        ^^
+3 │ }
+  │
+"#,
+        );
+    }
+
+    /// Report an empty default method on a nominal interface.
+    #[test]
+    fn test_reports_empty_interface_method() {
+        let session = TestSession::dir(
+            &NO_EMPTY_FUNCTION,
+            r#"
+newtype interface Service {
+    initialize(): void {}
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-empty-function]: function body is empty
+ ──▶ main.ds:2:24
+  │
+1 │ newtype interface Service {
 2 │     initialize(): void {}
   │                        ^^
 3 │ }

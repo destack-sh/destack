@@ -57,7 +57,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
         if left_shift.direction == right_shift.direction
-            || !module.is_repeated_expression(left_shift.value, right_shift.value)?
+            || !module.is_same_computation(left_shift.value, right_shift.value)?
         {
             continue;
         }
@@ -164,7 +164,7 @@ fn suggestion(
     }
 
     // retain the value and selected shift amount
-    let value = module.operand_source(shift.value, dir::OperatorPrecedence::Postfix)?;
+    let value = module.expression_source(shift.value, dir::OperatorPrecedence::Postfix)?;
     let amount = module.source(amount_span)?;
     let method = match shift.direction {
         ShiftDirection::Left => "rotateLeft",

@@ -92,9 +92,9 @@ fn suggestion(
     }
 
     // group both operands according to exponentiation precedence
-    let base_source = module.operand_source(base, dir::OperatorPrecedence::Postfix)?;
+    let base_source = module.expression_source(base, dir::OperatorPrecedence::Postfix)?;
     let exponent_source =
-        module.operand_source(exponent, dir::OperatorPrecedence::Exponentiation)?;
+        module.expression_source(exponent, dir::OperatorPrecedence::Exponentiation)?;
 
     let replacement = format!("{base_source} ** {exponent_source}");
     let patch = Patch::replace(extent, replacement);

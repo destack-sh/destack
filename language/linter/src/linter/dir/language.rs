@@ -4,6 +4,24 @@ use destack_repository::ProviderError;
 use super::{Dir, DirModule};
 
 impl Dir<'_> {
+    /// Return the canonical language item represented by one checked type.
+    pub fn representation_item(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<Option<dir::LanguageItem>, ProviderError> {
+        // inspect the represented value beneath placement forms
+        let type_id = self.strip_form(type_id)?;
+        let ty = self.get_type(type_id)?;
+
+        // recognize compiler-defined and nominal language representations
+        let item = ty.representation_item().or_else(|| {
+            ty.symbol()
+                .and_then(|symbol| self.environment.language.item(symbol))
+        });
+
+        Ok(item)
+    }
+
     /// Return the canonical language member declared by one symbol.
     pub fn language_member(
         &self,
@@ -105,7 +123,7 @@ impl DirModule<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::LanguageItem>, ProviderError> {
         let item = self
-            .symbol(expression)?
+            .selected_symbol(expression)?
             .and_then(|symbol| self.dir.environment.language.item(symbol));
 
         Ok(item)
@@ -140,24 +158,21 @@ impl DirModule<'_> {
 
                 self.selected_language_member(symbols)
             }
+
+            // operators retain one selected callable for every runtime arm
+            dir::Expression::Unary { .. } | dir::Expression::Binary { .. } => {
+                let Some(resolution) = self.operator_decision(expression.into_any())? else {
+                    return Ok(None);
+                };
+                let symbols = resolution
+                    .arms()
+                    .iter()
+                    .map(|application| application.call().and_then(|call| call.target.symbol()));
+
+                self.selected_language_member(symbols)
+            }
             _ => Ok(None),
         }
-    }
-
-    /// Return the canonical language member selected by one operator expression.
-    pub fn operator_language_member(
-        &self,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> Result<Option<dir::LanguageMember>, ProviderError> {
-        let Some(resolution) = self.operator_decision(expression.into_any())? else {
-            return Ok(None);
-        };
-        let symbols = resolution
-            .arms()
-            .iter()
-            .map(|application| application.call().and_then(|call| call.target.symbol()));
-
-        self.selected_language_member(symbols)
     }
 
     /// Return the language member shared by every selected declaration.

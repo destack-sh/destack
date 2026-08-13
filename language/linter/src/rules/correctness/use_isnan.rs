@@ -181,7 +181,7 @@ impl NanEquality {
         }
 
         // preserve the exact compared expression text
-        let receiver = module.postfix_source(self.value)?;
+        let receiver = module.expression_source(self.value, dir::OperatorPrecedence::Postfix)?;
         let predicate = format!("{receiver}.isNaN()");
         let replacement = if self.is_negated {
             format!("!{predicate}")
@@ -279,6 +279,41 @@ warning[use-isnan]: equality cannot test for NaN
 
     1│ function isMissing(value: float64): boolean {
 -   2│     return value === NaN;
++   2│     return value.isNaN();
+"#,
+        );
+    }
+
+    /// Report equality with a signed NaN constant.
+    #[test]
+    fn test_reports_signed_nan_equality() {
+        let session = TestSession::dir(
+            &USE_ISNAN,
+            r#"
+function isMissing(value: float64): boolean {
+    return value === -NaN;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[use-isnan]: equality cannot test for NaN
+ ──▶ main.ds:2:22
+  │
+1 │ function isMissing(value: float64): boolean {
+2 │     return value === -NaN;
+  │                      ^^^^
+3 │ }
+  │
+
+ = help: use a NaN predicate instead
+ = suggestion: replace the equality check with a NaN predicate (requires review)
+--- a/main.ds
++++ b/main.ds
+
+    1│ function isMissing(value: float64): boolean {
+-   2│     return value === -NaN;
 +   2│     return value.isNaN();
 "#,
         );

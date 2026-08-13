@@ -18,7 +18,12 @@ impl DirModule<'_> {
         &self,
         node: dir::LocalNodeIdAny,
     ) -> Result<Option<dir::PrimitiveType>, ProviderError> {
-        let primitive = match self.node_type(node)? {
+        // inspect the represented value beneath placement forms
+        let type_id = self.node_type_id(node)?;
+        let type_id = self.dir.strip_form(type_id)?;
+        let ty = self.dir.get_type(type_id)?;
+
+        let primitive = match ty {
             dir::Type::Primitive(primitive) => Some(primitive),
             _ => None,
         };
@@ -32,15 +37,15 @@ impl DirModule<'_> {
         node: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::ScalarLiteral>, ProviderError> {
         // select one symbol-backed constant expression
-        if let Some(symbol) = self.symbol(node)? {
-            if let Some(value) = self.dir.symbol_static(symbol)? {
-                let value = match value {
-                    dir::StaticTerm::ScalarLiteral { value } => Some(value),
-                    _ => None,
-                };
-                if value.is_some() {
-                    return Ok(value);
-                }
+        if let Some(symbol) = self.selected_symbol(node)?
+            && let Some(value) = self.dir.symbol_static(symbol)?
+        {
+            let value = match value {
+                dir::StaticTerm::ScalarLiteral { value } => Some(value),
+                _ => None,
+            };
+            if value.is_some() {
+                return Ok(value);
             }
         }
 
@@ -97,33 +102,22 @@ impl DirModule<'_> {
         {
             return Ok(None);
         }
-        let member = match operator {
-            dir::BinaryOperator::Exponent => "power",
-            dir::BinaryOperator::Multiply => "multiply",
-            dir::BinaryOperator::Divide => "divide",
-            dir::BinaryOperator::Remainder => "remainder",
-            dir::BinaryOperator::Add => "add",
-            dir::BinaryOperator::Subtract => "subtract",
-            dir::BinaryOperator::ShiftLeft => "shiftLeft",
-            dir::BinaryOperator::ShiftRight => "shiftRight",
-            dir::BinaryOperator::ElementwiseAnd => "and",
-            dir::BinaryOperator::ElementwiseXor => "xor",
-            dir::BinaryOperator::ElementwiseOr => "or",
-            dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual => "equal",
-            dir::BinaryOperator::LessThan
-            | dir::BinaryOperator::LessThanOrEqual
-            | dir::BinaryOperator::GreaterThan
-            | dir::BinaryOperator::GreaterThanOrEqual => "compare",
+        if matches!(
+            operator,
             dir::BinaryOperator::UnsignedShiftRight
-            | dir::BinaryOperator::EqualStrict
-            | dir::BinaryOperator::NotEqualStrict
-            | dir::BinaryOperator::And
-            | dir::BinaryOperator::Or
-            | dir::BinaryOperator::Coalesce
-            | dir::BinaryOperator::In => return Ok(None),
+                | dir::BinaryOperator::EqualStrict
+                | dir::BinaryOperator::NotEqualStrict
+                | dir::BinaryOperator::And
+                | dir::BinaryOperator::Or
+                | dir::BinaryOperator::Coalesce
+                | dir::BinaryOperator::In
+        ) {
+            return Ok(None);
+        }
+        let Some(member) = self.language_member(expression)? else {
+            return Ok(None);
         };
-        let member = dir::LanguageItem::BigInt.member(member);
-        if self.operator_language_member(expression)? != Some(member) {
+        if member.owner != dir::LanguageItem::BigInt {
             return Ok(None);
         }
 
@@ -228,10 +222,24 @@ impl DirModule<'_> {
 
         // recognize the canonical standard-library constants by selected symbol
         let item = self.language_item(node)?;
-        let is_nan = matches!(
+        if matches!(
             item,
             Some(dir::LanguageItem::NaN | dir::LanguageItem::NumberNaN)
-        );
+        ) {
+            return Ok(true);
+        }
+
+        // preserve NaN through compiler-defined unary signs
+        let dir::Expression::Unary { right, .. } = self.view().get(node) else {
+            return Ok(false);
+        };
+        let Some((operator, _)) = self.builtin_unary(node)? else {
+            return Ok(false);
+        };
+        let is_nan = matches!(
+            operator,
+            dir::UnaryOperator::Plus | dir::UnaryOperator::Negate
+        ) && self.is_nan(*right)?;
 
         Ok(is_nan)
     }

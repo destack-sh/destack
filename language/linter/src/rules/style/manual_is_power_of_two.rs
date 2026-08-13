@@ -100,7 +100,7 @@ fn power_of_two_value(
         let Some(cleared) = cleared_lowest_one_value(module, clearing.source.local_id)? else {
             continue;
         };
-        if module.is_repeated_expression(guarded, cleared)? {
+        if module.is_same_computation(guarded, cleared)? {
             return Ok(Some(guarded));
         }
     }
@@ -169,7 +169,7 @@ fn cleared_lowest_one_value(
             continue;
         };
         if module.integral_constant(one.source.local_id)? == Some(1)
-            && module.is_repeated_operand(value, decremented)?
+            && module.is_same_operand(value, decremented)?
         {
             return Ok(Some(value.source.local_id));
         }
@@ -186,20 +186,14 @@ fn count_ones_receiver(
     if module.language_member(expression)? != Some(dir::LanguageItem::Integer.member("countOnes")) {
         return Ok(None);
     }
-    let dir::Expression::Call {
-        left, arguments, ..
-    } = module.view().get(expression)
-    else {
+    let Some(call) = module.member_call(expression) else {
         return Ok(None);
     };
-    if !arguments.is_empty() {
+    if !call.arguments.is_empty() {
         return Ok(None);
     }
-    let dir::Expression::Member { left: receiver, .. } = module.view().get(*left) else {
-        return Ok(None);
-    };
 
-    Ok(Some(*receiver))
+    Ok(Some(call.receiver))
 }
 
 /// Build the canonical power-of-two predicate call.
@@ -216,7 +210,7 @@ fn suggestion(
     }
 
     // retain the integer with postfix-safe grouping
-    let value = module.operand_source(value, dir::OperatorPrecedence::Postfix)?;
+    let value = module.expression_source(value, dir::OperatorPrecedence::Postfix)?;
     let patch = Patch::replace(span, format!("{value}.isPowerOfTwo()"));
     let suggestion = lint.suggestion("call `.isPowerOfTwo()`", patch)?;
 

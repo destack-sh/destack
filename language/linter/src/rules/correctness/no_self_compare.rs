@@ -54,7 +54,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
 
         // require both operands to repeat one checked value
-        if !module.is_repeated_operand(left_operand, right_operand)? {
+        if !module.is_same_operand(left_operand, right_operand)? {
             continue;
         }
 

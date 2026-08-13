@@ -100,7 +100,7 @@ fn dividend(
             return Ok(None);
         };
         for (dividend, added_divisor) in [(first, second), (second, first)] {
-            if module.is_repeated_operand(added_divisor, divisor)? {
+            if module.is_same_operand(added_divisor, divisor)? {
                 return Ok(Some(dividend.source.local_id));
             }
         }
@@ -117,7 +117,7 @@ fn dividend(
             continue;
         };
         if module.integral_constant(one.source.local_id)? == Some(1)
-            && module.is_repeated_operand(adjusted_divisor, divisor)?
+            && module.is_same_operand(adjusted_divisor, divisor)?
         {
             return Ok(Some(candidate.source.local_id));
         }
@@ -141,7 +141,7 @@ fn suggestion(
     }
 
     // retain the dividend and divisor in one method call
-    let dividend = module.operand_source(division.dividend, dir::OperatorPrecedence::Postfix)?;
+    let dividend = module.expression_source(division.dividend, dir::OperatorPrecedence::Postfix)?;
     let divisor = module.source(divisor_span)?;
     let patch = Patch::replace(span, format!("{dividend}.divideCeil({divisor})"));
     let suggestion = lint.fix("call `.divideCeil()`", patch)?;

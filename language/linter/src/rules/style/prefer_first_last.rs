@@ -43,11 +43,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect canonical array at calls with one endpoint index
     for expression in module.call_expressions() {
         let expression = expression?;
-        let node = view.get(expression);
-        let dir::Expression::Call {
-            left, arguments, ..
-        } = node
-        else {
+        let Some(call) = module.member_call(expression) else {
             continue;
         };
         if module.language_member(expression)? != Some(dir::LanguageItem::Array.member("at")) {
@@ -55,10 +51,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // read the array receiver and sole index value
-        let dir::Expression::Member { left: receiver, .. } = view.get(*left) else {
-            continue;
-        };
-        let [argument] = arguments.as_slice() else {
+        let receiver = call.receiver;
+        let [argument] = call.arguments else {
             continue;
         };
         let Some(index) = view.get(*argument).value() else {
@@ -89,7 +83,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 if module.language_member(*length)?
                     != Some(dir::LanguageItem::Array.member("length"))
                     || module.scalar_constant(*offset)? != Some(dir::ScalarLiteral::Integer(1))
-                    || !module.is_repeated_expression(*receiver, *length_receiver)?
+                    || !module.is_same_computation(receiver, *length_receiver)?
                 {
                     continue;
                 }
@@ -101,7 +95,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // replace only the selected member name and argument list
         let span = module.source_extent(expression.into_any())?;
         let mut diagnostic = lint.diagnostic("endpoint lookup uses a numeric index", span);
-        if let Some(suggestion) = suggestion(module, lint, expression, *left, name)? {
+        if let Some(suggestion) = suggestion(module, lint, expression, call.callee, name)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
 

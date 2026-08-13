@@ -161,7 +161,7 @@ fn suggestion(
     }
 
     // retain both endpoints in one midpoint call
-    let left = module.operand_source(midpoint.left, dir::OperatorPrecedence::Postfix)?;
+    let left = module.expression_source(midpoint.left, dir::OperatorPrecedence::Postfix)?;
     let right = module.source(right_span)?;
     let patch = Patch::replace(span, format!("{left}.midpoint({right})"));
     let suggestion = lint.suggestion("call `.midpoint()`", patch)?;

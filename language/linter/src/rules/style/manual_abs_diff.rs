@@ -102,10 +102,10 @@ fn absolute_difference(
     else {
         return Ok(None);
     };
-    if !module.is_repeated_operand(greater, then_left)?
-        || !module.is_repeated_operand(lesser, then_right)?
-        || !module.is_repeated_operand(lesser, else_left)?
-        || !module.is_repeated_operand(greater, else_right)?
+    if !module.is_same_operand(greater, then_left)?
+        || !module.is_same_operand(lesser, then_right)?
+        || !module.is_same_operand(lesser, else_left)?
+        || !module.is_same_operand(greater, else_right)?
         || !matches!(
             module.primitive_type(left.source.local_id.into_any())?,
             Some(dir::PrimitiveType::Integer(integer)) if !integer.is_signed()
@@ -135,7 +135,7 @@ fn suggestion(
     }
 
     // retain one evaluation of each operand
-    let left = module.operand_source(difference.left, dir::OperatorPrecedence::Postfix)?;
+    let left = module.expression_source(difference.left, dir::OperatorPrecedence::Postfix)?;
     let right = module.source(right_span)?;
     let patch = Patch::replace(span, format!("{left}.absDiff({right})"));
     let suggestion = lint.fix("call `.absDiff()`", patch)?;

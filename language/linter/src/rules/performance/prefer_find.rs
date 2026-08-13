@@ -43,25 +43,17 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect checked calls that optionally consume one first element
     for expression in module.call_expressions() {
         let expression = expression?;
-        let node = view.get(expression);
-        let dir::Expression::Call {
-            left, arguments, ..
-        } = node
-        else {
+        let Some(call) = module.member_call(expression) else {
             continue;
         };
-
-        // read the immediate receiver of the consuming member
-        let dir::Expression::Member { left: filter, .. } = view.get(*left) else {
-            continue;
-        };
+        let filter = call.receiver;
 
         // require optional first-element behavior from the canonical Array member
         let consumer = module.language_member(expression)?;
         let at = dir::LanguageItem::Array.member("at");
         let first = dir::LanguageItem::Array.member("first");
         let is_first = if consumer == Some(at) {
-            let [argument] = arguments.as_slice() else {
+            let [argument] = call.arguments else {
                 continue;
             };
             let Some(index) = view.get(*argument).value() else {
@@ -73,7 +65,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 Some(dir::ScalarLiteral::Integer(0))
             )
         } else if consumer == Some(first) {
-            arguments.is_empty()
+            call.arguments.is_empty()
         } else {
             false
         };
@@ -82,18 +74,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // require the receiver to be one canonical Array.filter call
-        let dir::Expression::Call {
-            left: filter_member,
-            ..
-        } = view.get(*filter)
-        else {
-            continue;
-        };
-        let dir::Expression::Member { .. } = view.get(*filter_member) else {
+        let Some(filter_call) = module.member_call(filter) else {
             continue;
         };
         let filter_language_member = dir::LanguageItem::Array.member("filter");
-        if module.language_member(*filter)? != Some(filter_language_member) {
+        if module.language_member(filter)? != Some(filter_language_member) {
             continue;
         }
 
@@ -101,7 +86,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let span = module.span(expression.into_any())?;
         let mut diagnostic =
             lint.diagnostic("filtered array is only used for its first element", span);
-        if let Some(suggestion) = suggestion(module, lint, expression, *filter, *filter_member)? {
+        if let Some(suggestion) = suggestion(module, lint, expression, filter, filter_call.callee)?
+        {
             diagnostic = diagnostic.suggestion(suggestion);
         }
 

@@ -1,11 +1,16 @@
+mod access;
+mod callable;
 mod comment;
+mod control;
 mod expression;
 mod index;
 mod language;
 mod module;
+mod operation;
 mod program;
 mod scalar;
 mod source;
+mod symbol;
 
 pub use comment::*;
 pub use index::*;
