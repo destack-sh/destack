@@ -1966,3 +1966,320 @@ const greeter: Greeter = robot;
 "#,
     );
 }
+
+#[test]
+fn test_accept_scalar_implementations_across_the_widening_chain() {
+    let session = TestSession::single(
+        r#"
+newtype interface Show {
+    show(): string;
+}
+
+extension Int8Show of int8 implements Show {
+    show(): string {
+        return "int8";
+    }
+}
+
+extension Int16Show of int16 implements Show {
+    show(): string {
+        return "int16";
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+newtype interface Show {
+    show(): string;
+}
+
+extension Int8Show of int8 implements Show {
+    show(): string {
+        return "int8";
+    }
+}
+
+extension Int16Show of int16 implements Show {
+    show(): string {
+        return "int16";
+    }
+}
+
+=== checked ===
+newtype interface Show {
+    show(): string;
+}
+
+extension Int8Show of int8 implements Show {
+    show(): string {
+        return "int8";
+    }
+}
+
+extension Int16Show of int16 implements Show {
+    show(): string {
+        return "int16";
+    }
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_duplicate_implementations_of_one_scalar() {
+    let session = TestSession::single(
+        r#"
+newtype interface Show {
+    show(): string;
+}
+
+extension FirstShow of int8 implements Show {
+    show(): string {
+        return "first";
+    }
+}
+
+extension SecondShow of int8 implements Show {
+    show(): string {
+        return "second";
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+newtype interface Show {
+    show(): string;
+}
+
+extension FirstShow of int8 implements Show {
+    show(): string {
+        return "first";
+    }
+}
+
+extension SecondShow of int8 implements Show {
+    show(): string {
+        return "second";
+    }
+}
+
+=== checked ===
+newtype interface Show {
+    show(): string;
+}
+
+extension FirstShow of int8 implements Show {
+    show(): string {
+        return "first";
+    }
+}
+
+extension SecondShow of int8 implements Show {
+    show(): string {
+        return "second";
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Show' for type 'int8'"
+/// @diagnostic.label line=12 column=11 span="SecondShow" line_source="extension SecondShow of int8 implements Show {"
+/// @diagnostic.related line=6 column=11 span="FirstShow" line_source="extension FirstShow of int8 implements Show {" message="conflicting implementation"
+"#,
+    );
+}
+
+#[test]
+fn test_prefer_a_concrete_implementation_over_a_blanket() {
+    let session = TestSession::single(
+        r#"
+import { Integer } from "destack:math";
+
+newtype interface Show {
+    show(): string;
+}
+
+extension AnyShow<T: Integer> of T implements Show {
+    show(): string {
+        return "any";
+    }
+}
+
+extension IntShow of int16 implements Show {
+    show(): string {
+        return "int16";
+    }
+}
+
+declare const value: int16;
+
+const label = value.show();
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Integer } from "destack:math";
+
+newtype interface Show {
+    show(): string;
+}
+
+extension AnyShow<T: Integer> of T implements Show {
+    show(): string {
+        return "any";
+    }
+}
+
+extension IntShow of int16 implements Show {
+    show(): string {
+        return "int16";
+    }
+}
+
+declare const value: int16;
+
+const label: string = value.show();
+
+=== checked ===
+import { Integer } from "destack:math";
+
+newtype interface Show {
+/// @type.symbol symbol=Show type=Show
+/// @definition.interface symbol=Show nominal=true
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
+
+    show(): string;
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
+
+}
+
+extension AnyShow<T: Integer> of T implements Show {
+/// @generic.template symbol=AnyShow parameters=(T: math.integer.Integer)
+/// @definition.extension symbol=AnyShow form=local target=T
+/// @definition.implements symbol=AnyShow source=Show target=Show
+/// @definition.method symbol=AnyShow.show slot=show type=(this: this) => string
+/// @definition.conformance symbol=AnyShow member=AnyShow.show requirement=Show.show
+/// @type.symbol symbol=AnyShow.T source="T: Integer" type=T
+/// @resolution.name source=Integer target=math.integer.Integer
+/// @resolution.name source=T target=AnyShow.T
+/// @resolution.name source=Show target=Show
+
+    show(): string {
+    /// @type.symbol symbol=AnyShow.show type=(this: this) => string
+
+        return "any";
+    }
+}
+
+extension IntShow of int16 implements Show {
+/// @definition.extension symbol=IntShow form=local target=int16
+/// @definition.implements symbol=IntShow source=Show target=Show
+/// @definition.method symbol=IntShow.show slot=show type=<IntShow.show.'a>(this: &IntShow.show.'a exclusive this) => string
+/// @definition.conformance symbol=IntShow member=IntShow.show requirement=Show.show
+/// @resolution.name source=Show target=Show
+
+    show(): string {
+    /// @generic.template symbol=IntShow.show parent=template#2 parameters=('a)
+    /// @type.symbol symbol=IntShow.show type=<IntShow.show.'a>(this: &IntShow.show.'a exclusive this) => string
+
+        return "int16";
+    }
+}
+
+declare const value: int16;
+/// @type.symbol symbol=value source=value type=int16
+/// @resolution.pattern source=value kind=binding target=value
+
+const label = value.show();
+/// @type.symbol symbol=label source=label type=string
+/// @resolution.pattern source=label kind=binding target=label
+/// @resolution.name source=value target=value
+/// @resolution.member source=value.show receiver=int16 type=<IntShow.show.'a>(this: &IntShow.show.'a exclusive int16) => string kind=symbol target_receiver=int16 target=IntShow.show
+/// @resolution.call source=value.show() parameters=() return=string kind=symbol target=IntShow.show receiver=int16 adjustments=(borrow(&'static exclusive int16))
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
+fn test_accept_distinct_interface_instantiations_on_one_scalar() {
+    let session = TestSession::single(
+        r#"
+newtype interface Convert<U> {
+    to(): U;
+}
+
+extension ToInt16 of int8 implements Convert<int16> {
+    to(): int16 {
+        return 1;
+    }
+}
+
+extension ToInt32 of int8 implements Convert<int32> {
+    to(): int32 {
+        return 1;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+newtype interface Convert<out U> {
+    to(): U;
+}
+
+extension ToInt16 of int8 implements Convert<int16> {
+    to(): int16 {
+        return 1;
+    }
+}
+
+extension ToInt32 of int8 implements Convert<int32> {
+    to(): int32 {
+        return 1;
+    }
+}
+
+=== checked ===
+newtype interface Convert<U> {
+    to(): U;
+}
+
+extension ToInt16 of int8 implements Convert<int16> {
+    to(): int16 {
+        return 1;
+    }
+}
+
+extension ToInt32 of int8 implements Convert<int32> {
+    to(): int32 {
+        return 1;
+    }
+}
+"#,
+        r#"
+"#,
+    );
+}

@@ -177,6 +177,9 @@ impl CheckState<'_> {
                 Ok(overlaps)
             }
 
+            // distinct concrete scalars never share a value
+            (dir::Type::Primitive(source), dir::Type::Primitive(target)) => Ok(source == target),
+
             // scalar domains overlap only within the same primitive family
             (source, target)
                 if let (Some(source), Some(target)) =
