@@ -305,7 +305,7 @@ impl ProgramInfo {
             return false;
         }
 
-        // check ranges nested inside reflected member and frame rows
+        // check ranges nested inside reflected member and frame entries
         let members_fit = members
             .iter()
             .all(|member| member.arguments.fits(type_operands));

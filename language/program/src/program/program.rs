@@ -482,7 +482,7 @@ impl Program {
         self.trace_view().trace_map(id).map_err(Error::from)
     }
 
-    /// Return compact program trace rows.
+    /// Return compact program trace entries.
     pub fn trace_view(&self) -> TraceView<'_> {
         self.traces.view(self.sections())
     }

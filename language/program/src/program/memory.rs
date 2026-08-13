@@ -159,7 +159,7 @@ impl Memory<'_> {
             }
         }
 
-        // materialize trace rows only on the cold allocation path
+        // materialize trace entries only on the cold allocation path
         let trace_map = plan.trace_map(trace_view)?;
         let reference = match payload {
             Payload::Bytes(bytes) => self.local_heap.allocate_bytes(plan, &trace_map, bytes)?,
@@ -191,7 +191,7 @@ impl Memory<'_> {
             return Ok(HeapEdge::Shared(reference));
         }
 
-        // materialize trace rows only on the cold allocation path
+        // materialize trace entries only on the cold allocation path
         let trace_map = plan.trace_map(trace_view)?;
         let reference = match payload {
             Payload::Bytes(bytes) => self.shared_heap.allocate_bytes(

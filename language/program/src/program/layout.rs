@@ -549,7 +549,7 @@ pub struct ReferenceLayout {
     pub pointee: TypeId,
     /// Packed ownership, storage, access, and nullability.
     bits: u16,
-    /// Explicit initialized row padding.
+    /// Explicit initialized entry padding.
     padding: [u8; 2],
 }
 
@@ -701,7 +701,7 @@ pub struct PointerLayout {
     pub pointee: TypeId,
     /// Packed access and nullability.
     bits: u8,
-    /// Explicit initialized row padding.
+    /// Explicit initialized entry padding.
     padding: [u8; 3],
 }
 
