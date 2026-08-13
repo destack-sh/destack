@@ -226,6 +226,8 @@ impl Parser {
                 {
                     *label = Some(name);
                 }
+                self.tree.set_range(body, self.range_since(start));
+                self.tree.set_main_range(body, name_range);
 
                 Ok(body)
             }

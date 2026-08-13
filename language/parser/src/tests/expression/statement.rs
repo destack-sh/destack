@@ -427,4 +427,13 @@ fn test_parse_labeled_statement_span() {
     assert_node!(parser.tree, expr_id, Expression::Loop { label, .. } => {
         assert_string!(parser, label.unwrap(), "label");
     });
+
+    let enclosing_span = parser.tree.get_span(expr_id);
+    assert_eq!(parser.span_str(enclosing_span), "label: loop {}");
+
+    let main_span = parser
+        .tree
+        .get_main_span(expr_id)
+        .expect("expected statement label span");
+    assert_eq!(parser.span_str(main_span), "label");
 }
