@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::CompilerResult;
 use crate::check::{CheckState, Origin};
-use crate::{CheckError, CompilerResult};
 
 impl CheckState<'_> {
     /// Reduce one compiler-recognized intrinsic application.
@@ -40,19 +40,6 @@ impl CheckState<'_> {
             dir::LanguageItem::Dynamic => self.reduce_dynamic_application(origin, module, instance),
             dir::LanguageItem::Function => {
                 self.reduce_function_application(origin, module, instance)
-            }
-            dir::LanguageItem::OnceFunction => {
-                let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-                let diagnostic = CheckError::UnsupportedType {
-                    anchor,
-                    module,
-                    name: "OnceFunction".into(),
-                };
-                self.report(module, diagnostic);
-
-                let error = self.intern_type(dir::Type::Error)?;
-
-                Ok(Some(error))
             }
             dir::LanguageItem::FunctionPointer => {
                 self.reduce_function_pointer_application(origin, module, instance)
@@ -278,13 +265,22 @@ impl CheckState<'_> {
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(signature) = self.function_signature_from_application(origin, module, instance)?
+        let [parameters, return_type, multiplicity] = self.type_ids(module, instance.arguments)?
+        else {
+            return Ok(None);
+        };
+        let (parameters, return_type, multiplicity) = (*parameters, *return_type, *multiplicity);
+        let Some(multiplicity) = self.callable_multiplicity(origin, multiplicity)? else {
+            return Ok(None);
+        };
+        let Some(signature) =
+            self.function_signature_from_application(origin, parameters, return_type)?
         else {
             return Ok(None);
         };
         let function = dir::Type::Function(dir::FunctionType {
             signature,
-            multiplicity: dir::Multiplicity::Repeatable,
+            multiplicity,
         });
         let ty = self.intern_type(function)?;
 
@@ -298,7 +294,12 @@ impl CheckState<'_> {
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(signature) = self.function_signature_from_application(origin, module, instance)?
+        let [parameters, return_type] = self.type_ids(module, instance.arguments)? else {
+            return Ok(None);
+        };
+        let (parameters, return_type) = (*parameters, *return_type);
+        let Some(signature) =
+            self.function_signature_from_application(origin, parameters, return_type)?
         else {
             return Ok(None);
         };
@@ -308,17 +309,35 @@ impl CheckState<'_> {
         Ok(Some(ty))
     }
 
-    /// Return one signature from a callable intrinsic application.
+    /// Read the invocation count a callable application selects.
+    fn callable_multiplicity(
+        &mut self,
+        origin: Origin,
+        multiplicity: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::Multiplicity>> {
+        let multiplicity = self.normalize(origin, multiplicity)?;
+        let dir::Type::Literal(dir::ScalarLiteral::String(text)) = self.ty(multiplicity)? else {
+            return Ok(None);
+        };
+
+        let multiplicity = if text == dir::StringId::for_text("repeatable") {
+            Some(dir::Multiplicity::Repeatable)
+        } else if text == dir::StringId::for_text("once") {
+            Some(dir::Multiplicity::Once)
+        } else {
+            None
+        };
+
+        Ok(multiplicity)
+    }
+
+    /// Return one signature from a callable intrinsic application's written components.
     fn function_signature_from_application(
         &mut self,
         origin: Origin,
-        module: ModuleId,
-        instance: &dir::GenericApplication,
+        parameters: dir::GlobalTypeId,
+        return_type: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let [parameters, return_type] = self.type_ids(module, instance.arguments)? else {
-            return Ok(None);
-        };
-        let (parameters, return_type) = (*parameters, *return_type);
         let parameters = self.normalize(origin, parameters)?;
 
         // read the parameter tuple
@@ -345,6 +364,7 @@ impl CheckState<'_> {
             parameters,
             return_type: Some(return_type),
             is_generator: false,
+            is_construct: false,
         };
         let signature = self.intern_signature(function)?;
 

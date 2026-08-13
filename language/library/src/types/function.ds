@@ -1,12 +1,12 @@
-/// Repeatable callable value type.
-@languageItem("types.Function")
-export newtype Function<Parameters: readonly (...unknown[],) = (), Return = unknown> = intrinsic;
+/// Permitted invocation count for a callable value.
+export type Multiplicity = "repeatable" | "once";
 
-/// Callable value consumed by its first invocation.
-@languageItem("types.OnceFunction")
-export newtype OnceFunction<
+/// Callable value type, repeatable by default and affine when invoked once.
+@languageItem("types.Function")
+export newtype Function<
     Parameters: readonly (...unknown[],) = (),
     Return = unknown,
+    comptime M: Multiplicity = "repeatable",
 > = intrinsic;
 
 /// Thin callable value type.

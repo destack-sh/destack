@@ -771,21 +771,25 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: UseAfterMoveObligation,
     ) -> CompilerResult<ObligationCheck> {
-        // skip positions that preserve their source
-        if self.move_site_borrows(origin, &obligation.site)? {
-            return Ok(ObligationCheck::Holds);
-        }
-
-        // require an owned value, managed handles copy freely
         let ty = self.symbol_type(obligation.symbol)?;
-        let ownership = self.default_ownership(origin, ty)?;
-        if ownership != Some(dir::Ownership::Owned) {
-            return Ok(ObligationCheck::Holds);
-        }
 
+        // a once callable is consumed by the call that invoked it, whatever its ownership admits
+        let survives = if self.consumes_once_callable(origin, &obligation.site, ty)? {
+            false
+        }
+        // positions that preserve their source read the value in place
+        else if self.move_site_borrows(origin, &obligation.site)? {
+            true
+        }
+        // require an owned value, managed handles copy freely
+        else if self.default_ownership(origin, ty)? != Some(dir::Ownership::Owned) {
+            true
+        }
         // only copyable values survive a use after their move
-        let copyable = self.satisfies_auto_interface(origin, ty, dir::AutoInterface::Copy)?;
-        if copyable {
+        else {
+            self.satisfies_auto_interface(origin, ty, dir::AutoInterface::Copy)?
+        };
+        if survives {
             return Ok(ObligationCheck::Holds);
         }
 
@@ -797,6 +801,37 @@ impl CheckState<'_> {
         ]))
     }
 
+    /// Return whether one marked move position is a call consuming its once callable.
+    fn consumes_once_callable(
+        &mut self,
+        origin: Origin,
+        site: &MoveSite,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        if !self.is_callee_position(site) {
+            return Ok(false);
+        }
+        let ty = self.normalize(origin, ty)?;
+        let dir::Type::Function(function) = self.ty(ty)? else {
+            return Ok(false);
+        };
+
+        Ok(function.multiplicity == dir::Multiplicity::Once)
+    }
+
+    /// Return whether one marked move position is the callee of its call.
+    fn is_callee_position(&self, site: &MoveSite) -> bool {
+        let Some(call) = site.call else {
+            return false;
+        };
+        let node = self
+            .module(call.module_id)
+            .view()
+            .get(call.local_id.into_typed::<dir::Expression>());
+
+        matches!(node, dir::Expression::Call { left, .. } if left.into_global_any(call.module_id) == site.node)
+    }
+
     /// Return whether one marked move position borrows its source.
     fn move_site_borrows(&mut self, origin: Origin, site: &MoveSite) -> CompilerResult<bool> {
         // argument and receiver positions read the selected call
@@ -806,6 +841,11 @@ impl CheckState<'_> {
                 self.decision(call),
                 Some(dir::Decision::Rejected | dir::Decision::Poisoned)
             ) {
+                return Ok(true);
+            }
+
+            // every call but a once call reads its callee place in place
+            if self.is_callee_position(site) {
                 return Ok(true);
             }
 

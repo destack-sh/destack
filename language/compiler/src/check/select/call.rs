@@ -1071,6 +1071,10 @@ impl BodyState<'_, '_> {
             return self.reject_call(node, expectation);
         };
 
+        // a once callable is consumed by the call that read it
+        self.decide_reference(callee.into_global_any(module))?;
+        self.check.mark_moved_source(callee, Some(call), None);
+
         // runtime union callees must accept the call through every arm
         if callees.arms.len() > 1 {
             return self.select_call_arms(
