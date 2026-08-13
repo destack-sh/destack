@@ -756,14 +756,14 @@ impl Repository {
         profile: ProfileId,
         symbol: u32,
     ) -> Option<(Span, Blob)> {
-        // resolve the declaration's local symbol row
+        // resolve the declaration's local symbol entry
         let bound_key = ArtifactKey::dir_bound(module, profile);
         let bound_version = self.artifact_version(revision, &bound_key).ok()??;
         let bound = self.artifact_table().artifact::<DirBound>(&bound_version)?;
-        let row = bound
+        let entry = bound
             .bindings
             .get_symbol_maybe(LocalSymbolId { id: symbol })?;
-        let declaration = row.declaration?;
+        let declaration = entry.declaration?;
 
         // resolve the declaration's span in the parsed tree
         let parsed_key = ArtifactKey::dir_parsed(module);
