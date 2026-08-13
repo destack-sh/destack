@@ -97,6 +97,7 @@ impl Repository {
             let resolution = recorder.span("assemble", || {
                 self.resolve_dependency_set(
                     revision,
+                    key,
                     set,
                     progress.as_deref(),
                     base.as_deref(),

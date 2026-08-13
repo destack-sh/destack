@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 
-use destack_artifact::{ArtifactKey, ArtifactVersion, BuildId};
+use destack_artifact::{
+    ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactVersion, BuildId, IndexKind,
+};
 use destack_repository as repository;
 use destack_repository::{
     DestackLayoutOverride, Environment, Execution, Host, MemoryBlobStore, Repository, Revision,
@@ -153,6 +155,59 @@ impl TestSession {
         (version, trace)
     }
 
+    /// Provide one artifact key and return its terminal outcome.
+    pub(crate) fn provide(&self, key: ArtifactKey) -> ArtifactOutcome {
+        let revision = self.revision();
+        let run = self
+            .session
+            .provide(revision, &[key], ArtifactPriority::Foreground);
+        let _ = block_on(run.wait());
+        let version = self
+            .repository
+            .artifact_version(revision, &key)
+            .expect("test artifact version should read")
+            .expect("test artifact version should exist");
+
+        self.repository
+            .artifact_table()
+            .outcome(&version)
+            .expect("test artifact should have a terminal result")
+    }
+
+    /// Return the artifact key of one module target artifact.
+    pub(crate) fn target_key(
+        &self,
+        path: &str,
+        target: &str,
+        key: impl Fn(ModuleId, ProfileId, TargetId) -> ArtifactKey,
+    ) -> ArtifactKey {
+        let revision = self.revision();
+        let module = self.module_id(path, revision);
+        let profile = self.profile_id(revision, module, target);
+        let package = self
+            .repository
+            .module(revision, module)
+            .expect("test module should load")
+            .expect("test module should exist")
+            .package_id;
+
+        key(module, profile, TargetId::new(package, target))
+    }
+
+    /// Return the artifact key of one module profile artifact.
+    pub(crate) fn profile_key(
+        &self,
+        path: &str,
+        target: &str,
+        key: impl Fn(ModuleId, ProfileId) -> ArtifactKey,
+    ) -> ArtifactKey {
+        let revision = self.revision();
+        let module = self.module_id(path, revision);
+        let profile = self.profile_id(revision, module, target);
+
+        key(module, profile)
+    }
+
     /// Return the current retained revision.
     pub(crate) fn revision(&self) -> Revision {
         self.revision.lock().revision()
@@ -219,4 +274,35 @@ fn test_provide_same_artifact_across_sessions() {
     let (second_version, _) = second.join().expect("second session should complete");
 
     assert_eq!(first_version, second_version);
+}
+
+/// Lowering stops on a module whose checking reported errors, while query indexes still derive.
+#[test]
+fn test_poison_lowering_of_a_module_with_check_errors() {
+    let files = [
+        (
+            "destack.json",
+            r#"{
+  "name": "@test/app"
+}
+"#,
+        ),
+        ("src/main.ds", "export const answer: string = 42;\n"),
+    ];
+    let session = TestSession::open(&files).expect("test session should open");
+    let checked = session.profile_key("src/main.ds", "js", ArtifactKey::dir_checked);
+    let lowered = session.target_key("src/main.ds", "js", ArtifactKey::mir_lowered);
+    let index = session.profile_key("src/main.ds", "js", |module, profile| {
+        ArtifactKey::module_index(module, profile, IndexKind::Symbols)
+    });
+
+    // checking completes and owns the error, lowering never runs over it
+    assert_eq!(session.provide(checked), ArtifactOutcome::Ok);
+    assert_eq!(
+        session.provide(lowered),
+        ArtifactOutcome::Failed(ArtifactFailure::requirement(checked))
+    );
+
+    // query artifacts derive from the same erroneous module
+    assert_eq!(session.provide(index), ArtifactOutcome::Ok);
 }

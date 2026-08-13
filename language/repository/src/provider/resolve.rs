@@ -42,6 +42,7 @@ impl Repository {
     pub fn resolve_dependency_set(
         &self,
         revision: Revision,
+        key: ArtifactKey,
         mut set: ArtifactDependencySet,
         progress: Option<&[Option<ArtifactDependency>]>,
         base: Option<&ArtifactBase>,
@@ -106,6 +107,7 @@ impl Repository {
                         self.resolve_requirement(
                             *requirement,
                             resolution,
+                            key.requires_clean_dependencies(),
                             &mut dependencies,
                             &mut pending,
                             &mut failed,
@@ -164,6 +166,7 @@ impl Repository {
         &self,
         requirement: ArtifactRequirement,
         resolution: ArtifactResolution,
+        requires_clean: bool,
         dependencies: &mut Vec<ArtifactDependency>,
         pending: &mut Vec<ArtifactKey>,
         failed: &mut Option<ArtifactKey>,
@@ -174,6 +177,14 @@ impl Repository {
                 version,
                 outcome: ArtifactOutcome::Failed(_),
             } => {
+                failed.get_or_insert(artifact_key);
+                dependencies.push(ArtifactDependency::artifact(version));
+            }
+            // poison a clean-inputs build on a dependency that reported errors
+            ArtifactResolution::Terminal {
+                version,
+                outcome: ArtifactOutcome::Ok,
+            } if requires_clean && self.artifact_has_errors(&version)? => {
                 failed.get_or_insert(artifact_key);
                 dependencies.push(ArtifactDependency::artifact(version));
             }
@@ -194,6 +205,16 @@ impl Repository {
         }
 
         Ok(())
+    }
+
+    /// Return whether one terminal artifact version reported error diagnostics.
+    fn artifact_has_errors(&self, version: &ArtifactVersion) -> ProviderResult<bool> {
+        self.artifact_table().has_errors(version).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "terminal artifact has no result entry: {version:?}"
+            ))
+            .into()
+        })
     }
 
     /// Resolve one completed artifact requirement into an exact dependency.

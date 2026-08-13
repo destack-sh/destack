@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use destack_core::Blob;
 use destack_serde::Reflect;
+use destack_source::DiagnosticSeverity;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -40,6 +41,8 @@ pub(crate) struct ArtifactEntry {
     pub(crate) diagnostics: Arc<[DiagnosticRecord]>,
     /// The sidecars for this exact artifact version.
     pub(crate) sidecars: Arc<[ArtifactSidecar]>,
+    /// Whether any diagnostic for this version carries error severity.
+    pub(crate) has_errors: bool,
 }
 
 /// One immutable artifact version and its exact dependency observations.
@@ -58,9 +61,14 @@ impl ArtifactEntry {
         diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
     ) -> Self {
+        let diagnostics = diagnostics.into();
+
         Self {
             result: ArtifactResult::Ok(payload),
-            diagnostics: diagnostics.into(),
+            has_errors: diagnostics
+                .iter()
+                .any(|record| record.diagnostic.severity == DiagnosticSeverity::Error),
+            diagnostics,
             sidecars: sidecars.into(),
         }
     }
@@ -71,9 +79,14 @@ impl ArtifactEntry {
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
         failure: ArtifactFailure,
     ) -> Self {
+        let diagnostics = diagnostics.into();
+
         Self {
             result: ArtifactResult::Failed(failure),
-            diagnostics: diagnostics.into(),
+            has_errors: diagnostics
+                .iter()
+                .any(|record| record.diagnostic.severity == DiagnosticSeverity::Error),
+            diagnostics,
             sidecars: sidecars.into(),
         }
     }

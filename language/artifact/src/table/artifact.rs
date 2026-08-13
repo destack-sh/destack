@@ -151,6 +151,11 @@ impl ArtifactTable {
             .map(|entry| Arc::clone(&entry.diagnostics))
     }
 
+    /// Return whether one exact artifact version reported any error diagnostic.
+    pub fn has_errors(&self, version: &ArtifactVersion) -> Option<bool> {
+        self.entries.get(version).map(|entry| entry.has_errors)
+    }
+
     /// Intern one artifact key into a dense process-local id.
     pub fn intern_artifact_key(&self, key: ArtifactKey) -> ArtifactId {
         match self.artifact_ids.entry(key) {

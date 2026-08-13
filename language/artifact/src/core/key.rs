@@ -497,6 +497,14 @@ impl ArtifactKey {
         }
     }
 
+    /// Return whether this artifact requires every dependency artifact to be free of errors.
+    pub fn requires_clean_dependencies(&self) -> bool {
+        matches!(
+            self.stage(),
+            ArtifactStage::Lower | ArtifactStage::Emit | ArtifactStage::Link
+        )
+    }
+
     /// Return the human-facing display name for this key's kind.
     pub fn display_name(&self) -> &'static str {
         match self {
