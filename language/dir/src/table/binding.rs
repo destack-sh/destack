@@ -565,9 +565,10 @@ impl BindingSegment {
         scope: LocalScope,
         export: Option<ExportKind>,
         visibility: SymbolVisibility,
-    ) -> (LocalSymbolId, LocalScopeMark) {
+    ) -> LocalSymbolId {
+        // allocate the symbol in declaration order
         let symbol_id = LocalSymbolId::new(self.symbol_count());
-        let symbol = Symbol {
+        self.symbols.allocate(Symbol {
             role,
             kind,
             visibility,
@@ -578,10 +579,17 @@ impl BindingSegment {
             scope,
             export_kind: export,
             declaration: None,
-        };
-        self.symbols.allocate(symbol);
-        let mark = self.get_scope_by_id_mut(scope.id).append(key, symbol_id);
-        (symbol_id, mark)
+        });
+
+        // index symbols selected through scope lookup
+        match visibility {
+            SymbolVisibility::Scope | SymbolVisibility::Forward | SymbolVisibility::Member => {
+                self.get_scope_by_id_mut(scope.id).append(key, symbol_id);
+            }
+            SymbolVisibility::Control => {}
+        }
+
+        symbol_id
     }
 
     /// Attach a declaration node to a symbol.

@@ -787,6 +787,17 @@ impl Expression {
         self.as_scalar()?.as_boolean()
     }
 
+    /// Return the label declared by this control target.
+    pub fn control_label(&self) -> Option<StringId> {
+        match self {
+            Self::While { label, .. }
+            | Self::ForEach { label, .. }
+            | Self::For { label, .. }
+            | Self::Loop { label, .. } => *label,
+            _ => None,
+        }
+    }
+
     /// Return this expression's operator precedence.
     pub fn precedence(&self) -> OperatorPrecedence {
         match self {
@@ -892,6 +903,7 @@ impl Expression {
             Self::Error => "Error",
         }
     }
+
     /// Return this expression as a static lookup key when locally obvious.
     pub fn static_key(&self) -> Option<StaticKey> {
         match self {

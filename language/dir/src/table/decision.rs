@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, Call,
-    CallDecision, ConstructDecision, GlobalNodeIdAny, GlobalTypeId, GuardDecision,
+    CallDecision, ConstructDecision, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, GuardDecision,
     InstantiationDecision, MemberDecision, OperatorDecision, PatternDecision, PlaceResolution,
     ReceiverDecision, SegmentView, SubscriptDecision, TreeDecision, TypeFold,
 };
@@ -23,7 +23,7 @@ pub enum Decision {
     /// Resolved member access.
     Member(MemberDecision),
     /// Resolved control transfer target.
-    Label(GlobalNodeIdAny),
+    Label(GlobalSymbolId),
     /// Resolved operator application.
     Operator(OperatorDecision),
     /// Resolved call.
@@ -120,7 +120,7 @@ impl<'a> DecisionTable<'a> {
     }
 
     /// Get the label target decided for a node.
-    pub fn label_decision(&self, node_id: GlobalNodeIdAny) -> Option<GlobalNodeIdAny> {
+    pub fn label_decision(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
         match self.decision(node_id) {
             Some(Decision::Label(target)) => Some(*target),
             _ => None,
@@ -128,7 +128,7 @@ impl<'a> DecisionTable<'a> {
     }
 
     /// Iterate all label target decisions.
-    pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalNodeIdAny)> + '_ {
+    pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalSymbolId)> + '_ {
         self.segments.iter().flat_map(|segment| {
             segment
                 .decision_entries()

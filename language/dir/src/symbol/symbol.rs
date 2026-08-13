@@ -12,7 +12,7 @@ pub struct Symbol {
     pub role: SymbolRole,
     /// The declaration kind of the symbol.
     pub kind: SymbolKind,
-    /// The lexical visibility extent of this symbol.
+    /// The lookup visibility of this symbol.
     pub visibility: SymbolVisibility,
     /// The mutability for value bindings when known.
     pub binding_mutability: Option<Mutability>,
@@ -120,7 +120,7 @@ impl SymbolLookup {
     }
 }
 
-/// The lexical visibility extent of a symbol.
+/// The lookup visibility of a symbol.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
@@ -131,6 +131,8 @@ pub enum SymbolVisibility {
     Scope,
     /// Visible only through member lookup.
     Member,
+    /// Visible only through control label lookup.
+    Control,
 }
 
 /// The scope lookup role of a symbol.
@@ -198,6 +200,8 @@ pub enum SymbolKind {
     Variable,
     /// Callable value parameter symbol.
     Parameter,
+    /// Control label symbol.
+    Label,
     /// Imported dependency binding before target resolution.
     Import,
     /// Explicit public export alias.
