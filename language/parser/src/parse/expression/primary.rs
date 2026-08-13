@@ -409,7 +409,7 @@ impl Parser {
             Keyword::Async if self.peek_async_lambda() => self
                 .parse_function(start, DeclarationHeader::default(), context)
                 .map(|declaration| self.insert_declaration_expression(start, declaration)),
-            Keyword::Comptime => self.parse_comptime(context.function),
+            Keyword::Const => self.parse_const_evaluation(context.function),
             Keyword::New => self.parse_new(context),
             Keyword::Import if self.peek_import_statement() => self.parse_import(context.function),
             Keyword::Import if self.peek_next_token_type() == TokenType::Dot => {

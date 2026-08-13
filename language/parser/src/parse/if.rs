@@ -1,7 +1,7 @@
 use crate::parse::context::{ExpressionContext, FunctionContext};
 use crate::parse::r#let::DeclaratorValue;
 use crate::parse::lookahead::DelimiterDepth;
-use crate::{ParseStart, Parser, ParserResult};
+use crate::{ParseStart, Parser, ParserResult, TokenProbe};
 use destack_dir::{
     Condition, ConditionOperand, Expression, IfForm, Keyword, LocalNodeId, NodeType,
     OperatorPrecedence, TokenType,
@@ -161,7 +161,15 @@ impl Parser {
                     .and_then(super::r#let::LetHead::from_keyword)
                     .is_some()
             {
-                return true;
+                // const binds only ahead of a top-level initializer
+                if probe.peek_keyword() != Some(Keyword::Const)
+                    || probe.scan_const_binding_operand()
+                {
+                    return true;
+                }
+
+                is_operand_start = false;
+                continue;
             }
 
             // stop on malformed nested delimiters
@@ -185,10 +193,14 @@ impl Parser {
         &mut self,
         function: FunctionContext,
     ) -> ParserResult<ConditionOperand> {
-        let is_binding = self
-            .peek_keyword()
+        let keyword = self.peek_keyword();
+        let is_binding = keyword
             .and_then(super::r#let::LetHead::from_keyword)
-            .is_some();
+            .is_some()
+            && (keyword != Some(Keyword::Const) || {
+                let mut probe = self.cursor.probe(&self.file);
+                probe.scan_const_binding_operand()
+            });
 
         if is_binding {
             let head = self.parse_let_head()?;
@@ -244,5 +256,31 @@ impl Parser {
         }
 
         if_id
+    }
+}
+
+impl TokenProbe<'_> {
+    /// Return whether a const keyword heads a binding condition operand.
+    fn scan_const_binding_operand(&mut self) -> bool {
+        self.bump();
+
+        // a binding operand demands a top-level initializer before the operand ends
+        let mut depth = DelimiterDepth::value();
+        loop {
+            let token_type = self.peek_token_type();
+            if depth.is_top_level()
+                && matches!(
+                    token_type,
+                    TokenType::Assign | TokenType::LogicalAnd | TokenType::CloseParenthesis
+                )
+            {
+                return token_type == TokenType::Assign;
+            }
+            if token_type == TokenType::End || !depth.advance(token_type) {
+                return false;
+            }
+
+            self.bump();
+        }
     }
 }

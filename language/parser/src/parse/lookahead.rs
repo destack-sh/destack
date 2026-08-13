@@ -401,39 +401,11 @@ impl Parser {
             probe.bump();
         }
 
-        if probe.peek_token_type() != open {
+        if !probe.scan_delimiter_group(open, close) {
             return None;
         }
 
-        // balance the complete group
-        let mut delimiters = DelimiterDepth::value();
-        if !delimiters.advance(open) {
-            return None;
-        }
-
-        probe.bump();
-        loop {
-            let token_type = probe.peek_token_type();
-
-            // reject an unclosed group
-            if token_type == TokenType::End {
-                return None;
-            }
-
-            // reject mismatched delimiters
-            if !delimiters.advance(token_type) {
-                return None;
-            }
-
-            probe.bump();
-
-            // return the first token after the outer close
-            if delimiters.is_top_level() {
-                debug_assert_eq!(token_type, close);
-
-                return Some(probe.peek_token());
-            }
-        }
+        Some(probe.peek_token())
     }
 
     /// Return the token after one balanced angle group.
@@ -633,6 +605,47 @@ impl Parser {
 }
 
 impl TokenProbe<'_> {
+    /// Advance past one balanced delimiter group, including statement bodies.
+    pub(in crate::parse) fn scan_delimiter_group(
+        &mut self,
+        open: TokenType,
+        close: TokenType,
+    ) -> bool {
+        if self.peek_token_type() != open {
+            return false;
+        }
+
+        // balance the complete group
+        let mut delimiters = DelimiterDepth::value();
+        if !delimiters.advance(open) {
+            return false;
+        }
+
+        self.bump();
+        loop {
+            let token_type = self.peek_token_type();
+
+            // reject an unclosed group
+            if token_type == TokenType::End {
+                return false;
+            }
+
+            // reject mismatched delimiters
+            if !delimiters.advance(token_type) {
+                return false;
+            }
+
+            self.bump();
+
+            // stop on the token after the outer close
+            if delimiters.is_top_level() {
+                debug_assert_eq!(token_type, close);
+
+                return true;
+            }
+        }
+    }
+
     /// Return whether one consumed parameter head has a function arrow.
     fn scan_function_arrow(&mut self) -> bool {
         if self.peek_token_type() == TokenType::ArrowWide {

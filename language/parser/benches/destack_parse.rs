@@ -301,11 +301,7 @@ fn path_has_component(path: &Path, component: &str) -> bool {
 }
 
 /// Collect parser source files under one root.
-fn collect_parser_sources(
-    root: &Path,
-    include_stress: bool,
-    include_conformance: bool,
-) -> Vec<PathBuf> {
+fn collect_parser_sources(root: &Path, include_stress: bool) -> Vec<PathBuf> {
     let root = root.to_string_lossy();
     let mut source_files = Vec::new();
 
@@ -315,10 +311,6 @@ fn collect_parser_sources(
 
     source_files.retain(|path| {
         if !include_stress && path_has_component(path, "stress") {
-            return false;
-        }
-
-        if !include_conformance && path_has_component(path, "conformance") {
             return false;
         }
 
@@ -432,7 +424,7 @@ fn generate_app_source(module_index: usize, item_count: usize, include_tree: boo
             "/// Compute generated app item {module_index}_{index}.\n"
         ));
         source.push_str(&format!(
-            "export function compute{module_index}_{index}<T extends {{ readonly score: number }}>(items: readonly T[], fallback: T): Model{module_index}_{index}<T> {{ const selected = items.find((item) => item.score > {index}) ?? fallback; return {{ id: \"{module_index}_{index}\", value: selected, items: [...items, fallback] }}; }}\n"
+            "export function compute{module_index}_{index}<T: {{ readonly score: number }}>(items: readonly T[], fallback: T): Model{module_index}_{index}<T> {{ const selected = items.find((item) => item.score > {index}) ?? fallback; return {{ id: \"{module_index}_{index}\", value: selected, items: [...items, fallback] }}; }}\n"
         ));
 
         if include_tree && index % 4 == 0 {
@@ -505,15 +497,14 @@ fn collect_default_corpora(workspace_root: &Path) -> Vec<Corpus> {
     let mut corpora = Vec::new();
 
     if should_run_corpus("library", filter) {
-        let paths = collect_parser_sources(&workspace_root.join("language/library"), false, false);
+        let paths = collect_parser_sources(&workspace_root.join("language/library"), false);
         if let Some(corpus) = load_file_corpus("library", &paths) {
             corpora.push(corpus);
         }
     }
 
     if should_run_corpus("fixtures", filter) {
-        let paths =
-            collect_parser_sources(&workspace_root.join("language/test/fixtures"), false, false);
+        let paths = collect_parser_sources(&workspace_root.join("language/test/fixtures"), false);
         if let Some(corpus) = load_file_corpus("fixtures", &paths) {
             corpora.push(corpus);
         }

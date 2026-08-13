@@ -329,6 +329,75 @@ fn test_parse_export_const_type_identifier_with_struct_value() {
     });
 }
 
+/// Parse a const object pattern as a destructuring binding.
+#[test]
+fn test_parse_const_object_pattern_binding() {
+    let test = TestParser::new("const { a } = obj;");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        let declarator = parser.tree.get(declarators[0]);
+        assert_node!(parser.tree, declarator.pattern, Pattern::Object { .. });
+    });
+}
+
+/// Parse a const brace body as a const evaluation block statement.
+#[test]
+fn test_parse_const_block_statement() {
+    let test = TestParser::new("const { compute() }");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Const { body } => {
+        assert_node!(parser.tree, *body, Expression::Block(_));
+    });
+}
+
+/// Parse a const brace body in an initializer as a const evaluation block.
+#[test]
+fn test_parse_const_block_initializer() {
+    let test = TestParser::new("let x = const { 1 };");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        let value = parser.tree.get(declarators[0]).value.expect("expected initializer");
+        assert_node!(parser.tree, value, Expression::Const { body } => {
+            assert_node!(parser.tree, *body, Expression::Block(_));
+        });
+    });
+}
+
+/// Parse a const call in an initializer as a const evaluation.
+#[test]
+fn test_parse_const_call_initializer() {
+    let test = TestParser::new("let x = const factorial(10);");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        let value = parser.tree.get(declarators[0]).value.expect("expected initializer");
+        assert_node!(parser.tree, value, Expression::Const { body } => {
+            assert_node!(parser.tree, *body, Expression::Call { left, arguments, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "factorial");
+                assert_eq!(arguments.len(), 1);
+            });
+        });
+    });
+}
+
 /// Test const enum declaration.
 #[test]
 fn test_parse_const_enum() {

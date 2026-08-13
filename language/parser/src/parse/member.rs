@@ -30,8 +30,8 @@ pub(crate) struct MemberHead {
     pub(crate) is_generator: bool,
     /// Whether the head is method-shaped.
     pub(crate) is_method: bool,
-    /// The associated comptime constant name when present.
-    pub(crate) associated_comptime_name: Option<StringId>,
+    /// The associated const name when present.
+    pub(crate) associated_const_name: Option<StringId>,
 }
 
 /// One completed method signature and body.
@@ -307,7 +307,7 @@ impl Parser {
         self.validate_method_head_modifiers(name.as_ref(), &modifiers, is_async)?;
 
         // classify the head
-        let associated_comptime_name = if modifiers.is_comptime && modifiers.is_const_asserted {
+        let associated_const_name = if modifiers.is_const_asserted {
             match name.as_ref() {
                 Some(Name::Identifier(name)) => Some(*name),
                 _ => return Err(ParserError::unexpected(self.peek_token_span())),
@@ -330,7 +330,7 @@ impl Parser {
             is_async,
             is_generator,
             is_method,
-            associated_comptime_name,
+            associated_const_name,
         })
     }
 
@@ -619,14 +619,14 @@ impl Parser {
             return Ok(member_id);
         }
 
-        // comptime block: `comptime { ... }` (timing modifier already consumed)
-        if modifiers.is_comptime && self.peek_is(TokenType::OpenBrace) {
+        // const block: `const { ... }` (block head already consumed)
+        if modifiers.is_const_block && self.peek_is(TokenType::OpenBrace) {
             let body_start = self.mark_parse_start();
             let body_block = self.parse_block(BlockContext::Statement, function)?;
             let body =
                 self.insert_node(Expression::Block(body_block), self.range_since(&body_start));
 
-            return Ok(self.insert_node(Member::ComptimeBlock { body }, self.range_since(&start)));
+            return Ok(self.insert_node(Member::ConstBlock { body }, self.range_since(&start)));
         }
 
         // head
@@ -644,11 +644,11 @@ impl Parser {
             is_async,
             is_generator,
             is_method,
-            associated_comptime_name,
+            associated_const_name,
         } = self.parse_member_head(modifiers, role_grammar)?;
 
         // reject impossible associated modifiers
-        if associated_comptime_name.is_some() && modifiers.is_static {
+        if associated_const_name.is_some() && modifiers.is_static {
             return Err(ParserError::unexpected(self.range_since(&start)));
         }
 
@@ -658,8 +658,8 @@ impl Parser {
         }
 
         if is_method {
-            // associated comptime constants cannot use method form
-            if associated_comptime_name.is_some() {
+            // associated consts cannot use method form
+            if associated_const_name.is_some() {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }
 
@@ -745,7 +745,7 @@ impl Parser {
         // field
         else {
             // value (type annotation)
-            let (value, comptime_type, type_range) = if self.peek_is(TokenType::Colon) {
+            let (value, const_type, type_range) = if self.peek_is(TokenType::Colon) {
                 let type_start = self.mark_parse_start();
                 self.bump();
 
@@ -759,13 +759,13 @@ impl Parser {
                 } else {
                     self.parse_member_type(function)?
                 };
-                let (value, comptime_type) = if associated_comptime_name.is_some() {
+                let (value, const_type) = if associated_const_name.is_some() {
                     (None, Some(declared_type))
                 } else {
                     (Some(declared_type), None)
                 };
                 let type_range = self.range_since(&type_start);
-                (value, comptime_type, Some(type_range))
+                (value, const_type, Some(type_range))
             } else {
                 (None, None, None)
             };
@@ -798,14 +798,13 @@ impl Parser {
             if value.is_none() && default.is_none() && !self.peek_semicolon_insertion() {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }
-            if associated_comptime_name.is_none() && (modifiers.is_comptime || modifiers.is_virtual)
-            {
+            if associated_const_name.is_none() && modifiers.is_virtual {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }
-            let member = if let Some(name) = associated_comptime_name {
+            let member = if let Some(name) = associated_const_name {
                 Member::AssociatedConst {
                     name,
-                    declared_type: comptime_type,
+                    declared_type: const_type,
                     value: default,
                     visibility: modifiers.visibility,
                     is_ambient: modifiers.is_ambient,

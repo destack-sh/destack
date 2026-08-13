@@ -362,7 +362,7 @@ fn test_parse_parameter_multiline() {
 fn test_parse_generic_parameters_multiline_union_constraint_with_default() {
     let test = TestParser::declaration(
         r#"<
-  Return extends ReturnType<onRequestHookHandler<RawServer>>
+  Return: ReturnType<onRequestHookHandler<RawServer>>
     | ReturnType<onRequestAsyncHookHandler<RawServer>>
     = ReturnType<onRequestHookHandler<RawServer>>
 >"#,
@@ -372,7 +372,7 @@ fn test_parse_generic_parameters_multiline_union_constraint_with_default() {
         .parse_generic_parameter_list(true, Default::default())
         .unwrap();
 
-    // Return extends ReturnType<onRequestHookHandler<RawServer>> | ReturnType<onRequestAsyncHookHandler<RawServer>> = ReturnType<onRequestHookHandler<RawServer>>
+    // Return: ReturnType<onRequestHookHandler<RawServer>> | ReturnType<onRequestAsyncHookHandler<RawServer>> = ReturnType<onRequestHookHandler<RawServer>>
     assert_eq!(generic_parameters.len(), 1);
     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(constraint), default: Some(default), .. } => {
         assert_string!(parser, *name, "Return");
@@ -675,7 +675,7 @@ fn test_parse_spread_type_generic_argument() {
 }
 
 #[test]
-fn test_parse_spread_value_generic_argument() {
+fn test_parse_spread_static_generic_argument() {
     // <...1 + 2>
     let test = TestParser::new("<...1 + 2>");
     let mut parser = test.prepare();
@@ -686,14 +686,16 @@ fn test_parse_spread_value_generic_argument() {
     test.assert_no_errors(&parser);
 
     assert_eq!(arguments.len(), 1);
-    assert_node!(parser.tree, arguments[0], GenericArgument::SpreadValue { value } => {
-        assert_node!(parser.tree, *value, Expression::Binary { left, operator, right } => {
-            assert_eq!(*operator, BinaryOperator::Add);
-            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
-                assert_eq!(*value, 1);
-            });
-            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
-                assert_eq!(*value, 2);
+    assert_node!(parser.tree, arguments[0], GenericArgument::SpreadType { value } => {
+        assert_node!(parser.tree, *value, TypeExpression::StaticValue { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::Add);
+                assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                    assert_eq!(*value, 1);
+                });
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                    assert_eq!(*value, 2);
+                });
             });
         });
     });
@@ -724,9 +726,9 @@ fn test_parse_variadic_type_generic_parameter() {
 }
 
 #[test]
-fn test_parse_variadic_value_generic_parameter() {
-    // <comptime ...Shape: readonly usize[]>
-    let test = TestParser::new("<comptime ...Shape: readonly usize[]>");
+fn test_parse_variadic_const_generic_parameter() {
+    // <const ...Shape: readonly usize[]>
+    let test = TestParser::new("<const ...Shape: readonly usize[]>");
     let mut parser = test.prepare();
     let parameters = parser
         .parse_generic_parameter_list(true, Default::default())
@@ -735,11 +737,11 @@ fn test_parse_variadic_value_generic_parameter() {
     test.assert_no_errors(&parser);
 
     assert_eq!(parameters.len(), 1);
-    assert_node!(parser.tree, parameters[0], GenericParameter::VariadicValue { name, declared_type, default, is_comptime } => {
+    assert_node!(parser.tree, parameters[0], GenericParameter::VariadicType { name, constraint, default, is_const, .. } => {
         assert_string!(parser, *name, "Shape");
-        assert!(*is_comptime);
+        assert!(*is_const);
         assert!(default.is_none());
-        assert_node!(parser.tree, declared_type.expect("expected value variadic type"), TypeExpression::Readonly { target_type } => {
+        assert_node!(parser.tree, constraint.expect("expected variadic constraint"), TypeExpression::Readonly { target_type } => {
             assert_node!(parser.tree, *target_type, TypeExpression::Array { element } => {
                 assert_node!(parser.tree, *element, TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::Integer(IntegerType::Pointer { is_signed: false }));
@@ -763,28 +765,28 @@ fn test_parse_parameter_readonly_name() {
 }
 
 #[test]
-fn test_parse_comptime_modifier_target_requires_same_line() {
+fn test_parse_const_modifier_target_requires_same_line() {
     let test = TestParser::new(
-        r#"comptime
+        r#"const
 n"#,
     );
     let mut parser = test.prepare();
     let modifiers = parser.parse_binding_modifiers(BindingModifierGrammar::Member);
 
     assert!(modifiers.is_empty());
-    assert!(parser.peek_is_keyword(Keyword::Comptime));
+    assert!(parser.peek_is_keyword(Keyword::Const));
 }
 
 #[test]
-fn test_parse_comptime_modifier_allows_block_line_break() {
+fn test_parse_const_modifier_allows_block_line_break() {
     let test = TestParser::new(
-        r#"comptime
+        r#"const
 {}"#,
     );
     let mut parser = test.prepare();
     let modifiers = parser.parse_binding_modifiers(BindingModifierGrammar::Member);
 
-    assert!(modifiers.is_comptime);
+    assert!(modifiers.is_const_block);
     assert!(parser.peek_is_on_new_line());
     assert!(parser.peek_is(TokenType::OpenBrace));
 }
@@ -1650,7 +1652,7 @@ fn test_parse_generic_arguments_with_nested_generics_and_union() {
 
 #[test]
 fn test_parse_associated_generic_refinements() {
-    let test = TestParser::new("<type Item = uint8, comptime Width = 16>");
+    let test = TestParser::new("<type Item = uint8, const Width = 16>");
     let mut parser = test.prepare();
     let generic_arguments = parser
         .parse_generic_argument_list(Default::default())
@@ -1663,6 +1665,6 @@ fn test_parse_associated_generic_refinements() {
     });
     assert_node!(parser.tree, generic_arguments[1], GenericArgument::AssociatedConst { name, value } => {
         assert_string!(parser, *name, "Width");
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(16)));
+        assert_node!(parser.tree, *value, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(16) });
     });
 }

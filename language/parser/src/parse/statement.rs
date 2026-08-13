@@ -172,21 +172,21 @@ impl Parser {
         Ok(self.insert_node(node, self.range_since(&start)))
     }
 
-    /// Parse a compile-time expression.
+    /// Parse a const evaluation expression.
     ///
     /// Examples:
     /// ```ds
-    /// comptime expression
-    /// comptime { statements }
+    /// const expression
+    /// const { statements }
     /// ```
-    pub(crate) fn parse_comptime(
+    pub(crate) fn parse_const_evaluation(
         &mut self,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         self.bump();
 
-        // comptime { body } or comptime expression
+        // const { body } or const expression
         let body = if self.peek_block() {
             let block = self.parse_block(BlockContext::Expression, function)?;
             self.insert_node(Expression::Block(block), self.tree.get_range(block))
@@ -200,7 +200,7 @@ impl Parser {
             self.parse_expression(context)?
         };
 
-        Ok(self.insert_node(Expression::Comptime { body }, self.range_since(&start)))
+        Ok(self.insert_node(Expression::Const { body }, self.range_since(&start)))
     }
 
     /// Parse a yield expression.

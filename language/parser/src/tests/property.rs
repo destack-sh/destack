@@ -594,7 +594,7 @@ fn test_parse_member_type_keyword_as_field_key() {
 fn test_parse_type_member_keyword_keys_as_fields() {
     let test = TestParser::new(
         r#"type: string;
-comptime: number"#,
+const: number"#,
     );
     let mut parser = test.prepare();
     let members = parser
@@ -607,7 +607,7 @@ comptime: number"#,
         assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
     });
     assert_node!(parser.tree, members[1], TypeMember::Field { name: Name::Identifier(name), declared_type: Some(value), .. } => {
-        assert_string!(parser, *name, "comptime");
+        assert_string!(parser, *name, "const");
         assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
     });
 
@@ -654,7 +654,7 @@ fn test_parse_type_members_with_associated_abstraction_modifiers() {
     let test = TestParser::new(
         r#"interface Boundary {
 abstract type Item
-override comptime const Rows: number = 4
+override const Rows: number = 4
 }"#,
     );
     let mut parser = test.prepare();
@@ -1074,8 +1074,8 @@ fn test_parse_member_static_constructor_method_as_key() {
 }
 
 #[test]
-fn test_parse_member_associated_comptime_const() {
-    let test = TestParser::new("comptime const Rows: number = 128");
+fn test_parse_member_associated_const() {
+    let test = TestParser::new("const Rows: number = 128");
     let mut parser = test.prepare();
     let member_id = parser.parse_member(Default::default()).unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedConst { name, declared_type: Some(ty), value: Some(value), .. } => {
@@ -1090,8 +1090,8 @@ fn test_parse_member_associated_comptime_const() {
 }
 
 #[test]
-fn test_parse_member_associated_comptime_const_with_abstraction_modifiers() {
-    let test = TestParser::new("abstract override comptime const Rows: number");
+fn test_parse_member_associated_const_with_abstraction_modifiers() {
+    let test = TestParser::new("abstract override const Rows: number");
     let mut parser = test.prepare();
     let member_id = parser.parse_member(Default::default()).unwrap();
 
@@ -1103,8 +1103,8 @@ fn test_parse_member_associated_comptime_const_with_abstraction_modifiers() {
 }
 
 #[test]
-fn test_parse_member_associated_comptime_const_binary_default() {
-    let test = TestParser::new("comptime const LaneWidth: number = WidthHint * 2");
+fn test_parse_member_associated_const_binary_default() {
+    let test = TestParser::new("const LaneWidth: number = WidthHint * 2");
     let mut parser = test.prepare();
     let member_id = parser.parse_member(Default::default()).unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedConst { value: Some(value), .. } => {
@@ -1115,8 +1115,8 @@ fn test_parse_member_associated_comptime_const_binary_default() {
 }
 
 #[test]
-fn test_parse_member_associated_comptime_const_type_relation_default() {
-    let test = TestParser::new("comptime const Width: uint = Row extends string ? 4 : 2");
+fn test_parse_member_associated_const_type_relation_default() {
+    let test = TestParser::new("const Width: uint = Row extends string ? 4 : 2");
     let mut parser = test.prepare();
     let member_id = parser.parse_member(Default::default()).unwrap();
 
@@ -1144,37 +1144,34 @@ fn test_report_member_static_associated_type() {
 }
 
 #[test]
-fn test_report_member_static_associated_comptime_const() {
-    let test = TestParser::new("static comptime const Rows: number = 128");
+fn test_report_member_static_associated_const() {
+    let test = TestParser::new("static const Rows: number = 128");
     let mut parser = test.prepare();
     let error = parser.parse_member(Default::default()).unwrap_err();
 
-    assert_eq!(
-        parser.range_str(error.range()),
-        "static comptime const Rows"
-    );
+    assert_eq!(parser.range_str(error.range()), "static const Rows");
 }
 
 #[test]
-fn test_parse_member_comptime_block() {
-    let test = TestParser::new("comptime { assert(true) }");
+fn test_parse_member_const_block() {
+    let test = TestParser::new("const { assert(true) }");
     let mut parser = test.prepare();
     let member_id = parser.parse_member(Default::default()).unwrap();
-    assert_node!(parser.tree, member_id, Member::ComptimeBlock { body } => {
+    assert_node!(parser.tree, member_id, Member::ConstBlock { body } => {
         assert_node!(parser.tree, *body, Expression::Block(_));
     });
 }
 
 #[test]
-fn test_parse_member_comptime_block_after_line_break() {
+fn test_parse_member_const_block_after_line_break() {
     let test = TestParser::new(
-        r#"comptime
+        r#"const
 { assert(true) }"#,
     );
     let mut parser = test.prepare();
     let member_id = parser.parse_member(Default::default()).unwrap();
 
-    assert_node!(parser.tree, member_id, Member::ComptimeBlock { body } => {
+    assert_node!(parser.tree, member_id, Member::ConstBlock { body } => {
         assert_node!(parser.tree, *body, Expression::Block(_));
     });
 }

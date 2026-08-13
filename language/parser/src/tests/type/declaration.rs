@@ -10,21 +10,21 @@ use destack_source::{NodeSpanRegion, NodeSpanType};
 #[test]
 fn test_parse_conditional_type_alias_with_generics() {
     let test = TestParser::declaration(
-        "type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2",
+        "type FindMyWayVersion<RawServer: RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2",
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
     test.assert_no_errors(&parser);
 
-    // type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
+    // type FindMyWayVersion<RawServer: RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, generic_parameters, value, .. }) => {
             assert_string!(parser, name.string(), "FindMyWayVersion");
             assert_eq!(generic_parameters.len(), 1);
 
-            // RawServer extends RawServerBase
+            // RawServer: RawServerBase
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(ty), default, .. } => {
                 assert_string!(parser, *name, "RawServer");
                 assert!(default.is_none());
@@ -80,7 +80,7 @@ fn test_parse_type_alias_records_generic_parameter_container_range() {
 #[test]
 fn test_parse_type_declaration_conditional_object_infer_after_newline() {
     let test = TestParser::declaration(
-        r#"type ImplicitArrayBuffer<T extends WithImplicitCoercion<ArrayBufferLike>> = T extends
+        r#"type ImplicitArrayBuffer<T: WithImplicitCoercion<ArrayBufferLike>> = T extends
     { valueOf(): infer V extends ArrayBufferLike } ? V : T"#,
     );
     let mut parser = test.prepare();
@@ -130,7 +130,7 @@ fn test_parse_type_declaration_generic_default_before_shifted_close() {
 #[test]
 fn test_parse_conditional_type_alias_with_generics_through_expression_entry() {
     let test = TestParser::declaration(
-        "type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2",
+        "type FindMyWayVersion<RawServer: RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2",
     );
     let mut parser = test.prepare();
     let expression_id = parser
@@ -142,13 +142,13 @@ fn test_parse_conditional_type_alias_with_generics_through_expression_entry() {
 
     test.assert_no_errors(&parser);
 
-    // type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
+    // type FindMyWayVersion<RawServer: RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, generic_parameters, value, .. }) => {
             assert_string!(parser, name.string(), "FindMyWayVersion");
             assert_eq!(generic_parameters.len(), 1);
 
-            // RawServer extends RawServerBase
+            // RawServer: RawServerBase
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(ty), default, .. } => {
                 assert_string!(parser, *name, "RawServer");
                 assert!(default.is_none());

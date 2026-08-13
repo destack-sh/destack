@@ -480,7 +480,7 @@ fn test_parse_parenthesized_union_generic_argument() {
     });
 }
 
-/// Comptime value expressions inside generic arguments stay in value space.
+/// Value expressions inside generic arguments are carried as static value type arguments.
 #[test]
 fn test_parse_value_expression_generic_argument() {
     let test = TestParser::new("type Alias = Buffer<1 + 2>");
@@ -500,14 +500,16 @@ fn test_parse_value_expression_generic_argument() {
                 assert_eq!(generic_arguments.len(), 1);
 
                 // 1 + 2
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Value { value } => {
-                    assert_node!(parser.tree, *value, Expression::Binary { left, operator, right } => {
-                        assert_eq!(*operator, BinaryOperator::Add);
-                        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
-                            assert_eq!(*value, 1);
-                        });
-                        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
-                            assert_eq!(*value, 2);
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::StaticValue { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right } => {
+                            assert_eq!(*operator, BinaryOperator::Add);
+                            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                                assert_eq!(*value, 1);
+                            });
+                            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                                assert_eq!(*value, 2);
+                            });
                         });
                     });
                 });
@@ -653,7 +655,7 @@ fn test_parse_readonly_generic_indexed_access_array() {
 #[test]
 fn test_parse_deno_conditional_indexed_access() {
     let test = TestParser::declaration(
-        r#"type ToNativeParameterTypes<T extends readonly NativeType[]> =
+        r#"type ToNativeParameterTypes<T: readonly NativeType[]> =
 [T[number][]] extends [T] ? ToNativeType<T[number]>[]
   : [readonly T[number][]] extends [T] ? readonly ToNativeType<T[number]>[]
   : never"#,

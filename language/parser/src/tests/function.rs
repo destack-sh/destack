@@ -187,8 +187,8 @@ export function stableLater(): void {}
 }
 
 #[test]
-fn test_parse_comptime_function() {
-    let test = TestParser::new("comptime function layout<T>(value: T): usize {}");
+fn test_parse_const_function() {
+    let test = TestParser::new("const function layout<T>(value: T): usize {}");
     let mut parser = test.prepare();
 
     let start = parser.mark_parse_start();
@@ -198,7 +198,7 @@ fn test_parse_comptime_function() {
 
     assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
         assert_name!(parser, name.unwrap(), "layout");
-        assert_eq!(signature.phase, FunctionPhase::Comptime);
+        assert_eq!(signature.phase, FunctionPhase::Const);
         assert_eq!(signature.form, FunctionForm::Function);
         assert_eq!(signature.parameters.len(), 1);
 
@@ -208,6 +208,25 @@ fn test_parse_comptime_function() {
     });
 
     test.assert_no_errors(&parser);
+}
+
+/// Parse the const function declaration through the statement path.
+#[test]
+fn test_parse_const_function_through_statement_path() {
+    let test = TestParser::new("const function f(): usize {}");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
+            assert_name!(parser, name.unwrap(), "f");
+            assert_eq!(signature.phase, FunctionPhase::Const);
+            assert_eq!(signature.form, FunctionForm::Function);
+            assert!(signature.parameters.is_empty());
+        });
+    });
 }
 
 #[test]

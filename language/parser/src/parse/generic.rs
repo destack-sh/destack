@@ -1,6 +1,7 @@
 use crate::parse::error::ParserResultExt;
 use destack_dir::{
-    GenericArgument, GenericParameter, Keyword, LocalNodeId, NodeType, TokenType, VarianceModifier,
+    Expression, GenericArgument, GenericParameter, Keyword, LocalNodeId, NodeType, TokenType,
+    TypeExpression, VarianceModifier,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -117,7 +118,7 @@ impl Parser {
 
         // spread call expressions are value packs
         if is_spread && self.peek_token_type_at(1) == TokenType::OpenParenthesis {
-            return self.parse_generic_value_argument(true, context, start);
+            return self.parse_static_value_argument(true, context, start);
         }
 
         // associated type refinement
@@ -141,17 +142,17 @@ impl Parser {
 
         // associated const refinement
         if !is_spread
-            && self.peek_is_keyword(Keyword::Comptime)
+            && self.peek_is_keyword(Keyword::Const)
             && self.peek_token_type_at(1) == TokenType::Identifier
             && self.peek_token_type_at(2) == TokenType::Assign
         {
-            self.eat_keyword(Keyword::Comptime)?;
+            self.eat_keyword(Keyword::Const)?;
             let name = self.eat_identifier()?;
             self.eat_token(TokenType::Assign)?;
-            let value = self.parse_expression(ExpressionContext {
+            let value = self.parse_type(TypeContext {
                 function: context.function,
-                stops: ExpressionStops::ANGLE_CLOSE,
-                ..ExpressionContext::default()
+                stops: TypeStops::ANGLE_CLOSE,
+                ..TypeContext::default()
             })?;
             let argument = GenericArgument::AssociatedConst { name, value };
 
@@ -192,28 +193,42 @@ impl Parser {
         }
 
         // otherwise parse the argument in value space
-        self.parse_generic_value_argument(is_spread, context, start)
+        self.parse_static_value_argument(is_spread, context, start)
     }
 
-    /// Parse one generic argument in value space.
-    fn parse_generic_value_argument(
+    /// Parse one value-shaped generic argument as a static type argument.
+    fn parse_static_value_argument(
         &mut self,
         is_spread: bool,
         context: GenericArgumentContext,
         start: &ParseStart,
     ) -> ParserResult<LocalNodeId<GenericArgument>> {
-        let value = self.parse_expression(ExpressionContext {
+        let expression_start = self.mark_parse_start();
+        let expression = self.parse_expression(ExpressionContext {
             function: context.function,
             stops: ExpressionStops::ANGLE_CLOSE,
             ..ExpressionContext::default()
         })?;
+        let value = self.insert_static_value_type(expression, &expression_start);
         let argument = if is_spread {
-            GenericArgument::SpreadValue { value }
+            GenericArgument::SpreadType { value }
         } else {
-            GenericArgument::Value { value }
+            GenericArgument::Type { value }
         };
 
         Ok(self.insert_node(argument, self.range_since(start)))
+    }
+
+    /// Carry one parsed value term in type space.
+    fn insert_static_value_type(
+        &mut self,
+        expression: LocalNodeId<Expression>,
+        start: &ParseStart,
+    ) -> LocalNodeId<TypeExpression> {
+        self.insert_node(
+            TypeExpression::StaticValue { expression },
+            self.range_since(start),
+        )
     }
 
     /// Parse one generic parameter in a generic parameter list.
@@ -231,7 +246,6 @@ impl Parser {
         // generic parameters accept only the dedicated generic modifiers
         let mut variance = None;
         let mut is_const = false;
-        let mut is_comptime = false;
 
         loop {
             if self.peek_is_keyword(Keyword::In) {
@@ -263,12 +277,6 @@ impl Parser {
                 continue;
             }
 
-            if self.peek_is_keyword(Keyword::Comptime) {
-                self.bump();
-                is_comptime = true;
-                continue;
-            }
-
             break;
         }
 
@@ -278,7 +286,7 @@ impl Parser {
         }
 
         // declare tick names as lifetime parameters
-        if !is_comptime && !is_variadic && self.peek_is(TokenType::Lifetime) {
+        if !is_const && !is_variadic && self.peek_is(TokenType::Lifetime) {
             let range = self.peek_token().range();
             let name = self.intern_range(range);
             self.bump();
@@ -300,14 +308,7 @@ impl Parser {
             self.eat_binding_identifier_with_range(function)?
         };
 
-        // generic parameters are type parameters by default
-        // value parameters opt in with `comptime`
-        let annotation_token_type = self.peek_token_type();
-        let annotation_keyword = self.peek_keyword();
-        let has_colon_annotation = annotation_token_type == TokenType::Colon;
-        let has_type_constraint = matches!(annotation_keyword, Some(Keyword::Extends));
-        let has_annotation = has_colon_annotation || has_type_constraint;
-        let is_value_parameter = is_comptime;
+        let has_annotation = self.peek_is(TokenType::Colon);
 
         let (declared_type, declared_type_range) = if has_annotation {
             let type_start = self.mark_parse_start();
@@ -326,59 +327,41 @@ impl Parser {
             (None, None)
         };
 
-        // type parameters default in type space, value parameters default in expression space
+        // every generic parameter defaults in type space, whichever modifier it carries
         let default = if self.peek_is(TokenType::Assign) {
             self.bump();
 
-            if is_value_parameter {
-                let value = if self.peek_is(TokenType::Comma)
-                    || self.peek_type_angle_close()
-                    || self.peek_is(TokenType::End)
-                {
-                    self.recover_missing_expression_here(NodeType::GenericParameter)
-                } else {
-                    self.parse_parameter_default(parameter_context, ExpressionStops::ANGLE_CLOSE)?
-                };
-                (Some(value), None)
-            } else {
-                let value = if self.peek_is(TokenType::Comma)
-                    || self.peek_type_angle_close()
-                    || self.peek_is(TokenType::End)
-                {
-                    self.recover_missing_type_expression_here(NodeType::GenericParameter)
-                } else {
-                    self.parse_parameter_type(parameter_context, TypeStops::ANGLE_CLOSE)?
-                };
-                (None, Some(value))
+            let default_start = self.mark_parse_start();
+            // a closing delimiter leaves no default to classify
+            let value = if self.peek_is(TokenType::Comma)
+                || self.peek_type_angle_close()
+                || self.peek_is(TokenType::End)
+            {
+                self.recover_missing_type_expression_here(NodeType::GenericParameter)
             }
+            // classify the default by its own shape, like a generic argument
+            else if self.peek_generic_argument_type() {
+                self.parse_parameter_type(parameter_context, TypeStops::ANGLE_CLOSE)?
+            }
+            // every other default parses in value space and wraps as a static value type
+            else {
+                let expression =
+                    self.parse_parameter_default(parameter_context, ExpressionStops::ANGLE_CLOSE)?;
+
+                self.insert_static_value_type(expression, &default_start)
+            };
+            Some(value)
         } else {
-            (None, None)
+            None
         };
 
-        // generic value parameters must be marked comptime
-        let parameter = if is_value_parameter {
-            if is_variadic {
-                GenericParameter::VariadicValue {
-                    name,
-                    declared_type,
-                    default: default.0,
-                    is_comptime,
-                }
-            } else {
-                GenericParameter::Value {
-                    name,
-                    declared_type,
-                    default: default.0,
-                    is_comptime,
-                }
-            }
-        } else if is_variadic {
+        let parameter = if is_variadic {
             GenericParameter::VariadicType {
                 name,
                 is_const,
                 variance,
                 constraint: declared_type,
-                default: default.1,
+                default,
             }
         } else {
             GenericParameter::Type {
@@ -386,7 +369,7 @@ impl Parser {
                 is_const,
                 variance,
                 constraint: declared_type,
-                default: default.1,
+                default,
             }
         };
 

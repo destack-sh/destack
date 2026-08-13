@@ -5,17 +5,17 @@ use destack_dir::{
     FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, LetKind, ScalarLiteral,
 };
 
-/// Parse async generic arrows with extends and default type parameters in assignments.
+/// Parse async generic arrows with constraint and default type parameters in assignments.
 #[test]
-fn test_parse_async_generic_arrow_assignment_with_extends_default() {
-    // source: pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
+fn test_parse_async_generic_arrow_assignment_with_constraint_default() {
+    // source: pollContext.getCredentials = async <T: object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
     let test = TestParser::new(
-        "pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T",
+        "pollContext.getCredentials = async <T: object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T",
     );
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    // pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
+    // pollContext.getCredentials = async <T: object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
     assert_node!(parser.tree, expr_id, Expression::Assign { left, operator, right } => {
         assert_eq!(*operator, AssignOperator::Assign);
         assert_expression_path!(parser, parser.tree.get(*left), "pollContext.getCredentials");

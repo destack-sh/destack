@@ -394,8 +394,8 @@ fn test_parse_type_literal_construct_signature() {
 fn test_parse_type_literal_generic_call_overloads() {
     let test = TestParser::new(
         r#"type Tmp = {
-<N extends number>(num: N): typeof num
-<S extends string>(str: S): typeof str
+<N: number>(num: N): typeof num
+<S: string>(str: S): typeof str
 }"#,
     );
     let mut parser = test.prepare();
@@ -406,19 +406,19 @@ fn test_parse_type_literal_generic_call_overloads() {
         })
         .unwrap();
 
-    // type Tmp = { <N extends number>(num: N): typeof num <S extends string>(str: S): typeof str }
+    // type Tmp = { <N: number>(num: N): typeof num <S: string>(str: S): typeof str }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 2);
-                // <N extends number>(num: N): typeof num
+                // <N: number>(num: N): typeof num
                 assert_node!(parser.tree, properties[0], TypeMember::CallSignature { signature } => {
 
                     let generic_parameter_span = parser
                         .tree
                         .get_side_span(properties[0], NodeSpanType::Region(NodeSpanRegion::GenericParameters))
                         .expect("missing generic parameter span");
-                    assert_eq!(parser.span_str(generic_parameter_span), "<N extends number>");
+                    assert_eq!(parser.span_str(generic_parameter_span), "<N: number>");
 
                     let parameter_span = parser
                         .tree
@@ -445,14 +445,14 @@ fn test_parse_type_literal_generic_call_overloads() {
                         assert_expression_path!(parser, parser.tree.get(*value), "num");
                     });
                 });
-                // <S extends string>(str: S): typeof str
+                // <S: string>(str: S): typeof str
                 assert_node!(parser.tree, properties[1], TypeMember::CallSignature { signature } => {
 
                     let generic_parameter_span = parser
                         .tree
                         .get_side_span(properties[1], NodeSpanType::Region(NodeSpanRegion::GenericParameters))
                         .expect("missing generic parameter span");
-                    assert_eq!(parser.span_str(generic_parameter_span), "<S extends string>");
+                    assert_eq!(parser.span_str(generic_parameter_span), "<S: string>");
 
                     let parameter_span = parser
                         .tree
@@ -489,8 +489,8 @@ fn test_parse_type_literal_generic_call_overloads() {
 fn test_parse_type_literal_generic_call_overloads_with_path_returns() {
     let test = TestParser::new(
         r#"type Tmp = {
-<N extends number>(num: N): MyType
-<S extends string>(str: S): MyType
+<N: number>(num: N): MyType
+<S: string>(str: S): MyType
 }"#,
     );
     let mut parser = test.prepare();
@@ -501,7 +501,7 @@ fn test_parse_type_literal_generic_call_overloads_with_path_returns() {
         })
         .unwrap();
 
-    // type Tmp = { <N extends number>(num: N): MyType <S extends string>(str: S): MyType }
+    // type Tmp = { <N: number>(num: N): MyType <S: string>(str: S): MyType }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
@@ -527,8 +527,8 @@ fn test_parse_type_literal_call_signature_with_const_parameter_conditional_bound
     let test = TestParser::new(
         r#"type T = {
   <
-Value extends Field<any> | Field.ValueAny,
-const Mapping extends (Value extends Field<infer S> ? { readonly [K in keyof S]?: (variant: S[K]) => Field.ValueAny } : { readonly [K in Variants[number]]?: (variant: Value) => Field.ValueAny })
+Value: Field<any> | Field.ValueAny,
+const Mapping: (Value extends Field<infer S> ? { readonly [K in keyof S]?: (variant: S[K]) => Field.ValueAny } : { readonly [K in Variants[number]]?: (variant: Value) => Field.ValueAny })
   >(f: Mapping): Value
 }"#,
     );
@@ -549,7 +549,7 @@ const Mapping extends (Value extends Field<infer S> ? { readonly [K in keyof S]?
                     let generic_parameters = &signature.generic_parameters;
                     assert_eq!(generic_parameters.len(), 2);
 
-                    // Value extends Field<any> | Field.ValueAny
+                    // Value: Field<any> | Field.ValueAny
                     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(ty), .. } => {
                         assert_string!(parser, *name, "Value");
                         assert_node!(parser.tree, *ty, TypeExpression::Union { elements } => {
@@ -557,7 +557,7 @@ const Mapping extends (Value extends Field<infer S> ? { readonly [K in keyof S]?
                         });
                     });
 
-                    // const Mapping extends (...)
+                    // const Mapping: (...)
                     assert_node!(parser.tree, generic_parameters[1], GenericParameter::Type { name, is_const, constraint: Some(ty), .. } => {
                         assert_string!(parser, *name, "Mapping");
                         assert!(*is_const);
@@ -579,14 +579,14 @@ const Mapping extends (Value extends Field<infer S> ? { readonly [K in keyof S]?
     });
 }
 
-/// Parse const type parameters when `extends` starts on the next line.
+/// Parse const type parameters when the constraint starts on the next line.
 #[test]
-fn test_parse_type_literal_call_signature_const_parameter_newline_extends() {
+fn test_parse_type_literal_call_signature_const_parameter_newline_constraint() {
     let test = TestParser::new(
         r#"type T = {
   <
 const Mapping
-  extends string
+  : string
   >(value: Mapping): Mapping
 }"#,
     );
@@ -1073,7 +1073,7 @@ fn test_parse_type_literal_static_property_name() {
 
 #[test]
 fn test_parse_intrinsic_type_alias() {
-    let test = TestParser::new("type Uppercase<S extends string> = intrinsic");
+    let test = TestParser::new("type Uppercase<S: string> = intrinsic");
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionContext {
@@ -1084,7 +1084,7 @@ fn test_parse_intrinsic_type_alias() {
 
     test.assert_no_errors(&parser);
 
-    // type Uppercase<S extends string> = intrinsic
+    // type Uppercase<S: string> = intrinsic
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Intrinsic);
@@ -1094,7 +1094,7 @@ fn test_parse_intrinsic_type_alias() {
 
 #[test]
 fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
-    let test = TestParser::new("type Uppercase<S extends string> = intrinsic<string>");
+    let test = TestParser::new("type Uppercase<S: string> = intrinsic<string>");
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionContext {
@@ -1105,7 +1105,7 @@ fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
 
     test.assert_no_errors(&parser);
 
-    // type Uppercase<S extends string> = intrinsic<string>
+    // type Uppercase<S: string> = intrinsic<string>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
@@ -1146,7 +1146,7 @@ fn test_parse_symbol_type_as_reference() {
 #[test]
 fn test_parse_generic_arrow_function_type() {
     let test = TestParser::declaration(
-        "type ClassDecorator = <TFunction extends Function>(target: TFunction) => TFunction | void",
+        "type ClassDecorator = <TFunction: Function>(target: TFunction) => TFunction | void",
     );
     let mut parser = test.prepare();
     let expr_id = parser
@@ -1156,7 +1156,7 @@ fn test_parse_generic_arrow_function_type() {
         })
         .unwrap();
 
-    // type ClassDecorator = <TFunction extends Function>(target: TFunction) => TFunction | void
+    // type ClassDecorator = <TFunction: Function>(target: TFunction) => TFunction | void
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, .. }) => {
             assert_string!(parser, name.string(), "ClassDecorator");
@@ -1221,7 +1221,7 @@ fn test_parse_type_nested_conditional_with_arrows() {
 #[test]
 fn test_parse_type_member_generic_arrow_complex_constraint() {
     let input = r#"type T = {
-  method: <Expected extends IsUnion<Expected> extends true ? "error" : SomeType>(arg: Expected) => true;
+  method: <Expected: IsUnion<Expected> extends true ? "error" : SomeType>(arg: Expected) => true;
 }"#;
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
@@ -1344,7 +1344,7 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
 #[test]
 fn test_parse_generic_parameter_nested_conditional_constraint_with_trailing_comma() {
     let input = r#"<
-  Expected extends IsUnion<Expected> extends true
+  Expected: IsUnion<Expected> extends true
     ? "union"
     : Not<Extends<Expected, Record<string, unknown>>> extends true
       ? "object"
@@ -1360,7 +1360,7 @@ fn test_parse_generic_parameter_nested_conditional_constraint_with_trailing_comm
 
     test.assert_no_errors(&parser);
 
-    // <Expected extends IsUnion<Expected> extends true ? ...>
+    // <Expected: IsUnion<Expected> extends true ? ...>
     assert_eq!(generic_parameters.len(), 1);
     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, variance, constraint, default, .. } => {
         assert_string!(parser, *name, "Expected");
@@ -1374,7 +1374,7 @@ fn test_parse_generic_parameter_nested_conditional_constraint_with_trailing_comm
 #[test]
 fn test_parse_function_type_nested_conditional_constraint() {
     let input = r#"type T = <
-  Expected extends IsUnion<Expected> extends true
+  Expected: IsUnion<Expected> extends true
     ? "union"
     : Not<Extends<Expected, Record<string, unknown>>> extends true
       ? "object"
@@ -1395,7 +1395,7 @@ fn test_parse_function_type_nested_conditional_constraint() {
 
     test.assert_no_errors(&parser);
 
-    // type T = <Expected extends ...>(...MISMATCH) => true
+    // type T = <Expected: ...>(...MISMATCH) => true
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, place: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
             assert_name!(parser, *name, "T");
@@ -1433,7 +1433,7 @@ fn test_parse_function_type_nested_conditional_constraint() {
 fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
     let input = r#"type Expect<Actual> = {
   toMatchObjectType: <
-    Expected extends IsUnion<Expected> extends true
+    Expected: IsUnion<Expected> extends true
       ? "union"
       : Not<Extends<Expected, Record<string, unknown>>> extends true
         ? "object"
@@ -1512,7 +1512,7 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
 #[test]
 fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
     let input = r#"type T = {
-  f: <U extends A<B>>(x: U) => true;
+  f: <U: A<B>>(x: U) => true;
 }"#;
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
@@ -1525,7 +1525,7 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
 
     test.assert_no_errors(&parser);
 
-    // type T = { f: <U extends A<B>>(x: U) => true }
+    // type T = { f: <U: A<B>>(x: U) => true }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, export, place: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
             assert_name!(parser, *name, "T");
@@ -1584,7 +1584,7 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
 #[test]
 fn test_parse_type_member_generic_arrow_conditional_constraint_before_parameter_list() {
     let input = r#"type T = {
-  f: <U extends A<B> extends true ? unknown : C<D>>(x: U) => true;
+  f: <U: A<B> extends true ? unknown : C<D>>(x: U) => true;
 }"#;
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
@@ -1597,7 +1597,7 @@ fn test_parse_type_member_generic_arrow_conditional_constraint_before_parameter_
 
     test.assert_no_errors(&parser);
 
-    // type T = { f: <U extends A<B> extends true ? unknown : C<D>>(x: U) => true }
+    // type T = { f: <U: A<B> extends true ? unknown : C<D>>(x: U) => true }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Object { members } => {

@@ -84,7 +84,7 @@ fn test_parse_lifetime_union_generic_argument() {
     });
 }
 
-/// Parse one bare tick generic parameter as an implicit comptime value.
+/// Parse one bare tick generic parameter as an implicit const value.
 #[test]
 fn test_parse_bare_lifetime_generic_parameter() {
     let test = TestParser::new("function first<'a>(a: &'a Node): &'a Node { return a; }");
@@ -107,11 +107,11 @@ fn test_parse_bare_lifetime_generic_parameter() {
     });
 }
 
-/// Parse one explicit comptime tick parameter with its bound.
+/// Parse one explicit const tick parameter with its bound.
 #[test]
-fn test_parse_comptime_lifetime_generic_parameter() {
+fn test_parse_const_lifetime_generic_parameter() {
     let test = TestParser::new(
-        "function only<comptime 'a: Lifetime>(value: &'a Node): &'a Node { return value; }",
+        "function only<const 'a: Lifetime>(value: &'a Node): &'a Node { return value; }",
     );
     let mut parser = test.prepare();
     let expr_id = parser
@@ -125,10 +125,10 @@ fn test_parse_comptime_lifetime_generic_parameter() {
         assert_node!(parser.tree, *decl_id, Declaration::Function(function) => {
             let parameters = &function.signature.generic_parameters;
             assert_eq!(parameters.len(), 1);
-            assert_node!(parser.tree, parameters[0], GenericParameter::Value { name, declared_type, is_comptime, .. } => {
+            assert_node!(parser.tree, parameters[0], GenericParameter::Type { name, constraint, is_const, .. } => {
                 assert_string!(parser, *name, "'a");
-                assert!(declared_type.is_some());
-                assert!(is_comptime);
+                assert!(constraint.is_some());
+                assert!(is_const);
             });
         });
     });

@@ -1,5 +1,6 @@
 use crate::parse::context::{
-    ExpressionContext, ExpressionStops, FunctionContext, PatternContext, TypeContext,
+    ExpressionContext, ExpressionStops, FunctionContext, PatternContext, StatementPosition,
+    TypeContext,
 };
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
@@ -406,6 +407,7 @@ impl Parser {
                     function,
                     stops: ExpressionStops::NEWLINE_CALL,
                     minimum_precedence,
+                    statement: StatementPosition::Nested,
                     ..ExpressionContext::default()
                 },
                 NodeType::Declarator,

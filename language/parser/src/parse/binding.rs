@@ -5,7 +5,7 @@ use destack_dir::{
 use crate::{Parser, ParserError};
 
 /// The keywords that can appear before a binding.
-pub static BINDING_MODIFIERS: [Keyword; 9] = [
+pub static BINDING_MODIFIERS: [Keyword; 8] = [
     Keyword::Static,
     Keyword::Abstract,
     Keyword::Virtual,
@@ -14,7 +14,6 @@ pub static BINDING_MODIFIERS: [Keyword; 9] = [
     Keyword::Public,
     Keyword::Protected,
     Keyword::Private,
-    Keyword::Comptime,
 ];
 
 /// The binding grammar that governs one modifier prefix.
@@ -39,8 +38,8 @@ impl BindingModifierGrammar {
         matches!(self, Self::Member)
     }
 
-    /// Return whether this grammar accepts comptime modifiers.
-    const fn accepts_comptime(self) -> bool {
+    /// Return whether this grammar accepts const modifiers.
+    const fn accepts_const(self) -> bool {
         matches!(self, Self::Property | Self::Member)
     }
 
@@ -83,8 +82,8 @@ pub(crate) struct BindingModifiers {
     pub is_const_asserted: bool,
     /// Whether `accessor` was present.
     pub is_accessor: bool,
-    /// Whether `comptime` was present.
-    pub is_comptime: bool,
+    /// Whether `const` headed a const evaluation block.
+    pub is_const_block: bool,
     /// Whether `?` was present.
     pub is_optional: bool,
     /// Whether `!` was present.
@@ -212,10 +211,8 @@ impl Parser {
                         | Keyword::Accessor
                 );
                 let is_virtual_modifier = grammar.accepts_virtual() && keyword == Keyword::Virtual;
-                let is_comptime_modifier =
-                    grammar.accepts_comptime() && keyword == Keyword::Comptime;
 
-                is_standard_modifier || is_virtual_modifier || is_comptime_modifier
+                is_standard_modifier || is_virtual_modifier
             }) || is_out_variance_modifier;
             if !can_start_modifier {
                 break;
@@ -368,8 +365,16 @@ impl Parser {
                 continue;
             }
 
+            // const heads a const evaluation block
+            let is_const_block = grammar.accepts_const()
+                && self.peek_is_keyword(Keyword::Const)
+                && self.peek_next_token_type() == TokenType::OpenBrace;
+
             // operator modifiers (const)
-            if !modifiers.is_const_asserted && self.peek_is_keyword(Keyword::Const) {
+            if !modifiers.is_const_asserted
+                && !is_const_block
+                && self.peek_is_keyword(Keyword::Const)
+            {
                 if !self.peek_next_same_line_member_name() {
                     break;
                 }
@@ -398,20 +403,10 @@ impl Parser {
                 continue;
             }
 
-            // timing modifiers (comptime)
-            if grammar.accepts_comptime()
-                && !modifiers.is_comptime
-                && self.peek_is_keyword(Keyword::Comptime)
-            {
-                let peek_next_token = self.peek_next_token();
-                let is_target_after_comptime = peek_next_token.ty() == TokenType::OpenBrace
-                    || !peek_next_token.is_on_new_line()
-                        && Self::is_member_name_start(peek_next_token);
-                if !is_target_after_comptime {
-                    break;
-                }
+            // const evaluation block head
+            if !modifiers.is_const_block && is_const_block {
                 self.bump();
-                modifiers.is_comptime = true;
+                modifiers.is_const_block = true;
                 continue;
             }
 

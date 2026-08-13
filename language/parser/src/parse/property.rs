@@ -429,7 +429,7 @@ impl Parser {
             is_async,
             is_generator,
             is_method,
-            associated_comptime_name,
+            associated_const_name,
         } = self.parse_member_head(modifiers, MethodRoleGrammar::Ordinary)?;
 
         // object fields cannot start with an unnamed call signature
@@ -471,11 +471,11 @@ impl Parser {
         }
 
         if is_method {
-            // associated comptime constants cannot use method form
-            if associated_comptime_name.is_some() {
+            // associated consts cannot use method form
+            if associated_const_name.is_some() {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }
-            if modifiers.is_comptime {
+            if modifiers.is_const_block {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }
 
@@ -574,7 +574,7 @@ impl Parser {
                 let assign_start = self.mark_parse_start();
                 self.bump();
 
-                // keep associated comptime defaults in expression mode
+                // keep associated const defaults in expression mode
                 let default = if self.peek_is(TokenType::Comma)
                     || self.peek_is(TokenType::CloseBrace)
                     || self.peek_any_stop()

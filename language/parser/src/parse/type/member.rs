@@ -96,12 +96,7 @@ impl Parser {
             return true;
         }
 
-        // abstract|override comptime const
-        if probe.peek_keyword() != Some(Keyword::Comptime) {
-            return false;
-        }
-        probe.bump();
-
+        // abstract|override const
         probe.peek_keyword() == Some(Keyword::Const)
     }
 
@@ -206,14 +201,13 @@ impl Parser {
         modifiers: &BindingModifiers,
         function: FunctionContext,
     ) -> ParserResult<Option<LocalNodeId<TypeMember>>> {
-        if !self.peek_is_keyword(Keyword::Comptime)
-            || self.peek_next_keyword() != Some(Keyword::Const)
+        if !self.peek_is_keyword(Keyword::Const)
+            || self.peek_next_token_type() != TokenType::Identifier
         {
             return Ok(None);
         }
 
         // keyword and name
-        self.bump();
         self.bump();
         let (name, name_range) = self.eat_identifier_with_range()?;
 

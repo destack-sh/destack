@@ -170,12 +170,12 @@ fn test_parse_shared_struct_declaration() {
     });
 }
 
-/// Parse comptime and fixed-array forms together inside a struct.
+/// Parse const and fixed-array forms together inside a struct.
 #[test]
-fn test_parse_struct_comptime_forms() {
+fn test_parse_struct_const_forms() {
     let test = TestParser::new(
-        r#"struct StaticBuffer<comptime Size: uint> {
-    comptime {
+        r#"struct StaticBuffer<const Size: uint> {
+    const {
         assert(Size > 0 && Size <= 65536);
     }
     tag: Size extends 4 ? "small" : "large";
@@ -191,7 +191,7 @@ fn test_parse_struct_comptime_forms() {
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Struct(StructDeclaration { members, .. }) => {
             assert_eq!(members.len(), 3);
-            assert_node!(parser.tree, members[0], Member::ComptimeBlock { .. });
+            assert_node!(parser.tree, members[0], Member::ConstBlock { .. });
             assert_node!(parser.tree, members[1], Member::Field { .. });
             assert_node!(parser.tree, members[2], Member::Field { .. });
         });
@@ -571,7 +571,7 @@ fn test_parse_struct_with_private_member_function() {
     let test = TestParser::new(
         r###"
 struct Foo {
-    private enqueue<M extends F<"mutation">>() {
+    private enqueue<M: F<"mutation">>() {
         unreachable();
     }
 }

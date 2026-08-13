@@ -125,7 +125,7 @@ fn test_recover_generic_arrow_without_tree_disambiguator() {
 #[test]
 fn test_recover_generic_arrow_constraint_member() {
     let test = TestParser::new(
-        "const broken = <T extends { item: ; }>(value: T) => value;\nconst recovered = 1;",
+        "const broken = <T: { item: ; }>(value: T) => value;\nconst recovered = 1;",
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -160,8 +160,8 @@ fn test_parse_generic_arrow_with_trailing_comma() {
 }
 
 #[test]
-fn test_parse_generic_arrow_with_extends_disambiguator() {
-    let test = TestParser::new("<T extends unknown>(x) => 1");
+fn test_parse_generic_arrow_with_constraint_disambiguator() {
+    let test = TestParser::new("<T: unknown>(x) => 1");
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {

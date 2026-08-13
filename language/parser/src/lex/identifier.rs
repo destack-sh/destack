@@ -389,7 +389,6 @@ pub(crate) fn classify_keyword_bytes(bytes: &[u8]) -> Option<Keyword> {
         b"case" => Some(Keyword::Case),
         b"catch" => Some(Keyword::Catch),
         b"class" => Some(Keyword::Class),
-        b"comptime" => Some(Keyword::Comptime),
         b"const" => Some(Keyword::Const),
         b"constructor" => Some(Keyword::Constructor),
         b"continue" => Some(Keyword::Continue),

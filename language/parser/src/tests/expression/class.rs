@@ -177,7 +177,7 @@ fn test_parse_class_expression_with_generic_implements_clause() {
 #[test]
 fn test_parse_arrow_body_with_anonymous_class_expression() {
     let test = TestParser::new(
-        r###"<P extends Props>(
+        r###"<P: Props>(
   wrapped: ComponentType<P>
 ) => class extends Component<Omit<P, keyof A> & Partial<B>, C> {
   static displayName = `x`;
@@ -186,7 +186,7 @@ fn test_parse_arrow_body_with_anonymous_class_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    // <P extends Props>(wrapped: ComponentType<P>) => class extends Component<...> { ... }
+    // <P: Props>(wrapped: ComponentType<P>) => class extends Component<...> { ... }
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -211,7 +211,7 @@ fn test_parse_arrow_body_with_anonymous_class_expression() {
 #[test]
 fn test_parse_arrow_body_with_multiline_class_heritage_generic_arguments() {
     let test = TestParser::new(
-        r###"<P extends Props>(
+        r###"<P: Props>(
   wrapped: React.ComponentType<P>
 ) => class extends React.Component<
   Omit<P, keyof Props> & Partial<Props>,
@@ -223,7 +223,7 @@ fn test_parse_arrow_body_with_multiline_class_heritage_generic_arguments() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    // <P extends Props>(wrapped: React.ComponentType<P>) => class extends React.Component<...> { ... }
+    // <P: Props>(wrapped: React.ComponentType<P>) => class extends React.Component<...> { ... }
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);

@@ -101,7 +101,7 @@ impl Parser {
         }
 
         // modified functions keep their modifier in the function parser
-        if matches!(keyword, Keyword::Async | Keyword::Comptime) {
+        if keyword == Keyword::Async {
             probe.bump();
 
             return probe.peek_keyword() == Some(Keyword::Function)
@@ -110,7 +110,10 @@ impl Parser {
 
         // classify declaration nouns from their required continuation
         match keyword {
-            Keyword::Let | Keyword::Const | Keyword::Using => true,
+            Keyword::Let | Keyword::Using => true,
+            Keyword::Const => {
+                probe.scan_const_declaration(context.statement != StatementPosition::Nested)
+            }
             Keyword::Struct | Keyword::Enum | Keyword::Interface => {
                 probe.bump();
 
@@ -174,19 +177,30 @@ impl Parser {
 
         let expression = match keyword {
             Keyword::Let | Keyword::Const => {
-                if keyword == Keyword::Const && self.peek_next_keyword() == Some(Keyword::Enum) {
-                    self.bump();
-                    let declaration =
-                        self.parse_enum(start, EnumKind::Const, header, context.function)?;
-                    self.insert_declaration_expression(start, declaration)
+                let const_noun = if keyword == Keyword::Const {
+                    self.peek_next_keyword()
                 } else {
-                    self.parse_let(start, header, context.function)?
+                    None
+                };
+                match const_noun {
+                    Some(Keyword::Enum) => {
+                        self.bump();
+                        let declaration =
+                            self.parse_enum(start, EnumKind::Const, header, context.function)?;
+                        self.insert_declaration_expression(start, declaration)
+                    }
+                    // const heads the const function form
+                    Some(Keyword::Function) => {
+                        let declaration = self.parse_function(start, header, context)?;
+                        self.insert_declaration_expression(start, declaration)
+                    }
+                    _ => self.parse_let(start, header, context.function)?,
                 }
             }
             Keyword::Using => {
                 self.parse_using(start, header, Asynchrony::Sync, context.function)?
             }
-            Keyword::Function | Keyword::Async | Keyword::Comptime => {
+            Keyword::Function | Keyword::Async => {
                 let declaration = self.parse_function(start, header, context)?;
                 self.insert_declaration_expression(start, declaration)
             }
@@ -293,6 +307,30 @@ impl Parser {
 }
 
 impl TokenProbe<'_> {
+    /// Return whether a const keyword heads a declaration.
+    fn scan_const_declaration(&mut self, is_statement: bool) -> bool {
+        self.bump();
+
+        // const enum and const function declare their own nouns
+        if self.peek_keyword() == Some(Keyword::Enum)
+            || self.peek_keyword() == Some(Keyword::Function) && !self.peek_token().is_on_new_line()
+        {
+            return true;
+        }
+
+        // a brace group binds only when a binding continuation follows it
+        if self.peek_token_type() == TokenType::OpenBrace {
+            if !self.scan_delimiter_group(TokenType::OpenBrace, TokenType::CloseBrace) {
+                return true;
+            }
+
+            return matches!(self.peek_token_type(), TokenType::Assign | TokenType::Colon);
+        }
+
+        // statement position owns every other head, expressions evaluate
+        is_statement
+    }
+
     /// Return whether an extension keyword is followed by an extension declaration head.
     fn scan_extension(&mut self) -> bool {
         self.bump();

@@ -344,13 +344,16 @@ impl Parser {
 
     /// Parse a function phase marker.
     fn parse_function_phase(&mut self) -> FunctionPhase {
-        if !self.peek_is_keyword(Keyword::Comptime) {
+        // const marks the phase only directly before the function noun
+        let is_phase_marker = self.peek_is_keyword(Keyword::Const)
+            && self.peek_next_keyword() == Some(Keyword::Function);
+        if !is_phase_marker {
             return FunctionPhase::Normal;
         }
 
         self.bump();
 
-        FunctionPhase::Comptime
+        FunctionPhase::Const
     }
 
     /// Parse an async modifier when it is not a lambda parameter.

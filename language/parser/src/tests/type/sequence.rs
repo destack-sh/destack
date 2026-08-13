@@ -163,7 +163,7 @@ fn test_parse_fixed_array_type_length_infer_hole() {
 
 #[test]
 fn test_parse_fixed_array_type_value_length_expression() {
-    let test = TestParser::new("type T<comptime N: uint> = [EventTarget; N * 2]");
+    let test = TestParser::new("type T<const N: uint> = [EventTarget; N * 2]");
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionContext {
@@ -172,7 +172,7 @@ fn test_parse_fixed_array_type_value_length_expression() {
         })
         .unwrap();
 
-    // type T<comptime N: uint> = [EventTarget; N * 2]
+    // type T<const N: uint> = [EventTarget; N * 2]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::FixedArray { length, .. } => {

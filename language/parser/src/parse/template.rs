@@ -4,7 +4,7 @@ use destack_dir::{
 };
 use destack_source::ByteRange;
 
-use crate::parse::context::{ExpressionContext, FunctionContext, TypeContext};
+use crate::parse::context::{ExpressionContext, FunctionContext, StatementPosition, TypeContext};
 use crate::{Parser, ParserError, ParserResult};
 
 impl Parser {
@@ -279,6 +279,7 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<Expression>> {
         self.parse_expression(ExpressionContext {
             function,
+            statement: StatementPosition::Nested,
             ..ExpressionContext::default()
         })
     }

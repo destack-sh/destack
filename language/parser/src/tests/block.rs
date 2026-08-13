@@ -273,12 +273,12 @@ fn test_await_must_expression() {
 }
 
 #[test]
-fn test_comptime_expression() {
-    let test = TestParser::new("comptime factorial(10)");
+fn test_parse_const_expression() {
+    let test = TestParser::new("const factorial(10)");
     let mut parser = test.prepare();
-    let comptime_id = parser.parse_comptime(Default::default()).unwrap();
-    // comptime factorial(10)
-    assert_node!(parser.tree, comptime_id, Expression::Comptime { body } => {
+    let const_id = parser.parse_const_evaluation(Default::default()).unwrap();
+    // const factorial(10)
+    assert_node!(parser.tree, const_id, Expression::Const { body } => {
         // factorial(10)
         assert_node!(parser.tree, *body, Expression::Call { position: _, left, generic_arguments: _, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "factorial");
@@ -288,13 +288,13 @@ fn test_comptime_expression() {
 }
 
 #[test]
-fn test_comptime_expression_simple() {
-    // comptime 1 + 2
-    let test = TestParser::new("comptime 1 + 2");
+fn test_parse_const_expression_simple() {
+    // const 1 + 2
+    let test = TestParser::new("const 1 + 2");
     let mut parser = test.prepare();
-    let comptime_id = parser.parse_comptime(Default::default()).unwrap();
-    // comptime 1 + 2
-    assert_node!(parser.tree, comptime_id, Expression::Comptime { body } => {
+    let const_id = parser.parse_const_evaluation(Default::default()).unwrap();
+    // const 1 + 2
+    assert_node!(parser.tree, const_id, Expression::Const { body } => {
         // 1 + 2
         assert_node!(parser.tree, *body, Expression::Binary { .. } => {
             // binary addition
@@ -303,11 +303,11 @@ fn test_comptime_expression_simple() {
 }
 
 #[test]
-fn test_comptime_block_expression() {
-    let test = TestParser::new("comptime { let x = 1; x + 2 }");
+fn test_parse_const_block_expression() {
+    let test = TestParser::new("const { let x = 1; x + 2 }");
     let mut parser = test.prepare();
-    let comptime_id = parser.parse_comptime(Default::default()).unwrap();
-    assert_node!(parser.tree, comptime_id, Expression::Comptime { body } => {
+    let const_id = parser.parse_const_evaluation(Default::default()).unwrap();
+    assert_node!(parser.tree, const_id, Expression::Const { body } => {
         assert_node!(parser.tree, *body, Expression::Block(_));
     });
 }

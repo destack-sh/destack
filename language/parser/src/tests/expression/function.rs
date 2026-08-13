@@ -298,7 +298,7 @@ fn test_parse_generic_lambda_function_value() {
 /// Parse a generic lambda function with a newline after `<`.
 #[test]
 fn test_parse_generic_lambda_function_value_multiline_after_less_than() {
-    let test = TestParser::new("<\nT extends string\n>(x: T) => x");
+    let test = TestParser::new("<\nT: string\n>(x: T) => x");
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
@@ -563,12 +563,12 @@ fn test_parse_generic_arrow_with_function_type_return_annotation() {
 /// Parse static parameter constraints with object keys named `in`.
 #[test]
 fn test_parse_generic_parameter_constraint_object_property_named_in() {
-    // source: <V extends { in: string }>() => {}
-    let test = TestParser::new("<V extends { in: string }>() => {}");
+    // source: <V: { in: string }>() => {}
+    let test = TestParser::new("<V: { in: string }>() => {}");
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    // <V extends { in: string }>() => {}
+    // <V: { in: string }>() => {}
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             let generic_parameters = &signature.generic_parameters;
