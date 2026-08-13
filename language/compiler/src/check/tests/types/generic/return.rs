@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_literal_cannot_construct_rigid_generic_return() {
+fn test_construct_a_family_bounded_result_from_a_fitting_literal() {
     let session = TestSession::single(
         r#"
 function make<T: int8 | int64>(): T {
@@ -30,8 +30,6 @@ function make<T: int8 | int64>(): T {
 }
 "#,
         r#"
-/// @diagnostic.error id=return-not-assignable message="type '1' is not assignable to the declared result type 'T'"
-/// @diagnostic.label line=3 column=12 span="1" line_source="return 1;"
 "#,
     );
 }

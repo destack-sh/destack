@@ -1579,3 +1579,79 @@ const kept = values
 "#,
     );
 }
+
+#[test]
+fn test_adapt_a_literal_argument_to_a_family_bounded_parameter() {
+    let session = TestSession::single(
+        r#"
+import { Arithmetic, Integer } from "destack:math";
+
+function bump<T: Integer>(value: T): T | undefined {
+    return value.checkedAdd(1);
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+import { Arithmetic, Integer } from "destack:math";
+
+function bump<T: Integer>(value: T): T | undefined {
+    return value.checkedAdd<T>(1);
+}
+
+=== checked ===
+import { Arithmetic, Integer } from "destack:math";
+
+function bump<T: Integer>(value: T): T | undefined {
+    return value.checkedAdd(1);
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
+fn test_adapt_a_literal_argument_inside_a_blanket_extension_method() {
+    let session = TestSession::single(
+        r#"
+import { Arithmetic, Integer } from "destack:math";
+
+extension<T: Integer> of T {
+    bump(this): T | undefined {
+        this.checkedAdd(1)
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+import { Arithmetic, Integer } from "destack:math";
+
+extension<T: Integer> of T {
+    bump(this): T | undefined {
+        this.checkedAdd<T>(1)
+    }
+}
+
+=== checked ===
+import { Arithmetic, Integer } from "destack:math";
+
+extension<T: Integer> of T {
+    bump(this): T | undefined {
+        this.checkedAdd(1)
+    }
+}
+"#,
+        r#"
+"#,
+    );
+}
