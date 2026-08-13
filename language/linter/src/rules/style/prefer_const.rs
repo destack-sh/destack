@@ -1,12 +1,9 @@
-use destack_core::FxIndexMap;
-use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::Patch;
 
-use crate::rules::declare_lint;
-use crate::{DirModule, Lint, LintOutput, LintResult};
+use crate::rules::declare_lint_stub;
+use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Require const for bindings never reassigned after initialization.
     pub PREFER_CONST {
         id: "prefer-const",
@@ -38,229 +35,24 @@ function identity(value: int32): int32 {
     }
 }
 
-/// One binding introduced by a let declaration.
-#[derive(Clone, Copy)]
-struct LetBinding {
-    /// The bound symbol.
-    symbol: dir::GlobalSymbolId,
-    /// The binding source node.
-    declaration: dir::LocalNodeIdAny,
-    /// Whether the declarator supplies an initializer.
-    is_initialized: bool,
-}
-
-/// Report let bindings that do not require rebinding.
-fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    let mutable_uses = mutable_binding_uses(module)?;
-    let declarator_bindings = declarator_bindings(module);
-    let view = module.view();
-    let mut output = LintOutput::default();
-
-    // inspect mutable binding declarations
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::Let {
-            kind: dir::LetKind::Let,
-            declarators,
-            ..
-        } = node
-        else {
-            continue;
-        };
-        let mut bindings = Vec::new();
-        for declarator in declarators {
-            if let Some(declared) = declarator_bindings.get(declarator) {
-                bindings.extend_from_slice(declared);
-            }
-        }
-        if bindings.is_empty() {
-            return Err(ProviderError::internal(format!(
-                "let expression {} in module {:?} declares no binding symbols",
-                expression.id, module.id
-            )));
-        }
-
-        // select bindings with no writes after their initialization
-        let candidates = bindings
-            .iter()
-            .filter(|binding| {
-                let uses = mutable_uses
-                    .get(&binding.symbol)
-                    .map(Vec::as_slice)
-                    .unwrap_or_default();
-
-                if binding.is_initialized {
-                    uses.is_empty()
-                } else {
-                    let [use_] = uses else {
-                        return false;
-                    };
-
-                    view.ancestor::<dir::Block>(expression.into_any())
-                        == view.ancestor::<dir::Block>(*use_)
-                }
-            })
-            .collect::<Vec<_>>();
-        if candidates.is_empty() {
-            continue;
-        }
-
-        // replace the declaration keyword only when every binding is initialized and constant
-        let can_replace = candidates.len() == bindings.len()
-            && bindings.iter().all(|binding| binding.is_initialized);
-        if can_replace {
-            let span = module.main_span(expression.into_any())?;
-            let patch = Patch::replace(span, "const");
-            let suggestion = lint.fix("declare the binding with const", patch)?;
-            let diagnostic = lint
-                .diagnostic("binding is never reassigned", span)
-                .suggestion(suggestion);
-            output.report(diagnostic);
-            continue;
-        }
-
-        // report candidates that require a declaration restructure
-        for binding in candidates {
-            let span = module.span(binding.declaration)?;
-            output.report(lint.diagnostic("binding is never reassigned", span));
-        }
-    }
-
-    Ok(output)
-}
-
-/// Index declarator bindings by their nearest declarator ancestor.
-fn declarator_bindings(
-    module: &DirModule<'_>,
-) -> FxIndexMap<dir::LocalNodeId<dir::Declarator>, Vec<LetBinding>> {
-    let view = module.view();
-    let mut bindings = FxIndexMap::default();
-
-    // climb each declaration once to its declarator
-    for (declaration, symbol) in module.bindings.declaration_symbols() {
-        if declaration.module_id != module.id {
-            continue;
-        }
-        let declaration = declaration.local_id;
-        let Some(declarator) = view.ancestor::<dir::Declarator>(declaration) else {
-            continue;
-        };
-        let is_initialized = view.get(declarator).value.is_some();
-        bindings
-            .entry(declarator)
-            .or_insert_with(Vec::new)
-            .push(LetBinding {
-                symbol: symbol.into_global(module.id),
-                declaration,
-                is_initialized,
-            });
-    }
-
-    bindings
-}
-
-/// Collect uses that require mutable access to each binding cell.
-fn mutable_binding_uses(
-    module: &DirModule<'_>,
-) -> Result<FxIndexMap<dir::GlobalSymbolId, Vec<dir::LocalNodeIdAny>>, ProviderError> {
-    let mut uses: FxIndexMap<dir::GlobalSymbolId, Vec<dir::LocalNodeIdAny>> = FxIndexMap::default();
-
-    // collect direct binding writes
-    for (source, resolution) in module.decisions.decision_entries() {
-        let dir::Decision::Assignment(assignment) = resolution else {
-            continue;
-        };
-        let dir::WriteResolution::Binding { symbol, .. } = assignment.write else {
-            continue;
-        };
-
-        uses.entry(symbol).or_default().push(source.local_id);
-    }
-
-    // collect explicit mutable and exclusive borrows of root binding storage
-    let view = module.view();
-    for (expression, value) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::BorrowOf { right, .. } = value else {
-            continue;
-        };
-        let target = module.node_type_id(expression.into_any())?;
-        let borrow = module.dir.get_borrow(target)?;
-        let access = module.dir.get_access(borrow.access)?;
-        if access == dir::Access::Readonly {
-            continue;
-        }
-
-        record_mutable_binding_use(
-            module,
-            right.into_global_any(module.id),
-            expression.into_any(),
-            &mut uses,
-        );
-    }
-
-    // collect implicit mutable and exclusive borrow coercions
-    for (source, coercion) in module.coercions.coercions() {
-        if !has_mutable_borrow(module, &coercion.adjustments)? {
-            continue;
-        }
-
-        record_mutable_binding_use(module, source, source.local_id, &mut uses);
-    }
-
-    Ok(uses)
-}
-
-/// Record one mutable use when its source is root binding storage.
-fn record_mutable_binding_use(
-    module: &DirModule<'_>,
-    source: dir::GlobalNodeIdAny,
-    use_: dir::LocalNodeIdAny,
-    uses: &mut FxIndexMap<dir::GlobalSymbolId, Vec<dir::LocalNodeIdAny>>,
-) {
-    let Some(access) = module.decisions.access_resolution(source) else {
-        return;
-    };
-    let dir::AccessRoot::Symbol(symbol) = access.path().root() else {
-        return;
-    };
-    if !access.path().keys().is_empty() {
-        return;
-    }
-
-    uses.entry(symbol).or_default().push(use_);
-}
-
-/// Return whether checked adjustments acquire mutable or exclusive access.
-fn has_mutable_borrow(
-    module: &DirModule<'_>,
-    adjustments: &[dir::CoercionAdjustment],
-) -> Result<bool, ProviderError> {
-    for adjustment in adjustments {
-        match adjustment {
-            dir::CoercionAdjustment::Borrow { target } => {
-                let borrow = module.dir.get_borrow(*target)?;
-                let access = module.dir.get_access(borrow.access)?;
-                if access != dir::Access::Readonly {
-                    return Ok(true);
-                }
-            }
-            dir::CoercionAdjustment::Union { cases, .. } => {
-                for case in cases {
-                    if has_mutable_borrow(module, &case.adjustments)? {
-                        return Ok(true);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    Ok(false)
+/// Reject this lint until DIR carries checked flow uses.
+fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    Err(ProviderError::internal(format!(
+        "lint {} requires checked flow uses in DIR",
+        lint.id
+    )))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
+    /// Validate the canonical lint example.
+    #[test]
+    fn test_lint_example() {
+        TestSession::assert_example(&PREFER_CONST);
+    }
 
     /// Accept a binding that is reassigned after initialization.
     #[test]

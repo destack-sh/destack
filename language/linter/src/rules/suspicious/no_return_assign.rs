@@ -1,9 +1,9 @@
-use destack_dir as dir;
+use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
-use crate::{DirModule, Lint, LintOutput, LintResult};
+use crate::rules::declare_lint_stub;
+use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow assignment within an explicit or implicit return value.
     pub NO_RETURN_ASSIGN {
         id: "no-return-assign",
@@ -34,85 +34,24 @@ function reset(value: int32): int32 {
     }
 }
 
-/// Report assignments evaluated as part of return values.
-fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    let view = module.view();
-    let mut output = LintOutput::default();
-
-    // inspect assignments enclosed by one explicit or implicit return
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
-        if !matches!(node, dir::Expression::Assign { .. }) {
-            continue;
-        }
-
-        // report only the outermost assignment expression
-        if matches!(
-            view.ancestor::<dir::Expression>(expression.into_any())
-                .map(|parent| view.get(parent)),
-            Some(dir::Expression::Assign { .. })
-        ) {
-            continue;
-        }
-
-        // require an explicit or implicit return position
-        if !is_returned(&view, expression) {
-            continue;
-        }
-
-        // report the returned mutation
-        let span = module.source_extent(expression.into_any())?;
-        output.report(lint.diagnostic("return value is an assignment", span));
-    }
-
-    Ok(output)
-}
-
-/// Return whether one assignment belongs to an explicit or implicit return.
-fn is_returned(view: &dir::View<'_>, assignment: dir::LocalNodeId<dir::Expression>) -> bool {
-    let mut node = assignment.into_any();
-
-    // climb to the enclosing return or function boundary
-    while let Some(parent) = view.get_parent_any(node) {
-        if let Ok(expression) = parent.try_into_typed::<dir::Expression>() {
-            if matches!(view.get(expression), dir::Expression::Return { .. }) {
-                return true;
-            }
-        } else if let Ok(declaration) = parent.try_into_typed::<dir::Declaration>() {
-            let dir::Declaration::Function(function) = view.get(declaration) else {
-                return false;
-            };
-
-            return function
-                .body
-                .is_some_and(|body| !matches!(view.get(body), dir::Expression::Block(_)));
-        } else if let Ok(member) = parent.try_into_typed::<dir::Member>() {
-            let dir::Member::Method {
-                body: Some(body), ..
-            } = view.get(member)
-            else {
-                return false;
-            };
-
-            return !matches!(view.get(*body), dir::Expression::Block(_));
-        } else if let Ok(property) = parent.try_into_typed::<dir::Property>() {
-            if let dir::Property::Method {
-                body: Some(body), ..
-            } = view.get(property)
-            {
-                return !matches!(view.get(*body), dir::Expression::Block(_));
-            }
-        }
-
-        node = parent;
-    }
-
-    false
+/// Reject this lint until DIR carries checked value disposition.
+fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    Err(ProviderError::internal(format!(
+        "lint {} requires checked value disposition in DIR",
+        lint.id
+    )))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
+    /// Validate the canonical lint example.
+    #[test]
+    fn test_lint_example() {
+        TestSession::assert_example(&NO_RETURN_ASSIGN);
+    }
 
     /// Accept an assignment followed by a separate return.
     #[test]
@@ -178,6 +117,30 @@ warning[no-return-assign]: return value is an assignment
 3 │     return isActive ? (current = 0) : current;
   │                       ^^^^^^^^^^^^^
 4 │ }
+  │
+"#,
+        );
+    }
+
+    /// Report an assignment nested within an implicitly returned object.
+    #[test]
+    fn test_reports_assignment_in_returned_object() {
+        let session = TestSession::dir(
+            &NO_RETURN_ASSIGN,
+            r#"
+let current = 1;
+const reset = () => ({ value: (current = 0) });
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-return-assign]: return value is an assignment
+ ──▶ main.ds:2:31
+  │
+1 │ let current = 1;
+2 │ const reset = () => ({ value: (current = 0) });
+  │                               ^^^^^^^^^^^^^
   │
 "#,
         );
