@@ -16,7 +16,7 @@ pub trait PoolId: Copy {
     fn raw(self) -> u32;
 }
 
-/// Value rows of one pool kind continuing one id space across segments.
+/// Value entries of one pool kind continuing one id space across segments.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 #[serde(bound(
     serialize = "T: Serialize",
