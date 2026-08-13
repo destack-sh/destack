@@ -263,9 +263,9 @@ function empty(value: Value): boolean {
             &PREFER_IS_EMPTY,
             r#"
 function reduce<
-    comptime Rank: int,
-    comptime AxisCount: int,
-    comptime OutRank: int = Rank - AxisCount,
+    const Rank: int,
+    const AxisCount: int,
+    const OutRank: int = Rank - AxisCount,
 >(): void {}
 "#,
         );

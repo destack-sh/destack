@@ -18,12 +18,12 @@ Out-of-range disjunctions over floating-point values are excluded because negati
 "#,
         example: {
             reported: r#"
-function isByte(value: int32): boolean {
+function isByte(value: int64): boolean {
     return value >= 0 && value <= 255;
 }
 "#,
             accepted: r#"
-function isByte(value: int32): boolean {
+function isByte(value: int64): boolean {
     return (0..=255).contains(value);
 }
 "#,
@@ -291,7 +291,7 @@ mod tests {
         let session = TestSession::dir(
             &MANUAL_RANGE_CONTAINS,
             r#"
-function contains(value: int32): boolean {
+function contains(value: int64): boolean {
     const first = value >= 0 && value < 10;
     const second = value <= 10 && 0 <= value;
     const third = 10 > value && value >= 0;
@@ -304,7 +304,7 @@ function contains(value: int32): boolean {
 
         session.assert_suggestions(
             r#"
-function contains(value: int32): boolean {
+function contains(value: int64): boolean {
     const first = (0..10).contains(value);
     const second = (0..=10).contains(value);
     const third = (0..10).contains(value);
@@ -322,7 +322,7 @@ function contains(value: int32): boolean {
         let session = TestSession::dir(
             &MANUAL_RANGE_CONTAINS,
             r#"
-function outside(value: int32): boolean {
+function outside(value: int64): boolean {
     const first = value < 0 || value >= 10;
     const second = value > 10 || 0 > value;
 
@@ -333,7 +333,7 @@ function outside(value: int32): boolean {
 
         session.assert_suggestions(
             r#"
-function outside(value: int32): boolean {
+function outside(value: int64): boolean {
     const first = !(0..10).contains(value);
     const second = !(0..=10).contains(value);
 
@@ -415,7 +415,7 @@ extension of Count implements Compare<Count> {
 
 declare function next(): int32;
 
-function accepted(value: int32, other: int32, first: Count, second: Count): boolean {
+function accepted(value: int64, other: int32, first: Count, second: Count): boolean {
     const strictStart = value > 0 && value < 10;
     const unrelated = value >= 0 && other < 10;
     const effects = next() >= 0 && next() < 10;

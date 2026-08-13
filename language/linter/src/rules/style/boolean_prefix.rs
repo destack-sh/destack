@@ -47,7 +47,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if !matches!(
             symbol.kind,
             dir::SymbolKind::AssociatedConst
-                | dir::SymbolKind::GenericValueParameter
+                | dir::SymbolKind::GenericLifetimeParameter
+                | dir::SymbolKind::GenericTypeParameter
                 | dir::SymbolKind::Parameter
                 | dir::SymbolKind::Variable
         ) {
@@ -61,18 +62,28 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         let name = module.dir.strings.get(name);
 
-        // read the declared value or compile-time constraint type
+        // read the declared value or const constraint type
         let symbol_id = symbol_id.into_global(module.id);
-        let type_id = if symbol.kind == dir::SymbolKind::GenericValueParameter {
+        let is_generic = matches!(
+            symbol.kind,
+            dir::SymbolKind::GenericLifetimeParameter | dir::SymbolKind::GenericTypeParameter
+        );
+        let type_id = if is_generic {
             let parameter_id = module
                 .generics
                 .parameter_by_symbol(symbol_id)
                 .ok_or_else(|| {
                     ProviderError::internal(format!(
-                        "checked generic value symbol {symbol_id:?} has no generic parameter"
+                        "checked generic symbol {symbol_id:?} has no generic parameter"
                     ))
                 })?;
-            let Some(constraint) = module.generics.get_parameter(parameter_id).constraint else {
+            let binding = module.generics.get_parameter(parameter_id);
+
+            // only const parameters name runtime values
+            if symbol.kind == dir::SymbolKind::GenericTypeParameter && !binding.is_const {
+                continue;
+            }
+            let Some(constraint) = binding.constraint else {
                 continue;
             };
 
@@ -225,13 +236,13 @@ warning[boolean-prefix]: boolean value `ready` needs a predicate prefix
         );
     }
 
-    /// Report a boolean compile-time parameter without a predicate prefix.
+    /// Report a boolean const parameter without a predicate prefix.
     #[test]
-    fn test_reports_boolean_generic_value_parameter() {
+    fn test_reports_boolean_const_parameter() {
         let session = TestSession::dir(
             &BOOLEAN_PREFIX,
             r#"
-function choose<comptime enabled: boolean>(value: int32): int32 {
+function choose<const enabled: boolean>(value: int32): int32 {
     return value;
 }
 "#,
@@ -240,10 +251,10 @@ function choose<comptime enabled: boolean>(value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[boolean-prefix]: boolean value `enabled` needs a predicate prefix
- ──▶ main.ds:1:26
+ ──▶ main.ds:1:23
   │
-1 │ function choose<comptime enabled: boolean>(value: int32): int32 {
-  │                          ^^^^^^^
+1 │ function choose<const enabled: boolean>(value: int32): int32 {
+  │                       ^^^^^^^
 2 │     return value;
 3 │ }
   │

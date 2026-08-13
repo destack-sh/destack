@@ -46,7 +46,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     for (member, node) in view.iter_nodes::<dir::Member>() {
         let (body, kind) = match node {
             dir::Member::StaticBlock { body } => (*body, "static"),
-            dir::Member::ComptimeBlock { body } => (*body, "compile-time"),
+            dir::Member::ConstBlock { body } => (*body, "const"),
             _ => continue,
         };
 
@@ -133,12 +133,12 @@ class Registry { }
 
     /// Remove an empty compile-time initialization block.
     #[test]
-    fn test_removes_empty_comptime_block() {
+    fn test_removes_empty_const_block() {
         let session = TestSession::dir(
             &NO_EMPTY_STATIC_BLOCK,
             r#"
 struct Registry {
-    comptime {}
+    const {}
 }
 "#,
         );
