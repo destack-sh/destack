@@ -587,7 +587,7 @@ impl DirChecked {
     }
 }
 
-/// Comptime materialization segment for one module under one profile.
+/// Const materialization segment for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirMaterialized {
     /// Tree changes.

@@ -179,7 +179,7 @@ pub enum ArtifactStage {
     Parse,
     /// Local name binding.
     Bind,
-    /// Comptime expansion and materialization around check.
+    /// Const expansion and materialization around check.
     Macro,
     /// Import, export, and global resolution.
     Resolve,
