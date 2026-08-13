@@ -42,8 +42,8 @@ pub struct FlowSegment {
     unreachable: Vec<LocalNodeIdAny>,
     /// Nodes flow proves never return, sorted.
     diverging: Vec<LocalNodeIdAny>,
-    /// Uses of each module symbol, dense over symbol ids.
-    uses: Vec<BindingUse>,
+    /// Uses of each module symbol, sorted by symbol.
+    uses: Vec<(LocalSymbolId, BindingUse)>,
     /// Uses of the foreign symbols this module touches, sorted by symbol.
     foreign_uses: Vec<(GlobalSymbolId, BindingUse)>,
 }
@@ -81,11 +81,10 @@ impl FlowSegment {
 
     /// Record one use of a module symbol.
     pub fn record_use(&mut self, symbol: LocalSymbolId, binding_use: BindingUse) {
-        let index = symbol.id as usize;
-        if self.uses.len() <= index {
-            self.uses.resize(index + 1, BindingUse::default());
+        match self.uses.binary_search_by_key(&symbol, |(key, _)| *key) {
+            Ok(index) => self.uses[index].1 |= binding_use,
+            Err(index) => self.uses.insert(index, (symbol, binding_use)),
         }
-        self.uses[index] |= binding_use;
     }
 
     /// Record one use of a foreign symbol.
@@ -112,18 +111,14 @@ impl FlowSegment {
     /// Return the recorded uses of one module symbol.
     pub fn use_of(&self, symbol: LocalSymbolId) -> BindingUse {
         self.uses
-            .get(symbol.id as usize)
-            .copied()
+            .binary_search_by_key(&symbol, |(key, _)| *key)
+            .map(|index| self.uses[index].1)
             .unwrap_or_default()
     }
 
     /// Iterate the recorded module symbol uses.
     pub fn uses(&self) -> impl Iterator<Item = (LocalSymbolId, BindingUse)> + '_ {
-        self.uses
-            .iter()
-            .enumerate()
-            .filter(|(_, binding_use)| !binding_use.is_empty())
-            .map(|(id, binding_use)| (LocalSymbolId { id: id as u32 }, *binding_use))
+        self.uses.iter().copied()
     }
 
     /// Iterate the recorded foreign symbol uses.
