@@ -62,12 +62,12 @@ impl Engine {
         self.entries.native.functions.as_ptr()
     }
 
-    /// Return virtual method rows keyed by Program virtual table id.
+    /// Return virtual method entries keyed by Program virtual table id.
     pub(crate) fn virtuals(&self) -> *const *const u32 {
         self.entries.native.virtuals.as_ptr().cast()
     }
 
-    /// Return dynamic entry rows keyed by Program dynamic table id.
+    /// Return dynamic entries keyed by Program dynamic table id.
     pub(crate) fn dynamics(&self) -> *const *const u32 {
         self.entries.native.dynamics.as_ptr().cast()
     }
@@ -191,14 +191,14 @@ impl EntryTable {
 struct NativeTable {
     /// Typed native body addresses keyed by Program function id.
     functions: Box<[usize]>,
-    /// Virtual row addresses keyed by Program virtual table id.
+    /// Virtual entry addresses keyed by Program virtual table id.
     virtuals: Box<[usize]>,
-    /// Dynamic row addresses keyed by Program dynamic table id.
+    /// Dynamic entry addresses keyed by Program dynamic table id.
     dynamics: Box<[usize]>,
-    /// Virtual method identities owning the virtual row storage.
-    virtual_rows: Box<[Box<[u32]>]>,
-    /// Dynamic entry values owning the dynamic row storage.
-    dynamic_rows: Box<[Box<[u32]>]>,
+    /// Virtual method identities owning the virtual entry storage.
+    virtual_tables: Box<[Box<[u32]>]>,
+    /// Dynamic entry values owning the dynamic entry storage.
+    dynamic_tables: Box<[Box<[u32]>]>,
 }
 
 impl NativeTable {
@@ -216,7 +216,7 @@ impl NativeTable {
             function.map_or(DEOPTIMIZE_ENTRY, |address| address)
         }));
         let functions = functions.into_boxed_slice();
-        let virtual_rows = program
+        let virtual_tables = program
             .dispatch()
             .virtual_tables(program.sections())
             .iter()
@@ -229,7 +229,7 @@ impl NativeTable {
                     .collect::<Box<_>>()
             })
             .collect::<Box<_>>();
-        let dynamic_rows = program
+        let dynamic_tables = program
             .dispatch()
             .dynamic_tables(program.sections())
             .iter()
@@ -244,11 +244,11 @@ impl NativeTable {
             .collect::<Box<_>>();
 
         // retain only process addresses in the hot dispatch columns
-        let virtuals = virtual_rows
+        let virtuals = virtual_tables
             .iter()
             .map(|row| row.as_ptr() as usize)
             .collect::<Box<_>>();
-        let dynamics = dynamic_rows
+        let dynamics = dynamic_tables
             .iter()
             .map(|row| row.as_ptr() as usize)
             .collect::<Box<_>>();
@@ -256,8 +256,8 @@ impl NativeTable {
             functions,
             virtuals,
             dynamics,
-            virtual_rows,
-            dynamic_rows,
+            virtual_tables,
+            dynamic_tables,
         }
     }
 }
@@ -271,12 +271,12 @@ impl fmt::Debug for NativeTable {
             .field("virtual_table_count", &self.virtuals.len())
             .field(
                 "virtual_method_count",
-                &self.virtual_rows.iter().map(|row| row.len()).sum::<usize>(),
+                &self.virtual_tables.iter().map(|row| row.len()).sum::<usize>(),
             )
             .field("dynamic_table_count", &self.dynamics.len())
             .field(
                 "dynamic_entry_count",
-                &self.dynamic_rows.iter().map(|row| row.len()).sum::<usize>(),
+                &self.dynamic_tables.iter().map(|row| row.len()).sum::<usize>(),
             )
             .finish()
     }
