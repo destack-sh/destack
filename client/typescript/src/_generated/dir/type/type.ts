@@ -2418,9 +2418,9 @@ export function fromJsonRefinedTypeId(value: Json): RefinedTypeId {
     return jsonInteger(value);
 }
 
-/** A structural object shape type. */
+/** The members one anonymous object class declares. */
 export type ShapeType = {
-    /** The shape property list. */
+    /** The declared property list. */
     readonly properties: TypeListId;
     /** The call signature list. */
     readonly callSignatures: TypeListId;
@@ -3350,11 +3350,6 @@ export type Type =
           readonly kind: "variable";
           readonly variable: TypeVariableId;
       }
-    /** One declared inference hole, named by the node that authored it. */
-    | {
-          readonly kind: "hole";
-          readonly hole: GlobalNodeIdAny;
-      }
     /** Placeholder type for an already-reported error. */
     | {
           readonly kind: "error";
@@ -3496,11 +3491,6 @@ export type Type =
           readonly kind: "tuple";
           readonly tuple: TupleType;
       }
-    /** Structural object shape type, like `{ name: string }`. */
-    | {
-          readonly kind: "shape";
-          readonly shape: ShapeType;
-      }
     /** Function signature type, like `(value: int32) => string`, interned in the segment. */
     | {
           readonly kind: "functionSignature";
@@ -3532,11 +3522,6 @@ export const Type = {
     /** One open inference variable. */
     variable(variable: TypeVariableId): Type {
         return { kind: "variable", variable };
-    },
-
-    /** One declared inference hole, named by the node that authored it. */
-    hole(hole: GlobalNodeIdAny): Type {
-        return { kind: "hole", hole };
     },
 
     /** Placeholder type for an already-reported error. */
@@ -3689,11 +3674,6 @@ export const Type = {
         return { kind: "tuple", tuple };
     },
 
-    /** Structural object shape type, like `{ name: string }`. */
-    shape(shape: ShapeType): Type {
-        return { kind: "shape", shape };
-    },
-
     /** Function signature type, like `(value: int32) => string`, interned in the segment. */
     functionSignature(function_signature: FunctionSignatureId): Type {
         return { kind: "functionSignature", function_signature };
@@ -3747,143 +3727,135 @@ export function encodeType(writer: BinaryWriter, value: Type): void {
             writer.writeUnsigned(0);
             encodeTypeVariableId(writer, value.variable);
             return;
-        case "hole":
-            writer.writeUnsigned(1);
-            encodeGlobalNodeIdAny(writer, value.hole);
-            return;
         case "error":
-            writer.writeUnsigned(2);
+            writer.writeUnsigned(1);
             return;
         case "never":
-            writer.writeUnsigned(3);
+            writer.writeUnsigned(2);
             return;
         case "any":
-            writer.writeUnsigned(4);
+            writer.writeUnsigned(3);
             return;
         case "unknown":
-            writer.writeUnsigned(5);
+            writer.writeUnsigned(4);
             return;
         case "void":
-            writer.writeUnsigned(6);
+            writer.writeUnsigned(5);
             return;
         case "null":
-            writer.writeUnsigned(7);
+            writer.writeUnsigned(6);
             return;
         case "undefined":
-            writer.writeUnsigned(8);
+            writer.writeUnsigned(7);
             return;
         case "object":
-            writer.writeUnsigned(9);
+            writer.writeUnsigned(8);
             encodeShapeType(writer, value.object);
             return;
         case "primitive":
-            writer.writeUnsigned(10);
+            writer.writeUnsigned(9);
             encodePrimitiveType(writer, value.primitive);
             return;
         case "literal":
-            writer.writeUnsigned(11);
+            writer.writeUnsigned(10);
             encodeScalarLiteral(writer, value.literal);
             return;
         case "key":
-            writer.writeUnsigned(12);
+            writer.writeUnsigned(11);
             encodeStaticKey(writer, value.key);
             return;
         case "memory":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(12);
             encodeMemoryLiteral(writer, value.memory);
             return;
         case "static":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(13);
             encodeGlobalStaticId(writer, value.static);
             return;
         case "intrinsic":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(14);
             return;
         case "erased":
-            writer.writeUnsigned(16);
+            writer.writeUnsigned(15);
             encodeGlobalGenericParameterId(writer, value.erased);
             return;
         case "parameter":
-            writer.writeUnsigned(17);
+            writer.writeUnsigned(16);
             encodeGlobalGenericParameterId(writer, value.parameter);
             return;
         case "reference":
-            writer.writeUnsigned(18);
+            writer.writeUnsigned(17);
             encodeTypeReference(writer, value.reference);
             return;
         case "application":
-            writer.writeUnsigned(19);
+            writer.writeUnsigned(18);
             encodeGenericApplication(writer, value.application);
             return;
         case "this":
-            writer.writeUnsigned(20);
+            writer.writeUnsigned(19);
             return;
         case "member":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(20);
             encodeMemberTypeId(writer, value.member);
             return;
         case "refined":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(21);
             encodeRefinedTypeId(writer, value.refined);
             return;
         case "variant":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(22);
             encodeVariantType(writer, value.variant);
             return;
         case "form":
-            writer.writeUnsigned(24);
+            writer.writeUnsigned(23);
             encodeFormType(writer, value.form);
             return;
         case "dynamic":
-            writer.writeUnsigned(25);
+            writer.writeUnsigned(24);
             encodeDynamicType(writer, value.dynamic);
             return;
         case "operation":
-            writer.writeUnsigned(26);
+            writer.writeUnsigned(25);
             encodeTypeOperationId(writer, value.operation);
             return;
         case "array":
-            writer.writeUnsigned(27);
+            writer.writeUnsigned(26);
             encodeArrayType(writer, value.array);
             return;
         case "fixedArray":
-            writer.writeUnsigned(28);
+            writer.writeUnsigned(27);
             encodeFixedArrayType(writer, value.fixed_array);
             return;
         case "range":
-            writer.writeUnsigned(29);
+            writer.writeUnsigned(28);
             encodeRangeType(writer, value.range);
             return;
         case "slice":
-            writer.writeUnsigned(30);
+            writer.writeUnsigned(29);
             encodeSliceType(writer, value.slice);
             return;
         case "tuple":
-            writer.writeUnsigned(31);
+            writer.writeUnsigned(30);
             encodeTupleType(writer, value.tuple);
             return;
-        case "shape":
-            writer.writeUnsigned(32);
-            encodeShapeType(writer, value.shape);
-            return;
         case "functionSignature":
-            writer.writeUnsigned(33);
+            writer.writeUnsigned(31);
             encodeFunctionSignatureId(writer, value.function_signature);
             return;
         case "function":
-            writer.writeUnsigned(34);
+            writer.writeUnsigned(32);
             encodeFunctionType(writer, value.function);
             return;
         case "functionPointer":
-            writer.writeUnsigned(35);
+            writer.writeUnsigned(33);
             encodeFunctionPointerType(writer, value.function_pointer);
             return;
         case "union":
-            writer.writeUnsigned(36);
+            writer.writeUnsigned(34);
             encodeUnionType(writer, value.union);
             return;
         case "intersection":
-            writer.writeUnsigned(37);
+            writer.writeUnsigned(35);
             encodeIntersectionType(writer, value.intersection);
             return;
     }
@@ -3902,168 +3874,158 @@ export function decodeType(reader: BinaryReader): Type {
             return { kind: "variable", variable };
         }
         case 1: {
-            const hole = decodeGlobalNodeIdAny(reader);
-
-            return { kind: "hole", hole };
-        }
-        case 2: {
             return { kind: "error" };
         }
-        case 3: {
+        case 2: {
             return { kind: "never" };
         }
-        case 4: {
+        case 3: {
             return { kind: "any" };
         }
-        case 5: {
+        case 4: {
             return { kind: "unknown" };
         }
-        case 6: {
+        case 5: {
             return { kind: "void" };
         }
-        case 7: {
+        case 6: {
             return { kind: "null" };
         }
-        case 8: {
+        case 7: {
             return { kind: "undefined" };
         }
-        case 9: {
+        case 8: {
             const object_ = decodeShapeType(reader);
 
             return { kind: "object", object: object_ };
         }
-        case 10: {
+        case 9: {
             const primitive = decodePrimitiveType(reader);
 
             return { kind: "primitive", primitive };
         }
-        case 11: {
+        case 10: {
             const literal = decodeScalarLiteral(reader);
 
             return { kind: "literal", literal };
         }
-        case 12: {
+        case 11: {
             const key = decodeStaticKey(reader);
 
             return { kind: "key", key };
         }
-        case 13: {
+        case 12: {
             const memory = decodeMemoryLiteral(reader);
 
             return { kind: "memory", memory };
         }
-        case 14: {
+        case 13: {
             const static_ = decodeGlobalStaticId(reader);
 
             return { kind: "static", static: static_ };
         }
-        case 15: {
+        case 14: {
             return { kind: "intrinsic" };
         }
-        case 16: {
+        case 15: {
             const erased = decodeGlobalGenericParameterId(reader);
 
             return { kind: "erased", erased };
         }
-        case 17: {
+        case 16: {
             const parameter = decodeGlobalGenericParameterId(reader);
 
             return { kind: "parameter", parameter };
         }
-        case 18: {
+        case 17: {
             const reference = decodeTypeReference(reader);
 
             return { kind: "reference", reference };
         }
-        case 19: {
+        case 18: {
             const application = decodeGenericApplication(reader);
 
             return { kind: "application", application };
         }
-        case 20: {
+        case 19: {
             return { kind: "this" };
         }
-        case 21: {
+        case 20: {
             const member = decodeMemberTypeId(reader);
 
             return { kind: "member", member };
         }
-        case 22: {
+        case 21: {
             const refined = decodeRefinedTypeId(reader);
 
             return { kind: "refined", refined };
         }
-        case 23: {
+        case 22: {
             const variant = decodeVariantType(reader);
 
             return { kind: "variant", variant };
         }
-        case 24: {
+        case 23: {
             const form = decodeFormType(reader);
 
             return { kind: "form", form };
         }
-        case 25: {
+        case 24: {
             const dynamic = decodeDynamicType(reader);
 
             return { kind: "dynamic", dynamic };
         }
-        case 26: {
+        case 25: {
             const operation = decodeTypeOperationId(reader);
 
             return { kind: "operation", operation };
         }
-        case 27: {
+        case 26: {
             const array = decodeArrayType(reader);
 
             return { kind: "array", array };
         }
-        case 28: {
+        case 27: {
             const fixed_array = decodeFixedArrayType(reader);
 
             return { kind: "fixedArray", fixed_array };
         }
-        case 29: {
+        case 28: {
             const range = decodeRangeType(reader);
 
             return { kind: "range", range };
         }
-        case 30: {
+        case 29: {
             const slice = decodeSliceType(reader);
 
             return { kind: "slice", slice };
         }
-        case 31: {
+        case 30: {
             const tuple = decodeTupleType(reader);
 
             return { kind: "tuple", tuple };
         }
-        case 32: {
-            const shape = decodeShapeType(reader);
-
-            return { kind: "shape", shape };
-        }
-        case 33: {
+        case 31: {
             const function_signature = decodeFunctionSignatureId(reader);
 
             return { kind: "functionSignature", function_signature };
         }
-        case 34: {
+        case 32: {
             const function_ = decodeFunctionType(reader);
 
             return { kind: "function", function: function_ };
         }
-        case 35: {
+        case 33: {
             const function_pointer = decodeFunctionPointerType(reader);
 
             return { kind: "functionPointer", function_pointer };
         }
-        case 36: {
+        case 34: {
             const union = decodeUnionType(reader);
 
             return { kind: "union", union };
         }
-        case 37: {
+        case 35: {
             const intersection = decodeIntersectionType(reader);
 
             return { kind: "intersection", intersection };
@@ -4080,11 +4042,6 @@ export function toJsonType(value: Type): Json {
             return {
                 kind: "variable",
                 variable: toJsonTypeVariableId(value.variable),
-            };
-        case "hole":
-            return {
-                kind: "hole",
-                hole: toJsonGlobalNodeIdAny(value.hole),
             };
         case "error":
             return {
@@ -4227,11 +4184,6 @@ export function toJsonType(value: Type): Json {
                 kind: "tuple",
                 tuple: toJsonTupleType(value.tuple),
             };
-        case "shape":
-            return {
-                kind: "shape",
-                shape: toJsonShapeType(value.shape),
-            };
         case "functionSignature":
             return {
                 kind: "functionSignature",
@@ -4272,11 +4224,6 @@ export function fromJsonType(value: Json): Type {
             return {
                 kind,
                 variable: fromJsonTypeVariableId(jsonField(object, "variable")),
-            };
-        case "hole":
-            return {
-                kind,
-                hole: fromJsonGlobalNodeIdAny(jsonField(object, "hole")),
             };
         case "error":
             return {
@@ -4418,11 +4365,6 @@ export function fromJsonType(value: Json): Type {
             return {
                 kind,
                 tuple: fromJsonTupleType(jsonField(object, "tuple")),
-            };
-        case "shape":
-            return {
-                kind,
-                shape: fromJsonShapeType(jsonField(object, "shape")),
             };
         case "functionSignature":
             return {

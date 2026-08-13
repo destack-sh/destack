@@ -590,18 +590,6 @@ export type Instruction =
           /** The dynamic value whose concrete type is read. */
           readonly dynamic: Value;
       }
-    /** Read one dispatch slot through a dynamic value's concrete table. */
-    | {
-          readonly kind: "dynamicRead";
-          /** The SSA value to define with the slot value. */
-          readonly destination: Value;
-          /** The dynamic value whose entry is read. */
-          readonly dynamic: Value;
-          /** The zero-based slot in the constraint's dynamic shape. */
-          readonly slot: number;
-          /** The result type of the slot value. */
-          readonly resultType: LocalNodeId;
-      }
     /** Find one named entry through a dynamic value's concrete table. */
     | {
           readonly kind: "dynamicFind";
@@ -1355,11 +1343,6 @@ export const Instruction = {
         return { kind: "dynamicType", destination, dynamic };
     },
 
-    /** Read one dispatch slot through a dynamic value's concrete table. */
-    dynamicRead(destination: Value, dynamic: Value, slot: number, resultType: LocalNodeId): Instruction {
-        return { kind: "dynamicRead", destination, dynamic, slot, resultType };
-    },
-
     /** Find one named entry through a dynamic value's concrete table. */
     dynamicFind(destination: Value, dynamic: Value, key: Value, resultType: LocalNodeId): Instruction {
         return { kind: "dynamicFind", destination, dynamic, key, resultType };
@@ -1880,129 +1863,122 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeValue(writer, value.destination);
             encodeValue(writer, value.dynamic);
             return;
-        case "dynamicRead":
-            writer.writeUnsigned(38);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.dynamic);
-            writer.writeUnsigned(value.slot);
-            encodeLocalNodeId(writer, value.resultType);
-            return;
         case "dynamicFind":
-            writer.writeUnsigned(39);
+            writer.writeUnsigned(38);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.dynamic);
             encodeValue(writer, value.key);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "vectorSplat":
-            writer.writeUnsigned(40);
+            writer.writeUnsigned(39);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.value);
             return;
         case "vectorExtract":
-            writer.writeUnsigned(41);
+            writer.writeUnsigned(40);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.vector);
             encodeValue(writer, value.index);
             return;
         case "vectorInsert":
-            writer.writeUnsigned(42);
+            writer.writeUnsigned(41);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.vector);
             encodeValue(writer, value.index);
             encodeValue(writer, value.value);
             return;
         case "vectorShuffle":
-            writer.writeUnsigned(43);
+            writer.writeUnsigned(42);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.left);
             encodeValue(writer, value.right);
             encodeIndexSlice(writer, value.mask);
             return;
         case "vectorSelect":
-            writer.writeUnsigned(44);
+            writer.writeUnsigned(43);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.mask);
             encodeValue(writer, value.thenValue);
             encodeValue(writer, value.elseValue);
             return;
         case "vectorReduce":
-            writer.writeUnsigned(45);
+            writer.writeUnsigned(44);
             encodeValue(writer, value.destination);
             encodeVectorReduceOperator(writer, value.operator);
             encodeValue(writer, value.vector);
             return;
         case "vectorCompare":
-            writer.writeUnsigned(46);
+            writer.writeUnsigned(45);
             encodeValue(writer, value.destination);
             encodeBinaryOperator(writer, value.operator);
             encodeValue(writer, value.left);
             encodeValue(writer, value.right);
             return;
         case "vectorConvert":
-            writer.writeUnsigned(47);
+            writer.writeUnsigned(46);
             encodeValue(writer, value.destination);
             encodeConvertMode(writer, value.mode);
             encodeValue(writer, value.vector);
             return;
         case "tensorSplat":
-            writer.writeUnsigned(48);
+            writer.writeUnsigned(47);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.value);
             return;
         case "tensorLoad":
-            writer.writeUnsigned(49);
+            writer.writeUnsigned(48);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.view);
             encodeValueSlice(writer, value.indices);
             return;
         case "tensorExtract":
-            writer.writeUnsigned(50);
+            writer.writeUnsigned(49);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.tensor);
             encodeValueSlice(writer, value.indices);
             return;
         case "tensorStore":
-            writer.writeUnsigned(51);
+            writer.writeUnsigned(50);
             encodeValue(writer, value.view);
             encodeValueSlice(writer, value.indices);
             encodeValue(writer, value.value);
             return;
         case "tensorFill":
-            writer.writeUnsigned(52);
+            writer.writeUnsigned(51);
             encodeValue(writer, value.view);
             encodeValue(writer, value.value);
             return;
         case "tensorCopy":
-            writer.writeUnsigned(53);
+            writer.writeUnsigned(52);
             encodeValue(writer, value.target);
             encodeValue(writer, value.source);
             return;
         case "tensorReshape":
-            writer.writeUnsigned(54);
+            writer.writeUnsigned(53);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.tensor);
             encodeValueSlice(writer, value.shape);
             return;
         case "tensorBroadcast":
-            writer.writeUnsigned(55);
+            writer.writeUnsigned(54);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.tensor);
             encodeIndexSlice(writer, value.dimensions);
             return;
         case "tensorTranspose":
-            writer.writeUnsigned(56);
+            writer.writeUnsigned(55);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.tensor);
             encodeIndexSlice(writer, value.permutation);
             return;
         case "tensorCast":
-            writer.writeUnsigned(57);
+            writer.writeUnsigned(56);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.tensor);
             return;
         case "tensorView":
-            writer.writeUnsigned(58);
+            writer.writeUnsigned(57);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.view);
             encodeValueSlice(writer, value.arguments);
@@ -2011,7 +1987,7 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             writer.writeUnsigned(value.stridesCount);
             return;
         case "tensorSlice":
-            writer.writeUnsigned(59);
+            writer.writeUnsigned(58);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.tensor);
             encodeValueSlice(writer, value.arguments);
@@ -2020,7 +1996,7 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             writer.writeUnsigned(value.stridesCount);
             return;
         case "tensorPad":
-            writer.writeUnsigned(60);
+            writer.writeUnsigned(59);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.tensor);
             encodeValueSlice(writer, value.arguments);
@@ -2030,27 +2006,27 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeValue(writer, value.value);
             return;
         case "tensorConcat":
-            writer.writeUnsigned(61);
+            writer.writeUnsigned(60);
             encodeValue(writer, value.destination);
             encodeValueSlice(writer, value.tensors);
             writer.writeUnsigned(value.axis);
             return;
         case "tensorCompare":
-            writer.writeUnsigned(62);
+            writer.writeUnsigned(61);
             encodeValue(writer, value.destination);
             encodeBinaryOperator(writer, value.operator);
             encodeValue(writer, value.left);
             encodeValue(writer, value.right);
             return;
         case "tensorSelect":
-            writer.writeUnsigned(63);
+            writer.writeUnsigned(62);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.mask);
             encodeValue(writer, value.thenValue);
             encodeValue(writer, value.elseValue);
             return;
         case "tensorReduce":
-            writer.writeUnsigned(64);
+            writer.writeUnsigned(63);
             encodeValue(writer, value.destination);
             encodeTensorReduceOperator(writer, value.operator);
             encodeValue(writer, value.tensor);
@@ -2058,7 +2034,7 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeIndexSlice(writer, value.axes);
             return;
         case "tensorIndexReduce":
-            writer.writeUnsigned(65);
+            writer.writeUnsigned(64);
             encodeValue(writer, value.destination);
             encodeTensorIndexReduceOperator(writer, value.operator);
             encodeValue(writer, value.tensor);
@@ -2066,28 +2042,28 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeTensorIndexTieBreak(writer, value.tieBreak);
             return;
         case "tensorDot":
-            writer.writeUnsigned(66);
+            writer.writeUnsigned(65);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.left);
             encodeValue(writer, value.right);
             encodeTensorImmediateId(writer, value.immediate);
             return;
         case "tensorConvolution":
-            writer.writeUnsigned(67);
+            writer.writeUnsigned(66);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.input);
             encodeValue(writer, value.kernel);
             encodeTensorImmediateId(writer, value.immediate);
             return;
         case "tensorGather":
-            writer.writeUnsigned(68);
+            writer.writeUnsigned(67);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.operand);
             encodeValue(writer, value.indices);
             encodeTensorImmediateId(writer, value.immediate);
             return;
         case "tensorScatter":
-            writer.writeUnsigned(69);
+            writer.writeUnsigned(68);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.operand);
             encodeValue(writer, value.indices);
@@ -2096,89 +2072,89 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeTensorScatterMode(writer, value.mode);
             return;
         case "tensorConvert":
-            writer.writeUnsigned(70);
+            writer.writeUnsigned(69);
             encodeValue(writer, value.destination);
             encodeConvertMode(writer, value.mode);
             encodeValue(writer, value.tensor);
             return;
         case "call":
-            writer.writeUnsigned(71);
+            writer.writeUnsigned(70);
             writer.writeOption(value.destination, (value0) => {
                 encodeValue(writer, value0);
             });
             encodeCall(writer, value.call);
             return;
         case "drop":
-            writer.writeUnsigned(72);
+            writer.writeUnsigned(71);
             encodeValue(writer, value.value);
             return;
         case "newZeroed":
-            writer.writeUnsigned(73);
+            writer.writeUnsigned(72);
             encodeValue(writer, value.destination);
             encodeLocalNodeId(writer, value.storageType);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "newUninit":
-            writer.writeUnsigned(74);
+            writer.writeUnsigned(73);
             encodeValue(writer, value.destination);
             encodeLocalNodeId(writer, value.storageType);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "newComplete":
-            writer.writeUnsigned(75);
+            writer.writeUnsigned(74);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.value);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "newSliceZeroed":
-            writer.writeUnsigned(76);
+            writer.writeUnsigned(75);
             encodeValue(writer, value.destination);
             encodeLocalNodeId(writer, value.element);
             encodeValue(writer, value.length);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "newSliceUninit":
-            writer.writeUnsigned(77);
+            writer.writeUnsigned(76);
             encodeValue(writer, value.destination);
             encodeLocalNodeId(writer, value.element);
             encodeValue(writer, value.length);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "free":
-            writer.writeUnsigned(78);
+            writer.writeUnsigned(77);
             encodeValue(writer, value.value);
             return;
         case "pin":
-            writer.writeUnsigned(79);
+            writer.writeUnsigned(78);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.value);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "unpin":
-            writer.writeUnsigned(80);
+            writer.writeUnsigned(79);
             encodeValue(writer, value.value);
             return;
         case "barrierWrite":
-            writer.writeUnsigned(81);
+            writer.writeUnsigned(80);
             encodeValue(writer, value.object);
             encodeValue(writer, value.offset);
             encodeValue(writer, value.byteLen);
             return;
         case "atomicLoad":
-            writer.writeUnsigned(82);
+            writer.writeUnsigned(81);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.pointer);
             encodeLocalNodeId(writer, value.resultType);
             encodeAtomicAccess(writer, value.access);
             return;
         case "atomicStore":
-            writer.writeUnsigned(83);
+            writer.writeUnsigned(82);
             encodeValue(writer, value.pointer);
             encodeValue(writer, value.value);
             encodeAtomicAccess(writer, value.access);
             return;
         case "atomicCompareExchange":
-            writer.writeUnsigned(84);
+            writer.writeUnsigned(83);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.pointer);
             encodeValue(writer, value.expected);
@@ -2187,7 +2163,7 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeCompareExchangeAccess(writer, value.access);
             return;
         case "atomicRmw":
-            writer.writeUnsigned(85);
+            writer.writeUnsigned(84);
             encodeValue(writer, value.destination);
             encodeAtomicRmwOperator(writer, value.operator);
             encodeValue(writer, value.pointer);
@@ -2195,30 +2171,30 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeAtomicAccess(writer, value.access);
             return;
         case "atomicFence":
-            writer.writeUnsigned(86);
+            writer.writeUnsigned(85);
             encodeFenceAccess(writer, value.access);
             return;
         case "assume":
-            writer.writeUnsigned(87);
+            writer.writeUnsigned(86);
             encodeValue(writer, value.condition);
             return;
         case "profileIncrement":
-            writer.writeUnsigned(88);
+            writer.writeUnsigned(87);
             encodeCounterId(writer, value.counter);
             return;
         case "profileSample":
-            writer.writeUnsigned(89);
+            writer.writeUnsigned(88);
             encodeSamplerId(writer, value.sampler);
             encodeValue(writer, value.value);
             return;
         case "poll":
-            writer.writeUnsigned(90);
+            writer.writeUnsigned(89);
             return;
         case "breakpoint":
-            writer.writeUnsigned(91);
+            writer.writeUnsigned(90);
             return;
         case "intrinsic":
-            writer.writeUnsigned(92);
+            writer.writeUnsigned(91);
             writer.writeOption(value.destination, (value0) => {
                 encodeValue(writer, value0);
             });
@@ -2683,20 +2659,6 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
         case 38: {
             const destination = decodeValue(reader);
             const dynamic = decodeValue(reader);
-            const slot = reader.readNumber();
-            const resultType = decodeLocalNodeId(reader);
-
-            return {
-                kind: "dynamicRead",
-                destination,
-                dynamic,
-                slot,
-                resultType,
-            };
-        }
-        case 39: {
-            const destination = decodeValue(reader);
-            const dynamic = decodeValue(reader);
             const key = decodeValue(reader);
             const resultType = decodeLocalNodeId(reader);
 
@@ -2708,7 +2670,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 40: {
+        case 39: {
             const destination = decodeValue(reader);
             const value = decodeValue(reader);
 
@@ -2718,7 +2680,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 41: {
+        case 40: {
             const destination = decodeValue(reader);
             const vector = decodeValue(reader);
             const index = decodeValue(reader);
@@ -2730,7 +2692,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 index,
             };
         }
-        case 42: {
+        case 41: {
             const destination = decodeValue(reader);
             const vector = decodeValue(reader);
             const index = decodeValue(reader);
@@ -2744,7 +2706,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 43: {
+        case 42: {
             const destination = decodeValue(reader);
             const left = decodeValue(reader);
             const right = decodeValue(reader);
@@ -2758,7 +2720,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 mask,
             };
         }
-        case 44: {
+        case 43: {
             const destination = decodeValue(reader);
             const mask = decodeValue(reader);
             const thenValue = decodeValue(reader);
@@ -2772,7 +2734,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 elseValue,
             };
         }
-        case 45: {
+        case 44: {
             const destination = decodeValue(reader);
             const operator = decodeVectorReduceOperator(reader);
             const vector = decodeValue(reader);
@@ -2784,7 +2746,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 vector,
             };
         }
-        case 46: {
+        case 45: {
             const destination = decodeValue(reader);
             const operator = decodeBinaryOperator(reader);
             const left = decodeValue(reader);
@@ -2798,7 +2760,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 right,
             };
         }
-        case 47: {
+        case 46: {
             const destination = decodeValue(reader);
             const mode = decodeConvertMode(reader);
             const vector = decodeValue(reader);
@@ -2810,7 +2772,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 vector,
             };
         }
-        case 48: {
+        case 47: {
             const destination = decodeValue(reader);
             const value = decodeValue(reader);
 
@@ -2820,7 +2782,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 49: {
+        case 48: {
             const destination = decodeValue(reader);
             const view = decodeValue(reader);
             const indices = decodeValueSlice(reader);
@@ -2832,7 +2794,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 indices,
             };
         }
-        case 50: {
+        case 49: {
             const destination = decodeValue(reader);
             const tensor = decodeValue(reader);
             const indices = decodeValueSlice(reader);
@@ -2844,7 +2806,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 indices,
             };
         }
-        case 51: {
+        case 50: {
             const view = decodeValue(reader);
             const indices = decodeValueSlice(reader);
             const value = decodeValue(reader);
@@ -2856,7 +2818,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 52: {
+        case 51: {
             const view = decodeValue(reader);
             const value = decodeValue(reader);
 
@@ -2866,7 +2828,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 53: {
+        case 52: {
             const target = decodeValue(reader);
             const source = decodeValue(reader);
 
@@ -2876,7 +2838,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 source,
             };
         }
-        case 54: {
+        case 53: {
             const destination = decodeValue(reader);
             const tensor = decodeValue(reader);
             const shape = decodeValueSlice(reader);
@@ -2888,7 +2850,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 shape,
             };
         }
-        case 55: {
+        case 54: {
             const destination = decodeValue(reader);
             const tensor = decodeValue(reader);
             const dimensions = decodeIndexSlice(reader);
@@ -2900,7 +2862,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 dimensions,
             };
         }
-        case 56: {
+        case 55: {
             const destination = decodeValue(reader);
             const tensor = decodeValue(reader);
             const permutation = decodeIndexSlice(reader);
@@ -2912,7 +2874,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 permutation,
             };
         }
-        case 57: {
+        case 56: {
             const destination = decodeValue(reader);
             const tensor = decodeValue(reader);
 
@@ -2922,7 +2884,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 tensor,
             };
         }
-        case 58: {
+        case 57: {
             const destination = decodeValue(reader);
             const view = decodeValue(reader);
             const arguments_ = decodeValueSlice(reader);
@@ -2940,7 +2902,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 stridesCount,
             };
         }
-        case 59: {
+        case 58: {
             const destination = decodeValue(reader);
             const tensor = decodeValue(reader);
             const arguments_ = decodeValueSlice(reader);
@@ -2958,7 +2920,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 stridesCount,
             };
         }
-        case 60: {
+        case 59: {
             const destination = decodeValue(reader);
             const tensor = decodeValue(reader);
             const arguments_ = decodeValueSlice(reader);
@@ -2978,7 +2940,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 61: {
+        case 60: {
             const destination = decodeValue(reader);
             const tensors = decodeValueSlice(reader);
             const axis = reader.readNumber();
@@ -2990,7 +2952,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 axis,
             };
         }
-        case 62: {
+        case 61: {
             const destination = decodeValue(reader);
             const operator = decodeBinaryOperator(reader);
             const left = decodeValue(reader);
@@ -3004,7 +2966,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 right,
             };
         }
-        case 63: {
+        case 62: {
             const destination = decodeValue(reader);
             const mask = decodeValue(reader);
             const thenValue = decodeValue(reader);
@@ -3018,7 +2980,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 elseValue,
             };
         }
-        case 64: {
+        case 63: {
             const destination = decodeValue(reader);
             const operator = decodeTensorReduceOperator(reader);
             const tensor = decodeValue(reader);
@@ -3034,7 +2996,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 axes,
             };
         }
-        case 65: {
+        case 64: {
             const destination = decodeValue(reader);
             const operator = decodeTensorIndexReduceOperator(reader);
             const tensor = decodeValue(reader);
@@ -3050,7 +3012,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 tieBreak,
             };
         }
-        case 66: {
+        case 65: {
             const destination = decodeValue(reader);
             const left = decodeValue(reader);
             const right = decodeValue(reader);
@@ -3064,7 +3026,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 immediate,
             };
         }
-        case 67: {
+        case 66: {
             const destination = decodeValue(reader);
             const input = decodeValue(reader);
             const kernel = decodeValue(reader);
@@ -3078,7 +3040,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 immediate,
             };
         }
-        case 68: {
+        case 67: {
             const destination = decodeValue(reader);
             const operand = decodeValue(reader);
             const indices = decodeValue(reader);
@@ -3092,7 +3054,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 immediate,
             };
         }
-        case 69: {
+        case 68: {
             const destination = decodeValue(reader);
             const operand = decodeValue(reader);
             const indices = decodeValue(reader);
@@ -3110,7 +3072,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 mode,
             };
         }
-        case 70: {
+        case 69: {
             const destination = decodeValue(reader);
             const mode = decodeConvertMode(reader);
             const tensor = decodeValue(reader);
@@ -3122,7 +3084,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 tensor,
             };
         }
-        case 71: {
+        case 70: {
             const destination = reader.readOption(() => decodeValue(reader));
             const call = decodeCall(reader);
 
@@ -3132,7 +3094,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 call,
             };
         }
-        case 72: {
+        case 71: {
             const value = decodeValue(reader);
 
             return {
@@ -3140,7 +3102,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 73: {
+        case 72: {
             const destination = decodeValue(reader);
             const storageType = decodeLocalNodeId(reader);
             const resultType = decodeLocalNodeId(reader);
@@ -3152,7 +3114,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 74: {
+        case 73: {
             const destination = decodeValue(reader);
             const storageType = decodeLocalNodeId(reader);
             const resultType = decodeLocalNodeId(reader);
@@ -3164,7 +3126,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 75: {
+        case 74: {
             const destination = decodeValue(reader);
             const value = decodeValue(reader);
             const resultType = decodeLocalNodeId(reader);
@@ -3176,7 +3138,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 76: {
+        case 75: {
             const destination = decodeValue(reader);
             const element = decodeLocalNodeId(reader);
             const length = decodeValue(reader);
@@ -3190,7 +3152,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 77: {
+        case 76: {
             const destination = decodeValue(reader);
             const element = decodeLocalNodeId(reader);
             const length = decodeValue(reader);
@@ -3204,7 +3166,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 78: {
+        case 77: {
             const value = decodeValue(reader);
 
             return {
@@ -3212,7 +3174,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 79: {
+        case 78: {
             const destination = decodeValue(reader);
             const value = decodeValue(reader);
             const resultType = decodeLocalNodeId(reader);
@@ -3224,7 +3186,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 80: {
+        case 79: {
             const value = decodeValue(reader);
 
             return {
@@ -3232,7 +3194,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 81: {
+        case 80: {
             const object_ = decodeValue(reader);
             const offset = decodeValue(reader);
             const byteLen = decodeValue(reader);
@@ -3244,7 +3206,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 byteLen,
             };
         }
-        case 82: {
+        case 81: {
             const destination = decodeValue(reader);
             const pointer = decodeValue(reader);
             const resultType = decodeLocalNodeId(reader);
@@ -3258,7 +3220,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 83: {
+        case 82: {
             const pointer = decodeValue(reader);
             const value = decodeValue(reader);
             const access = decodeAtomicAccess(reader);
@@ -3270,7 +3232,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 84: {
+        case 83: {
             const destination = decodeValue(reader);
             const pointer = decodeValue(reader);
             const expected = decodeValue(reader);
@@ -3288,7 +3250,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 85: {
+        case 84: {
             const destination = decodeValue(reader);
             const operator = decodeAtomicRmwOperator(reader);
             const pointer = decodeValue(reader);
@@ -3304,7 +3266,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 86: {
+        case 85: {
             const access = decodeFenceAccess(reader);
 
             return {
@@ -3312,7 +3274,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 87: {
+        case 86: {
             const condition = decodeValue(reader);
 
             return {
@@ -3320,7 +3282,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 condition,
             };
         }
-        case 88: {
+        case 87: {
             const counter = decodeCounterId(reader);
 
             return {
@@ -3328,7 +3290,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 counter,
             };
         }
-        case 89: {
+        case 88: {
             const sampler = decodeSamplerId(reader);
             const value = decodeValue(reader);
 
@@ -3338,13 +3300,13 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 90: {
+        case 89: {
             return { kind: "poll" };
         }
-        case 91: {
+        case 90: {
             return { kind: "breakpoint" };
         }
-        case 92: {
+        case 91: {
             const destination = reader.readOption(() => decodeValue(reader));
             const intrinsic = decodeIntrinsic(reader);
             const arguments_ = decodeValueSlice(reader);
@@ -3625,14 +3587,6 @@ export function toJsonInstruction(value: Instruction): Json {
                 kind: "dynamicType",
                 destination: toJsonValue(value.destination),
                 dynamic: toJsonValue(value.dynamic),
-            };
-        case "dynamicRead":
-            return {
-                kind: "dynamicRead",
-                destination: toJsonValue(value.destination),
-                dynamic: toJsonValue(value.dynamic),
-                slot: value.slot,
-                resultType: toJsonLocalNodeId(value.resultType),
             };
         case "dynamicFind":
             return {
@@ -4294,14 +4248,6 @@ export function fromJsonInstruction(value: Json): Instruction {
                 kind,
                 destination: fromJsonValue(jsonField(object, "destination")),
                 dynamic: fromJsonValue(jsonField(object, "dynamic")),
-            };
-        case "dynamicRead":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                dynamic: fromJsonValue(jsonField(object, "dynamic")),
-                slot: jsonInteger(jsonField(object, "slot")),
-                resultType: fromJsonLocalNodeId(jsonField(object, "resultType")),
             };
         case "dynamicFind":
             return {
