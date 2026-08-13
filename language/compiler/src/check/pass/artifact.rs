@@ -148,6 +148,7 @@ impl CheckState<'_> {
             generics_tail: generics,
             coercions,
             captures,
+            flows,
             ..
         } = self.module;
 
@@ -165,6 +166,7 @@ impl CheckState<'_> {
             &members,
             &coercions,
             &captures,
+            &flows,
         ))
         .map_err(|error| CompilerError::Internal {
             message: format!("failed to fingerprint DIR payload for module {module:?}: {error}"),
@@ -184,6 +186,7 @@ impl CheckState<'_> {
             members: Arc::new(members),
             coercions: Arc::new(coercions),
             captures: Arc::new(captures),
+            flows: Arc::new(flows),
         })
     }
 }

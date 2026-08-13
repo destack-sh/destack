@@ -94,6 +94,84 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Record the symbol uses this pass proved in the flow segment.
+    pub(in crate::check) fn write_flows(&mut self) {
+        let mut uses = Vec::new();
+
+        // collect named references from every carried segment, covering reads by name
+        let declared = self.module.declared.clone();
+        let elaborated = self.module.elaborated.clone();
+        let carried = [
+            declared.as_deref().map(|declared| &declared.resolutions),
+            elaborated.as_deref().map(|elaborated| &elaborated.resolutions),
+        ];
+        for segment in carried.into_iter().flatten() {
+            for (_, resolution) in segment.name_entries() {
+                uses.push((resolution.symbol(), dir::BindingUse::READ));
+            }
+        }
+        for (_, resolution) in self.module.resolutions.name_entries() {
+            uses.push((resolution.symbol(), dir::BindingUse::READ));
+        }
+
+        // collect keyed member selections and written targets from the decisions
+        for (_, decision) in self.module.decisions.decision_entries() {
+            match decision {
+                dir::Decision::Member(member) => match member {
+                    dir::OperationResolution::One(access) => {
+                        member_target_symbols(&access.target, dir::BindingUse::READ, &mut uses);
+                    }
+                    dir::OperationResolution::Union { arms, .. } => {
+                        for access in arms {
+                            member_target_symbols(&access.target, dir::BindingUse::READ, &mut uses);
+                        }
+                    }
+                },
+                dir::Decision::Assignment(assignment) => match &assignment.write {
+                    dir::WriteResolution::Binding { symbol, .. } => {
+                        uses.push((*symbol, dir::BindingUse::WRITTEN));
+                    }
+                    dir::WriteResolution::Member(member) => match member {
+                        dir::OperationResolution::One(access) => {
+                            member_target_symbols(
+                                &access.target,
+                                dir::BindingUse::WRITTEN,
+                                &mut uses,
+                            );
+                        }
+                        dir::OperationResolution::Union { arms, .. } => {
+                            for access in arms {
+                                member_target_symbols(
+                                    &access.target,
+                                    dir::BindingUse::WRITTEN,
+                                    &mut uses,
+                                );
+                            }
+                        }
+                    },
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+
+        // collect closure uses from the captures
+        for capture in self.module.captures.capture_by_function.values() {
+            for binding in &capture.captures {
+                uses.push((binding.symbol(), dir::BindingUse::CAPTURED));
+            }
+        }
+
+        // record each use against its owning module
+        for (symbol, binding_use) in uses {
+            if symbol.module_id == self.module_id {
+                self.module.flows.record_use(symbol.local_id, binding_use);
+            } else {
+                self.module.flows.record_foreign_use(symbol, binding_use);
+            }
+        }
+    }
+
     /// Resolve every type one written module segment carries.
     fn resolve_segment_types<S: TypeFold>(
         &mut self,
@@ -315,5 +393,32 @@ impl CheckState<'_> {
 
             _ => Ok(false),
         }
+    }
+}
+
+/// Collect the declared symbols one member target selects.
+fn member_target_symbols(
+    target: &dir::MemberTarget,
+    binding_use: dir::BindingUse,
+    uses: &mut Vec<(dir::GlobalSymbolId, dir::BindingUse)>,
+) {
+    match target {
+        // record the declared field a nominal access selects
+        dir::MemberTarget::Field(field) => {
+            if let dir::FieldTarget::Member { symbol, .. } = field.target {
+                uses.push((symbol, binding_use));
+            }
+        }
+        // record the declared member a symbol access selects
+        dir::MemberTarget::Symbol(candidate) => uses.push((candidate.symbol, binding_use)),
+        // walk grouped targets member by member
+        dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
+            for target in targets {
+                member_target_symbols(target, binding_use, uses);
+            }
+        }
+        dir::MemberTarget::Projection { .. }
+        | dir::MemberTarget::Call(_)
+        | dir::MemberTarget::Index(_) => {}
     }
 }

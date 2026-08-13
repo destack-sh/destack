@@ -45,6 +45,14 @@ impl BodyState<'_, '_> {
                 continue;
             };
 
+            // mark a statement past the diverging end unreachable
+            if !is_end_reachable {
+                self.check
+                    .module_mut(module)
+                    .flows
+                    .mark_unreachable(node.local_id);
+            }
+
             // let each statement own the inference it opens
             let scope = InferenceScope::open(
                 self.check.infer.variable_count(),
@@ -62,6 +70,10 @@ impl BodyState<'_, '_> {
                     && !self.check.flow.is_unbound_jump(node.local_id)
                 {
                     is_end_reachable = false;
+                    self.check
+                        .module_mut(module)
+                        .flows
+                        .mark_diverging(node.local_id);
                 }
             }
         }

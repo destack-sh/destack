@@ -82,7 +82,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let module = self.module;
         let flow = std::mem::take(&mut self.check.flow);
         let state = self.check.module_mut(module);
-        flow.sync_to(&mut state.flows);
+        flow.sync_to(&mut state.flow_points);
         self.check.flow = flow;
 
         Ok(())

@@ -83,6 +83,8 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) coercions: dir::CoercionSegment,
     /// Checked captures.
     pub(in crate::check) captures: dir::CaptureSegment,
+    /// Checked flow conclusions.
+    pub(in crate::check) flows: dir::FlowSegment,
     /// Checked diagnostic controls, an owned output seeded from elaborated.
     pub(in crate::check) controls: DiagnosticControlTable,
 
@@ -92,7 +94,7 @@ pub(in crate::check) struct CheckModuleState {
     /// Captures discovered while walking this module.
     pub(in crate::check) pending_captures: Vec<Capture>,
     /// Durable flow states discovered while walking this module.
-    pub(in crate::check) flows: Vec<FlowPoint>,
+    pub(in crate::check) flow_points: Vec<FlowPoint>,
     /// Entry flow point for each walked source node occurrence.
     pub(in crate::check) node_flows: FxIndexMap<dir::GlobalNodeIdAny, FlowPointId>,
     /// Generic template assumed by each checked source node.
@@ -197,6 +199,7 @@ impl CheckModuleState {
         let decisions = dir::DecisionSegment::new(module.id);
         let coercions = dir::CoercionSegment::new(module.id);
         let captures = dir::CaptureSegment::new(module.id);
+        let flows = dir::FlowSegment::new(module.id);
         let controls = match &elaborated {
             Some(elaborated) => (*elaborated.controls).clone(),
             None => {
@@ -234,13 +237,14 @@ impl CheckModuleState {
             decisions,
             coercions,
             captures,
+            flows,
             controls,
             static_values: FxIndexMap::default(),
             static_presence: FxIndexMap::default(),
             absent_symbols: FxIndexSet::default(),
             external_modules: FxIndexSet::default(),
             pending_captures: Vec::new(),
-            flows: Vec::new(),
+            flow_points: Vec::new(),
             node_flows: FxIndexMap::default(),
             node_scopes: FxIndexMap::default(),
             unreachable_ends: FxIndexSet::default(),

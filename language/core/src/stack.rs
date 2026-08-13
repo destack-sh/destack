@@ -1,9 +1,3 @@
-//! Stack growth utilities for deeply recursive operations.
-//!
-//! This module provides utilities to prevent stack overflow when processing
-//! deeply nested structures (e.g., binary expression chains with 2500+ levels).
-//! Uses the same approach as rustc.
-
 /// Red zone: minimum stack space before we allocate more (100 KB).
 pub const STACK_RED_ZONE: usize = 100 * 1024;
 

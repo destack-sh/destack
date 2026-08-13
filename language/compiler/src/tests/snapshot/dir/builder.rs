@@ -330,6 +330,10 @@ impl<'a> DirSnapshotBuilder<'a> {
         if selection.capture {
             self.add_table(checked.captures.as_ref());
         }
+
+        if selection.flow {
+            self.add_table(checked.flows.as_ref());
+        }
     }
 
     /// Add one row.

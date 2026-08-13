@@ -41,7 +41,7 @@ impl CheckState<'_> {
         // read the checked module's flow graph from the live cursor before flushes
         let module_id = self.module_id;
         let module = self.module(site.node.module_id);
-        let flows = &module.flows;
+        let flows = &module.flow_points;
         let cursor = (site.node.module_id == module_id).then(|| self.flow.points());
 
         // collect every direct narrowing and descendant equality back to their clears

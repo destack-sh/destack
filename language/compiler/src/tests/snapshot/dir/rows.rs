@@ -39,6 +39,8 @@ pub(crate) struct DirRows {
     pub(super) export: bool,
     /// Whether to render capture table rows.
     pub(super) capture: bool,
+    /// Whether to render flow table rows.
+    pub(super) flow: bool,
     /// Whether to render macro table rows.
     pub(super) macros: bool,
     /// Tables row prefixes to render.
@@ -69,6 +71,7 @@ impl DirRows {
             import: false,
             export: false,
             capture: false,
+            flow: false,
             macros: false,
             metadata_rows: &[],
             event_rows: &[],
@@ -133,6 +136,12 @@ impl DirRows {
     pub(crate) const fn with_binding_nodes(mut self) -> Self {
         self.binding = true;
         self.binding_nodes = true;
+        self
+    }
+
+    /// Include flow table rows.
+    pub(crate) const fn with_flows(mut self) -> Self {
+        self.flow = true;
         self
     }
 
