@@ -730,29 +730,6 @@ impl FormatNode for Instruction {
                 )
             }
 
-            Instruction::DynamicRead {
-                destination,
-                dynamic,
-                slot,
-                ..
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("dynamic.read"),
-                        space(),
-                        dynamic,
-                        token(","),
-                        space(),
-                        copied_text(&slot.to_string())
-                    ]
-                )
-            }
-
             Instruction::DynamicFind {
                 destination,
                 dynamic,
