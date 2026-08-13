@@ -8,4 +8,5 @@ mod literal;
 mod operator;
 mod optional;
 mod pattern;
+mod range;
 mod r#static;

@@ -40,6 +40,9 @@ impl Obligation {
             Self::WellFormedType(obligation) => {
                 event.text("type", context.type_label(obligation.ty))
             }
+            Self::RangeElement(obligation) => {
+                event.text("element", context.type_label(obligation.element))
+            }
         }
     }
 
@@ -52,6 +55,7 @@ impl Obligation {
             Self::ForInSource(_) => "for.in.source",
             Self::ClassInitialization(_) => "class.initialization",
             Self::WellFormedType(_) => "wellformed.type",
+            Self::RangeElement(_) => "range.element",
         }
     }
 }

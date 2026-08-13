@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use super::InferMode;
 use crate::CompilerResult;
 use crate::check::{
-    BodyState, Cause, CauseKind, Constraint, Expectation, FlowSite, PlaceUse, Relation, ValueUse,
-    VariableRole, Widening,
+    BodyState, Cause, CauseKind, Constraint, Expectation, FlowSite, Obligation, PlaceUse,
+    RangeElementObligation, Relation, ValueUse, VariableRole, Widening,
 };
 
 impl BodyState<'_, '_> {
@@ -119,7 +119,7 @@ impl BodyState<'_, '_> {
             bounds => {
                 let origin = site.origin();
                 let variable =
-                    self.allocate_variable(origin, Widening::Always, VariableRole::Regular);
+                    self.allocate_variable(origin, Widening::Comptime, VariableRole::Regular);
                 let element = self.variable_type(variable)?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 for bound in bounds {
@@ -131,6 +131,16 @@ impl BodyState<'_, '_> {
                         cause,
                     ))?;
                 }
+
+                // oblige both endpoints to share one element type
+                let scope = self.check.origin_scope(origin)?;
+                self.check.push_obligation(
+                    Obligation::RangeElement(RangeElementObligation {
+                        source: node.into_any(),
+                        element,
+                    }),
+                    scope,
+                );
 
                 Some(element)
             }

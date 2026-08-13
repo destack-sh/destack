@@ -605,7 +605,9 @@ impl BodyState<'_, '_> {
         };
         let input = match widening {
             Widening::Always => self.widen_type(input)?,
-            Widening::Never | Widening::Aggregate | Widening::Multiple => input,
+            Widening::Never | Widening::Aggregate | Widening::Multiple | Widening::Comptime => {
+                input
+            }
         };
 
         self.check.place_binding_type(symbol, input)

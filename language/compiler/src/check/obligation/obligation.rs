@@ -61,6 +61,8 @@ pub(in crate::check) enum Obligation {
     ClassInitialization(ClassInitializationObligation),
     /// A written type operation must be well-formed once its operands close.
     WellFormedType(WellFormedTypeObligation),
+    /// A range's written endpoints share one element type.
+    RangeElement(RangeElementObligation),
 }
 
 /// When one obligation may judge.
@@ -76,9 +78,10 @@ impl Obligation {
     /// Return when this obligation may judge.
     pub(in crate::check) fn phase(&self) -> ObligationPhase {
         match self {
-            Self::PatternCoverage(_) | Self::RuntimePredicate(_) | Self::ForInSource(_) => {
-                ObligationPhase::Produce
-            }
+            Self::PatternCoverage(_)
+            | Self::RuntimePredicate(_)
+            | Self::ForInSource(_)
+            | Self::RangeElement(_) => ObligationPhase::Produce,
             Self::WritableTarget(_) | Self::ClassInitialization(_) | Self::WellFormedType(_) => {
                 ObligationPhase::Judge
             }
@@ -94,6 +97,7 @@ impl Obligation {
             Self::ForInSource(obligation) => obligation.source,
             Self::ClassInitialization(obligation) => obligation.source,
             Self::WellFormedType(obligation) => obligation.source,
+            Self::RangeElement(obligation) => obligation.source,
         }
     }
 
@@ -108,6 +112,7 @@ impl Obligation {
             Self::ForInSource(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::WellFormedType(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::ClassInitialization(obligation) => SmallVec::from_slice(&[obligation.receiver]),
+            Self::RangeElement(obligation) => SmallVec::from_slice(&[obligation.element]),
             Self::RuntimePredicate(_) => SmallVec::new(),
         }
     }
@@ -181,6 +186,13 @@ pub(in crate::check) enum ObligationFailure {
     ForInSourceNotObjectShaped {
         /// The for-in expression.
         source: dir::GlobalNodeIdAny,
+    },
+    /// A range's written endpoints carry different types.
+    IncompatibleRangeEndpoints {
+        /// The range expression.
+        source: dir::GlobalNodeIdAny,
+        /// The unified element type of the written endpoints.
+        element: dir::GlobalTypeId,
     },
     /// A type predicate can never hold.
     ImpossibleIs {
@@ -575,6 +587,19 @@ pub(in crate::check) struct ForInSourceObligation {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
+/// Obliges a range's written endpoints to share one element type.
+///
+/// ```ds
+/// low..high
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct RangeElementObligation {
+    /// The range expression.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The unified element type of the written endpoints.
+    pub(in crate::check) element: dir::GlobalTypeId,
+}
+
 /// Obliges a declaration to satisfy every declared interface.
 ///
 /// ```ds
@@ -739,6 +764,7 @@ impl CheckState<'_> {
             Obligation::WellFormedType(obligation) => {
                 self.check_well_formed_type(origin, obligation)
             }
+            Obligation::RangeElement(obligation) => self.check_range_element(obligation),
         }
     }
 
@@ -778,6 +804,31 @@ impl CheckState<'_> {
                 |source, missing| ObligationFailure::RefutableCatchPattern { source, missing },
             ),
         }
+    }
+
+    /// Check one range element obligation.
+    fn check_range_element(
+        &mut self,
+        obligation: &RangeElementObligation,
+    ) -> CompilerResult<ObligationCheck> {
+        // judge the element once inference solves every endpoint
+        let stalls = self.open_type_variables([obligation.element])?;
+        if !stalls.is_empty() {
+            return Ok(ObligationCheck::Ambiguous(stalls));
+        }
+
+        // mismatched endpoints join into a union element
+        let element = self.shallow_resolve(obligation.element)?;
+        if !matches!(self.ty(element)?, dir::Type::Union(_)) {
+            return Ok(ObligationCheck::holds());
+        }
+
+        let failure = ObligationFailure::IncompatibleRangeEndpoints {
+            source: obligation.source,
+            element,
+        };
+
+        Ok(ObligationCheck::fail(failure))
     }
 
     /// Check one for-in source obligation.

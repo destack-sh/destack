@@ -76,6 +76,8 @@ pub(in crate::check) enum Widening {
     Multiple,
     /// Widen every exact literal candidate to its base type.
     Always,
+    /// Widen literal candidates into their comptime family, yielding to a typed candidate.
+    Comptime,
 }
 
 /// Variables opened by one task, owned as a dense arena interval.

@@ -1926,6 +1926,15 @@ impl CheckState<'_> {
                 let error = CheckError::ForInSourceNotObjectShaped { anchor, module };
                 self.report(module, error);
             }
+            ObligationFailure::IncompatibleRangeEndpoints { source, element } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::IncompatibleRangeEndpoints {
+                    anchor,
+                    module,
+                    element: self.format_type(element),
+                };
+                self.report(module, error);
+            }
             ObligationFailure::ImpossibleIs {
                 source,
                 value,

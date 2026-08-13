@@ -100,6 +100,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             Widening::Aggregate => "aggregate",
             Widening::Multiple => "multiple",
             Widening::Always => "always",
+            Widening::Comptime => "comptime",
         }
     }
 

@@ -1962,6 +1962,26 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Range endpoints carry different element types.
+    ///
+    /// ```ds
+    /// declare const low: float64;
+    /// declare const high: int32;
+    /// low..high;
+    /// ```
+    #[diagnostic(
+        id = "incompatible-range-endpoints",
+        message = "range endpoints do not share one type: '{element}'"
+    )]
+    IncompatibleRangeEndpoints {
+        /// Report the range expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The joined element type of the written endpoints.
+        element: String,
+    },
+
     /// Pattern tries to destructure a value that has no object shape.
     ///
     /// ```ds

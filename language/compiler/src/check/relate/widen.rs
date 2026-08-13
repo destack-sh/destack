@@ -239,6 +239,21 @@ impl CheckState<'_> {
         }
     }
 
+    /// Widen one closed type, keeping comptime integer literals in the integer family.
+    pub(in crate::check) fn widen_comptime_type(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // widen an integer literal to the declared integer default
+        if let dir::Type::Literal(literal @ dir::ScalarLiteral::Integer(_)) = self.ty(ty)? {
+            let widened = literal.widen_integer();
+
+            return self.intern_type(widened);
+        }
+
+        self.widen_type(ty)
+    }
+
     /// Rebuild one widening solution composite with widened leaves.
     fn widen_tree(
         &mut self,
