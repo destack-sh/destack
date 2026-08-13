@@ -28,6 +28,7 @@ impl CheckState<'_> {
             // derive variances, constructor entries, and marker conformances
             let module = state.module_id;
             state.derive_module_variances(module)?;
+            state.derive_native_cardinalities(module)?;
             state.derive_module_constructors(module)?;
             state.derive_module_conformances(module)?;
 

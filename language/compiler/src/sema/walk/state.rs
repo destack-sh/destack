@@ -17,6 +17,8 @@ pub(in crate::sema) struct WalkState<'check, 'state> {
     pub(in crate::sema) module: ModuleId,
     /// How elided borrow lifetimes are handled in the active type position.
     borrow_lifetime_elision: BorrowLifetimeElision,
+    /// Whether declared value reads pin parameters to one exact value.
+    pub(in crate::sema) imposes_requirements: bool,
     /// Elided borrow lifetimes tracked by the active return type.
     return_borrow_lifetimes: Vec<dir::TypeVariableId>,
 }
@@ -60,8 +62,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
             tree,
             module,
             borrow_lifetime_elision: BorrowLifetimeElision::Generate,
+            imposes_requirements: true,
             return_borrow_lifetimes: Vec::new(),
         }
+    }
+
+    /// Walk body positions, which check requirements instead of imposing them.
+    pub(in crate::sema) fn for_body(mut self) -> Self {
+        self.imposes_requirements = false;
+
+        self
     }
 
     /// Return flow state for the active module.

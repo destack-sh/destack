@@ -827,7 +827,7 @@ impl BodyState<'_, '_> {
 
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
-        let mut walk = WalkState::new(module, tree, self.check);
+        let mut walk = WalkState::new(module, tree, self.check).for_body();
         let present = walk.walk_decorators(decorated)?;
         walk.flush_flows()?;
 
@@ -869,7 +869,7 @@ impl BodyState<'_, '_> {
         }
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
-        let mut walk = WalkState::new(module, tree, self.check);
+        let mut walk = WalkState::new(module, tree, self.check).for_body();
         walk.walk_construct_type_expression(ty)?;
 
         Ok(())
@@ -883,7 +883,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
-        let mut walk = WalkState::new(module, tree, self.check);
+        let mut walk = WalkState::new(module, tree, self.check).for_body();
 
         walk.walk_static_term(expression)
     }
@@ -916,7 +916,7 @@ impl BodyState<'_, '_> {
         let is_body_position = self.is_body_annotation(module, ty);
 
         // walk the annotation in its closing position
-        let mut walk = WalkState::new(module, tree, self.check);
+        let mut walk = WalkState::new(module, tree, self.check).for_body();
         match is_body_position {
             // open lifetime holes for inference in body positions
             true => walk.walk_type_expression(ty)?,
@@ -964,7 +964,7 @@ impl BodyState<'_, '_> {
         }
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
-        let mut walk = WalkState::new(module, tree, self.check);
+        let mut walk = WalkState::new(module, tree, self.check).for_body();
         walk.walk_frame_type_expression(ty)?;
 
         Ok(())
@@ -987,7 +987,7 @@ impl BodyState<'_, '_> {
         }
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
-        let mut walk = WalkState::new(module, tree, self.check);
+        let mut walk = WalkState::new(module, tree, self.check).for_body();
         walk.walk_generic_arguments(arguments)?;
 
         Ok(())
@@ -1019,7 +1019,7 @@ impl BodyState<'_, '_> {
         }
 
         // declare the signature, register the body, and key it by value
-        let mut walk = WalkState::new(module, tree, self.check);
+        let mut walk = WalkState::new(module, tree, self.check).for_body();
         walk.walk_declaration(declaration, &kind)?;
         let symbol = walk
             .check
@@ -1109,7 +1109,7 @@ impl BodyState<'_, '_> {
         }
 
         // register the declared bodies of other declarations
-        let mut walk = WalkState::new(module, tree, self.check);
+        let mut walk = WalkState::new(module, tree, self.check).for_body();
         walk.visit_body_declaration_statement(declaration, &kind)?;
 
         Ok(())

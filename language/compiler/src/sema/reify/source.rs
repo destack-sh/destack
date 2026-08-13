@@ -294,7 +294,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
         for (node, parameter) in written.iter().zip(parameters.iter()) {
             // written modifiers and unmeasured parameters stay as written
-            let Some(modifier) = self.check.recorded_derived_variance(module_id, *parameter) else {
+            let Some(modifier) = self.check.recorded_variance(module_id, *parameter) else {
                 continue;
             };
 

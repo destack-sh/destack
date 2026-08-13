@@ -970,6 +970,21 @@ impl WalkState<'_, '_> {
                 let argument = written[cursor].ty;
                 cursor += 1;
 
+                // a rigid argument parameter inherits the callee slot's cardinality
+                if self.imposes_requirements
+                    && let dir::Type::Parameter(argument_parameter) = self.check.ty(argument)?
+                    && argument_parameter.module_id == self.module
+                    && argument_parameter != parameter
+                {
+                    self.check
+                        .module_mut(self.module)
+                        .generics_tail
+                        .set_cardinality(
+                            argument_parameter.local_id,
+                            dir::Cardinality::Of { callee: parameter },
+                        );
+                }
+
                 argument
             }
             // evaluate defaults against the application built so far

@@ -1,3 +1,4 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
@@ -850,24 +851,120 @@ impl CheckState<'_> {
         for (parameter, modifier) in filled {
             self.module_mut(module)
                 .generics_tail
-                .set_derived_variance(parameter, modifier);
+                .set_variance(parameter, modifier);
         }
 
         Ok(())
     }
 
+    /// Record the cardinalities native implementations impose on one module.
+    pub(in crate::sema) fn derive_native_cardinalities(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<()> {
+        // native implementations consume their value parameters directly
+        let symbols = self
+            .module(module)
+            .iter_definitions()
+            .map(|(symbol, _)| symbol)
+            .collect::<Vec<_>>();
+        let mut native = Vec::new();
+        for symbol in symbols {
+            let Some(template) = self.symbol_template(symbol)? else {
+                continue;
+            };
+            let state = self.module(module);
+            let Some(node) = state.bindings.get_symbol(symbol.local_id).declaration else {
+                continue;
+            };
+            let is_native = state
+                .decorators_tail
+                .applications_for_owner(node)
+                .any(|application| {
+                    matches!(
+                        application.resolution.target,
+                        dir::DecoratorTarget::LanguageItem {
+                            item: dir::LanguageItem::Intrinsic | dir::LanguageItem::Binding,
+                            ..
+                        }
+                    )
+                });
+            if !is_native {
+                continue;
+            }
+
+            for parameter in self.generic_template_parameters(template)? {
+                let Some(binding) = self.generic_parameter(parameter) else {
+                    continue;
+                };
+                if matches!(binding.kind, dir::GenericParameterKind::Value) {
+                    native.push((parameter.local_id, node));
+                }
+            }
+        }
+        for (parameter, node) in native {
+            self.module_mut(module)
+                .generics_tail
+                .set_cardinality(parameter, dir::Cardinality::One { source: node.local_id });
+        }
+
+        Ok(())
+    }
+
+    /// Return the One cardinality one parameter resolves to, if any.
+    pub(in crate::sema) fn recorded_cardinality(
+        &self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> Option<dir::Cardinality> {
+        let mut visited = FxIndexSet::default();
+        let mut current = parameter;
+
+        // follow Of links to the recorded One
+        while visited.insert(current) {
+            match self.parameter_cardinality(current)? {
+                one @ dir::Cardinality::One { .. } => return Some(one),
+                dir::Cardinality::Of { callee } => current = callee,
+            }
+        }
+
+        None
+    }
+
+    /// Return the cardinality one parameter's segments record.
+    fn parameter_cardinality(
+        &self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> Option<dir::Cardinality> {
+        let state = self.module_maybe(parameter.module_id)?;
+        if let Some(cardinality) = state.generics_tail.cardinality(parameter.local_id) {
+            return Some(cardinality);
+        }
+        if let Some(elaborated) = &state.elaborated
+            && let Some(cardinality) = elaborated.generics.cardinality(parameter.local_id)
+        {
+            return Some(cardinality);
+        }
+        if let Some(declared) = &state.declared
+            && let Some(cardinality) = declared.generics.cardinality(parameter.local_id)
+        {
+            return Some(cardinality);
+        }
+
+        None
+    }
+
     /// Return the derived variance recorded for one parameter, if any.
-    pub(in crate::sema) fn recorded_derived_variance(
+    pub(in crate::sema) fn recorded_variance(
         &self,
         module: ModuleId,
         parameter: dir::LocalGenericParameterId,
     ) -> Option<dir::VarianceModifier> {
         let state = self.module_maybe(module)?;
-        if let Some(modifier) = state.generics_tail.derived_variance(parameter) {
+        if let Some(modifier) = state.generics_tail.variance(parameter) {
             return Some(modifier);
         }
         if let Some(elaborated) = &state.elaborated
-            && let Some(modifier) = elaborated.generics.derived_variance(parameter)
+            && let Some(modifier) = elaborated.generics.variance(parameter)
         {
             return Some(modifier);
         }

@@ -339,6 +339,25 @@ impl WalkState<'_, '_> {
                 // comptime parameters write their parameter type so
                 //  instantiation substitution reaches the predicate
                 if let Some(parameter) = self.check.parameter_by_symbol(symbol) {
+                    // declared value reads pin the parameter to one exact value
+                    if self.imposes_requirements && parameter.module_id == self.module {
+                        let cardinality = dir::Cardinality::One {
+                            source: expression.into_any(),
+                        };
+                        self.check
+                            .module_mut(self.module)
+                            .generics_tail
+                            .set_cardinality(parameter.local_id, cardinality);
+                    }
+                    // body value reads consume the value the signature must fix
+                    else if !self.imposes_requirements
+                        && self.check.recorded_cardinality(parameter).is_none()
+                    {
+                        self.check.report_value_read_not_fixed(
+                            expression.into_global_any(self.module),
+                            parameter,
+                        )?;
+                    }
                     let ty = self.intern_type(dir::Type::Parameter(parameter))?;
 
                     return self.bind_static_term(expression, ty);

@@ -446,6 +446,21 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         let source = id.into_global_any(self.module);
 
+        // intrinsic representations consume their value parameters directly
+        if let Some(template) = template {
+            for parameter in self.check.generic_template_parameters(template)? {
+                let Some(binding) = self.check.generic_parameter(parameter) else {
+                    continue;
+                };
+                if matches!(binding.kind, dir::GenericParameterKind::Value) {
+                    self.check.module_mut(self.module).generics_tail.set_cardinality(
+                        parameter.local_id,
+                        dir::Cardinality::One { source: id.into_any() },
+                    );
+                }
+            }
+        }
+
         let value = self.intern_type(dir::Type::Intrinsic)?;
         self.commit_node_type(declaration.value, value)?;
 

@@ -100,7 +100,7 @@ pub(super) fn generic_template_parameter_label(
         && let Some(derived) = builder
             .generics
             .as_ref()
-            .and_then(|generics| generics.derived_variance(parameter_id))
+            .and_then(|generics| generics.variance(parameter_id))
     {
         name = format!("{} {name}", derived.as_str());
     }
