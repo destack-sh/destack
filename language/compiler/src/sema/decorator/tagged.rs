@@ -881,7 +881,7 @@ impl CheckState<'_> {
         let bindings = &mut self.module_mut(module).bindings_tail;
         bindings.make_scope_mutable(scope.id, &scope_value);
 
-        let (symbol, _) = bindings.insert_symbol(
+        let symbol = bindings.insert_symbol(
             dir::SymbolRole::Item,
             dir::SymbolKind::Variant,
             None,

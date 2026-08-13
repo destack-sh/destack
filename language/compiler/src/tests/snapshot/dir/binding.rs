@@ -50,7 +50,10 @@ impl SnapshotTable for dir::BindingSegment {
                 row = row.field("origin", DirSnapshotBuilder::variant_label(symbol.origin));
             }
 
-            if symbol.visibility == dir::SymbolVisibility::Member {
+            if matches!(
+                symbol.visibility,
+                dir::SymbolVisibility::Member | dir::SymbolVisibility::Control
+            ) {
                 row = row.field(
                     "visibility",
                     DirSnapshotBuilder::variant_label(symbol.visibility),

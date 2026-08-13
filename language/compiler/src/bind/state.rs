@@ -72,7 +72,7 @@ impl<'a> BindState<'a> {
         let global_scope = bindings.insert_scope(dir::ScopeKind::Global, None, None);
 
         // create namespace owner
-        let (namespace_symbol, _) = bindings.insert_symbol(
+        let namespace_symbol = bindings.insert_symbol(
             dir::SymbolRole::Namespace,
             dir::SymbolKind::Variable,
             None,
@@ -272,8 +272,7 @@ impl<'a> BindState<'a> {
         let scope = self.scope();
         let symbol_id = self
             .bindings
-            .insert_symbol(role, kind, key, scope, export, visibility)
-            .0;
+            .insert_symbol(role, kind, key, scope, export, visibility);
         if scope.id == self.global_scope {
             self.bindings.get_symbol_mut(symbol_id).origin = dir::SymbolOrigin::Global;
         }
@@ -327,8 +326,7 @@ impl<'a> BindState<'a> {
         let scope = dir::LocalScope::new(scope_id, mark);
         let symbol_id = self
             .bindings
-            .insert_symbol(role, kind, key, scope, export, visibility)
-            .0;
+            .insert_symbol(role, kind, key, scope, export, visibility);
         if scope_id == self.global_scope {
             self.bindings.get_symbol_mut(symbol_id).origin = dir::SymbolOrigin::Global;
         }
@@ -361,6 +359,22 @@ impl<'a> BindState<'a> {
         node_id: dir::LocalNodeId<T>,
     ) {
         self.bindings.declare_symbol(symbol_id, node_id);
+    }
+
+    /// Declare one control label without exposing it to lexical lookup.
+    pub(in crate::bind) fn declare_control_label(
+        &mut self,
+        name: dir::StringId,
+        node_id: dir::LocalNodeId<dir::Expression>,
+    ) {
+        let symbol_id = self.insert_symbol(
+            dir::SymbolRole::Local,
+            dir::SymbolKind::Label,
+            Some(dir::StaticKey::Name(name)),
+            None,
+            dir::SymbolVisibility::Control,
+        );
+        self.declare_symbol(symbol_id, node_id);
     }
 
     /// Return the current scope id.

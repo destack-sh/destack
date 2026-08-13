@@ -14,6 +14,12 @@ impl Compiler {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
+        // declare the control label outside lexical lookup
+        if let Some(label) = expression.control_label() {
+            state.declare_control_label(label, id);
+        }
+
+        // apply expression scope rules
         match expression {
             dir::Expression::Import { items, .. } => {
                 // bind import edge
