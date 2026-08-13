@@ -29,7 +29,7 @@ impl WalkState<'_, '_> {
 
         // walk matched value
         if let Some(value) = declarator.value {
-            self.walk_declarator_initializer(id, value)?;
+            self.walk_expression(value, self.tree.get(value))?;
         }
 
         // record pattern checking from the initializer or annotation
@@ -124,7 +124,7 @@ impl WalkState<'_, '_> {
                 && let Some(value) = declarator.value
             {
                 if self.check.is_transcribable_literal(self.module, value) {
-                    self.walk_declarator_initializer(id, value)?;
+                    self.walk_expression(value, self.tree.get(value))?;
                 } else {
                     self.check.report_missing_export_binding_type(
                         self.module,
@@ -204,24 +204,6 @@ impl WalkState<'_, '_> {
         }
 
         Ok(matched)
-    }
-
-    /// Walk one direct declarator initializer.
-    fn walk_declarator_initializer(
-        &mut self,
-        id: dir::LocalNodeId<dir::Declarator>,
-        value: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<()> {
-        self.walk_expression(value, self.tree.get(value))?;
-
-        // initializing a binding may consume an identifier source
-        let target = self
-            .check
-            .module(self.module)
-            .declaration_symbol(self.tree.get(id).pattern.into_any());
-        self.mark_moved_source(value, None, target);
-
-        Ok(())
     }
 
     /// Return whether one declarator is outside a matching context.

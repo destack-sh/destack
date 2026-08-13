@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 use crate::{CompilerError, CompilerResult};
 
 use crate::check::{
-    AssignmentSelection, CheckEvent, CheckState, ExpectedType, GenericTemplateId, MoveSite, Origin,
+    AssignmentSelection, CheckEvent, CheckState, ExpectedType, GenericTemplateId, Origin,
     PendingWork, Variance,
 };
 
@@ -51,8 +51,6 @@ pub(in crate::check) struct PatternArm {
 pub(in crate::check) enum Obligation {
     /// A pattern-bearing site must cover the matched value space.
     PatternCoverage(PatternCoverageObligation),
-    /// A moved place must be copyable to stay readable.
-    UseAfterMove(UseAfterMoveObligation),
     /// An assignment must select a writable target.
     WritableTarget(Box<WritableTargetObligation>),
     /// A runtime predicate must have valid operands.
@@ -81,10 +79,9 @@ impl Obligation {
             Self::PatternCoverage(_) | Self::RuntimePredicate(_) | Self::ForInSource(_) => {
                 ObligationPhase::Produce
             }
-            Self::UseAfterMove(_)
-            | Self::WritableTarget(_)
-            | Self::ClassInitialization(_)
-            | Self::WellFormedType(_) => ObligationPhase::Judge,
+            Self::WritableTarget(_) | Self::ClassInitialization(_) | Self::WellFormedType(_) => {
+                ObligationPhase::Judge
+            }
         }
     }
 
@@ -92,7 +89,6 @@ impl Obligation {
     pub(in crate::check) fn source(&self) -> dir::GlobalNodeIdAny {
         match self {
             Self::PatternCoverage(obligation) => obligation.source,
-            Self::UseAfterMove(obligation) => obligation.source,
             Self::WritableTarget(obligation) => obligation.target.source,
             Self::RuntimePredicate(obligation) => obligation.source,
             Self::ForInSource(obligation) => obligation.source,
@@ -112,7 +108,7 @@ impl Obligation {
             Self::ForInSource(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::WellFormedType(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::ClassInitialization(obligation) => SmallVec::from_slice(&[obligation.receiver]),
-            Self::UseAfterMove(_) | Self::RuntimePredicate(_) => SmallVec::new(),
+            Self::RuntimePredicate(_) => SmallVec::new(),
         }
     }
 }
@@ -160,13 +156,6 @@ impl ObligationCheck {
 /// Reason one completed obligation failed.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum ObligationFailure {
-    /// A moved non-copyable place was read.
-    UseAfterMove {
-        /// The reading source node.
-        source: dir::GlobalNodeIdAny,
-        /// The moved place symbol.
-        symbol: dir::GlobalSymbolId,
-    },
     /// A match expression did not cover one remaining value.
     NonExhaustivePattern {
         /// The expression or pattern-bearing source.
@@ -542,17 +531,6 @@ pub(in crate::check) struct ClassInitializationObligation {
     pub(in crate::check) receiver: dir::GlobalTypeId,
 }
 
-/// Obliges one read of a moved place to a value the move left intact.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) struct UseAfterMoveObligation {
-    /// The reading source node.
-    pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The moved place symbol.
-    pub(in crate::check) symbol: dir::GlobalSymbolId,
-    /// The syntactic position that marked the move.
-    pub(in crate::check) site: MoveSite,
-}
-
 /// Obliges a written type operation to be well-formed once its operands close.
 ///
 /// ```ds
@@ -748,7 +726,6 @@ impl CheckState<'_> {
             Obligation::PatternCoverage(obligation) => {
                 self.check_pattern_coverage(origin, obligation)
             }
-            Obligation::UseAfterMove(obligation) => self.check_use_after_move(origin, *obligation),
             Obligation::WritableTarget(obligation) => {
                 self.check_writable_assignment(origin, obligation)
             }
@@ -763,200 +740,6 @@ impl CheckState<'_> {
                 self.check_well_formed_type(origin, obligation)
             }
         }
-    }
-
-    /// Check one read of a moved place: copyable values read from a copy.
-    fn check_use_after_move(
-        &mut self,
-        origin: Origin,
-        obligation: UseAfterMoveObligation,
-    ) -> CompilerResult<ObligationCheck> {
-        let ty = self.symbol_type(obligation.symbol)?;
-
-        // a once callable is consumed by the call that invoked it, whatever its ownership admits
-        let survives = if self.consumes_once_callable(origin, &obligation.site, ty)? {
-            false
-        }
-        // positions that preserve their source read the value in place
-        else if self.move_site_borrows(origin, &obligation.site)? {
-            true
-        }
-        // require an owned value, managed handles copy freely
-        else if self.default_ownership(origin, ty)? != Some(dir::Ownership::Owned) {
-            true
-        }
-        // only copyable values survive a use after their move
-        else {
-            self.satisfies_auto_interface(origin, ty, dir::AutoInterface::Copy)?
-        };
-        if survives {
-            return Ok(ObligationCheck::Holds);
-        }
-
-        Ok(ObligationCheck::from_failures(vec![
-            ObligationFailure::UseAfterMove {
-                source: obligation.source,
-                symbol: obligation.symbol,
-            },
-        ]))
-    }
-
-    /// Return whether one marked move position is a call consuming its once callable.
-    fn consumes_once_callable(
-        &mut self,
-        origin: Origin,
-        site: &MoveSite,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        if !self.is_callee_position(site) {
-            return Ok(false);
-        }
-        let ty = self.normalize(origin, ty)?;
-        let dir::Type::Function(function) = self.ty(ty)? else {
-            return Ok(false);
-        };
-
-        Ok(function.multiplicity == dir::Multiplicity::Once)
-    }
-
-    /// Return whether one marked move position is the callee of its call.
-    fn is_callee_position(&self, site: &MoveSite) -> bool {
-        let Some(call) = site.call else {
-            return false;
-        };
-        let node = self
-            .module(call.module_id)
-            .view()
-            .get(call.local_id.into_typed::<dir::Expression>());
-
-        matches!(node, dir::Expression::Call { left, .. } if left.into_global_any(call.module_id) == site.node)
-    }
-
-    /// Return whether one marked move position borrows its source.
-    fn move_site_borrows(&mut self, origin: Origin, site: &MoveSite) -> CompilerResult<bool> {
-        // argument and receiver positions read the selected call
-        if let Some(call) = site.call {
-            // rejected calls reported their own diagnostics and move nothing
-            if matches!(
-                self.decision(call),
-                Some(dir::Decision::Rejected | dir::Decision::Poisoned)
-            ) {
-                return Ok(true);
-            }
-
-            // every call but a once call reads its callee place in place
-            if self.is_callee_position(site) {
-                return Ok(true);
-            }
-
-            let decisions = self.decisions(call.module_id);
-            if let Some(resolution) = decisions.call_decision(call).cloned() {
-                return self.call_position_borrows(origin, &resolution, site.node);
-            }
-            if let Some(resolution) = decisions.construct_decision(call) {
-                // lend constructor arguments through borrowing parameters
-                let binding = resolution.arguments.iter().find(|binding| {
-                    matches!(
-                        binding.source,
-                        dir::ArgumentSource::Provided(provided) if provided == site.node
-                    )
-                });
-                let Some(binding) = binding else {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "construct resolution {call:?} has no binding for move site {:?}",
-                            site.node
-                        ),
-                    });
-                };
-
-                return self.type_head_borrows(origin, binding.argument_type);
-            }
-
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "move site {} has no resolution for {}, decided as {:?}",
-                    self.node_label(site.node),
-                    self.node_label(call),
-                    self.decision(call),
-                ),
-            });
-        }
-
-        // lend initializer and assignment positions into borrow bindings
-        if let Some(target) = site.target {
-            let ty = self.symbol_type(target)?;
-
-            return self.type_head_borrows(origin, ty);
-        }
-
-        Ok(false)
-    }
-
-    /// Return whether one call position borrows its source in every runtime alternative.
-    fn call_position_borrows(
-        &mut self,
-        origin: Origin,
-        resolution: &dir::CallDecision,
-        source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<bool> {
-        match resolution {
-            dir::OperationResolution::One(call) => {
-                self.call_arm_position_borrows(origin, call, source)
-            }
-            dir::OperationResolution::Union { arms, .. } => {
-                for call in arms {
-                    if !self.call_arm_position_borrows(origin, call, source)? {
-                        return Ok(false);
-                    }
-                }
-
-                Ok(true)
-            }
-        }
-    }
-
-    /// Return whether one singular call position borrows its source.
-    fn call_arm_position_borrows(
-        &mut self,
-        origin: Origin,
-        call: &dir::Call,
-        source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<bool> {
-        // borrow an argument according to its selected parameter
-        if let Some(binding) = call.arguments.iter().find(|binding| {
-            matches!(
-                binding.source,
-                dir::ArgumentSource::Provided(provided) if provided == source
-            )
-        }) {
-            return self.type_head_borrows(origin, binding.argument_type);
-        }
-
-        // treat the remaining marked position as the selected receiver
-        let receiver = match &call.target {
-            dir::CallTarget::Expression { .. } => return Ok(true),
-            dir::CallTarget::Symbol { function, .. } => function.receiver.as_ref(),
-            dir::CallTarget::Dynamic { dispatch, .. } => Some(&dispatch.receiver),
-        };
-        let Some(receiver) = receiver else {
-            return Err(CompilerError::Internal {
-                message: format!("static call has no binding for move site {source:?}"),
-            });
-        };
-        let borrows = receiver
-            .adjustments
-            .iter()
-            .any(|adjustment| matches!(adjustment, dir::ReceiverAdjustment::Borrow { .. }));
-
-        Ok(borrows)
-    }
-
-    /// Return whether one type lends by default beneath its placement.
-    fn type_head_borrows(&mut self, origin: Origin, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let ownership = self.default_ownership(origin, ty)?;
-
-        Ok(ownership == Some(dir::Ownership::Borrowed))
     }
 
     /// Check one pattern coverage obligation.

@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    AssignedPlace, BodyState, Cause, CauseKind, CheckOutcome, FlowSite, InferMode, Origin,
-    PlaceUse, Relation, ValueUse,
+    BodyState, Cause, CauseKind, CheckOutcome, FlowSite, InferMode, Origin, PlaceUse, Relation,
+    ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -63,20 +63,11 @@ impl BodyState<'_, '_> {
             self.commit_assign_pattern_place(site.origin(), left_node, place)?;
             self.commit_node_type(left_node.into_any(), value)?;
 
-            // read the symbol standing behind the written place
-            let target = match self.check.assigned_place(*expression) {
-                Some(AssignedPlace::Symbol(symbol)) => Some(symbol),
-                _ => None,
-            };
-
             // mark the written place assigned and drop stale narrowings
             if let Some(assigned) = self.check.assigned_place(*expression) {
                 self.check.mark_place_assigned(assigned);
             }
             self.check.clear_mutated_expression_narrowings(*expression);
-
-            // assigning a binding elsewhere may consume an identifier source
-            self.check.mark_moved_source(right, None, target);
 
             value
         } else {

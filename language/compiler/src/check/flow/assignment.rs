@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{AssignedPlace, CheckState, MoveSite, Obligation, UseAfterMoveObligation};
+use crate::check::{AssignedPlace, CheckState};
 
 impl CheckState<'_> {
     /// Check that one local binding is assigned before a read.
@@ -25,89 +25,10 @@ impl CheckState<'_> {
             return;
         }
 
-        // moved places defer to the obligation, where the selected transfer
-        // and copyability decide whether the move was real
-        if let Some(site) = self.flow.moved_site(AssignedPlace::Symbol(symbol)) {
-            self.push_obligation(
-                Obligation::UseAfterMove(UseAfterMoveObligation {
-                    source: source.into_global(self.module_id),
-                    symbol,
-                    site,
-                }),
-                self.flow.template_scope(),
-            );
-
-            return;
-        }
-
         // report unassigned reads at the read occurrence
         if !self.flow.assigned.contains(&AssignedPlace::Symbol(symbol)) {
             self.report_use_before_assigned(self.module_id, source, symbol);
         }
-    }
-
-    /// Mark one consuming-position source, when it names a local binding.
-    ///
-    /// Receiver positions carry their enclosing call so the obligation can
-    /// read the selected receiver adjustment; initializer and assignment
-    /// positions carry the receiving binding.
-    pub(in crate::check) fn mark_moved_source(
-        &mut self,
-        source: dir::LocalNodeId<dir::Expression>,
-        call: Option<dir::LocalNodeId<dir::Expression>>,
-        target: Option<dir::GlobalSymbolId>,
-    ) {
-        let node = source.into_global_any(self.module_id);
-        let site = MoveSite {
-            node,
-            call: call.map(|call| call.into_global_any(self.module_id)),
-            target,
-        };
-        self.mark_moved_identifier(source, site);
-    }
-
-    /// Mark one consuming argument, keyed by its bound argument node.
-    ///
-    /// The selected resolution binds parameters to argument nodes, so the
-    /// obligation matches the site against the argument, not its value.
-    pub(in crate::check) fn mark_moved_argument(
-        &mut self,
-        value: dir::LocalNodeId<dir::Expression>,
-        argument: dir::LocalNodeId<dir::Argument>,
-        call: dir::LocalNodeId<dir::Expression>,
-    ) {
-        let site = MoveSite {
-            node: argument.into_global_any(self.module_id),
-            call: Some(call.into_global_any(self.module_id)),
-            target: None,
-        };
-        self.mark_moved_identifier(value, site);
-    }
-
-    /// Mark one identifier source's place with one move site.
-    fn mark_moved_identifier(&mut self, source: dir::LocalNodeId<dir::Expression>, site: MoveSite) {
-        // only identifier sources move a tracked place
-        let node = self.module(self.module_id).view().get(source).clone();
-        if !matches!(node, dir::Expression::Identifier { .. }) {
-            return;
-        }
-        let node = source.into_global_any(self.module_id);
-        let Some(symbol) = self
-            .resolutions(self.module_id)
-            .name_resolution(node)
-            .and_then(|resolution| resolution.symbols().first().copied())
-        else {
-            return;
-        };
-        // foreign symbols are never movable places
-        if self
-            .own_symbol_kind(symbol)
-            .is_none_or(|kind| !kind.is_binding())
-        {
-            return;
-        }
-
-        self.flow.mark_moved(AssignedPlace::Symbol(symbol), site);
     }
 
     /// Mark one local flow place as assigned.

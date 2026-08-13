@@ -7,8 +7,6 @@ mod conversion;
 mod declaration;
 mod generic;
 mod lifetime;
-mod r#move;
-mod once;
 mod owned;
 mod placement;
 mod receiver;

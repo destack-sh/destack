@@ -622,7 +622,7 @@ impl BodyState<'_, '_> {
         let target = match (declarator.value, written) {
             // transcribe the written type while declaring
             (Some(_), Some(written)) if self.is_declaration() => {
-                match self.check.type_flags(written)?.is_open() {
+                match self.check.type_flags(written)?.has_variable() {
                     true => None,
                     false => Some(written),
                 }
@@ -642,13 +642,6 @@ impl BodyState<'_, '_> {
                     mode: InferMode::Exact,
                 };
                 self.attempt_node(site, PlaceUse::Read, Some(expectation))?;
-
-                // initializing a binding may consume an identifier source
-                let target = self
-                    .check
-                    .module(module)
-                    .declaration_symbol(pattern.into_any());
-                self.check.mark_moved_source(value, None, target);
 
                 Some(written)
             }
@@ -679,13 +672,6 @@ impl BodyState<'_, '_> {
                 let ty = self.infer_node(site, PlaceUse::Read, mode)?;
                 let ty = self.flow_type_at(site, ty)?;
 
-                // initializing a binding may consume an identifier source
-                let target = self
-                    .check
-                    .module(module)
-                    .declaration_symbol(pattern.into_any());
-                self.check.mark_moved_source(value, None, target);
-
                 // take the value's base type for a widening name binding
                 let is_name_binding = matches!(
                     self.module(module).view().get(pattern),
@@ -700,7 +686,7 @@ impl BodyState<'_, '_> {
             }
             // uninitialized declarators take their written type
             (None, Some(written)) => {
-                match self.is_declaration() && self.check.type_flags(written)?.is_open() {
+                match self.is_declaration() && self.check.type_flags(written)?.has_variable() {
                     true => None,
                     false => Some(written),
                 }
@@ -916,7 +902,7 @@ impl BodyState<'_, '_> {
 
         // reuse a settled commit; one still open re-walks fresh
         if let Some(committed) = self.check.committed_node_type(node)
-            && !self.check.type_flags(committed)?.is_open()
+            && !self.check.type_flags(committed)?.has_variable()
         {
             return Ok(());
         }

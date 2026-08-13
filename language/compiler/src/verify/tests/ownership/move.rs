@@ -1,4 +1,4 @@
-use crate::tests::TestProgram;
+use crate::tests::{TestProgram, TestSession};
 
 #[test]
 fn test_reject_move_while_borrowed() {
@@ -429,4 +429,43 @@ b3:
     );
 
     program.assert_error_maybe_use_after_move();
+}
+
+#[test]
+fn test_reject_second_call_of_a_once_callable_from_source() {
+    let session = TestSession::single(
+        r#"
+import { Function } from "destack:types";
+
+function run(finish: Function<(), void, "once">): void {
+    finish();
+    finish();
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=use-after-move message="use of moved value"
+/// @diagnostic.label file="main.ds"
+/// @diagnostic.related file="main.ds" message="value moved here"
+"#,
+    );
+}
+
+#[test]
+fn test_allow_a_second_call_of_a_repeatable_callable_from_source() {
+    let session = TestSession::single(
+        r#"
+import { Function } from "destack:types";
+
+function run(step: Function<(), void>): void {
+    step();
+    step();
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#""#);
 }

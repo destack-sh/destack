@@ -1007,20 +1007,9 @@ impl BodyState<'_, '_> {
         // register function-valued arguments before any candidate probe
         self.register_argument_function_values(module, argument_nodes)?;
 
-        // consuming receivers mark their identifier source moved
-        let call = node.into_typed::<dir::Expression>().local_id;
-        if let dir::Expression::Member { left: receiver, .. } =
-            self.module(module).view().get(callee)
-        {
-            let receiver = *receiver;
-            self.check.mark_moved_source(receiver, Some(call), None);
-        }
-
-        // mark each argument's identifier source moved and decide it
+        // decide each argument's identifier source
         for argument in argument_nodes {
             if let Some(value) = self.module(module).view().get(*argument).value() {
-                self.check.mark_moved_argument(value, *argument, call);
-
                 // decide identifier and receiver arguments ahead of candidate probes
                 let value_node = value.into_global_any(module);
                 self.decide_reference(value_node)?;
@@ -1071,9 +1060,8 @@ impl BodyState<'_, '_> {
             return self.reject_call(node, expectation);
         };
 
-        // a once callable is consumed by the call that read it
+        // decide the callee reference before selecting its call
         self.decide_reference(callee.into_global_any(module))?;
-        self.check.mark_moved_source(callee, Some(call), None);
 
         // runtime union callees must accept the call through every arm
         if callees.arms.len() > 1 {
