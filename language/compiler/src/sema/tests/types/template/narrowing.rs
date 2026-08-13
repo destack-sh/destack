@@ -33,13 +33,13 @@ type Route = `api:${string}`;
 /// @definition.type symbol=Route source="type Route = `api:${string}`" value=`api:${string}`
 
 declare const route: Route | undefined;
-/// @type.symbol symbol=route source=route type=Route | undefined
+/// @type.symbol symbol=route source=route type=`api:${string}` | undefined
 /// @resolution.pattern source=route kind=binding target=route
 /// @resolution.name source=Route target=Route
 
 if (route != undefined) {
 /// @resolution.name source=route target=route
-/// @resolution.operator source="route != undefined" type=boolean operator="!=" kind=builtin operands=[route as Route | undefined families=(string | undefined), undefined as undefined families=(undefined)]
+/// @resolution.operator source="route != undefined" type=boolean operator="!=" kind=builtin operands=[route as `api:${string}` | undefined families=(string | undefined), undefined as undefined families=(undefined)]
 /// @resolution.place source=route placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=route root=route
 
