@@ -275,6 +275,7 @@ function read(point: Point): void {
 ```query completion main.ds#cursor trigger=.
 @completion.item label=x kind=field replace=main.ds#cursor suffix=": int32" declaration="Point.x: int32"
 @completion.item label=y kind=field replace=main.ds#cursor suffix=": int32" declaration="Point.y: int32"
+@completion.item label=toString kind=method replace=main.ds#cursor suffix="(): ^string" declaration="toString(): ^string" documentation="Return the owned user-facing string representation." insert="toString()"
 @completion.item label=borrow kind=method replace=main.ds#cursor suffix="(): WithAccess<&'a Point, A>" declaration="borrow(): WithAccess<&T, A>" documentation="Borrow this value as itself." insert="borrow()"
 ```
 
@@ -1347,9 +1348,9 @@ function main(): void {
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix detail="() => void" description="from ./core" insert="greet()" auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./core" insert="greet()" auto_import=true matches=0,1,2
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./core\";\n"
-@completion.item label=greet kind=function replace=main.ds#prefix detail="() => void" description="from ./library" insert="greet()" auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./library" insert="greet()" auto_import=true matches=0,1,2
 @completion.additional_edit item=1 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
@@ -1376,9 +1377,9 @@ function main(): void {
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix detail="() => void" description="from ./core" insert="greet()" auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./core" insert="greet()" auto_import=true matches=0,1,2
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./core\";\n"
-@completion.item label=greet kind=function replace=main.ds#prefix detail="() => void" description="from ./library" insert="greet()" auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./library" insert="greet()" auto_import=true matches=0,1,2
 @completion.additional_edit item=1 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 

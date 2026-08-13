@@ -613,6 +613,13 @@ const result = match (input) {
     _ => 1
 };
 
+switch (input) {
+    @tracked
+     ^^^^^^^ case_reference
+    case 0: break;
+    default: break;
+}
+
 @tracked
  ^^^^^^^ statement_reference
 for (let index = 0; index < 1; index++) {}
@@ -623,6 +630,7 @@ for (let index = 0; index < 1; index++) {}
 @find_references.reference location=main.ds#member_reference symbol=main.ds#tracked@1
 @find_references.reference location=main.ds#parameter_reference symbol=main.ds#tracked@1
 @find_references.reference location=main.ds#arm_reference symbol=main.ds#tracked@1
+@find_references.reference location=main.ds#case_reference symbol=main.ds#tracked@1
 @find_references.reference location=main.ds#statement_reference symbol=main.ds#tracked@1
 ```
 
@@ -871,7 +879,7 @@ greet();
 @find_references.reference location=main.ds#reference symbol=library.ds#greet@1
 ```
 
-### [ignored] Find a namespace re-export alias
+### Find a namespace re-export alias
 
 A namespace re-export alias has one identity through imports and local uses.
 

@@ -344,7 +344,7 @@ const result = identity(pair(1, 2));
 
 ## Callable Values
 
-### [ignored] Resolve an expression-valued callable
+### Resolve an expression-valued callable
 
 A binding with a declared function type supplies its own signature help.
 
@@ -360,7 +360,7 @@ const result = callback("ready");
 @signature_help.parameter signature=0 index=0 label="value: string" active=true
 ```
 
-### [ignored] Resolve a callable parameter
+### Resolve a callable parameter
 
 A call through a function parameter shows its function type.
 

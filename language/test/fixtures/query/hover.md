@@ -55,7 +55,7 @@ const value = parse("one");
 @hover.item index=0 declaration="function parse(value: string): string" location=main.ds:5:1-7:2 selection=main.ds:5:10-5:15 range=main.ds#reference
 ```
 
-### [ignored] Return an overload family
+### Return an overload family
 
 A value reference to an overload family reports every declaration.
 
@@ -172,7 +172,7 @@ declare const user: UserId;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 declaration="type UserId = int32" type=UserId location=main.ds:1:1-1:20 selection=main.ds:1:6-1:12 range=main.ds#reference
+@hover.item index=0 declaration="type UserId = int32" location=main.ds:1:1-1:20 selection=main.ds:1:6-1:12 range=main.ds#reference
 ```
 
 ### Hover over a class
@@ -674,7 +674,7 @@ const used = builtinValue;
 ```
 
 ```query hover main.ds#type_reference
-@hover.item index=0 declaration="export type BuiltinType = string" type=BuiltinType location=library.ds:1:1-1:33 selection=library.ds#type_definition range=main.ds#type_reference
+@hover.item index=0 declaration="export type BuiltinType = string" location=library.ds:1:1-1:33 selection=library.ds#type_definition range=main.ds#type_reference
 ```
 
 ```query hover main.ds#value_reference
@@ -758,7 +758,7 @@ declare const value: Value;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 declaration="type Value = int32" type=Value location=main.ds:1:1-1:19 selection=main.ds#definition range=main.ds#reference
+@hover.item index=0 declaration="type Value = int32" location=main.ds:1:1-1:19 selection=main.ds#definition range=main.ds#reference
 ```
 
 ```ds main.ds change
@@ -770,7 +770,7 @@ declare const value: Value;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 declaration="type Value = string" type=Value location=main.ds:1:1-1:20 selection=main.ds#definition range=main.ds#reference
+@hover.item index=0 declaration="type Value = string" location=main.ds:1:1-1:20 selection=main.ds#definition range=main.ds#reference
 ```
 
 ```diff main.ds
@@ -781,7 +781,7 @@ declare const value: Value;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 declaration="type Value = boolean" type=Value location=main.ds:1:1-1:21 selection=main.ds#definition range=main.ds#reference
+@hover.item index=0 declaration="type Value = boolean" location=main.ds:1:1-1:21 selection=main.ds#definition range=main.ds#reference
 ```
 
 ### Keep hover after an implementation edit

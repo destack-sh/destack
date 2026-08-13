@@ -142,7 +142,7 @@ function read(counter: Counter): int32 {
 }
 ```
 
-### [ignored] Preserve a shorthand value when renaming its field
+### Preserve a shorthand value when renaming its field
 
 Renaming a field expands an object shorthand so its local value keeps its original name.
 
