@@ -52,27 +52,21 @@ impl Matcher<'_, '_> {
                 },
             ) => self.match_type_expression(nodes, *pattern_value, *candidate_value, bindings),
             (
-                dir::GenericArgument::Value {
-                    value: pattern_value,
-                },
-                dir::GenericArgument::Value {
-                    value: candidate_value,
-                },
-            )
-            | (
-                dir::GenericArgument::SpreadValue {
-                    value: pattern_value,
-                },
-                dir::GenericArgument::SpreadValue {
-                    value: candidate_value,
-                },
-            ) => self.match_expression(nodes, *pattern_value, *candidate_value, bindings),
-            (
                 dir::GenericArgument::AssociatedType {
                     name: pattern_name,
                     value: pattern_value,
                 },
                 dir::GenericArgument::AssociatedType {
+                    name: candidate_name,
+                    value: candidate_value,
+                },
+            )
+            | (
+                dir::GenericArgument::AssociatedConst {
+                    name: pattern_name,
+                    value: pattern_value,
+                },
+                dir::GenericArgument::AssociatedConst {
                     name: candidate_name,
                     value: candidate_value,
                 },
@@ -89,29 +83,6 @@ impl Matcher<'_, '_> {
                 }
 
                 self.match_type_expression(nodes, *pattern_value, *candidate_value, bindings)
-            }
-            (
-                dir::GenericArgument::AssociatedConst {
-                    name: pattern_name,
-                    value: pattern_value,
-                },
-                dir::GenericArgument::AssociatedConst {
-                    name: candidate_name,
-                    value: candidate_value,
-                },
-            ) => {
-                if !self.match_node_name(
-                    nodes,
-                    pattern_any,
-                    candidate_id.into_any(),
-                    Some(*pattern_name),
-                    Some(*candidate_name),
-                    bindings,
-                )? {
-                    return Ok(false);
-                }
-
-                self.match_expression(nodes, *pattern_value, *candidate_value, bindings)
             }
             (dir::GenericArgument::Error, dir::GenericArgument::Error) => Ok(true),
             _ => Ok(false),

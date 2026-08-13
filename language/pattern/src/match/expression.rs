@@ -624,8 +624,8 @@ impl Matcher<'_, '_> {
                 },
             ) => self.match_type_expression(nodes, *pattern_value, *candidate_value, bindings),
             (
-                dir::Expression::Comptime { body: pattern_body },
-                dir::Expression::Comptime {
+                dir::Expression::Const { body: pattern_body },
+                dir::Expression::Const {
                     body: candidate_body,
                 },
             )

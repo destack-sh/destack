@@ -97,60 +97,6 @@ impl Matcher<'_, '_> {
                 Some(*candidate_name),
                 bindings,
             ),
-            (
-                dir::GenericParameter::Value {
-                    name: pattern_name,
-                    declared_type: pattern_type,
-                    default: pattern_default,
-                    is_comptime: pattern_comptime,
-                },
-                dir::GenericParameter::Value {
-                    name: candidate_name,
-                    declared_type: candidate_type,
-                    default: candidate_default,
-                    is_comptime: candidate_comptime,
-                },
-            )
-            | (
-                dir::GenericParameter::VariadicValue {
-                    name: pattern_name,
-                    declared_type: pattern_type,
-                    default: pattern_default,
-                    is_comptime: pattern_comptime,
-                },
-                dir::GenericParameter::VariadicValue {
-                    name: candidate_name,
-                    declared_type: candidate_type,
-                    default: candidate_default,
-                    is_comptime: candidate_comptime,
-                },
-            ) => {
-                if pattern_comptime != candidate_comptime
-                    || !self.match_node_name(
-                        nodes,
-                        pattern_any,
-                        candidate_id.into_any(),
-                        Some(*pattern_name),
-                        Some(*candidate_name),
-                        bindings,
-                    )?
-                    || !self.match_optional_type_expression(
-                        nodes,
-                        *pattern_type,
-                        *candidate_type,
-                        bindings,
-                    )?
-                {
-                    return Ok(false);
-                }
-
-                self.match_optional_expression(
-                    nodes,
-                    *pattern_default,
-                    *candidate_default,
-                    bindings,
-                )
-            }
             (dir::GenericParameter::Error, dir::GenericParameter::Error) => Ok(true),
             _ => Ok(false),
         }

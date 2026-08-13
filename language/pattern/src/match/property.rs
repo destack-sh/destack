@@ -333,8 +333,8 @@ impl Matcher<'_, '_> {
                 dir::Member::StaticBlock { body: candidate },
             )
             | (
-                dir::Member::ComptimeBlock { body: pattern },
-                dir::Member::ComptimeBlock { body: candidate },
+                dir::Member::ConstBlock { body: pattern },
+                dir::Member::ConstBlock { body: candidate },
             ) => self.match_expression(nodes, *pattern, *candidate, bindings),
             (dir::Member::Error, dir::Member::Error) => Ok(true),
             _ => Ok(false),
