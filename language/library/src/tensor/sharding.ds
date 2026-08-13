@@ -32,15 +32,15 @@ export extension of Unsharded implements Placement {}
 
 /// Tensor storage partitioned or replicated across a compute mesh.
 @languageItem("tensor.Sharding")
-export newtype Sharding<comptime ...Axes: ShardingAxis> = intrinsic;
+export newtype Sharding<const ...Axes: ShardingAxis> = intrinsic;
 
-export extension<comptime ...Axes: ShardingAxis> of Sharding<...Axes> implements Placement {}
+export extension<const ...Axes: ShardingAxis> of Sharding<...Axes> implements Placement {}
 
 /// Split one tensor axis across one mesh axis.
 @languageItem("tensor.Shard")
-export newtype Shard<comptime A: Axis> = intrinsic;
+export newtype Shard<const A: Axis> = intrinsic;
 
-export extension<comptime A: Axis> of Shard<A> implements ShardingAxis {}
+export extension<const A: Axis> of Shard<A> implements ShardingAxis {}
 
 /// Replicate one tensor axis across the mesh.
 @languageItem("tensor.Replicate")
@@ -50,6 +50,6 @@ export extension of Replicate implements ShardingAxis {}
 
 /// Store partial results across one mesh axis.
 @languageItem("tensor.Partial")
-export newtype Partial<comptime R: Reduction = Reduction.Add> = intrinsic;
+export newtype Partial<const R: Reduction = Reduction.Add> = intrinsic;
 
-export extension<comptime R: Reduction> of Partial<R> implements ShardingAxis {}
+export extension<const R: Reduction> of Partial<R> implements ShardingAxis {}

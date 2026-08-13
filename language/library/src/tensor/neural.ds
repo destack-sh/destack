@@ -7,7 +7,7 @@ import { Tensor } from "./tensor.ds";
 import { PoolWindow } from "./window.ds";
 
 /// Options for softmax-like operations.
-export struct SoftmaxOptions<T, comptime Rank: usize> {
+export struct SoftmaxOptions<T, const Rank: usize> {
     /// Axis to normalize over.
     axis: Axis;
 
@@ -16,7 +16,7 @@ export struct SoftmaxOptions<T, comptime Rank: usize> {
 }
 
 /// Options for normalization operations.
-export struct NormalizationOptions<T, comptime Rank: usize, comptime AxisCount: usize> {
+export struct NormalizationOptions<T, const Rank: usize, const AxisCount: usize> {
     /// Axes to normalize over.
     axes: AxisSet<AxisCount>;
 
@@ -28,7 +28,7 @@ export struct NormalizationOptions<T, comptime Rank: usize, comptime AxisCount: 
 }
 
 /// Window options for pooling.
-export struct PoolOptions<T, comptime Rank: usize> {
+export struct PoolOptions<T, const Rank: usize> {
     /// Window size.
     window: PoolWindow<Rank>;
 
@@ -37,7 +37,7 @@ export struct PoolOptions<T, comptime Rank: usize> {
 }
 
 /// Return rectified linear activation.
-export function relu<T: Numeric, comptime Rank: usize>(
+export function relu<T: Numeric, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank> {
@@ -45,7 +45,7 @@ export function relu<T: Numeric, comptime Rank: usize>(
 }
 
 /// Return Gaussian error linear activation.
-export function gelu<T: Float, comptime Rank: usize>(
+export function gelu<T: Float, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank> {
@@ -53,7 +53,7 @@ export function gelu<T: Float, comptime Rank: usize>(
 }
 
 /// Return logistic sigmoid activation.
-export function sigmoid<T: Float, comptime Rank: usize>(
+export function sigmoid<T: Float, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank> {
@@ -61,7 +61,7 @@ export function sigmoid<T: Float, comptime Rank: usize>(
 }
 
 /// Return softmax over one axis.
-export function softmax<T: Float, comptime Rank: usize>(
+export function softmax<T: Float, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     options: SoftmaxOptions<T, Rank>,
 ): Tensor<T, Rank> {
@@ -69,7 +69,7 @@ export function softmax<T: Float, comptime Rank: usize>(
 }
 
 /// Return log-softmax over one axis.
-export function logSoftmax<T: Float, comptime Rank: usize>(
+export function logSoftmax<T: Float, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     options: SoftmaxOptions<T, Rank>,
 ): Tensor<T, Rank> {
@@ -77,7 +77,7 @@ export function logSoftmax<T: Float, comptime Rank: usize>(
 }
 
 /// Return layer-normalized values.
-export function layerNorm<T: Float, comptime Rank: usize, comptime AxisCount: usize>(
+export function layerNorm<T: Float, const Rank: usize, const AxisCount: usize>(
     tensor: Tensor<T, Rank>,
     scale: Tensor<T, AxisCount>,
     bias: Tensor<T, AxisCount>,
@@ -87,7 +87,7 @@ export function layerNorm<T: Float, comptime Rank: usize, comptime AxisCount: us
 }
 
 /// Return max-pooled values.
-export function maxPool<T: Numeric, comptime Rank: usize>(
+export function maxPool<T: Numeric, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     options: PoolOptions<T, Rank>,
 ): Tensor<T, Rank> {
@@ -95,7 +95,7 @@ export function maxPool<T: Numeric, comptime Rank: usize>(
 }
 
 /// Return average-pooled values.
-export function avgPool<T: Float, comptime Rank: usize>(
+export function avgPool<T: Float, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     options: PoolOptions<T, Rank>,
 ): Tensor<T, Rank> {

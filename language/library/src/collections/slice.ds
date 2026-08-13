@@ -67,7 +67,7 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Borrow a contiguous range as a view.
-    subslice<comptime A: Access = "readonly">(
+    subslice<const A: Access = "readonly">(
         this: WithAccess<&[T], A>,
         start: usize,
         length: usize,
@@ -76,7 +76,7 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Borrow a selected range as a view.
-    slice<comptime A: Access = "readonly">(
+    slice<const A: Access = "readonly">(
         this: WithAccess<&[T], A>,
         start?: usize,
         end?: usize,
@@ -85,7 +85,7 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Split this slice into two borrowed views.
-    splitAt<comptime A: Access = "readonly">(
+    splitAt<const A: Access = "readonly">(
         this: WithAccess<&[T], A>,
         index: usize,
     ): (WithAccess<&[T], A>, WithAccess<&[T], A>) {
@@ -184,7 +184,7 @@ export extension<T> of ^Slice<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 }
 
-export extension<T, 'a, comptime A: Access> of Borrowed<Slice<T>, 'a, A>
+export extension<T, 'a, const A: Access> of Borrowed<Slice<T>, 'a, A>
     implements
         Iterable<Borrowed<T, 'a, A>>,
         Sequence {
@@ -222,7 +222,7 @@ export extension<T> of Slice<T> implements Index<usize>, IndexSet<usize, T> {
     type Output = T;
 
     /// Borrow a view over `start..end`.
-    view<comptime A: Access = "readonly">(
+    view<const A: Access = "readonly">(
         this: WithAccess<&[T], A>,
         start: usize,
         end?: usize,
@@ -231,7 +231,7 @@ export extension<T> of Slice<T> implements Index<usize>, IndexSet<usize, T> {
     }
 
     /// Borrow the element at `index`.
-    index<comptime A: Access = "readonly">(
+    index<const A: Access = "readonly">(
         this: WithAccess<&[T], A>,
         index: usize,
     ): WithAccess<&T, A> {
@@ -244,7 +244,7 @@ export extension<T> of Slice<T> implements Index<usize>, IndexSet<usize, T> {
     }
 }
 
-export extension<T, R: RangeBounds<usize>, comptime A: Access = "readonly"> of Slice<T>
+export extension<T, R: RangeBounds<usize>, const A: Access = "readonly"> of Slice<T>
     implements
         Index<R, A> {
     /// The indexed output type.
@@ -330,7 +330,7 @@ export declare function sliceSet<T>(slice: &exclusive [T], index: usize, value: 
 /// Borrow a contiguous range of one slice as a view.
 @unsafe
 @intrinsic("collections.slice.subslice")
-export declare function sliceView<T, comptime A: Access = "readonly">(
+export declare function sliceView<T, const A: Access = "readonly">(
     slice: WithAccess<&[T], A>,
     start: usize,
     length: usize,

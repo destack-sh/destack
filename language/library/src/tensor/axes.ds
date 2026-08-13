@@ -3,7 +3,7 @@ import { FixedArray } from "destack:collections";
 import { Axis } from "./shape.ds";
 
 /// Axis mapping for tensor dot.
-export struct DotAxes<comptime BatchCount: usize, comptime ContractCount: usize> {
+export struct DotAxes<const BatchCount: usize, const ContractCount: usize> {
     /// Batch axes in the left tensor.
     leftBatch: [Axis; BatchCount];
 
@@ -18,7 +18,7 @@ export struct DotAxes<comptime BatchCount: usize, comptime ContractCount: usize>
 }
 
 /// Axis mapping for tensor convolution.
-export struct ConvolutionAxes<comptime SpatialRank: usize> {
+export struct ConvolutionAxes<const SpatialRank: usize> {
     /// Batch axis in the input tensor.
     inputBatch: Axis;
 
@@ -49,9 +49,9 @@ export struct ConvolutionAxes<comptime SpatialRank: usize> {
 
 /// Axis mapping for tensor gather.
 export struct GatherAxes<
-    comptime OffsetCount: usize,
-    comptime CollapsedCount: usize,
-    comptime StartIndexCount: usize,
+    const OffsetCount: usize,
+    const CollapsedCount: usize,
+    const StartIndexCount: usize,
 > {
     /// Offset axes in the output tensor.
     offset: [Axis; OffsetCount];
@@ -68,9 +68,9 @@ export struct GatherAxes<
 
 /// Axis mapping for tensor scatter.
 export struct ScatterAxes<
-    comptime UpdateWindowCount: usize,
-    comptime InsertedWindowCount: usize,
-    comptime ScatterOperandCount: usize,
+    const UpdateWindowCount: usize,
+    const InsertedWindowCount: usize,
+    const ScatterOperandCount: usize,
 > {
     /// Window axes in the updates tensor.
     updateWindow: [Axis; UpdateWindowCount];

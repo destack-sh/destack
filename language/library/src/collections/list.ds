@@ -95,7 +95,7 @@ export extension<T: Copy> of LinkedList<T> implements Iterable<T>, Sequence {
     }
 }
 
-export extension<T, 'a, comptime A: Access> of Borrowed<LinkedList<T>, 'a, A>
+export extension<T, 'a, const A: Access> of Borrowed<LinkedList<T>, 'a, A>
     implements
         Iterable<Borrowed<T, 'a, A>>,
         Sequence {

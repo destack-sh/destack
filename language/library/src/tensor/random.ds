@@ -7,7 +7,7 @@ import { Shape } from "./shape.ds";
 import { Tensor } from "./tensor.ds";
 
 /// Return values sampled uniformly from [0, 1).
-export function uniform<T: Float, comptime Rank: usize>(
+export function uniform<T: Float, const Rank: usize>(
     shape: Shape<Rank>,
     random: Random,
     options?: TensorCreateOptions<Rank>,
@@ -16,7 +16,7 @@ export function uniform<T: Float, comptime Rank: usize>(
 }
 
 /// Return values sampled uniformly from [`low`, `high`).
-export function uniformRange<T: Numeric, comptime Rank: usize>(
+export function uniformRange<T: Numeric, const Rank: usize>(
     shape: Shape<Rank>,
     low: T,
     high: T,
@@ -27,7 +27,7 @@ export function uniformRange<T: Numeric, comptime Rank: usize>(
 }
 
 /// Return values sampled from the standard normal distribution.
-export function normal<T: Float, comptime Rank: usize>(
+export function normal<T: Float, const Rank: usize>(
     shape: Shape<Rank>,
     random: Random,
     options?: TensorCreateOptions<Rank>,
@@ -36,7 +36,7 @@ export function normal<T: Float, comptime Rank: usize>(
 }
 
 /// Return values sampled from Bernoulli trials.
-export function bernoulli<T: Float, comptime Rank: usize>(
+export function bernoulli<T: Float, const Rank: usize>(
     shape: Shape<Rank>,
     probability: T,
     random: Random,

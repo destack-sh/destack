@@ -93,7 +93,7 @@ export extension<K: Hash, V> of Map<K, V> where K: Equal<K>, V: Copy {
     }
 }
 
-export extension<K: Hash, V, 'a, comptime A: Access> of Borrowed<Map<K, V>, 'a, A>
+export extension<K: Hash, V, 'a, const A: Access> of Borrowed<Map<K, V>, 'a, A>
     implements
         Iterable<MapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> where K: Equal<K> {
     /// Return an iterator over borrowed entries.
@@ -242,7 +242,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Borrow a value by key through the index operator.
-    index<comptime A: Access = "readonly">(
+    index<const A: Access = "readonly">(
         this: WithAccess<&Map<K, V>, A>,
         key: K,
     ): WithAccess<&V, A> | undefined {

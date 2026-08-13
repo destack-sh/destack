@@ -63,7 +63,7 @@ export newtype interface FromIterator<T> {
 
 /// Collection extended from an iterable sequence.
 @languageItem("iter.Extend")
-export newtype interface Extend<T, comptime A: Access = "exclusive"> {
+export newtype interface Extend<T, const A: Access = "exclusive"> {
     /// Append `values`.
     extend(this: WithAccess<&this, A>, values: Iterable<T>): void;
 }

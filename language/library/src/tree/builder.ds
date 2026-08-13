@@ -10,7 +10,7 @@ export newtype interface TreeBuilder {
     type Tags = {};
 
     /// Build one element from its tag, attributes, and children.
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,

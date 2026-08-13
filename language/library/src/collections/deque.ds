@@ -71,7 +71,7 @@ export extension<T: Copy> of Deque<T> implements Iterable<T>, Sequence {
     }
 }
 
-export extension<T, 'a, comptime A: Access> of Borrowed<Deque<T>, 'a, A>
+export extension<T, 'a, const A: Access> of Borrowed<Deque<T>, 'a, A>
     implements
         Iterable<Borrowed<T, 'a, A>>,
         Sequence {
@@ -154,7 +154,7 @@ export extension<T> of Deque<T>
     }
 
     /// Borrow the element at `index`.
-    index<comptime A: Access = "readonly">(
+    index<const A: Access = "readonly">(
         this: WithAccess<&Deque<T>, A>,
         index: usize,
     ): WithAccess<&T, A> {

@@ -12,13 +12,13 @@ import { Placement, Sharding, ShardingAxis, Unsharded } from "./sharding.ds";
 @languageItem("tensor.TensorView")
 export newtype TensorView<
     T,
-    comptime Rank: usize,
+    const Rank: usize,
     F: TensorViewFormat = Dense<MemoryOrder.RowMajor>,
     P: Placement = Unsharded,
-    comptime A: Access = "mutable",
+    const A: Access = "mutable",
 > = intrinsic;
 
-export extension<T, comptime Rank: usize, F: TensorViewFormat, P: Placement, comptime A: Access> of
+export extension<T, const Rank: usize, F: TensorViewFormat, P: Placement, const A: Access> of
     TensorView<T, Rank, F, P, A>
     implements Index<Coordinate<Rank>> {
     /// The indexed output type.
@@ -70,7 +70,7 @@ export extension<T, comptime Rank: usize, F: TensorViewFormat, P: Placement, com
     }
 }
 
-export extension<T, comptime Rank: usize, P: Placement, comptime A: Access> of
+export extension<T, const Rank: usize, P: Placement, const A: Access> of
     TensorView<T, Rank, Strided, P, A> {
     /// Return the element stride for each axis.
     get strides(): [Stride; Rank] {
@@ -80,10 +80,10 @@ export extension<T, comptime Rank: usize, P: Placement, comptime A: Access> of
 
 export extension<
     T,
-    comptime Rank: usize,
+    const Rank: usize,
     F: TensorViewFormat,
-    comptime A: Access,
-    comptime ...Axes: ShardingAxis,
+    const A: Access,
+    const ...Axes: ShardingAxis,
 > of TensorView<T, Rank, F, Sharding<...Axes>, A> {
     /// Return the mesh that owns the tensor view shards.
     get mesh(): Mesh {
@@ -91,7 +91,7 @@ export extension<
     }
 }
 
-export extension<T, comptime Rank: usize> of TensorView<T, Rank, Strided, Unsharded, "mutable"> {
+export extension<T, const Rank: usize> of TensorView<T, Rank, Strided, Unsharded, "mutable"> {
     /// Build a mutable strided tensor view from a slice.
     @unsafe
     static fromSlice(
@@ -103,7 +103,7 @@ export extension<T, comptime Rank: usize> of TensorView<T, Rank, Strided, Unshar
     }
 }
 
-export extension<T, comptime Rank: usize> of TensorView<T, Rank, Strided, Unsharded, "readonly"> {
+export extension<T, const Rank: usize> of TensorView<T, Rank, Strided, Unsharded, "readonly"> {
     /// Build a readonly strided tensor view from a slice.
     @unsafe
     static fromSlice(
@@ -115,7 +115,7 @@ export extension<T, comptime Rank: usize> of TensorView<T, Rank, Strided, Unshar
     }
 }
 
-export extension<T, comptime Rank: usize> of TensorView<T, Rank, Strided, Unsharded, "exclusive"> {
+export extension<T, const Rank: usize> of TensorView<T, Rank, Strided, Unsharded, "exclusive"> {
     /// Build an exclusive strided tensor view from a slice.
     @unsafe
     static fromSlice(
@@ -127,7 +127,7 @@ export extension<T, comptime Rank: usize> of TensorView<T, Rank, Strided, Unshar
     }
 }
 
-export extension<T, comptime Rank: usize, comptime Order: MemoryOrder> of
+export extension<T, const Rank: usize, const Order: MemoryOrder> of
     TensorView<T, Rank, Dense<Order>, Unsharded, "mutable"> {
     /// Build a mutable tensor view from a contiguous slice.
     @unsafe
@@ -139,7 +139,7 @@ export extension<T, comptime Rank: usize, comptime Order: MemoryOrder> of
     }
 }
 
-export extension<T, comptime Rank: usize, comptime Order: MemoryOrder> of
+export extension<T, const Rank: usize, const Order: MemoryOrder> of
     TensorView<T, Rank, Dense<Order>, Unsharded, "readonly"> {
     /// Build a readonly tensor view from a contiguous slice.
     @unsafe
@@ -151,7 +151,7 @@ export extension<T, comptime Rank: usize, comptime Order: MemoryOrder> of
     }
 }
 
-export extension<T, comptime Rank: usize, comptime Order: MemoryOrder> of
+export extension<T, const Rank: usize, const Order: MemoryOrder> of
     TensorView<T, Rank, Dense<Order>, Unsharded, "exclusive"> {
     /// Build an exclusive tensor view from a contiguous slice.
     @unsafe
@@ -163,7 +163,7 @@ export extension<T, comptime Rank: usize, comptime Order: MemoryOrder> of
     }
 }
 
-export extension<T, comptime Rank: usize, F: TensorViewFormat, P: Placement> of
+export extension<T, const Rank: usize, F: TensorViewFormat, P: Placement> of
     TensorView<T, Rank, F, P, "exclusive">
     implements IndexSet<Coordinate<Rank>, T> {
     /// Store `value` at `coordinate`.
@@ -176,65 +176,65 @@ export extension<T, comptime Rank: usize, F: TensorViewFormat, P: Placement> of
 @intrinsic("tensor.view.shape")
 export declare function tensorViewShape<
     T,
-    comptime Rank: usize,
+    const Rank: usize,
     F: TensorViewFormat,
     P: Placement,
-    comptime A: Access,
+    const A: Access,
 >(view: &readonly TensorView<T, Rank, F, P, A>): Shape<Rank>;
 
 /// Return one tensor view's format.
 @intrinsic("tensor.view.format")
 export declare function tensorViewFormat<
     T,
-    comptime Rank: usize,
+    const Rank: usize,
     F: TensorViewFormat,
     P: Placement,
-    comptime A: Access,
+    const A: Access,
 >(view: &readonly TensorView<T, Rank, F, P, A>): F;
 
 /// Return one tensor view's placement.
 @intrinsic("tensor.view.placement")
 export declare function tensorViewPlacement<
     T,
-    comptime Rank: usize,
+    const Rank: usize,
     F: TensorViewFormat,
     P: Placement,
-    comptime A: Access,
+    const A: Access,
 >(view: &readonly TensorView<T, Rank, F, P, A>): P;
 
 /// Return one tensor view's size.
 @intrinsic("tensor.view.size")
 export declare function tensorViewSize<
     T,
-    comptime Rank: usize,
+    const Rank: usize,
     F: TensorViewFormat,
     P: Placement,
-    comptime A: Access,
+    const A: Access,
 >(view: &readonly TensorView<T, Rank, F, P, A>): usize;
 
 /// Return one tensor view's elementByteLength.
 @intrinsic("tensor.view.elementByteLength")
 export declare function tensorViewElementByteLength<
     T,
-    comptime Rank: usize,
+    const Rank: usize,
     F: TensorViewFormat,
     P: Placement,
-    comptime A: Access,
+    const A: Access,
 >(view: &readonly TensorView<T, Rank, F, P, A>): usize;
 
 /// Return one tensor view's byteLength.
 @intrinsic("tensor.view.byteLength")
 export declare function tensorViewByteLength<
     T,
-    comptime Rank: usize,
+    const Rank: usize,
     F: TensorViewFormat,
     P: Placement,
-    comptime A: Access,
+    const A: Access,
 >(view: &readonly TensorView<T, Rank, F, P, A>): usize;
 
 /// Return the element stride of each axis of one strided tensor view.
 @intrinsic("tensor.view.strides")
-export declare function tensorViewStrides<T, comptime Rank: usize, P: Placement, comptime A: Access>(
+export declare function tensorViewStrides<T, const Rank: usize, P: Placement, const A: Access>(
     view: &readonly TensorView<T, Rank, Strided, P, A>,
 ): [Stride; Rank];
 
@@ -242,15 +242,15 @@ export declare function tensorViewStrides<T, comptime Rank: usize, P: Placement,
 @intrinsic("tensor.view.mesh")
 export declare function tensorViewMesh<
     T,
-    comptime Rank: usize,
+    const Rank: usize,
     F: TensorViewFormat,
-    comptime A: Access,
-    comptime ...Axes: ShardingAxis,
+    const A: Access,
+    const ...Axes: ShardingAxis,
 >(view: &readonly TensorView<T, Rank, F, Sharding<...Axes>, A>): Mesh;
 
 /// Build one strided tensor view over a slice.
 @intrinsic("tensor.view.fromStridedSlice")
-export declare function tensorViewFromStridedSlice<T, comptime Rank: usize, comptime A: Access>(
+export declare function tensorViewFromStridedSlice<T, const Rank: usize, const A: Access>(
     slice: WithAccess<&[T], A>,
     shape: Shape<Rank>,
     strides: [Stride; Rank],
@@ -260,7 +260,7 @@ export declare function tensorViewFromStridedSlice<T, comptime Rank: usize, comp
 @intrinsic("tensor.view.fromSlice")
 export declare function tensorViewFromSlice<
     T,
-    comptime Rank: usize,
-    comptime Order: MemoryOrder,
-    comptime A: Access,
+    const Rank: usize,
+    const Order: MemoryOrder,
+    const A: Access,
 >(slice: WithAccess<&[T], A>, shape: Shape<Rank>): TensorView<T, Rank, Dense<Order>, Unsharded, A>;

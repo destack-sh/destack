@@ -20,9 +20,9 @@ export newtype interface TensorFormat extends TensorViewFormat {}
 
 /// Dense contiguous tensor format.
 @languageItem("tensor.Dense")
-export newtype Dense<comptime Order: MemoryOrder = MemoryOrder.RowMajor> = intrinsic;
+export newtype Dense<const Order: MemoryOrder = MemoryOrder.RowMajor> = intrinsic;
 
-export extension<comptime Order: MemoryOrder> of Dense<Order> implements TensorFormat {}
+export extension<const Order: MemoryOrder> of Dense<Order> implements TensorFormat {}
 
 /// Explicit strided tensor view format.
 @languageItem("tensor.Strided")
@@ -36,7 +36,7 @@ export type RowMajorFormat = Dense<MemoryOrder.RowMajor>;
 /// Column-major dense tensor format.
 export type ColumnMajorFormat = Dense<MemoryOrder.ColumnMajor>;
 
-export extension<comptime Order: MemoryOrder> of Dense<Order> {
+export extension<const Order: MemoryOrder> of Dense<Order> {
     /// Return the dense memory order.
     get order(): MemoryOrder {
         Order
@@ -48,12 +48,12 @@ export extension<comptime Order: MemoryOrder> of Dense<Order> {
     }
 
     /// Return whether this format stores logical neighbors contiguously.
-    isContiguous<comptime Rank: usize>(shape: Shape<Rank>): boolean {
+    isContiguous<const Rank: usize>(shape: Shape<Rank>): boolean {
         true
     }
 
     /// Return the linear element offset for `indices`.
-    offset<comptime Rank: usize>(indices: [usize; Rank], shape: Shape<Rank>): isize {
+    offset<const Rank: usize>(indices: [usize; Rank], shape: Shape<Rank>): isize {
         return denseOffset<Order, Rank>(indices, shape);
     }
 }
@@ -65,33 +65,33 @@ export extension of Strided {
     }
 
     /// Return whether this format stores logical neighbors contiguously.
-    isContiguous<comptime Rank: usize>(shape: Shape<Rank>, strides: [Stride; Rank]): boolean {
+    isContiguous<const Rank: usize>(shape: Shape<Rank>, strides: [Stride; Rank]): boolean {
         return stridedIsContiguous<Rank>(shape, strides);
     }
 
     /// Return the linear element offset for `indices`.
-    offset<comptime Rank: usize>(indices: [usize; Rank], strides: [Stride; Rank]): isize {
+    offset<const Rank: usize>(indices: [usize; Rank], strides: [Stride; Rank]): isize {
         return stridedOffset<Rank>(indices, strides);
     }
 }
 
 /// Return the linear dense element offset for `indices`.
 @intrinsic("tensor.format.dense.offset")
-export declare function denseOffset<comptime Order: MemoryOrder, comptime Rank: usize>(
+export declare function denseOffset<const Order: MemoryOrder, const Rank: usize>(
     indices: [usize; Rank],
     shape: Shape<Rank>,
 ): isize;
 
 /// Return whether one strided format stores logical neighbors contiguously.
 @intrinsic("tensor.format.strided.isContiguous")
-export declare function stridedIsContiguous<comptime Rank: usize>(
+export declare function stridedIsContiguous<const Rank: usize>(
     shape: Shape<Rank>,
     strides: [Stride; Rank],
 ): boolean;
 
 /// Return the linear strided element offset for `indices`.
 @intrinsic("tensor.format.strided.offset")
-export declare function stridedOffset<comptime Rank: usize>(
+export declare function stridedOffset<const Rank: usize>(
     indices: [usize; Rank],
     strides: [Stride; Rank],
 ): isize;

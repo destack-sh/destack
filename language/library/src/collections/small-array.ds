@@ -11,7 +11,7 @@ import { Sequence } from "./sequence.ds";
 import { Slice } from "./slice.ds";
 
 /// A growable contiguous array with inline storage.
-export struct SmallArray<T, comptime N: usize> {
+export struct SmallArray<T, const N: usize> {
     /// The inline storage.
     private inlineStorage: FixedArray<MaybeUninit<T>, N>;
 
@@ -25,7 +25,7 @@ export struct SmallArray<T, comptime N: usize> {
     private spillCapacity: usize = 0;
 }
 
-export extension<T: Copy, comptime N: usize> of SmallArray<T, N> {
+export extension<T: Copy, const N: usize> of SmallArray<T, N> {
     /// Return the first element by value.
     first(&readonly this): T | undefined {
         todo("SmallArray.first")
@@ -37,7 +37,7 @@ export extension<T: Copy, comptime N: usize> of SmallArray<T, N> {
     }
 }
 
-export extension<T, comptime N: usize> of SmallArray<T, N> implements Iterable<T>, Sequence {
+export extension<T, const N: usize> of SmallArray<T, N> implements Iterable<T>, Sequence {
     /// The owned sequence produced by a rest pattern.
     type Rest = ^Array<T>;
 
@@ -57,7 +57,7 @@ export extension<T, comptime N: usize> of SmallArray<T, N> implements Iterable<T
     }
 }
 
-export extension<T, comptime N: usize, 'a, comptime A: Access> of Borrowed<SmallArray<T, N>, 'a, A>
+export extension<T, const N: usize, 'a, const A: Access> of Borrowed<SmallArray<T, N>, 'a, A>
     implements
         Iterable<Borrowed<T, 'a, A>>,
         Sequence {
@@ -90,7 +90,7 @@ export extension<T, comptime N: usize, 'a, comptime A: Access> of Borrowed<Small
     }
 }
 
-export extension<T, comptime N: usize> of SmallArray<T, N>
+export extension<T, const N: usize> of SmallArray<T, N>
     implements
         Index<usize>,
         IndexSet<usize, T>,
@@ -174,7 +174,7 @@ export extension<T, comptime N: usize> of SmallArray<T, N>
     }
 
     /// Borrow a view over `start..end`.
-    view<comptime A: Access = "readonly">(
+    view<const A: Access = "readonly">(
         this: WithAccess<&SmallArray<T, N>, A>,
         start: usize,
         end?: usize,
@@ -183,7 +183,7 @@ export extension<T, comptime N: usize> of SmallArray<T, N>
     }
 
     /// Borrow the element at `index`.
-    index<comptime A: Access = "readonly">(
+    index<const A: Access = "readonly">(
         this: WithAccess<&SmallArray<T, N>, A>,
         index: usize,
     ): WithAccess<&T, A> {
@@ -292,7 +292,7 @@ export extension<T, comptime N: usize> of SmallArray<T, N>
     }
 }
 
-export extension<T, comptime N: usize, comptime A: Access = "readonly"> of SmallArray<T, N>
+export extension<T, const N: usize, const A: Access = "readonly"> of SmallArray<T, N>
     implements
         As<[T], A>,
         Borrow<[T], A> {
@@ -307,7 +307,7 @@ export extension<T, comptime N: usize, comptime A: Access = "readonly"> of Small
     }
 }
 
-export extension<T, comptime N: usize, R: RangeBounds<usize>, comptime A: Access = "readonly"> of
+export extension<T, const N: usize, R: RangeBounds<usize>, const A: Access = "readonly"> of
     SmallArray<T, N>
     implements Index<R, A> {
     /// The indexed output type.
@@ -340,7 +340,7 @@ export extension<T, comptime N: usize, R: RangeBounds<usize>, comptime A: Access
     }
 }
 
-export extension<T, comptime N: usize, R: RangeBounds<usize>> of SmallArray<T, N>
+export extension<T, const N: usize, R: RangeBounds<usize>> of SmallArray<T, N>
     implements
         IndexSet<R, [T]> where T: Copy {
     /// Copy `source` into the selected range.
@@ -349,7 +349,7 @@ export extension<T, comptime N: usize, R: RangeBounds<usize>> of SmallArray<T, N
     }
 }
 
-export extension<T, comptime N: usize, R: RangeBounds<usize>> of SmallArray<T, N>
+export extension<T, const N: usize, R: RangeBounds<usize>> of SmallArray<T, N>
     implements
         IndexSet<R, &readonly [T]> where T: Copy {
     /// Copy `source` into the selected range.

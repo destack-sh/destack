@@ -224,7 +224,7 @@ export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
     }
 }
 
-export extension<T, 'a, comptime A: Access> of Borrowed<Array<T>, 'a, A>
+export extension<T, 'a, const A: Access> of Borrowed<Array<T>, 'a, A>
     implements
         Iterable<Borrowed<T, 'a, A>>,
         Sequence {
@@ -427,7 +427,7 @@ export extension<T> of Array<T>
     }
 
     /// Borrow a view over `start..end`.
-    view<comptime A: Access = "readonly">(
+    view<const A: Access = "readonly">(
         this: WithAccess<&Array<T>, A>,
         start: usize,
         end?: usize,
@@ -438,7 +438,7 @@ export extension<T> of Array<T>
     }
 
     /// Borrow the element at `index`.
-    index<comptime A: Access = "readonly">(
+    index<const A: Access = "readonly">(
         this: WithAccess<&Array<T>, A>,
         index: usize,
     ): WithAccess<&T, A> {
@@ -682,7 +682,7 @@ export extension<T> of Array<T>
     }
 }
 
-export extension<T, comptime A: Access = "readonly"> of Array<T>
+export extension<T, const A: Access = "readonly"> of Array<T>
     implements
         As<[T], A>,
         Borrow<[T], A> {
@@ -697,7 +697,7 @@ export extension<T, comptime A: Access = "readonly"> of Array<T>
     }
 }
 
-export extension<T, R: RangeBounds<usize>, comptime A: Access = "readonly"> of Array<T>
+export extension<T, R: RangeBounds<usize>, const A: Access = "readonly"> of Array<T>
     implements
         Index<R, A> {
     /// The indexed output type.

@@ -106,7 +106,7 @@ export extension<K: Compare<K>, V> of SortedMap<K, V> where V: Copy {
     }
 }
 
-export extension<K: Compare<K>, V, 'a, comptime A: Access> of Borrowed<SortedMap<K, V>, 'a, A>
+export extension<K: Compare<K>, V, 'a, const A: Access> of Borrowed<SortedMap<K, V>, 'a, A>
     implements
         Iterable<SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> {
     /// Return an iterator over borrowed entries.
@@ -244,7 +244,7 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 
     /// Borrow a value by key through the index operator.
-    index<comptime A: Access = "readonly">(
+    index<const A: Access = "readonly">(
         this: WithAccess<&SortedMap<K, V>, A>,
         key: K,
     ): WithAccess<&V, A> | undefined {

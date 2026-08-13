@@ -6,7 +6,7 @@ export type Multiplicity = "repeatable" | "once";
 export newtype Function<
     Parameters: readonly (...unknown[],) = (),
     Return = unknown,
-    comptime M: Multiplicity = "repeatable",
+    const M: Multiplicity = "repeatable",
 > = intrinsic;
 
 /// Thin callable value type.

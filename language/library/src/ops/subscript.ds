@@ -6,7 +6,7 @@ import { Access, Borrowed, Lifetime } from "destack:memory";
 ///
 /// The index type `I` can be any type (int, string, tuple, range, etc.).
 @languageItem("ops.Index")
-export newtype interface Index<I, comptime A: Access = "readonly"> {
+export newtype interface Index<I, const A: Access = "readonly"> {
     /// The indexed output type.
     type Output;
 
@@ -14,7 +14,7 @@ export newtype interface Index<I, comptime A: Access = "readonly"> {
     type Missing = never;
 
     /// Borrow the value at `key`.
-    index<comptime L: Lifetime>(
+    index<const L: Lifetime>(
         this: Borrowed<this, L, A>,
         key: I,
     ): Borrowed<this.Output, L, A> | this.Missing;
