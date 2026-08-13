@@ -3,7 +3,7 @@ import "dotenv/config";
 import kebabCase from "just-kebab-case";
 
 const getAnchor = (value) => {
-    return typeof value === "string" ? kebabCase(value.toLowerCase().replaceAll("'", "")) : "";
+    return value is string ? kebabCase(value.toLowerCase().replaceAll("'", "")) : "";
 };
 
 const DOCS_QUERY = `

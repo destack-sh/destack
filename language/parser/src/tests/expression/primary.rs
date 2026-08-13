@@ -1,7 +1,6 @@
 use crate::tests::{TestParser, block_expression_ids};
 use destack_dir::{
-    Argument, BinaryOperator, Block, Expression, IfForm, Key, Name, Parameter, Property,
-    ScalarLiteral, TypeExpression, UnaryOperator,
+    Argument, Block, Expression, Key, Name, Parameter, Property, ScalarLiteral, TypeExpression,
 };
 use std::sync::Arc;
 
@@ -413,40 +412,5 @@ fn test_parse_type_keyword_instanceof_expression() {
     assert_node!(parser.tree, expr_id, Expression::InstanceOf { value, target } => {
         assert_expression_path!(parser, parser.tree.get(*value), "type");
         assert_expression_path!(parser, parser.tree.get(*target), "Foo");
-    });
-}
-
-/// Parse `extension` as an identifier in expressions.
-#[test]
-fn test_parse_extension_identifier_in_ternary_expression() {
-    let test =
-        TestParser::new(r#"typeof extension === "function" ? extension(cloned) : extension"#);
-    let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
-
-    assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
-        assert_eq!(*form, IfForm::Ternary);
-        let condition = condition.as_expression().expect("expected expression condition");
-        assert_node!(parser.tree, condition, Expression::Binary { left, operator, right } => {
-                assert_eq!(*operator, BinaryOperator::EqualStrict);
-                assert_node!(parser.tree, *left, Expression::Unary { operator, right } => {
-                    assert_eq!(*operator, UnaryOperator::Typeof);
-                    assert_expression_path!(parser, parser.tree.get(*right), "extension");
-                });
-                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
-                    assert_string!(parser, *string, "function");
-                });
-        });
-
-        assert_node!(parser.tree, *then_expression, Expression::Call { left, arguments, .. } => {
-            assert_expression_path!(parser, parser.tree.get(*left), "extension");
-            assert_eq!(arguments.len(), 1);
-            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-                assert_expression_path!(parser, parser.tree.get(*value), "cloned");
-            });
-        });
-
-        let else_expression_id = else_expression.expect("expected ternary else expression");
-        assert_expression_path!(parser, parser.tree.get(else_expression_id), "extension");
     });
 }

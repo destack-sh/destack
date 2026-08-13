@@ -33,8 +33,6 @@ impl ModuleLowerer<'_> {
             dir::UnaryOperator::Plus => unary(js::UnaryOperator::Plus),
             dir::UnaryOperator::Negate => unary(js::UnaryOperator::Negate),
             dir::UnaryOperator::ElementwiseNot => unary(js::UnaryOperator::ElementwiseNot),
-            dir::UnaryOperator::Typeof => unary(js::UnaryOperator::Typeof),
-            dir::UnaryOperator::Void => unary(js::UnaryOperator::Void),
             dir::UnaryOperator::Dereference => right_id,
             dir::UnaryOperator::Spread => {
                 return Err(self.unhandled(

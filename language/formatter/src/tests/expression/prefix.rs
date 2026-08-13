@@ -36,19 +36,6 @@ const minusDecrement = - --value;
 }
 
 #[test]
-fn test_format_keyword_unary_prefix_spacing() {
-    assert_format_program!(
-        r#"const kind = typeof   value
-const ignored = void   run()
-"#,
-        r#"const kind = typeof value;
-const ignored = void run();
-"#,
-        FileType::Destack
-    );
-}
-
-#[test]
 fn test_format_await_prefix_forms() {
     assert_format_program!(
         r#"async function run() {

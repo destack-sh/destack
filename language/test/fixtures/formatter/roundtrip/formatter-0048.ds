@@ -10,7 +10,7 @@ import {
 // napi-JS `oxfmt` CLI entry point
 // See also `run_cli()` function in `./src/main_napi.rs`
 
-void (async () => {
+const main = async () => {
     const args = process.argv.slice(2);
 
     // Node.js sets non-TTY `stdio` to non-blocking mode,
@@ -64,4 +64,5 @@ void (async () => {
     if (major < 25 || (major === 25 && minor < 4)) {
         setTimeout(() => process.exit(), 50);
     }
-})();
+};
+drop(main());

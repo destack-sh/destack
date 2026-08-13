@@ -64,7 +64,7 @@ export function animateElements(
         /**
          * Resolve stagger function if provided.
          */
-        if (typeof elementTransition.delay === "function") {
+        if (elementTransition.delay is Function) {
             elementTransition.delay = elementTransition.delay(i, numElements);
         }
 

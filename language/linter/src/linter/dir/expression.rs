@@ -77,8 +77,6 @@ impl DirModule<'_> {
                             | dir::UnaryOperator::Plus
                             | dir::UnaryOperator::Negate
                             | dir::UnaryOperator::ElementwiseNot
-                            | dir::UnaryOperator::Typeof
-                            | dir::UnaryOperator::Void
                     )
                 {
                     return Ok(false);

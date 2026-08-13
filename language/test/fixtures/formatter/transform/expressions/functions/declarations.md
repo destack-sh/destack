@@ -185,13 +185,13 @@ Overload signatures are listed before the implementation signature.
 ```ds
 function parse(x: string): number
 function parse(x: number): number
-function parse(x: string | number): number { return typeof x === "string" ? parseInt(x) : x }
+function parse(x: string | number): number { return x is string ? parseInt(x) : x }
 ```
 
 ```ds expected
 function parse(x: string): number;
 function parse(x: number): number;
 function parse(x: string | number): number {
-    return typeof x === "string" ? parseInt(x) : x;
+    return x is string ? parseInt(x) : x;
 }
 ```

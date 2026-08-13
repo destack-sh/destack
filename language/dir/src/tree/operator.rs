@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Keyword, TokenType};
+use crate::TokenType;
 
 /// One operator precedence level.
 ///
@@ -144,10 +144,6 @@ pub enum UnaryOperator {
     Negate,
     /// `~`
     ElementwiseNot,
-    /// `typeof`
-    Typeof,
-    /// `void`
-    Void,
     /// `*`
     Dereference,
     /// `...`
@@ -167,8 +163,6 @@ impl UnaryOperator {
             UnaryOperator::Plus => "+",
             UnaryOperator::Negate => "-",
             UnaryOperator::ElementwiseNot => "~",
-            UnaryOperator::Typeof => "typeof",
-            UnaryOperator::Void => "void",
             UnaryOperator::Dereference => "*",
             UnaryOperator::Spread => "...",
         }
@@ -194,8 +188,6 @@ impl UnaryOperator {
             | UnaryOperator::Plus
             | UnaryOperator::Negate
             | UnaryOperator::ElementwiseNot
-            | UnaryOperator::Typeof
-            | UnaryOperator::Void
             | UnaryOperator::Dereference
             | UnaryOperator::Spread => true,
             UnaryOperator::PostIncrement | UnaryOperator::PostDecrement => false,
@@ -220,16 +212,6 @@ impl UnaryOperator {
             TokenType::Multiply => Some(UnaryOperator::Dereference),
             TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
             TokenType::Spread => Some(UnaryOperator::Spread),
-            _ => None,
-        }
-    }
-
-    /// Convert a prefix keyword to a UnaryOperator (if a direct mapping exists).
-    #[inline]
-    pub fn from_prefix_keyword(keyword: Keyword) -> Option<UnaryOperator> {
-        match keyword {
-            Keyword::Typeof => Some(UnaryOperator::Typeof),
-            Keyword::Void => Some(UnaryOperator::Void),
             _ => None,
         }
     }

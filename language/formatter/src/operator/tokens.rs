@@ -17,8 +17,6 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for UnaryOperator {
             UnaryOperator::Negate => token("-"),
             UnaryOperator::Plus => token("+"),
             UnaryOperator::ElementwiseNot => token("~"),
-            UnaryOperator::Typeof => token("typeof"),
-            UnaryOperator::Void => token("void"),
             UnaryOperator::Dereference => token("*"),
             UnaryOperator::Spread => token("..."),
         };

@@ -85,13 +85,13 @@ fn test_format_logical_expression_in_class_field_initializer_breaks_after_equals
 #[test]
 fn test_format_logical_expression_in_ternary_test_indents_tail_operands() {
     assert_format_program!(
-        r#"const value = (firstLongOperandThatForcesTheLogicalChainToBreak === null || secondLongOperandThatForcesTheLogicalChainToBreak === void 0 || thirdLongOperandThatForcesTheLogicalChainToBreak === null ? void 0 : fallbackValue)
+        r#"const value = (firstLongOperandThatForcesTheLogicalChainToBreak === null || secondLongOperandThatForcesTheLogicalChainToBreak === undefined || thirdLongOperandThatForcesTheLogicalChainToBreak === null ? undefined : fallbackValue)
 "#,
         r#"const value =
     firstLongOperandThatForcesTheLogicalChainToBreak === null ||
-    secondLongOperandThatForcesTheLogicalChainToBreak === void 0 ||
+    secondLongOperandThatForcesTheLogicalChainToBreak === undefined ||
     thirdLongOperandThatForcesTheLogicalChainToBreak === null
-        ? void 0
+        ? undefined
         : fallbackValue;
 "#,
         FileType::Destack,

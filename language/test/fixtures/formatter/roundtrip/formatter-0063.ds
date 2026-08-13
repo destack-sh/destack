@@ -49,11 +49,11 @@ export function initGlobals(): void {
     ({ globals, envs } = JSON.parse(globalsJSON));
 
     debugAssert(
-        typeof globals === "object" && globals !== null && !Array.isArray(globals),
+        globals is object && globals !== null && !Array.isArray(globals),
         "`globals` should be an object",
     );
     debugAssert(
-        typeof envs === "object" && envs !== null && !Array.isArray(envs),
+        envs is object && envs !== null && !Array.isArray(envs),
         "`envs` should be an object",
     );
 

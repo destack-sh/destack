@@ -40,20 +40,6 @@ Bitwise not attaches directly to the operand.
 ~mask;
 ```
 
-## Keyword Operators
-
-### typeof operator
-
-Typeof keeps a space before the operand.
-
-```ds
-typeof value
-```
-
-```ds expected
-typeof value;
-```
-
 ### await operator
 
 Await keeps a space before the operand.

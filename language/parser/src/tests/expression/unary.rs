@@ -42,30 +42,51 @@ fn test_parse_unary_postfix_operator_span() {
     assert_eq!(parser.span_str(main_span), "++");
 }
 
+/// Reject the JavaScript runtime `typeof` operator.
 #[test]
-fn test_parse_unary_keyword_operators() {
-    let test = TestParser::new("typeof foo; void 0");
+fn test_reject_runtime_typeof_expression() {
+    let test = TestParser::new("typeof value");
     let mut parser = test.prepare();
 
-    let typeof_id = parser.parse_expression(Default::default()).unwrap();
-    assert_node!(parser.tree, typeof_id, Expression::Unary { operator, right } => {
-        assert_eq!(*operator, UnaryOperator::Typeof);
-        assert_expression_path!(parser, parser.tree.get(*right), "foo");
-    });
-    parser.eat_statement_stop().unwrap();
+    let expressions = parser.parse();
 
-    let void_id = parser.parse_expression(Default::default()).unwrap();
-    assert_node!(parser.tree, void_id, Expression::Unary { operator, right } => {
-        assert_eq!(*operator, UnaryOperator::Void);
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
-    });
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::Identifier),
+            None,
+            "typeof",
+        )],
+    );
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Error);
+}
+
+/// Reject the JavaScript runtime `void` operator.
+#[test]
+fn test_reject_runtime_void_expression() {
+    let test = TestParser::new("void value");
+    let mut parser = test.prepare();
+
+    let expressions = parser.parse();
+
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::Identifier),
+            None,
+            "void",
+        )],
+    );
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Error);
 }
 
 #[test]
 fn test_parse_parenthesized_unary_exponent_operands() {
     let input = r#"
-(void ident) ** 2;
-(typeof ident) ** 2;
 (-3) ** 2;
 (+3) ** 2;
 (~3) ** 2;
@@ -76,7 +97,7 @@ fn test_parse_parenthesized_unary_exponent_operands() {
     let expressions = parser.parse();
     test.assert_no_errors(&parser);
 
-    assert_eq!(expressions.len(), 6);
+    assert_eq!(expressions.len(), 4);
     for expression in expressions {
         assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
             assert_eq!(*operator, BinaryOperator::Exponent);

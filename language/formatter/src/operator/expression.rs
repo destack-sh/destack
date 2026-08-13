@@ -275,17 +275,9 @@ pub(crate) fn format_operator_expression<'ast>(
         // unary
         Expression::Unary { operator, right } => {
             if operator.is_prefix() {
-                let needs_space = matches!(operator, UnaryOperator::Typeof | UnaryOperator::Void);
+                write!(f, [operator])?;
 
-                if needs_space {
-                    write!(f, [operator, space()])?;
-                } else {
-                    write!(f, [operator])?;
-                }
-
-                if !needs_space
-                    && prefix_unary_would_merge_with_operand(f.context(), operator, *right)
-                {
+                if prefix_unary_would_merge_with_operand(f.context(), operator, *right) {
                     write!(f, [space()])?;
                 }
 

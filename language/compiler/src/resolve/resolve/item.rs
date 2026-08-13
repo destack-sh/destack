@@ -143,8 +143,6 @@ impl ResolveState<'_> {
             | dir::UnaryOperator::PreIncrement
             | dir::UnaryOperator::PreDecrement
             | dir::UnaryOperator::Not
-            | dir::UnaryOperator::Typeof
-            | dir::UnaryOperator::Void
             | dir::UnaryOperator::Spread => return,
         };
 

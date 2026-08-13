@@ -344,7 +344,7 @@ impl Parser {
         }
 
         match keyword {
-            Keyword::Function | Keyword::Throw => {
+            Keyword::Function | Keyword::Throw | Keyword::Typeof | Keyword::Void => {
                 Err(ParserError::unexpected(self.peek_token_span()))
             }
             Keyword::This => {
@@ -610,12 +610,6 @@ impl Parser {
 
     /// Return the current value prefix operation.
     fn peek_value_prefix_operator(&self) -> Option<UnaryOperator> {
-        if self.peek_is(TokenType::Identifier) {
-            return self
-                .peek_keyword()
-                .and_then(UnaryOperator::from_prefix_keyword);
-        }
-
         UnaryOperator::from_prefix_token(self.peek_token_type())
     }
 
