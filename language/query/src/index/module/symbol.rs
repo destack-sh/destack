@@ -180,7 +180,7 @@ impl<'a> SymbolIndexer<'a> {
                         }
                     }),
                     dir::Member::StaticBlock { .. }
-                    | dir::Member::ComptimeBlock { .. }
+                    | dir::Member::ConstBlock { .. }
                     | dir::Member::Error => None,
                 }
             }

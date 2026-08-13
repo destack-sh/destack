@@ -210,7 +210,7 @@ impl HoistSite {
             | dir::Expression::AwaitMaybe { expression }
             | dir::Expression::AwaitMust { expression }
             | dir::Expression::Chain { expression }
-            | dir::Expression::Comptime { body: expression }
+            | dir::Expression::Const { body: expression }
             | dir::Expression::As { expression, .. }
             | dir::Expression::Satisfies { expression, .. } => *expression == child,
             dir::Expression::Unary { right, .. } | dir::Expression::BorrowOf { right, .. } => {

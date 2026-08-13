@@ -65,7 +65,7 @@ impl TryFrom<dir::SymbolKind> for SemanticTokenType {
         match symbol_kind {
             dir::SymbolKind::Variable
             | dir::SymbolKind::AssociatedConst
-            | dir::SymbolKind::GenericValueParameter => Ok(Self::Variable),
+            | dir::SymbolKind::GenericLifetimeParameter => Ok(Self::Variable),
             dir::SymbolKind::Parameter => Ok(Self::Parameter),
             dir::SymbolKind::Label => Ok(Self::Label),
             dir::SymbolKind::Class => Ok(Self::Class),
@@ -795,7 +795,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
             None => SemanticTokenModifiers::NONE,
         };
         let modifiers = match symbol.kind {
-            dir::SymbolKind::GenericValueParameter => SemanticTokenModifiers::READONLY,
+            dir::SymbolKind::GenericLifetimeParameter => SemanticTokenModifiers::READONLY,
             dir::SymbolKind::Variable
                 if symbol.binding_mutability == Some(dir::Mutability::Immutable) =>
             {
@@ -903,7 +903,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 modifiers
             }
             dir::Member::StaticBlock { .. }
-            | dir::Member::ComptimeBlock { .. }
+            | dir::Member::ConstBlock { .. }
             | dir::Member::Error => SemanticTokenModifiers::NONE,
         }
     }
@@ -990,7 +990,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
                 Some((SemanticTokenType::Method, modifiers))
             }
-            dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. } => None,
+            dir::Member::StaticBlock { .. } | dir::Member::ConstBlock { .. } => None,
             dir::Member::Error => None,
         }
     }
@@ -1147,9 +1147,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                         SemanticTokenType::TypeParameter,
                         SemanticTokenModifiers::DECLARATION,
                     ),
-                    dir::GenericParameter::Lifetime { .. }
-                    | dir::GenericParameter::Value { .. }
-                    | dir::GenericParameter::VariadicValue { .. } => (
+                    dir::GenericParameter::Lifetime { .. } => (
                         SemanticTokenType::Variable,
                         SemanticTokenModifiers::DECLARATION.union(SemanticTokenModifiers::READONLY),
                     ),

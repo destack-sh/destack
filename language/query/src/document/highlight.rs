@@ -155,7 +155,7 @@ impl ModuleQueryContext<'_> {
                 HighlightKind::Write
             }
             dir::NodeType::GenericParameter
-                if symbol.kind == dir::SymbolKind::GenericValueParameter =>
+                if symbol.kind == dir::SymbolKind::GenericLifetimeParameter =>
             {
                 HighlightKind::Write
             }
@@ -177,7 +177,7 @@ impl ModuleQueryContext<'_> {
         let kind = match symbol.kind {
             dir::SymbolKind::Variable
             | dir::SymbolKind::AssociatedConst
-            | dir::SymbolKind::GenericValueParameter
+            | dir::SymbolKind::GenericLifetimeParameter
             | dir::SymbolKind::Parameter
             | dir::SymbolKind::Import => HighlightKind::Read,
             _ => HighlightKind::Text,

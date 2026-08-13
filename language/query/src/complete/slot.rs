@@ -60,7 +60,7 @@ impl ExpressionSlotOwner {
             dir::Member::AssociatedConst { value, .. } => *value == Some(expression_id),
             dir::Member::Field { default, .. } => *default == Some(expression_id),
             dir::Member::Method { body, .. } => *body == Some(expression_id),
-            dir::Member::StaticBlock { body, .. } | dir::Member::ComptimeBlock { body, .. } => {
+            dir::Member::StaticBlock { body, .. } | dir::Member::ConstBlock { body, .. } => {
                 *body == expression_id
             }
             dir::Member::Error => false,
@@ -75,7 +75,7 @@ impl ExpressionSlotOwner {
     ) -> bool {
         match expression {
             dir::Expression::ObjectExpression { .. } => false,
-            dir::Expression::Comptime { body: expression }
+            dir::Expression::Const { body: expression }
             | dir::Expression::Await { expression }
             | dir::Expression::Unary {
                 right: expression, ..

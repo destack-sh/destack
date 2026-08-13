@@ -112,30 +112,6 @@ impl Formatter<'_, '_, '_> {
 
                 format!("{prefix}{}{constraint}{default}", strings.get(*name))
             }
-            dir::GenericParameter::Value {
-                name,
-                declared_type,
-                default,
-                is_comptime,
-            } => {
-                let prefix = value_parameter_prefix(*is_comptime, false);
-                let declared_type = self.type_bound(*declared_type)?;
-                let default = self.expression_default(*default)?;
-
-                format!("{prefix}{}{declared_type}{default}", strings.get(*name))
-            }
-            dir::GenericParameter::VariadicValue {
-                name,
-                declared_type,
-                default,
-                is_comptime,
-            } => {
-                let prefix = value_parameter_prefix(*is_comptime, true);
-                let declared_type = self.type_bound(*declared_type)?;
-                let default = self.expression_default(*default)?;
-
-                format!("{prefix}{}{declared_type}{default}", strings.get(*name))
-            }
             dir::GenericParameter::Lifetime { name } => strings.get(*name).to_string(),
             dir::GenericParameter::Error => {
                 return Err(QueryError::missing("generic parameter formatting"));
@@ -226,22 +202,6 @@ impl Formatter<'_, '_, '_> {
 
         Ok(format!(" = {type_text}"))
     }
-
-    /// Format one optional generic value default.
-    fn expression_default(
-        &self,
-        expression: Option<dir::LocalNodeId<dir::Expression>>,
-    ) -> QueryResult<String> {
-        let Some(expression) = expression else {
-            return Ok(String::new());
-        };
-        let span = self
-            .module
-            .node_span(self.module.view()?, expression.into())?;
-        let expression = self.module.source_text(span)?;
-
-        Ok(format!(" = {expression}"))
-    }
 }
 
 /// Format one type parameter prefix.
@@ -263,20 +223,6 @@ fn type_parameter_prefix(
         None => {}
     }
 
-    if is_variadic {
-        prefix.push_str("...");
-    }
-
-    prefix
-}
-
-/// Format one value parameter prefix.
-fn value_parameter_prefix(is_comptime: bool, is_variadic: bool) -> String {
-    let mut prefix = String::new();
-
-    if is_comptime {
-        prefix.push_str("comptime ");
-    }
     if is_variadic {
         prefix.push_str("...");
     }

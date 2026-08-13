@@ -71,7 +71,7 @@ impl TryFrom<dir::SymbolKind> for SymbolKind {
             dir::SymbolKind::TypeAlias => Ok(Self::TypeAlias),
             dir::SymbolKind::Variable => Ok(Self::Variable),
             dir::SymbolKind::GenericTypeParameter
-            | dir::SymbolKind::GenericValueParameter
+            | dir::SymbolKind::GenericLifetimeParameter
             | dir::SymbolKind::Parameter
             | dir::SymbolKind::Label
             | dir::SymbolKind::Import
@@ -408,7 +408,7 @@ impl ModuleQueryContext<'_> {
         if matches!(
             member,
             dir::Member::StaticBlock { .. }
-                | dir::Member::ComptimeBlock { .. }
+                | dir::Member::ConstBlock { .. }
                 | dir::Member::Error
         ) {
             return Ok(None);
@@ -478,7 +478,7 @@ impl ModuleQueryContext<'_> {
                 (name, kind, Some(detail))
             }
             dir::Member::StaticBlock { .. }
-            | dir::Member::ComptimeBlock { .. }
+            | dir::Member::ConstBlock { .. }
             | dir::Member::Error => return Ok(None),
         };
 

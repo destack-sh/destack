@@ -80,7 +80,7 @@ impl From<dir::SymbolKind> for CompletionItemKind {
             dir::SymbolKind::Parameter => CompletionItemKind::ValueParameter,
             dir::SymbolKind::Label => CompletionItemKind::Label,
             dir::SymbolKind::AssociatedConst => CompletionItemKind::AssociatedConst,
-            dir::SymbolKind::GenericValueParameter => CompletionItemKind::ValueParameter,
+            dir::SymbolKind::GenericLifetimeParameter => CompletionItemKind::ValueParameter,
             dir::SymbolKind::Class => CompletionItemKind::Class,
             dir::SymbolKind::Struct => CompletionItemKind::Struct,
             dir::SymbolKind::Interface => CompletionItemKind::Interface,

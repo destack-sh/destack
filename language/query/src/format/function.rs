@@ -286,6 +286,6 @@ impl Formatter<'_, '_, '_> {
 fn function_phase_prefix(phase: dir::FunctionPhase) -> &'static str {
     match phase {
         dir::FunctionPhase::Normal => "",
-        dir::FunctionPhase::Comptime => "comptime ",
+        dir::FunctionPhase::Const => "const ",
     }
 }
