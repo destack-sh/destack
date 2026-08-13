@@ -350,7 +350,9 @@ The `break` operand works like TypeScript labels by default, the break only get 
 
 ## Using
 
-Resource management with `using` and `await using` follows the [TC39 explicit resource management proposal](https://github.com/tc39/proposal-explicit-resource-management), but of course with nominal interfaces instead of magic `Symbol` keys:
+Resource management with `using` and `await using` follows the [TC39 explicit resource management proposal](https://github.com/tc39/proposal-explicit-resource-management).
+`Dispose` and `AsyncDispose` define the cleanup protocols as nominal interfaces:
+
 - `using` accepts `Dispose | null | undefined`.
 - `await using` accepts `AsyncDispose | Dispose | null | undefined`, and falls back to synchronous disposal when the resource only implements `Dispose`.
 - `null` and `undefined` are ignored, following the spec.

@@ -10,7 +10,7 @@ Destack extends TypeScript's type system with precise primitives, nominal types 
 
 ## Primitives
 
-Destack is spiritually "TypeScript++", and so we inherit TypeScript's main primitive types, which in turn are based on JavaScript: `string`, `boolean`, `number` (aliases to `float64`), `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
+Destack is spiritually "TypeScript++", and so we inherit TypeScript's main primitive types: `string`, `boolean`, `number`, `bigint`, `null` and `undefined` - no `symbol` though.
 Beyond the basic set, Destack adds some more primitive types:
 - variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) 
 - concrete float formats (`float32`, `float64`)
