@@ -3,8 +3,8 @@ use destack_program as program;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::RuntimeId;
 use crate::worker::WorkerId;
-use crate::world::topology::Topology;
 use crate::world::WorldState;
+use crate::world::topology::Topology;
 use destack_repository::{ConditionSet, ExecutionMode};
 
 use super::{Decision, Subject};

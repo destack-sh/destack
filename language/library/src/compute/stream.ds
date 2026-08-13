@@ -1,9 +1,9 @@
 import { compute } from "./binding/compute.ds";
+import { ComputeEventHandle, ComputeStreamHandle } from "./binding/resource.ds";
 import { Device } from "./device.ds";
 
 /// Ordered command stream for one compute device.
-@languageItem("compute.Stream")
-export newtype Stream = intrinsic;
+export newtype Stream = ComputeStreamHandle;
 
 export extension of Stream {
     /// Return the device that owns this stream.
@@ -38,8 +38,7 @@ export extension of Stream {
 }
 
 /// Completion marker recorded on a compute stream.
-@languageItem("compute.Event")
-export newtype Event = intrinsic;
+export newtype Event = ComputeEventHandle;
 
 export extension of Event {
     /// Return the stream that recorded this event.

@@ -356,45 +356,6 @@ define_language_items! {
             /// Compute binding family.
             ComputeBinding => (Interface, "compute/binding/compute", "ComputeBinding"),
         }
-
-        /// `destack:compute/buffer`.
-        buffer {
-            /// Compute buffer handle.
-            ComputeBuffer => (Newtype, "compute/buffer", "Buffer"),
-        }
-
-        /// `destack:compute/device`.
-        device {
-            /// Compute device handle.
-            ComputeDevice => (Newtype, "compute/device", "Device"),
-        }
-
-        /// `destack:compute/mesh`.
-        mesh {
-            /// Compute mesh handle.
-            ComputeMesh => (Newtype, "compute/mesh", "Mesh"),
-        }
-
-        /// `destack:compute/program`.
-        program {
-            /// Compute kernel handle.
-            ComputeKernel => (Newtype, "compute/program", "Kernel"),
-
-            /// Compute kernel argument type.
-            ComputeKernelArgument => (Newtype, "compute/program", "KernelArgument"),
-
-            /// Compute program handle.
-            ComputeProgram => (Newtype, "compute/program", "Program"),
-        }
-
-        /// `destack:compute/stream`.
-        stream {
-            /// Compute event handle.
-            ComputeEvent => (Newtype, "compute/stream", "Event"),
-
-            /// Compute stream handle.
-            ComputeStream => (Newtype, "compute/stream", "Stream"),
-        }
     }
 
     /// Context types.
@@ -1600,9 +1561,6 @@ define_language_items! {
 
             /// Callable value type.
             Function => (Newtype, "types/function", "Function"),
-
-            /// Affine callable value type.
-            OnceFunction => (Newtype, "types/function", "OnceFunction"),
 
             /// Thin callable value type.
             FunctionPointer => (Newtype, "types/function", "FunctionPointer"),

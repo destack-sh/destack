@@ -1,7 +1,9 @@
 import { Slice } from "destack:collections";
 import { Result } from "destack:error";
+import { Phantom } from "destack:memory";
 
 import { compute } from "./binding/compute.ds";
+import { ComputeBufferHandle } from "./binding/resource.ds";
 import { Device } from "./device.ds";
 import { ComputeError } from "./error.ds";
 import { Event, Stream } from "./stream.ds";
@@ -43,8 +45,13 @@ export struct BufferCopyRegion {
 }
 
 /// Typed storage allocated on one compute device.
-@languageItem("compute.Buffer")
-export newtype Buffer<T> = intrinsic;
+export struct Buffer<T> {
+    /// The buffer endpoint handle.
+    handle: ComputeBufferHandle;
+
+    /// The element type this buffer stores.
+    element: Phantom<T>;
+}
 
 export extension<T> of Buffer<T> {
     /// Return the device that owns this buffer.

@@ -1,6 +1,7 @@
 import { Slice } from "destack:collections";
 
 import { compute } from "./binding/compute.ds";
+import { ComputeMeshHandle } from "./binding/resource.ds";
 import { Device } from "./device.ds";
 
 /// Named axis inside a compute mesh.
@@ -13,8 +14,7 @@ export struct MeshAxis {
 }
 
 /// Multi-device placement topology.
-@languageItem("compute.Mesh")
-export newtype Mesh = intrinsic;
+export newtype Mesh = ComputeMeshHandle;
 
 export extension of Mesh {
     /// Create a mesh from devices and named axes.

@@ -2,6 +2,11 @@ import { Slice } from "destack:collections";
 import { Result } from "destack:error";
 
 import { compute } from "./binding/compute.ds";
+import {
+    ComputeKernelArgumentHandle,
+    ComputeKernelHandle,
+    ComputeProgramHandle,
+} from "./binding/resource.ds";
 import { Buffer } from "./buffer.ds";
 import { Device } from "./device.ds";
 import { ComputeError } from "./error.ds";
@@ -113,8 +118,7 @@ export struct ProgramReport {
 }
 
 /// Compiled compute code for one device.
-@languageItem("compute.Program")
-export newtype Program = intrinsic;
+export newtype Program = ComputeProgramHandle;
 
 export extension of Program {
     /// Return the device that owns this program.
@@ -147,8 +151,7 @@ export extension of Program {
 }
 
 /// Encoded kernel argument.
-@languageItem("compute.KernelArgument")
-export newtype KernelArgument = intrinsic;
+export newtype KernelArgument = ComputeKernelArgumentHandle;
 
 export extension of KernelArgument {
     /// Encode `value` as one kernel argument.
@@ -205,8 +208,7 @@ export struct KernelSignature {
 }
 
 /// Callable entry point inside a compute program.
-@languageItem("compute.Kernel")
-export newtype Kernel = intrinsic;
+export newtype Kernel = ComputeKernelHandle;
 
 export extension of Kernel {
     /// Return the program that owns this kernel.
