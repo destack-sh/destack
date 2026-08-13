@@ -14,7 +14,7 @@ import { decodeCommandRevision, encodeCommandRevision, fromJsonCommandRevision, 
 import { decodeCommandTargetOverrides, encodeCommandTargetOverrides, fromJsonCommandTargetOverrides, toJsonCommandTargetOverrides } from "./common.js";
 import { decodeManifestOverride, encodeManifestOverride, fromJsonManifestOverride, toJsonManifestOverride } from "./common.js";
 
-/** Target row shown by workspace discovery commands. */
+/** Target entry shown by workspace discovery commands. */
 export type TargetEntry = {
     /** The target name. */
     readonly name: string;

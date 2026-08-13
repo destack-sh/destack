@@ -487,14 +487,6 @@ export type PrimitiveType =
           readonly kind: "float";
           readonly float: FloatType;
       }
-    /** Symbol type `symbol`. */
-    | {
-          readonly kind: "symbol";
-      }
-    /** Unique symbol type `unique symbol`. */
-    | {
-          readonly kind: "uniqueSymbol";
-      }
 ;
 
 export const PrimitiveType = {
@@ -526,16 +518,6 @@ export const PrimitiveType = {
     /** Float type, like `float64` or `bfloat16`. */
     float(float: FloatType): PrimitiveType {
         return { kind: "float", float };
-    },
-
-    /** Symbol type `symbol`. */
-    "symbol"(): PrimitiveType {
-        return { kind: "symbol" };
-    },
-
-    /** Unique symbol type `unique symbol`. */
-    uniqueSymbol(): PrimitiveType {
-        return { kind: "uniqueSymbol" };
     },
 
     /** Encode this value. */
@@ -582,12 +564,6 @@ export function encodePrimitiveType(writer: BinaryWriter, value: PrimitiveType):
             writer.writeUnsigned(5);
             encodeFloatType(writer, value.float);
             return;
-        case "symbol":
-            writer.writeUnsigned(6);
-            return;
-        case "uniqueSymbol":
-            writer.writeUnsigned(7);
-            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -619,12 +595,6 @@ export function decodePrimitiveType(reader: BinaryReader): PrimitiveType {
             const float = decodeFloatType(reader);
 
             return { kind: "float", float };
-        }
-        case 6: {
-            return { kind: "symbol" };
-        }
-        case 7: {
-            return { kind: "uniqueSymbol" };
         }
     }
 
@@ -659,14 +629,6 @@ export function toJsonPrimitiveType(value: PrimitiveType): Json {
             return {
                 kind: "float",
                 float: toJsonFloatType(value.float),
-            };
-        case "symbol":
-            return {
-                kind: "symbol",
-            };
-        case "uniqueSymbol":
-            return {
-                kind: "uniqueSymbol",
             };
     }
 
@@ -704,14 +666,6 @@ export function fromJsonPrimitiveType(value: Json): PrimitiveType {
             return {
                 kind,
                 float: fromJsonFloatType(jsonField(object, "float")),
-            };
-        case "symbol":
-            return {
-                kind,
-            };
-        case "uniqueSymbol":
-            return {
-                kind,
             };
     }
 

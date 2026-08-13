@@ -15,6 +15,7 @@ import type { DecoratorSegment } from "../dir/table/decorator.js";
 import type { DefinitionSegment } from "../dir/table/definition.js";
 import type { ExportTable } from "../dir/table/export.js";
 import type { ExtensionTable } from "../dir/table/extension.js";
+import type { FlowSegment } from "../dir/table/flow.js";
 import type { GenericSegment } from "../dir/table/generic.js";
 import type { GlobalTable } from "../dir/table/global.js";
 import type { ImportTable } from "../dir/table/import.js";
@@ -45,6 +46,7 @@ import { decodeDecoratorSegment, encodeDecoratorSegment, fromJsonDecoratorSegmen
 import { decodeDefinitionSegment, encodeDefinitionSegment, fromJsonDefinitionSegment, toJsonDefinitionSegment } from "../dir/table/definition.js";
 import { decodeExportTable, encodeExportTable, fromJsonExportTable, toJsonExportTable } from "../dir/table/export.js";
 import { decodeExtensionTable, encodeExtensionTable, fromJsonExtensionTable, toJsonExtensionTable } from "../dir/table/extension.js";
+import { decodeFlowSegment, encodeFlowSegment, fromJsonFlowSegment, toJsonFlowSegment } from "../dir/table/flow.js";
 import { decodeGenericSegment, encodeGenericSegment, fromJsonGenericSegment, toJsonGenericSegment } from "../dir/table/generic.js";
 import { decodeGlobalTable, encodeGlobalTable, fromJsonGlobalTable, toJsonGlobalTable } from "../dir/table/global.js";
 import { decodeImportTable, encodeImportTable, fromJsonImportTable, toJsonImportTable } from "../dir/table/import.js";
@@ -186,6 +188,8 @@ export type DirChecked = {
     readonly coercions: CoercionSegment;
     /** New captures. */
     readonly captures: CaptureSegment;
+    /** Flow conclusions. */
+    readonly flows: FlowSegment;
 };
 
 export const DirChecked = {
@@ -225,6 +229,7 @@ export function encodeDirChecked(writer: BinaryWriter, value: DirChecked): void 
     encodeMemberSegment(writer, value.members);
     encodeCoercionSegment(writer, value.coercions);
     encodeCaptureSegment(writer, value.captures);
+    encodeFlowSegment(writer, value.flows);
 }
 
 /** Decode one DirChecked. */
@@ -242,6 +247,7 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
     const members = decodeMemberSegment(reader);
     const coercions = decodeCoercionSegment(reader);
     const captures = decodeCaptureSegment(reader);
+    const flows = decodeFlowSegment(reader);
 
     return {
         fingerprint,
@@ -257,6 +263,7 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
         members,
         coercions,
         captures,
+        flows,
     };
 }
 
@@ -276,6 +283,7 @@ export function toJsonDirChecked(value: DirChecked): Json {
         members: toJsonMemberSegment(value.members),
         coercions: toJsonCoercionSegment(value.coercions),
         captures: toJsonCaptureSegment(value.captures),
+        flows: toJsonFlowSegment(value.flows),
     };
 }
 
@@ -297,6 +305,7 @@ export function fromJsonDirChecked(value: Json): DirChecked {
         members: fromJsonMemberSegment(jsonField(object, "members")),
         coercions: fromJsonCoercionSegment(jsonField(object, "coercions")),
         captures: fromJsonCaptureSegment(jsonField(object, "captures")),
+        flows: fromJsonFlowSegment(jsonField(object, "flows")),
     };
 }
 
@@ -304,7 +313,7 @@ export function fromJsonDirChecked(value: Json): DirChecked {
 export type DirDeclared = {
     /** The stable fingerprint of this module's declared output. */
     readonly fingerprint: ArtifactProjectionFingerprint;
-    /** The modules this artifact's rows mention. */
+    /** The modules this artifact's entries mention. */
     readonly references: ReadonlyArray<ModuleId>;
     /** Declared binding segment. */
     readonly bindings: BindingSegment;
@@ -435,7 +444,7 @@ export function fromJsonDirDeclared(value: Json): DirDeclared {
 export type DirElaborated = {
     /** The stable fingerprint of this module's elaborated output. */
     readonly fingerprint: ArtifactProjectionFingerprint;
-    /** The modules this artifact's rows mention. */
+    /** The modules this artifact's entries mention. */
     readonly references: ReadonlyArray<ModuleId>;
     /** Symbols minted while deriving variants and constructors. */
     readonly bindings: BindingSegment;
@@ -447,7 +456,7 @@ export type DirElaborated = {
     readonly auto: AutoSegment;
     /** Derived variances. */
     readonly generics: GenericSegment;
-    /** Definitions carrying derived constructor rows. */
+    /** Definitions carrying derived constructor entries. */
     readonly definitions: DefinitionSegment;
     /** Selected and evaluated decorator applications. */
     readonly decorators: DecoratorSegment;

@@ -145,7 +145,7 @@ export type Symbol = {
     readonly role: SymbolRole;
     /** The declaration kind of the symbol. */
     readonly kind: SymbolKind;
-    /** The lexical visibility extent of this symbol. */
+    /** The lookup visibility of this symbol. */
     readonly visibility: SymbolVisibility;
     /** The mutability for value bindings when known. */
     readonly bindingMutability?: Mutability;
@@ -271,7 +271,7 @@ export function fromJsonSymbol(value: Json): Symbol {
 }
 
 /** The declaration kind of a symbol. */
-export type SymbolKind = "variable" | "parameter" | "import" | "exportAlias" | "class" | "struct" | "interface" | "newtypeInterface" | "enum" | "variant" | "function" | "extension" | "typeAlias" | "genericTypeParameter" | "genericValueParameter" | "associatedType" | "associatedConst" | "newtype";
+export type SymbolKind = "variable" | "parameter" | "label" | "import" | "exportAlias" | "class" | "struct" | "interface" | "newtypeInterface" | "enum" | "variant" | "function" | "extension" | "typeAlias" | "genericTypeParameter" | "genericValueParameter" | "associatedType" | "associatedConst" | "newtype";
 
 export const SymbolKind = {
     /** Encode this value. */
@@ -304,53 +304,56 @@ export function encodeSymbolKind(writer: BinaryWriter, value: SymbolKind): void 
         case "parameter":
             writer.writeUnsigned(1);
             return;
-        case "import":
+        case "label":
             writer.writeUnsigned(2);
             return;
-        case "exportAlias":
+        case "import":
             writer.writeUnsigned(3);
             return;
-        case "class":
+        case "exportAlias":
             writer.writeUnsigned(4);
             return;
-        case "struct":
+        case "class":
             writer.writeUnsigned(5);
             return;
-        case "interface":
+        case "struct":
             writer.writeUnsigned(6);
             return;
-        case "newtypeInterface":
+        case "interface":
             writer.writeUnsigned(7);
             return;
-        case "enum":
+        case "newtypeInterface":
             writer.writeUnsigned(8);
             return;
-        case "variant":
+        case "enum":
             writer.writeUnsigned(9);
             return;
-        case "function":
+        case "variant":
             writer.writeUnsigned(10);
             return;
-        case "extension":
+        case "function":
             writer.writeUnsigned(11);
             return;
-        case "typeAlias":
+        case "extension":
             writer.writeUnsigned(12);
             return;
-        case "genericTypeParameter":
+        case "typeAlias":
             writer.writeUnsigned(13);
             return;
-        case "genericValueParameter":
+        case "genericTypeParameter":
             writer.writeUnsigned(14);
             return;
-        case "associatedType":
+        case "genericValueParameter":
             writer.writeUnsigned(15);
             return;
-        case "associatedConst":
+        case "associatedType":
             writer.writeUnsigned(16);
             return;
-        case "newtype":
+        case "associatedConst":
             writer.writeUnsigned(17);
+            return;
+        case "newtype":
+            writer.writeUnsigned(18);
             return;
     }
 
@@ -367,36 +370,38 @@ export function decodeSymbolKind(reader: BinaryReader): SymbolKind {
         case 1:
             return "parameter";
         case 2:
-            return "import";
+            return "label";
         case 3:
-            return "exportAlias";
+            return "import";
         case 4:
-            return "class";
+            return "exportAlias";
         case 5:
-            return "struct";
+            return "class";
         case 6:
-            return "interface";
+            return "struct";
         case 7:
-            return "newtypeInterface";
+            return "interface";
         case 8:
-            return "enum";
+            return "newtypeInterface";
         case 9:
-            return "variant";
+            return "enum";
         case 10:
-            return "function";
+            return "variant";
         case 11:
-            return "extension";
+            return "function";
         case 12:
-            return "typeAlias";
+            return "extension";
         case 13:
-            return "genericTypeParameter";
+            return "typeAlias";
         case 14:
-            return "genericValueParameter";
+            return "genericTypeParameter";
         case 15:
-            return "associatedType";
+            return "genericValueParameter";
         case 16:
-            return "associatedConst";
+            return "associatedType";
         case 17:
+            return "associatedConst";
+        case 18:
             return "newtype";
     }
 
@@ -417,6 +422,8 @@ export function fromJsonSymbolKind(value: Json): SymbolKind {
             return "variable";
         case "parameter":
             return "parameter";
+        case "label":
+            return "label";
         case "import":
             return "import";
         case "exportAlias":
@@ -605,8 +612,8 @@ export function fromJsonSymbolRole(value: Json): SymbolRole {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** The lexical visibility extent of a symbol. */
-export type SymbolVisibility = "forward" | "scope" | "member";
+/** The lookup visibility of a symbol. */
+export type SymbolVisibility = "forward" | "scope" | "member" | "control";
 
 export const SymbolVisibility = {
     /** Encode this value. */
@@ -642,6 +649,9 @@ export function encodeSymbolVisibility(writer: BinaryWriter, value: SymbolVisibi
         case "member":
             writer.writeUnsigned(2);
             return;
+        case "control":
+            writer.writeUnsigned(3);
+            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -658,6 +668,8 @@ export function decodeSymbolVisibility(reader: BinaryReader): SymbolVisibility {
             return "scope";
         case 2:
             return "member";
+        case 3:
+            return "control";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -679,6 +691,8 @@ export function fromJsonSymbolVisibility(value: Json): SymbolVisibility {
             return "scope";
         case "member":
             return "member";
+        case "control":
+            return "control";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);

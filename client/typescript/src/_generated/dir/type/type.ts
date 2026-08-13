@@ -2418,7 +2418,7 @@ export function fromJsonRefinedTypeId(value: Json): RefinedTypeId {
     return jsonInteger(value);
 }
 
-/** The members one anonymous object class declares. */
+/** The members one anonymous object type declares. */
 export type ShapeType = {
     /** The declared property list. */
     readonly properties: TypeListId;
@@ -3393,7 +3393,7 @@ export type Type =
           readonly kind: "literal";
           readonly literal: ScalarLiteral;
       }
-    /** Singleton property key type, like `Symbol.for("id")`. */
+    /** Singleton static property key type. */
     | {
           readonly kind: "key";
           readonly key: StaticKey;
@@ -3574,7 +3574,7 @@ export const Type = {
         return { kind: "literal", literal };
     },
 
-    /** Singleton property key type, like `Symbol.for("id")`. */
+    /** Singleton static property key type. */
     key(key: StaticKey): Type {
         return { kind: "key", key };
     },

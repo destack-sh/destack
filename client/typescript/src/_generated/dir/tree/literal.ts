@@ -1053,14 +1053,6 @@ export type TypeLiteral =
           readonly kind: "float";
           readonly float: FloatType;
       }
-    /** Symbol type. */
-    | {
-          readonly kind: "symbol";
-      }
-    /** Unique symbol type. */
-    | {
-          readonly kind: "uniqueSymbol";
-      }
 ;
 
 export const TypeLiteral = {
@@ -1134,16 +1126,6 @@ export const TypeLiteral = {
         return { kind: "float", float };
     },
 
-    /** Symbol type. */
-    "symbol"(): TypeLiteral {
-        return { kind: "symbol" };
-    },
-
-    /** Unique symbol type. */
-    uniqueSymbol(): TypeLiteral {
-        return { kind: "uniqueSymbol" };
-    },
-
     /** Encode this value. */
     encode(writer: BinaryWriter, value: TypeLiteral): void {
         encodeTypeLiteral(writer, value);
@@ -1213,12 +1195,6 @@ export function encodeTypeLiteral(writer: BinaryWriter, value: TypeLiteral): voi
             writer.writeUnsigned(13);
             encodeFloatType(writer, value.float);
             return;
-        case "symbol":
-            writer.writeUnsigned(14);
-            return;
-        case "uniqueSymbol":
-            writer.writeUnsigned(15);
-            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -1276,12 +1252,6 @@ export function decodeTypeLiteral(reader: BinaryReader): TypeLiteral {
             const float = decodeFloatType(reader);
 
             return { kind: "float", float };
-        }
-        case 14: {
-            return { kind: "symbol" };
-        }
-        case 15: {
-            return { kind: "uniqueSymbol" };
         }
     }
 
@@ -1349,14 +1319,6 @@ export function toJsonTypeLiteral(value: TypeLiteral): Json {
             return {
                 kind: "float",
                 float: toJsonFloatType(value.float),
-            };
-        case "symbol":
-            return {
-                kind: "symbol",
-            };
-        case "uniqueSymbol":
-            return {
-                kind: "uniqueSymbol",
             };
     }
 
@@ -1427,14 +1389,6 @@ export function fromJsonTypeLiteral(value: Json): TypeLiteral {
             return {
                 kind,
                 float: fromJsonFloatType(jsonField(object, "float")),
-            };
-        case "symbol":
-            return {
-                kind,
-            };
-        case "uniqueSymbol":
-            return {
-                kind,
             };
     }
 

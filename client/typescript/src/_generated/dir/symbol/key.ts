@@ -2,11 +2,9 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonField, jsonInteger, jsonObject, jsonString } from "../../../protocol/serde.js";
 import type { StringId } from "../../core/string.js";
-import type { GlobalSymbolId } from "./symbol.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
-import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "./symbol.js";
 
-/** Key for some static "identifier" (name, positional index, symbol). */
+/** Key for some static identifier or positional index. */
 export type StaticKey =
     /** Regular name key (like `x` or `"weird identifier"`). */
     | {
@@ -17,11 +15,6 @@ export type StaticKey =
     | {
           readonly kind: "index";
           readonly index: number;
-      }
-    /** Symbol key. */
-    | {
-          readonly kind: "symbol";
-          readonly symbol: SymbolKey;
       }
 ;
 
@@ -34,11 +27,6 @@ export const StaticKey = {
     /** Positional index key (like `0` or `1`). */
     index(index: number): StaticKey {
         return { kind: "index", index };
-    },
-
-    /** Symbol key. */
-    "symbol"(symbol_: SymbolKey): StaticKey {
-        return { kind: "symbol", symbol: symbol_ };
     },
 
     /** Encode this value. */
@@ -73,10 +61,6 @@ export function encodeStaticKey(writer: BinaryWriter, value: StaticKey): void {
             writer.writeUnsigned(1);
             writer.writeUnsigned(value.index);
             return;
-        case "symbol":
-            writer.writeUnsigned(2);
-            encodeSymbolKey(writer, value.symbol);
-            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -97,11 +81,6 @@ export function decodeStaticKey(reader: BinaryReader): StaticKey {
 
             return { kind: "index", index };
         }
-        case 2: {
-            const symbol_ = decodeSymbolKey(reader);
-
-            return { kind: "symbol", symbol: symbol_ };
-        }
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -119,11 +98,6 @@ export function toJsonStaticKey(value: StaticKey): Json {
             return {
                 kind: "index",
                 index: value.index,
-            };
-        case "symbol":
-            return {
-                kind: "symbol",
-                symbol: toJsonSymbolKey(value.symbol),
             };
     }
 
@@ -145,132 +119,6 @@ export function fromJsonStaticKey(value: Json): StaticKey {
             return {
                 kind,
                 index: jsonInteger(jsonField(object, "index")),
-            };
-        case "symbol":
-            return {
-                kind,
-                symbol: fromJsonSymbolKey(jsonField(object, "symbol")),
-            };
-    }
-
-    throw new SerdeError(`unknown enum variant: ${kind}`);
-}
-
-/** Symbol as a key. */
-export type SymbolKey =
-    /** Unique symbol key from a declaration. */
-    | {
-          readonly kind: "unique";
-          readonly unique: GlobalSymbolId;
-      }
-    /** Symbol.for registry key (string is the content of `Symbol.for`). */
-    | {
-          readonly kind: "registry";
-          readonly registry: StringId;
-      }
-;
-
-export const SymbolKey = {
-    /** Unique symbol key from a declaration. */
-    "unique"(unique_: GlobalSymbolId): SymbolKey {
-        return { kind: "unique", unique: unique_ };
-    },
-
-    /** Symbol.for registry key (string is the content of `Symbol.for`). */
-    registry(registry: StringId): SymbolKey {
-        return { kind: "registry", registry };
-    },
-
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: SymbolKey): void {
-        encodeSymbolKey(writer, value);
-    },
-
-    /** Decode one SymbolKey. */
-    decode(reader: BinaryReader): SymbolKey {
-        return decodeSymbolKey(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: SymbolKey): Json {
-        return toJsonSymbolKey(value);
-    },
-
-    /** Return one SymbolKey from one JSON value. */
-    fromJson(value: Json): SymbolKey {
-        return fromJsonSymbolKey(value);
-    },
-};
-
-/** Encode one SymbolKey. */
-export function encodeSymbolKey(writer: BinaryWriter, value: SymbolKey): void {
-    switch (value.kind) {
-        case "unique":
-            writer.writeUnsigned(0);
-            encodeGlobalSymbolId(writer, value.unique);
-            return;
-        case "registry":
-            writer.writeUnsigned(1);
-            encodeStringId(writer, value.registry);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one SymbolKey. */
-export function decodeSymbolKey(reader: BinaryReader): SymbolKey {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0: {
-            const unique_ = decodeGlobalSymbolId(reader);
-
-            return { kind: "unique", unique: unique_ };
-        }
-        case 1: {
-            const registry = decodeStringId(reader);
-
-            return { kind: "registry", registry };
-        }
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one SymbolKey. */
-export function toJsonSymbolKey(value: SymbolKey): Json {
-    switch (value.kind) {
-        case "unique":
-            return {
-                kind: "unique",
-                unique: toJsonGlobalSymbolId(value.unique),
-            };
-        case "registry":
-            return {
-                kind: "registry",
-                registry: toJsonStringId(value.registry),
-            };
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Return one SymbolKey from one JSON value. */
-export function fromJsonSymbolKey(value: Json): SymbolKey {
-    const object = jsonObject(value);
-    const kind = jsonString(jsonField(object, "kind"));
-
-    switch (kind) {
-        case "unique":
-            return {
-                kind,
-                unique: fromJsonGlobalSymbolId(jsonField(object, "unique")),
-            };
-        case "registry":
-            return {
-                kind,
-                registry: fromJsonStringId(jsonField(object, "registry")),
             };
     }
 

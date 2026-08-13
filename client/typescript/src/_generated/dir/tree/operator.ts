@@ -471,7 +471,7 @@ export function fromJsonRangeEnd(value: Json): RangeEnd {
 }
 
 /** One unary operator. */
-export type UnaryOperator = "postIncrement" | "postDecrement" | "preIncrement" | "preDecrement" | "not" | "plus" | "negate" | "elementwiseNot" | "typeof" | "void" | "dereference" | "spread";
+export type UnaryOperator = "postIncrement" | "postDecrement" | "preIncrement" | "preDecrement" | "not" | "plus" | "negate" | "elementwiseNot" | "dereference" | "spread";
 
 export const UnaryOperator = {
     /** Encode this value. */
@@ -522,17 +522,11 @@ export function encodeUnaryOperator(writer: BinaryWriter, value: UnaryOperator):
         case "elementwiseNot":
             writer.writeUnsigned(7);
             return;
-        case "typeof":
+        case "dereference":
             writer.writeUnsigned(8);
             return;
-        case "void":
-            writer.writeUnsigned(9);
-            return;
-        case "dereference":
-            writer.writeUnsigned(10);
-            return;
         case "spread":
-            writer.writeUnsigned(11);
+            writer.writeUnsigned(9);
             return;
     }
 
@@ -561,12 +555,8 @@ export function decodeUnaryOperator(reader: BinaryReader): UnaryOperator {
         case 7:
             return "elementwiseNot";
         case 8:
-            return "typeof";
-        case 9:
-            return "void";
-        case 10:
             return "dereference";
-        case 11:
+        case 9:
             return "spread";
     }
 
@@ -599,10 +589,6 @@ export function fromJsonUnaryOperator(value: Json): UnaryOperator {
             return "negate";
         case "elementwiseNot":
             return "elementwiseNot";
-        case "typeof":
-            return "typeof";
-        case "void":
-            return "void";
         case "dereference":
             return "dereference";
         case "spread":

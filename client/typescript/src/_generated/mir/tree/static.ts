@@ -3,10 +3,8 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBigint, jsonBool, jsonField, jsonInteger, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StringId } from "../../core/string.js";
 import type { LocalNodeId } from "./node.js";
-import type { Symbol } from "./symbol.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
-import { decodeSymbol, encodeSymbol, fromJsonSymbol, toJsonSymbol } from "./symbol.js";
 
 /** One closed compile-time value retained in MIR. */
 export type Static =
@@ -703,16 +701,6 @@ export type StaticKey =
           readonly kind: "index";
           readonly index: bigint;
       }
-    /** A unique symbol key. */
-    | {
-          readonly kind: "unique";
-          readonly unique: Symbol;
-      }
-    /** An interned registry symbol key. */
-    | {
-          readonly kind: "registry";
-          readonly registry: StringId;
-      }
 ;
 
 export const StaticKey = {
@@ -724,16 +712,6 @@ export const StaticKey = {
     /** A positional index key. */
     index(index: bigint): StaticKey {
         return { kind: "index", index };
-    },
-
-    /** A unique symbol key. */
-    "unique"(unique_: Symbol): StaticKey {
-        return { kind: "unique", unique: unique_ };
-    },
-
-    /** An interned registry symbol key. */
-    registry(registry: StringId): StaticKey {
-        return { kind: "registry", registry };
     },
 
     /** Encode this value. */
@@ -768,14 +746,6 @@ export function encodeStaticKey(writer: BinaryWriter, value: StaticKey): void {
             writer.writeUnsigned(1);
             writer.writeUnsigned(value.index);
             return;
-        case "unique":
-            writer.writeUnsigned(2);
-            encodeSymbol(writer, value.unique);
-            return;
-        case "registry":
-            writer.writeUnsigned(3);
-            encodeStringId(writer, value.registry);
-            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -796,16 +766,6 @@ export function decodeStaticKey(reader: BinaryReader): StaticKey {
 
             return { kind: "index", index };
         }
-        case 2: {
-            const unique_ = decodeSymbol(reader);
-
-            return { kind: "unique", unique: unique_ };
-        }
-        case 3: {
-            const registry = decodeStringId(reader);
-
-            return { kind: "registry", registry };
-        }
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -823,16 +783,6 @@ export function toJsonStaticKey(value: StaticKey): Json {
             return {
                 kind: "index",
                 index: value.index.toString(),
-            };
-        case "unique":
-            return {
-                kind: "unique",
-                unique: toJsonSymbol(value.unique),
-            };
-        case "registry":
-            return {
-                kind: "registry",
-                registry: toJsonStringId(value.registry),
             };
     }
 
@@ -854,16 +804,6 @@ export function fromJsonStaticKey(value: Json): StaticKey {
             return {
                 kind,
                 index: jsonBigint(jsonField(object, "index")),
-            };
-        case "unique":
-            return {
-                kind,
-                unique: fromJsonSymbol(jsonField(object, "unique")),
-            };
-        case "registry":
-            return {
-                kind,
-                registry: fromJsonStringId(jsonField(object, "registry")),
             };
     }
 
