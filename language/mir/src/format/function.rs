@@ -70,7 +70,7 @@ impl FormatNode for Function {
     }
 }
 
-/// Format declared outlives rows as one trailing where clause.
+/// Format declared outlives bounds as one trailing where clause.
 pub(super) fn format_lifetime_where<'a>(
     lifetimes: &[LifetimeParameter],
     f: &mut Writer<'a, '_>,

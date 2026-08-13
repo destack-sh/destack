@@ -20,15 +20,15 @@ pub enum ConstantValue {
 }
 
 impl ModuleBuilder {
-    /// Build one constant object initializer over a struct row, field by name.
+    /// Build one constant object initializer over a struct type, field by name.
     pub fn constant_object(
         &mut self,
-        row: LocalNodeId<Type>,
+        ty: LocalNodeId<Type>,
         values: &[(&str, ConstantValue)],
     ) -> BuildResult<GlobalInitializer> {
-        // read the declared row fields in order
-        let Type::Struct { fields, .. } = self.tree.get(row) else {
-            return Err(BuildError::InvalidConstantRow { row });
+        // read the declared struct fields in order
+        let Type::Struct { fields, .. } = self.tree.get(ty) else {
+            return Err(BuildError::InvalidConstantStruct { ty });
         };
         let fields = fields.clone();
 

@@ -72,11 +72,11 @@ impl Tree {
         }
 
         // compare the nodes shallowly with their children masked out
-        let mut left_row = self.get(left).clone();
-        let mut right_row = self.get(right).clone();
-        left_row.map_child_type_ids(&mut |_| left);
-        right_row.map_child_type_ids(&mut |_| left);
-        if left_row != right_row {
+        let mut left_type = self.get(left).clone();
+        let mut right_type = self.get(right).clone();
+        left_type.map_child_type_ids(&mut |_| left);
+        right_type.map_child_type_ids(&mut |_| left);
+        if left_type != right_type {
             return false;
         }
 
@@ -155,7 +155,7 @@ impl Tree {
         indices.insert(id, indices.len());
 
         match self.get(id) {
-            // serialize struct rows field by named field
+            // serialize struct types field by named field
             Type::Struct { fields, copy } => {
                 let _ = write!(key, "struct{copy:?}(");
                 for field in fields.clone() {

@@ -163,9 +163,9 @@ entry(v0: Box<int32, 'static>):
     );
 }
 
-/// Formats declared outlives rows between lifetime parameters.
+/// Formats declared outlives bounds between lifetime parameters.
 #[test]
-fn test_format_lifetime_outlives_rows() {
+fn test_format_lifetime_outlives_bounds() {
     assert_format(
         r#"
 function pass<'LA, 'LC>(v0: ref<int32, borrowed, 'LA, mutable>): ref<int32, borrowed, 'LC, mutable> where 'LA: 'LC {
