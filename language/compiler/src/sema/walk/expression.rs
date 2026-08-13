@@ -42,11 +42,18 @@ impl WalkState<'_, '_> {
                         .module(self.module)
                         .declaration_symbol(declaration.into_any())
                 {
-                    self.visit_declared_bodies(
+                    let is_declared = self.walk_declared_body(
                         declaration,
                         &self.tree.get(declaration).clone(),
                         symbol,
                     )?;
+                    if !is_declared {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "local declaration {declaration:?} was not declared before its body"
+                            ),
+                        });
+                    }
                 }
                 if is_lambda {
                     let Some(symbol) = self
@@ -61,7 +68,8 @@ impl WalkState<'_, '_> {
                     // function values register their bodies at their expression
                     if let dir::Declaration::Function(function) = self.tree.get(declaration).clone()
                     {
-                        self.walk_declared_function_body(declaration, &function, symbol)?;
+                        let _registered =
+                            self.walk_declared_function_body(declaration, &function, symbol)?;
                     }
                     // move the body from independent roots to its value expression
                     let Some(body) = self.check.functions.swap_remove(&symbol) else {

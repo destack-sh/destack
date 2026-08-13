@@ -1,10 +1,10 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::sema::{
     CauseKind, ClassInitializationObligation, Obligation, Origin, Receiver, ValueUse, WalkState,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
     /// Walk one declaration statement's bodies for the check traversal.
@@ -21,7 +21,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        // declare local declarations in place before their bodies walk
+        // read the declaration's bound symbol
         let symbol = self
             .check
             .module(self.module)
@@ -29,16 +29,24 @@ impl WalkState<'_, '_> {
         let Some(symbol) = symbol else {
             return self.walk_declaration(id, &self.tree.get(id).clone());
         };
-        let handled = self.visit_declared_bodies(id, declaration, symbol)?;
-        if !handled {
-            self.walk_declaration(id, &self.tree.get(id).clone())?;
+        let is_declared = self.walk_declared_body(id, declaration, symbol)?;
+        if is_declared {
+            return Ok(());
+        }
+
+        // declare a body-local declaration before walking its declared body
+        self.walk_declaration(id, &self.tree.get(id).clone())?;
+        if !self.walk_declared_body(id, declaration, symbol)? {
+            return Err(CompilerError::Internal {
+                message: format!("local declaration {id:?} was not declared before its body"),
+            });
         }
 
         Ok(())
     }
 
     /// Walk one declared declaration's bodies.
-    pub(in crate::sema) fn visit_declared_bodies(
+    pub(in crate::sema) fn walk_declared_body(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,

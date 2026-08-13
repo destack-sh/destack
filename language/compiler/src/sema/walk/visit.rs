@@ -86,9 +86,19 @@ impl CheckState<'_> {
             })?;
         }
 
-        // check every independent function body after the roots
-        let bodies = walk.check.functions.values().cloned().collect::<Vec<_>>();
-        for function in bodies {
+        // check function bodies in declaration order, including bodies discovered while checking
+        let mut next_body = 0;
+        loop {
+            let function = walk
+                .check
+                .functions
+                .get_index(next_body)
+                .map(|(_, function)| function.clone());
+            let Some(function) = function else {
+                break;
+            };
+            next_body += 1;
+
             walk.check
                 .with_scope(|check| function.check(check, InferMode::Exact, None))?;
             walk.flush_flows()?;
