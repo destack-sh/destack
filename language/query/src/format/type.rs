@@ -43,14 +43,13 @@ impl Formatter<'_, '_, '_> {
     pub(super) fn local_type(&self, type_value: &dir::Type) -> QueryResult<String> {
         let text = match type_value {
             dir::Type::Error => "<error>".to_string(),
-            dir::Type::Hole(_) => "_".to_string(),
             dir::Type::Never => "never".to_string(),
             dir::Type::Any => "any".to_string(),
             dir::Type::Unknown => "unknown".to_string(),
             dir::Type::Void => "void".to_string(),
             dir::Type::Null => "null".to_string(),
             dir::Type::Undefined => "undefined".to_string(),
-            dir::Type::Object(shape) => return self.shape(*shape),
+            dir::Type::Object(shape) => return self.object(*shape),
             dir::Type::Primitive(primitive) => self.primitive(*primitive),
             dir::Type::Literal(literal) => self.literal(*literal),
             dir::Type::Reference(reference) => return self.symbol(reference.symbol),
@@ -91,7 +90,6 @@ impl Formatter<'_, '_, '_> {
                 format!("[{element}]")
             }
             dir::Type::Tuple(tuple) => return self.tuple(*tuple),
-            dir::Type::Shape(shape) => return self.shape(*shape),
             dir::Type::FunctionSignature(function) => {
                 return self.function_type(self.types()?.signature(*function), None);
             }
@@ -346,8 +344,8 @@ impl Formatter<'_, '_, '_> {
         Ok(text)
     }
 
-    /// Format one structural shape type.
-    fn shape(&self, shape: dir::ShapeType) -> QueryResult<String> {
+    /// Format one anonymous object type.
+    fn object(&self, shape: dir::ShapeType) -> QueryResult<String> {
         let mut members = Vec::new();
 
         for property in self.types()?.properties(shape.properties) {

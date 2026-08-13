@@ -18,7 +18,7 @@ impl CompletionCollector<'_, '_, '_> {
         {
             let fields = match variant.argument {
                 Some(argument) => self.program.read_type(argument, |ty, owner| {
-                    let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = ty else {
+                    let dir::Type::Object(shape) = ty else {
                         return Err(QueryError::invalid(format!(
                             "tagged constructor argument: {argument:?}"
                         )));

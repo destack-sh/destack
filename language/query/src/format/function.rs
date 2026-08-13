@@ -97,9 +97,10 @@ impl Formatter<'_, '_, '_> {
     ) -> QueryResult<String> {
         let parameters = self.function_parameters(function, parameter_names)?;
         let return_type = self.function_return_type(function)?;
-        let prefix = match function.asynchrony {
-            dir::Asynchrony::Sync => "",
-            dir::Asynchrony::Async => "async ",
+        let prefix = match (function.asynchrony, function.is_construct) {
+            (dir::Asynchrony::Async, _) => "async ",
+            (dir::Asynchrony::Sync, true) => "new ",
+            (dir::Asynchrony::Sync, false) => "",
         };
 
         Ok(format!("{prefix}({parameters}) => {return_type}"))
