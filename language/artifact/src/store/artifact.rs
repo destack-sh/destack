@@ -27,7 +27,7 @@ pub trait ArtifactStore: std::fmt::Debug + Send + Sync {
     ) -> Result<(), ArtifactError>;
 }
 
-/// Rows and bytes published by one artifact flush.
+/// Entries and bytes published by one artifact flush.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ArtifactFlush {
     /// The number of segment files published.

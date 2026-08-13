@@ -430,7 +430,7 @@ impl<'a> ArtifactPayloadRef<'a> {
     {
         let mut projections = Vec::new();
 
-        // index module graph columns at their natural row granularity
+        // index module graph columns at their natural entry granularity
         if let Self::ModuleGraph(graph) = self {
             for module in graph.modules() {
                 let keys = [ArtifactProjectionKey::ModuleEdges(*module)];

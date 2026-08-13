@@ -123,7 +123,7 @@ impl ArtifactTable {
             versions.insert(binding.version);
         }
 
-        // release unreachable binding rows and version indexes
+        // release unreachable binding entries and version indexes
         self.bindings_by_version.retain(|_version, bindings| {
             bindings.retain(|binding| retained.contains(binding));
 

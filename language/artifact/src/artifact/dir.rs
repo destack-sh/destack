@@ -259,7 +259,7 @@ impl DirResolved {
 pub struct DirDeclared {
     /// The stable fingerprint of this module's declared output.
     pub fingerprint: ArtifactProjectionFingerprint,
-    /// The modules this artifact's rows mention.
+    /// The modules this artifact's entries mention.
     pub references: Vec<ModuleId>,
     /// Declared binding segment.
     pub bindings: Arc<dir::BindingSegment>,
@@ -338,7 +338,7 @@ impl DirDeclared {
 pub struct DirElaborated {
     /// The stable fingerprint of this module's elaborated output.
     pub fingerprint: ArtifactProjectionFingerprint,
-    /// The modules this artifact's rows mention.
+    /// The modules this artifact's entries mention.
     pub references: Vec<ModuleId>,
     /// Symbols minted while deriving variants and constructors.
     pub bindings: Arc<dir::BindingSegment>,
@@ -350,7 +350,7 @@ pub struct DirElaborated {
     pub auto: Arc<dir::AutoSegment>,
     /// Derived variances.
     pub generics: Arc<dir::GenericSegment>,
-    /// Definitions carrying derived constructor rows.
+    /// Definitions carrying derived constructor entries.
     pub definitions: Arc<dir::DefinitionSegment>,
     /// Selected and evaluated decorator applications.
     pub decorators: Arc<dir::DecoratorSegment>,
