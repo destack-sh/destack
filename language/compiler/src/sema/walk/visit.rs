@@ -316,7 +316,6 @@ impl CheckState<'_> {
     }
 
     /// Return one written application's generic argument node by position.
-    /// Require one exact value where the declaration consumes the slot.
     fn check_argument_cardinality(
         &mut self,
         source: dir::GlobalNodeIdAny,
@@ -325,8 +324,7 @@ impl CheckState<'_> {
         parameter: dir::GlobalGenericParameterId,
         argument: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        if self.recorded_cardinality(parameter).is_none() || self.type_flags(argument)?.has_infer()
-        {
+        if self.recorded_cardinality(parameter).is_none() {
             return Ok(());
         }
 
@@ -334,13 +332,14 @@ impl CheckState<'_> {
             .written_generic_argument(source, index)
             .unwrap_or(source);
         let origin = Origin::Node(argument_source, scope);
-        if !self.type_fixes_exact_value(origin, argument)? {
+        if !self.type_satisfies_one_cardinality(origin, argument)? {
             self.report_argument_not_exact_value(argument_source, argument, parameter)?;
         }
 
         Ok(())
     }
 
+    /// Require one exact value where the declaration consumes the slot.
     fn written_generic_argument(
         &self,
         source: dir::GlobalNodeIdAny,

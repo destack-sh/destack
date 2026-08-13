@@ -3,8 +3,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::sema::{Cause, CauseId, CauseKind, CheckState, Origin, Relation};
+use crate::{CompilerError, CompilerResult};
 
 /// One derived generic parameter variance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -954,6 +954,53 @@ impl CheckState<'_> {
         }
 
         None
+    }
+
+    /// Return whether one type satisfies a One cardinality demand.
+    pub(in crate::sema) fn type_satisfies_one_cardinality(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // expose the value domain behind computation heads before judging
+        let ty = self.normalize_computation(origin, ty)?;
+        let satisfies = match self.ty(ty)? {
+            // literals and errors stand for one value
+            dir::Type::Literal(_) | dir::Type::Error => true,
+            // bare enum members carry one discriminant value
+            dir::Type::Variant(_) => true,
+            // reject unsettled variables loudly
+            dir::Type::Variable(_) => {
+                return Err(CompilerError::Internal {
+                    message: format!("unsettled variable at {origin:?}"),
+                });
+            }
+            // rigid parameters carry their own recorded cardinality
+            dir::Type::Parameter(parameter) => {
+                self.recorded_cardinality(parameter).is_some()
+                    || self
+                        .generic_parameter(parameter)
+                        .is_some_and(|binding| binding.memory_parameter().is_some())
+            }
+            // static operations over exact operands compute one exact value
+            dir::Type::Operation(operation) => {
+                match self.type_operation(ty.module_id, operation)? {
+                    dir::TypeOperation::StaticBinary(binary) => {
+                        self.type_satisfies_one_cardinality(origin, binary.left)?
+                            && self.type_satisfies_one_cardinality(origin, binary.right)?
+                    }
+                    dir::TypeOperation::StaticUnary(unary) => {
+                        self.type_satisfies_one_cardinality(origin, unary.target)?
+                    }
+                    // infer binders match the one value the scrutinee fixed
+                    dir::TypeOperation::Infer(_) => true,
+                    _ => false,
+                }
+            }
+            _ => false,
+        };
+
+        Ok(satisfies)
     }
 
     /// Return the derived variance recorded for one parameter, if any.

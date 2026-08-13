@@ -30,6 +30,41 @@ declare const buffer: Buffer<1024>;
 }
 
 #[test]
+fn test_accept_a_static_computation_over_a_fixed_parameter() {
+    let session = TestSession::single(
+        r#"
+type Buffer<const N: uint> = [uint8; N];
+
+type Halved<const M: uint> = Buffer<M / 2>;
+
+declare const halved: Halved<1024>;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+type Buffer<const N: uint> = [uint8; N];
+
+type Halved<const M: uint> = Buffer<M / 2>;
+
+declare const halved: Halved<1024>;
+
+=== checked ===
+type Buffer<const N: uint> = [uint8; N];
+
+type Halved<const M: uint> = Buffer<M / 2>;
+
+declare const halved: Halved<1024>;
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
 fn test_reject_an_argument_that_leaves_a_consumed_parameter_open() {
     let session = TestSession::single(
         r#"
