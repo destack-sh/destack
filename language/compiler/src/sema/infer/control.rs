@@ -320,8 +320,8 @@ impl BodyState<'_, '_> {
         id: dir::LocalNodeId<dir::Catch>,
         failure: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // skip statically absent handlers
-        if !self.check.decide_static_presence(id.into_any())? {
+        // walk decorators and skip absent handlers
+        if !self.walk_body_decorators(module, id.into_any())? {
             return self.check.intern_type(dir::Type::Never);
         }
         let catch = self.module(module).view().get(id).clone();
@@ -711,8 +711,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Vec<dir::LocalNodeId<dir::MatchArm>>> {
         let mut present = Vec::new();
         for arm in arms {
-            let node = arm.into_global_any(module);
-            if self.check.decide_static_presence(node.local_id)? {
+            if self.walk_body_decorators(module, arm.into_any())? {
                 present.push(*arm);
             }
         }
@@ -728,8 +727,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Vec<dir::LocalNodeId<dir::SwitchCase>>> {
         let mut present = Vec::new();
         for case in cases {
-            let node = case.into_global_any(module);
-            if self.check.decide_static_presence(node.local_id)? {
+            if self.walk_body_decorators(module, case.into_any())? {
                 present.push(*case);
             }
         }
