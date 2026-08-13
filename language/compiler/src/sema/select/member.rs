@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use destack_core::FxIndexMap;
 use destack_dir as dir;
-use destack_dir::TypeFold;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
@@ -872,51 +871,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         subject: dir::MemberSubject,
     ) -> CompilerResult<Vec<dir::MemberBinding>> {
-        // compose the owner's memoized bindings with extensions for nominal subjects
-        //  that key on their own target
-        if subject.key_type == subject.target
-            && let Some(instance) = self.apparent_instance(subject.target)?
-        {
-            let mut inherent = self
-                .member_bindings(origin, instance.symbol, subject.space)?
-                .map(|bindings| bindings.to_vec())
-                .unwrap_or_default();
-
-            // apply this instance, since the memoized bindings name the owner's parameters
-            let receiver_value = self.strip_form(origin, subject.receiver)?;
-            let substitution = instance
-                .substitution(self.check)?
-                .with_receiver(receiver_value);
-            for binding in &mut inherent {
-                binding.map_types(&mut |ty| self.substitute_type(ty, &substitution))?;
-            }
-
-            let extensions = self.subject_extension_members(
-                origin,
-                module,
-                subject.receiver,
-                subject.target,
-                instance.symbol,
-                subject.space,
-            )?;
-
-            // extensions serve the keys the inherent members left open
-            let mut bindings = inherent;
-            for (key, candidates) in extensions.iter() {
-                if bindings.iter().any(|binding| binding.key == *key) {
-                    continue;
-                }
-
-                let lookup = MemberLookup::Found(candidates.clone());
-                if let Some(binding) = self.member_binding(origin, *key, &lookup)? {
-                    bindings.push(binding);
-                }
-            }
-
-            return Ok(bindings);
-        }
-
-        // other subjects resolve each key through the source member lookup
+        // resolve each reachable key through the same lookup used at source sites
         let keys = self.subject_member_keys(origin, module, &subject)?;
         let mut bindings = Vec::with_capacity(keys.len());
         for key in keys {

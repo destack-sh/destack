@@ -31,10 +31,10 @@ struct MemberLookupKey {
 /// Which member sources one lookup admits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) enum ExtensionFilter {
-    /// Search receiver and base declarations only.
-    Inherent,
-    /// Search inherent members first, then extensions.
-    All,
+    /// Exclude extension members.
+    Exclude,
+    /// Include extension members.
+    Include,
 }
 
 impl BodyState<'_, '_> {
@@ -101,7 +101,7 @@ impl BodyState<'_, '_> {
             subject.target,
             subject.space,
             key,
-            ExtensionFilter::All,
+            ExtensionFilter::Include,
             &mut active_queries,
         )
     }
@@ -124,7 +124,7 @@ impl BodyState<'_, '_> {
             receiver,
             space,
             key,
-            ExtensionFilter::Inherent,
+            ExtensionFilter::Exclude,
             &mut active_queries,
         )
     }
@@ -378,14 +378,14 @@ impl BodyState<'_, '_> {
                     &[constraint],
                     space,
                     key,
-                    ExtensionFilter::Inherent,
+                    ExtensionFilter::Exclude,
                     active,
                 )?;
                 lookup.select_dynamic(dispatch)?;
 
                 // extensions remain direct calls over the erased receiver
                 if matches!(lookup, MemberLookup::Missing)
-                    && extensions == ExtensionFilter::All
+                    && extensions == ExtensionFilter::Include
                     && let Some(instance) = self.apparent_instance(constraint)?
                 {
                     return self.lookup_extension_member(
@@ -643,24 +643,28 @@ impl BodyState<'_, '_> {
             self.import_external_module(symbol.module_id)?;
         }
 
-        // search declaration members before extensions
-        let mut lookup = MemberLookup::Missing;
+        // search inherent members first
         if !self.symbol_kind(symbol)?.is_type_alias() {
             let inherent =
                 self.lookup_inherent_declaration_member(origin, receiver, symbol, arguments, key)?;
-            lookup = match inherent {
-                MemberLookup::Found(_)
-                | MemberLookup::Field(_)
-                | MemberLookup::Union(_)
-                | MemberLookup::Intersection(_) => return Ok(inherent),
-                MemberLookup::Missing => match extensions {
-                    ExtensionFilter::All => {
-                        self.lookup_static_extension_member(origin, module, symbol, arguments, key)?
-                    }
-                    ExtensionFilter::Inherent => MemberLookup::Missing,
-                },
-            };
+            if inherent.is_found() {
+                return Ok(inherent);
+            }
+
+            // search associated members next
+            let associated = self.lookup_associated_member(origin, receiver, space, key)?;
+            if associated.is_found() {
+                return Ok(associated);
+            }
         }
+
+        // search extensions last
+        let lookup = match extensions {
+            ExtensionFilter::Include => {
+                self.lookup_static_extension_member(origin, module, symbol, arguments, key)?
+            }
+            ExtensionFilter::Exclude => MemberLookup::Missing,
+        };
 
         // aliased bodies answer whatever the root declaration lacks
         if matches!(lookup, MemberLookup::Missing)
@@ -751,14 +755,15 @@ impl BodyState<'_, '_> {
             return Ok(inherent);
         }
 
-        // search associated members before extensions
+        // search associated members next
         let associated = self.lookup_associated_member(origin, receiver, space, key)?;
         if associated.is_found() {
             return Ok(associated);
         }
 
+        // search extensions last
         match extensions {
-            ExtensionFilter::All => {
+            ExtensionFilter::Include => {
                 let lookup = self.lookup_extension_member(
                     origin,
                     module,
@@ -787,7 +792,7 @@ impl BodyState<'_, '_> {
 
                 Ok(lookup)
             }
-            ExtensionFilter::Inherent => Ok(MemberLookup::Missing),
+            ExtensionFilter::Exclude => Ok(MemberLookup::Missing),
         }
     }
 
