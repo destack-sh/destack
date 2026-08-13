@@ -150,7 +150,7 @@ impl RenameSelection {
             }
         }
 
-        // remove exact duplicate rows from overload and profile indexes
+        // remove exact duplicate entries from overload and profile indexes
         occurrences.sort_by_key(|occurrence| {
             (
                 occurrence.module.profile_id,

@@ -32,7 +32,7 @@ impl<'context, 'index> DecoratorIndexer<'context, 'index> {
             // resolve decorator display name
             let name = self.module.decorator_name(application.source.local_id);
 
-            // emit decorator application row
+            // emit decorator application entry
             self.entries.push(dir::DecoratorEntry {
                 name,
                 decorator: application.source,

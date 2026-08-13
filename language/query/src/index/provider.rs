@@ -258,7 +258,7 @@ impl Indexer {
         Ok(ArtifactPayload::ModuleIndex(Arc::new(payload)))
     }
 
-    /// Read checked DIR for one module index row.
+    /// Read checked DIR for one module index entry.
     fn module_index_context<'a>(
         &'a self,
         artifacts: &ArtifactReader<'_>,
@@ -486,7 +486,7 @@ impl Indexer {
             .into());
         }
 
-        // load only module rows whose owner versions changed
+        // load only module entries whose owner versions changed
         let mut changed = Vec::new();
         for (ordinal, module_id) in module_ids.iter().enumerate() {
             let version = versions[module_id];

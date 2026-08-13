@@ -131,7 +131,7 @@ impl<'context, 'index> HeritageIndexer<'context, 'index> {
     ) -> ProviderResult<()> {
         let base = self.heritage_base(ty)?;
 
-        // emit heritage edge row
+        // emit heritage edge entry
         self.entries.push(dir::HeritageEntry {
             derived: derived_symbol,
             declaration: declaration_symbol,

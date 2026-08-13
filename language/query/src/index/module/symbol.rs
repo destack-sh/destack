@@ -75,7 +75,7 @@ impl<'a> SymbolIndexer<'a> {
                 continue;
             };
 
-            // emit one declaration row
+            // emit one declaration entry
             if let Some(entry) = self.symbol_entry(source, symbol_id, name_id)? {
                 self.entries.push(entry);
             }
@@ -115,7 +115,7 @@ impl<'a> SymbolIndexer<'a> {
             ))
         })?;
 
-        // record the declaration row
+        // record the declaration entry
         let name = self.strings.get(name_id).to_string();
         let container = self.symbol_container_name(symbol_id);
         let global_symbol = symbol_id.into_global(self.module_id);

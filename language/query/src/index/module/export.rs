@@ -49,13 +49,13 @@ impl<'a> ExportIndexer<'a> {
 
     /// Collect named export entries.
     fn collect_exports(&mut self) -> ProviderResult<()> {
-        // collect this module's named export rows
+        // collect this module's named export entries
         for (key, export) in self.exported.exports.exports() {
             let Some(name) = self.export_name(*key) else {
                 continue;
             };
 
-            // retain one row for the complete exported target
+            // retain one entry for the complete exported target
             if let Some(resolution) = self.resolve_export(self.module_id, self.resolved, export)? {
                 self.entries.push(dir::ExportEntry {
                     name,
@@ -234,7 +234,7 @@ impl<'a> ExportIndexer<'a> {
                     }
                 };
 
-                // retain rows with both declaration and target
+                // retain entries with both declaration and target
                 let target = self.resolve_reference(target, item)?;
                 let (Some(declaration), Some(target)) = (declaration, target) else {
                     return Ok(None);

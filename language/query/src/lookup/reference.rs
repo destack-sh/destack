@@ -41,7 +41,7 @@ impl ProgramQueryContext<'_> {
             references.push((reference.module, entry.span));
         }
 
-        // remove exact duplicate index rows
+        // remove exact duplicate index entries
         references.sort_by_key(|(module, span)| {
             (
                 module.profile_id,
@@ -74,7 +74,7 @@ impl ProgramQueryContext<'_> {
             references.push((reference.module, entry.span));
         }
 
-        // remove exact duplicate index rows
+        // remove exact duplicate index entries
         references.sort_by_key(|(module, span)| {
             (
                 module.profile_id,
