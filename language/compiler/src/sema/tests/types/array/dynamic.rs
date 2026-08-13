@@ -35,12 +35,12 @@ const byte = bytes[index];
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.subscript source=bytes[index] type=uint8 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(index) as usize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
-/// @generic.instance source=bytes[index] id="Array<uint8>.<extension#4>.index#1<\"exclusive\">"
+/// @generic.instance source=bytes[index] id="Array<uint8>.<extension#5>.index#1<\"exclusive\">"
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=index root=index
 
-/// @generic.instance id="Array<uint8>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
+/// @generic.instance id="Array<uint8>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
 "#,
     );
 }

@@ -187,7 +187,7 @@ function read(values: ("pending" | "ready")[]): "ready" {
     /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values[0] root=read.values keys=[0]
     /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
-    /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#4>.index#1<\"exclusive\">"
+    /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#5>.index#1<\"exclusive\">"
 
         return values[0];
         /// @resolution.name source=values target=read.values
@@ -196,14 +196,14 @@ function read(values: ("pending" | "ready")[]): "ready" {
         /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values[0] root=read.values keys=[0]
         /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
-        /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#4>.index#1<\"exclusive\">"
+        /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#5>.index#1<\"exclusive\">"
 
     }
 
     return "ready";
 }
 
-/// @generic.instance id="Array<\"pending\" | \"ready\">.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=("pending" | "ready", "exclusive")
+/// @generic.instance id="Array<\"pending\" | \"ready\">.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=("pending" | "ready", "exclusive")
 "#,
         r#"
 

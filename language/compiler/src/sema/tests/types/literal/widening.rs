@@ -35,10 +35,10 @@ const first = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
-/// @generic.instance source=values[0] id="Array<float64>.<extension#4>.index#1<\"exclusive\">"
+/// @generic.instance source=values[0] id="Array<float64>.<extension#5>.index#1<\"exclusive\">"
 /// @type.node source=0 type=0
 
-/// @generic.instance id="Array<float64>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
+/// @generic.instance id="Array<float64>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 "#,
     );
 }
@@ -78,10 +78,10 @@ const first = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=1 | 2 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static 1 | 2, \"exclusive\">)"
-/// @generic.instance source=values[0] id="Array<1 | 2>.<extension#4>.index#1<\"exclusive\">"
+/// @generic.instance source=values[0] id="Array<1 | 2>.<extension#5>.index#1<\"exclusive\">"
 /// @type.node source=0 type=0
 
-/// @generic.instance id="Array<1 | 2>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
+/// @generic.instance id="Array<1 | 2>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
 "#,
     );
 }

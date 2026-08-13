@@ -615,7 +615,7 @@ function first<T>(values: T[]): T {
     /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values[0] root=first.values keys=[0]
     /// @resolution.subscript source=values[0] type=T kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame T, \"exclusive\">)"
-    /// @generic.instance source=values[0] id="Array<T>.<extension#4>.index#1<\"exclusive\">"
+    /// @generic.instance source=values[0] id="Array<T>.<extension#5>.index#1<\"exclusive\">"
     /// @type.node source=0 type=0
 
 }
@@ -632,7 +632,7 @@ const value = first([1, 2]);
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @generic.instance id="Array<T>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(T, "exclusive")
+/// @generic.instance id="Array<T>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(T, "exclusive")
 /// @generic.instance id=first<float64> template=first arguments=(float64)
 "#,
     );
@@ -937,7 +937,7 @@ function parse<T>(value: T[]): T {
     /// @resolution.place source=value[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value[0] root=parse.value#2 keys=[0]
     /// @resolution.subscript source=value[0] type=T#2 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame T#2, \"exclusive\">)"
-    /// @generic.instance source=value[0] id="Array<T#2>.<extension#4>.index#1<\"exclusive\">"
+    /// @generic.instance source=value[0] id="Array<T#2>.<extension#5>.index#1<\"exclusive\">"
     /// @type.node source=0 type=0
 
 }
@@ -949,7 +949,7 @@ const parser = parse<int32>;
 /// @resolution.name source=parse target=[parse#1, parse#2]
 /// @resolution.rejected source=parse<int32>
 
-/// @generic.instance id="Array<T#2>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(T#2, "exclusive")
+/// @generic.instance id="Array<T#2>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(T#2, "exclusive")
 "#,
         r#"
 /// @diagnostic.error id=ambiguous-reference message="ambiguous reference 'parse'"
@@ -1274,8 +1274,8 @@ const kept = values
 /// @resolution.name source=values target=values
 /// @resolution.member receiver=Owned<Array<int32>> type=(this: Owned<Array<int32>>, Function<(&type_expression.'a readonly int32, usize), boolean>) => Owned<Array<int32>> & (this: Owned<Array<int32>>, Function<(int32, usize), boolean>) => Owned<Array<int32>> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
 /// @resolution.member receiver=Owned<Array<int32>> type=<collections.array.map.U#1>(this: Owned<Array<int32>>, Function<(int32, usize), collections.array.map.U#1>) => Owned<Array<collections.array.map.U#1>> & <collections.array.map.U#2>(this: Owned<Array<int32>>, Function<(int32, usize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=existential targets=[collections.array.map#1, collections.array.map#2]
-/// @resolution.call parameters=(Function<(&type_expression.'a readonly int32, usize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32, usize), boolean>) return=Owned<Array<int32>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#1>>.<extension#1>.filter#1
-/// @resolution.call parameters=(Function<(int32, usize), int32>) arguments=(provided((value) => value) as Function<(int32, usize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#1>>.<extension#1>.map#1<int32>
+/// @resolution.call parameters=(Function<(&type_expression.'a readonly int32, usize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32, usize), boolean>) return=Owned<Array<int32>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+/// @resolution.call parameters=(Function<(int32, usize), int32>) arguments=(provided((value) => value) as Function<(int32, usize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.map#1<int32>
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 
@@ -1294,8 +1294,8 @@ const kept = values
     /// @resolution.access source=value root=symbol4.value
 
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=Owned<Array<collections.array.T#1>>.<extension#1>.filter#1 template=collections.array.filter#1 arguments=(int32)
-/// @generic.instance id=Owned<Array<collections.array.T#1>>.<extension#1>.map#1<int32> template=collections.array.map#1 arguments=(int32, int32)
+/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1 template=collections.array.filter#1 arguments=(int32)
+/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.map#1<int32> template=collections.array.map#1 arguments=(int32, int32)
 "#,
         r#"
 "#,
