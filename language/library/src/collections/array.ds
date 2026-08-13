@@ -12,7 +12,7 @@ import {
     Unique,
     WithAccess,
 } from "destack:memory";
-import { Compare, Index, IndexSet, Ordering, PartialEqual } from "destack:ops";
+import { Compare, Display, Index, IndexSet, Ordering, PartialEqual } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
 import { Sequence } from "./sequence.ds";
@@ -20,6 +20,15 @@ import { Sequence } from "./sequence.ds";
 /// Readonly view of a dynamic array.
 @languageItem("collections.ReadonlyArray")
 export type ReadonlyArray<T> = readonly T[];
+
+/// The element produced by flattening `T` through `Depth` nested arrays.
+export type FlattenedElement<T, Depth: usize> = usize extends Depth
+    ? unknown
+    : Depth extends 0
+      ? T
+      : T extends ReadonlyArray<infer U>
+        ? FlattenedElement<U, Depth - 1>
+        : T;
 
 /// A growable compact array.
 @languageItem("collections.Array")
@@ -32,6 +41,13 @@ export class Array<T> {
 
     /// The allocated element count.
     private allocated: usize = 0;
+}
+
+export extension<T> of Array<T> implements Clone where T: Clone {
+    /// Clone this array and its elements.
+    clone(&readonly this): ^this {
+        todo("Array.clone")
+    }
 }
 
 export extension<T> of ^Array<T> implements Iterable<T>, Sequence {
@@ -123,8 +139,8 @@ export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
         todo("Array.iterator")
     }
 
-    /// Return the copied element at `offset`.
-    at(offset: isize): T | undefined {
+    /// Return the copied element at `index`, counting from the end when negative.
+    at(index: isize): T | undefined {
         todo("Array.at")
     }
 
@@ -218,8 +234,8 @@ export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
         todo("Array.entries")
     }
 
-    /// Call `visit` for each copied element.
-    forEach(visit: (value: T, index: usize) => void): void {
+    /// Call `visit` for each copied element and discard its result.
+    forEach<R>(visit: (value: T, index: usize) => R): void {
         todo("Array.forEach");
     }
 }
@@ -246,8 +262,8 @@ export extension<T, 'a, const A: Access> of Borrowed<Array<T>, 'a, A>
         todo("Array.iterator")
     }
 
-    /// Borrow the element at `offset`.
-    at(offset: isize): Borrowed<T, 'a, A> | undefined {
+    /// Borrow the element at `index`, counting from the end when negative.
+    at(index: isize): Borrowed<T, 'a, A> | undefined {
         todo("Array.at")
     }
 
@@ -351,8 +367,8 @@ export extension<T, 'a, const A: Access> of Borrowed<Array<T>, 'a, A>
         todo("Array.entries")
     }
 
-    /// Call `visit` for each borrowed element.
-    forEach(visit: (value: Borrowed<T, 'a, "readonly">, index: usize) => void): void {
+    /// Call `visit` for each borrowed element and discard its result.
+    forEach<R>(visit: (value: Borrowed<T, 'a, "readonly">, index: usize) => R): void {
         todo("Array.forEach");
     }
 }
@@ -437,7 +453,7 @@ export extension<T> of Array<T>
         view.slice(start, end)
     }
 
-    /// Borrow the element at `index`.
+    /// Borrow the element at `index`, counting from the end when negative.
     index<const A: Access = "readonly">(
         this: WithAccess<&Array<T>, A>,
         index: usize,
@@ -578,6 +594,17 @@ export extension<T> of Array<T>
         todo("Array.concat")
     }
 
+    /// Flatten nested array elements through `depth` levels.
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): ^Array<FlattenedElement<T, Depth>>
+        where T: Clone {
+        todo("Array.flat")
+    }
+
+    /// Join the displayed elements with `separator`.
+    join(&readonly this, separator?: string): ^string where T: Display {
+        todo("Array.join")
+    }
+
     /// Return whether `value` exists.
     includes<Q>(&readonly this, value: &readonly Q, fromIndex?: isize): boolean
         where T: Borrow<Q>, Q: PartialEqual<Q> {
@@ -666,14 +693,9 @@ export extension<T> of Array<T>
         todo("Array.toSpliced")
     }
 
-    /// Return a clone with `value` at `offset`.
-    with(&readonly this, offset: isize, value: T): ^Array<T> where T: Clone {
+    /// Return a clone with `value` at `index`.
+    with(&readonly this, index: isize, value: T): ^Array<T> where T: Clone {
         todo("Array.with")
-    }
-
-    /// Clone one level of nested elements into a flat array.
-    flat<U: Clone>(this: &readonly Array<ReadonlyArray<U>>): ^Array<U> {
-        todo("Array.flat")
     }
 
     /// Return an iterator over indices.

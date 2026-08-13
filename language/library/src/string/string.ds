@@ -3,7 +3,7 @@ import { As, Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Iterator } from "destack:iter";
 import { Default, Unique } from "destack:memory";
-import { Add, Equal, Hash, Hasher } from "destack:ops";
+import { Add, Equal, Hash, Hasher, Ordering } from "destack:ops";
 import { RegExp, RegExpMatch } from "destack:regexp";
 
 import { StringBuilder } from "./builder.ds";
@@ -42,12 +42,12 @@ export extension of String implements Default {
     }
 
     /// Create a string from UTF-16 code units.
-    static fromCharCode(...codes: number[]): ^string {
+    static fromCharCode(...codes: uint16[]): ^string {
         todo("String.fromCharCode")
     }
 
     /// Create a string from Unicode code points.
-    static fromCodePoint(...codePoints: number[]): ^string {
+    static fromCodePoint(...codePoints: uint32[]): ^string {
         todo("String.fromCodePoint")
     }
 
@@ -87,22 +87,22 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 
     /// Return a one-code-unit string at the given UTF-16 index, or undefined out of bounds.
-    charAt(&readonly this, index: number): ^string | undefined {
+    charAt(&readonly this, index: usize): ^string | undefined {
         todo("String.charAt")
     }
 
     /// Get the character at `index`, counting from the end when negative.
-    at(&readonly this, index: number): ^string | undefined {
+    at(&readonly this, index: isize): ^string | undefined {
         todo("String.at")
     }
 
     /// Get the UTF-16 code unit at the given index.
-    charCodeAt(&readonly this, index: number): number | undefined {
+    charCodeAt(&readonly this, index: usize): uint16 | undefined {
         todo("String.charCodeAt")
     }
 
     /// Get the Unicode code point at the given index.
-    codePointAt(&readonly this, index: number): number | undefined {
+    codePointAt(&readonly this, index: usize): uint32 | undefined {
         todo("String.codePointAt")
     }
 
@@ -112,22 +112,22 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 
     /// Check if string includes a substring.
-    includes(&readonly this, search: string, position?: number): boolean {
+    includes(&readonly this, search: string, position?: usize): boolean {
         todo("String.includes")
     }
 
     /// Find the first index of a substring.
-    indexOf(&readonly this, search: string, position?: number): number {
+    indexOf(&readonly this, search: string, position?: usize): usize | undefined {
         todo("String.indexOf")
     }
 
     /// Find the last index of a substring.
-    lastIndexOf(&readonly this, search: string, position?: number): number {
+    lastIndexOf(&readonly this, search: string, position?: usize): usize | undefined {
         todo("String.lastIndexOf")
     }
 
     /// Compare with `other` using locale ordering.
-    localeCompare(&readonly this, other: string, locales?: string | string[]): number {
+    localeCompare(&readonly this, other: string, locales?: string | string[]): Ordering {
         todo("String.localeCompare")
     }
 
@@ -152,32 +152,32 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 
     /// Find the first match of `pattern`.
-    search(&readonly this, pattern: string | RegExp): number {
+    search(&readonly this, pattern: string | RegExp): usize | undefined {
         todo("String.search")
     }
 
     /// Split this string by `separator`.
-    split(&readonly this, separator?: string | RegExp, limit?: number): ^Array<^string> {
+    split(&readonly this, separator?: string | RegExp, limit?: usize): ^Array<^string> {
         todo("String.split")
     }
 
     /// Check if string starts with a prefix.
-    startsWith(&readonly this, search: string, position?: number): boolean {
+    startsWith(&readonly this, search: string, position?: usize): boolean {
         todo("String.startsWith")
     }
 
     /// Check if string ends with a suffix.
-    endsWith(&readonly this, search: string, position?: number): boolean {
+    endsWith(&readonly this, search: string, position?: usize): boolean {
         todo("String.endsWith")
     }
 
     /// Extract a substring.
-    substring(&readonly this, start: number, end?: number): ^string {
+    substring(&readonly this, start: usize, end?: usize): ^string {
         todo("String.substring")
     }
 
     /// Extract a slice of the string.
-    slice(&readonly this, start?: number, end?: number): ^string {
+    slice(&readonly this, start?: isize, end?: isize): ^string {
         todo("String.slice")
     }
 
@@ -222,17 +222,17 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 
     /// Repeat the string n times.
-    repeat(&readonly this, count: number): ^string {
+    repeat(&readonly this, count: usize): ^string {
         todo("String.repeat")
     }
 
     /// Pad the start of the string.
-    padStart(&readonly this, targetLength: number, padString?: string): ^string {
+    padStart(&readonly this, targetLength: usize, padString?: string): ^string {
         todo("String.padStart")
     }
 
     /// Pad the end of the string.
-    padEnd(&readonly this, targetLength: number, padString?: string): ^string {
+    padEnd(&readonly this, targetLength: usize, padString?: string): ^string {
         todo("String.padEnd")
     }
 

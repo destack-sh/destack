@@ -73,7 +73,7 @@ export extension of StringBuilder implements Default {
     }
 
     /// Append one Unicode code point.
-    appendCodePoint(&exclusive this, value: number): void {
+    appendCodePoint(&exclusive this, value: uint32): void {
         todo("StringBuilder.appendCodePoint");
     }
 
