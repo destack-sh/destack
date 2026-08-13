@@ -209,8 +209,7 @@ impl Formatter<'_, '_, '_> {
         let Some(type_id) = type_id else {
             return Ok(String::new());
         };
-        let type_id = type_id.into_global_any(self.module.module_id());
-        let type_text = self.node_type(type_id)?;
+        let type_text = self.type_expression(type_id)?;
 
         Ok(format!(": {type_text}"))
     }
@@ -223,8 +222,7 @@ impl Formatter<'_, '_, '_> {
         let Some(type_id) = type_id else {
             return Ok(String::new());
         };
-        let type_id = type_id.into_global_any(self.module.module_id());
-        let type_text = self.node_type(type_id)?;
+        let type_text = self.type_expression(type_id)?;
 
         Ok(format!(" = {type_text}"))
     }

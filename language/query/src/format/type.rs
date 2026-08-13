@@ -23,6 +23,17 @@ pub(super) enum TypeOperand {
 }
 
 impl Formatter<'_, '_, '_> {
+    /// Format one authored type expression.
+    pub(super) fn type_expression(
+        &self,
+        type_id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> QueryResult<String> {
+        let view = self.module.view()?;
+        let span = self.module.node_span(view, type_id.into())?;
+
+        self.module.source_text(span)
+    }
+
     /// Format one node type.
     pub(crate) fn node_type(&self, node_id: dir::GlobalNodeIdAny) -> QueryResult<String> {
         let Some(type_id) = self.types()?.get_node_type_id(node_id) else {

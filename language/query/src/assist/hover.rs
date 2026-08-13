@@ -52,7 +52,6 @@ impl ModuleQueryContext<'_> {
         request: HoverRequest,
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<HoverResponse> {
-        // FUGU #Incomplete: check rejects overload families read as values, see infer_name_expression
         // resolve source documentation and every exact named declaration
         let position = request.position;
         let file_id = position.file_id;
@@ -63,6 +62,7 @@ impl ModuleQueryContext<'_> {
             return Ok(HoverResponse { hover: None });
         }
 
+        // collect every symbol at the position
         let mut symbols = Vec::new();
         if let Some(occurrence) = &occurrence {
             for symbol in &occurrence.symbols {
@@ -130,20 +130,12 @@ impl ModuleQueryContext<'_> {
         let Some(type_id) = type_id else {
             return Ok(None);
         };
-
-        // retain callable parameter names only when every declaration agrees
-        let mut parameter_names = match symbols.first() {
-            Some(symbol) => program.symbol_parameter_names(*symbol)?,
-            None => None,
+        let [symbol] = symbols else {
+            return Ok(None);
         };
-        for symbol in symbols.iter().skip(1) {
-            let next_names = program.symbol_parameter_names(*symbol)?;
-            if next_names != parameter_names {
-                parameter_names = None;
-                break;
-            }
-        }
 
+        // render the selected type against its one declaration
+        let parameter_names = program.symbol_parameter_names(*symbol)?;
         let formatter = Formatter::new(self, program);
         let text = match parameter_names {
             Some(parameter_names) => formatter.callable_type(type_id, Some(&parameter_names))?,
@@ -151,12 +143,10 @@ impl ModuleQueryContext<'_> {
         };
 
         // omit a type already represented by a declaration
-        for symbol_id in symbols {
-            let module = program.module(symbol_id.module_id)?;
-            let declared_text = Formatter::new(&module, program).symbol_type(*symbol_id)?;
-            if declared_text == text {
-                return Ok(None);
-            }
+        let module = program.module(symbol.module_id)?;
+        let declared_text = Formatter::new(&module, program).symbol_type(*symbol)?;
+        if declared_text == text {
+            return Ok(None);
         }
 
         Ok(Some(text))

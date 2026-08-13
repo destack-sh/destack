@@ -209,8 +209,8 @@ impl ModuleQueryContext<'_> {
                     function: dir::DynamicFunction::Symbol(symbol),
                     ..
                 } => self.symbol_call_parameter_names(program, call, *symbol)?,
-                // FUGU #Incomplete: retain callable parameter sources on expression call targets
-                dir::CallTarget::Expression { .. } => vec![None; selected.arguments.len()],
+                dir::CallTarget::Expression { .. } => Formatter::new(self, program)
+                    .callable_parameter_labels(selected.callable_type)?,
                 dir::CallTarget::Dynamic {
                     function:
                         dir::DynamicFunction::CallSignature(node)

@@ -184,6 +184,7 @@ impl ModuleQueryContext<'_> {
                     .expression_signature_item(
                         program,
                         callee_id,
+                        call.callable_type,
                         generic_arguments,
                         &call.arguments,
                         call.return_type,
@@ -249,6 +250,7 @@ impl ModuleQueryContext<'_> {
         &self,
         program: &ProgramQueryContext<'_>,
         callee_id: dir::LocalNodeId<dir::Expression>,
+        callable_type: dir::GlobalTypeId,
         generic_arguments: &[dir::GenericArgumentBinding],
         bindings: &[dir::ArgumentBinding],
         return_type: dir::GlobalTypeId,
@@ -256,10 +258,10 @@ impl ModuleQueryContext<'_> {
         // format the authored callee and exact checked parameter types
         let span = self.node_span(self.view()?, callee_id.into())?;
         let name = self.source_text(span)?;
-        let parameter_names = vec![None; bindings.len()];
+        let formatter = Formatter::new(self, program);
+        let parameter_names = formatter.callable_parameter_labels(callable_type)?;
         let parameter_documentation = vec![None; bindings.len()];
 
-        // FUGU #Incomplete: retain callable parameter sources on expression call targets
         self.signature_item(
             program,
             None,

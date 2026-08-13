@@ -5,6 +5,44 @@ use crate::{QueryError, QueryResult};
 use super::Formatter;
 
 impl Formatter<'_, '_, '_> {
+    /// Format the parameter labels stored by one callable type.
+    pub(crate) fn callable_parameter_labels(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> QueryResult<Vec<Option<String>>> {
+        self.read_type(type_id, |type_value, formatter| {
+            let function = match type_value {
+                dir::Type::FunctionSignature(function) => formatter.types()?.signature(*function),
+                dir::Type::Function(function) => {
+                    return formatter.callable_parameter_labels(function.signature);
+                }
+                dir::Type::FunctionPointer(function) => {
+                    return formatter.callable_parameter_labels(function.signature);
+                }
+                _ => {
+                    return Err(QueryError::invalid(format!(
+                        "callable parameter labels: {type_id:?}"
+                    )));
+                }
+            };
+            let parameters = formatter.types()?.parameters(function.parameters);
+            let strings = formatter.module.strings();
+            let labels = parameters
+                .iter()
+                .map(|parameter| {
+                    parameter.name.map(|name| {
+                        let rest = if parameter.is_rest { "..." } else { "" };
+                        let optional = if parameter.is_optional { "?" } else { "" };
+
+                        format!("{rest}{}{optional}", strings.get(name))
+                    })
+                })
+                .collect();
+
+            Ok(labels)
+        })
+    }
+
     /// Format one callable type with optional parameter names.
     pub(crate) fn callable_type(
         &self,
