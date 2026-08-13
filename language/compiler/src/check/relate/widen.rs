@@ -376,10 +376,7 @@ impl CheckState<'_> {
                 Ok(Some(self.normalized_union_type(distinct)?))
             }
             // object literal shapes rebuild with widened field types
-            ty @ (dir::Type::Shape(_) | dir::Type::Object(_)) => {
-                let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = ty else {
-                    unreachable!()
-                };
+            dir::Type::Object(shape) => {
                 let mut fields = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
                     self.shape_properties(module, shape.properties)?,
                 );
@@ -421,12 +418,7 @@ impl CheckState<'_> {
                     index_signatures: shape.index_signatures,
                 };
 
-                let widened = match ty {
-                    dir::Type::Object(_) => dir::Type::Object(shape),
-                    _ => dir::Type::Shape(shape),
-                };
-
-                Ok(Some(self.intern_type(widened)?))
+                Ok(Some(self.intern_type(dir::Type::Object(shape))?))
             }
             _ => Ok(None),
         }

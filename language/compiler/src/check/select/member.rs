@@ -500,6 +500,7 @@ impl DeclaredMember {
             parameters,
             return_type: Some(ty),
             is_generator: false,
+            is_construct: false,
         })?;
 
         Ok(Some(callable))
@@ -2134,7 +2135,6 @@ impl BodyState<'_, '_> {
 
         let result = match self.ty(ty)? {
             dir::Type::Error
-            | dir::Type::Hole(_)
             | dir::Type::Never
             | dir::Type::Any
             | dir::Type::Unknown
@@ -2163,7 +2163,6 @@ impl BodyState<'_, '_> {
             | dir::Type::Range(_)
             | dir::Type::Slice(_)
             | dir::Type::Tuple(_)
-            | dir::Type::Shape(_)
             | dir::Type::FunctionSignature(_)
             | dir::Type::Function(_)
             | dir::Type::FunctionPointer(_)

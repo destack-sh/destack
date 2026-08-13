@@ -74,9 +74,6 @@ impl CheckState<'_> {
                 self.satisfies_copy(origin, refined.base, active)
             }
 
-            // a declared hole answers like the error it stands for
-            dir::Type::Hole(_) => Ok(true),
-
             // copy owned scalar values directly
             dir::Type::Error
             | dir::Type::Never
@@ -109,10 +106,7 @@ impl CheckState<'_> {
             dir::Type::Application(instance) => {
                 self.satisfies_copy_instance(origin, ty.module_id, instance, active)
             }
-            dir::Type::Array(_)
-            | dir::Type::Slice(_)
-            | dir::Type::Shape(_)
-            | dir::Type::Object(_) => {
+            dir::Type::Array(_) | dir::Type::Slice(_) | dir::Type::Object(_) => {
                 unreachable!("managed defaults return before structural copy")
             }
             dir::Type::FixedArray(array) => self.satisfies_copy(origin, array.element, active),

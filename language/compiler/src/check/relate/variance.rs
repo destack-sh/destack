@@ -533,7 +533,7 @@ impl CheckState<'_> {
             }
 
             // structural shapes measure reads forward and writes backward
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+            dir::Type::Object(shape) => {
                 let fields: SmallVec<[_; 4]> = self
                     .shape_properties(ty.module_id, shape.properties)?
                     .into();

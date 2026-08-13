@@ -294,11 +294,8 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let next = depth - 1;
 
         let expression = match ty {
-            // open variables, holes, and errors have no honest source form
-            dir::Type::Variable(_)
-            | dir::Type::Hole(_)
-            | dir::Type::Erased(_)
-            | dir::Type::Error => return Ok(None),
+            // open variables, erased parameters, and errors have no honest source form
+            dir::Type::Variable(_) | dir::Type::Erased(_) | dir::Type::Error => return Ok(None),
             // refinements print as their base application
             dir::Type::Refined(refined) => {
                 let refined = self.check.type_refined(id.module_id, refined)?;
@@ -473,12 +470,9 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     elements,
                 }
             }
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
-                // signatures have no member form here yet
-                if !shape.call_signatures.is_empty()
-                    || !shape.construct_signatures.is_empty()
-                    || !shape.index_signatures.is_empty()
-                {
+            dir::Type::Object(shape) => {
+                // TODO #Incomplete: reify index and call signatures as object members
+                if shape.declares_signatures() {
                     return Ok(None);
                 }
 
@@ -510,12 +504,22 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 dir::TypeExpression::Object { members }
             }
             dir::Type::FunctionSignature(function) => {
-                let function = self.check.type_signature(id.module_id, function)?;
-                let Some(function) = self.reify_function(id.module_id, &function, next)? else {
+                let signature = self.check.type_signature(id.module_id, function)?;
+                let Some(function) = self.reify_function(id.module_id, &signature, next)? else {
                     return Ok(None);
                 };
 
-                dir::TypeExpression::Function(function)
+                // construct signatures annotate in their `new` form
+                match signature.is_construct {
+                    true => dir::TypeExpression::Constructor(dir::ConstructorType {
+                        generic_parameters: function.generic_parameters,
+                        where_clauses: function.where_clauses,
+                        parameters: function.parameters,
+                        return_type: function.return_type,
+                        is_abstract: false,
+                    }),
+                    false => dir::TypeExpression::Function(function),
+                }
             }
             dir::Type::Function(function) => {
                 return self.reify_depth(function.signature, next);

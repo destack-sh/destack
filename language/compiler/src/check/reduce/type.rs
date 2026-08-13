@@ -609,8 +609,8 @@ impl CheckState<'_> {
                 let owner = member.owner;
                 let peeled = self.strip_form(origin, owner)?;
 
-                // error and hole owners poison their projections
-                if matches!(self.ty(peeled)?, dir::Type::Error | dir::Type::Hole(_)) {
+                // error owners poison their projections
+                if matches!(self.ty(peeled)?, dir::Type::Error) {
                     let error = self.intern_type(dir::Type::Error)?;
 
                     return Ok(error);

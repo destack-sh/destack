@@ -414,7 +414,7 @@ impl CheckState<'_> {
                 .iter()
                 .map(|element| (element.ty, source))
                 .collect(),
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => self
+            dir::Type::Object(shape) => self
                 .shape_properties(owner, shape.properties)?
                 .iter()
                 .flat_map(|field| field.access.types().map(move |ty| (ty, source)))

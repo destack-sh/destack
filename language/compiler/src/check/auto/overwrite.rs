@@ -58,7 +58,6 @@ impl CheckState<'_> {
             }
 
             dir::Type::Error
-            | dir::Type::Hole(_)
             | dir::Type::Never
             | dir::Type::Void
             | dir::Type::Null
@@ -111,7 +110,7 @@ impl CheckState<'_> {
 
                 self.all_overwrite_stable(origin, ids, active)
             }
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+            dir::Type::Object(shape) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .shape_properties(ty.module_id, shape.properties)?
                     .iter()

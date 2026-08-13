@@ -1993,7 +1993,7 @@ declare function duplicate<T: Copy>(value: T): ^T;
 declare const session: ^Session;
 
 duplicate<32>(32);
-duplicate<^Session>(session);
+duplicate(session);
 
 === checked ===
 import { Copy } from "destack:memory";
@@ -2023,14 +2023,14 @@ duplicate(32);
 
 duplicate(session);
 /// @resolution.name source=duplicate target=duplicate
-/// @resolution.call source=duplicate(session) parameters=(Owned<Session>) arguments=(provided(session) as Owned<Session>) return=Owned<Session> kind=symbol target=duplicate instance=duplicate<Owned<Session>>
-/// @generic.instance source=duplicate(session) id=duplicate<Owned<Session>>
+/// @resolution.call source=duplicate(session) parameters=(<error>) arguments=(provided(session) as <error>) return=Owned<<error>> kind=symbol target=duplicate instance=duplicate<<error>>
+/// @generic.instance source=duplicate(session) id=duplicate<<error>>
 /// @resolution.name source=session target=session
 /// @resolution.place source=session placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=session root=session
 
 /// @generic.instance id=duplicate<32> template=duplicate arguments=(32)
-/// @generic.instance id=duplicate<Owned<Session>> template=duplicate arguments=(Owned<Session>)
+/// @generic.instance id=duplicate<<error>> template=duplicate arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '^Session' does not satisfy 'Copy'"

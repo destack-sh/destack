@@ -59,7 +59,7 @@ impl CheckState<'_> {
             dir::Type::Undefined => "undefined".to_string(),
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::This => "this".to_string(),
-            dir::Type::Variable(_) | dir::Type::Hole(_) => "_".to_string(),
+            dir::Type::Variable(_) => "_".to_string(),
             dir::Type::Erased(_) => "*".to_string(),
 
             dir::Type::Primitive(primitive) => format_primitive(&primitive),
@@ -137,7 +137,7 @@ impl CheckState<'_> {
                 format!("({})", self.format_list_at(module, &elements, next)?)
             }
 
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+            dir::Type::Object(shape) => {
                 let shape_properties = self.shape_properties(id.module_id, shape.properties)?;
                 let index_signatures =
                     self.shape_index_signatures(id.module_id, shape.index_signatures)?;
@@ -214,8 +214,15 @@ impl CheckState<'_> {
                     None => "void".to_string(),
                 };
                 let generic = self.format_generic_parameters_at(module, function.template, next)?;
+                let construct = match function.is_construct {
+                    true => "new ",
+                    false => "",
+                };
 
-                format!("{generic}({}) => {result}", parameters.join(", "))
+                format!(
+                    "{construct}{generic}({}) => {result}",
+                    parameters.join(", ")
+                )
             }
             dir::Type::Function(function) => {
                 self.format_depth_at(module, function.signature, next)?

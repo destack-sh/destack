@@ -63,7 +63,9 @@ const pair: [int32; 2] = [1, 2, 3];
 fn test_fixed_array_length_hole_infers_literal_length() {
     let session = TestSession::single(
         r#"
-const bytes: [uint8; _] = [1, 2, 3, 4];
+function build(): void {
+    const bytes: [uint8; _] = [1, 2, 3, 4];
+}
 "#,
     );
 
@@ -72,17 +74,24 @@ const bytes: [uint8; _] = [1, 2, 3, 4];
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const bytes: [uint8; 4] = [1, 2, 3, 4];
+function build(): void {
+    const bytes: [uint8; 4] = [1, 2, 3, 4];
+}
 
 === checked ===
-const bytes: [uint8; _] = [1, 2, 3, 4];
-/// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
-/// @resolution.pattern source=bytes kind=binding target=bytes
-/// @type.node source=[1, 2, 3, 4] type=FixedArray<uint8, 4>
-/// @type.node source=1 type=1
-/// @type.node source=2 type=2
-/// @type.node source=3 type=3
-/// @type.node source=4 type=4
+function build(): void {
+/// @type.symbol symbol=build type=() => void
+
+    const bytes: [uint8; _] = [1, 2, 3, 4];
+    /// @type.symbol symbol=build.bytes source=bytes type=FixedArray<uint8, 4>
+    /// @resolution.pattern source=bytes kind=binding target=build.bytes
+    /// @type.node source=[1, 2, 3, 4] type=FixedArray<uint8, 4>
+    /// @type.node source=1 type=1
+    /// @type.node source=2 type=2
+    /// @type.node source=3 type=3
+    /// @type.node source=4 type=4
+
+}
 "#,
     );
 }
@@ -91,7 +100,9 @@ const bytes: [uint8; _] = [1, 2, 3, 4];
 fn test_fixed_array_holes_infer_complete_type() {
     let session = TestSession::single(
         r#"
-const values: [_; _] = [1, 2, 3, 4];
+function build(): void {
+    const values: [_; _] = [1, 2, 3, 4];
+}
 "#,
     );
 
@@ -100,17 +111,24 @@ const values: [_; _] = [1, 2, 3, 4];
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const values: [float64; 4] = [1, 2, 3, 4];
+function build(): void {
+    const values: [float64; 4] = [1, 2, 3, 4];
+}
 
 === checked ===
-const values: [_; _] = [1, 2, 3, 4];
-/// @type.symbol symbol=values source=values type=FixedArray<float64, 4>
-/// @resolution.pattern source=values kind=binding target=values
-/// @type.node source=[1, 2, 3, 4] type=FixedArray<float64, 4>
-/// @type.node source=1 type=1
-/// @type.node source=2 type=2
-/// @type.node source=3 type=3
-/// @type.node source=4 type=4
+function build(): void {
+/// @type.symbol symbol=build type=() => void
+
+    const values: [_; _] = [1, 2, 3, 4];
+    /// @type.symbol symbol=build.values source=values type=FixedArray<float64, 4>
+    /// @resolution.pattern source=values kind=binding target=build.values
+    /// @type.node source=[1, 2, 3, 4] type=FixedArray<float64, 4>
+    /// @type.node source=1 type=1
+    /// @type.node source=2 type=2
+    /// @type.node source=3 type=3
+    /// @type.node source=4 type=4
+
+}
 "#,
     );
 }
@@ -119,7 +137,9 @@ const values: [_; _] = [1, 2, 3, 4];
 fn test_fixed_array_element_hole_infers_widened_element_type() {
     let session = TestSession::single(
         r#"
-const values: [_; 3] = [1, 2, 3];
+function build(): void {
+    const values: [_; 3] = [1, 2, 3];
+}
 "#,
     );
 
@@ -128,16 +148,23 @@ const values: [_; 3] = [1, 2, 3];
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const values: [float64; 3] = [1, 2, 3];
+function build(): void {
+    const values: [float64; 3] = [1, 2, 3];
+}
 
 === checked ===
-const values: [_; 3] = [1, 2, 3];
-/// @type.symbol symbol=values source=values type=FixedArray<float64, 3>
-/// @resolution.pattern source=values kind=binding target=values
-/// @type.node source=[1, 2, 3] type=FixedArray<float64, 3>
-/// @type.node source=1 type=1
-/// @type.node source=2 type=2
-/// @type.node source=3 type=3
+function build(): void {
+/// @type.symbol symbol=build type=() => void
+
+    const values: [_; 3] = [1, 2, 3];
+    /// @type.symbol symbol=build.values source=values type=FixedArray<float64, 3>
+    /// @resolution.pattern source=values kind=binding target=build.values
+    /// @type.node source=[1, 2, 3] type=FixedArray<float64, 3>
+    /// @type.node source=1 type=1
+    /// @type.node source=2 type=2
+    /// @type.node source=3 type=3
+
+}
 "#,
     );
 }

@@ -495,7 +495,7 @@ impl CheckState<'_> {
                 | dir::Type::Application(dir::GenericApplication { symbol, .. }),
             ) => {
                 let reference = dir::TypeReference { symbol };
-                let candidates = self.reference_construct_signatures(origin, reference)?;
+                let candidates = self.reference_construct_signatures(reference)?;
                 let mut matched = false;
                 for candidate in candidates {
                     matched = matched
@@ -508,10 +508,7 @@ impl CheckState<'_> {
 
                 Ok(matched)
             }
-            (
-                dir::Type::Shape(pattern) | dir::Type::Object(pattern),
-                dir::Type::Shape(actual) | dir::Type::Object(actual),
-            ) => self.match_infer_shape(
+            (dir::Type::Object(pattern), dir::Type::Object(actual)) => self.match_infer_shape(
                 origin,
                 captures,
                 variance,

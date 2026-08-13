@@ -65,9 +65,13 @@ impl BodyState<'_, '_> {
                     let mode = match self.infer.variable_role(variable)? {
                         // take the mode the bound generic parameter requires
                         VariableRole::Instantiation { parameter } => {
-                            let binding = self.require_generic_parameter(parameter)?;
-                            if binding.is_const {
+                            let is_const = self.require_generic_parameter(parameter)?.is_const;
+                            if is_const {
                                 InferMode::Const
+                            }
+                            // a settled contextual expectation already shapes the literal
+                            else if self.has_contextual_expectation(variable)? {
+                                InferMode::Exact
                             } else {
                                 match self.infer.variable(variable)?.widening {
                                     Widening::Never => InferMode::Exact,

@@ -245,10 +245,8 @@ impl CheckState<'_> {
         let left = self.normalize(origin, index.left)?;
         let key = self.normalize(origin, index.index)?;
 
-        // poisoned operands and unsolved holes project their poison
-        if matches!(self.ty(left)?, dir::Type::Error | dir::Type::Hole(_))
-            || matches!(self.ty(key)?, dir::Type::Error | dir::Type::Hole(_))
-        {
+        // poisoned operands project their poison
+        if matches!(self.ty(left)?, dir::Type::Error) || matches!(self.ty(key)?, dir::Type::Error) {
             let error = self.intern_type(dir::Type::Error)?;
 
             return Ok(OperationReduction::Projected(error));
@@ -307,7 +305,7 @@ impl CheckState<'_> {
 
         // project closed structural keys
         let projected = match (self.ty(left)?, static_key) {
-            (dir::Type::Shape(shape) | dir::Type::Object(shape), Some(static_key)) => {
+            (dir::Type::Object(shape), Some(static_key)) => {
                 let field = self
                     .shape_properties(left.module_id, shape.properties)?
                     .iter()
@@ -328,7 +326,7 @@ impl CheckState<'_> {
                 }
             }
             // primitive keys project matching index signatures
-            (dir::Type::Shape(shape) | dir::Type::Object(shape), None) => {
+            (dir::Type::Object(shape), None) => {
                 self.shape_signature_projection(origin, left, &shape, key)?
             }
             (dir::Type::Tuple(tuple), Some(dir::StaticKey::Index(index))) => self
@@ -498,7 +496,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<KeySet>> {
         let set = match self.ty(target)? {
             // structural object keys come from fields and index signatures
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+            dir::Type::Object(shape) => {
                 let mut set = KeySet::default();
                 let fields: SmallVec<[_; 4]> = self
                     .shape_properties(target.module_id, shape.properties)?
@@ -814,7 +812,7 @@ impl CheckState<'_> {
                 let target = self.normalize(origin, target)?;
 
                 match self.ty(target)? {
-                    dir::Type::Shape(shape) | dir::Type::Object(shape) => Some(
+                    dir::Type::Object(shape) => Some(
                         self.shape_properties(target.module_id, shape.properties)?
                             .to_vec(),
                     ),
@@ -919,7 +917,7 @@ impl CheckState<'_> {
 
         let fields = self.intern_properties(&fields)?;
         let index_signatures = self.intern_index_signatures(&index_signatures)?;
-        let shape = dir::Type::from(dir::ShapeType {
+        let shape = dir::Type::Object(dir::ShapeType {
             properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
             construct_signatures: dir::TypeListId::EMPTY,

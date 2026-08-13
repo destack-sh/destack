@@ -339,7 +339,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<ObligationCheck> {
         // read the mutability the owning aggregate declares for the key
         let is_readonly = match self.ty(owner)? {
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => self
+            dir::Type::Object(shape) => self
                 .shape_properties(owner.module_id, shape.properties)?
                 .iter()
                 .find(|property| property.key == key)
@@ -437,10 +437,10 @@ impl CheckState<'_> {
     ) -> CompilerResult<ObligationCheck> {
         // write a structural index into the fields of its own receiver
         let receiver = self.normalize(origin, index.receiver.ty())?;
-        let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = self.ty(receiver)? else {
+        let dir::Type::Object(shape) = self.ty(receiver)? else {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "structural index {:?} has non-shape receiver {receiver:?}",
+                    "structural index {:?} has non-object receiver {receiver:?}",
                     index.key_type
                 ),
             });

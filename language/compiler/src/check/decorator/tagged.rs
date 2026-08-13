@@ -620,7 +620,7 @@ impl CheckState<'_> {
             }
 
             // return one structural arm with its checked fields
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+            dir::Type::Object(shape) => {
                 let fields = self
                     .shape_properties(ty.module_id, shape.properties)?
                     .to_vec();
@@ -804,15 +804,7 @@ impl CheckState<'_> {
         let argument = if argument_fields.is_empty() {
             None
         } else {
-            let fields = self.intern_properties(&argument_fields)?;
-            let shape = dir::ShapeType {
-                properties: fields,
-                call_signatures: dir::TypeListId::EMPTY,
-                construct_signatures: dir::TypeListId::EMPTY,
-                index_signatures: dir::TypeListId::EMPTY,
-            };
-
-            Some(self.intern_type(dir::Type::from(shape))?)
+            Some(self.intern_object(&argument_fields)?)
         };
 
         Ok(TaggedVariant {
@@ -837,9 +829,9 @@ impl CheckState<'_> {
         let Some(argument) = argument else {
             return Ok(variant);
         };
-        let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = self.ty(argument)? else {
+        let dir::Type::Object(shape) = self.ty(argument)? else {
             return Err(CompilerError::Internal {
-                message: format!("tagged constructor argument {argument:?} is not a shape"),
+                message: format!("tagged constructor argument {argument:?} is not an object type"),
             });
         };
         let is_optional = self
@@ -861,6 +853,7 @@ impl CheckState<'_> {
             parameters,
             return_type: Some(variant),
             is_generator: false,
+            is_construct: false,
         };
 
         self.intern_signature(signature)

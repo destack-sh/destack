@@ -692,3 +692,32 @@ const dog = new Dog("rex");
 "#,
     );
 }
+
+#[test]
+fn test_satisfy_a_construct_signature_from_the_class_declaration() {
+    let session = TestSession::single(
+        r#"
+class Counter {
+    value: int32;
+
+    constructor(value: int32) {
+        this.value = value;
+    }
+}
+
+declare function build(value: int32): Counter;
+
+const make: new (value: int32) => Counter = Counter;
+const broken: new (value: int32) => Counter = build;
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=not-assignable message="type '(value: int32) => Counter' is not assignable to type 'new (value: int32) => Counter'"
+/// @diagnostic.label line=13 column=47 span="build" line_source="const broken: new (value: int32) => Counter = build;"
+/// @diagnostic.related line=13 column=15 span="new (value: int32) => Counter" line_source="const broken: new (value: int32) => Counter = build;" message="expected due to this annotation"
+"#,
+    );
+}

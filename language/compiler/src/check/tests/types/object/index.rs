@@ -1040,11 +1040,72 @@ declare let counter: Counter;
 
 counter["value"] += 1;
 /// @resolution.name source=counter target=counter
-/// @resolution.operator source="counter[\"value\"] += 1" type=Counter.Output operator="+" kind=builtin operands=[counter["value"] as Counter.Output families=(integer), 1 as Counter.Output families=(integer)]
+/// @resolution.operator source="counter[\"value\"] += 1" type=int32 operator="+" kind=builtin operands=[counter["value"] as int32 families=(integer), 1 as int32 families=(integer)]
 /// @resolution.pattern.assign source="counter[\"value\"]" kind=place
-/// @resolution.assignment source="counter[\"value\"]" read="index(parameters=(string), arguments=(provided(\"value\") as string), return=&'static readonly Counter.Output)" write="indexSet(parameters=(string, int32 | float64), arguments=(provided(\"value\") as string, write as int32 | float64), return=void)" type=int32 | float64
+/// @resolution.assignment source="counter[\"value\"]" read="index(parameters=(string), arguments=(provided(\"value\") as string), return=&'static readonly int32)" write="indexSet(parameters=(string, int32 | float64), arguments=(provided(\"value\") as string, write as int32 | float64), return=void)" type=int32 | float64
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
+"#,
+    );
+}
+
+#[test]
+fn test_reject_a_named_property_beside_an_index_signature() {
+    let session = TestSession::single(
+        r#"
+type Row = { name: string; [key: string]: string };
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Row = { name: string; [key: string]: string };
+
+=== checked ===
+type Row = { name: string; [key: string]: string };
+/// @type.symbol symbol=Row source="type Row = { name: string; [key: string]: string }" type={ name: string; [key: string]: string }
+/// @definition.type symbol=Row source="type Row = { name: string; [key: string]: string }" value={ name: string; [key: string]: string }
+"#,
+        r#"
+/// @diagnostic.error id=mixed-object-type message="object type mixes named properties with an index signature"
+/// @diagnostic.label line=2 column=12 span="{ name: string; [key: string]: string }" line_source="type Row = { name: string; [key: string]: string };"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_a_named_property_beside_a_construct_signature() {
+    let session = TestSession::single(
+        r#"
+class Counter {}
+type Factory = { name: string; new (): Counter };
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Counter {}
+type Factory = { name: string; new (): Counter };
+
+=== checked ===
+class Counter {}
+/// @type.symbol symbol=Counter source="class Counter {}" type=Counter
+/// @definition.class symbol=Counter source="class Counter {}"
+
+type Factory = { name: string; new (): Counter };
+/// @type.symbol symbol=Factory source="type Factory = { name: string; new (): Counter }" type={ name: string; <new>: new () => Counter }
+/// @definition.type symbol=Factory source="type Factory = { name: string; new (): Counter }" value={ name: string; <new>: new () => Counter }
+/// @resolution.name source=Counter target=Counter
+"#,
+        r#"
+/// @diagnostic.error id=mixed-object-type message="object type mixes named properties with a construct signature"
+/// @diagnostic.label line=3 column=16 span="{ name: string; new (): Counter }" line_source="type Factory = { name: string; new (): Counter };"
 "#,
     );
 }

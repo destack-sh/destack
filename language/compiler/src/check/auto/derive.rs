@@ -73,9 +73,6 @@ impl CheckState<'_> {
                 self.satisfies_derivable(origin, refined.base, interface)
             }
 
-            // a declared hole answers like the error it stands for
-            dir::Type::Hole(_) => Ok(true),
-
             // trivial singletons conform to every field-wise interface
             dir::Type::Error
             | dir::Type::Never
@@ -120,10 +117,7 @@ impl CheckState<'_> {
             }
 
             // structural containers stay with their declared library conformances
-            dir::Type::Array(_)
-            | dir::Type::Slice(_)
-            | dir::Type::Shape(_)
-            | dir::Type::Object(_) => Ok(false),
+            dir::Type::Array(_) | dir::Type::Slice(_) | dir::Type::Object(_) => Ok(false),
 
             // decide composites through every component type
             dir::Type::FixedArray(array) => self.field_conforms(origin, array.element, interface),

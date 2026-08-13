@@ -20,9 +20,8 @@ impl CheckState<'_> {
         let target_signature = self.callable_signature(target)?;
 
         let decision = match (self.ty(source)?, self.ty(target)?) {
-            // top, error, and hole types absorb everything
-            (dir::Type::Error | dir::Type::Hole(_), _)
-            | (_, dir::Type::Error | dir::Type::Hole(_)) => true,
+            // error types absorb everything
+            (dir::Type::Error, _) | (_, dir::Type::Error) => true,
             // box values into an existential target, which never widens
             (_, dir::Type::Any) | (_, dir::Type::Unknown) => !widens,
             (dir::Type::Any, _) => !widens,
@@ -307,20 +306,47 @@ impl CheckState<'_> {
                 self.relate_tuple_assignable(origin, cause, relation, source, target)?
             }
 
-            // structural shapes and nominal boundaries
-            (dir::Type::Object(_), dir::Type::Object(_)) => {
-                self.relate_shape_equal(origin, cause, source, target)?
+            // anonymous classes and nominal declarations
+            (dir::Type::Object(_), dir::Type::Object(target_shape)) => {
+                match target_shape.declares_signatures() {
+                    // a signature-bearing object type reads its members structurally
+                    true => {
+                        self.relate_shape(origin, cause, Relation::Assignable, source, target)?
+                    }
+                    // a written field set stores at its exact member set
+                    false => self.relate_shape_equal(origin, cause, source, target)?,
+                }
             }
-            (dir::Type::Shape(_) | dir::Type::Object(_), dir::Type::Shape(_)) => {
-                self.relate_shape_assignable(origin, cause, source, target)?
-            }
-            (dir::Type::Reference(_), dir::Type::Shape(_)) => {
+            // satisfy a signature-bearing object type from a static declaration reference
+            (dir::Type::Reference(_), dir::Type::Object(target_shape))
+                if target_shape.declares_signatures() =>
+            {
                 self.relate_reference_shape_assignable(origin, cause, source, target)?
+            }
+            // satisfy a bare construct signature from the declared constructors
+            (dir::Type::Reference(_), dir::Type::FunctionSignature(_))
+                if self
+                    .signature_head(target)?
+                    .is_some_and(|head| head.is_construct) =>
+            {
+                self.relate_reference_construct_assignable(origin, cause, source, target)?
+            }
+            // satisfy a keyed object type from a nominal instance
+            (dir::Type::Application(reference), dir::Type::Object(target_shape))
+                if target_shape.declares_signatures() =>
+            {
+                self.relate_reference_against_target(
+                    origin,
+                    cause,
+                    Relation::Assignable,
+                    source.module_id,
+                    &reference,
+                    target,
+                )?
             }
             // relate structural, callable, and scalar values to interface targets
             (
-                dir::Type::Shape(_)
-                | dir::Type::Object(_)
+                dir::Type::Object(_)
                 | dir::Type::FunctionSignature(_)
                 | dir::Type::Function(_)
                 | dir::Type::FunctionPointer(_)
@@ -346,15 +372,6 @@ impl CheckState<'_> {
                 self.relate_interface(origin, cause, Relation::Assignable, source, target)?
                     .holds()
             }
-            (dir::Type::Application(reference), dir::Type::Shape(_)) => self
-                .relate_reference_against_target(
-                    origin,
-                    cause,
-                    Relation::Assignable,
-                    source.module_id,
-                    &reference,
-                    target,
-                )?,
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol =>
             {

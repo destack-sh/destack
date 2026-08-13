@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    GenericArgument, MemberRole, Origin, Receiver, TypeSubstitution, VariableRole, WalkState,
-    Widening,
+    GenericArgument, MemberRole, MixedObjectSignature, Origin, Receiver, TypeSubstitution,
+    VariableRole, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -401,6 +401,10 @@ impl WalkState<'_, '_> {
         match form {
             // open anonymous holes for ordinary inference
             dir::InferForm::Hole => {
+                if let Some(rejected) = self.reject_declaration_hole(source)? {
+                    return Ok(rejected);
+                }
+
                 self.open_type_hole(source, Widening::Always, VariableRole::Regular)
             }
 
@@ -1199,10 +1203,10 @@ impl WalkState<'_, '_> {
         Ok(ty)
     }
 
-    /// Return a structural shape from one object type expression.
+    /// Return the concrete type one object type expression writes.
     fn walk_object_type(
         &mut self,
-        _id: dir::LocalNodeId<dir::TypeExpression>,
+        id: dir::LocalNodeId<dir::TypeExpression>,
         members: &[dir::LocalNodeId<dir::TypeMember>],
     ) -> CompilerResult<dir::GlobalTypeId> {
         // collect the shape rows the written members declare
@@ -1325,17 +1329,50 @@ impl WalkState<'_, '_> {
             }
         }
 
-        let properties = self.intern_properties(&properties)?;
-        let call_signatures = self.intern_type_ids(&call_signatures)?;
-        let construct_signatures = self.intern_type_ids(&construct_signatures)?;
-        let index_signatures = self.intern_index_signatures(&index_signatures)?;
+        // name the signature that named properties were written beside
+        let conflict = match (
+            properties.is_empty(),
+            index_signatures.is_empty(),
+            call_signatures.is_empty(),
+            construct_signatures.is_empty(),
+        ) {
+            (false, false, _, _) => Some(MixedObjectSignature::IndexSignature),
+            (false, _, false, _) => Some(MixedObjectSignature::CallSignature),
+            (false, _, _, false) => Some(MixedObjectSignature::ConstructSignature),
+            _ => None,
+        };
 
-        self.intern_type(dir::Type::from(dir::ShapeType {
-            properties,
-            call_signatures,
-            construct_signatures,
-            index_signatures,
-        }))
+        // reject the mixed object type the written members declare
+        if let Some(conflict) = conflict {
+            self.check
+                .report_mixed_object_type(self.module, id.into_any(), conflict);
+        }
+
+        // an inline callable object type is the signature it declares
+        match (
+            properties.as_slice(),
+            call_signatures.as_slice(),
+            construct_signatures.as_slice(),
+            index_signatures.as_slice(),
+        ) {
+            ([], [call], [], []) => Ok(*call),
+            ([], [], [construct], []) => Ok(*construct),
+
+            // declare one anonymous class for every other written member set
+            _ => {
+                let properties = self.intern_properties(&properties)?;
+                let call_signatures = self.intern_type_ids(&call_signatures)?;
+                let construct_signatures = self.intern_type_ids(&construct_signatures)?;
+                let index_signatures = self.intern_index_signatures(&index_signatures)?;
+
+                self.intern_type(dir::Type::Object(dir::ShapeType {
+                    properties,
+                    call_signatures,
+                    construct_signatures,
+                    index_signatures,
+                }))
+            }
+        }
     }
 
     /// Return one tuple element type.

@@ -525,8 +525,7 @@ impl BodyState<'_, '_> {
             Some(argument) => {
                 let backing = self.substitute_type(variant.backing, &substitution)?;
                 let argument = self.substitute_type(argument, &substitution)?;
-                let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = self.ty(argument)?
-                else {
+                let dir::Type::Object(shape) = self.ty(argument)? else {
                     return Err(CompilerError::Internal {
                         message: format!(
                             "tagged variant has invalid constructor argument {argument:?}"

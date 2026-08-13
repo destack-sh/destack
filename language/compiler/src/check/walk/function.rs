@@ -64,6 +64,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parameters,
             return_type,
             is_generator: signature.is_generator,
+            is_construct: false,
         };
 
         self.intern_signature(function)
@@ -355,6 +356,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parameters,
             return_type,
             is_generator: false,
+            is_construct: false,
         };
         let signature = self.intern_signature(function)?;
 
@@ -413,6 +415,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parameters,
             return_type,
             is_generator: false,
+            is_construct: true,
         };
 
         self.intern_signature(function)

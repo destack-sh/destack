@@ -143,7 +143,7 @@ impl BodyState<'_, '_> {
                     };
 
                     // record the fields contributed by this spread
-                    let key_type = self.intern_shape(&spread_fields)?;
+                    let key_type = self.intern_object(&spread_fields)?;
                     let subject =
                         dir::MemberSubject::new(spread, spread, dir::MemberSpace::Instance)
                             .with_scope(site.scope)
@@ -236,7 +236,7 @@ impl BodyState<'_, '_> {
         };
 
         // record the fields accepted by this literal
-        let key_type = self.intern_shape(&target_fields)?;
+        let key_type = self.intern_object(&target_fields)?;
         let subject =
             dir::MemberSubject::new(target_value, target_value, dir::MemberSpace::Instance)
                 .with_scope(site.scope)
@@ -463,10 +463,11 @@ impl BodyState<'_, '_> {
 
         // adopt the slot class and memory form only for concrete object and intersection storage
         let is_adopting = expectation.relation != Relation::Satisfies
-            && matches!(
-                self.ty(target_value)?,
-                dir::Type::Object(_) | dir::Type::Intersection(_)
-            );
+            && match self.ty(target_value)? {
+                dir::Type::Object(shape) => !shape.declares_signatures(),
+                dir::Type::Intersection(_) => true,
+                _ => false,
+            };
         let source = match is_adopting {
             true => target,
             false => {

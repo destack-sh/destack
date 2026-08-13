@@ -278,7 +278,7 @@ impl BodyState<'_, '_> {
             | dir::Type::FixedArray(_)
             | dir::Type::Slice(_) => dir::PredicateCondition::Type(target),
             dir::Type::Form(_) => dir::PredicateCondition::Type(target),
-            dir::Type::Shape(_) | dir::Type::Object(_) => return Ok(None),
+            dir::Type::Object(_) => return Ok(None),
             dir::Type::Union(union) => {
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(target.module_id, union.elements)?.into();
@@ -300,7 +300,6 @@ impl BodyState<'_, '_> {
             }
             dir::Type::Dynamic(_) => dir::PredicateCondition::Type(target),
             dir::Type::Error
-            | dir::Type::Hole(_)
             | dir::Type::Void
             | dir::Type::Variable(_)
             | dir::Type::Key(_)
@@ -391,7 +390,7 @@ impl BodyState<'_, '_> {
         }
 
         let predicate = match self.ty(ty)? {
-            dir::Type::Shape(_) | dir::Type::Object(_) => {
+            dir::Type::Object(_) => {
                 Some(self.unary_predicate(origin, value, ty, dir::PredicateCondition::Type(ty))?)
             }
             _ => None,

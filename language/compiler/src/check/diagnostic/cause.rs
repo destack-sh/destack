@@ -146,7 +146,11 @@ impl CheckState<'_> {
                 ),
                 _ => false,
             };
-        if is_value_class && matches!(self.ty(leaf.target)?, dir::Type::Object(_)) {
+        let is_exact_target = match self.ty(leaf.target)? {
+            dir::Type::Object(shape) => !shape.declares_signatures(),
+            _ => false,
+        };
+        if is_value_class && is_exact_target {
             let target = self.format_type_at(module, leaf.target);
             notes.push(format!(
                 "'{target}' stores its exact object type, declare an interface to accept \
@@ -232,10 +236,7 @@ impl CheckState<'_> {
         let mut pairs = Vec::new();
         match (self.ty(source)?, self.ty(target)?) {
             // blame matching shape fields under their storage relations
-            (
-                dir::Type::Shape(source_shape) | dir::Type::Object(source_shape),
-                dir::Type::Shape(target_shape) | dir::Type::Object(target_shape),
-            ) => {
+            (dir::Type::Object(source_shape), dir::Type::Object(target_shape)) => {
                 let source_fields = self
                     .shape_properties(source.module_id, source_shape.properties)?
                     .to_vec();

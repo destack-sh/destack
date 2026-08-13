@@ -1304,7 +1304,6 @@ impl CheckState<'_> {
         let ty = match ty {
             // leaves without child types
             dir::Type::Variable(_)
-            | dir::Type::Hole(_)
             | dir::Type::Error
             | dir::Type::Never
             | dir::Type::Any
@@ -1506,16 +1505,11 @@ impl CheckState<'_> {
                 dir::Type::Tuple(tuple)
             }
 
-            // structural shapes and concrete object classes
+            // concrete object classes
             dir::Type::Object(shape) => {
                 let shape = self.map_shape_row(source, target, shape, map)?;
 
                 dir::Type::Object(shape)
-            }
-            dir::Type::Shape(shape) => {
-                let shape = self.map_shape_row(source, target, shape, map)?;
-
-                dir::Type::Shape(shape)
             }
             dir::Type::FunctionSignature(function) => {
                 let mut function = self.type_signature(source, function)?;
@@ -1696,20 +1690,19 @@ impl CheckState<'_> {
         Ok(self.module.types_tail.intern_properties(values))
     }
 
-    /// Intern one structural shape type.
-    pub(in crate::check) fn intern_shape(
+    /// Intern one anonymous object type over a property list.
+    pub(in crate::check) fn intern_object(
         &mut self,
         properties: &[dir::TypeProperty],
     ) -> CompilerResult<dir::GlobalTypeId> {
         let properties = self.intern_properties(properties)?;
-        let shape = dir::ShapeType {
+
+        self.intern_type(dir::Type::Object(dir::ShapeType {
             properties,
             call_signatures: dir::TypeListId::EMPTY,
             construct_signatures: dir::TypeListId::EMPTY,
             index_signatures: dir::TypeListId::EMPTY,
-        };
-
-        self.intern_type(dir::Type::from(shape))
+        }))
     }
 
     /// Intern associated bindings around one base type.

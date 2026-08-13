@@ -58,7 +58,6 @@ impl CheckState<'_> {
             }
 
             dir::Type::Error
-            | dir::Type::Hole(_)
             | dir::Type::Never
             | dir::Type::Any
             | dir::Type::Unknown
@@ -108,8 +107,8 @@ impl CheckState<'_> {
 
                 self.all_dynamic_safe(origin, ids, active)
             }
-            dir::Type::Object(_) => Ok(true),
-            dir::Type::Shape(shape) => {
+            // a signature-bearing object type erases through the members it declares
+            dir::Type::Object(shape) if shape.declares_signatures() => {
                 let mut ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .shape_properties(ty.module_id, shape.properties)?
                     .iter()
@@ -133,6 +132,7 @@ impl CheckState<'_> {
 
                 self.all_dynamic_safe(origin, ids, active)
             }
+            dir::Type::Object(_) => Ok(true),
             dir::Type::FunctionSignature(function) => {
                 let function = self.type_signature(ty.module_id, function)?;
                 self.satisfies_dynamic_safe_function(origin, ty.module_id, &function, active)

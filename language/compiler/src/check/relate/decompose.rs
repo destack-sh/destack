@@ -169,6 +169,7 @@ impl CheckState<'_> {
                 dir::Type::FunctionSignature(target_type),
             ) if let source_type = self.type_signature(source.module_id, source_type)?
                 && let target_type = self.type_signature(target.module_id, target_type)?
+                && source_type.is_construct == target_type.is_construct
                 && source_type.this_parameter.is_some() == target_type.this_parameter.is_some()
                 && source_type.return_type.is_some() == target_type.return_type.is_some() =>
             {

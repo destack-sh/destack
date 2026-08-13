@@ -463,7 +463,7 @@ impl CheckState<'_> {
         Ok(target)
     }
 
-    /// Return one single-field structural shape type.
+    /// Return one single-field object type.
     pub(in crate::check) fn field_shape_type(
         &mut self,
         key: dir::StaticKey,
@@ -475,15 +475,8 @@ impl CheckState<'_> {
             access: dir::PropertyAccess::Read(ty),
             is_optional: false,
         };
-        let properties = self.intern_properties(&[property])?;
-        let shape = dir::ShapeType {
-            properties,
-            call_signatures: dir::TypeListId::EMPTY,
-            construct_signatures: dir::TypeListId::EMPTY,
-            index_signatures: dir::TypeListId::EMPTY,
-        };
 
         // constrain the receiver through the tested field
-        self.intern_type(dir::Type::Shape(shape))
+        self.intern_object(&[property])
     }
 }

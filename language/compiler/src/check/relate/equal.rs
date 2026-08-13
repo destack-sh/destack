@@ -14,9 +14,8 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let decision = match (self.ty(source)?, self.ty(target)?) {
-            // error and hole types poison silently instead of cascading
-            (dir::Type::Error | dir::Type::Hole(_), _)
-            | (_, dir::Type::Error | dir::Type::Hole(_)) => true,
+            // error types poison silently instead of cascading
+            (dir::Type::Error, _) | (_, dir::Type::Error) => true,
             // compare lifetime pairs equal, MIR Verify enforces outlives
             (_, _)
                 if self.is_lifetime_slot_type(source)? && self.is_lifetime_slot_type(target)? =>
@@ -102,9 +101,8 @@ impl CheckState<'_> {
                     target_form.value,
                 )?
             }
-            // structural shapes and functions
-            (dir::Type::Shape(_), dir::Type::Shape(_))
-            | (dir::Type::Object(_), dir::Type::Object(_)) => {
+            // anonymous classes
+            (dir::Type::Object(_), dir::Type::Object(_)) => {
                 self.relate_shape_equal(origin, cause, source, target)?
             }
             // composites compare fixed slots beneath one shared constructor

@@ -1,4 +1,4 @@
-use destack_core::FxIndexSet;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_dir::TypeFold;
 
@@ -123,20 +123,22 @@ impl CheckState<'_> {
         }
     }
 
-    /// Resolve one committed type, erroring unsolved holes and poisoning failed applications.
+    /// Resolve one committed type into the canonical form the write boundary requires.
+    ///
+    /// Every type a retained reference reaches after the write carries no inference variable,
+    /// settles every closed computation to its result, normalizes every union and intersection,
+    /// composes every carrier in canonical order, keeps the written face of plain-valued alias
+    /// applications, and leaves parameter-dependent computations open for monomorphization.
     pub(in crate::check) fn fully_resolve(
         &mut self,
         ty: dir::GlobalTypeId,
         failed: &FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // track the roots on the active path to break cycles, replaying settled subgraphs
         let ty = self.shallow_resolve(ty)?;
-        if failed.is_empty() && !self.type_flags(ty)?.has_variable() {
-            return Ok(ty);
-        }
-
-        // track the roots on the active path to break cycles
         let mut active = FxIndexSet::default();
-        let resolved = self.resolve_open_type(ty, failed, &mut active)?;
+        let mut settled = FxIndexMap::default();
+        let resolved = self.resolve_open_type(ty, failed, &mut active, &mut settled)?;
 
         // require the write to close, since a pass exports solutions and holes only
         if self.type_flags(resolved)?.has_variable() {
@@ -148,32 +150,22 @@ impl CheckState<'_> {
         Ok(resolved)
     }
 
-    /// Intern the declared hole one unsolved variable stands for.
-    fn hole_type(&mut self, variable: dir::TypeVariableId) -> CompilerResult<dir::GlobalTypeId> {
-        let origin = self.infer.variables.get(variable)?.origin;
-        let origin = self.infer.origin(origin);
-        let node = self
-            .origin_source_node(origin)?
-            .into_global(origin.module());
-
-        self.intern_type(dir::Type::Hole(node))
-    }
-
     /// Resolve one open type graph, cycling through solved variable roots.
     fn resolve_open_type(
         &mut self,
         id: dir::GlobalTypeId,
         failed: &FxIndexSet<dir::GlobalTypeId>,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
+        settled: &mut FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // poison a generic application whose declared argument bound failed
         if failed.contains(&id) {
             return self.intern_type(dir::Type::Error);
         }
 
-        // return resolved subgraphs free of failures unchanged
-        if failed.is_empty() && !self.type_flags(id)?.has_variable() {
-            return Ok(id);
+        // replay the form this walk already resolved for the root
+        if let Some(done) = settled.get(&id).copied() {
+            return Ok(done);
         }
 
         // stop at a root already on the active path
@@ -188,10 +180,14 @@ impl CheckState<'_> {
                 Some(solution) => {
                     let solution = self.shallow_resolve(solution)?;
 
-                    self.resolve_open_type(solution, failed, active)?
+                    self.resolve_open_type(solution, failed, active, settled)?
                 }
-                // publish an unsolved declaration variable as the hole it stands for
-                None if self.is_declaration() => self.hole_type(variable)?,
+                // a declaration writes every type it carries, so nothing stays open
+                None if self.is_declaration() => {
+                    return Err(CompilerError::Internal {
+                        message: format!("declaration variable {variable:?} left unsolved"),
+                    });
+                }
                 None => self.intern_type(dir::Type::Error)?,
             }
         }
@@ -203,11 +199,11 @@ impl CheckState<'_> {
         else {
             let rebuilt =
                 self.map_type_children(id.module_id, id.module_id, ty, &mut |state, child| {
-                    state.resolve_open_type(child, failed, active)
+                    state.resolve_open_type(child, failed, active, settled)
                 })?;
 
             // renormalize solved unions like any other construction
-            match rebuilt {
+            let rebuilt = match rebuilt {
                 dir::Type::Union(union) => {
                     let elements = self.type_ids(id.module_id, union.elements)?.to_vec();
 
@@ -219,10 +215,105 @@ impl CheckState<'_> {
                     self.normalized_intersection_type(elements)?
                 }
                 rebuilt => self.intern_type(rebuilt)?,
-            }
+            };
+
+            self.settle_computation(rebuilt)?
         };
         active.swap_remove(&id);
+        settled.insert(id, resolved);
 
         Ok(resolved)
+    }
+
+    /// Settle one closed computation head to the type it reduces to.
+    fn settle_computation(&mut self, id: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
+        // typeof and associated projections settle at check, where value types exist
+        if self.is_declaration() {
+            return Ok(id);
+        }
+
+        // leave parameter-dependent computations open for monomorphization
+        let flags = self.type_flags(id)?;
+        if flags.has_parameter() || flags.has_this() || flags.has_variable() {
+            return Ok(id);
+        }
+
+        // settle written projections and operations, plus the alias names whose values reach one
+        let computes = match self.ty(id)? {
+            dir::Type::Operation(_) | dir::Type::Member(_) => true,
+            dir::Type::Application(instance) => self.alias_computes(instance.symbol)?,
+            dir::Type::Reference(reference) => self.alias_computes(reference.symbol)?,
+            _ => false,
+        };
+        if !computes {
+            return Ok(id);
+        }
+
+        self.normalize_closed(id)
+    }
+
+    /// Return whether one type alias declares a computation as its value.
+    fn alias_computes(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
+        let mut named = FxIndexSet::default();
+
+        self.name_computes(symbol, &mut named)
+    }
+
+    /// Return whether the family one declared name stands for reaches a computation.
+    fn name_computes(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        named: &mut FxIndexSet<dir::GlobalSymbolId>,
+    ) -> CompilerResult<bool> {
+        if !named.insert(symbol) {
+            return Ok(false);
+        }
+
+        // only type aliases stand for a family; every other declaration names itself
+        let value = match self.definition(symbol)? {
+            Some(dir::Definition::TypeAlias(alias)) => alias.value,
+            _ => return Ok(false),
+        };
+
+        self.value_computes(value, named)
+    }
+
+    /// Return whether one declared alias value reaches a computation.
+    fn value_computes(
+        &mut self,
+        value: dir::GlobalTypeId,
+        named: &mut FxIndexSet<dir::GlobalSymbolId>,
+    ) -> CompilerResult<bool> {
+        match self.ty(value)? {
+            dir::Type::Operation(_) | dir::Type::Member(_) => Ok(true),
+            dir::Type::Application(instance) => self.name_computes(instance.symbol, named),
+            dir::Type::Reference(reference) => self.name_computes(reference.symbol, named),
+
+            // a composition reaches a computation through any of its members
+            dir::Type::Union(union) => {
+                let elements = self.type_ids(value.module_id, union.elements)?.to_vec();
+                for element in elements {
+                    if self.value_computes(element, named)? {
+                        return Ok(true);
+                    }
+                }
+
+                Ok(false)
+            }
+            dir::Type::Intersection(intersection) => {
+                let elements = self
+                    .type_ids(value.module_id, intersection.elements)?
+                    .to_vec();
+                for element in elements {
+                    if self.value_computes(element, named)? {
+                        return Ok(true);
+                    }
+                }
+
+                Ok(false)
+            }
+
+            _ => Ok(false),
+        }
     }
 }

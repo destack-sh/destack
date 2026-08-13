@@ -92,7 +92,7 @@ impl CheckState<'_> {
         let mut others = Vec::new();
         let mut shape_count = 0usize;
         for element in closed {
-            let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = self.ty(element)? else {
+            let dir::Type::Object(shape) = self.ty(element)? else {
                 others.push(element);
                 continue;
             };
@@ -109,7 +109,7 @@ impl CheckState<'_> {
         let call_signatures = self.intern_type_ids(&merged.call_signatures)?;
         let construct_signatures = self.intern_type_ids(&merged.construct_signatures)?;
         let index_signatures = self.intern_index_signatures(&merged.index_signatures)?;
-        let shape = self.intern_type(dir::Type::from(dir::ShapeType {
+        let shape = self.intern_type(dir::Type::Object(dir::ShapeType {
             properties: fields,
             call_signatures,
             construct_signatures,

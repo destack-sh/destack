@@ -1,6 +1,32 @@
 use crate::DiagnosticAnchor;
+use destack_artifact::{DiagnosticError, DiagnosticFormat, DiagnosticFormatter};
 use destack_artifact_macros::Diagnostic;
 use destack_source::ModuleId;
+
+/// The signature an object type declares beside its named properties.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MixedObjectSignature {
+    /// An index signature.
+    IndexSignature,
+    /// A call signature.
+    CallSignature,
+    /// A construct signature.
+    ConstructSignature,
+}
+
+impl DiagnosticFormat for MixedObjectSignature {
+    /// Name the conflicting signature in a diagnostic message.
+    fn format_diagnostic(
+        &self,
+        _formatter: &DiagnosticFormatter<'_>,
+    ) -> Result<String, DiagnosticError> {
+        Ok(match self {
+            Self::IndexSignature => "an index signature".to_string(),
+            Self::CallSignature => "a call signature".to_string(),
+            Self::ConstructSignature => "a construct signature".to_string(),
+        })
+    }
+}
 
 /// Errors during the check phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
@@ -1566,22 +1592,6 @@ pub enum CheckError {
         name: String,
     },
 
-    /// Moved binding is read after its value moved out.
-    ///
-    /// ```ds
-    /// const taken = move value;
-    /// value.read();
-    /// ```
-    #[diagnostic(id = "use-after-moved", message = "'{name}' is used after being moved")]
-    UseAfterMove {
-        /// Report the use.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The moved binding name.
-        name: String,
-    },
-
     /// Refutable pattern appears outside a matching context.
     ///
     /// ```ds
@@ -2749,6 +2759,24 @@ pub enum CheckError {
         member: String,
         /// The extended target when another extension owns the slot.
         target: Option<String>,
+    },
+
+    /// Object type declares named properties beside an index or call signature.
+    ///
+    /// ```ds
+    /// type Row = { name: string; [key: string]: string };
+    /// ```
+    #[diagnostic(
+        id = "mixed-object-type",
+        message = "object type mixes named properties with {conflict}"
+    )]
+    MixedObjectType {
+        /// Report the object type expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The signature that conflicts with the named properties.
+        conflict: MixedObjectSignature,
     },
 
     /// Class field is not definitely initialized.

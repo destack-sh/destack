@@ -513,9 +513,9 @@ function adopt<T>(value: T | Deferred<T>): void {
         /// @generic.instance source=value id=Deferred<T#2>
         /// @generic.instance source=value.then id=Deferred<*>
         /// @generic.instance source=value.then id=Deferred<T#2>
-        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(* | T#2,), void>
-        /// @type.node source="(value) => {}" type=Function<(* | T#2,), void>
-        /// @type.symbol symbol=adopt.symbol10.value source=value type=* | T#2
+        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(<error>,), void>
+        /// @type.node source="(value) => {}" type=Function<(<error>,), void>
+        /// @type.symbol symbol=adopt.symbol10.value source=value type=<error>
 
     }
 }
@@ -526,9 +526,6 @@ function adopt<T>(value: T | Deferred<T>): void {
 /// @generic.instance id=Deferred<T#2>.then template=Deferred.then arguments=(T#2)
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: * | T) => void' is not assignable to parameter of type '(value: *) => void'"
-/// @diagnostic.label line=8 column=20 span="(value) => {}" line_source="value.then((value) => {});"
-/// @diagnostic.related line=8 column=9 span="value.then((value) => {})" line_source="value.then((value) => {});" message="in this call"
 /// @diagnostic.error id=not-assignable message="type '*' is not assignable to type '* | T'"
 /// @diagnostic.label line=8 column=20 span="(value) => {}" line_source="value.then((value) => {});"
 /// @diagnostic.note message="the mismatch is in parameter 0"

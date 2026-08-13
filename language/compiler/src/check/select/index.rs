@@ -473,7 +473,7 @@ impl BodyState<'_, '_> {
             dir::Type::Tuple(tuple) => {
                 self.select_tuple_subscript(receiver.ty, receiver_type, index, use_, tuple)
             }
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+            dir::Type::Object(shape) => {
                 self.select_shape_subscript(origin, receiver.ty, receiver_type, index, use_, &shape)
             }
             dir::Type::Application(_)
@@ -657,6 +657,7 @@ impl BodyState<'_, '_> {
             parameters,
             return_type: Some(return_type),
             is_generator: false,
+            is_construct: false,
         })?;
         let parameters: SmallVec<[_; 4]> = self
             .signature_parameters(callable_type.module_id, parameters)?

@@ -771,18 +771,9 @@ impl BodyState<'_, '_> {
                 is_optional: false,
             });
         }
-        let fields = self.intern_properties(&required)?;
-        let shape = dir::ShapeType {
-            properties: fields,
-            call_signatures: dir::TypeListId::EMPTY,
-            construct_signatures: dir::TypeListId::EMPTY,
-            index_signatures: dir::TypeListId::EMPTY,
-        };
 
         // constrain the matched value through the required keys
-        let ty = self.intern_type(dir::Type::Shape(shape))?;
-
-        Ok(ty)
+        self.intern_object(&required)
     }
 
     /// Return the static key named by one object pattern field.

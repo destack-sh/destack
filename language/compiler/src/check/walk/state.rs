@@ -5,7 +5,7 @@ use crate::check::{
     Cause, CauseKind, CheckState, Constraint, DeferredCheck, Expectation, FlowSite, FlowState,
     Origin, Relation, ValueUse, VariableRole, Widening,
 };
-use crate::{CompilerError, CompilerResult};
+use crate::{CheckError, CompilerError, CompilerResult};
 
 /// State used only while walking one module.
 pub(in crate::check) struct WalkState<'check, 'state> {
@@ -274,6 +274,26 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         Ok(())
+    }
+
+    /// Report one written `_` a declaration position cannot infer, returning the error type.
+    ///
+    /// A declaration writes every type it carries, so only bodies infer.
+    pub(in crate::check) fn reject_declaration_hole(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        if !self.check.is_declaration() {
+            return Ok(None);
+        }
+        let anchor = self.check.diagnostic_anchor(self.module, source);
+        let error = CheckError::CannotInferType {
+            anchor,
+            module: self.module,
+        };
+        self.check.report(self.module, error);
+
+        Ok(Some(self.intern_type(dir::Type::Error)?))
     }
 
     /// Open one inference hole at a source node.

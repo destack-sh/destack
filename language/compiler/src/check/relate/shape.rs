@@ -83,7 +83,7 @@ impl CheckState<'_> {
 
         let result = match self.ty(ty)? {
             dir::Type::Any | dir::Type::Parameter(_) => true,
-            dir::Type::Shape(_) | dir::Type::Object(_) => true,
+            dir::Type::Object(_) => true,
             dir::Type::Dynamic(dynamic) => self.is_keyed_type(origin, dynamic.constraint)?,
             dir::Type::Application(instance) => matches!(
                 self.symbol_kind_maybe(instance.symbol)?,
@@ -212,10 +212,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         // compare member shapes and collect type pairs in one pure pass
         let pairs = {
-            let (
-                dir::Type::Shape(source_shape) | dir::Type::Object(source_shape),
-                dir::Type::Shape(target_shape) | dir::Type::Object(target_shape),
-            ) = (self.ty(source)?, self.ty(target)?)
+            let (dir::Type::Object(source_shape), dir::Type::Object(target_shape)) =
+                (self.ty(source)?, self.ty(target)?)
             else {
                 return Ok(false);
             };
@@ -299,17 +297,6 @@ impl CheckState<'_> {
         self.relate_each(origin, cause, Relation::Equal, &pairs)
     }
 
-    /// Relate two shapes under structural assignability.
-    pub(in crate::check) fn relate_shape_assignable(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        self.relate_shape(origin, cause, Relation::Assignable, source, target)
-    }
-
     /// Relate one structural pair under storage or read rules.
     pub(in crate::check) fn relate_shape(
         &mut self,
@@ -321,10 +308,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         // match members and collect signature requirements
         let (pairs, signature_requirements, index_signatures) = {
-            let (
-                dir::Type::Shape(source_shape) | dir::Type::Object(source_shape),
-                dir::Type::Shape(target_shape) | dir::Type::Object(target_shape),
-            ) = (self.ty(source)?, self.ty(target)?)
+            let (dir::Type::Object(source_shape), dir::Type::Object(target_shape)) =
+                (self.ty(source)?, self.ty(target)?)
             else {
                 return Ok(false);
             };
@@ -554,7 +539,7 @@ impl CheckState<'_> {
         &mut self,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::TypeIndexSignature>> {
-        let dir::Type::Shape(shape) = self.ty(target)? else {
+        let dir::Type::Object(shape) = self.ty(target)? else {
             return Ok(None);
         };
 
@@ -567,7 +552,7 @@ impl CheckState<'_> {
         Ok(signature)
     }
 
-    /// Relate a static declaration reference to a shape under assignability.
+    /// Relate a static declaration reference to an object type under assignability.
     pub(in crate::check) fn relate_reference_shape_assignable(
         &mut self,
         origin: Origin,
@@ -575,11 +560,11 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // require a declaration reference against a structural target
-        let dir::Type::Reference(reference) = self.ty(source)? else {
+        // require a declaration reference against an object type target
+        if !matches!(self.ty(source)?, dir::Type::Reference(_)) {
             return Ok(false);
-        };
-        let dir::Type::Shape(target_shape) = self.ty(target)? else {
+        }
+        let dir::Type::Object(target_shape) = self.ty(target)? else {
             return Ok(false);
         };
 
@@ -614,20 +599,12 @@ impl CheckState<'_> {
 
         // require each target constructor from the class constructor set
         for target_signature in target_constructs {
-            let mut satisfied = false;
-            for candidate in self.reference_construct_signatures(origin, reference)? {
-                satisfied = self.constrain_type(
-                    origin,
-                    cause,
-                    Relation::Assignable,
-                    candidate,
-                    target_signature,
-                )?;
-                if satisfied {
-                    break;
-                }
-            }
-            if !satisfied {
+            if !self.relate_reference_construct_assignable(
+                origin,
+                cause,
+                source,
+                target_signature,
+            )? {
                 return Ok(false);
             }
         }
@@ -640,10 +617,32 @@ impl CheckState<'_> {
         Ok(true)
     }
 
+    /// Relate a static declaration reference to a required construct signature.
+    pub(in crate::check) fn relate_reference_construct_assignable(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // require a declaration reference against the construct target
+        let dir::Type::Reference(reference) = self.ty(source)? else {
+            return Ok(false);
+        };
+
+        // satisfy the target from any one declared constructor
+        for candidate in self.reference_construct_signatures(reference)? {
+            if self.constrain_type(origin, cause, Relation::Assignable, candidate, target)? {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
     /// Return constructor signatures exposed by one static declaration reference.
     pub(in crate::check) fn reference_construct_signatures(
         &mut self,
-        _origin: Origin,
         source: dir::TypeReference,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
         // read constructors from a class declaration only
@@ -662,7 +661,16 @@ impl CheckState<'_> {
         let substitution = TypeSubstitution::default().with_receiver(instance);
         let mut signatures = SmallVec::new();
         for constructor in constructors {
-            signatures.push(self.substitute_type(constructor, &substitution)?);
+            let constructor = self.substitute_type(constructor, &substitution)?;
+
+            // present the declared signature in its construct form
+            let Some(head) = self.signature_head(constructor)? else {
+                continue;
+            };
+            signatures.push(self.intern_signature(dir::FunctionSignatureType {
+                is_construct: true,
+                ..head
+            })?);
         }
 
         Ok(signatures)
@@ -686,9 +694,6 @@ impl CheckState<'_> {
                     relation => relation,
                 };
 
-                self.relate_shape_index_signature(origin, relation, source.module_id, shape, target)
-            }
-            dir::Type::Shape(shape) => {
                 self.relate_shape_index_signature(origin, relation, source.module_id, shape, target)
             }
             _ => self
@@ -1113,6 +1118,11 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
+
+        // only a constructor satisfies a construct signature
+        if source_signature.is_construct != target_signature.is_construct {
+            return Ok(None);
+        }
 
         let mut pairs = SmallVec::<[FunctionAssignabilityPair; 8]>::new();
 

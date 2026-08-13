@@ -403,7 +403,7 @@ impl BodyState<'_, '_> {
             }
 
             // structural shapes expose every operation for the selected key
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+            dir::Type::Object(shape) => {
                 let properties = self.shape_properties(subject.module_id, shape.properties)?;
                 let properties = properties
                     .iter()
@@ -1729,7 +1729,7 @@ impl BodyState<'_, '_> {
                 }
             }
             // structural subjects expose their property keys
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+            dir::Type::Object(shape) => {
                 for property in self.shape_properties(subject.module_id, shape.properties)? {
                     keys.insert(property.key);
                 }
@@ -1781,7 +1781,6 @@ impl BodyState<'_, '_> {
             }
             // remaining types expose no keyed members
             dir::Type::Error
-            | dir::Type::Hole(_)
             | dir::Type::Never
             | dir::Type::Any
             | dir::Type::Unknown

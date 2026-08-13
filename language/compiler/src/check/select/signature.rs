@@ -288,6 +288,7 @@ impl BodyState<'_, '_> {
             parameters,
             return_type: Some(return_type),
             is_generator: signature.is_generator,
+            is_construct: signature.is_construct,
         })?;
 
         Ok(signature)

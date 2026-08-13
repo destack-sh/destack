@@ -226,10 +226,8 @@ impl CheckState<'_> {
             // satisfy other values through assignability or union membership
             (None, _) => {
                 // check-only relations read structural pairs covariantly
-                if let (
-                    dir::Type::Shape(_) | dir::Type::Object(_),
-                    dir::Type::Shape(_) | dir::Type::Object(_),
-                ) = (self.ty(source)?, self.ty(target)?)
+                if let (dir::Type::Object(_), dir::Type::Object(_)) =
+                    (self.ty(source)?, self.ty(target)?)
                 {
                     let holds = self.relate_shape(origin, cause, relation, source, target)?;
 
@@ -362,7 +360,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::StaticKey>> {
         // read the written fields of the structural source
         let source_fields = match self.ty(source)? {
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => self
+            dir::Type::Object(shape) => self
                 .shape_properties(source.module_id, shape.properties)?
                 .iter()
                 .map(|field| field.key)
@@ -402,7 +400,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::StaticKey>> {
         // read the written fields of the structural source
         let source_fields = match self.ty(source)? {
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => self
+            dir::Type::Object(shape) => self
                 .shape_properties(source.module_id, shape.properties)?
                 .iter()
                 .map(|field| field.key)
@@ -666,7 +664,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         // require each target field from the source fields
         let (fields, index_signatures) = match self.ty(target)? {
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => (
+            dir::Type::Object(shape) => (
                 self.shape_properties(target.module_id, shape.properties)?
                     .iter()
                     .map(|field| (field.key, field.access.store(), field.is_optional))

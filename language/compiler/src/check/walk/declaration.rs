@@ -839,6 +839,7 @@ impl WalkState<'_, '_> {
             parameters: dir::TypeListId::EMPTY,
             return_type: Some(receiver),
             is_generator: false,
+            is_construct: false,
         };
         let ty = self.intern_signature(function)?;
 
@@ -1264,7 +1265,7 @@ impl WalkState<'_, '_> {
                     dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
                         dir::EnumVariantValue::String(value)
                     }
-                    dir::Type::Error | dir::Type::Hole(_) => return Ok(None),
+                    dir::Type::Error => return Ok(None),
                     _ => {
                         let ty = self.check.format_type(static_type);
                         let anchor = self

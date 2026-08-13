@@ -58,9 +58,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Range(range) => self.range_type_label(range),
             dir::Type::Slice(slice) => self.slice_type_label(types, slice),
             dir::Type::Tuple(tuple) => self.tuple_type_label(types, tuple),
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
-                self.shape_type_label(types, shape)
-            }
+            dir::Type::Object(shape) => self.shape_type_label(types, shape),
             dir::Type::FunctionSignature(function) => {
                 self.function_type_label(types, types.signature(*function))
             }
@@ -72,7 +70,6 @@ impl DirSnapshotBuilder<'_> {
                 self.type_id_list_label(types, types.type_ids(union.elements), " | ")
             }
             dir::Type::Variable(variable) => format!("?{}", variable.0),
-            dir::Type::Hole(_) => "_".to_string(),
             dir::Type::Memory(literal) => self.memory_literal_type_label(literal),
             dir::Type::Static(static_id) => self.global_static_label(*static_id),
             dir::Type::Intersection(intersection) => {
@@ -837,6 +834,8 @@ impl DirSnapshotBuilder<'_> {
             .unwrap_or_else(|| "void".to_string());
         let prefix = if function.asynchrony == dir::Asynchrony::Async {
             "async "
+        } else if function.is_construct {
+            "new "
         } else {
             ""
         };

@@ -486,6 +486,7 @@ impl BodyState<'_, '_> {
                 parameters,
                 return_type: Some(return_type),
                 is_generator: false,
+                is_construct: false,
             };
             let signature = self.intern_signature(function)?;
             candidates.push(NewtypeCandidate { backing, signature });

@@ -36,7 +36,6 @@ impl CheckState<'_> {
             dir::Type::Variable(_) => Ok(false),
             // reject valueless and scalar types, they have no capability
             dir::Type::Error
-            | dir::Type::Hole(_)
             | dir::Type::Never
             | dir::Type::Void
             | dir::Type::Null
@@ -87,7 +86,7 @@ impl CheckState<'_> {
                 self.all_immutable(origin, ids, active)
             }
             // shapes are immutable when every capability they grant is a read
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+            dir::Type::Object(shape) => {
                 if !self
                     .type_ids(ty.module_id, shape.call_signatures)?
                     .is_empty()

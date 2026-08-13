@@ -115,14 +115,7 @@ impl CheckState<'_> {
         }
 
         // build the managed frame object type
-        let shape_properties = self.intern_properties(&shape_properties)?;
-        let shape = dir::ShapeType {
-            properties: shape_properties,
-            call_signatures: dir::TypeListId::EMPTY,
-            construct_signatures: dir::TypeListId::EMPTY,
-            index_signatures: dir::TypeListId::EMPTY,
-        };
-        let shape = self.intern_type(dir::Type::from(shape))?;
+        let shape = self.intern_object(&shape_properties)?;
         let ty = self.intern_type(dir::Type::Form(dir::FormType {
             form: dir::Form::Managed,
             value: shape,

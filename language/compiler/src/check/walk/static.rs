@@ -272,7 +272,10 @@ impl WalkState<'_, '_> {
                 form: dir::InferForm::Hole,
                 name: None,
             } => {
-                let ty = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
+                let ty = match self.reject_declaration_hole(source)? {
+                    Some(rejected) => rejected,
+                    None => self.open_type_hole(source, Widening::Never, VariableRole::Regular)?,
+                };
                 self.commit_node_type(expression, ty)?;
 
                 self.bind_static_term(expression, ty)
@@ -284,11 +287,13 @@ impl WalkState<'_, '_> {
                     ..
                 } = self.tree.get(*value)
                 {
-                    let ty = self.open_type_hole(
-                        (*value).into_any(),
-                        Widening::Never,
-                        VariableRole::Regular,
-                    )?;
+                    let source = (*value).into_any();
+                    let ty = match self.reject_declaration_hole(source)? {
+                        Some(rejected) => rejected,
+                        None => {
+                            self.open_type_hole(source, Widening::Never, VariableRole::Regular)?
+                        }
+                    };
                     self.commit_node_type(*value, ty)?
                 } else {
                     self.walk_type_expression(*value)?

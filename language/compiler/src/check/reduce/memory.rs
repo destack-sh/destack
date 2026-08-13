@@ -832,7 +832,6 @@ impl CheckState<'_> {
             | dir::Type::Unknown
             | dir::Type::Object(_)
             | dir::Type::Dynamic(_)
-            | dir::Type::Shape(_)
             | dir::Type::Array(_)
             | dir::Type::Slice(_)
             | dir::Type::Function(_) => Some(dir::Ownership::Managed),
@@ -888,7 +887,6 @@ impl CheckState<'_> {
             | dir::Type::Parameter(_)
             | dir::Type::Erased(_)
             | dir::Type::Variable(_)
-            | dir::Type::Hole(_)
             | dir::Type::This
             | dir::Type::Member(_)
             | dir::Type::Operation(_)

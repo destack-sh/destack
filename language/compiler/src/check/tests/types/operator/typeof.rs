@@ -125,7 +125,7 @@ class Counter {
 
 type CounterCtor = typeof Counter;
 
-declare function takesCounter(ctor: { new (value: int32): Counter }): void;
+declare function takesCounter(ctor: new (arg0: int32) => Counter): void;
 
 takesCounter(Counter);
 let version: int32 = 1;
@@ -168,14 +168,14 @@ type CounterCtor = typeof Counter;
 /// @resolution.name source=Counter target=Counter
 
 declare function takesCounter(ctor: { new (value: int32): Counter }): void;
-/// @type.symbol symbol=takesCounter source="declare function takesCounter(ctor: { new (value: int32): Counter }): void" type=({ <new>: (int32) => Counter }) => void
-/// @type.symbol symbol=takesCounter.ctor source="ctor: { new (value: int32): Counter }" type={ <new>: (int32) => Counter }
+/// @type.symbol symbol=takesCounter source="declare function takesCounter(ctor: { new (value: int32): Counter }): void" type=(new (int32) => Counter) => void
+/// @type.symbol symbol=takesCounter.ctor source="ctor: { new (value: int32): Counter }" type=new (int32) => Counter
 /// @type.symbol symbol=takesCounter.value source="value: int32" type=int32
 /// @resolution.name source=Counter target=Counter
 
 takesCounter(Counter);
 /// @resolution.name source=takesCounter target=takesCounter
-/// @resolution.call source=takesCounter(Counter) parameters=({ <new>: (int32) => Counter }) arguments=(provided(Counter) as { <new>: (int32) => Counter }) return=void kind=symbol target=takesCounter
+/// @resolution.call source=takesCounter(Counter) parameters=(new (int32) => Counter) arguments=(provided(Counter) as new (int32) => Counter) return=void kind=symbol target=takesCounter
 /// @resolution.name source=Counter target=Counter
 
 let version: CounterCtor["version"] = 1;

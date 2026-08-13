@@ -757,7 +757,7 @@ declare const handle: Handle;
 publish<CleanEnvelope>(cleanEnvelope);
 publish<LocalEnvelope>(localEnvelope);
 publish<CleanEnvelope>(cleanEnvelope);
-publish<Handle>(handle);
+publish(handle);
 cleanEnvelope satisfies SharedSafe;
 
 === checked ===
@@ -846,8 +846,8 @@ publish(cleanEnvelope);
 
 publish(handle);
 /// @resolution.name source=publish target=publish
-/// @resolution.call source=publish(handle) parameters=(Handle) arguments=(provided(handle) as Handle) return=void kind=symbol target=publish instance=publish<Handle>
-/// @generic.instance source=publish(handle) id=publish<Handle>
+/// @resolution.call source=publish(handle) parameters=(<error>) arguments=(provided(handle) as <error>) return=void kind=symbol target=publish instance=publish<<error>>
+/// @generic.instance source=publish(handle) id=publish<<error>>
 /// @resolution.name source=handle target=handle
 /// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handle root=handle
@@ -858,8 +858,8 @@ cleanEnvelope satisfies SharedSafe;
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
 /// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
 
+/// @generic.instance id=publish<<error>> template=publish arguments=(<error>)
 /// @generic.instance id=publish<CleanEnvelope> template=publish arguments=(CleanEnvelope)
-/// @generic.instance id=publish<Handle> template=publish arguments=(Handle)
 /// @generic.instance id=publish<LocalEnvelope> template=publish arguments=(LocalEnvelope)
 "#,
         r#"

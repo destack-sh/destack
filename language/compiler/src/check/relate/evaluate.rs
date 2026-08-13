@@ -359,8 +359,7 @@ impl CheckState<'_> {
         // decide inclusion by constructor pair
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // empty and indeterminate domains
-            (dir::Type::Error | dir::Type::Hole(_), _)
-            | (_, dir::Type::Error | dir::Type::Hole(_)) => true,
+            (dir::Type::Error, _) | (_, dir::Type::Error) => true,
             (dir::Type::Never, _) => true,
             (_, dir::Type::Any | dir::Type::Unknown) => true,
             (dir::Type::Any | dir::Type::Unknown, _) => false,
@@ -543,14 +542,10 @@ impl CheckState<'_> {
 
             // structural and nominal inclusion
             (dir::Type::Object(_), dir::Type::Object(_)) => {
-                self.relate_shape_equal(origin, cause, source, target)?
-            }
-            (dir::Type::Shape(_) | dir::Type::Object(_), dir::Type::Shape(_)) => {
                 self.relate_shape(origin, cause, Relation::Subtype, source, target)?
             }
             (
-                dir::Type::Shape(_)
-                | dir::Type::Object(_)
+                dir::Type::Object(_)
                 | dir::Type::Primitive(_)
                 | dir::Type::Array(_)
                 | dir::Type::Slice(_)
@@ -559,7 +554,7 @@ impl CheckState<'_> {
             ) if self.symbol_kind(instance.symbol)?.is_interface() => self
                 .relate_interface(origin, cause, Relation::Subtype, source, target)?
                 .holds(),
-            (dir::Type::Application(instance), dir::Type::Shape(_) | dir::Type::Object(_)) => self
+            (dir::Type::Application(instance), dir::Type::Object(_)) => self
                 .relate_reference_against_target(
                     origin,
                     cause,

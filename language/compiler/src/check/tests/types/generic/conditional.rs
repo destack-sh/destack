@@ -117,7 +117,7 @@ declare const number: NumberSink;
 
 write("message", text);
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(\"message\", text)" parameters=(string, SinkFor<string>) arguments=(provided("message") as string, provided(text) as SinkFor<string>) return=void kind=symbol target=write instance=write<string>
+/// @resolution.call source="write(\"message\", text)" parameters=(string, TextSink) arguments=(provided("message") as string, provided(text) as TextSink) return=void kind=symbol target=write instance=write<string>
 /// @generic.instance source="write(\"message\", text)" id=write<string>
 /// @resolution.name source=text target=text
 /// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
@@ -125,7 +125,7 @@ write("message", text);
 
 write(1, number);
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(1, number)" parameters=(float64, SinkFor<float64>) arguments=(provided(1) as float64, provided(number) as SinkFor<float64>) return=void kind=symbol target=write instance=write<float64>
+/// @resolution.call source="write(1, number)" parameters=(float64, NumberSink) arguments=(provided(1) as float64, provided(number) as NumberSink) return=void kind=symbol target=write instance=write<float64>
 /// @generic.instance source="write(1, number)" id=write<float64>
 /// @resolution.name source=number target=number
 /// @resolution.place source=number placement="local" lifetime="static" access="exclusive"
@@ -250,11 +250,10 @@ declare const number: NumberSink;
 
 write("message", number);
 /// @type.node source="write(\"message\", number)" type=void
-/// @type.node source=write type=(string, SinkFor<string>) => void
+/// @type.node source=write type=(string, TextSink) => void
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(\"message\", number)" parameters=(string, SinkFor<string>) arguments=(provided("message") as string, provided(number) as SinkFor<string>) return=void kind=symbol target=write instance=write<string>
+/// @resolution.call source="write(\"message\", number)" parameters=(string, TextSink) arguments=(provided("message") as string, provided(number) as TextSink) return=void kind=symbol target=write instance=write<string>
 /// @generic.instance source="write(\"message\", number)" id=write<string>
-/// @generic.instance source=write id=SinkFor<string>
 /// @type.node source="\"message\"" type="message"
 /// @type.node source=number type=Dynamic<NumberSink>
 /// @resolution.name source=number target=number
@@ -262,7 +261,6 @@ write("message", number);
 /// @resolution.access source=number root=number
 
 /// @generic.instance id=SinkFor<T#2> template=SinkFor arguments=(T#2)
-/// @generic.instance id=SinkFor<string> template=SinkFor arguments=(string)
 /// @generic.instance id=write<string> template=write arguments=(string)
 "#,
         r#"

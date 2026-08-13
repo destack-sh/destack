@@ -1487,3 +1487,33 @@ extension<T, E> of AsyncResult<T, E> {
 /// @generic.instance id=Promise<U#1> template=Promise arguments=(U#1)
 "#);
 }
+
+#[test]
+fn test_reject_a_generic_call_whose_argument_contradicts_the_contextual_result() {
+    let session = TestSession::single(
+        r#"
+struct Box<T> {
+    value: T;
+}
+
+extension<T> of Box<T> {
+    static of(value: T): Box<T> {
+        return Box<T> { value };
+    }
+}
+
+function build(value: float64): Box<int32> {
+    return Box.of(value);
+}
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=not-assignable message="type 'float64' is not assignable to type 'int32'"
+/// @diagnostic.label line=13 column=12 span="Box.of(value)" line_source="return Box.of(value);"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Box'"
+"#,
+    );
+}

@@ -5,7 +5,6 @@ export type CaptureMode = "manage" | "borrow" | "copy" | "move";
 export type CaptureDirective =
     | CaptureMode
     | {
-          default?: CaptureMode;
           [name: string]: CaptureMode;
       };
 

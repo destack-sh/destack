@@ -638,14 +638,7 @@ impl BodyState<'_, '_> {
                 }),
             })
             .collect();
-        let fields = self.intern_properties(&fields)?;
-        let shape = dir::Type::from(dir::ShapeType {
-            properties: fields,
-            call_signatures: dir::TypeListId::EMPTY,
-            construct_signatures: dir::TypeListId::EMPTY,
-            index_signatures: dir::TypeListId::EMPTY,
-        });
-        let ty = self.intern_type(shape)?;
+        let ty = self.intern_object(&fields)?;
 
         let projection = dir::Projection::ObjectRest { fields: copied, ty };
 

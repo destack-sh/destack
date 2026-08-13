@@ -289,7 +289,7 @@ class Counter {
 interface Factory {
 /// @type.symbol symbol=Factory type=Factory
 /// @definition.interface symbol=Factory
-/// @definition.signature kind=construct source="new (value: int32): Counter" type=(int32) => Counter
+/// @definition.signature kind=construct source="new (value: int32): Counter" type=new (int32) => Counter
 
     new (value: int32): Counter;
     /// @type.symbol symbol=Factory.value source="value: int32" type=int32

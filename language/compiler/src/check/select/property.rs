@@ -107,7 +107,7 @@ impl BodyState<'_, '_> {
 
         // record the fields accepted by this literal
         if let Some(target) = target {
-            let key_type = self.intern_shape(&target_fields)?;
+            let key_type = self.intern_object(&target_fields)?;
             let subject = dir::MemberSubject::new(target, target, dir::MemberSpace::Instance)
                 .with_scope(site.scope)
                 .with_key_type(key_type);
@@ -193,7 +193,7 @@ impl BodyState<'_, '_> {
                     };
 
                     // record the fields contributed by this spread
-                    let key_type = self.intern_shape(&spread_fields)?;
+                    let key_type = self.intern_object(&spread_fields)?;
                     let subject =
                         dir::MemberSubject::new(spread, spread, dir::MemberSpace::Instance)
                             .with_scope(site.scope)
@@ -211,33 +211,25 @@ impl BodyState<'_, '_> {
 
         // merge the shape at the literal node
         let fields: Vec<dir::TypeProperty> = fields.into_values().collect();
-        let field_list = fields.clone();
-        let fields = self.intern_properties(&fields)?;
-        let shape = self.intern_type(dir::Type::from(dir::ShapeType {
-            properties: fields,
-            call_signatures: dir::TypeListId::EMPTY,
-            construct_signatures: dir::TypeListId::EMPTY,
-            index_signatures: dir::TypeListId::EMPTY,
-        }))?;
+        let shape = self.intern_object(&fields)?;
 
         match target {
             // struct literals must fill their declared fields
             Some(target) => {
                 // bind open construction arguments from their written fields
                 if self.type_flags(target)?.has_variable() {
-                    self.constrain_struct_construction(origin, &field_list, target)?;
+                    self.constrain_struct_construction(origin, &fields, target)?;
                 }
 
                 // validate the final key set against the selected constructor fields
                 let failure = target_fields
                     .iter()
                     .find(|field| {
-                        !field.is_optional
-                            && !field_list.iter().any(|written| written.key == field.key)
+                        !field.is_optional && !fields.iter().any(|written| written.key == field.key)
                     })
                     .map(|field| CheckFailure::MissingRequiredProperty { key: field.key })
                     .or_else(|| {
-                        field_list
+                        fields
                             .iter()
                             .find(|written| {
                                 !target_fields.iter().any(|field| field.key == written.key)
@@ -319,8 +311,8 @@ impl BodyState<'_, '_> {
         }
 
         match self.ty(current)? {
-            // structural shapes spread their fields directly
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => Ok(Some(
+            // anonymous classes spread their fields directly
+            dir::Type::Object(shape) => Ok(Some(
                 self.shape_properties(current.module_id, shape.properties)?
                     .to_vec(),
             )),

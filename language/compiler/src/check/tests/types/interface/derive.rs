@@ -126,7 +126,7 @@ function requirePartial<T: PartialEqual>(value: T): T {
 }
 
 const partial: Sample = requirePartial<Sample>(Sample { label: "a", weight: 1.0 });
-const total: Sample = requireEqual<Sample>(Sample { label: "a", weight: 1.0 });
+const total = requireEqual(Sample { label: "a", weight: 1.0 });
 
 === checked ===
 struct Sample {
@@ -184,14 +184,14 @@ const partial = requirePartial(Sample { label: "a", weight: 1.0 });
 /// @resolution.name source=Sample target=Sample
 
 const total = requireEqual(Sample { label: "a", weight: 1.0 });
-/// @type.symbol symbol=total source=total type=Sample
+/// @type.symbol symbol=total source=total type=<error>
 /// @resolution.pattern source=total kind=binding target=total
 /// @resolution.name source=requireEqual target=requireEqual
-/// @resolution.call source="requireEqual(Sample { label: \"a\", weight: 1.0 })" parameters=(Sample) arguments=(provided(Sample { label: "a", weight: 1.0 }) as Sample) return=Sample kind=symbol target=requireEqual instance=requireEqual<Sample>
-/// @generic.instance source="requireEqual(Sample { label: \"a\", weight: 1.0 })" id=requireEqual<Sample>
+/// @resolution.call source="requireEqual(Sample { label: \"a\", weight: 1.0 })" parameters=(<error>) arguments=(provided(Sample { label: "a", weight: 1.0 }) as <error>) return=<error> kind=symbol target=requireEqual instance=requireEqual<<error>>
+/// @generic.instance source="requireEqual(Sample { label: \"a\", weight: 1.0 })" id=requireEqual<<error>>
 /// @resolution.name source=Sample target=Sample
 
-/// @generic.instance id=requireEqual<Sample> template=requireEqual arguments=(Sample)
+/// @generic.instance id=requireEqual<<error>> template=requireEqual arguments=(<error>)
 /// @generic.instance id=requirePartial<Sample> template=requirePartial arguments=(Sample)
 "#,
         r#"
@@ -331,7 +331,7 @@ function requireHash<T: Hash>(value: T): T {
 }
 
 const key: Key = requireHash<Key>(Key { id: 1, name: "a" });
-const measure: Measure = requireHash<Measure>(Measure { value: 1.0 });
+const measure = requireHash(Measure { value: 1.0 });
 
 === checked ===
 struct Key {
@@ -383,15 +383,15 @@ const key = requireHash(Key { id: 1, name: "a" });
 /// @resolution.name source=Key target=Key
 
 const measure = requireHash(Measure { value: 1.0 });
-/// @type.symbol symbol=measure source=measure type=Measure
+/// @type.symbol symbol=measure source=measure type=<error>
 /// @resolution.pattern source=measure kind=binding target=measure
 /// @resolution.name source=requireHash target=requireHash
-/// @resolution.call source="requireHash(Measure { value: 1.0 })" parameters=(Measure) arguments=(provided(Measure { value: 1.0 }) as Measure) return=Measure kind=symbol target=requireHash instance=requireHash<Measure>
-/// @generic.instance source="requireHash(Measure { value: 1.0 })" id=requireHash<Measure>
+/// @resolution.call source="requireHash(Measure { value: 1.0 })" parameters=(<error>) arguments=(provided(Measure { value: 1.0 }) as <error>) return=<error> kind=symbol target=requireHash instance=requireHash<<error>>
+/// @generic.instance source="requireHash(Measure { value: 1.0 })" id=requireHash<<error>>
 /// @resolution.name source=Measure target=Measure
 
+/// @generic.instance id=requireHash<<error>> template=requireHash arguments=(<error>)
 /// @generic.instance id=requireHash<Key> template=requireHash arguments=(Key)
-/// @generic.instance id=requireHash<Measure> template=requireHash arguments=(Measure)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Measure' does not satisfy 'Hash'"
@@ -432,7 +432,7 @@ function requireCompare<T: Compare>(value: T): T {
     return value;
 }
 
-const value: Point = requireCompare<Point>(Point { x: 1, y: 2 });
+const value = requireCompare(Point { x: 1, y: 2 });
 
 === checked ===
 struct Point {
@@ -466,14 +466,14 @@ function requireCompare<T: Compare>(value: T): T {
 }
 
 const value = requireCompare(Point { x: 1, y: 2 });
-/// @type.symbol symbol=value source=value type=Point
+/// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=requireCompare target=requireCompare
-/// @resolution.call source="requireCompare(Point { x: 1, y: 2 })" parameters=(Point) arguments=(provided(Point { x: 1, y: 2 }) as Point) return=Point kind=symbol target=requireCompare instance=requireCompare<Point>
-/// @generic.instance source="requireCompare(Point { x: 1, y: 2 })" id=requireCompare<Point>
+/// @resolution.call source="requireCompare(Point { x: 1, y: 2 })" parameters=(<error>) arguments=(provided(Point { x: 1, y: 2 }) as <error>) return=<error> kind=symbol target=requireCompare instance=requireCompare<<error>>
+/// @generic.instance source="requireCompare(Point { x: 1, y: 2 })" id=requireCompare<<error>>
 /// @resolution.name source=Point target=Point
 
-/// @generic.instance id=requireCompare<Point> template=requireCompare arguments=(Point)
+/// @generic.instance id=requireCompare<<error>> template=requireCompare arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Compare'"
@@ -666,7 +666,7 @@ function requireEqual<T: Equal>(value: T): T {
     return value;
 }
 
-const value: Point = requireEqual<Point>(Point { x: 1 });
+const value = requireEqual(Point { x: 1 });
 
 === checked ===
 @derive(Debug)
@@ -701,14 +701,14 @@ function requireEqual<T: Equal>(value: T): T {
 }
 
 const value = requireEqual(Point { x: 1 });
-/// @type.symbol symbol=value source=value type=Point
+/// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=requireEqual target=requireEqual
-/// @resolution.call source="requireEqual(Point { x: 1 })" parameters=(Point) arguments=(provided(Point { x: 1 }) as Point) return=Point kind=symbol target=requireEqual instance=requireEqual<Point>
-/// @generic.instance source="requireEqual(Point { x: 1 })" id=requireEqual<Point>
+/// @resolution.call source="requireEqual(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=<error> kind=symbol target=requireEqual instance=requireEqual<<error>>
+/// @generic.instance source="requireEqual(Point { x: 1 })" id=requireEqual<<error>>
 /// @resolution.name source=Point target=Point
 
-/// @generic.instance id=requireEqual<Point> template=requireEqual arguments=(Point)
+/// @generic.instance id=requireEqual<<error>> template=requireEqual arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Equal'"

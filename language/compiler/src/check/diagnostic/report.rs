@@ -6,8 +6,9 @@ use destack_source::{
 };
 
 use crate::check::{
-    BoundSide, CauseId, CauseKind, CheckFailure, CheckState, ObligationFailure, OperatorOperands,
-    Origin, Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse, Variance,
+    BoundSide, CauseId, CauseKind, CheckFailure, CheckState, MixedObjectSignature,
+    ObligationFailure, OperatorOperands, Origin, Relation, SignatureRejection, TypeBound,
+    UncoveredValue, ValueUse, Variance,
 };
 use crate::{CheckError, CheckWarning, CompilerError, CompilerResult, DiagnosticAnchor};
 
@@ -421,6 +422,23 @@ impl CheckState<'_> {
     ) {
         let anchor = self.diagnostic_anchor(module, source);
         let diagnostic = CheckError::InvalidConstType { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report one object type that mixes named properties with a signature.
+    pub(in crate::check) fn report_mixed_object_type(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        conflict: MixedObjectSignature,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::MixedObjectType {
+            anchor,
+            module,
+            conflict,
+        };
 
         self.report(module, diagnostic);
     }
@@ -1870,18 +1888,6 @@ impl CheckState<'_> {
         failure: ObligationFailure,
     ) -> CompilerResult<()> {
         match failure {
-            ObligationFailure::UseAfterMove { source, symbol } => {
-                let (module, anchor) = self.source_anchor(source);
-                let name = self.format_symbol(symbol);
-                let error = CheckError::UseAfterMove {
-                    anchor,
-                    module,
-                    name,
-                };
-                let diagnostic =
-                    error.help("reassign the binding before this use, or copy instead of moving");
-                self.report(module, diagnostic);
-            }
             ObligationFailure::NonExhaustivePattern { source, missing } => {
                 let (module, anchor) = self.source_anchor(source);
                 let missing = self.format_uncovered_value(missing);

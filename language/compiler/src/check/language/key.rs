@@ -50,7 +50,6 @@ impl CheckState<'_> {
             | dir::Type::Unknown
             | dir::Type::Error
             | dir::Type::Variable(_)
-            | dir::Type::Hole(_)
             | dir::Type::Parameter(_)
             | dir::Type::Erased(_)
             | dir::Type::This
@@ -59,7 +58,7 @@ impl CheckState<'_> {
             | dir::Type::Operation(_) => Ok(true),
 
             // accept a shape key admitted by one of its index signatures
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+            dir::Type::Object(shape) => {
                 let key_type = self.static_key_type(key)?;
                 let signatures = self
                     .shape_index_signatures(ty.module_id, shape.index_signatures)?

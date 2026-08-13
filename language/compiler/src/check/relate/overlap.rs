@@ -116,19 +116,11 @@ impl CheckState<'_> {
         // keep open domains conservative
         let source_is_open = matches!(
             source_type,
-            dir::Type::Any
-                | dir::Type::Unknown
-                | dir::Type::Variable(_)
-                | dir::Type::Hole(_)
-                | dir::Type::Error
+            dir::Type::Any | dir::Type::Unknown | dir::Type::Variable(_) | dir::Type::Error
         );
         let target_is_open = matches!(
             target_type,
-            dir::Type::Any
-                | dir::Type::Unknown
-                | dir::Type::Variable(_)
-                | dir::Type::Hole(_)
-                | dir::Type::Error
+            dir::Type::Any | dir::Type::Unknown | dir::Type::Variable(_) | dir::Type::Error
         );
         if source_is_open || target_is_open {
             return Ok(true);
@@ -150,12 +142,12 @@ impl CheckState<'_> {
         }
 
         // reject incompatible properties required by structural types
-        if let dir::Type::Shape(shape) | dir::Type::Object(shape) = source_type
+        if let dir::Type::Object(shape) = source_type
             && !self.shape_may_overlap(origin, source, shape, target, active)?
         {
             return Ok(false);
         }
-        if let dir::Type::Shape(shape) | dir::Type::Object(shape) = target_type
+        if let dir::Type::Object(shape) = target_type
             && !self.shape_may_overlap(origin, target, shape, source, active)?
         {
             return Ok(false);

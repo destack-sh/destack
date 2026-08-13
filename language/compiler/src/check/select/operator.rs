@@ -60,9 +60,8 @@ impl BodyState<'_, '_> {
         let node = site.node;
         let origin = site.origin();
 
-        // poison the node when either operand carries a reported error or a hole
-        if matches!(self.ty(left)?, dir::Type::Error | dir::Type::Hole(_))
-            || matches!(self.ty(right)?, dir::Type::Error | dir::Type::Hole(_))
+        // poison the node when either operand carries a reported error
+        if matches!(self.ty(left)?, dir::Type::Error) || matches!(self.ty(right)?, dir::Type::Error)
         {
             self.poison_node(node)?;
 
@@ -552,8 +551,8 @@ impl BodyState<'_, '_> {
 
         let operand = self.operand_type(origin, operand_site)?;
 
-        // poison the node when the operand carries a reported error or a hole
-        if matches!(self.ty(operand)?, dir::Type::Error | dir::Type::Hole(_)) {
+        // poison the node when the operand carries a reported error
+        if matches!(self.ty(operand)?, dir::Type::Error) {
             self.poison_node(node)?;
 
             return Ok(());

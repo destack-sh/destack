@@ -119,6 +119,30 @@ impl CheckState<'_> {
         Ok(kind)
     }
 
+    /// Return whether one open variable already carries a closed contextual expectation.
+    pub(in crate::check) fn has_contextual_expectation(
+        &mut self,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<bool> {
+        let variable = self.infer.alias_root(variable)?;
+        let bounds = self
+            .infer
+            .variables
+            .side_bounds(variable, BoundSide::Upper)?
+            .collect::<SmallVec<[TypeBound; 2]>>();
+
+        // accept the first directed expectation whose type has already closed
+        for bound in bounds {
+            if matches!(bound.relation, Relation::Assignable | Relation::Widens)
+                && self.type_variables(bound.ty)?.is_empty()
+            {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
     /// Resolve the given variables in place through every fallback stage.
     pub(in crate::check) fn resolve_variables(
         &mut self,
@@ -553,7 +577,15 @@ impl CheckState<'_> {
             {
                 Some(contextual)
             } else {
-                Some(lower)
+                // report every violated bound, then poison the component
+                for bound in &bounds.closed_lower {
+                    self.discharge_bound(BoundSide::Lower, bound, lower)?;
+                }
+                for bound in &bounds.closed_upper {
+                    self.discharge_bound(BoundSide::Upper, bound, lower)?;
+                }
+
+                Some(self.intern_type(dir::Type::Error)?)
             }
         } else if let Some(contextual) = contextual {
             Some(contextual)
@@ -712,41 +744,6 @@ impl CheckState<'_> {
         }
 
         Ok(variables)
-    }
-
-    /// Collect the declared holes one type graph contains.
-    pub(in crate::check) fn type_holes(
-        &self,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<SmallVec<[dir::GlobalNodeIdAny; 2]>> {
-        // skip the scan when the interned flags name no hole
-        if !self.type_flags(id)?.has_hole() {
-            return Ok(SmallVec::new());
-        }
-
-        // scan the type graph without following symbol references
-        let mut holes = SmallVec::new();
-        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-        let mut visited = FxIndexSet::default();
-        pending.push(id);
-        while let Some(id) = pending.pop() {
-            if !visited.insert(id) || !self.type_flags(id)?.has_hole() {
-                continue;
-            }
-
-            let ty = self.ty(id)?;
-            if let dir::Type::Hole(node) = ty {
-                if !holes.contains(&node) {
-                    holes.push(node);
-                }
-
-                continue;
-            }
-
-            self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
-        }
-
-        Ok(holes)
     }
 
     /// Return whether one type contains a variable root.
