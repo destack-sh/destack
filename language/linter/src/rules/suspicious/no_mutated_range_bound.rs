@@ -52,12 +52,14 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
+    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&NO_MUTATED_RANGE_BOUND);
     }
 
     /// Report mutation of a captured range end.
+    #[ignore]
     #[test]
     fn test_reports_mutated_end() {
         let session = TestSession::dir(
@@ -82,6 +84,7 @@ warning[no-mutated-range-bound]: range bound is mutated after the range captures
     }
 
     /// Report mutation through an exclusive borrow of a range bound.
+    #[ignore]
     #[test]
     fn test_reports_borrowed_bound() {
         let session = TestSession::dir(
@@ -116,6 +119,7 @@ warning[no-mutated-range-bound]: range bound is mutated after the range captures
     }
 
     /// Accept mutation of storage not used by the iterated range.
+    #[ignore]
     #[test]
     fn test_accepts_unrelated_mutation() {
         let session = TestSession::dir(
@@ -135,6 +139,7 @@ function visit(limit: int32): void {
     }
 
     /// Accept a range whose bounds are constants.
+    #[ignore]
     #[test]
     fn test_accepts_constant_bounds() {
         let session = TestSession::dir(

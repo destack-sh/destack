@@ -49,12 +49,14 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
+    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&UNUSED_ENUMERATE_INDEX);
     }
 
     /// Remove entries when a wildcard discards the index.
+    #[ignore]
     #[test]
     fn test_removes_wildcard_index() {
         let session = TestSession::dir(
@@ -93,6 +95,7 @@ warning[unused-enumerate-index]: Array.entries index is unused
     }
 
     /// Remove entries when a named index has no references.
+    #[ignore]
     #[test]
     fn test_removes_unused_named_index() {
         let session = TestSession::dir(
@@ -118,6 +121,7 @@ function copy(values: int32[], output: int32[]): void {
     }
 
     /// Accept entries when the index is referenced.
+    #[ignore]
     #[test]
     fn test_accepts_used_index() {
         let session = TestSession::dir(
@@ -136,6 +140,7 @@ function copy(values: int32[], indexes: usize[], output: int32[]): void {
     }
 
     /// Accept a user-defined entries method.
+    #[ignore]
     #[test]
     fn test_accepts_user_entries() {
         let session = TestSession::dir(

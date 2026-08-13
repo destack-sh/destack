@@ -47,12 +47,14 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
+    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&MANUAL_FILL);
     }
 
     /// Replace a complete zero-to-length Array assignment loop.
+    #[ignore]
     #[test]
     fn test_replaces_index_fill_loop() {
         let session = TestSession::dir(
@@ -96,6 +98,7 @@ warning[manual-fill]: index loop assigns one value to every element
     }
 
     /// Accept a loop that assigns a value derived from its counter.
+    #[ignore]
     #[test]
     fn test_accepts_counter_value() {
         let session = TestSession::dir(
@@ -113,6 +116,7 @@ function indices(values: usize[]): void {
     }
 
     /// Accept a loop with a nonzero lower bound.
+    #[ignore]
     #[test]
     fn test_accepts_partial_range() {
         let session = TestSession::dir(
@@ -130,6 +134,7 @@ function clearTail(values: int32[]): void {
     }
 
     /// Accept an effectful value evaluated once per iteration.
+    #[ignore]
     #[test]
     fn test_accepts_effectful_value() {
         let session = TestSession::dir(

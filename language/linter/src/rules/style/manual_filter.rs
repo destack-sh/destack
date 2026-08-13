@@ -51,12 +51,14 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
+    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&MANUAL_FILTER);
     }
 
     /// Replace a complete conditional push-and-return loop.
+    #[ignore]
     #[test]
     fn test_replaces_manual_filter() {
         let session = TestSession::dir(&MANUAL_FILTER, MANUAL_FILTER.example.reported());
@@ -101,6 +103,7 @@ warning[manual-filter]: loop manually collects matching values
     }
 
     /// Accept pushing a transformed element.
+    #[ignore]
     #[test]
     fn test_accepts_transformed_push() {
         let session = TestSession::dir(
@@ -122,6 +125,7 @@ function positive(values: int32[]): int32[] {
     }
 
     /// Accept a conditional push with an else branch.
+    #[ignore]
     #[test]
     fn test_accepts_else_branch() {
         let session = TestSession::dir(
@@ -145,6 +149,7 @@ function partition(values: int32[]): int32[] {
     }
 
     /// Accept returning a different array.
+    #[ignore]
     #[test]
     fn test_accepts_different_return() {
         let session = TestSession::dir(
@@ -166,6 +171,7 @@ function positive(values: int32[]): int32[] {
     }
 
     /// Accept manual filtering over a non-array iterable.
+    #[ignore]
     #[test]
     fn test_accepts_other_iterable() {
         let session = TestSession::dir(

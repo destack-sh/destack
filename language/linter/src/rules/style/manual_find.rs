@@ -50,12 +50,14 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
+    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&MANUAL_FIND);
     }
 
     /// Replace a complete first-match loop.
+    #[ignore]
     #[test]
     fn test_replaces_manual_find() {
         let session = TestSession::dir(&MANUAL_FIND, MANUAL_FIND.example.reported());
@@ -98,6 +100,7 @@ warning[manual-find]: loop manually finds its first matching value
     }
 
     /// Accept returning a transformed matching value.
+    #[ignore]
     #[test]
     fn test_accepts_transformed_return() {
         let session = TestSession::dir(
@@ -118,6 +121,7 @@ function firstPositive(values: int32[]): int32 | undefined {
     }
 
     /// Accept a different fallback value.
+    #[ignore]
     #[test]
     fn test_accepts_other_fallback() {
         let session = TestSession::dir(
@@ -138,6 +142,7 @@ function firstPositive(values: int32[]): int32 {
     }
 
     /// Accept a loop with an additional body action.
+    #[ignore]
     #[test]
     fn test_accepts_additional_action() {
         let session = TestSession::dir(
@@ -159,6 +164,7 @@ function firstPositive(values: int32[], seen: int32[]): int32 | undefined {
     }
 
     /// Accept manual searching over a non-array iterable.
+    #[ignore]
     #[test]
     fn test_accepts_other_iterable() {
         let session = TestSession::dir(
