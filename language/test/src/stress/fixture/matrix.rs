@@ -136,7 +136,7 @@ pub(super) fn type_matrix(scale: usize, _width: usize) -> String {
             5 => {
                 let _ = writeln!(
                     source,
-                    "type MatrixConstructor{index}<T> = (new <Value extends T>(value: Value) => MatrixObject{index}<Value>);"
+                    "type MatrixConstructor{index}<T> = (new <Value: T>(value: Value) => MatrixObject{index}<Value>);"
                 );
             }
             6 => {
@@ -381,7 +381,7 @@ pub(super) fn damaged_declaration_matrix(scale: usize, _width: usize) -> String 
                 source.push_str("}\n");
             }
             5 => {
-                let _ = writeln!(source, "export type BrokenAlias{index}<T extends ;");
+                let _ = writeln!(source, "export type BrokenAlias{index}<T: ;");
                 source.push_str("> = T;\n");
             }
             6 => {

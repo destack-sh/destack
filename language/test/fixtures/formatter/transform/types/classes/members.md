@@ -108,13 +108,13 @@ abstract class Foo {
 Associated constant modifiers are preserved.
 
 ```ds
-abstract class Foo { abstract comptime const Size: uint; override comptime const Count: uint = 2 }
+abstract class Foo { abstract const Size: uint; override const Count: uint = 2 }
 ```
 
 ```ds expected
 abstract class Foo {
-    abstract comptime const Size: uint;
-    override comptime const Count: uint = 2;
+    abstract const Size: uint;
+    override const Count: uint = 2;
 }
 ```
 

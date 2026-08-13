@@ -217,7 +217,7 @@ A nominal associated constant access resolves to its declaration.
 
 ```ds main.ds
 struct Buffer {
-    comptime const Width: uint64 = 8;
+    const Width: uint64 = 8;
                    ^^^^^ definition:width
     ^ width_declaration:start
                                    ^ width_declaration:end
@@ -342,13 +342,13 @@ declare const value: Grid.Cell.Value;
 An associated type projection resolves to the associated declaration.
 
 ```ds main.ds
-interface Envelope<T extends string> {
-    type Label<U extends string> = `${T}:${U}`;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:associated_label
+interface Envelope<T: string> {
+    type Label<U: string> = `${T}:${U}`;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:associated_label
          ^^^^^ definition:associated_label
 }
 
-class Message<T extends string> implements Envelope<T> {}
+class Message<T: string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
                                     ^^^^^ reference:associated_label
@@ -360,10 +360,10 @@ type EventLabel = Message<"orders">.Label<"created">;
 
 ```diff main.ds
 @@ -1,4 +1,4 @@
- interface Envelope<T extends string> {
--    type Label<U extends string> = `${T}:${U}`;
-+    type Token<U extends string> = `${T}:${U}`;
-     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:associated_label
+ interface Envelope<T: string> {
+-    type Label<U: string> = `${T}:${U}`;
++    type Token<U: string> = `${T}:${U}`;
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:associated_label
           ^^^^^ definition:associated_label
 @@ -9,2 +9,2 @@
 -type EventLabel = Message<"orders">.Label<"created">;
@@ -380,9 +380,9 @@ type EventLabel = Message<"orders">.Label<"created">;
 An associated type projection resolves across its imported interface.
 
 ```ds envelope.ds
-export interface Envelope<T extends string> {
-    type Label<U extends string> = `${T}:${U}`;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:associated_label
+export interface Envelope<T: string> {
+    type Label<U: string> = `${T}:${U}`;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:associated_label
          ^^^^^ definition:associated_label
 }
 ```
@@ -390,7 +390,7 @@ export interface Envelope<T extends string> {
 ```ds message.ds
 import { Envelope } from "./envelope.ds";
 
-class Message<T extends string> implements Envelope<T> {}
+class Message<T: string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
                                     ^^^^^ reference:associated_label
@@ -791,9 +791,9 @@ const query = sql`select ${1}`;
 @goto_definition.target origin=main.ds#reference:sql location=main.ds#declaration:sql selection=main.ds#definition:sql symbol=main.ds#sql@1
 ```
 
-### Resolve a comptime call definition
+### Resolve a const call definition
 
-A comptime call resolves to the called function.
+A const call resolves to the called function.
 
 ```ds main.ds
 function build(): int32 {
@@ -803,7 +803,7 @@ function build(): int32 {
 }
 ^ declaration:build:end
 
-const value = comptime build();
+const value = const build();
                        ^^^^^ reference:build
 ```
 

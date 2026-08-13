@@ -4,7 +4,7 @@ use std::fmt::Write;
 pub(super) fn sequence_type_forms(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 512);
     source.push_str("type ByteSlice = [uint8];\n");
-    source.push_str("type ByteBlock<comptime N: uint> = [uint8; N];\n");
+    source.push_str("type ByteBlock<const N: uint> = [uint8; N];\n");
     source.push_str("type PointTuple = (int32, int32);\n\n");
 
     for index in 0..scale {

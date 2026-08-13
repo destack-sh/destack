@@ -8,7 +8,7 @@ pub(super) fn decorator_forms(scale: usize, _width: usize) -> String {
     for index in 0..scale {
         let _ = writeln!(source, "@deprecated(\"stress {index}\")");
         let _ = writeln!(source, "@derive(Clone, Debug)");
-        let _ = writeln!(source, "struct Decorated{index}<comptime Enabled: bool> {{");
+        let _ = writeln!(source, "struct Decorated{index}<const Enabled: bool> {{");
         let _ = writeln!(
             source,
             "    value{index}: Enabled extends true ? int32 : ();"

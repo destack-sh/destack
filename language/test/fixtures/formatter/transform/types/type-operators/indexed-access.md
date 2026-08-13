@@ -44,12 +44,12 @@ Fixed array types keep their length expression.
 
 ```ds
 type Bytes = [byte; 32]
-type Lane<comptime N: uint> = [byte; N * 2]
+type Lane<const N: uint> = [byte; N * 2]
 ```
 
 ```ds expected
 type Bytes = [byte; 32];
-type Lane<comptime N: uint> = [byte; N * 2];
+type Lane<const N: uint> = [byte; N * 2];
 ```
 
 ### tuple union

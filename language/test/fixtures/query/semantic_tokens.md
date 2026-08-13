@@ -562,10 +562,10 @@ extension of Report implements Display {}
 
 ### Classify generic declarations and references
 
-Generic type and comptime value parameters remain distinct from nominal types and locals.
+Generic type and const value parameters remain distinct from nominal types and locals.
 
 ```ds main.ds
-function identity<Value, comptime size: usize>(value: Value): Value {
+function identity<Value, const size: usize>(value: Value): Value {
          ^^^^^^^^ function
                   ^^^^^ generic
                                   ^^^^ size_declaration

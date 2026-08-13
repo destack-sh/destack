@@ -623,7 +623,7 @@ Renaming an associated constant updates its declaration and nominal accesses.
 
 ```ds main.ds
 struct Buffer {
-    comptime const Width: uint = 8;
+    const Width: uint = 8;
                    ^^^^^ target
 }
 
@@ -636,7 +636,7 @@ const second = Buffer.Width;
 
 ```ds main.ds after
 struct Buffer {
-    comptime const Size: uint = 8;
+    const Size: uint = 8;
 }
 
 const first = Buffer.Size;
@@ -879,12 +879,12 @@ class Box<Item> {
 }
 ```
 
-### Rename a comptime value parameter
+### Rename a const value parameter
 
-A comptime value parameter updates every use in its declaration.
+A const value parameter updates every use in its declaration.
 
 ```ds main.ds
-type Buffer<comptime size: usize> = [uint8; size];
+type Buffer<const size: usize> = [uint8; size];
                      ^^^^ target
 ```
 
@@ -892,7 +892,7 @@ type Buffer<comptime size: usize> = [uint8; size];
 ```
 
 ```ds main.ds after
-type Buffer<comptime length: usize> = [uint8; length];
+type Buffer<const length: usize> = [uint8; length];
 ```
 
 ## Pattern Bindings
@@ -1021,9 +1021,9 @@ const query = execute`select ${1}`;
 const text = execute([""], 2);
 ```
 
-### Rename a function used at comptime
+### Rename a function used at const
 
-Comptime and runtime calls share the function declaration.
+Const and runtime calls share the function declaration.
 
 ```ds main.ds
 function build(): int32 {
@@ -1031,7 +1031,7 @@ function build(): int32 {
     return 1;
 }
 
-const first = comptime build();
+const first = const build();
 const second = build();
 ```
 
@@ -1043,7 +1043,7 @@ function make(): int32 {
     return 1;
 }
 
-const first = comptime make();
+const first = const make();
 const second = make();
 ```
 

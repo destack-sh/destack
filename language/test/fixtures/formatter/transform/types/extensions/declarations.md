@@ -57,13 +57,13 @@ extension<T> of Deque<T>
 Long extension targets break after `of` and keep the target indented under the header.
 
 ```ds line-width=100
-extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of Tensor<T, Rank, F, Sharding<...Axes>> {
+extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of Tensor<T, Rank, F, Sharding<...Axes>> {
     get mesh(): Mesh;
 }
 ```
 
 ```ds expected
-extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of
+extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of
     Tensor<T, Rank, F, Sharding<...Axes>> {
     get mesh(): Mesh;
 }
@@ -74,13 +74,13 @@ extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis
 Long extension targets break before the implemented trait list.
 
 ```ds line-width=80
-extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P> implements Add<Tensor<T, Rank, F, P>>, Subtract<Tensor<T, Rank, F, P>>, Multiply<Tensor<T, Rank, F, P>> {
+extension<T: int | float, const Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P> implements Add<Tensor<T, Rank, F, P>>, Subtract<Tensor<T, Rank, F, P>>, Multiply<Tensor<T, Rank, F, P>> {
     type Output = Tensor<T, Rank, F, P>;
 }
 ```
 
 ```ds expected
-extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
+extension<T: int | float, const Rank: int, F: TensorFormat, P: Placement> of
     Tensor<T, Rank, F, P>
     implements
         Add<Tensor<T, Rank, F, P>>,
@@ -95,13 +95,13 @@ extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
 Where clauses on implemented types stay attached to the implemented type.
 
 ```ds line-width=100
-extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> implements IndexSet<R, Slice<T>> where T: Copy {
+extension<T, const N: number, R: RangeBounds<usize>> of FixedArray<T, N> implements IndexSet<R, Slice<T>> where T: Copy {
     indexSet(&exclusive this, range: R, source: Slice<T>): void;
 }
 ```
 
 ```ds expected
-extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
+extension<T, const N: number, R: RangeBounds<usize>> of FixedArray<T, N>
     implements
         IndexSet<R, Slice<T>> where T: Copy {
     indexSet(&exclusive this, range: R, source: Slice<T>): void;

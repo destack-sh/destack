@@ -1,6 +1,6 @@
 # Struct Declarations
 
-Struct fixtures cover declaration heads, fields, methods, and comptime member blocks.
+Struct fixtures cover declaration heads, fields, methods, and const member blocks.
 
 ## Struct Forms
 
@@ -93,35 +93,35 @@ struct Versioned {
 }
 ```
 
-### struct with comptime block
+### struct with const block
 
-Comptime blocks format like other blocks inside structs.
+Const blocks format like other blocks inside structs.
 
 ```ds
-struct Buffer<comptime N: number> {
-    comptime { const size = N }
+struct Buffer<const N: number> {
+    const { const size = N }
 }
 ```
 
 ```ds expected
-struct Buffer<comptime N: number> {
-    comptime {
+struct Buffer<const N: number> {
+    const {
         const size = N;
     }
 }
 ```
 
-### struct comptime block with nested control flow
+### struct const block with nested control flow
 
-Comptime member blocks keep nested if branch tails semicolonless.
+Const member blocks keep nested if branch tails semicolonless.
 
 ```ds
-struct Buffer<comptime N: number> { comptime { if (N > 0) { assert(N) } else { fail() } } }
+struct Buffer<const N: number> { const { if (N > 0) { assert(N) } else { fail() } } }
 ```
 
 ```ds expected
-struct Buffer<comptime N: number> {
-    comptime {
+struct Buffer<const N: number> {
+    const {
         if (N > 0) {
             assert(N)
         } else {

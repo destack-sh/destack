@@ -7,7 +7,7 @@ type Dynamic = uint8[];
 type Slice = [uint8];
 //           ^ punctuation.section.brackets.begin.ds
 
-type Fixed<comptime N: uint> = [uint8; N];
+type Fixed<const N: uint> = [uint8; N];
 
 type Pair = (string, uint32);
 //          ^ punctuation.section.group.begin.ds

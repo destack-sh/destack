@@ -68,12 +68,12 @@ interface Foo {
 Associated constant modifiers are preserved.
 
 ```ds
-interface Foo { abstract comptime const Size: uint override comptime const Count: uint = 2 }
+interface Foo { abstract const Size: uint override const Count: uint = 2 }
 ```
 
 ```ds expected
 interface Foo {
-    abstract comptime const Size: uint;
-    override comptime const Count: uint = 2;
+    abstract const Size: uint;
+    override const Count: uint = 2;
 }
 ```

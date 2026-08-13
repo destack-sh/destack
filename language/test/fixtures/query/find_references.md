@@ -231,7 +231,7 @@ Associated constant accesses belong to their member declaration.
 
 ```ds main.ds
 struct Buffer {
-    comptime const Width: uint64 = 8;
+    const Width: uint64 = 8;
                    ^^^^^ declaration
 }
 
@@ -389,9 +389,9 @@ function identity<T>(value: T): T {
 Template literal types include their generic parameter references.
 
 ```ds main.ds
-type Route<T extends string> = `api:${T}`;
+type Route<T: string> = `api:${T}`;
            ^ declaration
-                                      ^ reference
+                               ^ reference
 ```
 
 ```query find_references main.ds#reference include_declaration=true
@@ -399,12 +399,12 @@ type Route<T extends string> = `api:${T}`;
 @find_references.reference location=main.ds#reference symbol=main.ds#T@2
 ```
 
-### Find a comptime function parameter
+### Find a const function parameter
 
-A comptime parameter has one lexical identity inside the function body.
+A const parameter has one lexical identity inside the function body.
 
 ```ds main.ds
-function createBuffer<comptime size: int32>(): int32 {
+function createBuffer<const size: int32>(): int32 {
                                ^^^^ declaration
     return size;
            ^^^^ reference
@@ -416,12 +416,12 @@ function createBuffer<comptime size: int32>(): int32 {
 @find_references.reference location=main.ds#reference symbol=main.ds#size@2
 ```
 
-### Find a comptime type parameter
+### Find a const type parameter
 
-A comptime parameter has one lexical identity inside the declared type.
+A const parameter has one lexical identity inside the declared type.
 
 ```ds main.ds
-type Buffer<comptime size: usize> = [uint8; size];
+type Buffer<const size: usize> = [uint8; size];
                      ^^^^ declaration
                                             ^^^^ reference
 ```
@@ -521,9 +521,9 @@ const second = sql(["select"], 2);
 @find_references.reference location=main.ds#second_reference symbol=main.ds#sql@1
 ```
 
-### Find comptime call occurrences
+### Find const call occurrences
 
-Comptime and runtime calls share the same function identity.
+Const and runtime calls share the same function identity.
 
 ```ds main.ds
 function scale(value: int32): int32 {
@@ -531,7 +531,7 @@ function scale(value: int32): int32 {
     return value * 2;
 }
 
-const first = comptime scale(2);
+const first = const scale(2);
                        ^^^^^ first_reference
 const second = scale(3);
                ^^^^^ second_reference
@@ -917,12 +917,12 @@ const same = api;
 An associated declaration includes each type projection that names it.
 
 ```ds main.ds
-interface Envelope<T extends string> {
-    type Label<U extends string> = `${T}:${U}`;
+interface Envelope<T: string> {
+    type Label<U: string> = `${T}:${U}`;
          ^^^^^ declaration
 }
 
-class Message<T extends string> implements Envelope<T> {}
+class Message<T: string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
                                     ^^^^^ reference

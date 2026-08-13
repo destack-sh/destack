@@ -218,7 +218,7 @@ struct List<T> {
 
 extension<T> of List<T> {
 ^ extension_range:start
-    read<comptime A: Access = "readonly">(): T {
+    read<const A: Access = "readonly">(): T {
     ^ read_range:start
     ^^^^ read_selection
         return this.value;
@@ -233,7 +233,7 @@ extension<T> of List<T> {
 @outline.symbol depth=0 name=List kind=struct range=main.ds:3:1-5:2 selection=main.ds:3:8-3:12
 @outline.symbol depth=1 name=value kind=field detail=T range=main.ds:4:5-4:13 selection=main.ds:4:5-4:10
 @outline.symbol depth=0 name="extension of List<T>" kind=extension range=main.ds#extension_range selection=main.ds:7:17-7:24
-@outline.symbol depth=1 name=read kind=method detail="<comptime A: Access = \"readonly\">(): T" range=main.ds#read_range selection=main.ds#read_selection
+@outline.symbol depth=1 name=read kind=method detail="<const A: Access = \"readonly\">(): T" range=main.ds#read_range selection=main.ds#read_selection
 ```
 
 ## Enum Members
@@ -365,7 +365,7 @@ newtype interface Measure {
     abstract type Unit;
     ^^^^^^^^^^^^^^^^^^ unit_range
                   ^^^^ unit_selection
-    abstract comptime const Scale: uint;
+    abstract const Scale: uint;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ scale_range
                             ^^^^^ scale_selection
     measure(): float64;

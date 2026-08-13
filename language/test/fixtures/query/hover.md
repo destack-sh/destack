@@ -379,7 +379,7 @@ An associated constant access reports its container and type.
 
 ```ds main.ds
 struct Buffer {
-    comptime const Width: uint = 8;
+    const Width: uint = 8;
 }
 
 const width = Buffer.Width;

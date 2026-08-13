@@ -10,7 +10,7 @@ interface Iterator {
 // types / associated / constants
 interface RegisterBlock {
 // <- keyword.declaration.type.ds
-    comptime const Width: uint;
+    const Width: uint;
     read(): [uint8; this.Width];
 }
 

@@ -10,7 +10,7 @@ function users(): string {
     return "users";
 }
 
-const declaration = comptime eval<Declaration>(ds`
-//                  ^^^^^^^^ keyword.other.comptime.ds
+const declaration = const eval<Declaration>(ds`
+//                  ^^^^^ storage.modifier.ds
     type RouteDefinition = { path: string; handler: unknown };
 `);

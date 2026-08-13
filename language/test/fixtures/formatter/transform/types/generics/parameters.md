@@ -116,12 +116,12 @@ type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
 
 ### variadic value parameters
 
-Variadic value parameters keep the `comptime` marker before the spread marker.
+Variadic value parameters keep the `const` marker before the spread marker.
 
 ```ds
-function tensor< comptime ...Shape : readonly usize[] >(value: Tensor< ...Shape >): void {}
+function tensor< const ...Shape : readonly usize[] >(value: Tensor< ...Shape >): void {}
 ```
 
 ```ds expected
-function tensor<comptime ...Shape: readonly usize[]>(value: Tensor<...Shape>): void {}
+function tensor<const ...Shape: readonly usize[]>(value: Tensor<...Shape>): void {}
 ```

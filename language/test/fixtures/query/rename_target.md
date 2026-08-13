@@ -121,7 +121,7 @@ An associated constant identifies its member declaration.
 
 ```ds main.ds
 struct Buffer {
-    comptime const Width: uint = 8;
+    const Width: uint = 8;
 }
 
 const width = Buffer.Width;
@@ -190,20 +190,20 @@ function identity<T>(value: T): T {
 A type parameter inside a template literal identifies its local parameter.
 
 ```ds main.ds
-type Route<T extends string> = `api:${T}`;
-                                      ^ reference
+type Route<T: string> = `api:${T}`;
+                               ^ reference
 ```
 
 ```query rename_target main.ds#reference
 @rename_target.target placeholder=T location=main.ds#reference symbol=main.ds#T@2
 ```
 
-### Resolve a comptime type parameter
+### Resolve a const type parameter
 
-A comptime type parameter identifies its local parameter.
+A const type parameter identifies its local parameter.
 
 ```ds main.ds
-type Buffer<comptime size: usize> = [uint8; size];
+type Buffer<const size: usize> = [uint8; size];
                                             ^^^^ reference
 ```
 
@@ -343,16 +343,16 @@ const query = sql`select ${1}`;
 @rename_target.target placeholder=sql location=main.ds#reference symbol=main.ds#sql@1
 ```
 
-### Resolve a comptime call
+### Resolve a const call
 
-A comptime call identifies the called function.
+A const call identifies the called function.
 
 ```ds main.ds
 function build(): int32 {
     return 1;
 }
 
-const value = comptime build();
+const value = const build();
                        ^^^^^ reference
 ```
 
@@ -638,11 +638,11 @@ function main(): void {
 An associated type projection identifies its member declaration.
 
 ```ds main.ds
-interface Envelope<T extends string> {
-    type Label<U extends string> = `${T}:${U}`;
+interface Envelope<T: string> {
+    type Label<U: string> = `${T}:${U}`;
 }
 
-class Message<T extends string> implements Envelope<T> {}
+class Message<T: string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
                                     ^^^^^ reference

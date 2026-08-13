@@ -9,7 +9,7 @@ use super::array::large_array;
 use super::block::{control_flow, nested_block};
 use super::call::deep_call;
 use super::class::{large_ambient_class, large_class};
-use super::comptime::comptime_forms;
+use super::r#const::const_forms;
 use super::declaration::{
     damaged_ambient_declaration, damaged_declaration, large_ambient_declaration, large_declaration,
 };
@@ -207,7 +207,7 @@ const FAMILIES: &[StressFamily] = &[
     StressFamily::new("operator_forms", VALID, operator_forms),
     StressFamily::new("decorator_forms", VALID, decorator_forms),
     StressFamily::new("module_forms", VALID, module_forms),
-    StressFamily::new("comptime_forms", VALID, comptime_forms),
+    StressFamily::new("const_forms", VALID, const_forms),
     StressFamily::new("memory_forms", VALID, memory_forms),
     StressFamily::new("error_forms", VALID, error_forms),
     StressFamily::new("using_forms", VALID, using_forms),

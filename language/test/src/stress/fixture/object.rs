@@ -7,7 +7,7 @@ pub(super) fn ambiguous_objects(scale: usize, _width: usize) -> String {
 
     for index in 0..scale {
         source.push_str(&format!(
-            "    method{index}<T extends {{ value: number }}>(value: T): T {{ return value; }},\n"
+            "    method{index}<T: {{ value: number }}>(value: T): T {{ return value; }},\n"
         ));
     }
 

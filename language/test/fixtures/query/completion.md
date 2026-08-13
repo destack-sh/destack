@@ -288,7 +288,7 @@ struct Box<Value> {
     value: Value;
 }
 
-extension<Value, comptime A: Access = "readonly"> of Box<Value> {
+extension<Value, const A: Access = "readonly"> of Box<Value> {
     read(this: WithAccess<&Box<Value>, A>): Value {
         return this.val;
                     ^^^ prefix
@@ -736,7 +736,7 @@ A nominal type receiver exposes its associated values.
 
 ```ds main.ds
 struct Buffer {
-    comptime const Width: uint = 8;
+    const Width: uint = 8;
 }
 
 const width = Buffer.Wi;
@@ -770,7 +770,7 @@ A type alias exposes static members from its target declaration.
 
 ```ds main.ds
 struct Buffer {
-    comptime const Width: uint = 8;
+    const Width: uint = 8;
 }
 
 type BufferAlias = Buffer;

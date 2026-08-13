@@ -7,7 +7,7 @@ pub(super) fn woven_typescript_forms(scale: usize, width: usize) -> String {
     generator.emit("    readonly items: readonly T[];\n");
     generator.emit("    select(index: number): T | undefined;\n");
     generator.emit("}\n\n");
-    generator.emit("export class WovenStore<T extends { id: string }> {\n");
+    generator.emit("export class WovenStore<T: { id: string }> {\n");
     generator.emit("    readonly input: WovenInput<T>;\n");
     generator.emit("    constructor(input: WovenInput<T>) {\n");
     generator.emit("        this.input = input;\n");
@@ -36,7 +36,7 @@ pub(super) fn woven_destack_forms(scale: usize, width: usize) -> String {
     generator.emit("    const tags = [\"parser\", \"formatter\"];\n");
     generator.emit("}\n\n");
     generator.emit("type ByteSlice = [uint8];\n");
-    generator.emit("type ByteBlock<comptime N: uint> = [uint8; N];\n");
+    generator.emit("type ByteBlock<const N: uint> = [uint8; N];\n");
     generator.emit("type Digit = 0..=9;\n");
     generator.emit("newtype PacketId = uint64;\n\n");
     emit_width_marker(&mut generator);
@@ -82,7 +82,7 @@ fn emit_width_marker(generator: &mut Generator) {
 fn emit_source_method(generator: &mut Generator, index: usize) {
     emit!(
         generator,
-        "    read{index}<Value extends T>(index: number, fallback: Value): Value {{\n"
+        "    read{index}<Value: T>(index: number, fallback: Value): Value {{\n"
     );
     generator.emit("        const selected = this.input.select(index);\n");
     generator.emit("        return selected ?? fallback;\n");
@@ -104,8 +104,8 @@ fn emit_source_expression(generator: &mut Generator, index: usize) {
 /// Write one decorated nominal declaration.
 fn emit_destack_declaration(generator: &mut Generator, index: usize) {
     generator.emit("@derive(Clone, Debug)\n");
-    emit!(generator, "struct Packet{index}<comptime Size: uint> {{\n");
-    generator.emit("    comptime {\n");
+    emit!(generator, "struct Packet{index}<const Size: uint> {{\n");
+    generator.emit("    const {\n");
     generator.emit("        assert(Size > 0);\n");
     generator.emit("    }\n");
     generator.emit("    id: PacketId;\n");

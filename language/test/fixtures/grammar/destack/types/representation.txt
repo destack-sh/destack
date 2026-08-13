@@ -32,22 +32,22 @@ struct WireHeader {
 }
 
 // types / representation / layout intrinsics
-const size = comptime sizeOf<Header>();
-//           ^^^^^^^^ keyword.other.comptime.ds
-//                    ^^^^^^ entity.name.function.call.ds
+const size = const sizeOf<Header>();
+//           ^^^^^ storage.modifier.ds
+//                 ^^^^^^ entity.name.function.call.ds
 
-const alignment = comptime alignOf<Header>();
-//                         ^^^^^^^ entity.name.function.call.ds
+const alignment = const alignOf<Header>();
+//                      ^^^^^^^ entity.name.function.call.ds
 
-const stride = comptime strideOf<Header>();
-//                      ^^^^^^^^ entity.name.function.call.ds
+const stride = const strideOf<Header>();
+//                   ^^^^^^^^ entity.name.function.call.ds
 
-const layout = comptime layoutOf<Header>();
-//                      ^^^^^^^^ entity.name.function.call.ds
+const layout = const layoutOf<Header>();
+//                   ^^^^^^^^ entity.name.function.call.ds
 
 declare let bytes: [uint8; sizeOf<Header>()];
 
-type Slots<T, comptime N: usize = strideOf<T>()> = [uint8; N];
+type Slots<T, const N: usize = strideOf<T>()> = [uint8; N];
 
 declare let erased: Any<Writer>;
 //                  ^^^ entity.name.type.ds

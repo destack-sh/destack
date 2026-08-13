@@ -1,18 +1,18 @@
 // SYNTAX TEST "source.ds"
 
 // types / static / arrays associated guards imports and parameters
-type Buffer<comptime N: uint, comptime Tag: string = "default"> = [uint8; N];
-//          ^^^^^^^^ keyword.other.comptime.ds
+type Buffer<const N: uint, const Tag: string = "default"> = [uint8; N];
+//          ^^^^^ storage.modifier.ds
 
 declare let value: Buffer<4, "fast">;
 //                 ^^^^^^ entity.name.type.ds
 
 declare let sized: Buffer<2 + 2, "sum">;
 
-type Tagged<comptime Tag: string> = { tag: Tag };
+type Tagged<const Tag: string> = { tag: Tag };
 
-type Shape<comptime ...Dims: usize> = [usize; Dims];
-//         ^^^^^^^^ keyword.other.comptime.ds
+type Shape<const ...Dims: usize> = [usize; Dims];
+//         ^^^^^ storage.modifier.ds
 
 type StaticLane<N: static uint> = [uint8; N];
 //                 ^^^^^^ keyword.other.modifier.ds

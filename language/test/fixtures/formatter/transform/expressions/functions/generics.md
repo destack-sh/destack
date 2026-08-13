@@ -58,16 +58,16 @@ function create<T = any>(): T[] {
 }
 ```
 
-### generic with comptime parameter
+### generic with const parameter
 
-Comptime static parameters keep the keyword in the parameter list.
+Const static parameters keep the keyword in the parameter list.
 
 ```ds
-function repeat<comptime N: int>(value: string): string { return value }
+function repeat<const N: int>(value: string): string { return value }
 ```
 
 ```ds expected
-function repeat<comptime N: int>(value: string): string {
+function repeat<const N: int>(value: string): string {
     return value;
 }
 ```

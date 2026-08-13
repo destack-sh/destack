@@ -6,7 +6,7 @@ type Sample = string | number | null | undefined;
 
 type Bytes = readonly [label: string, ...items: uint8[]];
 
-type Fixed<T, comptime N: uint> = [T; N];
+type Fixed<T, const N: uint> = [T; N];
 
 type Slice = [uint8];
 //           ^ punctuation.section.brackets.begin.ds

@@ -8,7 +8,7 @@ function runtimeName(): string {
 }
 
 // expressions / static-if / statements
-function size<comptime Wide: boolean>(): uint {
+function size<const Wide: boolean>(): uint {
     @if(Wide)
 //   ^^ entity.name.function.decorator.ds
     return 8;
@@ -18,7 +18,7 @@ function size<comptime Wide: boolean>(): uint {
 }
 
 // expressions / static-if / members
-struct Buffer<comptime Inline: boolean> {
+struct Buffer<const Inline: boolean> {
     @if(Inline)
 //   ^^ entity.name.function.decorator.ds
     data: InlineData;

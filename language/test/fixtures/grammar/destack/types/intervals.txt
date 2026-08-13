@@ -11,7 +11,7 @@ type LowerAscii = 'a'..='z';
 // <- keyword.declaration.type.ds
 
 // types / intervals / static constraints
-struct InlineBuffer<T, comptime N: 0..=4096> {
+struct InlineBuffer<T, const N: 0..=4096> {
 // <- keyword.declaration.type.ds
     storage: [T; N];
 }

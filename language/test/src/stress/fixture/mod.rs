@@ -2,7 +2,7 @@ mod array;
 mod block;
 mod call;
 mod class;
-mod comptime;
+mod r#const;
 mod declaration;
 mod decorator;
 mod dependency;
