@@ -14,7 +14,7 @@ pub struct Function {
     pub operations: EntryRange<CodeOffset>,
     /// The number of 64-bit words in the register file.
     pub register_count: u16,
-    /// Explicit initialized row padding.
+    /// Explicit initialized entry padding.
     padding: [u8; 2],
 }
 

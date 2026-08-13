@@ -83,7 +83,7 @@ impl Parser<'_> {
             .build()
             .map_err(|error| ParseError::new(error.to_string(), self.empty_span()))?;
 
-        // append function-owned sections and publish the physical row
+        // append function-owned sections and publish the physical entry
         let operations = self.object.push_operations(body.operations);
         let code = self.object.push_code(&body.code, body.relocations);
         let function = Function::new(Optional::some(code), operations, body.register_count);

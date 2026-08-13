@@ -12,7 +12,7 @@ impl Parser<'_> {
             self.parse_function()?;
         }
 
-        // publish object-local function rows in symbol encounter order
+        // publish object-local function entries in symbol encounter order
         let functions = std::mem::take(&mut self.functions);
         let object = std::mem::take(&mut self.object)
             .functions(functions)
