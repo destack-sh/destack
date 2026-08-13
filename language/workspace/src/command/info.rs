@@ -115,12 +115,12 @@ impl CommandContext<'_> {
             None
         };
 
-        // derive target rows
+        // derive target entries
         let targets = config
             .as_ref()
             .map(|config| TargetEntry::for_config(config, false));
 
-        // derive workspace target rows
+        // derive workspace target entries
         let workspace_targets = workspace_configs.as_ref().map(|configs| {
             configs
                 .iter()

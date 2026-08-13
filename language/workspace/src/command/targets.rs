@@ -19,7 +19,7 @@ pub struct TargetsOptions {
     pub all: bool,
 }
 
-/// Target row shown by workspace discovery commands.
+/// Target entry shown by workspace discovery commands.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TargetEntry {
     /// The target name.
