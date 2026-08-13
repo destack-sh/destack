@@ -4,7 +4,6 @@
 
 mod analyze;
 mod bind;
-mod check;
 mod compile;
 mod elaborate;
 mod emit;
@@ -13,15 +12,14 @@ mod export;
 mod import;
 mod link;
 mod lower;
-mod materialize;
 mod optimize;
 mod resolve;
+mod sema;
 mod r#static;
 mod verify;
 
 pub use analyze::*;
 pub use bind::*;
-pub use check::*;
 pub use compile::*;
 pub use elaborate::*;
 pub use emit::*;
@@ -30,9 +28,9 @@ pub use export::*;
 pub use import::*;
 pub use link::*;
 pub use lower::*;
-pub use materialize::*;
 pub use optimize::*;
 pub use resolve::*;
+pub use sema::*;
 pub use verify::*;
 
 #[cfg(test)]

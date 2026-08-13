@@ -1,0 +1,156 @@
+use destack_dir as dir;
+use destack_source::ModuleId;
+
+use crate::CompilerResult;
+use crate::sema::{BodyState, FlowPointId, FlowSite, Origin, PlaceUse};
+
+impl BodyState<'_, '_> {
+    /// Select one literal pattern from its closed expression value.
+    pub(in crate::sema) fn select_literal_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::Pattern>,
+        origin: Origin,
+        flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
+        input: dir::GlobalTypeId,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        let module = node.module_id;
+        let value_node = value.into_global_any(module);
+
+        // select declaration-backed variants from the matched input
+        if let Some(case) = self.variant_expression_case(module, value)? {
+            // decide bound qualifier segments for their reference facts
+            if let dir::Expression::Member { left, .. } = self.module(module).view().get(value) {
+                let left = *left;
+                self.decide_qualifier_segments(module, left)?;
+            }
+
+            return self.select_variant_pattern(node, origin, flow, scope, case, &[]);
+        }
+
+        // infer ordinary closed pattern expressions
+        let ty = self.infer_node_type(
+            FlowSite {
+                node: value_node,
+                flow,
+                scope,
+            },
+            PlaceUse::Read,
+        )?;
+
+        // closed literal values select literal predicates
+        let literal = match self.ty(ty)? {
+            dir::Type::Literal(literal) => Some(literal),
+            dir::Type::Null => Some(dir::ScalarLiteral::Null),
+            dir::Type::Undefined => Some(dir::ScalarLiteral::Undefined),
+            _ => None,
+        };
+        match literal {
+            Some(value) => {
+                let predicate = dir::Predicate::unary(
+                    dir::PredicateOperand::direct(input),
+                    dir::PredicateCondition::Literal(value),
+                )
+                .with_narrowed(ty);
+
+                self.commit_pattern(
+                    node,
+                    dir::PatternDecision::Test(Box::new(dir::PatternPredicateResolution {
+                        predicate,
+                    })),
+                )
+            }
+            None => {
+                self.report_expression_pattern_not_literal(module, node.local_id.into_any());
+
+                self.commit_pattern(node, dir::PatternDecision::Ignore)
+            }
+        }
+    }
+
+    /// Select one range pattern from its closed bounds.
+    pub(in crate::sema) fn select_range_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::Pattern>,
+        flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
+        input: dir::GlobalTypeId,
+        start: Option<dir::LocalNodeId<dir::Expression>>,
+        end: Option<dir::LocalNodeId<dir::Expression>>,
+        end_kind: dir::RangeEnd,
+    ) -> CompilerResult<()> {
+        let module = node.module_id;
+
+        // read both written bounds as literals
+        let mut bounds = [None, None];
+        for (slot, bound) in [start, end].into_iter().enumerate() {
+            let Some(bound) = bound else {
+                continue;
+            };
+            let bound_node = bound.into_global_any(module);
+            let ty = self.infer_node_type(
+                FlowSite {
+                    node: bound_node,
+                    flow,
+                    scope,
+                },
+                PlaceUse::Read,
+            )?;
+            if let dir::Type::Literal(literal) = self.ty(ty)? {
+                bounds[slot] = Some(literal);
+            }
+        }
+
+        // narrow successful matches to the represented interval
+        let domain = input;
+        let written = dir::RangeType::new(bounds[0], bounds[1], end_kind);
+        let narrowed = self.range_pattern_narrowed_type(module, domain, &written)?;
+        let predicate = dir::Predicate::unary(
+            dir::PredicateOperand::direct(domain),
+            dir::PredicateCondition::Range(dir::PredicateRange {
+                domain,
+                start: bounds[0],
+                end: bounds[1],
+                end_bound: end_kind,
+            }),
+        )
+        .with_narrowed(narrowed);
+
+        self.commit_pattern(
+            node,
+            dir::PatternDecision::Test(Box::new(dir::PatternPredicateResolution { predicate })),
+        )
+    }
+
+    /// Return the type visible after a successful range pattern.
+    fn range_pattern_narrowed_type(
+        &mut self,
+        _module: ModuleId,
+        domain: dir::GlobalTypeId,
+        written: &dir::RangeType,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let narrowed = match self.ty(domain)? {
+            // intersect nested intervals exactly
+            dir::Type::Range(domain) => domain
+                .intersection(written)
+                .map(dir::Type::Range)
+                .unwrap_or(dir::Type::Never),
+            // intersect fixed-width integer primitives when their bounds fit DIR ranges
+            dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) => {
+                match integer.finite_interval() {
+                    Some(domain) => domain
+                        .intersection(written)
+                        .map(dir::Type::Range)
+                        .unwrap_or(dir::Type::Never),
+                    // unrepresentable widths keep the written interval
+                    None => dir::Type::Range(*written),
+                }
+            }
+            // otherwise the written interval is the strongest represented test type
+            _ => dir::Type::Range(*written),
+        };
+
+        self.intern_type(narrowed)
+    }
+}

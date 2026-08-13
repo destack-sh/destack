@@ -1,0 +1,21 @@
+mod assign;
+mod cast;
+mod decompose;
+mod equal;
+mod evaluate;
+mod form;
+mod immutable;
+mod interface;
+mod nominal;
+mod overlap;
+mod relate;
+mod shape;
+mod template;
+mod union;
+mod variance;
+mod widen;
+
+pub(in crate::sema) use evaluate::*;
+pub(in crate::sema) use interface::*;
+pub(in crate::sema) use nominal::*;
+pub(in crate::sema) use variance::*;
