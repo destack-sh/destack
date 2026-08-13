@@ -392,7 +392,7 @@ export const result = value;
     .unwrap();
 
     let (cold, cold_trace) = test.check("src/index.ds", "js");
-    assert_eq!(cold_trace.stats.built, 2668);
+    assert_eq!(cold_trace.stats.built, 2673);
     assert_eq!(cold_trace.stats.memory_cached, 0);
     assert_eq!(cold_trace.stats.store_cached, 0);
     assert_eq!(cold_trace.stats.failed, 0);
