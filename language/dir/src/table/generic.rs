@@ -5,10 +5,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, GenericParameterBinding, GenericParameterKey, Cardinality, GenericTemplate, GlobalNodeIdAny,
-    GlobalSymbolId, LocalGenericParameterId, LocalGenericTemplateId, LocalNodeIdAny, LocalScopeId,
-    SegmentView,
-    VarianceModifier,
+    Arena, Cardinality, GenericParameterBinding, GenericParameterKey, GenericTemplate,
+    GlobalNodeIdAny, GlobalSymbolId, LocalGenericParameterId, LocalGenericTemplateId, LocalScopeId,
+    SegmentView, VarianceModifier,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.

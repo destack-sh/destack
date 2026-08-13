@@ -546,12 +546,12 @@ pub enum Expression {
     ///
     /// Examples:
     /// ```
-    /// comptime 1 + 2
-    /// comptime factorial(10)
-    /// comptime { let x = compute(); x * 2 }
-    /// const TABLE = comptime { generateLookupTable() }
+    /// const 1 + 2
+    /// const factorial(10)
+    /// const { let x = compute(); x * 2 }
+    /// const TABLE = const { generateLookupTable() }
     /// ```
-    Comptime { body: LocalNodeId<Expression> },
+    Const { body: LocalNodeId<Expression> },
 
     /// TypeScript-style `as` assertion.
     ///
@@ -682,8 +682,8 @@ pub enum Expression {
 
     /// A Call is call to a function OR an instantiation of a tuple type.
     ///
-    /// The function may or may not be declared as comptime (with a `@ prefix),
-    ///  but the call must be prefixed with a `@` to qualify as a static call.
+    /// The function may or may not be declared as a const function,
+    /// but the call must be prefixed with a `@` to qualify as a static call.
     ///
     /// Examples:
     /// ```
@@ -815,7 +815,7 @@ impl Expression {
             | Self::Await { .. }
             | Self::AwaitMaybe { .. }
             | Self::AwaitMust { .. }
-            | Self::Comptime { .. }
+            | Self::Const { .. }
             | Self::Yield { .. }
             | Self::BorrowOf { .. }
             | Self::Return { .. } => OperatorPrecedence::Prefix,
@@ -880,7 +880,7 @@ impl Expression {
             Self::StructExpression { .. } => "StructExpression",
             Self::TreeExpression { .. } => "TreeExpression",
             Self::Type { .. } => "Type",
-            Self::Comptime { .. } => "Comptime",
+            Self::Const { .. } => "Const",
             Self::As { .. } => "As",
             Self::Satisfies { .. } => "Satisfies",
             Self::Is { .. } => "Is",

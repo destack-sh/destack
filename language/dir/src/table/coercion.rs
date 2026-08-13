@@ -138,7 +138,7 @@ pub enum CoercionAdjustment {
         /// The scalar type after this adjustment.
         target: GlobalTypeId,
     },
-    /// Materialize one comptime scalar at its selected carrier, like `42` into `int32`.
+    /// Materialize one const scalar at its selected carrier, like `42` into `int32`.
     Widen {
         /// The scalar type after this adjustment.
         target: GlobalTypeId,
@@ -284,7 +284,7 @@ impl CoercionAdjustment {
             return Some(Self::Carrier { target: target_id });
         }
 
-        // scalar singletons are comptime: widening materializes them
+        // scalar singletons are const: widening materializes them
         if let Type::Literal(literal) = source
             && matches!(target, Type::Primitive(_))
             && literal.widens_to(target)

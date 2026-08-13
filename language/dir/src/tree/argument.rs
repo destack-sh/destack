@@ -27,20 +27,6 @@ pub enum GenericParameter {
     },
     /// Lifetime parameter.
     Lifetime { name: StringId },
-    /// Value parameter.
-    Value {
-        name: StringId,
-        declared_type: Option<LocalNodeId<TypeExpression>>,
-        default: Option<LocalNodeId<Expression>>,
-        is_comptime: bool,
-    },
-    /// Variadic value parameter.
-    VariadicValue {
-        name: StringId,
-        declared_type: Option<LocalNodeId<TypeExpression>>,
-        default: Option<LocalNodeId<Expression>>,
-        is_comptime: bool,
-    },
     /// Malformed generic parameter.
     Error,
 }
@@ -53,11 +39,9 @@ impl GenericParameter {
     /// Return the symbol key introduced by this generic parameter.
     pub fn symbol_key(&self) -> Option<StaticKey> {
         match self {
-            Self::Type { name, .. }
-            | Self::VariadicType { name, .. }
-            | Self::Lifetime { name }
-            | Self::Value { name, .. }
-            | Self::VariadicValue { name, .. } => Some(StaticKey::Name(*name)),
+            Self::Type { name, .. } | Self::VariadicType { name, .. } | Self::Lifetime { name } => {
+                Some(StaticKey::Name(*name))
+            }
             Self::Error => None,
         }
     }
@@ -66,9 +50,7 @@ impl GenericParameter {
     pub fn symbol_kind(&self) -> Option<SymbolKind> {
         match self {
             Self::Type { .. } | Self::VariadicType { .. } => Some(SymbolKind::GenericTypeParameter),
-            Self::Lifetime { .. } | Self::Value { .. } | Self::VariadicValue { .. } => {
-                Some(SymbolKind::GenericValueParameter)
-            }
+            Self::Lifetime { .. } => Some(SymbolKind::GenericLifetimeParameter),
             Self::Error => None,
         }
     }
@@ -171,19 +153,15 @@ pub enum GenericArgument {
     Type { value: LocalNodeId<TypeExpression> },
     /// Spread type generic argument.
     SpreadType { value: LocalNodeId<TypeExpression> },
-    /// Value generic argument.
-    Value { value: LocalNodeId<Expression> },
-    /// Spread value generic argument.
-    SpreadValue { value: LocalNodeId<Expression> },
     /// Associated type refinement.
     AssociatedType {
         name: StringId,
         value: LocalNodeId<TypeExpression>,
     },
-    /// Associated compile-time constant refinement.
+    /// Associated const refinement.
     AssociatedConst {
         name: StringId,
-        value: LocalNodeId<Expression>,
+        value: LocalNodeId<TypeExpression>,
     },
     /// Malformed generic argument slot.
     Error,

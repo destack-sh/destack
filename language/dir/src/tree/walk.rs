@@ -680,15 +680,10 @@ pub fn walk_generic_argument<V: NodeVisitor + ?Sized>(
     match generic_argument {
         GenericArgument::Type { value }
         | GenericArgument::SpreadType { value }
-        | GenericArgument::AssociatedType { value, .. } => {
+        | GenericArgument::AssociatedType { value, .. }
+        | GenericArgument::AssociatedConst { value, .. } => {
             let value_type = tree.get(*value);
             visitor.visit_type_expression(tree, *value, value_type);
-        }
-        GenericArgument::Value { value }
-        | GenericArgument::SpreadValue { value }
-        | GenericArgument::AssociatedConst { value, .. } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
         }
         GenericArgument::Error => {}
     }
@@ -1111,7 +1106,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_type_expression(tree, *value, value_node);
         }
 
-        Expression::Comptime { body } => {
+        Expression::Const { body } => {
             let body_expr = tree.get(*body);
             visitor.visit_expression(tree, *body, body_expr);
         }
@@ -1304,28 +1299,6 @@ pub fn walk_generic_parameter<V: NodeVisitor + ?Sized>(
             if let Some(default) = default {
                 let default_expression = tree.get(*default);
                 visitor.visit_type_expression(tree, *default, default_expression);
-            }
-        }
-        GenericParameter::Value {
-            name: _,
-            declared_type,
-            default,
-            is_comptime: _,
-        }
-        | GenericParameter::VariadicValue {
-            name: _,
-            declared_type,
-            default,
-            is_comptime: _,
-        } => {
-            if let Some(declared_type) = declared_type {
-                let declared_type_expression = tree.get(*declared_type);
-                visitor.visit_type_expression(tree, *declared_type, declared_type_expression);
-            }
-
-            if let Some(default) = default {
-                let default_expression = tree.get(*default);
-                visitor.visit_expression(tree, *default, default_expression);
             }
         }
         GenericParameter::Lifetime { name: _ } => {}
@@ -1647,7 +1620,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             let body_expr = tree.get(*body);
             visitor.visit_expression(tree, *body, body_expr);
         }
-        Member::ComptimeBlock { body, .. } => {
+        Member::ConstBlock { body, .. } => {
             let body_expr = tree.get(*body);
             visitor.visit_expression(tree, *body, body_expr);
         }

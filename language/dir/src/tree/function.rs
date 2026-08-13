@@ -18,10 +18,10 @@ pub enum FunctionForm {
 /// When a function may be called.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum FunctionPhase {
-    /// The function may be called at runtime and evaluated at comptime.
+    /// The function may be called at runtime and during const evaluation.
     Normal,
-    /// The function may only be called during comptime evaluation.
-    Comptime,
+    /// The function may only be called during const evaluation.
+    Const,
 }
 
 /// The source form used to spell a receiver.

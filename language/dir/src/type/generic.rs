@@ -3,16 +3,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalNodeIdAny,
-    GlobalSymbolId,
-    GlobalTypeId,
-    LanguageItem,
-    LocalNodeIdAny,
-    LocalScopeId,
-    StringId,
-    TypeFold,
-    VarianceModifier,
-    WhereRelation,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalNodeIdAny, LocalScopeId,
+    StringId, TypeFold, VarianceModifier, WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -126,7 +118,7 @@ impl From<GlobalGenericParameterId> for LocalGenericParameterId {
 /// Source that introduced one generic parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum GenericParameterOrigin {
-    /// The parameter was written in source, like the `T` in `<T extends Clone>`.
+    /// The parameter was written in source, like the `T` in `<T: Clone>`.
     Explicit,
     /// The parameter was induced from an elided type component, like `L0` or `S0`.
     Induced,
@@ -137,13 +129,11 @@ pub enum GenericParameterOrigin {
 pub enum GenericParameterKind {
     /// A regular type parameter.
     Type,
-    /// A regular static value parameter.
-    Value,
-    /// A static value parameter of one well-known memory kind.
+    /// A const parameter of one well-known memory kind.
     Memory(MemoryParameter),
 }
 
-/// Well-known memory kind quantified by a comptime parameter.
+/// Well-known memory kind quantified by a const parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum MemoryParameter {
     /// Borrow access.
@@ -255,8 +245,8 @@ pub struct WherePredicate {
 ///
 /// Examples:
 /// ```ds
-/// <T extends Serializable = string>
-/// <comptime Size: usize>
+/// <T: Serializable = string>
+/// <const Size: usize>
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GenericParameterBinding {
@@ -270,7 +260,7 @@ pub struct GenericParameterBinding {
     pub ty: GlobalTypeId,
     /// The parameter key.
     pub key: GenericParameterKey,
-    /// The parameter variance, rejected on comptime parameters.
+    /// The parameter variance, a marker on const parameters.
     pub variance: Option<VarianceModifier>,
     /// The optional constraint.
     pub constraint: Option<GlobalTypeId>,
@@ -302,16 +292,11 @@ pub enum Cardinality {
 }
 
 impl GenericParameterBinding {
-    /// Return whether arguments must solve to singleton values.
-    pub fn is_comptime(&self) -> bool {
-        !matches!(self.kind, GenericParameterKind::Type)
-    }
-
     /// Return the parameter's well-known memory kind.
     pub fn memory_parameter(&self) -> Option<MemoryParameter> {
         match self.kind {
             GenericParameterKind::Memory(parameter) => Some(parameter),
-            GenericParameterKind::Type | GenericParameterKind::Value => None,
+            GenericParameterKind::Type => None,
         }
     }
 

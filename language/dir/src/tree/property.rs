@@ -254,8 +254,8 @@ pub enum Member {
     },
     /// Static initialization block.
     StaticBlock { body: LocalNodeId<Expression> },
-    /// Comptime block.
-    ComptimeBlock { body: LocalNodeId<Expression> },
+    /// Const evaluation block.
+    ConstBlock { body: LocalNodeId<Expression> },
     /// Malformed member slot.
     Error,
 }
@@ -278,7 +278,7 @@ impl Member {
                 .role
                 .and_then(|role| role.try_into().ok())
                 .or(name.map(|name| MemberSlot::Key(name.into()))),
-            Self::StaticBlock { .. } | Self::ComptimeBlock { .. } | Self::Error => None,
+            Self::StaticBlock { .. } | Self::ConstBlock { .. } | Self::Error => None,
         }
     }
 
@@ -290,7 +290,7 @@ impl Member {
                 true => MemberSpace::Static,
                 false => MemberSpace::Instance,
             },
-            Self::StaticBlock { .. } | Self::ComptimeBlock { .. } | Self::Error => return None,
+            Self::StaticBlock { .. } | Self::ConstBlock { .. } | Self::Error => return None,
         };
 
         Some(space)
@@ -308,7 +308,7 @@ impl Member {
             } => Some((*name).into()),
             Self::Method { name: None, .. }
             | Self::StaticBlock { .. }
-            | Self::ComptimeBlock { .. }
+            | Self::ConstBlock { .. }
             | Self::Error => None,
         }
     }
@@ -322,7 +322,7 @@ impl Member {
             Self::Method { name: Some(_), .. } => Some(SymbolKind::Function),
             Self::Method { name: None, .. }
             | Self::StaticBlock { .. }
-            | Self::ComptimeBlock { .. }
+            | Self::ConstBlock { .. }
             | Self::Error => None,
         }
     }
@@ -334,7 +334,7 @@ impl Member {
             | Self::Method { .. }
             | Self::AssociatedType { .. }
             | Self::AssociatedConst { .. } => true,
-            Self::StaticBlock { .. } | Self::ComptimeBlock { .. } | Self::Error => false,
+            Self::StaticBlock { .. } | Self::ConstBlock { .. } | Self::Error => false,
         }
     }
 
@@ -374,7 +374,7 @@ impl Member {
             Member::AssociatedType { .. }
             | Member::AssociatedConst { .. }
             | Member::StaticBlock { .. }
-            | Member::ComptimeBlock { .. }
+            | Member::ConstBlock { .. }
             | Member::Error => false,
         }
     }
@@ -384,7 +384,7 @@ impl Member {
         match self {
             Member::Field { is_static, .. } | Member::Method { is_static, .. } => !*is_static,
             Member::AssociatedType { .. } | Member::AssociatedConst { .. } => true,
-            Member::StaticBlock { .. } | Member::ComptimeBlock { .. } | Member::Error => false,
+            Member::StaticBlock { .. } | Member::ConstBlock { .. } | Member::Error => false,
         }
     }
 
@@ -395,7 +395,7 @@ impl Member {
             Member::AssociatedType { .. }
             | Member::AssociatedConst { .. }
             | Member::StaticBlock { .. }
-            | Member::ComptimeBlock { .. }
+            | Member::ConstBlock { .. }
             | Member::Error => false,
         }
     }

@@ -130,8 +130,6 @@ pub enum Keyword {
     Of,
     /// Using clause for generics or type context
     Using,
-    /// Compile time evaluation.
-    Comptime,
 
     // ------------------------------------------------------------
     // Branching
@@ -308,7 +306,6 @@ impl Keyword {
             Keyword::In => "in",
             Keyword::Of => "of",
             Keyword::Using => "using",
-            Keyword::Comptime => "comptime",
 
             // branching
             Keyword::If => "if",
@@ -412,7 +409,6 @@ impl FromStr for Keyword {
             "in" => Ok(Keyword::In),
             "of" => Ok(Keyword::Of),
             "using" => Ok(Keyword::Using),
-            "comptime" => Ok(Keyword::Comptime),
 
             // branching
             "if" => Ok(Keyword::If),
