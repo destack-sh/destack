@@ -33,7 +33,7 @@ impl TypeTable {
     pub fn rebuild_primitive_types(&mut self, tree: &Tree) {
         self.primitive_types.clear();
 
-        // collect primitive rows in node order
+        // collect primitive entries in node order
         for (type_id, ty) in tree.iter_nodes::<Type>() {
             let Some(primitive) = Self::primitive_type(ty) else {
                 continue;
