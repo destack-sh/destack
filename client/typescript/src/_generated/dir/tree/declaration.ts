@@ -3,12 +3,12 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBool, jsonField, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { ExportKind } from "./dependency.js";
 import type { FunctionSignature } from "./function.js";
-import type { Name } from "./key.js";
+import type { Name } from "./name.js";
 import type { LocalNodeId } from "./node.js";
 import type { Mutability } from "./node.js";
 import { decodeExportKind, encodeExportKind, fromJsonExportKind, toJsonExportKind } from "./dependency.js";
 import { decodeFunctionSignature, encodeFunctionSignature, fromJsonFunctionSignature, toJsonFunctionSignature } from "./function.js";
-import { decodeName, encodeName, fromJsonName, toJsonName } from "./key.js";
+import { decodeName, encodeName, fromJsonName, toJsonName } from "./name.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 import { decodeMutability, encodeMutability, fromJsonMutability, toJsonMutability } from "./node.js";
 

@@ -4,14 +4,14 @@ import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBool, json
 import type { StringId } from "../../core/string.js";
 import type { StaticKey } from "../symbol/key.js";
 import type { FunctionSignature } from "./function.js";
-import type { Key } from "./key.js";
+import type { Name } from "./name.js";
 import type { LocalNodeId } from "./node.js";
 import type { Mutability } from "./node.js";
 import type { Visibility } from "./node.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../symbol/key.js";
 import { decodeFunctionSignature, encodeFunctionSignature, fromJsonFunctionSignature, toJsonFunctionSignature } from "./function.js";
-import { decodeKey, encodeKey, fromJsonKey, toJsonKey } from "./key.js";
+import { decodeName, encodeName, fromJsonName, toJsonName } from "./name.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 import { decodeMutability, encodeMutability, fromJsonMutability, toJsonMutability } from "./node.js";
 import { decodeVisibility, encodeVisibility, fromJsonVisibility, toJsonVisibility } from "./node.js";
@@ -138,7 +138,7 @@ export type Member =
     /** Named field. */
     | {
           readonly kind: "field";
-          readonly key: Key;
+          readonly name: Name;
           readonly declaredType?: LocalNodeId;
           readonly default?: LocalNodeId;
           readonly mutability?: Mutability;
@@ -155,7 +155,7 @@ export type Member =
     /** Named member function. */
     | {
           readonly kind: "method";
-          readonly key?: Key;
+          readonly name?: Name;
           readonly signature: FunctionSignature;
           readonly abstraction: MethodAbstraction;
           readonly body?: LocalNodeId;
@@ -194,13 +194,13 @@ export const Member = {
     },
 
     /** Named field. */
-    field(key: Key, declaredType: LocalNodeId | undefined, default_: LocalNodeId | undefined, mutability: Mutability | undefined, visibility: Visibility | undefined, isOptional: boolean, isDefinite: boolean, isReadonly: boolean, isAmbient: boolean, isAbstract: boolean, isOverride: boolean, isStatic: boolean, isAccessor: boolean): Member {
-        return { kind: "field", key, declaredType, default: default_, mutability, visibility, isOptional, isDefinite, isReadonly, isAmbient, isAbstract, isOverride, isStatic, isAccessor };
+    field(name: Name, declaredType: LocalNodeId | undefined, default_: LocalNodeId | undefined, mutability: Mutability | undefined, visibility: Visibility | undefined, isOptional: boolean, isDefinite: boolean, isReadonly: boolean, isAmbient: boolean, isAbstract: boolean, isOverride: boolean, isStatic: boolean, isAccessor: boolean): Member {
+        return { kind: "field", name, declaredType, default: default_, mutability, visibility, isOptional, isDefinite, isReadonly, isAmbient, isAbstract, isOverride, isStatic, isAccessor };
     },
 
     /** Named member function. */
-    method(key: Key | undefined, signature: FunctionSignature, abstraction: MethodAbstraction, body: LocalNodeId | undefined, visibility: Visibility | undefined, isOptional: boolean, isAmbient: boolean, isOverride: boolean, isStatic: boolean, isAccessor: boolean): Member {
-        return { kind: "method", key, signature, abstraction, body, visibility, isOptional, isAmbient, isOverride, isStatic, isAccessor };
+    method(name: Name | undefined, signature: FunctionSignature, abstraction: MethodAbstraction, body: LocalNodeId | undefined, visibility: Visibility | undefined, isOptional: boolean, isAmbient: boolean, isOverride: boolean, isStatic: boolean, isAccessor: boolean): Member {
+        return { kind: "method", name, signature, abstraction, body, visibility, isOptional, isAmbient, isOverride, isStatic, isAccessor };
     },
 
     /** Static initialization block. */
@@ -284,7 +284,7 @@ export function encodeMember(writer: BinaryWriter, value: Member): void {
             return;
         case "field":
             writer.writeUnsigned(2);
-            encodeKey(writer, value.key);
+            encodeName(writer, value.name);
             writer.writeOption(value.declaredType, (value1) => {
                 encodeLocalNodeId(writer, value1);
             });
@@ -308,8 +308,8 @@ export function encodeMember(writer: BinaryWriter, value: Member): void {
             return;
         case "method":
             writer.writeUnsigned(3);
-            writer.writeOption(value.key, (value0) => {
-                encodeKey(writer, value0);
+            writer.writeOption(value.name, (value0) => {
+                encodeName(writer, value0);
             });
             encodeFunctionSignature(writer, value.signature);
             encodeMethodAbstraction(writer, value.abstraction);
@@ -391,7 +391,7 @@ export function decodeMember(reader: BinaryReader): Member {
             };
         }
         case 2: {
-            const key = decodeKey(reader);
+            const name = decodeName(reader);
             const declaredType = reader.readOption(() => decodeLocalNodeId(reader));
             const default_ = reader.readOption(() => decodeLocalNodeId(reader));
             const mutability = reader.readOption(() => decodeMutability(reader));
@@ -407,7 +407,7 @@ export function decodeMember(reader: BinaryReader): Member {
 
             return {
                 kind: "field",
-                key,
+                name,
                 ...(declaredType === undefined ? {} : { declaredType }),
                 ...(default_ === undefined ? {} : { default: default_ }),
                 ...(mutability === undefined ? {} : { mutability }),
@@ -423,7 +423,7 @@ export function decodeMember(reader: BinaryReader): Member {
             };
         }
         case 3: {
-            const key = reader.readOption(() => decodeKey(reader));
+            const name = reader.readOption(() => decodeName(reader));
             const signature = decodeFunctionSignature(reader);
             const abstraction = decodeMethodAbstraction(reader);
             const body = reader.readOption(() => decodeLocalNodeId(reader));
@@ -436,7 +436,7 @@ export function decodeMember(reader: BinaryReader): Member {
 
             return {
                 kind: "method",
-                ...(key === undefined ? {} : { key }),
+                ...(name === undefined ? {} : { name }),
                 signature,
                 abstraction,
                 ...(body === undefined ? {} : { body }),
@@ -502,7 +502,7 @@ export function toJsonMember(value: Member): Json {
         case "field":
             return {
                 kind: "field",
-                key: toJsonKey(value.key),
+                name: toJsonName(value.name),
                 ...(value.declaredType === undefined ? {} : { declaredType: toJsonLocalNodeId(value.declaredType) }),
                 ...(value.default === undefined ? {} : { default: toJsonLocalNodeId(value.default) }),
                 ...(value.mutability === undefined ? {} : { mutability: toJsonMutability(value.mutability) }),
@@ -519,7 +519,7 @@ export function toJsonMember(value: Member): Json {
         case "method":
             return {
                 kind: "method",
-                ...(value.key === undefined ? {} : { key: toJsonKey(value.key) }),
+                ...(value.name === undefined ? {} : { name: toJsonName(value.name) }),
                 signature: toJsonFunctionSignature(value.signature),
                 abstraction: toJsonMethodAbstraction(value.abstraction),
                 ...(value.body === undefined ? {} : { body: toJsonLocalNodeId(value.body) }),
@@ -582,7 +582,7 @@ export function fromJsonMember(value: Json): Member {
         case "field":
             return {
                 kind,
-                key: fromJsonKey(jsonField(object, "key")),
+                name: fromJsonName(jsonField(object, "name")),
                 declaredType: jsonOptional(object, "declaredType", (value) => fromJsonLocalNodeId(value)),
                 default: jsonOptional(object, "default", (value) => fromJsonLocalNodeId(value)),
                 mutability: jsonOptional(object, "mutability", (value) => fromJsonMutability(value)),
@@ -599,7 +599,7 @@ export function fromJsonMember(value: Json): Member {
         case "method":
             return {
                 kind,
-                key: jsonOptional(object, "key", (value) => fromJsonKey(value)),
+                name: jsonOptional(object, "name", (value) => fromJsonName(value)),
                 signature: fromJsonFunctionSignature(jsonField(object, "signature")),
                 abstraction: fromJsonMethodAbstraction(jsonField(object, "abstraction")),
                 body: jsonOptional(object, "body", (value) => fromJsonLocalNodeId(value)),
@@ -874,14 +874,14 @@ export type Property =
     /** Named field. */
     | {
           readonly kind: "field";
-          readonly key: Key;
+          readonly name: Name;
           readonly value: LocalNodeId;
           readonly isShorthand: boolean;
       }
     /** Object-like member function. */
     | {
           readonly kind: "method";
-          readonly key?: Key;
+          readonly name?: Name;
           readonly signature: FunctionSignature;
           readonly body?: LocalNodeId;
       }
@@ -898,13 +898,13 @@ export type Property =
 
 export const Property = {
     /** Named field. */
-    field(key: Key, value: LocalNodeId, isShorthand: boolean): Property {
-        return { kind: "field", key, value, isShorthand };
+    field(name: Name, value: LocalNodeId, isShorthand: boolean): Property {
+        return { kind: "field", name, value, isShorthand };
     },
 
     /** Object-like member function. */
-    method(key: Key | undefined, signature: FunctionSignature, body: LocalNodeId | undefined): Property {
-        return { kind: "method", key, signature, body };
+    method(name: Name | undefined, signature: FunctionSignature, body: LocalNodeId | undefined): Property {
+        return { kind: "method", name, signature, body };
     },
 
     /** Spread property. */
@@ -943,14 +943,14 @@ export function encodeProperty(writer: BinaryWriter, value: Property): void {
     switch (value.kind) {
         case "field":
             writer.writeUnsigned(0);
-            encodeKey(writer, value.key);
+            encodeName(writer, value.name);
             encodeLocalNodeId(writer, value.value);
             writer.writeBool(value.isShorthand);
             return;
         case "method":
             writer.writeUnsigned(1);
-            writer.writeOption(value.key, (value0) => {
-                encodeKey(writer, value0);
+            writer.writeOption(value.name, (value0) => {
+                encodeName(writer, value0);
             });
             encodeFunctionSignature(writer, value.signature);
             writer.writeOption(value.body, (value2) => {
@@ -975,25 +975,25 @@ export function decodeProperty(reader: BinaryReader): Property {
 
     switch (variant) {
         case 0: {
-            const key = decodeKey(reader);
+            const name = decodeName(reader);
             const value = decodeLocalNodeId(reader);
             const isShorthand = reader.readBool();
 
             return {
                 kind: "field",
-                key,
+                name,
                 value,
                 isShorthand,
             };
         }
         case 1: {
-            const key = reader.readOption(() => decodeKey(reader));
+            const name = reader.readOption(() => decodeName(reader));
             const signature = decodeFunctionSignature(reader);
             const body = reader.readOption(() => decodeLocalNodeId(reader));
 
             return {
                 kind: "method",
-                ...(key === undefined ? {} : { key }),
+                ...(name === undefined ? {} : { name }),
                 signature,
                 ...(body === undefined ? {} : { body }),
             };
@@ -1020,14 +1020,14 @@ export function toJsonProperty(value: Property): Json {
         case "field":
             return {
                 kind: "field",
-                key: toJsonKey(value.key),
+                name: toJsonName(value.name),
                 value: toJsonLocalNodeId(value.value),
                 isShorthand: value.isShorthand,
             };
         case "method":
             return {
                 kind: "method",
-                ...(value.key === undefined ? {} : { key: toJsonKey(value.key) }),
+                ...(value.name === undefined ? {} : { name: toJsonName(value.name) }),
                 signature: toJsonFunctionSignature(value.signature),
                 ...(value.body === undefined ? {} : { body: toJsonLocalNodeId(value.body) }),
             };
@@ -1054,14 +1054,14 @@ export function fromJsonProperty(value: Json): Property {
         case "field":
             return {
                 kind,
-                key: fromJsonKey(jsonField(object, "key")),
+                name: fromJsonName(jsonField(object, "name")),
                 value: fromJsonLocalNodeId(jsonField(object, "value")),
                 isShorthand: jsonBool(jsonField(object, "isShorthand")),
             };
         case "method":
             return {
                 kind,
-                key: jsonOptional(object, "key", (value) => fromJsonKey(value)),
+                name: jsonOptional(object, "name", (value) => fromJsonName(value)),
                 signature: fromJsonFunctionSignature(jsonField(object, "signature")),
                 body: jsonOptional(object, "body", (value) => fromJsonLocalNodeId(value)),
             };

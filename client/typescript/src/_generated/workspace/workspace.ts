@@ -43,7 +43,7 @@ const artifactMethodResponse: Decoder<artifactPayload.ArtifactPayload> = {
 const artifactMethod: Method<workspaceServiceArtifact.ArtifactRequest, artifactPayload.ArtifactPayload, never, never> = {
     service: 5221210015570525267n,
     method: 10319401099963147929n,
-    fingerprint: 314814414015121791896241527810884930476n,
+    fingerprint: 130915269197898485079802394962070217433n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: artifactMethodRequest,

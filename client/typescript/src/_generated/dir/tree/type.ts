@@ -5,9 +5,9 @@ import type { StringId } from "../../core/string.js";
 import type { VarianceBound } from "./expression.js";
 import type { FunctionSignature } from "./function.js";
 import type { ThisForm } from "./function.js";
-import type { Key } from "./key.js";
 import type { ScalarLiteral } from "./literal.js";
 import type { TypeLiteral } from "./literal.js";
+import type { Name } from "./name.js";
 import type { LocalNodeId } from "./node.js";
 import type { Mutability } from "./node.js";
 import type { RangeEnd } from "./operator.js";
@@ -17,9 +17,9 @@ import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from
 import { decodeVarianceBound, encodeVarianceBound, fromJsonVarianceBound, toJsonVarianceBound } from "./expression.js";
 import { decodeFunctionSignature, encodeFunctionSignature, fromJsonFunctionSignature, toJsonFunctionSignature } from "./function.js";
 import { decodeThisForm, encodeThisForm, fromJsonThisForm, toJsonThisForm } from "./function.js";
-import { decodeKey, encodeKey, fromJsonKey, toJsonKey } from "./key.js";
 import { decodeScalarLiteral, encodeScalarLiteral, fromJsonScalarLiteral, toJsonScalarLiteral } from "./literal.js";
 import { decodeTypeLiteral, encodeTypeLiteral, fromJsonTypeLiteral, toJsonTypeLiteral } from "./literal.js";
+import { decodeName, encodeName, fromJsonName, toJsonName } from "./name.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 import { decodeMutability, encodeMutability, fromJsonMutability, toJsonMutability } from "./node.js";
 import { decodeRangeEnd, encodeRangeEnd, fromJsonRangeEnd, toJsonRangeEnd } from "./operator.js";
@@ -1897,7 +1897,7 @@ export type TypeMember =
     /** Named field. */
     | {
           readonly kind: "field";
-          readonly key: Key;
+          readonly name: Name;
           readonly declaredType?: LocalNodeId;
           readonly isStatic: boolean;
           readonly isOptional: boolean;
@@ -1906,7 +1906,7 @@ export type TypeMember =
     /** Named method. */
     | {
           readonly kind: "method";
-          readonly key: Key;
+          readonly name: Name;
           readonly signature: FunctionSignature;
           readonly body?: LocalNodeId;
           readonly isStatic: boolean;
@@ -1960,13 +1960,13 @@ export type TypeMember =
 
 export const TypeMember = {
     /** Named field. */
-    field(key: Key, declaredType: LocalNodeId | undefined, isStatic: boolean, isOptional: boolean, isReadonly: boolean): TypeMember {
-        return { kind: "field", key, declaredType, isStatic, isOptional, isReadonly };
+    field(name: Name, declaredType: LocalNodeId | undefined, isStatic: boolean, isOptional: boolean, isReadonly: boolean): TypeMember {
+        return { kind: "field", name, declaredType, isStatic, isOptional, isReadonly };
     },
 
     /** Named method. */
-    method(key: Key, signature: FunctionSignature, body: LocalNodeId | undefined, isStatic: boolean, isOptional: boolean): TypeMember {
-        return { kind: "method", key, signature, body, isStatic, isOptional };
+    method(name: Name, signature: FunctionSignature, body: LocalNodeId | undefined, isStatic: boolean, isOptional: boolean): TypeMember {
+        return { kind: "method", name, signature, body, isStatic, isOptional };
     },
 
     /** Call signature declaration. */
@@ -2025,7 +2025,7 @@ export function encodeTypeMember(writer: BinaryWriter, value: TypeMember): void 
     switch (value.kind) {
         case "field":
             writer.writeUnsigned(0);
-            encodeKey(writer, value.key);
+            encodeName(writer, value.name);
             writer.writeOption(value.declaredType, (value1) => {
                 encodeLocalNodeId(writer, value1);
             });
@@ -2035,7 +2035,7 @@ export function encodeTypeMember(writer: BinaryWriter, value: TypeMember): void 
             return;
         case "method":
             writer.writeUnsigned(1);
-            encodeKey(writer, value.key);
+            encodeName(writer, value.name);
             encodeFunctionSignature(writer, value.signature);
             writer.writeOption(value.body, (value2) => {
                 encodeLocalNodeId(writer, value2);
@@ -2105,7 +2105,7 @@ export function decodeTypeMember(reader: BinaryReader): TypeMember {
 
     switch (variant) {
         case 0: {
-            const key = decodeKey(reader);
+            const name = decodeName(reader);
             const declaredType = reader.readOption(() => decodeLocalNodeId(reader));
             const isStatic = reader.readBool();
             const isOptional = reader.readBool();
@@ -2113,7 +2113,7 @@ export function decodeTypeMember(reader: BinaryReader): TypeMember {
 
             return {
                 kind: "field",
-                key,
+                name,
                 ...(declaredType === undefined ? {} : { declaredType }),
                 isStatic,
                 isOptional,
@@ -2121,7 +2121,7 @@ export function decodeTypeMember(reader: BinaryReader): TypeMember {
             };
         }
         case 1: {
-            const key = decodeKey(reader);
+            const name = decodeName(reader);
             const signature = decodeFunctionSignature(reader);
             const body = reader.readOption(() => decodeLocalNodeId(reader));
             const isStatic = reader.readBool();
@@ -2129,7 +2129,7 @@ export function decodeTypeMember(reader: BinaryReader): TypeMember {
 
             return {
                 kind: "method",
-                key,
+                name,
                 signature,
                 ...(body === undefined ? {} : { body }),
                 isStatic,
@@ -2218,7 +2218,7 @@ export function toJsonTypeMember(value: TypeMember): Json {
         case "field":
             return {
                 kind: "field",
-                key: toJsonKey(value.key),
+                name: toJsonName(value.name),
                 ...(value.declaredType === undefined ? {} : { declaredType: toJsonLocalNodeId(value.declaredType) }),
                 isStatic: value.isStatic,
                 isOptional: value.isOptional,
@@ -2227,7 +2227,7 @@ export function toJsonTypeMember(value: TypeMember): Json {
         case "method":
             return {
                 kind: "method",
-                key: toJsonKey(value.key),
+                name: toJsonName(value.name),
                 signature: toJsonFunctionSignature(value.signature),
                 ...(value.body === undefined ? {} : { body: toJsonLocalNodeId(value.body) }),
                 isStatic: value.isStatic,
@@ -2290,7 +2290,7 @@ export function fromJsonTypeMember(value: Json): TypeMember {
         case "field":
             return {
                 kind,
-                key: fromJsonKey(jsonField(object, "key")),
+                name: fromJsonName(jsonField(object, "name")),
                 declaredType: jsonOptional(object, "declaredType", (value) => fromJsonLocalNodeId(value)),
                 isStatic: jsonBool(jsonField(object, "isStatic")),
                 isOptional: jsonBool(jsonField(object, "isOptional")),
@@ -2299,7 +2299,7 @@ export function fromJsonTypeMember(value: Json): TypeMember {
         case "method":
             return {
                 kind,
-                key: fromJsonKey(jsonField(object, "key")),
+                name: fromJsonName(jsonField(object, "name")),
                 signature: fromJsonFunctionSignature(jsonField(object, "signature")),
                 body: jsonOptional(object, "body", (value) => fromJsonLocalNodeId(value)),
                 isStatic: jsonBool(jsonField(object, "isStatic")),

@@ -2,144 +2,21 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonField, jsonInteger, jsonObject, jsonString } from "../../../protocol/serde.js";
 import type { StringId } from "../../core/string.js";
-import type { LocalNodeId } from "./node.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
-import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 
-/** A key in value or type property position. */
-export type Key =
-    /** A named key. */
-    | {
-          readonly kind: "name";
-          readonly name: Name;
-      }
-    /** A dynamic value-space key. */
-    | {
-          readonly kind: "expression";
-          readonly expression: LocalNodeId;
-      }
-;
-
-export const Key = {
-    /** A named key. */
-    name(name: Name): Key {
-        return { kind: "name", name };
-    },
-
-    /** A dynamic value-space key. */
-    expression(expression: LocalNodeId): Key {
-        return { kind: "expression", expression };
-    },
-
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: Key): void {
-        encodeKey(writer, value);
-    },
-
-    /** Decode one Key. */
-    decode(reader: BinaryReader): Key {
-        return decodeKey(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: Key): Json {
-        return toJsonKey(value);
-    },
-
-    /** Return one Key from one JSON value. */
-    fromJson(value: Json): Key {
-        return fromJsonKey(value);
-    },
-};
-
-/** Encode one Key. */
-export function encodeKey(writer: BinaryWriter, value: Key): void {
-    switch (value.kind) {
-        case "name":
-            writer.writeUnsigned(0);
-            encodeName(writer, value.name);
-            return;
-        case "expression":
-            writer.writeUnsigned(1);
-            encodeLocalNodeId(writer, value.expression);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one Key. */
-export function decodeKey(reader: BinaryReader): Key {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0: {
-            const name = decodeName(reader);
-
-            return { kind: "name", name };
-        }
-        case 1: {
-            const expression = decodeLocalNodeId(reader);
-
-            return { kind: "expression", expression };
-        }
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one Key. */
-export function toJsonKey(value: Key): Json {
-    switch (value.kind) {
-        case "name":
-            return {
-                kind: "name",
-                name: toJsonName(value.name),
-            };
-        case "expression":
-            return {
-                kind: "expression",
-                expression: toJsonLocalNodeId(value.expression),
-            };
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Return one Key from one JSON value. */
-export function fromJsonKey(value: Json): Key {
-    const object = jsonObject(value);
-    const kind = jsonString(jsonField(object, "kind"));
-
-    switch (kind) {
-        case "name":
-            return {
-                kind,
-                name: fromJsonName(jsonField(object, "name")),
-            };
-        case "expression":
-            return {
-                kind,
-                expression: fromJsonLocalNodeId(jsonField(object, "expression")),
-            };
-    }
-
-    throw new SerdeError(`unknown enum variant: ${kind}`);
-}
-
-/** A name is a regular, string, or numeric identifier. */
+/** An authored identifier, string, or integer name. */
 export type Name =
-    /** A regular identifier. */
+    /** An identifier name. */
     | {
           readonly kind: "identifier";
           readonly identifier: StringId;
       }
-    /** A string identifier. */
+    /** A quoted string name. */
     | {
           readonly kind: "string";
           readonly string: StringId;
       }
-    /** A positional index. */
+    /** An integer name. */
     | {
           readonly kind: "index";
           readonly index: number;
@@ -147,17 +24,17 @@ export type Name =
 ;
 
 export const Name = {
-    /** A regular identifier. */
+    /** An identifier name. */
     identifier(identifier: StringId): Name {
         return { kind: "identifier", identifier };
     },
 
-    /** A string identifier. */
+    /** A quoted string name. */
     "string"(string_: StringId): Name {
         return { kind: "string", string: string_ };
     },
 
-    /** A positional index. */
+    /** An integer name. */
     index(index: number): Name {
         return { kind: "index", index };
     },

@@ -2,13 +2,13 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBigint, jsonBool, jsonField, jsonNumber, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StringId } from "../../core/string.js";
-import type { Name } from "./key.js";
+import type { Name } from "./name.js";
 import type { LocalNodeId } from "./node.js";
 import type { FloatType } from "../type/primitive.js";
 import type { IntegerType } from "../type/primitive.js";
 import type { ScalarAlias } from "../type/primitive.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
-import { decodeName, encodeName, fromJsonName, toJsonName } from "./key.js";
+import { decodeName, encodeName, fromJsonName, toJsonName } from "./name.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 import { decodeFloatType, encodeFloatType, fromJsonFloatType, toJsonFloatType } from "../type/primitive.js";
 import { decodeIntegerType, encodeIntegerType, fromJsonIntegerType, toJsonIntegerType } from "../type/primitive.js";
