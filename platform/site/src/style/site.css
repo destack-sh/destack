@@ -54,10 +54,10 @@ summary::-webkit-details-marker {
 .markdown {
     display: grid;
     min-width: 0;
-    gap: 0.9rem;
+    gap: 1rem;
     font-size: inherit;
     font-weight: 400;
-    line-height: 1.7;
+    line-height: 1.6;
 }
 
 .markdown h1,
@@ -65,30 +65,30 @@ summary::-webkit-details-marker {
 .markdown h3 {
     margin: 0;
     color: #171512;
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
 }
 
 .markdown h1 {
     margin-bottom: 1rem;
-    font-size: clamp(1.8rem, 4vw, 2.2rem);
-    font-weight: 600;
-    letter-spacing: -0.035em;
+    font-size: clamp(2rem, 4vw, 2.5rem);
+    font-weight: 500;
+    letter-spacing: -0.025em;
     line-height: 1.1;
 }
 
 .markdown h2 {
-    margin-top: 2.5rem;
-    font-size: 1.05rem;
+    margin-top: 1rem;
+    font-size: 1.25rem;
     font-weight: 600;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.01em;
     line-height: 1.25;
 }
 
 .markdown h3 {
-    margin-top: 1.65rem;
-    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    font-size: 1rem;
     font-weight: 600;
-    letter-spacing: 0.01em;
+    letter-spacing: 0;
 }
 
 .markdown p,
@@ -106,14 +106,14 @@ summary::-webkit-details-marker {
 .markdown > ul,
 .markdown > ol,
 .markdown > blockquote {
-    max-width: 46rem;
+    max-width: 42rem;
 }
 
 .markdown ul,
 .markdown ol {
     display: grid;
     gap: 0.5rem;
-    padding-left: 1.75rem;
+    padding-left: 1.5rem;
 }
 
 .markdown ul {
@@ -125,11 +125,11 @@ summary::-webkit-details-marker {
 }
 
 .markdown li {
-    padding-left: 0.25rem;
+    padding-left: 0.5rem;
 }
 
 .markdown li::marker {
-    color: #dc5b2d;
+    color: #625c52;
 }
 
 .markdown li > p {
@@ -155,7 +155,7 @@ summary::-webkit-details-marker {
     color: #171512;
     text-decoration-color: #dc5b2d;
     text-decoration-line: underline;
-    text-decoration-thickness: 2px;
+    text-decoration-thickness: 1px;
     text-underline-offset: 0.2rem;
 }
 
@@ -176,8 +176,8 @@ summary::-webkit-details-marker {
 }
 
 .markdown blockquote {
-    border-left: 3px solid #dc5b2d;
-    padding: 0.35rem 0 0.35rem 1rem;
+    border-left: 2px solid #dc5b2d;
+    padding: 0.5rem 0 0.5rem 1rem;
     color: #171512;
 }
 
@@ -197,7 +197,7 @@ summary::-webkit-details-marker {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
-    border-block: 1px solid #171512;
+    border-block: 1px solid #c9beaa;
     outline: 0;
     overscroll-behavior-inline: contain;
     -webkit-overflow-scrolling: touch;
@@ -212,27 +212,26 @@ summary::-webkit-details-marker {
     width: 100%;
     min-width: 42rem;
     border-collapse: collapse;
-    font-size: 0.85rem;
-    line-height: 1.45;
+    font-size: 0.875rem;
+    line-height: 1.4;
 }
 
 .markdown th,
 .markdown td {
     border-bottom: 1px solid #c9beaa;
-    padding: 0.55rem 0.75rem;
+    padding: 0.5rem 0.75rem;
     text-align: left;
     vertical-align: top;
 }
 
 .markdown th {
-    border-bottom-color: #8f8574;
-    background: #ebe3d4;
+    background: #e8dfcf;
     font-weight: 600;
 }
 
 .markdown th + th,
 .markdown td + td {
-    border-left: 1px solid #d8cebd;
+    border-left: 1px solid #c9beaa;
 }
 
 .markdown tr:last-child > * {
@@ -296,9 +295,9 @@ summary::-webkit-details-marker {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    margin: 0.6rem 0;
+    margin: 0.5rem 0;
     overflow: hidden;
-    border-block: 1px solid #171512;
+    border-block: 1px solid #c9beaa;
     background: #f1eadb;
 }
 
@@ -313,8 +312,8 @@ summary::-webkit-details-marker {
     display: flex;
     align-items: baseline;
     gap: 0.625rem;
-    background: #e8dfcf;
-    padding: 0.4rem 0.75rem;
+    background: #ebe3d4;
+    padding: 0.5rem 0.75rem;
     color: #171512;
     font-size: 0.72rem;
     line-height: 1.4;
@@ -348,7 +347,7 @@ summary::-webkit-details-marker {
 }
 
 .markdown-code pre {
-    background: #eee7da;
+    background: #f1eadb;
     overflow: auto;
     margin: 0;
     font-size: 0.8125rem;
@@ -385,7 +384,7 @@ summary::-webkit-details-marker {
     left: 0;
     z-index: 1;
     border-right: 1px solid #c9beaa;
-    background: #eee7da;
+    background: #f1eadb;
     padding: 0 0.75rem 0 0.5rem;
     color: #a58b62;
     text-align: right;
@@ -437,7 +436,7 @@ summary::-webkit-details-marker {
 }
 
 [data-publication="manual"] .markdown {
-    padding-top: 0.75rem;
+    padding-top: 1rem;
 }
 
 /* generated syntax spans */
@@ -450,15 +449,15 @@ summary::-webkit-details-marker {
 }
 
 .markdown-code :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]) {
-    color: #8a5a0e;
+    color: #0f6470;
 }
 
 .markdown-code :is(.hljs-attr, .hljs-property, [data-k="property"]) {
-    color: #33586b;
+    color: #0f6470;
 }
 
 .markdown-code :is(.hljs-literal, .hljs-number, [data-k="literal"]) {
-    color: #96690a;
+    color: #3f7038;
 }
 
 .markdown-code :is(.hljs-string, [data-k="string"]) {
@@ -466,7 +465,7 @@ summary::-webkit-details-marker {
 }
 
 .markdown-code :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]) {
-    color: #241609;
+    color: #171512;
 }
 
 .markdown-code :is(.hljs-comment, .hljs-meta, [data-k="comment"]) {

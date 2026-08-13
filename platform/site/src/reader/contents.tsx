@@ -99,7 +99,7 @@ const styles = stylex.create({
     link: {
         display: "block",
         paddingLeft: "0.5rem",
-        paddingBlock: "0.22rem",
+        paddingBlock: "0.25rem",
         ":hover": {
             color: tokens.text,
         },
@@ -115,14 +115,14 @@ const styles = stylex.create({
         borderLeftColor: tokens.line,
         borderLeftStyle: "solid",
         borderLeftWidth: "1px",
-        marginLeft: "0.55rem",
-        paddingLeft: "0.65rem",
+        marginLeft: "0.5rem",
+        paddingLeft: "0.5rem",
     },
     root: {
         color: tokens.soft,
         display: "none",
-        fontSize: "0.74rem",
-        lineHeight: 1.4,
+        fontSize: "0.75rem",
+        lineHeight: 1.5,
         borderTopColor: tokens.line,
         borderTopStyle: "solid",
         borderTopWidth: "1px",
@@ -135,8 +135,8 @@ const styles = stylex.create({
         display: "block",
     },
     topLevel: {
-        color: tokens.text,
-        fontWeight: 600,
+        color: tokens.soft,
+        fontWeight: 400,
     },
 });
 

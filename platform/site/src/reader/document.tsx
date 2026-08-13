@@ -164,11 +164,11 @@ const styles = stylex.create({
     bookLink: {
         color: tokens.soft,
         display: "grid",
-        fontSize: "0.78rem",
+        fontSize: "0.8rem",
         gap: "0.4rem",
         gridTemplateColumns: "1.8rem minmax(0, 1fr)",
         lineHeight: 1.3,
-        paddingBlock: "0.28rem",
+        paddingBlock: "0.25rem",
         ":hover": {
             color: tokens.ink,
         },
@@ -181,14 +181,14 @@ const styles = stylex.create({
         padding: 0,
     },
     bookNumber: {
-        color: tokens.orange,
+        color: tokens.soft,
         fontFamily: tokens.monoFont,
         fontSize: "0.68rem",
     },
     bookTitle: {
         color: tokens.ink,
         fontFamily: tokens.monoFont,
-        fontSize: "0.78rem",
+        fontSize: "0.75rem",
         fontWeight: 600,
         letterSpacing: "0.06em",
         paddingBottom: "0.75rem",
@@ -202,6 +202,7 @@ const styles = stylex.create({
     }),
     folio: {
         color: tokens.orange,
+        fontFamily: tokens.monoFont,
         fontSize: "0.7rem",
         fontWeight: 600,
         letterSpacing: "0.06em",

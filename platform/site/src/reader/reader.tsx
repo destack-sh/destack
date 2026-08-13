@@ -59,16 +59,29 @@ export function Reader(props: ReaderProps) {
 
     return (
         <div
-            {...stylex.attrs(styles.reader, styles.readerPublication)}
+            {...stylex.attrs(
+                styles.reader,
+                styles.readerPublication,
+                props.publication === "journal" && styles.readerJournal,
+            )}
             data-publication={props.publication}
         >
-            <aside {...stylex.attrs(styles.sidebar)}>
+            <aside
+                {...stylex.attrs(
+                    styles.sidebar,
+                    props.publication === "journal" && styles.sidebarJournal,
+                )}
+            >
                 {props.navigation()}
                 <Contents activeId={activeHeading} entries={props.contents} />
             </aside>
 
             <article
-                {...stylex.attrs(styles.article, styles.articlePublication)}
+                {...stylex.attrs(
+                    styles.article,
+                    styles.articlePublication,
+                    props.publication === "journal" && styles.articleJournal,
+                )}
                 data-markdown-route={props.source.markdownRoute}
                 data-page-source
                 data-text-route={props.source.textRoute}
@@ -136,7 +149,7 @@ const styles = stylex.create({
     article: {
         alignContent: "start",
         display: "grid",
-        gap: "2.5rem",
+        gap: "2rem",
         maxWidth: "100%",
         minWidth: 0,
         width: "100%",
@@ -147,6 +160,16 @@ const styles = stylex.create({
     articlePublication: {
         color: tokens.ink,
         gap: 0,
+    },
+    articleJournal: {
+        gridColumn: 2,
+        gridRow: "1 / span 5",
+        gridTemplateRows: "subgrid",
+        [narrow]: {
+            gridColumn: "auto",
+            gridRow: "auto",
+            gridTemplateRows: "none",
+        },
     },
     location: {
         minWidth: 0,
@@ -212,25 +235,32 @@ const styles = stylex.create({
         },
     },
     readerPublication: {
-        fontFamily: tokens.monoFont,
-        fontSize: "0.9rem",
-        gap: "clamp(2rem, 4vw, 2.75rem)",
-        gridTemplateColumns: "12.5rem minmax(0, 50rem)",
+        fontFamily: tokens.textFont,
+        fontSize: "1rem",
+        gap: "3rem",
+        gridTemplateColumns: "13rem minmax(0, 48rem)",
         justifyContent: "start",
         maxWidth: tokens.siteWidth,
-        paddingTop: "clamp(2rem, 4vw, 3rem)",
+        paddingTop: "3rem",
         [narrow]: {
             display: "block",
             maxWidth: "46rem",
+            paddingTop: "2rem",
         },
         "@media (max-width: 600px)": {
             paddingTop: "1rem",
         },
     },
+    readerJournal: {
+        columnGap: "3rem",
+        gridTemplateRows: "auto auto auto auto auto",
+        rowGap: 0,
+    },
     sidebar: {
         alignContent: "start",
         display: "none",
-        fontSize: tokens.siteFontSize,
+        fontFamily: tokens.monoFont,
+        fontSize: "0.8rem",
         gap: "2rem",
         "@media (min-width: 60rem)": {
             display: "grid",
@@ -239,6 +269,18 @@ const styles = stylex.create({
             padding: "0 0.25rem 1rem 0",
             position: "sticky",
             top: "5rem",
+        },
+    },
+    sidebarJournal: {
+        gap: 0,
+        gridRow: "1 / span 3",
+        gridTemplateRows: "subgrid",
+        maxHeight: "none",
+        overflow: "visible",
+        position: "static",
+        [narrow]: {
+            gridRow: "auto",
+            gridTemplateRows: "none",
         },
     },
     toolbar: {
@@ -271,6 +313,7 @@ const styles = stylex.create({
         },
     },
     toolbarPublication: {
+        fontFamily: tokens.monoFont,
         fontSize: "0.7rem",
     },
     toolbarTop: {

@@ -77,7 +77,7 @@ const styles = stylex.create({
     },
     copy: {
         display: "grid",
-        gap: "0.375rem",
+        gap: "0.5rem",
         minWidth: 0,
     },
     date: {
@@ -90,14 +90,14 @@ const styles = stylex.create({
         alignItems: "baseline",
         borderTopColor: tokens.ink,
         borderTopStyle: "solid",
-        borderTopWidth: tokens.stroke,
+        borderTopWidth: "2px",
         display: "flex",
         gap: "1.5rem",
         justifyContent: "space-between",
         paddingBlock: "1rem",
     },
     heading: {
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontSize: "clamp(2rem, 5vw, 2.75rem)",
         fontWeight: 500,
         letterSpacing: "-0.025em",
@@ -105,8 +105,8 @@ const styles = stylex.create({
         margin: 0,
     },
     index: {
-        fontFamily: tokens.monoFont,
-        fontSize: "0.95rem",
+        fontFamily: tokens.textFont,
+        fontSize: "1rem",
         marginInline: "auto",
         maxWidth: tokens.siteWidth,
         padding: `3.5rem ${tokens.gutterRight} 5rem ${tokens.gutterLeft}`,
@@ -122,7 +122,7 @@ const styles = stylex.create({
         display: "grid",
         gap: "1.5rem",
         gridTemplateColumns: "10rem minmax(0, 1fr)",
-        paddingBlock: "1.25rem",
+        paddingBlock: "1.5rem",
         "@media (max-width: 640px)": {
             gap: "0.5rem",
             gridTemplateColumns: "minmax(0, 1fr)",
@@ -131,7 +131,7 @@ const styles = stylex.create({
     postRow: {
         borderTopColor: tokens.line,
         borderTopStyle: "solid",
-        borderTopWidth: tokens.stroke,
+        borderTopWidth: "1px",
     },
     postRowFirst: {
         borderTopWidth: 0,
@@ -141,8 +141,8 @@ const styles = stylex.create({
         lineHeight: 1.5,
     },
     title: {
-        fontFamily: tokens.monoFont,
-        fontSize: "1.1rem",
+        fontFamily: tokens.textFont,
+        fontSize: "1.25rem",
         fontWeight: 600,
         lineHeight: 1.25,
     },
