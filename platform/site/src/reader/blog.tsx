@@ -1,9 +1,10 @@
 import { A } from "@solidjs/router";
-import { For, Show } from "solid-js";
+import { type Accessor, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
 import { type Post, type PostContent } from "../generated/posts";
 import { Breadcrumbs } from "./breadcrumbs";
+import { ContentsTree, type ContentsEntry } from "./contents";
 import { tokens } from "../style/tokens.stylex";
 import { Reader } from "./reader";
 
@@ -25,7 +26,12 @@ export function BlogArticle(props: BlogArticleProps) {
         <Reader
             contents={props.post.tableOfContents}
             location={() => <BlogLocation post={props.post} />}
-            navigation={() => <BlogNavigation current={props.post} posts={props.posts} />}
+            navigation={(activeHeading) => (
+                <BlogNavigation
+                    activeHeading={activeHeading}
+                    contents={props.post.tableOfContents}
+                />
+            )}
             publication="journal"
             source={props.post}
         >
@@ -55,41 +61,23 @@ function BlogLocation(props: BlogLocationProps) {
     );
 }
 
-/// Properties for the blog collection navigation.
+/// Properties for the blog article navigation.
 type BlogNavigationProps = {
-    /// The current post.
-    current: Post;
+    /// The currently active heading identifier.
+    activeHeading: Accessor<string>;
 
-    /// Every post in reverse chronological order.
-    posts: readonly Post[];
+    /// The headings in the current article.
+    contents: readonly ContentsEntry[];
 };
 
-/// Render the blog collection beside an article.
+/// Render the blog article navigation.
 function BlogNavigation(props: BlogNavigationProps) {
     return (
         <nav aria-label="blog" {...stylex.attrs(styles.book)}>
             <A {...stylex.attrs(styles.bookTitle)} href="/blog/">
                 blog
             </A>
-
-            <ol {...stylex.attrs(styles.bookList)}>
-                <For each={props.posts}>
-                    {(post) => (
-                        <li>
-                            <A
-                                {...stylex.attrs(
-                                    styles.bookLink,
-                                    post.slug === props.current.slug && styles.active,
-                                )}
-                                href={post.route}
-                            >
-                                <time {...stylex.attrs(styles.date)}>{post.date.slice(0, 4)}</time>
-                                <span>{post.title}</span>
-                            </A>
-                        </li>
-                    )}
-                </For>
-            </ol>
+            <ContentsTree activeId={props.activeHeading} entries={props.contents} />
         </nav>
     );
 }
@@ -161,67 +149,46 @@ function PostNavigationLink(props: PostNavigationLinkProps) {
 
 /// Journal navigation and article styles.
 const styles = stylex.create({
-    active: {
-        color: tokens.text,
-        fontWeight: 600,
-    },
     articleHeader: {
+        borderBottomColor: tokens.ink,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
         display: "grid",
-        gap: "0.5rem",
+        gap: `calc(${tokens.publicationSpace} * 2)`,
+        paddingBlock: `calc(${tokens.publicationSpace} * 4)`,
     },
     articleSubtitle: {
         color: tokens.soft,
-        fontSize: "clamp(1.1rem, 1.7vw, 1.25rem)",
-        lineHeight: 1.35,
+        fontFamily: tokens.textFont,
+        fontSize: "clamp(1.15rem, 1.7vw, 1.3rem)",
+        lineHeight: 1.45,
         margin: 0,
         maxWidth: "44rem",
     },
     articleTitle: {
-        fontFamily: tokens.textFont,
-        fontSize: "clamp(2rem, 4vw, 2.5rem)",
-        fontWeight: 500,
-        letterSpacing: "-0.02em",
-        lineHeight: 1.1,
+        fontFamily: tokens.monoFont,
+        fontSize: "clamp(2.5rem, 5vw, 3.5rem)",
+        fontWeight: 300,
+        letterSpacing: "-0.04em",
+        lineHeight: 1,
         margin: 0,
     },
     book: {
         alignContent: "start",
-        display: "contents",
-        "@media (width < 60rem)": {
-            display: "grid",
-            gap: "0.75rem",
-        },
-    },
-    bookLink: {
-        color: tokens.soft,
         display: "grid",
-        fontSize: "0.8rem",
-        gap: "0.1rem",
-        ":hover": {
-            color: tokens.text,
-        },
-    },
-    bookList: {
-        display: "grid",
-        gap: "0.4rem",
-        listStyle: "none",
-        margin: 0,
-        padding: 0,
+        gap: "0.75rem",
     },
     bookTitle: {
+        alignItems: "center",
+        display: "flex",
         fontFamily: tokens.monoFont,
         fontSize: "0.75rem",
         fontWeight: 600,
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
-        width: "max-content",
+        letterSpacing: "0.02em",
+        minHeight: tokens.publicationRow,
         ":hover": {
             color: tokens.accent,
         },
-    },
-    date: {
-        fontFamily: tokens.monoFont,
-        fontSize: "0.72rem",
     },
     location: {
         alignItems: "baseline",

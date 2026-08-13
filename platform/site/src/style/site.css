@@ -1,4 +1,5 @@
 @import "@fontsource-variable/ibm-plex-sans";
+@import "@fontsource/ibm-plex-mono/300.css";
 @import "@fontsource/ibm-plex-mono/400.css";
 @import "@fontsource/ibm-plex-mono/600.css";
 @import "@fontsource/ibm-plex-mono/700.css";
@@ -65,28 +66,28 @@ summary::-webkit-details-marker {
 .markdown h3 {
     margin: 0;
     color: #171512;
-    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .markdown h1 {
-    margin-bottom: 1rem;
-    font-size: clamp(2rem, 4vw, 2.5rem);
-    font-weight: 500;
-    letter-spacing: -0.025em;
-    line-height: 1.1;
+    margin-top: 2rem;
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+    font-weight: 300;
+    letter-spacing: -0.035em;
+    line-height: 1.15;
 }
 
 .markdown h2 {
-    margin-top: 1rem;
-    font-size: 1.25rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    margin-top: 1.5rem;
+    font-size: 1.4rem;
+    font-weight: 400;
+    letter-spacing: -0.02em;
     line-height: 1.25;
 }
 
 .markdown h3 {
-    margin-top: 0.5rem;
-    font-size: 1rem;
+    margin-top: 1rem;
+    font-size: 1.05rem;
     font-weight: 600;
     letter-spacing: 0;
 }
@@ -197,7 +198,7 @@ summary::-webkit-details-marker {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
-    border-block: 1px solid #c9beaa;
+    border-block: 1px solid #171512;
     outline: 0;
     overscroll-behavior-inline: contain;
     -webkit-overflow-scrolling: touch;
@@ -225,13 +226,9 @@ summary::-webkit-details-marker {
 }
 
 .markdown th {
-    background: #e8dfcf;
+    background: transparent;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     font-weight: 600;
-}
-
-.markdown th + th,
-.markdown td + td {
-    border-left: 1px solid #c9beaa;
 }
 
 .markdown tr:last-child > * {
@@ -297,7 +294,7 @@ summary::-webkit-details-marker {
     min-width: 0;
     margin: 0.5rem 0;
     overflow: hidden;
-    border-block: 1px solid #c9beaa;
+    border-block: 1px solid #171512;
     background: #f1eadb;
 }
 
@@ -306,13 +303,13 @@ summary::-webkit-details-marker {
 }
 
 .markdown-callout strong,
-.markdown-code figcaption,
 .markdown-diagram figcaption,
 .markdown-figure figcaption {
     display: flex;
     align-items: baseline;
     gap: 0.625rem;
-    background: #ebe3d4;
+    background: transparent;
+    border-bottom: 1px solid #171512;
     padding: 0.5rem 0.75rem;
     color: #171512;
     font-size: 0.72rem;
@@ -336,24 +333,19 @@ summary::-webkit-details-marker {
 
 .markdown-code figcaption .markdown-code__title {
     overflow: hidden;
-    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .markdown-code figcaption .markdown-code__format {
-    margin-left: auto;
+    align-self: center;
     color: #dc5b2d;
+    grid-column: 3;
+    padding-right: 0.75rem;
 }
 
 .markdown-code pre {
-    background: #f1eadb;
-    overflow: auto;
     margin: 0;
-    font-size: 0.8125rem;
-    line-height: 1.5rem;
-    overscroll-behavior-inline: contain;
-    -webkit-overflow-scrolling: touch;
 }
 
 .markdown-code code {
@@ -361,38 +353,97 @@ summary::-webkit-details-marker {
     min-width: max-content;
 }
 
-.markdown-code code:not(.markdown-code-lines) {
-    padding: 1rem;
-}
-
 .markdown-code-line {
-    display: grid;
-    grid-template-columns: 2.75rem minmax(max-content, 1fr);
-    min-height: 1.5rem;
-}
-
-.markdown-code-line:first-child > * {
-    padding-top: 0.75rem;
-}
-
-.markdown-code-line:last-child > * {
-    padding-bottom: 0.75rem;
+    min-width: max-content;
 }
 
 .markdown-code-gutter {
     position: sticky;
     left: 0;
     z-index: 1;
-    border-right: 1px solid #c9beaa;
-    background: #f1eadb;
-    padding: 0 0.75rem 0 0.5rem;
-    color: #a58b62;
-    text-align: right;
     user-select: none;
 }
 
+/* shared publication listings */
+[data-publication-listing],
+.markdown-code {
+    background: #f1eadb;
+    color: #171512;
+}
+
+[data-publication-caption],
+.markdown-code figcaption {
+    display: grid;
+    min-height: 2.5rem;
+    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: 0;
+    border-bottom: 1px solid #171512;
+    color: #171512;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    text-transform: uppercase;
+}
+
+[data-publication-caption]::before,
+.markdown-code figcaption::before {
+    content: "";
+    grid-column: 1;
+    grid-row: 1;
+    border-right: 1px solid #171512;
+    background: #ebe3d4;
+}
+
+[data-publication-caption-title],
+.markdown-code__title {
+    align-self: center;
+    grid-column: 2;
+    grid-row: 1;
+    padding-inline: 1rem;
+}
+
+[data-publication-body],
+.markdown-code pre {
+    overflow-x: auto;
+    padding-block: 0;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.875rem;
+    line-height: 1.5rem;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+[data-publication-lines],
+.markdown-code-lines {
+    display: block;
+    min-width: max-content;
+    margin: 0;
+    padding: 0;
+}
+
+[data-publication-line],
+.markdown-code-line {
+    display: grid;
+    min-height: 1.5rem;
+    grid-template-columns: 2.75rem minmax(max-content, 1fr);
+    line-height: 1.5rem;
+}
+
+[data-publication-gutter],
+.markdown-code-gutter {
+    border-right: 1px solid #171512;
+    background: #ebe3d4;
+    padding-inline: 0.5rem;
+    color: #a58b62;
+    text-align: right;
+}
+
+[data-publication-code],
 .markdown-code-text {
-    padding: 0 1rem;
+    padding-inline: 1rem;
     white-space: pre;
 }
 
@@ -430,89 +481,58 @@ summary::-webkit-details-marker {
     padding-top: 2rem;
 }
 
-[data-publication="journal"] .markdown h1 {
-    margin-bottom: 0;
-    letter-spacing: -0.025em;
+[data-publication="manual"] .markdown > h1:first-child {
+    display: none;
 }
 
 [data-publication="manual"] .markdown {
-    padding-top: 1rem;
+    padding-top: 2rem;
 }
 
 /* generated syntax spans */
-.markdown-code :is(.hljs-keyword, [data-k="keyword"]) {
+.markdown-code :is(.hljs-keyword, [data-k="keyword"]),
+[data-publication-listing] :is(.hljs-keyword, [data-k="keyword"]) {
     color: #b23708;
 }
 
-.markdown-code :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]) {
+.markdown-code :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]),
+[data-publication-listing] :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]) {
     color: #0f6470;
 }
 
-.markdown-code :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]) {
+.markdown-code :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]),
+[data-publication-listing] :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]) {
     color: #0f6470;
 }
 
-.markdown-code :is(.hljs-attr, .hljs-property, [data-k="property"]) {
+.markdown-code :is(.hljs-attr, .hljs-property, [data-k="property"]),
+[data-publication-listing] :is(.hljs-attr, .hljs-property, [data-k="property"]) {
     color: #0f6470;
 }
 
-.markdown-code :is(.hljs-literal, .hljs-number, [data-k="literal"]) {
+.markdown-code :is(.hljs-literal, .hljs-number, [data-k="literal"]),
+[data-publication-listing] :is(.hljs-literal, .hljs-number, [data-k="literal"]) {
     color: #3f7038;
 }
 
-.markdown-code :is(.hljs-string, [data-k="string"]) {
+.markdown-code :is(.hljs-string, [data-k="string"]),
+[data-publication-listing] :is(.hljs-string, [data-k="string"]) {
     color: #3f7038;
 }
 
-.markdown-code :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]) {
+.markdown-code :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]),
+[data-publication-listing] :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]) {
     color: #171512;
 }
 
-.markdown-code :is(.hljs-comment, .hljs-meta, [data-k="comment"]) {
+.markdown-code :is(.hljs-comment, .hljs-meta, [data-k="comment"]),
+[data-publication-listing] :is(.hljs-comment, .hljs-meta, [data-k="comment"]) {
     color: #8d7a5c;
 }
 
-.markdown-code :is(.hljs-params, [data-k="punct"]) {
+.markdown-code :is(.hljs-params, [data-k="punct"]),
+[data-publication-listing] :is(.hljs-params, [data-k="punct"]) {
     color: #6d5b45;
-}
-
-[data-syntax] :is(.hljs-keyword, [data-k="keyword"]) {
-    color: #ee7547;
-    font-weight: 600;
-}
-
-[data-syntax] :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]) {
-    color: #f4ead4;
-    font-weight: 600;
-}
-
-[data-syntax] :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]) {
-    color: #d8b65c;
-    font-weight: 600;
-}
-
-[data-syntax] :is(.hljs-attr, .hljs-property, [data-k="property"]) {
-    color: #8fc0c5;
-}
-
-[data-syntax] :is(.hljs-literal, .hljs-number, [data-k="literal"]) {
-    color: #e1ad4f;
-}
-
-[data-syntax] :is(.hljs-string, [data-k="string"]) {
-    color: #a5bd86;
-}
-
-[data-syntax] :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]) {
-    color: #e9dfca;
-}
-
-[data-syntax] :is(.hljs-params, [data-k="punct"]) {
-    color: #9aabad;
-}
-
-[data-syntax] :is(.hljs-comment, .hljs-meta, [data-k="comment"]) {
-    color: #7f9599;
 }
 
 @media (width < 60rem) {

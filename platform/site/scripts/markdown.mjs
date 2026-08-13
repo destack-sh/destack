@@ -295,9 +295,9 @@ function renderCode(token, counters) {
     const highlighted = highlightCode(token.text, language);
     const caption = fence.caption ?? fence.title ?? counters.section ?? "Example";
     const format = codeFormat(language);
-    const code = renderCodeBody(token.text, highlighted);
+    const code = renderCodeBody(highlighted);
 
-    return `<figure class="markdown-code"><figcaption><span class="markdown-code__title">${escapeHtml(caption)}</span><span class="markdown-code__format">${escapeHtml(format)}</span></figcaption><pre tabindex="0">${code}</pre></figure>`;
+    return `<figure class="markdown-code" data-publication-listing><figcaption data-publication-caption><span class="markdown-code__title" data-publication-caption-title>${escapeHtml(caption)}</span><span class="markdown-code__format">${escapeHtml(format)}</span></figcaption><pre data-publication-body tabindex="0">${code}</pre></figure>`;
 }
 
 /// Convert a fence language into its visible file format.
@@ -329,21 +329,17 @@ function parseCodeFence(language) {
 }
 
 /// Add stable line structure and gutters to highlighted code.
-function renderCodeBody(source, highlighted) {
+function renderCodeBody(highlighted) {
     const lines = highlighted.split("\n");
-    if (source.split("\n").length <= 1) {
-        return `<code>${highlighted}</code>`;
-    }
-
     const rows = lines
         .map((line, index) => {
             const text = line === "" ? " " : line;
 
-            return `<span class="markdown-code-line"><span class="markdown-code-gutter">${index + 1}</span><span class="markdown-code-text">${text}</span></span>`;
+            return `<span class="markdown-code-line" data-publication-line><span class="markdown-code-gutter" data-publication-gutter>${index + 1}</span><span class="markdown-code-text" data-publication-code>${text}</span></span>`;
         })
         .join("");
 
-    return `<code class="markdown-code-lines">${rows}</code>`;
+    return `<code class="markdown-code-lines" data-publication-lines>${rows}</code>`;
 }
 
 /// Resolve and validate one content link.
@@ -452,7 +448,7 @@ export function headingsFor(markdown) {
     const headings = [];
 
     for (const token of marked.lexer(markdown, { gfm: true })) {
-        if (token.type !== "heading" || token.depth > 4) {
+        if (token.type !== "heading") {
             continue;
         }
 

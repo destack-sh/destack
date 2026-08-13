@@ -23,82 +23,121 @@ export type ContentsEntry = {
     text: string;
 };
 
-/// Properties for one article contents list.
-type ContentsProps = {
+/// One heading and its direct descendants.
+type ContentsNode = ContentsEntry & {
+    /// The headings nested directly below this heading.
+    children: ContentsNode[];
+};
+
+/// Properties for an article heading tree.
+type ContentsTreeProps = {
     /// The currently active heading identifier.
     activeId: Accessor<string>;
 
     /// The document headings.
     entries: readonly ContentsEntry[];
-
-    /// Whether the contents render inside a compact menu.
-    isMenu?: boolean;
 };
 
-/// Render the active article outline.
-export function Contents(props: ContentsProps) {
-    const rootDepth = createMemo(() =>
-        props.entries.reduce(
-            (depth, entry) => Math.min(depth, entry.depth),
-            props.entries[0]?.depth ?? 0,
-        )
-    );
+/// Render the active article heading tree.
+export function ContentsTree(props: ContentsTreeProps) {
+    const nodes = createMemo(() => outlineFor(props.entries));
 
     return (
         <Show when={props.entries.length > 0}>
-            <nav
-                aria-label="contents"
-                {...stylex.attrs(styles.root, props.isMenu && styles.rootMenu)}
-            >
-                <p {...stylex.attrs(styles.heading)}>contents</p>
-                <ol {...stylex.attrs(styles.list)}>
-                    <For each={props.entries}>
-                        {(entry) => {
-                            const isNested = entry.depth > rootDepth();
-
-                            return (
-                                <li
-                                    {...stylex.attrs(
-                                        isNested ? styles.nested : styles.topLevel,
-                                    )}
-                                >
-                                    <a
-                                        {...stylex.attrs(
-                                            styles.link,
-                                            props.activeId() === entry.id && styles.active,
-                                        )}
-                                        href={`#${entry.id}`}
-                                    >
-                                        {entry.text}
-                                    </a>
-                                </li>
-                            );
-                        }}
-                    </For>
-                </ol>
-            </nav>
+            <ContentsList activeId={props.activeId} isNested nodes={nodes()} />
         </Show>
     );
+}
+
+/// Properties for one level of the article outline.
+type ContentsListProps = {
+    /// The currently active heading identifier.
+    activeId: Accessor<string>;
+
+    /// The headings at this outline level.
+    nodes: readonly ContentsNode[];
+
+    /// Whether this level is nested below another heading.
+    isNested?: boolean;
+
+};
+
+/// Render one level of the article outline.
+function ContentsList(props: ContentsListProps) {
+    return (
+        <ol {...stylex.attrs(styles.list, props.isNested && styles.nested)}>
+            <For each={props.nodes}>
+                {(node) => {
+                    const isExpanded = () => containsHeading(node, props.activeId());
+
+                    return (
+                        <li>
+                            <a
+                                {...stylex.attrs(
+                                    styles.link,
+                                    props.activeId() === node.id && styles.active,
+                                )}
+                                href={`#${node.id}`}
+                            >
+                                <span>{node.text}</span>
+                            </a>
+
+                            <Show when={node.children.length > 0 && isExpanded()}>
+                                <ContentsList
+                                    activeId={props.activeId}
+                                    isNested
+                                    nodes={node.children}
+                                />
+                            </Show>
+                        </li>
+                    );
+                }}
+            </For>
+        </ol>
+    );
+}
+
+/// Return whether one outline branch contains the active heading.
+function containsHeading(node: ContentsNode, activeId: string): boolean {
+    if (node.id === activeId) {
+        return true;
+    }
+
+    return node.children.some((child) => containsHeading(child, activeId));
+}
+
+/// Build the authored heading hierarchy.
+function outlineFor(entries: readonly ContentsEntry[]) {
+    const roots: ContentsNode[] = [];
+    const parents: ContentsNode[] = [];
+
+    // attach each heading to the nearest preceding shallower heading
+    for (const entry of entries) {
+        let parent = parents.at(-1);
+        while (parent != undefined && parent.depth >= entry.depth) {
+            parents.pop();
+            parent = parents.at(-1);
+        }
+
+        const node = { ...entry, children: [] } satisfies ContentsNode;
+        if (parent == undefined) {
+            roots.push(node);
+        } else {
+            parent.children.push(node);
+        }
+        parents.push(node);
+    }
+
+    return roots;
 }
 
 const styles = stylex.create({
     active: {
         color: tokens.text,
         fontWeight: 600,
-        boxShadow: `inset 2px 0 ${tokens.orange}`,
-    },
-    heading: {
-        color: tokens.soft,
-        fontFamily: tokens.monoFont,
-        fontSize: "0.72rem",
-        fontWeight: 600,
-        letterSpacing: "0.06em",
-        margin: "0 0 0.35rem",
-        textTransform: "uppercase",
     },
     link: {
         display: "block",
-        paddingLeft: "0.5rem",
         paddingBlock: "0.25rem",
         ":hover": {
             color: tokens.text,
@@ -112,31 +151,7 @@ const styles = stylex.create({
         padding: 0,
     },
     nested: {
-        borderLeftColor: tokens.line,
-        borderLeftStyle: "solid",
-        borderLeftWidth: "1px",
-        marginLeft: "0.5rem",
-        paddingLeft: "0.5rem",
-    },
-    root: {
-        color: tokens.soft,
-        display: "none",
-        fontSize: "0.75rem",
-        lineHeight: 1.5,
-        borderTopColor: tokens.line,
-        borderTopStyle: "solid",
-        borderTopWidth: "1px",
-        paddingTop: "1rem",
-        "@media (min-width: 60rem)": {
-            display: "block",
-        },
-    },
-    rootMenu: {
-        display: "block",
-    },
-    topLevel: {
-        color: tokens.soft,
-        fontWeight: 400,
+        paddingLeft: "1rem",
     },
 });
 

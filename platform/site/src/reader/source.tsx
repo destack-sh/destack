@@ -109,9 +109,8 @@ const styles = stylex.create({
         fontSize: "0.72rem",
         fontWeight: 600,
         gap: "1rem",
-        letterSpacing: "0.04em",
+        letterSpacing: "0.02em",
         minWidth: 0,
-        textTransform: "uppercase",
         [narrow]: {
             gridColumn: 2,
             gridRow: 1,

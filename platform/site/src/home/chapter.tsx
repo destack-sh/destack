@@ -194,10 +194,9 @@ type OutputProps = ListingProps & {
 /// Render one file or configuration editor.
 function Editor(props: ListingProps) {
     return (
-        <figure {...stylex.attrs(listingStyles.listing)}>
-            <figcaption {...stylex.attrs(listingStyles.caption)}>
-                <span aria-hidden="true" />
-                <span>{props.listing.title}</span>
+        <figure data-publication-listing {...stylex.attrs(listingStyles.listing)}>
+            <figcaption data-publication-caption {...stylex.attrs(listingStyles.caption)}>
+                <span data-publication-caption-title>{props.listing.title}</span>
             </figcaption>
 
             <ListingBody listing={props.listing} lines={props.lines} />
@@ -209,14 +208,14 @@ function Editor(props: ListingProps) {
 function Output(props: OutputProps) {
     return (
         <figure
+            data-publication-listing
             {...stylex.attrs(
                 listingStyles.output,
                 props.isAttached && listingStyles.attachedOutput,
             )}
         >
-            <figcaption {...stylex.attrs(listingStyles.outputTitle)}>
-                <span aria-hidden="true" />
-                <span>{props.listing.title}</span>
+            <figcaption data-publication-caption {...stylex.attrs(listingStyles.outputTitle)}>
+                <span data-publication-caption-title>{props.listing.title}</span>
             </figcaption>
             <ListingBody listing={props.listing} lines={props.lines} />
         </figure>
@@ -229,14 +228,26 @@ function ListingBody(props: ListingProps) {
         props.listing.language === "destack" || props.listing.language === "json";
 
     return (
-        <div {...stylex.attrs(listingStyles.body)} data-syntax>
-            <ol aria-label={props.listing.title} {...stylex.attrs(listingStyles.lines)}>
+        <div data-publication-body>
+            <ol
+                aria-label={props.listing.title}
+                data-publication-lines
+                {...stylex.attrs(listingStyles.lines)}
+            >
                 {props.lines.map((line, index) => (
-                    <li {...stylex.attrs(listingStyles.line)}>
-                        <span aria-hidden="true" {...stylex.attrs(listingStyles.lineNumber)}>
+                    <li data-publication-line {...stylex.attrs(listingStyles.line)}>
+                        <span
+                            aria-hidden="true"
+                            data-publication-gutter
+                            {...stylex.attrs(listingStyles.lineNumber)}
+                        >
                             {hasLineNumbers ? index + 1 : ""}
                         </span>
-                        <code {...stylex.attrs(listingStyles.code)} innerHTML={line || " "} />
+                        <code
+                            data-publication-code
+                            {...stylex.attrs(listingStyles.code)}
+                            innerHTML={line || " "}
+                        />
                     </li>
                 ))}
             </ol>
@@ -317,7 +328,7 @@ const chapterStyles = stylex.create({
     frame: {
         borderTopColor: tokens.ink,
         borderTopStyle: "solid",
-        borderTopWidth: tokens.stroke,
+        borderTopWidth: tokens.hairline,
         color: tokens.ink,
         display: "grid",
         gap: "clamp(2rem, 5vw, 4rem)",
@@ -395,96 +406,66 @@ const listingStyles = stylex.create({
     attachedOutput: {
         borderTopColor: tokens.ink,
         borderTopStyle: "solid",
-        borderTopWidth: tokens.stroke,
+        borderTopWidth: tokens.hairline,
     },
     editors: {
         minWidth: 0,
     },
     listing: {
-        backgroundColor: tokens.code,
-        color: tokens.cream,
+        backgroundColor: tokens.cream,
+        color: tokens.ink,
         display: "grid",
         gridTemplateRows: "auto minmax(0, 1fr)",
         margin: 0,
         minWidth: 0,
     },
     listings: {
-        backgroundColor: tokens.code,
+        backgroundColor: tokens.cream,
         borderBottomColor: tokens.ink,
         borderBottomStyle: "solid",
-        borderBottomWidth: tokens.stroke,
+        borderBottomWidth: tokens.hairline,
         borderTopColor: tokens.ink,
         borderTopStyle: "solid",
-        borderTopWidth: tokens.stroke,
+        borderTopWidth: tokens.hairline,
         minWidth: 0,
         [mobile]: {
             order: 2,
         },
     },
-    body: {
-        fontFamily: tokens.monoFont,
-        fontSize: "0.84rem",
-        lineHeight: "1.55rem",
-        overflowX: "auto",
-        paddingBlock: "0.25rem 0.8rem",
-    },
     caption: {
-        alignItems: "baseline",
-        backgroundColor: tokens.code,
-        color: tokens.cream,
-        display: "grid",
-        fontFamily: tokens.monoFont,
-        fontSize: "0.8rem",
-        fontWeight: 600,
-        gridTemplateColumns: "2.2rem minmax(0, 1fr)",
-        letterSpacing: "0.04em",
-        padding: "0.7rem 1rem 0.25rem",
-        textTransform: "uppercase",
+        margin: 0,
     },
     code: {
         whiteSpace: "pre",
     },
     line: {
-        display: "grid",
-        gridTemplateColumns: "2.2rem minmax(0, 1fr)",
         minWidth: "max-content",
     },
     lineNumber: {
-        color: "#66858d",
         userSelect: "none",
     },
     lines: {
         listStyle: "none",
         margin: 0,
-        paddingInline: "1rem",
+        padding: 0,
     },
     output: {
-        backgroundColor: "#223a42",
-        color: tokens.cream,
+        backgroundColor: tokens.cream,
+        color: tokens.ink,
         margin: 0,
         minWidth: 0,
     },
     outputTitle: {
-        alignItems: "baseline",
-        borderBottomColor: tokens.line,
-        borderBottomStyle: "solid",
-        borderBottomWidth: "1px",
-        color: tokens.line,
-        display: "grid",
-        fontFamily: tokens.monoFont,
-        fontSize: "0.72rem",
-        fontWeight: 600,
-        gridTemplateColumns: "2.2rem minmax(0, 1fr)",
-        letterSpacing: "0.04em",
-        padding: "0.45rem 1rem",
-        textTransform: "uppercase",
+        color: tokens.soft,
+        margin: 0,
     },
     tabs: {
         alignItems: "stretch",
-        borderBottomColor: tokens.line,
+        borderBottomColor: tokens.ink,
         borderBottomStyle: "solid",
         borderBottomWidth: "1px",
         display: "flex",
+        minHeight: tokens.publicationRow,
         minWidth: 0,
         overflowX: "auto",
     },
@@ -494,30 +475,30 @@ const listingStyles = stylex.create({
             outlineOffset: "-4px",
         },
         ":hover": {
-            color: tokens.cream,
+            color: tokens.ink,
         },
         appearance: "none",
         backgroundColor: "transparent",
         borderBottomColor: "transparent",
         borderBottomStyle: "solid",
-        borderBottomWidth: tokens.stroke,
+        borderBottomWidth: tokens.hairline,
         borderLeftWidth: 0,
         borderRightWidth: 0,
         borderTopWidth: 0,
-        color: tokens.line,
+        color: tokens.soft,
         cursor: "pointer",
         fontFamily: tokens.monoFont,
         fontSize: "0.78rem",
         fontWeight: 600,
         letterSpacing: "0.04em",
         margin: 0,
-        padding: "0.65rem 1rem 0.5rem",
+        padding: "0.75rem 1rem",
         textAlign: "left",
         textTransform: "uppercase",
         whiteSpace: "nowrap",
     },
     activeTab: {
         borderBottomColor: tokens.orange,
-        color: tokens.cream,
+        color: tokens.ink,
     },
 });

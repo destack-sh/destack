@@ -2,7 +2,7 @@ import type { Accessor, JSX } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
 import type { PageSource } from "../content/source";
-import { Contents, type ContentsEntry, trackActiveHeading } from "./contents";
+import { type ContentsEntry, trackActiveHeading } from "./contents";
 import {
     createPageSourceCommands,
     type PageSourceCommands,
@@ -22,7 +22,7 @@ type ReaderProps = {
     publication: "journal" | "manual";
 
     /// The collection navigation shown beside the article.
-    navigation: () => JSX.Element;
+    navigation: (activeHeading: Accessor<string>) => JSX.Element;
 
     /// The current location rendered in the article toolbar.
     location: () => JSX.Element;
@@ -46,7 +46,7 @@ type ReaderToolbarProps = {
     location: () => JSX.Element;
 
     /// The collection navigation shown beside the article.
-    navigation: () => JSX.Element;
+    navigation: (activeHeading: Accessor<string>) => JSX.Element;
 
     /// The shared page source commands.
     sourceCommands: PageSourceCommands;
@@ -59,29 +59,15 @@ export function Reader(props: ReaderProps) {
 
     return (
         <div
-            {...stylex.attrs(
-                styles.reader,
-                styles.readerPublication,
-                props.publication === "journal" && styles.readerJournal,
-            )}
+            {...stylex.attrs(styles.reader)}
             data-publication={props.publication}
         >
-            <aside
-                {...stylex.attrs(
-                    styles.sidebar,
-                    props.publication === "journal" && styles.sidebarJournal,
-                )}
-            >
-                {props.navigation()}
-                <Contents activeId={activeHeading} entries={props.contents} />
+            <aside {...stylex.attrs(styles.sidebar)}>
+                {props.navigation(activeHeading)}
             </aside>
 
             <article
-                {...stylex.attrs(
-                    styles.article,
-                    styles.articlePublication,
-                    props.publication === "journal" && styles.articleJournal,
-                )}
+                {...stylex.attrs(styles.article)}
                 data-markdown-route={props.source.markdownRoute}
                 data-page-source
                 data-text-route={props.source.textRoute}
@@ -123,8 +109,7 @@ function ReaderToolbar(props: ReaderToolbarProps) {
             <details {...stylex.attrs(styles.menu)} name="reader-tools">
                 <summary {...stylex.attrs(styles.menuSummary)}>menu</summary>
                 <div {...stylex.attrs(styles.menuBody)}>
-                    {props.navigation()}
-                    <Contents activeId={props.activeHeading} entries={props.contents} isMenu />
+                    {props.navigation(props.activeHeading)}
                 </div>
             </details>
 
@@ -148,27 +133,14 @@ const mobile = "@media (max-width: 767px)";
 const styles = stylex.create({
     article: {
         alignContent: "start",
+        color: tokens.ink,
         display: "grid",
-        gap: "2rem",
+        gridColumn: "6 / -1",
         maxWidth: "100%",
         minWidth: 0,
         width: "100%",
         [narrow]: {
-            gap: "2rem",
-        },
-    },
-    articlePublication: {
-        color: tokens.ink,
-        gap: 0,
-    },
-    articleJournal: {
-        gridColumn: 2,
-        gridRow: "1 / span 5",
-        gridTemplateRows: "subgrid",
-        [narrow]: {
             gridColumn: "auto",
-            gridRow: "auto",
-            gridTemplateRows: "none",
         },
     },
     location: {
@@ -214,84 +186,52 @@ const styles = stylex.create({
     },
     reader: {
         display: "grid",
+        fontFamily: tokens.textFont,
         fontSize: "1rem",
-        gridTemplateColumns: "minmax(0, 1fr)",
-        justifyContent: "center",
+        gridTemplateColumns: "repeat(16, minmax(0, 1fr))",
         marginInline: "auto",
-        maxWidth: "45rem",
+        maxWidth: tokens.siteWidth,
         padding: `3rem ${tokens.gutterRight} 6rem ${tokens.gutterLeft}`,
         width: "100%",
-        "@media (min-width: 60rem)": {
-            gap: "3rem",
-            gridTemplateColumns: "16rem minmax(0, 42rem)",
-            justifyContent: "start",
-            maxWidth: tokens.siteWidth,
-        },
         [narrow]: {
+            display: "block",
+            maxWidth: "48rem",
             padding: `1.25rem ${tokens.gutterRight} 4rem ${tokens.gutterLeft}`,
         },
         [mobile]: {
             paddingBottom: "2rem",
         },
     },
-    readerPublication: {
-        fontFamily: tokens.textFont,
-        fontSize: "1rem",
-        gap: "3rem",
-        gridTemplateColumns: "13rem minmax(0, 48rem)",
-        justifyContent: "start",
-        maxWidth: tokens.siteWidth,
-        paddingTop: "3rem",
-        [narrow]: {
-            display: "block",
-            maxWidth: "46rem",
-            paddingTop: "2rem",
-        },
-        "@media (max-width: 600px)": {
-            paddingTop: "1rem",
-        },
-    },
-    readerJournal: {
-        columnGap: "3rem",
-        gridTemplateRows: "auto auto auto auto auto",
-        rowGap: 0,
-    },
     sidebar: {
+        alignSelf: "start",
         alignContent: "start",
         display: "none",
         fontFamily: tokens.monoFont,
         fontSize: "0.8rem",
+        gridColumn: "1 / span 4",
         gap: "2rem",
         "@media (min-width: 60rem)": {
             display: "grid",
-            maxHeight: "calc(100svh - 8rem)",
-            overflow: "auto",
-            padding: "0 0.25rem 1rem 0",
             position: "sticky",
-            top: "5rem",
-        },
-    },
-    sidebarJournal: {
-        gap: 0,
-        gridRow: "1 / span 3",
-        gridTemplateRows: "subgrid",
-        maxHeight: "none",
-        overflow: "visible",
-        position: "static",
-        [narrow]: {
-            gridRow: "auto",
-            gridTemplateRows: "none",
+            top: "2rem",
         },
     },
     toolbar: {
         alignItems: "baseline",
+        borderBottomColor: tokens.ink,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+        borderTopColor: tokens.ink,
+        borderTopStyle: "solid",
+        borderTopWidth: tokens.hairline,
         color: tokens.soft,
         display: "flex",
         flexWrap: "wrap",
         fontSize: tokens.siteFontSize,
         gap: "0.5rem",
         justifyContent: "space-between",
-        paddingBottom: "0.75rem",
+        minHeight: tokens.publicationRow,
+        paddingBlock: `calc(${tokens.publicationSpace} * 1.5)`,
         [narrow]: {
             alignItems: "start",
             display: "grid",
@@ -314,7 +254,7 @@ const styles = stylex.create({
     },
     toolbarPublication: {
         fontFamily: tokens.monoFont,
-        fontSize: "0.7rem",
+        fontSize: "0.75rem",
     },
     toolbarTop: {
         [mobile]: {

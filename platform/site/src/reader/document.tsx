@@ -1,10 +1,10 @@
 import { A } from "@solidjs/router";
-import { For, Show } from "solid-js";
+import { type Accessor, For, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
-import { commandEvents } from "../command/command";
 import { type Document, type DocumentContent, documents } from "../generated/documents";
 import { Breadcrumbs, type Breadcrumb } from "./breadcrumbs";
+import { ContentsTree, type ContentsEntry } from "./contents";
 import { tokens } from "../style/tokens.stylex";
 import { Reader } from "./reader";
 
@@ -23,14 +23,19 @@ export function DocumentArticle(props: DocumentArticleProps) {
         <Reader
             contents={props.document.tableOfContents}
             location={() => <DocumentLocation document={props.document} />}
-            navigation={() => <DocumentNavigation current={props.document} />}
+            navigation={(activeHeading) => (
+                <DocumentNavigation
+                    activeHeading={activeHeading}
+                    contents={props.document.tableOfContents}
+                    current={props.document}
+                />
+            )}
             publication="manual"
             source={props.document}
         >
-            <header {...stylex.attrs(styles.folio)}>
-                <span>
-                    {String(props.document.order).padStart(2, "0")} / technical field manual
-                </span>
+            <header {...stylex.attrs(styles.articleHeader)}>
+                <h1 {...stylex.attrs(styles.articleTitle)}>{props.document.title}</h1>
+                <p {...stylex.attrs(styles.articleDescription)}>{props.document.description}</p>
             </header>
             <div class="markdown" innerHTML={props.content.html} />
             <DocumentPagination current={props.document} />
@@ -40,26 +45,23 @@ export function DocumentArticle(props: DocumentArticleProps) {
 
 /// Properties for the manual chapter navigation.
 type DocumentNavigationProps = {
+    /// The currently active heading identifier.
+    activeHeading: Accessor<string>;
+
+    /// The headings in the current document.
+    contents: readonly ContentsEntry[];
+
     /// The current document.
     current: Document;
 };
 
-/// Render the ordered manual chapters and local search.
+/// Render the manual chapters and current article headings.
 function DocumentNavigation(props: DocumentNavigationProps) {
     return (
         <nav aria-label="manual" {...stylex.attrs(styles.book)}>
             <A {...stylex.attrs(styles.bookTitle)} href="/docs/">
-                field manual
+                <span>technical field manual</span>
             </A>
-
-            <button
-                {...stylex.attrs(styles.search)}
-                onClick={() => document.dispatchEvent(new CustomEvent(commandEvents.open))}
-                type="button"
-            >
-                <span aria-hidden="true" {...stylex.attrs(styles.searchPrompt)}>/</span>
-                <span>search everything</span>
-            </button>
 
             <ol {...stylex.attrs(styles.bookList)}>
                 <For each={documents}>
@@ -74,11 +76,15 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                                 end
                                 href={document.route}
                             >
-                                <span {...stylex.attrs(styles.bookNumber)}>
-                                    {String(document.order).padStart(2, "0")}
-                                </span>
                                 {document.title}
                             </A>
+
+                            <Show when={document.route === props.current.route}>
+                                <ContentsTree
+                                    activeId={props.activeHeading}
+                                    entries={props.contents}
+                                />
+                            </Show>
                         </li>
                     )}
                 </For>
@@ -155,6 +161,30 @@ const styles = stylex.create({
         color: tokens.ink,
         fontWeight: 600,
     },
+    articleDescription: {
+        color: tokens.soft,
+        fontFamily: tokens.textFont,
+        fontSize: "1.2rem",
+        lineHeight: 1.45,
+        margin: `calc(${tokens.publicationSpace} * 2) 0 0`,
+        maxWidth: "42rem",
+    },
+    articleHeader: {
+        borderBottomColor: tokens.ink,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+        display: "grid",
+        gap: 0,
+        paddingBottom: `calc(${tokens.publicationSpace} * 4)`,
+    },
+    articleTitle: {
+        fontFamily: tokens.monoFont,
+        fontSize: "clamp(2.5rem, 5vw, 3.5rem)",
+        fontWeight: 300,
+        letterSpacing: "-0.04em",
+        lineHeight: 1,
+        margin: `calc(${tokens.publicationSpace} * 4) 0 0`,
+    },
     book: {
         alignContent: "start",
         color: tokens.ink,
@@ -163,10 +193,8 @@ const styles = stylex.create({
     },
     bookLink: {
         color: tokens.soft,
-        display: "grid",
+        display: "block",
         fontSize: "0.8rem",
-        gap: "0.4rem",
-        gridTemplateColumns: "1.8rem minmax(0, 1fr)",
         lineHeight: 1.3,
         paddingBlock: "0.25rem",
         ":hover": {
@@ -178,21 +206,24 @@ const styles = stylex.create({
         gap: 0,
         listStyle: "none",
         margin: 0,
-        padding: 0,
-    },
-    bookNumber: {
-        color: tokens.soft,
-        fontFamily: tokens.monoFont,
-        fontSize: "0.68rem",
+        padding: `calc(${tokens.publicationSpace} * 5) 0 0`,
     },
     bookTitle: {
+        alignItems: "center",
+        borderBottomColor: tokens.ink,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+        borderTopColor: tokens.ink,
+        borderTopStyle: "solid",
+        borderTopWidth: tokens.hairline,
         color: tokens.ink,
+        display: "flex",
         fontFamily: tokens.monoFont,
         fontSize: "0.75rem",
         fontWeight: 600,
-        letterSpacing: "0.06em",
-        paddingBottom: "0.75rem",
-        textTransform: "uppercase",
+        gap: "0.75rem",
+        letterSpacing: "0.02em",
+        minHeight: tokens.publicationRow,
         ":hover": {
             color: tokens.orange,
         },
@@ -200,47 +231,17 @@ const styles = stylex.create({
     depth: (depth: number) => ({
         paddingLeft: `${depth * 0.55}rem`,
     }),
-    folio: {
-        color: tokens.orange,
-        fontFamily: tokens.monoFont,
-        fontSize: "0.7rem",
-        fontWeight: 600,
-        letterSpacing: "0.06em",
-        margin: "0.9rem 0 0",
-        textTransform: "uppercase",
-    },
     pagination: {
         borderTopColor: tokens.ink,
         borderTopStyle: "solid",
-        borderTopWidth: "1px",
+        borderTopWidth: tokens.hairline,
         display: "flex",
         flexWrap: "wrap",
         fontFamily: tokens.monoFont,
         fontWeight: 600,
         gap: "1rem 2rem",
         justifyContent: "space-between",
-        marginTop: "3rem",
-        paddingTop: "1rem",
-    },
-    search: {
-        alignItems: "center",
-        backgroundColor: "transparent",
-        borderWidth: 0,
-        color: tokens.soft,
-        display: "grid",
-        font: "inherit",
-        fontSize: "0.78rem",
-        gap: "0.4rem",
-        gridTemplateColumns: "1rem minmax(0, 1fr)",
-        minHeight: tokens.siteControlHeight,
-        padding: "0.35rem 0",
-        textAlign: "left",
-        ":hover": {
-            color: tokens.text,
-        },
-    },
-    searchPrompt: {
-        color: tokens.accent,
-        fontFamily: tokens.monoFont,
+        marginTop: `calc(${tokens.publicationSpace} * 4)`,
+        paddingTop: `calc(${tokens.publicationSpace} * 2)`,
     },
 });
