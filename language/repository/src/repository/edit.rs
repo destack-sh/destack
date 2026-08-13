@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::sync::Arc;
 
 use dashmap::mapref::entry::Entry;
@@ -121,13 +120,11 @@ impl Repository {
                 after_modules.sort_unstable();
                 after_modules.dedup();
 
-                let changed_packages = symmetric_difference(&before_packages, &after_packages);
-                if !changed_packages.is_empty() {
-                    delta.extend([SourceDependency::packages(&changed_packages)]);
+                if before_packages != after_packages {
+                    delta.extend([SourceDependency::packages(&before_packages)]);
                 }
-                let changed_modules = symmetric_difference(&before_modules, &after_modules);
-                if !changed_modules.is_empty() {
-                    delta.extend([SourceDependency::modules(&changed_modules)]);
+                if before_modules != after_modules {
+                    delta.extend([SourceDependency::modules(&before_modules)]);
                 }
             }
             Discovery::Config => {
@@ -332,35 +329,4 @@ impl Repository {
 /// Return whether one logical path names a package config file.
 fn is_package_config_path(logical_path: &str) -> bool {
     logical_path.rsplit('/').next() == Some("destack.json")
-}
-
-/// Return the elements on exactly one side of two sorted slices.
-fn symmetric_difference<T: Ord + Copy>(before: &[T], after: &[T]) -> Vec<T> {
-    let mut changed = Vec::with_capacity(before.len() + after.len());
-    let mut before_index = 0;
-    let mut after_index = 0;
-
-    // collect unequal values while both slices have values
-    while before_index < before.len() && after_index < after.len() {
-        match before[before_index].cmp(&after[after_index]) {
-            Ordering::Less => {
-                changed.push(before[before_index]);
-                before_index += 1;
-            }
-            Ordering::Greater => {
-                changed.push(after[after_index]);
-                after_index += 1;
-            }
-            Ordering::Equal => {
-                before_index += 1;
-                after_index += 1;
-            }
-        }
-    }
-
-    // append the unpaired tail from either slice
-    changed.extend_from_slice(&before[before_index..]);
-    changed.extend_from_slice(&after[after_index..]);
-
-    changed
 }
