@@ -1,13 +1,12 @@
 import { spawn } from "node:child_process";
-import { dirname, isAbsolute, join, normalize, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { isAbsolute, join, normalize, relative, resolve } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
-import { normalizePath } from "vite";
-
-const siteDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 /// One generated content collection watched during development.
 type ContentTask = {
+    /// The directory in which the generator runs.
+    workingDirectory: string;
+
     /// Whether another generation is required after the active process exits.
     isPending?: boolean;
 
@@ -26,25 +25,21 @@ type ContentTask = {
     /// The source paths watched for changes.
     triggers: readonly string[];
 
-    /// The generated modules invalidated after successful generation.
-    outputs: readonly string[];
+    /// The generated module directory invalidated after successful generation.
+    outputDirectory: string;
 };
 
 /// Regenerate content modules and reload the development server after source changes.
-export function contentPlugin(): Plugin {
+export function contentPlugin(siteDirectory: string): Plugin {
     const tasks: ContentTask[] = [
         {
             name: "content",
+            outputDirectory: join(siteDirectory, "src/generated"),
+            workingDirectory: siteDirectory,
             script: "scripts/generate-content.mjs",
             triggers: [
                 join(siteDirectory, "src/content/blog"),
                 resolve(siteDirectory, "../../docs"),
-            ],
-            outputs: [
-                join(siteDirectory, "src/generated/documents.ts"),
-                join(siteDirectory, "src/generated/posts.ts"),
-                join(siteDirectory, "src/generated/prerender-routes.ts"),
-                join(siteDirectory, "src/generated/search.ts"),
             ],
         },
     ];
@@ -93,7 +88,7 @@ function run(task: ContentTask, server: ViteDevServer) {
     }
 
     task.process = spawn("bun", [task.script], {
-        cwd: siteDirectory,
+        cwd: task.workingDirectory,
         stdio: "inherit",
     });
     task.process.on("exit", (code) => {
@@ -114,12 +109,23 @@ function run(task: ContentTask, server: ViteDevServer) {
 
 /// Invalidate generated modules and reload the active page.
 function invalidate(task: ContentTask, server: ViteDevServer) {
-    for (const output of task.outputs) {
-        const module = server.moduleGraph.getModuleById(normalizePath(output));
-        if (module != undefined) {
-            server.moduleGraph.invalidateModule(module);
+    const outputDirectory = normalize(task.outputDirectory);
+
+    // invalidate generated modules in every serving environment before reloading
+    for (const environment of Object.values(server.environments)) {
+        for (const module of environment.moduleGraph.idToModuleMap.values()) {
+            if (module.file != null && isWithin(module.file, outputDirectory)) {
+                environment.moduleGraph.invalidateModule(module);
+            }
         }
     }
 
     server.ws.send({ type: "full-reload" });
+}
+
+/// Return whether one path belongs to a directory.
+function isWithin(path: string, directory: string) {
+    const relation = relative(directory, normalize(path));
+
+    return relation === "" || (!relation.startsWith("..") && !isAbsolute(relation));
 }

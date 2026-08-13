@@ -20,7 +20,7 @@ export default defineConfig({
                 },
                 useCSSLayers: true,
             }),
-            contentPlugin(),
+            contentPlugin(import.meta.dirname),
         ],
     },
 });
