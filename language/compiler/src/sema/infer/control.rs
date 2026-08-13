@@ -4,9 +4,9 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, ConditionBranch, Constraint,
-    ControlLabel, ControlTargetForm, Expectation, ExpectedType, FlowBranch, FlowSite,
-    ForInSourceObligation, InferMode, Obligation, Origin, PatternArm, PatternCoverage,
-    PatternCoverageObligation, PlaceUse, Relation, ValueCheck, ValueUse,
+    ControlTargetForm, Expectation, ExpectedType, FlowBranch, FlowSite, ForInSourceObligation,
+    InferMode, Obligation, Origin, PatternArm, PatternCoverage, PatternCoverageObligation,
+    PlaceUse, Relation, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -796,10 +796,7 @@ impl BodyState<'_, '_> {
         )?;
 
         // check the loop body with the iteration bindings assigned
-        let label = label.map(|name| ControlLabel {
-            name,
-            source: site.node,
-        });
+        let label = self.check.control_label(site.node, label)?;
         self.check
             .enter_control_target(label, ControlTargetForm::Iteration);
         let before_body = self.check.fork_flow();

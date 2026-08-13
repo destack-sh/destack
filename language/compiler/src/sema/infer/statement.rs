@@ -6,10 +6,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, ConditionBranch, Constraint, ControlLabel, ControlTargetForm,
-    Expectation, ExpectedType, FlowSite, GeneratorTargets, InferMode, Obligation, Origin,
-    PatternCoverage, PatternCoverageObligation, PlaceUse, Relation, ValueUse, VariableRole,
-    WalkState, Widening,
+    BodyState, Cause, CauseKind, ConditionBranch, Constraint, ControlTargetForm, Expectation,
+    ExpectedType, FlowSite, GeneratorTargets, InferMode, Obligation, Origin, PatternCoverage,
+    PatternCoverageObligation, PlaceUse, Relation, ValueUse, VariableRole, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -303,7 +302,7 @@ impl BodyState<'_, '_> {
         self.check_condition(module, condition)?;
 
         // check the body under true condition flow inside the loop target
-        let label = label.map(|name| ControlLabel { name, source: node });
+        let label = self.check.control_label(node, label)?;
         self.check
             .enter_control_target(label, ControlTargetForm::Iteration);
         let before_body = self.check.fork_flow();
@@ -344,7 +343,7 @@ impl BodyState<'_, '_> {
             .check
             .allocate_variable(origin, Widening::Never, VariableRole::Regular);
         let result = self.check.variable_type(variable)?;
-        let label = label.map(|name| ControlLabel { name, source: node });
+        let label = self.check.control_label(node, label)?;
         self.check
             .enter_control_target(label, ControlTargetForm::Loop { result });
 
@@ -402,7 +401,7 @@ impl BodyState<'_, '_> {
         }
 
         // check the body under true condition flow inside the loop target
-        let label = label.map(|name| ControlLabel { name, source: node });
+        let label = self.check.control_label(node, label)?;
         self.check
             .enter_control_target(label, ControlTargetForm::Iteration);
         let before_body = self.check.fork_flow();

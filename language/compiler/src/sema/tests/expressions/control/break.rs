@@ -231,6 +231,7 @@ outer: while (running) {
         r#"
 === annotated ===
 declare const running: boolean;
+
 outer: while (running) {
     continue outer;
 }

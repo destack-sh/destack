@@ -48,8 +48,8 @@ pub(in crate::sema) struct ControlTarget {
 pub(in crate::sema) struct ControlLabel {
     /// The authored label name.
     pub(in crate::sema) name: dir::StringId,
-    /// The labeled source statement.
-    pub(in crate::sema) source: dir::GlobalNodeIdAny,
+    /// The exact label binding.
+    pub(in crate::sema) symbol: dir::GlobalSymbolId,
 }
 
 /// A source control form that accepts `break`.

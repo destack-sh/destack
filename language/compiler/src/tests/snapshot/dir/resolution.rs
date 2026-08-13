@@ -349,24 +349,9 @@ fn add_unresolved_reference_row(
 fn add_label_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    target: dir::GlobalNodeIdAny,
+    target: dir::GlobalSymbolId,
 ) {
-    // name the selected loop by its authored label
-    let label = target
-        .local_id
-        .try_into_typed::<dir::Expression>()
-        .ok()
-        .and_then(|id| match builder.tree.get(id) {
-            dir::Expression::While { label, .. }
-            | dir::Expression::ForEach { label, .. }
-            | dir::Expression::For { label, .. }
-            | dir::Expression::Loop { label, .. } => *label,
-            _ => None,
-        });
-    let target = match label {
-        Some(name) => builder.strings.get(name).to_string(),
-        None => builder.node_label(target),
-    };
+    let target = builder.symbol_path_label(target);
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "label")
         .optional_field("source", builder.node_source(node_id))
         .field("target", target);

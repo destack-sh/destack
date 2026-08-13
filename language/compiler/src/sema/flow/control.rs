@@ -6,6 +6,35 @@ use crate::sema::{
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
+    /// Return the exact binding for one optional control label.
+    pub(in crate::sema) fn control_label(
+        &self,
+        source: dir::GlobalNodeIdAny,
+        name: Option<dir::StringId>,
+    ) -> CompilerResult<Option<ControlLabel>> {
+        let Some(name) = name else {
+            return Ok(None);
+        };
+
+        // require the binding declared for this labeled control target
+        let module = self.module(source.module_id);
+        let symbol =
+            module
+                .declaration_symbol(source.local_id)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("control label {source:?} has no binding"),
+                })?;
+        let bindings = module.binding_table();
+        let binding = bindings.get_symbol(symbol.local_id);
+        if binding.kind != dir::SymbolKind::Label || binding.name() != Some(name) {
+            return Err(CompilerError::Internal {
+                message: format!("control label {source:?} has incompatible binding {symbol:?}"),
+            });
+        }
+
+        Ok(Some(ControlLabel { name, symbol }))
+    }
+
     /// Enter one break or continue target.
     pub(in crate::sema) fn enter_control_target(
         &mut self,
@@ -101,7 +130,7 @@ impl CheckState<'_> {
                 })?;
         let source = source.into_global(self.module_id);
 
-        self.commit_decision(source, dir::Decision::Label(label.source))
+        self.commit_decision(source, dir::Decision::Label(label.symbol))
     }
 
     /// Take continue branches collected by the current control target.
