@@ -449,7 +449,7 @@ impl<'a> CheckState<'a> {
         // import external declared modules
         self.import_external_modules()?;
 
-        // checking walks bodies against the declared rows
+        // checking walks bodies against the declared entries
         if self.is_checking() {
             self.canonicalize_declared_types()?;
 
@@ -779,7 +779,7 @@ impl CheckState<'_> {
         Ok(dir::Form::Borrowed(id))
     }
 
-    /// Adopt one memory form's module-local borrow row into this module.
+    /// Adopt one memory form's module-local borrow entry into this module.
     pub(in crate::check) fn adopt_form(
         &mut self,
         source: ModuleId,
@@ -1212,7 +1212,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         self.report_duplicate_definition_members(&definition);
 
-        // keep checked segments append-grow: unchanged declared rows stay layered
+        // keep checked segments append-grow: unchanged declared entries stay layered
         if !self.is_declaration()
             && let Some(declared) = self
                 .module_maybe(symbol.module_id)
@@ -1507,7 +1507,7 @@ impl CheckState<'_> {
 
             // concrete object classes
             dir::Type::Object(shape) => {
-                let shape = self.map_shape_row(source, target, shape, map)?;
+                let shape = self.map_shape(source, target, shape, map)?;
 
                 dir::Type::Object(shape)
             }
@@ -1560,8 +1560,8 @@ impl CheckState<'_> {
         Ok(ty)
     }
 
-    /// Map one shape row's embedded type ids from one module into another.
-    fn map_shape_row(
+    /// Map one shape's embedded type ids from one module into another.
+    fn map_shape(
         &mut self,
         source: ModuleId,
         target: ModuleId,

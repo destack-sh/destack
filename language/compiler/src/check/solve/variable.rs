@@ -263,15 +263,15 @@ impl VariableTable {
         }
 
         // append the bound and link it as the new tail
-        let row = self.bounds.len() as u32;
+        let entry = self.bounds.len() as u32;
         self.bounds.push(BoundEntry { bound, next: EMPTY });
         let list = *self.side(id, side)?;
         if list.tail != EMPTY {
-            self.bounds[list.tail as usize].next = row;
+            self.bounds[list.tail as usize].next = entry;
         }
         *self.side_mut(id, side)? = BoundList {
-            head: if list.head == EMPTY { row } else { list.head },
-            tail: row,
+            head: if list.head == EMPTY { entry } else { list.head },
+            tail: entry,
             count: list.count + 1,
         };
 
@@ -393,6 +393,6 @@ impl VariableTable {
     }
 }
 
-// lock the hot solver row shape
+// lock the hot solver entry shape
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(size_of::<Variable>() <= 96);

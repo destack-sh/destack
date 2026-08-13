@@ -69,7 +69,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
             let object_index = self.program.object_index(module);
             let object = self.program.object(module);
             let source = self.function(object, function)?;
-            let row = self.link_function(
+            let linked = self.link_function(
                 function,
                 object,
                 source,
@@ -77,7 +77,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
                 &mut operations,
                 &mut code,
             )?;
-            functions.push(row);
+            functions.push(linked);
         }
 
         Ok(Some(

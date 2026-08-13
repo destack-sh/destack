@@ -919,9 +919,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     ) {
         let parameter_types = self.call_parameter_types(signature);
 
-        // prove every declared outlives row from the actual argument sources
-        let rows = self.signature_outlives_rows(signature);
-        for (slot, target) in rows {
+        // prove every declared outlives bound from the actual argument sources
+        let bounds = self.signature_outlives_bounds(signature);
+        for (slot, target) in bounds {
             let longer = self.sources_from_callee_lifetime(
                 &mir::Lifetime::slot(slot),
                 &parameter_types,
@@ -947,20 +947,20 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
     }
 
-    /// Return the declared outlives rows encoded in one signature type.
-    fn signature_outlives_rows(&self, signature: &mir::TypeId) -> Vec<(u32, mir::LifetimeSlot)> {
+    /// Return the declared outlives bounds encoded in one signature type.
+    fn signature_outlives_bounds(&self, signature: &mir::TypeId) -> Vec<(u32, mir::LifetimeSlot)> {
         let mir::Type::FunctionSignature { lifetimes, .. } = self.tree.get(*signature) else {
             return Vec::new();
         };
 
-        let mut rows = Vec::new();
+        let mut bounds = Vec::new();
         for (slot, parameter) in lifetimes.iter().enumerate() {
             for target in &parameter.outlives {
-                rows.push((slot as u32, *target));
+                bounds.push((slot as u32, *target));
             }
         }
 
-        rows
+        bounds
     }
 
     /// Define borrow sources for one call result.
@@ -1547,14 +1547,14 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         Self::widen_with_lifetimes(required, &self.function.lifetimes)
     }
 
-    /// Widen one lifetime through the outlives rows of a declared slot list.
+    /// Widen one lifetime through the outlives bounds of a declared slot list.
     fn widen_with_lifetimes(
         required: mir::Lifetime,
         lifetimes: &[mir::LifetimeParameter],
     ) -> mir::Lifetime {
         let mut terms = required.terms.clone();
 
-        // close over declared rows: a covered slot admits its outliving slots
+        // close over declared bounds: a covered slot admits its outliving slots
         let mut index = 0;
         while index < terms.len() {
             if let mir::LifetimeTerm::Slot(target) = terms[index] {
@@ -1573,7 +1573,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         mir::Lifetime::new(terms)
     }
 
-    /// Widen one callee lifetime through the signature's declared rows.
+    /// Widen one callee lifetime through the signature's declared bounds.
     fn widen_with_signature(
         &self,
         required: mir::Lifetime,

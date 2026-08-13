@@ -463,7 +463,7 @@ function pass<'a, 'c>(a: &'a Node): &'c Node where 'a: 'c {
 }
 
 #[test]
-fn test_allow_call_arguments_satisfying_outlives_rows() {
+fn test_allow_call_arguments_satisfying_outlives_bounds() {
     let mut program = TestProgram::mir(
         r#"
 function callee<'a, 'c>(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'c, mutable>): void where 'a: 'c {
@@ -483,7 +483,7 @@ entry(v0: ref<int32, borrowed, 'L, mutable>):
 }
 
 #[test]
-fn test_reject_call_arguments_violating_outlives_rows() {
+fn test_reject_call_arguments_violating_outlives_bounds() {
     let mut program = TestProgram::mir(
         r#"
 type Box {

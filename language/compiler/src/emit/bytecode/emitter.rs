@@ -39,13 +39,13 @@ impl<'a> BytecodeEmitter<'a> {
         let mut operations = Vec::new();
         let mut relocations = Vec::new();
         let mut code = Vec::new();
-        let mut rows = Vec::with_capacity(self.object.functions().len());
+        let mut functions = Vec::with_capacity(self.object.functions().len());
 
         // emit functions in object order
         for &function_id in self.object.functions() {
             let function = self.optimized.tree.get(function_id);
             if function.body.is_none() {
-                rows.push(bytecode::Function::declaration());
+                functions.push(bytecode::Function::declaration());
 
                 continue;
             }
@@ -59,7 +59,7 @@ impl<'a> BytecodeEmitter<'a> {
                 function,
             )?
             .emit()?;
-            rows.push(self.append(
+            functions.push(self.append(
                 emitted,
                 &mut frames,
                 &mut registers,
@@ -75,7 +75,7 @@ impl<'a> BytecodeEmitter<'a> {
         }
 
         Ok(bytecode::ObjectBuilder::new()
-            .functions(rows)
+            .functions(functions)
             .frames(frames)
             .registers(registers)
             .operations(operations)
@@ -84,7 +84,7 @@ impl<'a> BytecodeEmitter<'a> {
             .build())
     }
 
-    /// Append one emitted function and return its physical object row.
+    /// Append one emitted function and return its physical object entry.
     fn append(
         &self,
         emitted: FunctionEmission,
