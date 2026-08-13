@@ -26,10 +26,10 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{
     Comment, ConstructorType, Declaration, Expression, FunctionForm, FunctionSignature,
-    FunctionTypeExpression, GenericArgument, GenericParameter, InferForm, Key, Keyword,
-    LocalNodeId, MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property,
-    RangeEnd, TokenSpan, TokenType, Tree, TreeStore, TupleElement, TupleForm, TypeExpression,
-    TypeLiteral, TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
+    FunctionTypeExpression, GenericArgument, GenericParameter, InferForm, Keyword, LocalNodeId,
+    MappedTypeModifier, Member, Mutability, Name, Node, NodeType, Parameter, Property, RangeEnd,
+    TokenSpan, TokenType, Tree, TreeStore, TupleElement, TupleForm, TypeExpression, TypeLiteral,
+    TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
 };
 use destack_fir::format::{FormatElement as FirElement, FormatLayout, FormatResult};
 use destack_fir::prelude::{space, token, *};
@@ -2281,27 +2281,19 @@ fn write_type_signature<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeMember>,
     signature: &FunctionSignature,
-    key: Key,
+    name: Name,
     is_optional: bool,
 ) -> FormatResult<()> {
-    let has_name_or_key = true;
     let signature_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         // header
-        write_function_header_prefix(f, signature, false, has_name_or_key)?;
+        write_function_header_prefix(f, signature, false, true)?;
 
-        // key
-        match key {
-            Key::Expression(expression) => {
-                write!(f, [token("["), expression, token("]")])?;
-            }
-            _ => {
-                write!(f, [key])?;
-            }
-        }
+        // name
+        write!(f, [name])?;
 
         // optional
         if is_optional {
-            let key_end = f
+            let name_end = f
                 .context()
                 .tree
                 .get_main_span(node_id)
@@ -2310,11 +2302,11 @@ fn write_type_signature<'ast>(
                 .map_or_else(|| f.context().span(node_id).end, |span| span.start);
             let optional_token = f
                 .context()
-                .first_token_between(key_end, parameter_start)
+                .first_token_between(name_end, parameter_start)
                 .filter(|token| token.token.ty() == TokenType::Maybe);
 
             if let Some(optional_token) = optional_token {
-                write_generated_boundary_comments(f, key_end, optional_token.span.start)?;
+                write_generated_boundary_comments(f, name_end, optional_token.span.start)?;
             }
 
             write!(f, [token("?")])?;
@@ -3201,7 +3193,7 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 is_static,
                 is_optional,
                 is_readonly,
-                key,
+                name,
                 declared_type,
                 ..
             } => {
@@ -3213,7 +3205,7 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                     write!(f, [Keyword::Readonly, space()])?;
                 }
 
-                write!(f, [key])?;
+                write!(f, [name])?;
 
                 if *is_optional {
                     write!(f, [token("?")])?;
@@ -3235,7 +3227,7 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
             TypeMember::Method {
                 is_static,
                 is_optional,
-                key,
+                name,
                 signature,
                 body,
             } => {
@@ -3243,7 +3235,7 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                     write!(f, [Keyword::Static, space()])?;
                 }
 
-                write_type_signature(f, node_id, signature, *key, *is_optional)?;
+                write_type_signature(f, node_id, signature, *name, *is_optional)?;
 
                 // default method bodies print after the signature
                 if let Some(body) = body {

@@ -4,8 +4,8 @@ use crate::{
 };
 use destack_dir::{
     Block, BlockContext, BlockForm, CommentKind, Declaration, Expression, FunctionDeclaration,
-    FunctionForm, IfForm, Key, LetKind, MatchArm, Name, NodeType, Property, ScalarLiteral,
-    TokenType, TypeExpression, YieldCardinality,
+    FunctionForm, IfForm, LetKind, MatchArm, Name, NodeType, Property, ScalarLiteral, TokenType,
+    TypeExpression, YieldCardinality,
 };
 
 #[test]
@@ -599,12 +599,12 @@ function next(value: number): IteratorResult<number> {
                 let tail_expression = block.tail_expression.expect("expected tail expression");
                 assert_node!(parser.tree, tail_expression, Expression::ObjectExpression { properties, .. } => {
                     assert_eq!(properties.len(), 2);
-                    assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
+                    assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, is_shorthand } => {
                         assert_string!(parser, *name, "done");
                         assert!(!*is_shorthand);
                         assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
                     });
-                    assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
+                    assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, is_shorthand } => {
                         assert_string!(parser, *name, "value");
                         assert!(*is_shorthand);
                         assert_expression_path!(parser, parser.tree.get(*value), "value");
@@ -655,11 +655,11 @@ function apply(result: Result): IteratorResult<number> {
 
                             assert_node!(parser.tree, case_tail, Expression::ObjectExpression { properties, .. } => {
                                 assert_eq!(properties.len(), 2);
-                                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+                                assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
                                     assert_string!(parser, *name, "done");
                                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(_)));
                                 });
-                                assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
+                                assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, is_shorthand } => {
                                     assert_string!(parser, *name, "value");
                                     assert!(*is_shorthand);
                                     assert_expression_path!(parser, parser.tree.get(*value), "value");

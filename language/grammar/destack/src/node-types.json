@@ -677,15 +677,7 @@
         "required": true,
         "types": [
           {
-            "type": "computed_property_name",
-            "named": true
-          },
-          {
             "type": "number",
-            "named": true
-          },
-          {
-            "type": "private_property_identifier",
             "named": true
           },
           {
@@ -2743,15 +2735,7 @@
         "required": true,
         "types": [
           {
-            "type": "computed_property_name",
-            "named": true
-          },
-          {
             "type": "number",
-            "named": true
-          },
-          {
-            "type": "private_property_identifier",
             "named": true
           },
           {
@@ -2841,15 +2825,7 @@
         "required": false,
         "types": [
           {
-            "type": "computed_property_name",
-            "named": true
-          },
-          {
             "type": "number",
-            "named": true
-          },
-          {
-            "type": "private_property_identifier",
             "named": true
           },
           {
@@ -2969,15 +2945,7 @@
         "required": true,
         "types": [
           {
-            "type": "computed_property_name",
-            "named": true
-          },
-          {
             "type": "number",
-            "named": true
-          },
-          {
-            "type": "private_property_identifier",
             "named": true
           },
           {
@@ -6075,10 +6043,6 @@
             "named": true
           },
           {
-            "type": "private_property_identifier",
-            "named": true
-          },
-          {
             "type": "property_identifier",
             "named": true
           },
@@ -6337,15 +6301,7 @@
         "required": true,
         "types": [
           {
-            "type": "computed_property_name",
-            "named": true
-          },
-          {
             "type": "number",
-            "named": true
-          },
-          {
-            "type": "private_property_identifier",
             "named": true
           },
           {
@@ -6429,15 +6385,7 @@
         "required": true,
         "types": [
           {
-            "type": "computed_property_name",
-            "named": true
-          },
-          {
             "type": "number",
-            "named": true
-          },
-          {
-            "type": "private_property_identifier",
             "named": true
           },
           {
@@ -7099,15 +7047,7 @@
         "required": true,
         "types": [
           {
-            "type": "computed_property_name",
-            "named": true
-          },
-          {
             "type": "number",
-            "named": true
-          },
-          {
-            "type": "private_property_identifier",
             "named": true
           },
           {
@@ -7146,10 +7086,6 @@
           },
           {
             "type": "number",
-            "named": true
-          },
-          {
-            "type": "private_property_identifier",
             "named": true
           },
           {
@@ -7300,15 +7236,7 @@
         "required": true,
         "types": [
           {
-            "type": "computed_property_name",
-            "named": true
-          },
-          {
             "type": "number",
-            "named": true
-          },
-          {
-            "type": "private_property_identifier",
             "named": true
           },
           {
@@ -7366,15 +7294,7 @@
         "required": true,
         "types": [
           {
-            "type": "computed_property_name",
-            "named": true
-          },
-          {
             "type": "number",
-            "named": true
-          },
-          {
-            "type": "private_property_identifier",
             "named": true
           },
           {

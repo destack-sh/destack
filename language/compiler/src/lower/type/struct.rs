@@ -28,7 +28,7 @@ impl TypeLowerer<'_, '_> {
                 ty = self.insert_optional_carrier(ty)?;
             }
 
-            // intern the field, leaving computed keys unnamed
+            // intern the field name when it has text
             let name = match field.key {
                 dir::StaticKey::Name(name) => Some(name),
                 _ => None,

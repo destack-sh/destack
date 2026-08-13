@@ -4,10 +4,10 @@ use crate::{
 };
 use destack_dir::{
     CommentKind, Declaration, Expression, GenericArgument, GenericParameter, IntegerType,
-    InterfaceDeclaration, Key, Name, Parameter, Pattern, PatternField, PlaceModifier,
-    TypeExpression, TypeKind, TypeLiteral, TypeMember, VarianceModifier, WhereClause,
+    InterfaceDeclaration, Name, Parameter, Pattern, PatternField, PlaceModifier, TypeExpression,
+    TypeKind, TypeLiteral, TypeMember, VarianceModifier, WhereClause,
 };
-use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 #[test]
 fn test_parse_interface_anonymous_empty() {
@@ -301,7 +301,7 @@ interface Foo extends Baz {
         assert_expression_path!(parser, parser.tree.get(extends_types[0]), "Baz");
 
         // readonly value: int32
-        assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: ty, is_readonly, .. } => {
+        assert_node!(parser.tree, members[0], TypeMember::Field { name: Name::Identifier(name), declared_type: ty, is_readonly, .. } => {
             assert!(*is_readonly);
             assert_string!(parser, *name, "value");
             assert_node!(parser.tree, ty.expect("expected declared type"), TypeExpression::Literal { value } => {
@@ -311,7 +311,7 @@ interface Foo extends Baz {
         });
 
         // count: int32
-        assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: ty, .. } => {
+        assert_node!(parser.tree, members[1], TypeMember::Field { name: Name::Identifier(name), declared_type: ty, .. } => {
             assert_string!(parser, *name, "count");
             assert_node!(parser.tree, ty.expect("expected declared type"), TypeExpression::Literal { value } => {
                 assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
@@ -492,10 +492,6 @@ interface SQL {
     (value: any, ...arguments: any[]): SQL.Result<any>;
 
     new(): SQL;
-
-    [Symbol.asyncIterator](): AsyncIterableIterator<string>;
-
-    [Symbol.toPrimitive]?(): number;
 }"#,
     );
     let mut parser = test.prepare();
@@ -511,7 +507,7 @@ interface SQL {
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, members, .. }) => {
         assert_string!(parser, name.unwrap().string(), "SQL");
-        assert_eq!(members.len(), 5);
+        assert_eq!(members.len(), 3);
 
         // <T = any>(value: T): SQL.Result<T>;
         assert_node!(parser.tree, members[0], TypeMember::CallSignature { signature } => {
@@ -578,38 +574,6 @@ interface SQL {
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL");
         });
 
-        // [Symbol.asyncIterator](): AsyncIterableIterator<string>;
-        assert_node!(parser.tree, members[3], TypeMember::Method { key: Key::Expression(key), signature, .. } => {
-            // [Symbol.asyncIterator]
-            assert_expression_path!(parser, parser.tree.get(*key), "Symbol.asyncIterator");
-            assert_eq!(signature.parameters.len(), 0);
-            // AsyncIterableIterator<string>
-            assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "AsyncIterableIterator");
-        });
-
-        // [Symbol.toPrimitive]?(): number;
-        assert_node!(parser.tree, members[4], TypeMember::Method { key: Key::Expression(key), signature, .. } => {
-            // [Symbol.toPrimitive]
-            assert_expression_path!(parser, parser.tree.get(*key), "Symbol.toPrimitive");
-
-            let optional_range = parser
-                .tree
-                .get_side_span(members[4], NodeSpanType::Boundary(NodeSpanBoundary::Trailing))
-                .expect("missing optional marker span");
-            assert_eq!(parser.span_str(optional_range), "?");
-
-            let parameter_span = parser
-                .tree
-                .get_side_span(members[4], NodeSpanType::Region(NodeSpanRegion::Parameters))
-                .expect("missing parameter span");
-            assert_eq!(parser.span_str(parameter_span), "()");
-
-            assert_eq!(signature.parameters.len(), 0);
-            // number
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Number);
-            });
-        });
     });
 }
 
@@ -639,7 +603,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
         assert_eq!(members.len(), 3);
 
         // next(...[value]: [] | [TNext]): IteratorResult<T, TReturn>;
-        assert_node!(parser.tree, members[0], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, .. } => {
+        assert_node!(parser.tree, members[0], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
             assert_string!(parser, *name, "next");
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::VariadicPattern { pattern, declared_type, .. } => {
@@ -660,7 +624,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
         });
 
         // return?(value?: TReturn): IteratorResult<T, TReturn>;
-        assert_node!(parser.tree, members[1], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, .. } => {
+        assert_node!(parser.tree, members[1], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
             assert_string!(parser, *name, "return");
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { is_optional, name, declared_type, .. } => {
@@ -672,7 +636,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
         });
 
         // throw?(e?: any): IteratorResult<T, TReturn>;
-        assert_node!(parser.tree, members[2], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, .. } => {
+        assert_node!(parser.tree, members[2], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
             assert_string!(parser, *name, "throw");
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { is_optional, name, declared_type, .. } => {
@@ -717,7 +681,7 @@ interface MacroContext {
         assert_eq!(members.len(), 3);
 
         // readonly trigger: MacroTrigger;
-        assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, is_readonly, is_optional, .. } => {
+        assert_node!(parser.tree, members[0], TypeMember::Field { name: Name::Identifier(name), declared_type, is_readonly, is_optional, .. } => {
             assert_string!(parser, *name, "trigger");
             assert!(*is_readonly);
             assert!(!*is_optional);
@@ -725,7 +689,7 @@ interface MacroContext {
         });
 
         // readonly symbol?: Symbol;
-        assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, is_readonly, is_optional, .. } => {
+        assert_node!(parser.tree, members[1], TypeMember::Field { name: Name::Identifier(name), declared_type, is_readonly, is_optional, .. } => {
             assert_string!(parser, *name, "symbol");
             assert!(*is_readonly);
             assert!(*is_optional);
@@ -733,7 +697,7 @@ interface MacroContext {
         });
 
         // resolve(name: string): Symbol | undefined;
-        assert_node!(parser.tree, members[2], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, body, .. } => {
+        assert_node!(parser.tree, members[2], TypeMember::Method { name: Name::Identifier(name), signature, body, .. } => {
             assert_string!(parser, *name, "resolve");
             assert!(body.is_none());
             assert_eq!(signature.parameters.len(), 1);
@@ -786,7 +750,7 @@ interface ImportMetaEnv {
         });
 
         // length: number;
-        assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+        assert_node!(parser.tree, members[1], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
             assert_string!(parser, *name, "length");
             assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
                 assert_eq!(*value, TypeLiteral::Number);
@@ -818,7 +782,7 @@ where(where: Brackets, parameters?: ObjectLiteral): this
         assert_eq!(members.len(), 2);
 
         // where(where: string, parameters?: ObjectLiteral): this
-        assert_node!(parser.tree, members[0], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, .. } => {
+        assert_node!(parser.tree, members[0], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
             assert_string!(parser, *name, "where");
             assert_eq!(signature.parameters.len(), 2);
             assert_node!(parser.tree, signature.parameters[1], Parameter::Named { is_optional, name, .. } => {
@@ -828,7 +792,7 @@ where(where: Brackets, parameters?: ObjectLiteral): this
         });
 
         // where(where: Brackets, parameters?: ObjectLiteral): this
-        assert_node!(parser.tree, members[1], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, .. } => {
+        assert_node!(parser.tree, members[1], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
             assert_string!(parser, *name, "where");
             assert_eq!(signature.parameters.len(), 2);
             assert_node!(parser.tree, signature.parameters[1], Parameter::Named { is_optional, name, .. } => {
@@ -927,7 +891,7 @@ interface Add<T, R = this> {
 
         // add(other: T): R
         assert_eq!(members.len(), 1);
-        assert_node!(parser.tree, members[0], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, .. } => {
+        assert_node!(parser.tree, members[0], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
             assert_string!(parser, *name, "add");
             assert_eq!(signature.parameters.len(), 1);
         });
@@ -958,7 +922,7 @@ fn test_parse_interface_with_is_property_name() {
         assert_eq!(members.len(), 1);
 
         // is: WebidlIs
-        assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+        assert_node!(parser.tree, members[0], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
             assert_string!(parser, *name, "is");
             assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebidlIs");
         });
@@ -987,31 +951,31 @@ fn test_parse_interface_with_is_and_other_members() {
             assert_eq!(members.len(), 5);
 
             // errors: WebidlErrors
-            assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+            assert_node!(parser.tree, members[0], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                 assert_string!(parser, *name, "errors");
                 assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebidlErrors");
             });
 
             // util: WebidlUtil
-            assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+            assert_node!(parser.tree, members[1], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                 assert_string!(parser, *name, "util");
                 assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebidlUtil");
             });
 
             // converters: WebidlConverters
-            assert_node!(parser.tree, members[2], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+            assert_node!(parser.tree, members[2], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                 assert_string!(parser, *name, "converters");
                 assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebidlConverters");
             });
 
             // is: WebidlIs
-            assert_node!(parser.tree, members[3], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+            assert_node!(parser.tree, members[3], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                 assert_string!(parser, *name, "is");
                 assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebidlIs");
             });
 
             // attributes: WebIDLExtendedAttributes
-            assert_node!(parser.tree, members[4], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+            assert_node!(parser.tree, members[4], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                 assert_string!(parser, *name, "attributes");
                 assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebIDLExtendedAttributes");
             });
@@ -1079,7 +1043,7 @@ export newtype interface Add<T, R = this> {
 
             // add(other: T): R
             assert_eq!(members.len(), 1);
-            assert_node!(parser.tree, members[0], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, .. } => {
+            assert_node!(parser.tree, members[0], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
                 assert_string!(parser, *name, "add");
                 assert_eq!(signature.parameters.len(), 1);
             });
@@ -1112,7 +1076,7 @@ newtype interface Error {
             assert_eq!(members.len(), 1);
 
             // source(): Dynamic<Error> | undefined { undefined }
-            assert_node!(parser.tree, members[0], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, body: Some(body), .. } => {
+            assert_node!(parser.tree, members[0], TypeMember::Method { name: Name::Identifier(name), signature, body: Some(body), .. } => {
                 assert_string!(parser, *name, "source");
                 assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);

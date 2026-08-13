@@ -27,10 +27,8 @@ impl BodyState<'_, '_> {
         for property in properties {
             let property = *property;
             match self.module(module).view().get(property).clone() {
-                dir::Property::Field { key, value, .. } => {
-                    let Some(key) = self.select_property_key(site, key)? else {
-                        continue;
-                    };
+                dir::Property::Field { name, value, .. } => {
+                    let key = name.into();
 
                     // infer the written value under the field mode
                     let value_site = self.visit_site(value.into_global_any(module))?;
@@ -63,13 +61,13 @@ impl BodyState<'_, '_> {
                     )?;
                     sources.insert(key, value.into_global_any(module));
                 }
-                dir::Property::Method { key, signature, .. } => {
-                    let Some(key) = (match key {
-                        Some(key) => self.select_property_key(site, key)?,
-                        None => None,
-                    }) else {
+                dir::Property::Method {
+                    name, signature, ..
+                } => {
+                    let Some(name) = name else {
                         continue;
                     };
+                    let key = name.into();
 
                     // read the method signature from its declared symbol
                     let symbol = self
@@ -253,10 +251,8 @@ impl BodyState<'_, '_> {
         for property in properties {
             let property = *property;
             match self.module(node.module_id).view().get(property).clone() {
-                dir::Property::Field { key, value, .. } => {
-                    let Some(key) = self.select_property_key(site, key)? else {
-                        return Ok(CheckAttempt::NotApplicable);
-                    };
+                dir::Property::Field { name, value, .. } => {
+                    let key = name.into();
 
                     // select a declared field before a matching index signature
                     let mut field = target_fields.iter().find(|field| field.key == key).copied();
@@ -386,13 +382,13 @@ impl BodyState<'_, '_> {
                 dir::Property::Spread { .. } => {
                     return Ok(CheckAttempt::NotApplicable);
                 }
-                dir::Property::Method { key, signature, .. } => {
-                    let Some(key) = (match key {
-                        Some(key) => self.select_property_key(site, key)?,
-                        None => None,
-                    }) else {
+                dir::Property::Method {
+                    name, signature, ..
+                } => {
+                    let Some(name) = name else {
                         return Ok(CheckAttempt::NotApplicable);
                     };
+                    let key = name.into();
 
                     // read the method signature from its declared symbol
                     let symbol = self

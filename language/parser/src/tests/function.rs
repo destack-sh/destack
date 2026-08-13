@@ -1488,25 +1488,9 @@ fn test_recover_function_generator_delegate_before_following_const() {
     });
 }
 
-/// Parse generator yield in computed property keys and assignment targets.
+/// Parse generator yield in computed assignment targets.
 #[test]
-fn test_parse_function_generator_yield_in_computed_keys() {
-    // source: function* a(){(class {[yield](){}})};
-    let test = TestParser::new("function* a(){(class {[yield](){}})};");
-    let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-            assert!(signature.is_generator);
-            assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                let block = parser.tree.get(*block_id);
-                assert!(block.leading_expressions.is_empty());
-                let tail_expression = block.tail_expression.expect("expected class expression tail");
-                crate::assert_parenthesized!(parser.tree, tail_expression);
-            });
-        });
-    });
-
+fn test_parse_function_generator_yield_in_computed_assignment() {
     // source: function* a(){({[yield]:a}=1)}
     let test = TestParser::new("function* a(){({[yield]:a}=1)}");
     let mut parser = test.prepare();

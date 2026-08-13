@@ -102,7 +102,7 @@ impl PatternBindingSet {
                 name,
                 pattern: None,
                 ..
-            } => self.keys.insert(name.static_key()),
+            } => self.keys.insert((*name).into()),
             dir::PatternField::Named {
                 pattern: Some(pattern),
                 ..
@@ -198,14 +198,14 @@ impl Compiler {
         } = pattern_field
         {
             // reuse a shared union pattern symbol
-            let key = name.static_key();
+            let key = (*name).into();
             if let Some(symbol_id) = state.union_pattern_symbol(key) {
                 state.declare_symbol(symbol_id, node_id);
                 return;
             }
 
             let modifiers = state.binding_modifiers();
-            let symbol_id = state.insert_binding_symbol(name.static_key(), modifiers);
+            let symbol_id = state.insert_binding_symbol((*name).into(), modifiers);
             state.declare_symbol(symbol_id, node_id);
         }
 

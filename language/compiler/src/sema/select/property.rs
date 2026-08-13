@@ -43,17 +43,17 @@ impl BodyState<'_, '_> {
         let mut entries = SmallVec::<[MergeEntry; 8]>::new();
         for property in properties {
             match self.module(module).view().get(*property).clone() {
-                dir::Property::Field { key, value, .. } => {
-                    let Some(key) = self.select_property_key(site, key)? else {
-                        continue;
-                    };
+                dir::Property::Field { name, value, .. } => {
+                    let key = name.into();
 
                     entries.push(MergeEntry::Field {
                         key,
                         source: value.into_global_any(module),
                     });
                 }
-                dir::Property::Method { key, signature, .. } => {
+                dir::Property::Method {
+                    name, signature, ..
+                } => {
                     // reject accessors that cannot initialize struct storage
                     if matches!(
                         signature.role,
@@ -64,12 +64,10 @@ impl BodyState<'_, '_> {
                     }
 
                     // retain ordinary method shorthand and diagnosed accessors for checking
-                    let Some(key) = (match key {
-                        Some(key) => self.select_property_key(site, key)?,
-                        None => None,
-                    }) else {
+                    let Some(name) = name else {
                         continue;
                     };
+                    let key = name.into();
 
                     // walk methods inference discovers before their walk
                     if let Some(symbol) =

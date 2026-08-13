@@ -482,15 +482,15 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     .to_vec();
                 let mut members = Vec::with_capacity(shape_properties.len());
                 for field in &shape_properties {
-                    let key = match field.key {
-                        dir::StaticKey::Name(name) => dir::Key::Name(dir::Name::Identifier(name)),
-                        dir::StaticKey::Index(index) => dir::Key::Name(dir::Name::Index(index)),
+                    let name = match field.key {
+                        dir::StaticKey::Name(name) => dir::Name::Identifier(name),
+                        dir::StaticKey::Index(index) => dir::Name::Index(index),
                     };
                     let Some(declared_type) = self.reify_depth(field.access.store(), next)? else {
                         return Ok(None);
                     };
                     let member = dir::TypeMember::Field {
-                        key,
+                        name,
                         declared_type: Some(declared_type),
                         is_static: false,
                         is_optional: field.is_optional,

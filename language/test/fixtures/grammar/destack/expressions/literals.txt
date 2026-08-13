@@ -17,4 +17,4 @@ const matcher = /[a-z]+\d?/gi;
 const items = [head, ...tail];
 // <- keyword.declaration.variable.ds
 
-const object = { kind: "ok", value, [key]: next };
+const object = { kind: "ok", value, next };

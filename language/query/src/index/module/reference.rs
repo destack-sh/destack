@@ -166,9 +166,10 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
         // index each authored property with an exact checked member binding
         for (property_id, property) in view.iter_nodes::<dir::Property>() {
-            let Some(key) = property.key().and_then(|key| key.direct_static_key()) else {
+            let Some(name) = property.name() else {
                 continue;
             };
+            let key = name.into();
             let parent = view.get_parent_for(property_id).ok_or_else(|| {
                 ProviderError::internal(format!(
                     "property has no containing expression: {:?}",

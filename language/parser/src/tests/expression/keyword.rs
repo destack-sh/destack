@@ -3,9 +3,8 @@ use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, BinaryOperator, Block, BlockForm, ClassDeclaration,
     CommentKind, Declaration, Declarator, Decorator, DependencyBinding, DependencyForm,
-    DependencyItem, ExportKind, Expression, FunctionDeclaration, ImportAttributeClauseKind, Key,
-    Name, Parameter, Pattern, Property, ScalarLiteral, TypeDeclaration, TypeExpression,
-    TypeLiteral,
+    DependencyItem, ExportKind, Expression, FunctionDeclaration, ImportAttributeClauseKind, Name,
+    Parameter, Pattern, Property, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanType};
 
@@ -564,7 +563,7 @@ fn test_parse_callback_parameter_named_type() {
             assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
                 assert_eq!(properties.len(), 1);
 
-                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+                assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
                     assert_string!(parser, *name, "onsubtitlechange");
                     assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {

@@ -556,7 +556,7 @@ impl CheckState<'_> {
                     pattern: Some(pattern),
                     ..
                 } => {
-                    let key = name.static_key();
+                    let key = name.into();
                     let is_defaulted = matches!(
                         self.module(module).view().get(pattern),
                         dir::Pattern::Default { .. }

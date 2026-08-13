@@ -112,30 +112,18 @@ impl WalkState<'_, '_> {
         }
 
         match property {
-            // { key: value }
-            dir::Property::Field { key, value, .. } => {
-                let (key, value) = (*key, *value);
-
-                // compute runtime property key
-                if let dir::Key::Expression(key) = key {
-                    self.walk_expression(key, self.tree.get(key))?;
-                }
+            // { name: value }
+            dir::Property::Field { value, .. } => {
+                let value = *value;
                 self.walk_expression(value, self.tree.get(value))?;
 
                 Ok(())
             }
             // { method() {} }
             dir::Property::Method {
-                key,
-                signature,
-                body,
+                signature, body, ..
             } => {
-                let (key, body) = (*key, *body);
-
-                if let Some(dir::Key::Expression(key)) = key {
-                    // compute runtime property key
-                    self.walk_expression(key, self.tree.get(key))?;
-                }
+                let body = *body;
 
                 let symbol = self
                     .check
@@ -326,7 +314,7 @@ impl WalkState<'_, '_> {
             }
             // field: T = value
             dir::Member::Field {
-                key,
+                name,
                 declared_type,
                 default,
                 is_optional,
@@ -337,8 +325,8 @@ impl WalkState<'_, '_> {
                 is_override,
                 ..
             } => {
-                let (key, declared_type, default, is_optional, is_static) =
-                    (*key, *declared_type, *default, *is_optional, *is_static);
+                let (name, declared_type, default, is_optional, is_static) =
+                    (*name, *declared_type, *default, *is_optional, *is_static);
                 let is_readonly = *is_readonly;
                 let (is_definite, is_abstract, is_override) =
                     (*is_definite, *is_abstract, *is_override);
@@ -348,13 +336,6 @@ impl WalkState<'_, '_> {
                 if is_uninferable {
                     self.check
                         .report_missing_type_annotation(self.module, id.into_any());
-                }
-
-                // check computed member keys in declaration context
-                if let dir::Key::Expression(key) = key {
-                    let before_key = self.fork_flow();
-                    self.walk_expression(key, self.tree.get(key))?;
-                    self.restore_flow(before_key);
                 }
 
                 // resolve the field symbol
@@ -408,9 +389,10 @@ impl WalkState<'_, '_> {
                     self.restore_flow(before_default);
                 }
 
-                let (Some(symbol), Some(key)) = (symbol, key.direct_static_key()) else {
+                let Some(symbol) = symbol else {
                     return Ok(None);
                 };
+                let key = name.into();
 
                 Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {
                     space: if is_static {
@@ -432,7 +414,7 @@ impl WalkState<'_, '_> {
             }
             // method() {}
             dir::Member::Method {
-                key,
+                name,
                 signature,
                 body,
                 abstraction,
@@ -441,13 +423,6 @@ impl WalkState<'_, '_> {
                 is_override,
                 ..
             } => {
-                if let Some(dir::Key::Expression(key)) = *key {
-                    // check computed member keys in declaration context
-                    let before_key = self.fork_flow();
-                    self.walk_expression(key, self.tree.get(key))?;
-                    self.restore_flow(before_key);
-                }
-
                 // place the method into its declaration slot
                 let Some(slot) = member.slot() else {
                     return Ok(None);
@@ -479,7 +454,7 @@ impl WalkState<'_, '_> {
                     && !*is_ambient
                     && !abstraction.is_abstract();
                 if needs_body {
-                    let member = self.method_body_name(*key, signature);
+                    let member = self.method_body_name(*name, signature);
                     let source = id.into_global_any(self.module);
                     self.check.report_missing_declaration_body(source, member);
                 }
@@ -711,15 +686,20 @@ impl WalkState<'_, '_> {
         match member {
             // field: T
             dir::TypeMember::Field {
-                key,
+                name,
                 declared_type,
                 is_static,
                 is_optional,
                 is_readonly,
                 ..
             } => {
-                let (key, declared_type, is_static, is_optional, is_readonly) =
-                    (*key, *declared_type, *is_static, *is_optional, *is_readonly);
+                let (name, declared_type, is_static, is_optional, is_readonly) = (
+                    *name,
+                    *declared_type,
+                    *is_static,
+                    *is_optional,
+                    *is_readonly,
+                );
 
                 if declared_type.is_none() {
                     self.check
@@ -739,9 +719,10 @@ impl WalkState<'_, '_> {
                     self.bind_symbol_type(symbol, written)?;
                 }
 
-                let (Some(symbol), Some(key)) = (symbol, key.direct_static_key()) else {
+                let Some(symbol) = symbol else {
                     return Ok(None);
                 };
+                let key = name.into();
 
                 Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {
                     space: if is_static {
@@ -1115,7 +1096,7 @@ impl WalkState<'_, '_> {
     /// Return the name used to report one method body requirement.
     fn method_body_name(
         &self,
-        key: Option<dir::Key>,
+        name: Option<dir::Name>,
         signature: &dir::FunctionSignature,
     ) -> String {
         match signature.role {
@@ -1124,8 +1105,8 @@ impl WalkState<'_, '_> {
             Some(dir::FunctionRole::Call) => "call".to_string(),
             Some(dir::FunctionRole::Getter) => "get".to_string(),
             Some(dir::FunctionRole::Setter) => "set".to_string(),
-            None => key
-                .and_then(dir::Key::direct_static_key)
+            None => name
+                .map(dir::StaticKey::from)
                 .map(|key| self.check.format_static_key(&key))
                 .unwrap_or_else(|| "method".to_string()),
         }

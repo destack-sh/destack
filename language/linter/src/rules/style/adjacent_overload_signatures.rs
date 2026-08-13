@@ -148,7 +148,7 @@ fn function_overload(
 
     let span = module.main_span(declaration.into_any())?;
 
-    Ok(Some((name.static_key(), span)))
+    Ok(Some((name.into(), span)))
 }
 
 /// Return the overload identity of one declaration member.

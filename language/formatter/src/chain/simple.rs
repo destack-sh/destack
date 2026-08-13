@@ -1,8 +1,8 @@
 use super::transparent_inner_expression;
 use crate::DestackFormatContext;
 use destack_dir::{
-    Argument, Expression, GenericArgument, Key, LocalNodeId, Property, ScalarLiteral,
-    TemplateLiteral, TypeExpression, UnaryOperator,
+    Argument, Expression, GenericArgument, LocalNodeId, Property, ScalarLiteral, TemplateLiteral,
+    TypeExpression, UnaryOperator,
 };
 
 const MAX_SIMPLE_ARGUMENT_DEPTH: u8 = 2;
@@ -279,16 +279,11 @@ fn property_is_simple(
     depth: u8,
 ) -> bool {
     match context.tree.get(property_id) {
-        Property::Field { key, value, .. } => {
-            key_is_simple(key) && SimpleArgument::from(*value).is_simple_with_depth(context, depth)
+        Property::Field { value, .. } => {
+            SimpleArgument::from(*value).is_simple_with_depth(context, depth)
         }
         Property::Method { .. } | Property::Spread { .. } | Property::Error => false,
     }
-}
-
-/// Return whether one property key is simple.
-fn key_is_simple(key: &Key) -> bool {
-    matches!(key, Key::Name(_))
 }
 
 /// Return whether one array expression is simple at one recursion depth.

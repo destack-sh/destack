@@ -786,7 +786,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Option<(dir::StaticKey, Option<dir::LocalNodeId<dir::Pattern>>)>> {
         let field = self.module(module).view().get(field).clone();
         let key = match field {
-            dir::PatternField::Named { name, pattern, .. } => Some((name.static_key(), pattern)),
+            dir::PatternField::Named { name, pattern, .. } => Some((name.into(), pattern)),
             dir::PatternField::Computed { key, pattern } => self
                 .evaluate_static_key(module, key)?
                 .map(|key| (key, Some(pattern))),

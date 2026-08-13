@@ -1219,7 +1219,7 @@ impl WalkState<'_, '_> {
             let member = *member;
             match self.tree.get(member) {
                 dir::TypeMember::Field {
-                    key,
+                    name,
                     declared_type,
                     is_optional,
                     is_readonly,
@@ -1227,9 +1227,7 @@ impl WalkState<'_, '_> {
                 } => {
                     let (declared_type, is_optional, is_readonly) =
                         (*declared_type, *is_optional, *is_readonly);
-                    let Some(key) = self.static_key(*key)? else {
-                        continue;
-                    };
+                    let key = (*name).into();
                     let ty = match declared_type {
                         Some(declared_type) => self.walk_type_expression(declared_type)?,
                         None => self.intern_type(dir::Type::Unknown)?,
@@ -1254,15 +1252,13 @@ impl WalkState<'_, '_> {
                     );
                 }
                 dir::TypeMember::Method {
-                    key,
+                    name,
                     signature,
                     is_optional,
                     ..
                 } => {
                     let (signature, is_optional) = (signature.clone(), *is_optional);
-                    let Some(key) = self.static_key(*key)? else {
-                        continue;
-                    };
+                    let key = (*name).into();
                     let template = self
                         .open_signature_template(member.into_global_any(self.module), &signature)?;
 

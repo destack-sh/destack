@@ -1,5 +1,5 @@
 use super::property::{
-    format_field_like, format_method_like, format_node_with_directive, key_requires_quote_group,
+    format_field_like, format_method_like, format_node_with_directive, name_requires_quote_group,
 };
 use crate::annotation::{
     decorator_prefix_annotations, infix_or_postfix_annotations, prefix_comments_before_decorators,
@@ -68,9 +68,9 @@ pub(crate) fn format_block_of_members<'ast>(
     })
 }
 
-/// Return whether one class member should force quoted keys.
+/// Return whether one class member should force quoted names.
 #[inline]
-fn class_member_should_force_quote_keys<'ast>(
+fn class_member_should_force_quotes<'ast>(
     f: &DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Member>,
 ) -> bool {
@@ -91,9 +91,9 @@ fn class_member_should_force_quote_keys<'ast>(
     };
 
     class.members.iter().copied().any(|member_id| {
-        let key = f.context().tree.get(member_id).key().copied();
+        let name = f.context().tree.get(member_id).name();
 
-        key.is_some_and(|key| key_requires_quote_group(f.context(), key))
+        name.is_some_and(|name| name_requires_quote_group(f.context(), name))
     })
 }
 
@@ -186,7 +186,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         if let Member::Method {
-            key,
+            name,
             signature,
             abstraction,
             body,
@@ -199,12 +199,12 @@ impl<'ast> FormatNode<'ast, Member> for Member {
         } = self
         {
             return format_node_with_directive(f, node_id, true, |f| {
-                let force_quote_keys = class_member_should_force_quote_keys(f, node_id);
+                let force_quotes = class_member_should_force_quotes(f, node_id);
 
                 format_method_like(
                     f,
                     node_id,
-                    *key,
+                    *name,
                     signature,
                     *abstraction,
                     *body,
@@ -213,7 +213,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     *is_static,
                     *is_accessor,
                     *is_optional,
-                    force_quote_keys,
+                    force_quotes,
                 )?;
 
                 // abstract and signature-only methods own their terminator
@@ -317,7 +317,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     }
                 }
                 Member::Field {
-                    key,
+                    name,
                     declared_type,
                     default,
                     is_optional,
@@ -332,12 +332,12 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     is_definite,
                     ..
                 } => {
-                    let force_quote_keys = class_member_should_force_quote_keys(f, node_id);
+                    let force_quotes = class_member_should_force_quotes(f, node_id);
 
                     format_field_like(
                         f,
                         node_id,
-                        *key,
+                        *name,
                         *declared_type,
                         *visibility,
                         *is_ambient,
@@ -350,7 +350,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                         *is_optional,
                         *is_definite,
                         *default,
-                        force_quote_keys,
+                        force_quotes,
                     )?;
                 }
                 Member::StaticBlock { body } => {

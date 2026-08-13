@@ -651,15 +651,8 @@ impl Parser {
             return true;
         }
 
-        // computed fields require a colon after their balanced key
-        if first.is(TokenType::OpenBracket) {
-            return self
-                .peek_token_after_group(1, TokenType::OpenBracket, TokenType::CloseBracket)
-                .is_some_and(|token| token.is(TokenType::Colon));
-        }
-
-        // named fields require an object key followed by a colon
-        let is_key = first.is(TokenType::Identifier)
+        // named fields require an object name followed by a colon
+        let is_name = first.is(TokenType::Identifier)
             || first.is(TokenType::Literal)
                 && matches!(
                     first.literal(),
@@ -670,7 +663,7 @@ impl Parser {
                     )
                 );
 
-        is_key && self.peek_token_type_at(2) == TokenType::Colon
+        is_name && self.peek_token_type_at(2) == TokenType::Colon
     }
 
     /// Return whether `do {` begins a block expression rather than a do-while loop.

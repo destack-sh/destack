@@ -4,7 +4,7 @@ use crate::annotation::{
 };
 use crate::collection::TrailingSeparator;
 use crate::collection::literal::format_scalar_literal;
-use crate::collection::property::{format_name_with_quotes, is_identifier_for_quotes};
+use crate::collection::property::{can_unquote_name, format_name_with_quotes};
 use crate::declaration::expression_needs_statement_terminator;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::{StringId, StringPool};
@@ -696,7 +696,7 @@ fn import_attribute_key_requires_quotes(
 ) -> bool {
     match attribute.key {
         Name::Identifier(_) | Name::Index(_) => false,
-        Name::String(name) => !is_identifier_for_quotes(context.strings.get(name)),
+        Name::String(name) => !can_unquote_name(context.strings.get(name)),
     }
 }
 

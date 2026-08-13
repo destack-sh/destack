@@ -827,8 +827,8 @@ fn test_parse_pattern_struct_numeric_name_aliases() {
 }
 
 #[test]
-fn test_parse_pattern_struct_boolean_name_aliases() {
-    let test = TestParser::new("{ false: decorators, true: metadata }");
+fn test_parse_pattern_struct_string_name_aliases() {
+    let test = TestParser::new(r#"{ "false": decorators, "true": metadata }"#);
     let mut parser = test.prepare();
     let pattern_id = parser.parse_pattern(Default::default()).unwrap();
 

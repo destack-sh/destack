@@ -133,24 +133,6 @@ impl CheckState<'_> {
         }
     }
 
-    /// Select the exact static key named by one property key.
-    pub(in crate::sema) fn select_property_key(
-        &mut self,
-        site: FlowSite,
-        key: dir::Key,
-    ) -> CompilerResult<Option<dir::StaticKey>> {
-        let key = match key {
-            dir::Key::Name(name) => Some(name.static_key()),
-            dir::Key::Expression(expression) => {
-                let expression_site =
-                    self.visit_site(expression.into_global_any(site.node.module_id))?;
-                self.select_static_key(expression_site)?
-            }
-        };
-
-        Ok(key)
-    }
-
     /// Select the exact static key named by one checked expression.
     pub(in crate::sema) fn select_static_key(
         &mut self,

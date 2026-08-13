@@ -235,7 +235,7 @@ impl Parser {
                 self.bump();
                 Name::String(string_id)
             } else if self.peek_numeric_literal_start() {
-                let (index, _) = self.eat_index_key_with_range()?;
+                let (index, _) = self.eat_index_name_with_range()?;
                 Name::Index(index)
             } else if self.peek_is(TokenType::TemplateString) {
                 let template = self.parse_template_literal(function)?;
@@ -252,7 +252,7 @@ impl Parser {
             self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
             Ok((name, self.range_since(&start)))
         } else if self.peek_numeric_literal_start() {
-            let (index, range) = self.eat_index_key_with_range()?;
+            let (index, range) = self.eat_index_name_with_range()?;
             Ok((Name::Index(index), range))
         } else {
             self.eat_name_with_range()

@@ -121,12 +121,15 @@ class Foo {
           (type_identifier))))))
 
 =======================================
-Classes with property names as strings or numbers
+Classes with property names as strings or integers
 :language(destack)
 =======================================
 
 class Foo {
   static 2: string;
+  static 0x2a: string;
+  static 0b10: string;
+  static 0o52: string;
   public static 2: string = 'string';
   public static readonly 'hello'?: int = 'string';
   static readonly 'hello'?: int = 'string';
@@ -139,6 +142,18 @@ class Foo {
   (class_declaration
     (type_identifier)
     (class_body
+      (public_field_definition
+        (number)
+        (type_annotation
+          (predefined_type)))
+      (public_field_definition
+        (number)
+        (type_annotation
+          (predefined_type)))
+      (public_field_definition
+        (number)
+        (type_annotation
+          (predefined_type)))
       (public_field_definition
         (number)
         (type_annotation

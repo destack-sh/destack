@@ -162,6 +162,32 @@ impl DelimiterDepth {
 }
 
 impl Parser {
+    /// Return whether one delimited assignment pattern starts here.
+    pub(crate) fn peek_destructuring_assignment(&self) -> bool {
+        let (open, close) = match self.peek_token_type() {
+            TokenType::OpenBrace => (TokenType::OpenBrace, TokenType::CloseBrace),
+            TokenType::OpenBracket => (TokenType::OpenBracket, TokenType::CloseBracket),
+            TokenType::OpenParenthesis => (TokenType::OpenParenthesis, TokenType::CloseParenthesis),
+            _ => return false,
+        };
+        let mut probe = self.cursor.probe(&self.file);
+
+        probe.scan_group(open, close) && probe.peek_token_type() == TokenType::Assign
+    }
+
+    /// Return whether one parenthesized assignment target is tuple shaped.
+    pub(crate) fn peek_tuple_assignment_pattern(&self) -> bool {
+        let mut probe = self.cursor.probe(&self.file);
+        let mut has_comma = false;
+        let is_group = probe.scan_group_direct(
+            TokenType::OpenParenthesis,
+            TokenType::CloseParenthesis,
+            |token| has_comma |= token == TokenType::Comma,
+        );
+
+        is_group && has_comma
+    }
+
     /// Return whether the current generic argument is type-shaped.
     pub(crate) fn peek_generic_argument_type(&self) -> bool {
         let argument_start = self.peek_token().start();
@@ -683,6 +709,16 @@ impl TokenProbe<'_> {
 
     /// Advance through one balanced ordinary delimiter group.
     fn scan_group(&mut self, open: TokenType, close: TokenType) -> bool {
+        self.scan_group_direct(open, close, |_| {})
+    }
+
+    /// Advance through one balanced group and visit its directly nested tokens.
+    fn scan_group_direct(
+        &mut self,
+        open: TokenType,
+        close: TokenType,
+        mut visit: impl FnMut(TokenType),
+    ) -> bool {
         if self.peek_token_type() != open {
             return false;
         }
@@ -699,6 +735,9 @@ impl TokenProbe<'_> {
                 || token_type == TokenType::Semicolon && delimiters.is_directly_inside(open)
             {
                 return false;
+            }
+            if delimiters.is_directly_inside(open) {
+                visit(token_type);
             }
             if !delimiters.advance(token_type) {
                 return false;

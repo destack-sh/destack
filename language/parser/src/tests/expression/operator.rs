@@ -71,6 +71,7 @@ fn test_parse_assignment_destructuring_targets() {
     let input = r#"
 foo += bar = b ??= 3;
 foo -= bar;
+foo = [bar] = baz;
 (foo = bar);
 [foo, bar] = baz;
 [foo, bar = "default", ...rest] = baz;
@@ -83,7 +84,7 @@ foo -= bar;
     let expressions = parser.parse();
     test.assert_no_errors(&parser);
 
-    assert_eq!(expressions.len(), 8);
+    assert_eq!(expressions.len(), 9);
     for expression in expressions {
         assert_assign_expression(&parser, expression);
     }

@@ -1,10 +1,10 @@
 use crate::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, ConditionOperand, Declaration,
     Declarator, Decorator, DependencyItem, EnumField, Expression, ForEachBinding,
-    FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, LocalNodeIdAny,
-    MatchArm, Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property,
-    SwitchCase, SwitchSelector, TemplateLiteral, Tree, TreeAttribute, TreeChild, TupleElement,
-    TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
+    FunctionSignature, GenericArgument, GenericParameter, LocalNodeId, LocalNodeIdAny, MatchArm,
+    Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, SwitchCase,
+    SwitchSelector, TemplateLiteral, Tree, TreeAttribute, TreeChild, TupleElement, TypeExpression,
+    TypeMappedParameter, TypeMember, WhereClause,
 };
 
 /// Walk any node.
@@ -536,11 +536,9 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
             is_static: _,
             is_optional: _,
             is_readonly: _,
-            key,
+            name: _,
             declared_type,
         } => {
-            walk_key(visitor, tree, key);
-
             if let Some(declared_type) = declared_type {
                 let declared_type_node = tree.get(*declared_type);
                 visitor.visit_type_expression(tree, *declared_type, declared_type_node);
@@ -549,12 +547,10 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
         TypeMember::Method {
             is_static: _,
             is_optional: _,
-            key,
+            name: _,
             signature,
             body,
         } => {
-            walk_key(visitor, tree, key);
-
             walk_function_signature(visitor, tree, signature);
 
             if let Some(body_id) = body {
@@ -1513,19 +1509,6 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk a Key.
-pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, key: &Key) {
-    match key {
-        Key::Name(_name) => {
-            // nothing to do
-        }
-        Key::Expression(dynamic_key) => {
-            let dynamic_key_expr = tree.get(*dynamic_key);
-            visitor.visit_expression(tree, *dynamic_key, dynamic_key_expr);
-        }
-    }
-}
-
 /// Walk the Property.
 pub fn walk_property<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -1536,23 +1519,18 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Property, id.id);
     match property {
         Property::Field {
-            key,
+            name: _,
             value,
             is_shorthand: _,
         } => {
-            walk_key(visitor, tree, key);
-
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }
         Property::Method {
-            key,
+            name: _,
             signature,
             body,
         } => {
-            if let Some(key) = key {
-                walk_key(visitor, tree, key);
-            }
             walk_function_signature(visitor, tree, signature);
 
             if let Some(body) = body {
@@ -1624,7 +1602,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             }
         }
         Member::Field {
-            key,
+            name: _,
             declared_type,
             default,
             is_optional: _,
@@ -1638,7 +1616,6 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             is_static: _,
             is_accessor: _,
         } => {
-            walk_key(visitor, tree, key);
             if let Some(declared_type) = declared_type {
                 let declared_type_expression = tree.get(*declared_type);
                 visitor.visit_type_expression(tree, *declared_type, declared_type_expression);
@@ -1649,7 +1626,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             }
         }
         Member::Method {
-            key,
+            name: _,
             signature,
             abstraction: _,
             body,
@@ -1660,9 +1637,6 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             is_static: _,
             is_accessor: _,
         } => {
-            if let Some(key) = key {
-                walk_key(visitor, tree, key);
-            }
             walk_function_signature(visitor, tree, signature);
             if let Some(body_id) = body {
                 let expression = tree.get(*body_id);

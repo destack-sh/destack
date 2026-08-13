@@ -149,14 +149,10 @@ impl Compiler {
                 }
             }
             dir::Member::Field {
-                key,
                 declared_type,
                 default,
                 ..
             } => {
-                // visit field key
-                dir::walk_key(state, tree, key);
-
                 // visit field type
                 if let Some(declared_type) = declared_type {
                     let declared_type_node = tree.get(*declared_type);
@@ -170,16 +166,8 @@ impl Compiler {
                 }
             }
             dir::Member::Method {
-                key,
-                signature,
-                body,
-                ..
+                signature, body, ..
             } => {
-                // visit method key
-                if let Some(key) = key {
-                    dir::walk_key(state, tree, key);
-                }
-
                 // visit method signature
                 self.bind_function_signature(state, tree, signature);
 
@@ -209,16 +197,13 @@ impl Compiler {
         state.bind_node(id.into_any());
 
         match property {
-            dir::Property::Field { key, value, .. } => {
-                // visit field key and value
-                dir::walk_key(state, tree, key);
+            dir::Property::Field { value, .. } => {
+                // visit field value
                 let value_node = tree.get(*value);
                 state.visit_expression(tree, *value, value_node);
             }
             dir::Property::Method {
-                key,
-                signature,
-                body,
+                signature, body, ..
             } => {
                 // declare anonymous function backing the method value
                 let (symbol_id, scope_id) = state.insert_symbol_with_scope(
@@ -232,11 +217,6 @@ impl Compiler {
 
                 state.declare_symbol(symbol_id, id);
                 state.bind_node_to_scope(id.into_any(), scope_id);
-
-                // visit method key
-                if let Some(key) = key {
-                    dir::walk_key(state, tree, key);
-                }
 
                 // visit method signature and body
                 state.push_scope(scope_id);

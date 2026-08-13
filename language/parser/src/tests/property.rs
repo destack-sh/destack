@@ -2,7 +2,7 @@ use crate::tests::{TestParser, block_expression_ids};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, ClassDeclaration,
     CommentKind, Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole,
-    GenericArgument, GenericParameter, IntegerType, InterfaceDeclaration, Key, Member,
+    GenericArgument, GenericParameter, IntegerType, InterfaceDeclaration, Member,
     MethodAbstraction, Name, NodeType, Parameter, Property, ScalarLiteral, TokenType,
     TypeExpression, TypeLiteral, TypeMember, Visibility,
 };
@@ -18,7 +18,7 @@ fn test_parse_member_definite_field() {
     let member = parser.parse_member(Default::default()).unwrap();
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_definite, .. } => {
+    assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: Some(value), is_definite, .. } => {
         assert_string!(parser, *name, "prop");
         assert!(*is_definite);
         assert_expression_path!(parser, parser.tree.get(*value), "Foo");
@@ -33,7 +33,7 @@ fn test_parse_member_definite_accessor() {
     let member = parser.parse_member(Default::default()).unwrap();
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_accessor, is_definite, .. } => {
+    assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: Some(value), is_accessor, is_definite, .. } => {
         assert_string!(parser, *name, "a");
         assert!(*is_accessor);
         assert!(*is_definite);
@@ -58,7 +58,7 @@ fn test_parse_member_override_field() {
     let mut parser = test.prepare();
 
     let member = parser.parse_member(Default::default()).unwrap();
-    assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_override, .. } => {
+    assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: Some(value), is_override, .. } => {
         assert!(*is_override);
         assert_string!(parser, *name, "foo");
         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
@@ -88,11 +88,11 @@ port2 = {
     let member_id = parser.parse_member(Default::default()).unwrap();
 
     // port2 = { postMessage: () => { setTimeout(this.port1.onmessage, 0) } }
-    assert_node!(parser.tree, member_id, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: None, default: Some(default), .. } => {
+    assert_node!(parser.tree, member_id, Member::Field { name: Name::Identifier(name), declared_type: None, default: Some(default), .. } => {
         assert_string!(parser, *name, "port2");
         assert_node!(parser.tree, *default, Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 1);
-            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+            assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
                 assert_string!(parser, *name, "postMessage");
                 assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
@@ -128,7 +128,7 @@ fn test_parse_member_abstract_override_method() {
     let mut parser = test.prepare();
 
     let member = parser.parse_member(Default::default()).unwrap();
-    assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, abstraction, is_override, .. } => {
+    assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, abstraction, is_override, .. } => {
         assert_string!(parser, *name, "foo");
         assert!(signature.is_abstract);
         assert_eq!(*abstraction, MethodAbstraction::Abstract);
@@ -142,7 +142,7 @@ fn test_parse_member_virtual_method() {
     let mut parser = test.prepare();
 
     let member = parser.parse_member(Default::default()).unwrap();
-    assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, abstraction, body: Some(body), .. } => {
+    assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, abstraction, body: Some(body), .. } => {
         assert_string!(parser, *name, "foo");
         assert_eq!(*abstraction, MethodAbstraction::Virtual);
         assert!(!signature.is_abstract);
@@ -156,7 +156,7 @@ fn test_parse_member_async_override_method() {
     let mut parser = test.prepare();
 
     let member = parser.parse_member(Default::default()).unwrap();
-    assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, visibility, is_override, .. } => {
+    assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, visibility, is_override, .. } => {
         assert_eq!(*visibility, Some(Visibility::Public));
         assert_string!(parser, *name, "foo");
         assert_eq!(signature.asynchrony, Asynchrony::Async);
@@ -174,7 +174,7 @@ fn test_parse_member_method_parameter_type_then_default_value() {
     let member = parser.parse_member(Default::default()).unwrap();
 
     // parse one method where a typed parameter is followed by a defaulted parameter
-    assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(_), .. } => {
+    assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, body: Some(_), .. } => {
         assert_string!(parser, *name, "usersLimitReached");
         assert_eq!(signature.parameters.len(), 2);
 
@@ -209,7 +209,7 @@ fn test_parse_member_method_generic_with_newline_before_parameters() {
     let member = parser.parse_member(Default::default()).unwrap();
 
     // parse one method with a generic parameter and a newline before dynamic parameters
-    assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(body), visibility, .. } => {
+    assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, body: Some(body), visibility, .. } => {
         assert_eq!(*visibility, Some(Visibility::Private));
         assert_string!(parser, *name, "method");
 
@@ -239,7 +239,7 @@ fn test_parse_member_method_with_newline_before_return_type() {
     let member = parser.parse_member(Default::default()).unwrap();
 
     // parse one method with a newline before return type marker
-    assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(body), .. } => {
+    assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, body: Some(body), .. } => {
         assert_string!(parser, *name, "method");
 
         // keep the dynamic parameter and return type attached to the same method signature
@@ -267,7 +267,7 @@ fn test_parse_member_method_object_union_return_type() {
 
     let member = parser.parse_member(Default::default()).unwrap();
 
-    assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: None, .. } => {
+    assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, body: None, .. } => {
         assert_string!(parser, *name, "overlaps");
 
         assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Union { elements } => {
@@ -313,7 +313,7 @@ fn test_parse_member_async_string_literal_name() {
     let mut parser = test.prepare();
 
     let member = parser.parse_member(Default::default()).unwrap();
-    assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::String(name))), signature, body, .. } => {
+    assert_node!(parser.tree, member, Member::Method { name: Some(Name::String(name)), signature, body, .. } => {
         assert_string!(parser, *name, "delete");
         assert_eq!(signature.asynchrony, Asynchrony::Async);
         assert_eq!(signature.parameters.len(), 1);
@@ -347,7 +347,7 @@ fn test_parse_member_method_named_public() {
     let mut parser = test.prepare();
 
     let member = parser.parse_member(Default::default()).unwrap();
-    assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), visibility, .. } => {
+    assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), visibility, .. } => {
         assert!(visibility.is_none());
         assert_string!(parser, *name, "public");
     });
@@ -359,7 +359,7 @@ fn test_parse_member_static_method_named_protected() {
     let mut parser = test.prepare();
 
     let member = parser.parse_member(Default::default()).unwrap();
-    assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), is_static, .. } => {
+    assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), is_static, .. } => {
         assert!(*is_static);
         assert_string!(parser, *name, "protected");
     });
@@ -371,7 +371,7 @@ fn test_parse_member_field_named_static() {
     let mut parser = test.prepare();
 
     let member = parser.parse_member(Default::default()).unwrap();
-    assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: None, default: None, .. } => {
+    assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: None, default: None, .. } => {
         assert_string!(parser, *name, "static");
     });
 }
@@ -386,7 +386,7 @@ fn test_parse_member_missing_default_expression() {
     assert_eq!(parser.errors.len(), 1);
 
     // x =
-    assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: None, default: Some(default), .. } => {
+    assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: None, default: Some(default), .. } => {
         assert_string!(parser, *name, "x");
         assert_node!(parser.tree, *default, Expression::Missing);
     });
@@ -404,7 +404,7 @@ fn test_parse_members_recover_error_slot() {
 
     // error, y: int32
     assert_node!(parser.tree, members[0], Member::Error);
-    assert_node!(parser.tree, members[1], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), default: None, .. } => {
+    assert_node!(parser.tree, members[1], Member::Field { name: Name::Identifier(name), declared_type: Some(value), default: None, .. } => {
         assert_string!(parser, *name, "y");
         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
             assert_eq!(
@@ -427,7 +427,7 @@ fn test_recover_members_embedded_type() {
     assert_eq!(members.len(), 2);
 
     assert_node!(parser.tree, members[0], Member::Error);
-    assert_node!(parser.tree, members[1], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), default: None, .. } => {
+    assert_node!(parser.tree, members[1], Member::Field { name: Name::Identifier(name), declared_type: Some(value), default: None, .. } => {
         assert_string!(parser, *name, "x");
         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
             assert_eq!(
@@ -464,21 +464,21 @@ fn test_parse_interface_get_set_with_newlines() {
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
-            let mut getter: Option<Key> = None;
-            let mut setter: Option<Key> = None;
+            let mut getter: Option<Name> = None;
+            let mut setter: Option<Name> = None;
             for member_id in members {
-                if let TypeMember::Method { signature, key, .. } = parser.tree.get(*member_id) {
+                if let TypeMember::Method { signature, name, .. } = parser.tree.get(*member_id) {
                     match signature.role {
-                        Some(FunctionRole::Getter) => getter = Some(*key),
-                        Some(FunctionRole::Setter) => setter = Some(*key),
+                        Some(FunctionRole::Getter) => getter = Some(*name),
+                        Some(FunctionRole::Setter) => setter = Some(*name),
                         _ => {}
                     }
                 }
             }
             let getter = getter.expect("expected getter member");
             let setter = setter.expect("expected setter member");
-            assert!(matches!(getter, Key::Name(Name::Identifier(_))));
-            assert!(matches!(setter, Key::Name(Name::Identifier(_))));
+            assert!(matches!(getter, Name::Identifier(_)));
+            assert!(matches!(setter, Name::Identifier(_)));
         });
     });
 }
@@ -492,7 +492,7 @@ foo(): string;"#,
     let mut parser = test.prepare();
     let member = parser.parse_member(Default::default()).unwrap();
 
-    assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: None, .. } => {
+    assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, body: None, .. } => {
         assert_string!(parser, *name, "foo");
         assert_eq!(signature.role, Some(FunctionRole::Getter));
         assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value: TypeLiteral::String });
@@ -506,7 +506,7 @@ fn test_parse_property_with_value() {
     let test = TestParser::new("x: int32");
     let mut parser = test.prepare();
     let property = parser.parse_property(Default::default()).unwrap();
-    assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
+    assert_node!(parser.tree, property, Property::Field { name: Name::Identifier(name), value, is_shorthand } => {
         assert_string!(parser, *name, "x");
         assert!(!*is_shorthand);
         assert_node!(parser.tree, *value, Expression::Type { value } => {
@@ -526,7 +526,7 @@ fn test_parse_property_with_default_value() {
     let test = TestParser::new("x = 42");
     let mut parser = test.prepare();
     let property = parser.parse_property(Default::default()).unwrap();
-    assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
+    assert_node!(parser.tree, property, Property::Field { name: Name::Identifier(name), value, is_shorthand } => {
         assert_string!(parser, *name, "x");
         assert!(*is_shorthand);
         assert_node!(parser.tree, *value, Expression::Assign { left, operator, right } => {
@@ -554,7 +554,7 @@ fn test_parse_property_missing_value_expression() {
     assert_eq!(parser.errors.len(), 1);
 
     // x:
-    assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+    assert_node!(parser.tree, property, Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "x");
         assert_node!(parser.tree, *value, Expression::Missing);
     });
@@ -565,7 +565,7 @@ fn test_parse_property_with_typed_arrow_value() {
     let test = TestParser::new("reproFunc: (_: any): any => { }");
     let mut parser = test.prepare();
     let property = parser.parse_property(Default::default()).unwrap();
-    assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+    assert_node!(parser.tree, property, Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "reproFunc");
         assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(_), .. }) => {
@@ -582,7 +582,7 @@ fn test_parse_member_type_keyword_as_field_key() {
     let mut parser = test.prepare();
     let member_id = parser.parse_member(Default::default()).unwrap();
 
-    assert_node!(parser.tree, member_id, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), .. } => {
+    assert_node!(parser.tree, member_id, Member::Field { name: Name::Identifier(name), declared_type: Some(value), .. } => {
         assert_string!(parser, *name, "type");
         assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
     });
@@ -602,11 +602,11 @@ comptime: number"#,
         .unwrap();
 
     assert_eq!(members.len(), 2);
-    assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), .. } => {
+    assert_node!(parser.tree, members[0], TypeMember::Field { name: Name::Identifier(name), declared_type: Some(value), .. } => {
         assert_string!(parser, *name, "type");
         assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
     });
-    assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), .. } => {
+    assert_node!(parser.tree, members[1], TypeMember::Field { name: Name::Identifier(name), declared_type: Some(value), .. } => {
         assert_string!(parser, *name, "comptime");
         assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
     });
@@ -632,7 +632,7 @@ readonly value: string
         assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
             assert_eq!(members.len(), 3);
 
-            assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), .. } => {
+            assert_node!(parser.tree, members[0], TypeMember::Field { name: Name::Identifier(name), declared_type: Some(value), .. } => {
                 assert_string!(parser, *name, "broken");
                 assert_node!(parser.tree, *value, TypeExpression::Missing);
             });
@@ -640,7 +640,7 @@ readonly value: string
                 assert_string!(parser, *name, "Item");
                 assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
             });
-            assert_node!(parser.tree, members[2], TypeMember::Field { is_readonly, key: Key::Name(Name::Identifier(name)), declared_type: Some(value), .. } => {
+            assert_node!(parser.tree, members[2], TypeMember::Field { is_readonly, name: Name::Identifier(name), declared_type: Some(value), .. } => {
                 assert!(*is_readonly);
                 assert_string!(parser, *name, "value");
                 assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
@@ -685,7 +685,7 @@ fn test_parse_property_with_value_and_default_value() {
     let test = TestParser::new("x: int32 = 42");
     let mut parser = test.prepare();
     let property = parser.parse_property(Default::default()).unwrap();
-    assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+    assert_node!(parser.tree, property, Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "x");
         assert_node!(parser.tree, *value, Expression::Assign { .. });
     });
@@ -712,7 +712,7 @@ fn test_parse_properties_recover_error_slot() {
 
     // error, y: int32
     assert_node!(parser.tree, properties[0], Property::Error);
-    assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+    assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "y");
         assert_node!(parser.tree, *value, Expression::Type { value } => {
             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
@@ -745,7 +745,7 @@ fn test_parse_properties_recover_unkeyed_value_field() {
 
     // error, y: 2
     assert_node!(parser.tree, properties[0], Property::Error);
-    assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+    assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "y");
         assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
     });
@@ -770,7 +770,7 @@ fn test_parse_properties_recover_unkeyed_default_field() {
 
     // error, y: 2
     assert_node!(parser.tree, properties[0], Property::Error);
-    assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+    assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "y");
         assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
     });
@@ -820,7 +820,7 @@ fn test_parse_property_method_object_return_type() {
     let mut parser = test.prepare();
     let property_id = parser.parse_property(Default::default()).unwrap();
 
-    assert_node!(parser.tree, property_id, Property::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+    assert_node!(parser.tree, property_id, Property::Method { name: Some(Name::Identifier(name)), signature, .. } => {
         assert_string!(parser, *name, "method");
         assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Object { members: properties } => {
             assert_eq!(properties.len(), 2);
@@ -834,7 +834,7 @@ fn test_parse_object_property_constructor_method_as_key() {
     let mut parser = test.prepare();
 
     let property_id = parser.parse_property(Default::default()).unwrap();
-    assert_node!(parser.tree, property_id, Property::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+    assert_node!(parser.tree, property_id, Property::Method { name: Some(Name::Identifier(name)), signature, .. } => {
         // constructor
         assert_string!(parser, *name, "constructor");
         assert!(signature.role.is_none());
@@ -846,57 +846,6 @@ fn test_parse_object_property_constructor_method_as_key() {
             assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
                 assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
             });
-        });
-    });
-}
-
-#[test]
-fn test_parse_member_computed_optional_method() {
-    let test =
-        TestParser::declaration("[EventEmitter.captureRejectionSymbol]?<K>(error: Error): void");
-    let mut parser = test.prepare();
-
-    let member_id = parser.parse_member(Default::default()).unwrap();
-    assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Expression(key)), signature, is_optional, .. } => {
-        assert!(*is_optional);
-        assert_expression_path!(parser, parser.tree.get(*key), "EventEmitter.captureRejectionSymbol");
-        let generic_parameters = &signature.generic_parameters;
-        assert_eq!(generic_parameters.len(), 1);
-        assert_eq!(signature.parameters.len(), 1);
-        assert!(signature.return_type.is_some());
-    });
-}
-
-#[test]
-fn test_parse_decorated_computed_class_field() {
-    let test = TestParser::new(
-        r#"class Test {
-@test
-["a"]: string;
-}"#,
-    );
-    let mut parser = test.prepare();
-    let expressions = parser.parse();
-
-    assert!(
-        parser.errors.is_empty(),
-        "unexpected parser errors: {:?}",
-        parser.errors
-    );
-
-    let expression_id = expressions[0];
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
-            assert_eq!(members.len(), 1);
-            assert_node!(parser.tree, members[0], Member::Field { key: Key::Expression(key), declared_type: Some(ty), .. } => {
-                assert_node!(parser.tree, *key, Expression::ScalarLiteral(ScalarLiteral::String(_)));
-                assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::String);
-                });
-            });
-
-            let decorators = parser.tree.get_decorators(members[0].id);
-            assert_eq!(decorators.len(), 1);
         });
     });
 }
@@ -1100,7 +1049,7 @@ fn test_parse_member_static_new_method_as_key() {
     let mut parser = test.prepare();
     let member_id = parser.parse_member(Default::default()).unwrap();
 
-    assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, is_static, .. } => {
+    assert_node!(parser.tree, member_id, Member::Method { name: Some(name), signature, is_static, .. } => {
         assert_string!(parser, name.string(), "new");
         assert!(*is_static);
         assert!(signature.role.is_none());
@@ -1115,7 +1064,7 @@ fn test_parse_member_static_constructor_method_as_key() {
     let mut parser = test.prepare();
     let member_id = parser.parse_member(Default::default()).unwrap();
 
-    assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, is_static, .. } => {
+    assert_node!(parser.tree, member_id, Member::Method { name: Some(name), signature, is_static, .. } => {
         assert_string!(parser, name.string(), "constructor");
         assert!(*is_static);
         assert!(signature.role.is_none());
@@ -1241,7 +1190,7 @@ fn test_parse_member_method_with_multiline_return_type() {
     let mut parser = test.prepare();
 
     let member_id = parser.parse_member(Default::default()).unwrap();
-    assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, .. } => {
+    assert_node!(parser.tree, member_id, Member::Method { name: Some(name), signature, .. } => {
         assert_string!(parser, name.string(), "Type");
         assert_eq!(signature.parameters.len(), 1);
         assert!(signature.return_type.is_some());

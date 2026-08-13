@@ -8041,8 +8041,17 @@
           "type": "FIELD",
           "name": "key",
           "content": {
-            "type": "SYMBOL",
-            "name": "_property_name"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_property_name"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "computed_property_name"
+              }
+            ]
           }
         },
         {
@@ -8093,19 +8102,99 @@
           },
           {
             "type": "SYMBOL",
-            "name": "private_property_identifier"
-          },
-          {
-            "type": "SYMBOL",
             "name": "string"
           },
           {
-            "type": "SYMBOL",
-            "name": "number"
-          },
-          {
-            "type": "SYMBOL",
-            "name": "computed_property_name"
+            "type": "ALIAS",
+            "content": {
+              "type": "TOKEN",
+              "content": {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SEQ",
+                    "members": [
+                      {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "STRING",
+                            "value": "0x"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "0X"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "PATTERN",
+                        "value": "[\\da-fA-F](_?[\\da-fA-F])*"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "SEQ",
+                    "members": [
+                      {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "STRING",
+                            "value": "0b"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "0B"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "PATTERN",
+                        "value": "[0-1](_?[0-1])*"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "SEQ",
+                    "members": [
+                      {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "STRING",
+                            "value": "0o"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "0O"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "PATTERN",
+                        "value": "[0-7](_?[0-7])*"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "STRING",
+                        "value": "0"
+                      },
+                      {
+                        "type": "PATTERN",
+                        "value": "[1-9](_?\\d)*"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "named": true,
+            "value": "number"
           }
         ]
       },
@@ -9868,8 +9957,17 @@
               "type": "FIELD",
               "name": "name",
               "content": {
-                "type": "SYMBOL",
-                "name": "_property_name"
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "_property_name"
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "computed_property_name"
+                  }
+                ]
               }
             },
             {
@@ -18282,10 +18380,6 @@
     ],
     [
       "primary_expression",
-      "method_definition"
-    ],
-    [
-      "primary_expression",
       "rest_pattern"
     ],
     [
@@ -18319,10 +18413,6 @@
     [
       "labeled_statement",
       "_property_name"
-    ],
-    [
-      "computed_property_name",
-      "array"
     ],
     [
       "subscript_expression",

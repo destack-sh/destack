@@ -497,6 +497,11 @@ let values: Slice<int32> = [1, 2, 3, 4, 5];
 (&exclusive values)[1..4] satisfies &exclusive Slice<int32>;
 ```
 
+## Properties
+
+Object literals and declared fields and methods have fixed identifier, string, or integer names.
+Use `value[key]` for runtime selection and computed fields in object patterns for destructuring indexed values.
+
 ## Dispatch
 
 "Dispatch" is how calls, member accesses, and overloadable operators select the specific field or method to use.

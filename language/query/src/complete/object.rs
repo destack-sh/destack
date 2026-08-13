@@ -274,18 +274,14 @@ impl CompletionCollector<'_, '_, '_> {
         // collect direct and spread property keys
         for property in properties.iter() {
             match view.get(*property) {
-                dir::Property::Field { key, .. } => {
-                    if let Some(key) = key.direct_static_key() {
-                        keys.insert(key);
-                    }
+                dir::Property::Field { name, .. } => {
+                    keys.insert((*name).into());
                 }
                 dir::Property::Spread { .. } => {
                     keys.extend(self.spread_field_keys(*property)?);
                 }
-                dir::Property::Method { key, .. } => {
-                    if let Some(key) = key.as_ref().and_then(|key| key.direct_static_key()) {
-                        keys.insert(key);
-                    }
+                dir::Property::Method { name, .. } => {
+                    keys.extend(name.map(dir::StaticKey::from));
                 }
                 dir::Property::Error => {}
             }

@@ -1,9 +1,9 @@
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, ClassDeclaration, CommentKind, Declaration, Decorator,
     DecoratorPosition, Expression, FunctionDeclaration, FunctionRole, GenericArgument,
-    GenericParameter, IfForm, IntegerType, InterfaceDeclaration, Key, Keyword, Member, Name,
-    NodeType, Parameter, Pattern, PatternField, ScalarLiteral, TokenType, TreeAttribute,
-    TreeAttributeValue, TupleElement, TypeExpression, TypeLiteral, TypeMember,
+    GenericParameter, IfForm, IntegerType, InterfaceDeclaration, Keyword, Member, Name, NodeType,
+    Parameter, Pattern, PatternField, ScalarLiteral, TokenType, TreeAttribute, TreeAttributeValue,
+    TupleElement, TypeExpression, TypeLiteral, TypeMember,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanType};
 
@@ -574,14 +574,14 @@ fn test_parse_generic_arguments_object_shape_prefers_type_in_type_context() {
         assert_node!(parser.tree, *value, TypeExpression::Object { members } => {
             assert_eq!(members.len(), 2);
 
-            assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+            assert_node!(parser.tree, members[0], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                 assert_string!(parser, *name, "name");
                 assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::ScalarLiteral { value: ScalarLiteral::String(value) } => {
                     assert_string!(parser, *value, "alpha");
                 });
             });
 
-            assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+            assert_node!(parser.tree, members[1], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                 assert_string!(parser, *name, "count");
                 assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(1) });
             });

@@ -440,14 +440,14 @@ impl ModuleQueryContext<'_> {
                 Some(self.outline_declared_type(*declared_type, member_id.into(), program)?),
             ),
             dir::Member::Field {
-                key,
+                name,
                 declared_type,
                 is_readonly,
                 is_static,
                 is_accessor,
                 ..
             } => {
-                let name = self.outline_member_key(view, key)?;
+                let name = self.outline_member_name(*name);
                 let kind = if *is_accessor {
                     SymbolKind::Property
                 } else {
@@ -461,16 +461,13 @@ impl ModuleQueryContext<'_> {
                 (name, kind, Some(detail))
             }
             dir::Member::Method {
-                key,
+                name,
                 signature,
                 is_static,
                 is_accessor,
                 ..
             } => {
-                let name = match key {
-                    Some(key) => Some(self.outline_member_key(view, key)?),
-                    None => None,
-                };
+                let name = name.map(|name| self.outline_member_name(name));
                 let (name, kind) = match outline_method_name(name, signature.role, *is_accessor) {
                     Some(name) => name,
                     None => return Ok(None),
@@ -514,13 +511,13 @@ impl ModuleQueryContext<'_> {
             .ok_or(QueryError::missing(format!("outline span: {node:?}")))?;
         let (name, kind, detail) = match member {
             dir::TypeMember::Field {
-                key,
+                name,
                 declared_type,
                 is_static,
                 is_readonly,
                 ..
             } => {
-                let name = self.outline_member_key(view, key)?;
+                let name = self.outline_member_name(*name);
                 let type_text =
                     self.outline_declared_type(*declared_type, member_id.into(), program)?;
                 let detail =
@@ -529,12 +526,12 @@ impl ModuleQueryContext<'_> {
                 (name, SymbolKind::Field, Some(detail))
             }
             dir::TypeMember::Method {
-                key,
+                name,
                 signature,
                 is_static,
                 ..
             } => {
-                let name = self.outline_member_key(view, key)?;
+                let name = self.outline_member_name(*name);
                 let detail =
                     Formatter::new(self, program).method_signature(signature, *is_static)?;
 
@@ -604,16 +601,13 @@ impl ModuleQueryContext<'_> {
         })
     }
 
-    /// Return an exact display name for one member key.
-    fn outline_member_key(&self, view: dir::View<'_>, key: &dir::Key) -> QueryResult<String> {
-        match key {
-            dir::Key::Name(name) => Ok(self.strings().get(name.string()).to_string()),
-            dir::Key::Expression(expression_id) => {
-                let span = self.node_span(view, (*expression_id).into())?;
-                let expression = self.source_text(span)?;
-
-                Ok(format!("[{expression}]"))
+    /// Return an exact display name for one member.
+    fn outline_member_name(&self, name: dir::Name) -> String {
+        match name {
+            dir::Name::Identifier(name) | dir::Name::String(name) => {
+                self.strings().get(name).to_string()
             }
+            dir::Name::Index(index) => index.to_string(),
         }
     }
 

@@ -316,7 +316,7 @@ impl RenameShorthandIndex {
         // index object literal shorthand names
         for (property_id, property) in view.iter_nodes::<dir::Property>() {
             let dir::Property::Field {
-                key: dir::Key::Name(name),
+                name: dir::Name::Identifier(name),
                 is_shorthand: true,
                 ..
             } = property
@@ -327,14 +327,14 @@ impl RenameShorthandIndex {
             let span = module
                 .node_selection_span(view, property_id.into())?
                 .ok_or(QueryError::missing(format!("rename shorthand: {node:?}")))?;
-            let name = module.strings().get(name.string()).to_string();
+            let name = module.strings().get(*name).to_string();
             shorthand_names.insert(span, name);
         }
 
         // index destructuring shorthand names
         for (field_id, field) in view.iter_nodes::<dir::PatternField>() {
             let dir::PatternField::Named {
-                name,
+                name: dir::Name::Identifier(name),
                 is_shorthand: true,
                 ..
             } = field
@@ -345,7 +345,7 @@ impl RenameShorthandIndex {
             let span = module
                 .node_selection_span(view, field_id.into())?
                 .ok_or(QueryError::missing(format!("rename shorthand: {node:?}")))?;
-            let name = module.strings().get(name.string()).to_string();
+            let name = module.strings().get(*name).to_string();
             shorthand_names.insert(span, name);
         }
 

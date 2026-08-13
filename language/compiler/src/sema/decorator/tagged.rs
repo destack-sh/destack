@@ -411,14 +411,15 @@ impl CheckState<'_> {
         module: ModuleId,
         property: dir::LocalNodeId<dir::Property>,
     ) -> Option<(dir::StringId, dir::LocalNodeId<dir::Expression>)> {
-        let dir::Property::Field { key, value, .. } = self.module_view(module).get(property) else {
+        let dir::Property::Field { name, value, .. } = self.module_view(module).get(property)
+        else {
             return None;
         };
-        let Some(dir::StaticKey::Name(key)) = key.direct_static_key() else {
+        let (dir::Name::Identifier(key) | dir::Name::String(key)) = name else {
             return None;
         };
 
-        Some((key, *value))
+        Some((*key, *value))
     }
 
     /// Return one written scalar literal expression value.

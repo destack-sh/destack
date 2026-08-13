@@ -52,7 +52,7 @@ impl HoistSite {
                     current = owner.into_any();
                 }
 
-                // cross the first property value when no computed key precedes it
+                // cross the first property value
                 dir::NodeType::Property => {
                     let property = parent
                         .try_into_typed::<dir::Property>()
@@ -172,18 +172,8 @@ impl HoistSite {
         module: &ModuleQueryContext<'_>,
     ) -> QueryResult<Option<dir::LocalNodeId<dir::Expression>>> {
         let value = match view.get(property) {
-            dir::Property::Field {
-                key: dir::Key::Name(_),
-                value,
-                ..
-            }
-            | dir::Property::Spread { value } => Some(*value),
-            dir::Property::Field {
-                key: dir::Key::Expression(_),
-                ..
-            }
-            | dir::Property::Method { .. }
-            | dir::Property::Error => None,
+            dir::Property::Field { value, .. } | dir::Property::Spread { value } => Some(*value),
+            dir::Property::Method { .. } | dir::Property::Error => None,
         };
 
         // require the selected property value

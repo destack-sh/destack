@@ -2,9 +2,9 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, FunctionSignature, GenericParameter, Key, Keyword, LocalNodeId, MemberSpace,
-    Mutability, Node, NodeType, ScopeKind, StaticKey, StringId, SymbolKind, TypeExpression,
-    Visibility, WhereClause,
+    Expression, FunctionSignature, GenericParameter, Keyword, LocalNodeId, MemberSpace, Mutability,
+    Name, Node, NodeType, ScopeKind, StaticKey, StringId, SymbolKind, TypeExpression, Visibility,
+    WhereClause,
 };
 
 /// Variance annotation for generic parameters.
@@ -68,7 +68,7 @@ impl FunctionRole {
         }
     }
 
-    /// Get the keyword for the function accessor.
+    /// Return the keyword for the function accessor.
     #[inline]
     pub fn to_keyword(&self) -> Option<Keyword> {
         match self {
@@ -81,15 +81,15 @@ impl FunctionRole {
     }
 }
 
-impl MemberSlot {
-    /// Return the slot for one anonymous function role.
-    #[inline]
-    pub fn from_function_role(role: FunctionRole) -> Option<Self> {
+impl TryFrom<FunctionRole> for MemberSlot {
+    type Error = FunctionRole;
+
+    fn try_from(role: FunctionRole) -> Result<Self, Self::Error> {
         match role {
-            FunctionRole::Constructor => Some(Self::Constructor),
-            FunctionRole::New => Some(Self::New),
-            FunctionRole::Call => Some(Self::Call),
-            FunctionRole::Getter | FunctionRole::Setter => None,
+            FunctionRole::Constructor => Ok(Self::Constructor),
+            FunctionRole::New => Ok(Self::New),
+            FunctionRole::Call => Ok(Self::Call),
+            FunctionRole::Getter | FunctionRole::Setter => Err(role),
         }
     }
 }
@@ -119,13 +119,13 @@ impl MethodAbstraction {
 pub enum Property {
     /// Named field.
     Field {
-        key: Key,
+        name: Name,
         value: LocalNodeId<Expression>,
         is_shorthand: bool,
     },
     /// Object-like member function.
     Method {
-        key: Option<Key>,
+        name: Option<Name>,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
     },
@@ -143,11 +143,13 @@ impl Property {
     /// Return the member slot occupied by this property.
     pub fn slot(&self) -> Option<MemberSlot> {
         match self {
-            Self::Field { key, .. } => key.direct_static_key().map(MemberSlot::Key),
-            Self::Method { key, signature, .. } => signature
+            Self::Field { name, .. } => Some(MemberSlot::Key((*name).into())),
+            Self::Method {
+                name, signature, ..
+            } => signature
                 .role
-                .and_then(MemberSlot::from_function_role)
-                .or_else(|| (*key).and_then(Key::direct_static_key).map(MemberSlot::Key)),
+                .and_then(|role| role.try_into().ok())
+                .or(name.map(|name| MemberSlot::Key(name.into()))),
             Self::Spread { .. } | Self::Error => None,
         }
     }
@@ -160,16 +162,16 @@ impl Property {
         }
     }
 
-    /// Get the key of the property when one exists.
-    pub fn key(&self) -> Option<&Key> {
+    /// Return the property name when one exists.
+    pub fn name(&self) -> Option<Name> {
         match self {
-            Property::Field { key, .. } => Some(key),
-            Property::Method { key, .. } => key.as_ref(),
+            Property::Field { name, .. } => Some(*name),
+            Property::Method { name, .. } => *name,
             Property::Spread { .. } | Property::Error => None,
         }
     }
 
-    /// Get the function signature of the property when one exists.
+    /// Return the function signature of the property when one exists.
     pub fn signature(&self) -> Option<&FunctionSignature> {
         match self {
             Property::Method { signature, .. } => Some(signature),
@@ -223,7 +225,7 @@ pub enum Member {
     },
     /// Named field.
     Field {
-        key: Key,
+        name: Name,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
         mutability: Option<Mutability>,
@@ -239,7 +241,7 @@ pub enum Member {
     },
     /// Named member function.
     Method {
-        key: Option<Key>,
+        name: Option<Name>,
         signature: FunctionSignature,
         abstraction: MethodAbstraction,
         body: Option<LocalNodeId<Expression>>,
@@ -269,11 +271,13 @@ impl Member {
             Self::AssociatedType { name, .. } | Self::AssociatedConst { name, .. } => {
                 Some(MemberSlot::Key(StaticKey::Name(*name)))
             }
-            Self::Field { key, .. } => key.direct_static_key().map(MemberSlot::Key),
-            Self::Method { key, signature, .. } => signature
+            Self::Field { name, .. } => Some(MemberSlot::Key((*name).into())),
+            Self::Method {
+                name, signature, ..
+            } => signature
                 .role
-                .and_then(MemberSlot::from_function_role)
-                .or_else(|| (*key).and_then(Key::direct_static_key).map(MemberSlot::Key)),
+                .and_then(|role| role.try_into().ok())
+                .or(name.map(|name| MemberSlot::Key(name.into()))),
             Self::StaticBlock { .. } | Self::ComptimeBlock { .. } | Self::Error => None,
         }
     }
@@ -298,9 +302,11 @@ impl Member {
             Self::AssociatedType { name, .. } | Self::AssociatedConst { name, .. } => {
                 Some(StaticKey::Name(*name))
             }
-            Self::Field { key, .. } => key.direct_static_key(),
-            Self::Method { key: Some(key), .. } => key.direct_static_key(),
-            Self::Method { key: None, .. }
+            Self::Field { name, .. } => Some((*name).into()),
+            Self::Method {
+                name: Some(name), ..
+            } => Some((*name).into()),
+            Self::Method { name: None, .. }
             | Self::StaticBlock { .. }
             | Self::ComptimeBlock { .. }
             | Self::Error => None,
@@ -313,8 +319,8 @@ impl Member {
             Self::AssociatedType { .. } => Some(SymbolKind::AssociatedType),
             Self::AssociatedConst { .. } => Some(SymbolKind::AssociatedConst),
             Self::Field { .. } => Some(SymbolKind::Variable),
-            Self::Method { key: Some(_), .. } => Some(SymbolKind::Function),
-            Self::Method { key: None, .. }
+            Self::Method { name: Some(_), .. } => Some(SymbolKind::Function),
+            Self::Method { name: None, .. }
             | Self::StaticBlock { .. }
             | Self::ComptimeBlock { .. }
             | Self::Error => None,
@@ -336,31 +342,24 @@ impl Member {
     pub fn symbol_scope_kind(&self) -> Option<ScopeKind> {
         match self {
             Self::AssociatedType { .. } => Some(ScopeKind::Type),
-            Self::Method { key: Some(_), .. } => Some(ScopeKind::Function),
+            Self::Method { name: Some(_), .. } => Some(ScopeKind::Function),
             _ => None,
         }
     }
 
-    /// Get the declared name of the member when one exists.
-    pub fn name(&self) -> Option<StringId> {
+    /// Return the authored member name when one exists.
+    pub fn name(&self) -> Option<Name> {
         match self {
             Member::AssociatedType { name, .. } | Member::AssociatedConst { name, .. } => {
-                Some(*name)
+                Some(Name::Identifier(*name))
             }
+            Member::Field { name, .. } => Some(*name),
+            Member::Method { name, .. } => *name,
             _ => None,
         }
     }
 
-    /// Get the key of the member when one exists.
-    pub fn key(&self) -> Option<&Key> {
-        match self {
-            Member::Field { key, .. } => Some(key),
-            Member::Method { key, .. } => key.as_ref(),
-            _ => None,
-        }
-    }
-
-    /// Get the function signature of the member when one exists.
+    /// Return the function signature of the member when one exists.
     pub fn signature(&self) -> Option<&FunctionSignature> {
         match self {
             Member::Method { signature, .. } => Some(signature),

@@ -23,7 +23,7 @@ newtype interface Add<T = this> {
 }
 
 extension of Vector2 implements Add<Vector2> {
-    [Add.add](other: Vector2): this.Output {
+    add(other: Vector2): this.Output {
         return other;
     }
 }

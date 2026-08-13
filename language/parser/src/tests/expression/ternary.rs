@@ -2,8 +2,7 @@ use crate::tests::{TestParser, block_expression_ids};
 use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
 use destack_dir::{
     AssignOperator, BinaryOperator, Block, CommentKind, Declaration, Declarator, ExportKind,
-    Expression, FunctionDeclaration, FunctionForm, IfForm, Key, Name, Pattern, Property,
-    ScalarLiteral,
+    Expression, FunctionDeclaration, FunctionForm, IfForm, Name, Pattern, Property, ScalarLiteral,
 };
 
 /// Parse `true ? 1 : 2`.
@@ -350,8 +349,8 @@ fn test_parse_export_const_ternary_object_literal_arrow_value() {
                 let else_expression = else_expression.expect("expected else branch");
                 assert_node!(parser.tree, else_expression, Expression::ObjectExpression { properties, .. } => {
                     assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], Property::Field { key, value, .. } => {
-                        assert_node!(key, Key::Name(Name::Identifier(name)) => {
+                    assert_node!(parser.tree, properties[0], Property::Field { name, value, .. } => {
+                        assert_node!(name, Name::Identifier(name) => {
                             assert_string!(parser, *name, "reproFunc");
                         });
                         assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
@@ -392,8 +391,8 @@ fn test_parse_ternary_object_literal_arrow_value_expression() {
                 let else_expression = else_expression.expect("expected else branch");
                 assert_node!(parser.tree, else_expression, Expression::ObjectExpression { properties, .. } => {
                     assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], Property::Field { key, value, .. } => {
-                        assert_node!(key, Key::Name(Name::Identifier(name)) => {
+                    assert_node!(parser.tree, properties[0], Property::Field { name, value, .. } => {
+                        assert_node!(name, Name::Identifier(name) => {
                             assert_string!(parser, *name, "reproFunc");
                         });
                         assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {

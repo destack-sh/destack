@@ -5,7 +5,7 @@ use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
     Expression, Keyword, LocalNodeId, Name, NodeType, OperatorPrecedence, Pattern, PatternField,
-    RangeEnd, ScalarLiteral, TokenLiteral, TokenType, TypeExpression,
+    RangeEnd, ScalarLiteral, TokenType, TypeExpression,
 };
 use destack_source::ByteRange;
 
@@ -535,7 +535,7 @@ impl Parser {
         // named property or rest property
         if self.peek_is(TokenType::Spread)
             || self.peek_name_start()
-            || self.peek_object_pattern_alias()
+            || self.peek_numeric_pattern_name()
         {
             return self.parse_named_or_rest_pattern_field(
                 separator,
@@ -631,7 +631,7 @@ impl Parser {
     ) -> ParserResult<(PatternField, Option<ByteRange>)> {
         let has_named_colon_field = self.peek_name_start()
             && self.peek_token_type_at(1) == TokenType::Colon
-            || terminator == TokenType::CloseBrace && self.peek_object_pattern_alias();
+            || terminator == TokenType::CloseBrace && self.peek_numeric_pattern_name();
         if has_named_colon_field {
             return self.parse_named_colon_pattern_field(terminator, field_start, context);
         }
@@ -766,21 +766,9 @@ impl Parser {
         }
     }
 
-    /// Return whether a literal alias key starts here.
-    fn peek_object_pattern_alias(&self) -> bool {
-        let has_numeric_alias_head =
-            self.peek_numeric_literal_start() && self.peek_token_type_at(1) == TokenType::Colon;
-        let has_boolean_alias_head =
-            self.peek_boolean_pattern_name() && self.peek_token_type_at(1) == TokenType::Colon;
-        has_numeric_alias_head || has_boolean_alias_head
-    }
-
-    /// Return whether a boolean object-pattern key starts here.
-    fn peek_boolean_pattern_name(&self) -> bool {
-        let token = self.peek_token_span().token;
-
-        token.ty() == TokenType::Literal
-            && matches!(token.literal(), Some(TokenLiteral::Boolean { .. }))
+    /// Return whether an integer pattern name starts here.
+    fn peek_numeric_pattern_name(&self) -> bool {
+        self.peek_numeric_literal_start() && self.peek_token_type_at(1) == TokenType::Colon
     }
 
     /// Eat one object-pattern field name.
@@ -788,39 +776,18 @@ impl Parser {
         &mut self,
         terminator: TokenType,
     ) -> ParserResult<(Name, ByteRange)> {
-        let is_numeric_object_key =
+        let is_numeric_object_name =
             terminator == TokenType::CloseBrace && self.peek_numeric_literal_start();
-        if is_numeric_object_key {
+        if is_numeric_object_name {
             return self.eat_numeric_pattern_name_with_range();
         }
-        let is_boolean_object_key =
-            terminator == TokenType::CloseBrace && self.peek_boolean_pattern_name();
-        if is_boolean_object_key {
-            return self.eat_boolean_pattern_name_with_range();
-        }
-
         self.eat_name_with_range()
     }
 
     /// Eat one numeric pattern field name as an index.
     fn eat_numeric_pattern_name_with_range(&mut self) -> ParserResult<(Name, ByteRange)> {
-        let (index, range) = self.eat_index_key_with_range()?;
+        let (index, range) = self.eat_index_name_with_range()?;
 
         Ok((Name::Index(index), range))
-    }
-
-    /// Eat one boolean pattern field name as an identifier.
-    fn eat_boolean_pattern_name_with_range(&mut self) -> ParserResult<(Name, ByteRange)> {
-        let token = self.peek_token_span();
-        if token.token.ty() != TokenType::Literal
-            || !matches!(token.token.literal(), Some(TokenLiteral::Boolean { .. }))
-        {
-            return Err(ParserError::unexpected(token));
-        }
-
-        self.bump();
-        let key_name = self.span_str(token.span).to_owned();
-        let key_name = self.strings.intern(&key_name);
-        Ok((Name::Identifier(key_name), token.token.range()))
     }
 }

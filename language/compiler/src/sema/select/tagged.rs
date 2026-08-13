@@ -616,7 +616,7 @@ impl BodyState<'_, '_> {
                     position += 1;
                 }
                 dir::PatternField::Named { name, pattern, .. } => {
-                    let key = name.static_key();
+                    let key = name.into();
                     let Some(payload_field) = payload.fields.iter().find(|field| field.key == key)
                     else {
                         let key = self.format_static_key(&key);

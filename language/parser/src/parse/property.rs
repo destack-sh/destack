@@ -1,5 +1,5 @@
 use destack_dir::{
-    AssignOperator, AssignPattern, Asynchrony, Expression, FunctionRole, Key, LocalNodeId, Name,
+    AssignOperator, AssignPattern, Asynchrony, Expression, FunctionRole, LocalNodeId, Name,
     NodeType, OperatorPrecedence, Property, TokenLiteral, TokenType,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
@@ -169,7 +169,7 @@ impl Parser {
             return true;
         }
 
-        if !self.is_simple_object_key_start(token_type) {
+        if !self.is_simple_object_name_start(token_type) {
             return false;
         }
 
@@ -180,8 +180,8 @@ impl Parser {
         ) || Self::is_any_stop_token(peek_next_token_type)
     }
 
-    /// Return whether one token starts a simple object literal key.
-    fn is_simple_object_key_start(&self, token_type: TokenType) -> bool {
+    /// Return whether one token starts a simple object literal name.
+    fn is_simple_object_name_start(&self, token_type: TokenType) -> bool {
         match token_type {
             TokenType::Identifier => true,
             TokenType::Literal => matches!(
@@ -192,7 +192,6 @@ impl Parser {
                         has_invalid_escape: false,
                     } | TokenLiteral::Int { .. }
                         | TokenLiteral::Float { .. }
-                        | TokenLiteral::Boolean { .. }
                 )
             ),
             _ => false,
@@ -220,18 +219,18 @@ impl Parser {
             return Ok(self.insert_node(property, self.range_since(start)));
         }
 
-        let (key, key_range) = self.eat_key_with_range(function)?;
+        let (name, name_range) = self.eat_property_name_with_range()?;
 
         if self.peek_is(TokenType::Colon) {
-            return self.parse_simple_object_colon_field(start, key, key_range, function);
+            return self.parse_simple_object_colon_field(start, name, name_range, function);
         }
 
         if self.peek_is(TokenType::Assign) {
-            return self.parse_simple_object_default_field(start, key, key_range, function);
+            return self.parse_simple_object_default_field(start, name, name_range, function);
         }
 
         if self.peek_shorthand_object_property_end() {
-            return self.parse_simple_object_shorthand_field(start, key, key_range);
+            return self.parse_simple_object_shorthand_field(start, name, name_range);
         }
 
         Err(ParserError::unexpected(self.peek_token_span()))
@@ -248,8 +247,8 @@ impl Parser {
     fn parse_simple_object_colon_field(
         &mut self,
         start: &ParseStart,
-        key: Key,
-        key_range: ByteRange,
+        name: Name,
+        name_range: ByteRange,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Property>> {
         let type_start = self.mark_parse_start();
@@ -258,13 +257,13 @@ impl Parser {
         let value = self.parse_simple_object_field_value(function)?;
         let property_id = self.insert_node(
             Property::Field {
-                key,
+                name,
                 value,
                 is_shorthand: false,
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(property_id, key_range);
+        self.tree.set_main_range(property_id, name_range);
         self.tree.set_side_range(
             property_id,
             NodeSpanType::Region(NodeSpanRegion::Type),
@@ -285,19 +284,19 @@ impl Parser {
     fn parse_simple_object_default_field(
         &mut self,
         start: &ParseStart,
-        key: Key,
-        key_range: ByteRange,
+        name: Name,
+        name_range: ByteRange,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Property>> {
-        let Key::Name(Name::Identifier(name)) = key else {
-            return Err(ParserError::unexpected(key_range));
+        let Name::Identifier(identifier) = name else {
+            return Err(ParserError::unexpected(name_range));
         };
 
         let assign_start = self.mark_parse_start();
         self.bump();
         let default = self.parse_simple_object_field_value(function)?;
-        let value = self.insert_node(Expression::Identifier { name }, key_range);
-        self.tree.set_main_range(value, key_range);
+        let value = self.insert_node(Expression::Identifier { name: identifier }, name_range);
+        self.tree.set_main_range(value, name_range);
         let value = self.insert_property_default_expression(
             value,
             default,
@@ -305,13 +304,13 @@ impl Parser {
         );
         let property_id = self.insert_node(
             Property::Field {
-                key,
+                name,
                 value,
                 is_shorthand: true,
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(property_id, key_range);
+        self.tree.set_main_range(property_id, name_range);
 
         Ok(property_id)
     }
@@ -327,24 +326,24 @@ impl Parser {
     fn parse_simple_object_shorthand_field(
         &mut self,
         start: &ParseStart,
-        key: Key,
-        key_range: ByteRange,
+        name: Name,
+        name_range: ByteRange,
     ) -> ParserResult<LocalNodeId<Property>> {
-        let Key::Name(Name::Identifier(name)) = key else {
-            return Err(ParserError::unexpected(key_range));
+        let Name::Identifier(identifier) = name else {
+            return Err(ParserError::unexpected(name_range));
         };
 
-        let value = self.insert_node(Expression::Identifier { name }, key_range);
-        self.tree.set_main_range(value, key_range);
+        let value = self.insert_node(Expression::Identifier { name: identifier }, name_range);
+        self.tree.set_main_range(value, name_range);
         let property_id = self.insert_node(
             Property::Field {
-                key,
+                name,
                 value,
                 is_shorthand: true,
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(property_id, key_range);
+        self.tree.set_main_range(property_id, name_range);
 
         Ok(property_id)
     }
@@ -423,18 +422,18 @@ impl Parser {
         let modifiers = self.parse_binding_modifiers(BindingModifierGrammar::Property);
         let MemberHead {
             modifiers,
-            key,
-            key_range,
+            name,
+            name_range,
             role,
             role_range: _,
             is_async,
             is_generator,
             is_method,
             associated_comptime_name,
-        } = self.parse_member_head(modifiers, MethodRoleGrammar::Ordinary, function)?;
+        } = self.parse_member_head(modifiers, MethodRoleGrammar::Ordinary)?;
 
-        // object fields cannot start with an unkeyed call signature
-        if key.is_none()
+        // object fields cannot start with an unnamed call signature
+        if name.is_none()
             && role.is_none()
             && !is_async
             && !is_generator
@@ -443,8 +442,8 @@ impl Parser {
             return Err(ParserError::unexpected(self.peek_token_span()));
         }
 
-        // modifiers without a key or call signature are invalid
-        if key.is_none() && !modifiers.is_empty() && !is_method {
+        // modifiers without a name or call signature are invalid
+        if name.is_none() && !modifiers.is_empty() && !is_method {
             return Err(ParserError::unexpected(self.peek_token_span()));
         }
 
@@ -458,8 +457,8 @@ impl Parser {
             return Err(ParserError::unexpected(error_range));
         }
 
-        // unkeyed field separators are invalid
-        if key.is_none() && (self.peek_is(TokenType::Colon) || self.peek_is(TokenType::Assign)) {
+        // unnamed field separators are invalid
+        if name.is_none() && (self.peek_is(TokenType::Colon) || self.peek_is(TokenType::Assign)) {
             return Err(ParserError::expected(
                 self.peek_token().range(),
                 TokenType::Identifier,
@@ -481,8 +480,8 @@ impl Parser {
             }
 
             // abstraction
-            // methods without key or role are implicit calls
-            let role = if key.is_none() && role.is_none() {
+            // methods without a name or role are implicit calls
+            let role = if name.is_none() && role.is_none() {
                 Some(FunctionRole::Call)
             } else {
                 role
@@ -521,14 +520,14 @@ impl Parser {
 
             // method property
             let property = Property::Method {
-                key,
+                name,
                 signature,
                 body,
             };
             let property_id = self.insert_node(property, self.range_since(&start));
 
-            // set the main source range to the key identifier
-            if let Some(range) = key_range {
+            // set the main source range to the name
+            if let Some(range) = name_range {
                 self.tree.set_main_range(property_id, range);
             }
 
@@ -596,7 +595,7 @@ impl Parser {
             let is_defaulted_shorthand = value.is_none()
                 && default.is_some()
                 && modifiers.is_empty()
-                && matches!(key, Some(Key::Name(Name::Identifier(_))));
+                && matches!(name, Some(Name::Identifier(_)));
 
             // preserve both the declared type and the default
             let value = match (value, default) {
@@ -606,13 +605,14 @@ impl Parser {
                     assign_operator_span,
                 )),
                 (None, Some(default)) if is_defaulted_shorthand => {
-                    let Some((Key::Name(Name::Identifier(name)), key_range)) = key.zip(key_range)
+                    let Some((Name::Identifier(identifier), name_range)) = name.zip(name_range)
                     else {
                         return Err(ParserError::unexpected(self.range_since(&start)));
                     };
 
-                    let value = self.insert_node(Expression::Identifier { name }, key_range);
-                    self.tree.set_main_range(value, key_range);
+                    let value =
+                        self.insert_node(Expression::Identifier { name: identifier }, name_range);
+                    self.tree.set_main_range(value, name_range);
 
                     Some(self.insert_property_default_expression(
                         value,
@@ -629,17 +629,18 @@ impl Parser {
             let is_bare_shorthand = value.is_none()
                 && default.is_none()
                 && modifiers.is_empty()
-                && matches!(key, Some(Key::Name(Name::Identifier(_))));
+                && matches!(name, Some(Name::Identifier(_)));
             let is_shorthand = is_bare_shorthand || is_defaulted_shorthand;
 
             let value = if is_bare_shorthand {
-                match key {
-                    Some(Key::Name(Name::Identifier(name))) => {
-                        let Some(key_range) = key_range else {
+                match name {
+                    Some(Name::Identifier(identifier)) => {
+                        let Some(name_range) = name_range else {
                             return Err(ParserError::unexpected(self.range_since(&start)));
                         };
-                        let value = self.insert_node(Expression::Identifier { name }, key_range);
-                        self.tree.set_main_range(value, key_range);
+                        let value = self
+                            .insert_node(Expression::Identifier { name: identifier }, name_range);
+                        self.tree.set_main_range(value, name_range);
 
                         Some(value)
                     }
@@ -649,16 +650,16 @@ impl Parser {
                 value
             };
 
-            // unkeyed empty heads are not properties
-            if modifiers.is_empty() && key.is_none() && value.is_none() && default.is_none() {
+            // unnamed empty heads are not properties
+            if modifiers.is_empty() && name.is_none() && value.is_none() && default.is_none() {
                 return Err(ParserError::expected(
                     self.peek_token().range(),
                     TokenType::Identifier,
                 ));
             }
 
-            // field construction requires a key
-            let Some(key) = key else {
+            // field construction requires a name
+            let Some(name) = name else {
                 return Err(ParserError::expected(
                     self.peek_token().range(),
                     TokenType::Identifier,
@@ -673,14 +674,14 @@ impl Parser {
             };
 
             let property = Property::Field {
-                key,
+                name,
                 value,
                 is_shorthand,
             };
             let property_id = self.insert_node(property, self.range_since(&start));
 
-            // set the main source range to the key identifier
-            if let Some(range) = key_range {
+            // set the main source range to the name
+            if let Some(range) = name_range {
                 self.tree.set_main_range(property_id, range);
             }
 

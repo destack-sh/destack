@@ -97,7 +97,7 @@ impl BodyState<'_, '_> {
         field: dir::LocalNodeId<dir::PatternField>,
     ) -> CompilerResult<Option<(dir::LocalNodeIdAny, dir::StaticKey)>> {
         let key = match self.module(module).view().get(field).clone() {
-            dir::PatternField::Named { name, .. } => Some((field.into_any(), name.static_key())),
+            dir::PatternField::Named { name, .. } => Some((field.into_any(), name.into())),
             dir::PatternField::Computed { key, .. } => self
                 .evaluate_static_key(module, key)?
                 .map(|static_key| (key.into_any(), static_key)),
@@ -116,9 +116,7 @@ impl BodyState<'_, '_> {
         field: dir::LocalNodeId<dir::AssignPatternField>,
     ) -> CompilerResult<Option<(dir::LocalNodeIdAny, dir::StaticKey)>> {
         let key = match self.module(module).view().get(field).clone() {
-            dir::AssignPatternField::Named { name, .. } => {
-                Some((field.into_any(), name.static_key()))
-            }
+            dir::AssignPatternField::Named { name, .. } => Some((field.into_any(), name.into())),
             dir::AssignPatternField::Computed { key, .. } => self
                 .evaluate_static_key(module, key)?
                 .map(|static_key| (key.into_any(), static_key)),

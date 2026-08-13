@@ -3,7 +3,7 @@ use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
     Argument, ClassDeclaration, Declaration, Expression, FunctionDeclaration, FunctionForm,
-    GenericArgument, Key, Member, Name, Property, TypeExpression,
+    GenericArgument, Member, Name, Property, TypeExpression,
 };
 
 /// Parse a class expression with implements.
@@ -108,7 +108,7 @@ fn test_parse_object_property_named_class_expression_value() {
 
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 1);
-        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+        assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
             assert_string!(parser, *name, "useClass");
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { name, members, .. }) => {
@@ -136,7 +136,7 @@ fn test_eat_decorator_object_property_named_class_expression_value() {
         assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+                assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
                     assert_string!(parser, *name, "useClass");
                     assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { name, members, .. }) => {
@@ -155,7 +155,7 @@ fn test_eat_decorator_object_property_named_class_expression_value() {
 fn test_parse_class_expression_with_generic_implements_clause() {
     let test = TestParser::new(
         r#"class implements Iterable<string> {
-  *[Symbol.iterator]() {
+  *iterator() {
     yield "value";
   }
 }"#,

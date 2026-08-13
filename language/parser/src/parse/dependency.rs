@@ -4,8 +4,8 @@ use crate::{Parser, ParserError, ParserResult};
 use destack_core::StringId;
 use destack_dir::{
     Argument, DependencyBinding, DependencyForm, DependencyItem, Expression, ImportAttribute,
-    ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Key, Keyword,
-    LocalNodeId, Name, NodeType, Property, TokenLiteral, TokenType,
+    ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Keyword, LocalNodeId,
+    Name, NodeType, Property, TokenLiteral, TokenType,
 };
 use destack_source::{ByteRange, NodeSpanList, NodeSpanRegion, NodeSpanType};
 
@@ -341,16 +341,12 @@ impl Parser {
                 let mut attributes = Vec::with_capacity(properties.len());
 
                 for &property_id in properties {
-                    let Property::Field { key, value, .. } = self.tree.get(property_id) else {
-                        return Err(ParserError::unexpected(self.tree.get_range(property_id)));
-                    };
-
-                    let Key::Name(key) = key else {
+                    let Property::Field { name, value, .. } = self.tree.get(property_id) else {
                         return Err(ParserError::unexpected(self.tree.get_range(property_id)));
                     };
                     let value = self.decode_import_attribute_value(*value)?;
 
-                    attributes.push(ImportAttribute { key: *key, value });
+                    attributes.push(ImportAttribute { key: *name, value });
                 }
 
                 ImportAttributeValue::Object(attributes)

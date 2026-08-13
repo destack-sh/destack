@@ -381,12 +381,7 @@ impl Compiler {
         }
 
         match type_member {
-            dir::TypeMember::Field {
-                key, declared_type, ..
-            } => {
-                // visit field key
-                dir::walk_key(state, tree, key);
-
+            dir::TypeMember::Field { declared_type, .. } => {
                 // visit field type
                 if let Some(declared_type) = declared_type {
                     let declared_type_node = tree.get(*declared_type);
@@ -394,14 +389,8 @@ impl Compiler {
                 }
             }
             dir::TypeMember::Method {
-                key,
-                signature,
-                body,
-                ..
+                signature, body, ..
             } => {
-                // visit method key
-                dir::walk_key(state, tree, key);
-
                 // visit method signature
                 self.bind_function_signature(state, tree, signature);
 

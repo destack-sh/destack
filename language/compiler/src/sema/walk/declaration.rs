@@ -1238,7 +1238,7 @@ impl WalkState<'_, '_> {
         Ok(WalkedEnumVariant::Present(dir::EnumVariantDefinition {
             symbol,
             source: id.into_global_any(self.module),
-            key: name.static_key(),
+            key: name.into(),
             value,
         }))
     }

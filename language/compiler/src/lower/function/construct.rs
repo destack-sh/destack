@@ -266,10 +266,10 @@ impl FunctionLowerer<'_, '_, '_> {
         let nominal = self.lowerer.nominal(&nominal.key)?;
         let fields = nominal.fields.clone();
 
-        // gather each property value under its field key
+        // gather each property value under its field name
         let mut values = Vec::with_capacity(properties.len());
         for property in properties {
-            let dir::Property::Field { key, value, .. } = self.source().tree().get(*property)
+            let dir::Property::Field { name, value, .. } = self.source().tree().get(*property)
             else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -279,15 +279,7 @@ impl FunctionLowerer<'_, '_, '_> {
             };
 
             // key each written value by its property name
-            let dir::Key::Name(name) = key else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: "a computed property key".to_string(),
-                }
-                .into());
-            };
-
-            values.push((name.static_key(), *value));
+            values.push((dir::StaticKey::from(*name), *value));
         }
 
         // collect the field storage types behind the nominal, peeling lifetime applications
@@ -389,10 +381,10 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
-        // gather each written value under its property key
+        // gather each written value under its property name
         let mut written = Vec::with_capacity(properties.len());
         for property in properties {
-            let dir::Property::Field { key, value, .. } = self.source().tree().get(*property)
+            let dir::Property::Field { name, value, .. } = self.source().tree().get(*property)
             else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -400,15 +392,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 .into());
             };
-            let dir::Key::Name(name) = key else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: "a computed object property key".to_string(),
-                }
-                .into());
-            };
-
-            written.push((name.static_key(), *value));
+            written.push((dir::StaticKey::from(*name), *value));
         }
 
         // lower the declared carrier, construction fills its struct storage

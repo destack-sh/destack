@@ -300,25 +300,28 @@ fn is_authored_identifier(view: &dir::View<'_>, node: dir::LocalNodeIdAny) -> bo
     }
 }
 
-/// Return whether one declaration member uses an identifier key.
+/// Return whether one declaration member uses an identifier name.
 fn member_identifier(member: &dir::Member) -> bool {
     match member {
         dir::Member::AssociatedType { .. } | dir::Member::AssociatedConst { .. } => true,
-        dir::Member::Field { key, .. } | dir::Member::Method { key: Some(key), .. } => {
-            matches!(key, dir::Key::Name(dir::Name::Identifier(_)))
+        dir::Member::Field { name, .. }
+        | dir::Member::Method {
+            name: Some(name), ..
+        } => {
+            matches!(name, dir::Name::Identifier(_))
         }
         _ => false,
     }
 }
 
-/// Return whether one type member uses an identifier key.
+/// Return whether one type member uses an identifier name.
 fn type_member_identifier(member: &dir::TypeMember) -> bool {
     match member {
         dir::TypeMember::AssociatedType { .. }
         | dir::TypeMember::AssociatedConst { .. }
         | dir::TypeMember::IndexSignature { .. } => true,
-        dir::TypeMember::Field { key, .. } | dir::TypeMember::Method { key, .. } => {
-            matches!(key, dir::Key::Name(dir::Name::Identifier(_)))
+        dir::TypeMember::Field { name, .. } | dir::TypeMember::Method { name, .. } => {
+            matches!(name, dir::Name::Identifier(_))
         }
         _ => false,
     }

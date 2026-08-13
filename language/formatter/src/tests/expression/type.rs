@@ -390,26 +390,6 @@ fn test_format_type_fixed_array() {
     );
 }
 
-/// Optional computed class methods should keep the optional marker before generics.
-#[test]
-fn test_format_class_method_optional_computed_key() {
-    assert_format_program!(
-        r#"class EventEmitter<T> {
-  [EventEmitter.captureRejectionSymbol]?<K>(error: Error, event: Key<K, T>, ...args: Args<K, T>): void;
-}
-"#,
-        r#"class EventEmitter<T> {
-    [EventEmitter.captureRejectionSymbol]?<K>(
-        error: Error,
-        event: Key<K, T>,
-        ...args: Args<K, T>
-    ): void;
-}
-"#,
-        FileType::Destack
-    );
-}
-
 /// Function-type return annotations should use arrow-function parenthesis rules.
 #[test]
 fn test_format_function_type_return_parentheses() {

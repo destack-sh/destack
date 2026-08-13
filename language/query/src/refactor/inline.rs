@@ -754,7 +754,7 @@ impl InlineReference {
         // require the reference to be the shorthand value
         let property = dir::LocalNodeId::<dir::Property>::new(parent.id);
         let dir::Property::Field {
-            key: dir::Key::Name(name),
+            name: dir::Name::Identifier(name),
             value,
             is_shorthand: true,
         } = view.get(property)
@@ -768,15 +768,7 @@ impl InlineReference {
             )));
         }
 
-        // read the exact static property name
-        let Some(name) = name.static_key().name() else {
-            return Err(QueryError::invalid(format!(
-                "inline shorthand: {:?}",
-                parent.into_global(module.module_id())
-            )));
-        };
-
-        Ok(Some(module.strings().get(name).to_string()))
+        Ok(Some(module.strings().get(*name).to_string()))
     }
 
     /// Emit this replacement with the grouping required by its exact parent.

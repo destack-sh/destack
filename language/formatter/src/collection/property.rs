@@ -21,7 +21,7 @@ use crate::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::StringId;
 use destack_dir::{
-    BinaryOperator, Comment, Expression, FunctionSignature, Key, Keyword, LocalNodeId,
+    BinaryOperator, Comment, Expression, FunctionSignature, Keyword, LocalNodeId,
     MethodAbstraction, Mutability, Name, Node, NodeType, Parameter, Property, ScalarLiteral, Tree,
     TreeStore, TypeExpression, Visibility, is_identifier_compat,
 };
@@ -46,13 +46,6 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Name {
     }
 }
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Key {
-    #[inline]
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        format_key_with_quotes(f, *self, false)
-    }
-}
-
 impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Keyword {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
@@ -60,43 +53,23 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Keyword {
     }
 }
 
-/// Format a key with quote rules controls.
-pub(crate) fn format_key_with_quotes<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    key: Key,
-    force_quote_keys: bool,
-) -> FormatResult<()> {
-    match key {
-        Key::Name(name) => {
-            format_name_with_quotes(f, name, force_quote_keys)?;
-        }
-        Key::Expression(expression) => {
-            write!(f, [token("[")])?;
-            write!(f, [expression])?;
-            write!(f, [token("]")])?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Check whether a string is an identifier safe to leave unquoted as a property key.
-pub(crate) fn is_identifier_for_quotes(content: &str) -> bool {
+/// Return whether a string can be written as an unquoted property name.
+pub(crate) fn can_unquote_name(content: &str) -> bool {
     is_identifier_compat(content) || content.parse::<Keyword>().is_ok()
 }
 
-/// Format a name key while applying quote rules.
+/// Format a property name while applying quote rules.
 pub(crate) fn format_name_with_quotes<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     name: Name,
-    force_quote_keys: bool,
+    force_quotes: bool,
 ) -> FormatResult<()> {
     let context = f.context();
     let quote_props = context.options.quote_props;
 
     match name {
         Name::Identifier(string_id) => {
-            let should_quote = quote_props == QuoteProperty::Consistent && force_quote_keys;
+            let should_quote = quote_props == QuoteProperty::Consistent && force_quotes;
             if should_quote {
                 format_quoted_name(f, string_id)?;
             } else {
@@ -105,12 +78,12 @@ pub(crate) fn format_name_with_quotes<'ast>(
         }
         Name::String(string_id) => {
             let content = context.strings.get(string_id);
-            let is_ident = is_identifier_for_quotes(content);
+            let is_ident = can_unquote_name(content);
 
             let should_quote = match quote_props {
-                QuoteProperty::AsNeeded => force_quote_keys || !is_ident,
+                QuoteProperty::AsNeeded => force_quotes || !is_ident,
                 QuoteProperty::Preserve => true,
-                QuoteProperty::Consistent => force_quote_keys || !is_ident,
+                QuoteProperty::Consistent => force_quotes || !is_ident,
             };
 
             if should_quote {
@@ -127,17 +100,15 @@ pub(crate) fn format_name_with_quotes<'ast>(
     Ok(())
 }
 
-/// Return whether one key requires quotes in a consistent quote group.
-pub(crate) fn key_requires_quote_group(context: &DestackFormatContext<'_>, key: Key) -> bool {
-    match key {
-        Key::Name(Name::String(string_id)) => {
-            !is_identifier_for_quotes(context.strings.get(string_id))
-        }
+/// Return whether one name requires quotes in a consistent quote group.
+pub(crate) fn name_requires_quote_group(context: &DestackFormatContext<'_>, name: Name) -> bool {
+    match name {
+        Name::String(string_id) => !can_unquote_name(context.strings.get(string_id)),
         _ => false,
     }
 }
 
-/// Format a quoted key using the preferred quote character.
+/// Format a quoted name using the preferred quote character.
 fn format_quoted_name<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     string_id: StringId,
@@ -359,7 +330,7 @@ fn write_definite_suffix<'ast>(
 }
 
 /// Return whether one property container should quote all eligible keys.
-fn property_should_force_quote_keys<'ast>(
+fn property_should_force_quotes<'ast>(
     f: &DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Property>,
 ) -> bool {
@@ -382,13 +353,9 @@ fn property_should_force_quote_keys<'ast>(
     };
 
     properties.iter().copied().any(|property_id| {
-        let key = match f.context().tree.get(property_id) {
-            Property::Field { key, .. } => Some(*key),
-            Property::Method { key, .. } => *key,
-            Property::Spread { .. } | Property::Error => None,
-        };
+        let name = f.context().tree.get(property_id).name();
 
-        key.is_some_and(|key| key_requires_quote_group(f.context(), key))
+        name.is_some_and(|name| name_requires_quote_group(f.context(), name))
     })
 }
 
@@ -396,14 +363,14 @@ fn property_should_force_quote_keys<'ast>(
 fn format_object_property_value<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Property>,
-    key: Key,
+    name: Name,
     value: LocalNodeId<Expression>,
     is_shorthand: bool,
-    force_quote_keys: bool,
+    force_quotes: bool,
 ) -> FormatResult<()> {
     // shorthand
     if is_shorthand {
-        return format_key_with_quotes(f, key, force_quote_keys);
+        return format_name_with_quotes(f, name, force_quotes);
     }
 
     // left side
@@ -411,7 +378,7 @@ fn format_object_property_value<'ast>(
     write_field_like_left(
         &mut formatter,
         node_id,
-        key,
+        name,
         None,
         None,
         false,
@@ -423,7 +390,7 @@ fn format_object_property_value<'ast>(
         false,
         false,
         false,
-        force_quote_keys,
+        force_quotes,
     )?;
     let left_instructions = formatter.into_tape();
     let left_may_break = left_instructions.will_break();
@@ -481,7 +448,7 @@ fn format_object_property_value<'ast>(
 fn write_field_like_left<'ast, T>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
-    key: Key,
+    name: Name,
     value: Option<LocalNodeId<TypeExpression>>,
     visibility: Option<Visibility>,
     is_ambient: bool,
@@ -493,14 +460,14 @@ fn write_field_like_left<'ast, T>(
     is_accessor: bool,
     is_optional: bool,
     is_definite: bool,
-    force_quote_keys: bool,
+    force_quotes: bool,
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
 {
-    let force_quote_keys =
-        force_quote_keys || should_preserve_class_field_quote(f.context(), node_id, key);
+    let force_quotes =
+        force_quotes || should_preserve_class_field_quote(f.context(), node_id, name);
 
     // prefixes
     write_ambient_prefix(f, is_ambient)?;
@@ -522,10 +489,10 @@ where
     write_mutability_prefix(f, mutability)?;
     write_accessor_prefix(f, is_accessor)?;
 
-    // key
-    format_key_with_quotes(f, key, force_quote_keys)?;
+    // name
+    format_name_with_quotes(f, name, force_quotes)?;
 
-    // key suffixes
+    // name suffixes
     write_optional_suffix(f, is_optional)?;
     write_definite_suffix(f, is_definite)?;
 
@@ -537,17 +504,17 @@ where
     Ok(())
 }
 
-/// Return whether a class field string key should preserve quotes.
+/// Return whether a class field string name should preserve quotes.
 fn should_preserve_class_field_quote<T>(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
-    key: Key,
+    name: Name,
 ) -> bool
 where
     T: Node + Clone,
     Tree: TreeStore<T>,
 {
-    if !matches!(key, Key::Name(Name::String(_))) {
+    if !matches!(name, Name::String(_)) {
         return false;
     }
 
@@ -562,7 +529,7 @@ where
 pub(crate) fn format_field_like<'ast, T>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
-    key: Key,
+    name: Name,
     value: Option<LocalNodeId<TypeExpression>>,
     visibility: Option<Visibility>,
     is_ambient: bool,
@@ -575,7 +542,7 @@ pub(crate) fn format_field_like<'ast, T>(
     is_optional: bool,
     is_definite: bool,
     default: Option<LocalNodeId<Expression>>,
-    force_quote_keys: bool,
+    force_quotes: bool,
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
@@ -586,7 +553,7 @@ where
         write_field_like_left(
             f,
             node_id,
-            key,
+            name,
             value,
             visibility,
             is_ambient,
@@ -598,7 +565,7 @@ where
             is_accessor,
             is_optional,
             is_definite,
-            force_quote_keys,
+            force_quotes,
         )?;
         return Ok(());
     };
@@ -608,7 +575,7 @@ where
     write_field_like_left(
         &mut formatter,
         node_id,
-        key,
+        name,
         value,
         visibility,
         is_ambient,
@@ -620,7 +587,7 @@ where
         is_accessor,
         is_optional,
         is_definite,
-        force_quote_keys,
+        force_quotes,
     )?;
     let left_instructions = formatter.into_tape();
     let left_may_break = left_instructions.will_break();
@@ -678,7 +645,7 @@ where
 pub(crate) fn format_method_like<'ast, N>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<N>,
-    key: Option<Key>,
+    name: Option<Name>,
     signature: &FunctionSignature,
     abstraction: MethodAbstraction,
     body: Option<LocalNodeId<Expression>>,
@@ -687,7 +654,7 @@ pub(crate) fn format_method_like<'ast, N>(
     is_static: bool,
     is_accessor: bool,
     is_optional: bool,
-    force_quote_keys: bool,
+    force_quotes: bool,
 ) -> FormatResult<()>
 where
     N: Node + Clone + 'ast,
@@ -705,11 +672,11 @@ where
     write_accessor_prefix(f, is_accessor)?;
 
     // shared function header prefix
-    write_function_header_prefix(f, signature, false, key.is_some())?;
+    write_function_header_prefix(f, signature, false, name.is_some())?;
 
-    // key
-    if let Some(key) = key {
-        format_key_with_quotes(f, key, force_quote_keys)?;
+    // name
+    if let Some(name) = name {
+        format_name_with_quotes(f, name, force_quotes)?;
     }
 
     // optional
@@ -724,7 +691,7 @@ where
         )?;
     }
 
-    // key to parameter separator
+    // name to parameter separator
     write!(f, [block_infix_annotations(f.context(), node_id)])?;
     write_method_parameters_and_return_type(f, node_id, signature, &parameters)?;
 
@@ -946,10 +913,10 @@ impl<'ast> FormatNode<'ast, Property> for Property {
         node_id: LocalNodeId<Property>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let force_quote_keys = property_should_force_quote_keys(f, node_id);
+        let force_quotes = property_should_force_quotes(f, node_id);
 
         if let Property::Method {
-            key,
+            name,
             signature,
             body,
         } = self
@@ -958,7 +925,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 format_method_like(
                     f,
                     node_id,
-                    *key,
+                    *name,
                     signature,
                     MethodAbstraction::Concrete,
                     *body,
@@ -967,7 +934,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     false,
                     false,
                     false,
-                    force_quote_keys,
+                    force_quotes,
                 )
             });
         }
@@ -975,17 +942,17 @@ impl<'ast> FormatNode<'ast, Property> for Property {
         format_node_with_directive(f, node_id, false, |f| {
             match self {
                 Property::Field {
-                    key,
+                    name,
                     value,
                     is_shorthand,
                 } => {
                     format_object_property_value(
                         f,
                         node_id,
-                        *key,
+                        *name,
                         *value,
                         *is_shorthand,
-                        force_quote_keys,
+                        force_quotes,
                     )?;
                 }
                 Property::Spread { value } => {

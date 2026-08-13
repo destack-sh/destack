@@ -1,6 +1,6 @@
 use destack_dir::{
     Argument, BinaryOperator, CommentKind, ConditionOperand, Declaration, Expression, FloatType,
-    FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, IfForm, IntegerType, Key,
+    FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, IfForm, IntegerType,
     Name, NodeType, Parameter, Pattern, Property, ScalarAlias, ScalarLiteral, TemplateLiteral,
     TokenType, TreeAttribute, TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
@@ -81,7 +81,7 @@ fn test_parse_object_literal_with_missing_close_brace() {
     assert_eq!(parser.errors.len(), 1);
     assert_eq!(properties.len(), 1);
 
-    assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+    assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "foo");
         assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
     });
@@ -1583,7 +1583,7 @@ fn test_parse_tree_attribute_object_callback_with_fragment_ternary() {
 
             assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(key_name)), value: callback, .. } => {
+                assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(key_name), value: callback, .. } => {
                     assert_string!(parser, *key_name, "resend");
                     assert_node!(parser.tree, *callback, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {

@@ -1,6 +1,6 @@
 use destack_dir::{
     Asynchrony, BlockContext, Expression, FunctionForm, FunctionPhase, FunctionRole,
-    FunctionSignature, Key, Keyword, LocalNodeId, Member, Name, NodeType, Parameter, StringId,
+    FunctionSignature, Keyword, LocalNodeId, Member, Name, NodeType, Parameter, StringId,
     TokenType, TypeExpression,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
@@ -16,10 +16,10 @@ use crate::{ParseStart, Parser, ParserError, ParserResult};
 pub(crate) struct MemberHead {
     /// The consumed modifiers.
     pub(crate) modifiers: BindingModifiers,
-    /// The member key.
-    pub(crate) key: Option<Key>,
-    /// The key range.
-    pub(crate) key_range: Option<ByteRange>,
+    /// The member name.
+    pub(crate) name: Option<Name>,
+    /// The name range.
+    pub(crate) name_range: Option<ByteRange>,
     /// The method role.
     pub(crate) role: Option<FunctionRole>,
     /// The method role keyword range.
@@ -186,10 +186,10 @@ impl Parser {
         modifiers
     }
 
-    /// Validate one member or property head after key and postfix modifiers.
+    /// Validate one member or property head after its name and postfix modifiers.
     fn validate_method_head_modifiers(
         &mut self,
-        key: Option<&Key>,
+        name: Option<&Name>,
         modifiers: &BindingModifiers,
         is_async: bool,
     ) -> ParserResult<()> {
@@ -210,8 +210,8 @@ impl Parser {
         if !is_async
             && modifiers.is_optional
             && matches!(
-                key,
-                Some(Key::Name(Name::Identifier(name))) if self.strings.get(*name) == "async"
+                name,
+                Some(Name::Identifier(name)) if self.strings.get(*name) == "async"
             )
             && !self.peek_is_on_new_line()
             && self.peek_is(TokenType::Identifier)
@@ -280,7 +280,6 @@ impl Parser {
         &mut self,
         mut modifiers: BindingModifiers,
         role_grammar: MethodRoleGrammar,
-        function: FunctionContext,
     ) -> ParserResult<MemberHead> {
         // async and late abstraction modifiers
         let is_async = self.parse_method_asynchrony();
@@ -293,11 +292,11 @@ impl Parser {
             None => (None, None),
         };
 
-        // generator and key
+        // generator and name
         let is_generator = self.eat_token_if(TokenType::Multiply);
-        let (key, key_range) =
-            if let Some((key, range)) = self.eat_key_with_range_if_present(function)? {
-                (Some(key), Some(range))
+        let (name, name_range) =
+            if let Some((name, range)) = self.eat_property_name_with_range_if_present()? {
+                (Some(name), Some(range))
             } else {
                 (None, None)
             };
@@ -305,12 +304,12 @@ impl Parser {
         // postfix modifiers
         let modifiers = self.parse_definite_modifier(modifiers);
         let modifiers = self.parse_postfix_binding_modifier(modifiers);
-        self.validate_method_head_modifiers(key.as_ref(), &modifiers, is_async)?;
+        self.validate_method_head_modifiers(name.as_ref(), &modifiers, is_async)?;
 
         // classify the head
         let associated_comptime_name = if modifiers.is_comptime && modifiers.is_const_asserted {
-            match key.as_ref() {
-                Some(Key::Name(Name::Identifier(name))) => Some(*name),
+            match name.as_ref() {
+                Some(Name::Identifier(name)) => Some(*name),
                 _ => return Err(ParserError::unexpected(self.peek_token_span())),
             }
         } else {
@@ -324,8 +323,8 @@ impl Parser {
 
         Ok(MemberHead {
             modifiers,
-            key,
-            key_range,
+            name,
+            name_range,
             role,
             role_range,
             is_async,
@@ -603,7 +602,7 @@ impl Parser {
         }
 
         // static block: `static { ... }` or `static\n{ ... }`
-        // must check before key parsing since static is already a modifier
+        // must check before name parsing since static is already a modifier
         if modifiers.is_static && self.peek_is(TokenType::OpenBrace) {
             let body_start = self.mark_parse_start();
             let body_block = self.parse_block(BlockContext::Statement, function)?;
@@ -638,15 +637,15 @@ impl Parser {
         };
         let MemberHead {
             modifiers,
-            key,
-            key_range,
+            name,
+            name_range,
             role,
             role_range,
             is_async,
             is_generator,
             is_method,
             associated_comptime_name,
-        } = self.parse_member_head(modifiers, role_grammar, function)?;
+        } = self.parse_member_head(modifiers, role_grammar)?;
 
         // reject impossible associated modifiers
         if associated_comptime_name.is_some() && modifiers.is_static {
@@ -665,8 +664,8 @@ impl Parser {
             }
 
             // abstraction
-            // methods without key or role are implicit calls
-            let role = if key.is_none() && role.is_none() {
+            // methods without a name or role are implicit calls
+            let role = if name.is_none() && role.is_none() {
                 Some(FunctionRole::Call)
             } else {
                 role
@@ -700,7 +699,7 @@ impl Parser {
 
             // method member
             let member = Member::Method {
-                key,
+                name,
                 signature,
                 abstraction: modifiers.method_abstraction(),
                 body,
@@ -713,8 +712,8 @@ impl Parser {
             };
             let member_id = self.insert_node(member, self.range_since(&start));
 
-            // set the main source range to the declared key or role
-            if let Some(range) = key_range.or(role_range) {
+            // set the main source range to the declared name or role
+            if let Some(range) = name_range.or(role_range) {
                 self.tree.set_main_range(member_id, range);
             }
 
@@ -788,7 +787,7 @@ impl Parser {
             };
 
             // member
-            if modifiers.is_empty() && key.is_none() && value.is_none() && default.is_none() {
+            if modifiers.is_empty() && name.is_none() && value.is_none() && default.is_none() {
                 // not a member
                 return Err(ParserError::expected(
                     self.peek_token().range(),
@@ -814,12 +813,12 @@ impl Parser {
                     is_override: modifiers.is_override,
                 }
             } else {
-                let Some(key) = key else {
+                let Some(name) = name else {
                     return Err(ParserError::unexpected(self.range_since(&start)));
                 };
 
                 Member::Field {
-                    key,
+                    name,
                     declared_type: value,
                     default,
                     mutability: None,
@@ -836,8 +835,8 @@ impl Parser {
             };
             let member_id = self.insert_node(member, self.range_since(&start));
 
-            // set the main source range to the key identifier
-            if let Some(range) = key_range {
+            // set the main source range to the name
+            if let Some(range) = name_range {
                 self.tree.set_main_range(member_id, range);
             }
 

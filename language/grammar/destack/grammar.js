@@ -85,6 +85,8 @@ module.exports = grammar(JavaScript, {
 
   conflicts: ($, previous) => previous
     .filter((conflict) => !sameConflict(conflict, ['class_static_block', '_property_name']))
+    .filter((conflict) => !sameConflict(conflict, ['computed_property_name', 'array']))
+    .filter((conflict) => !sameConflict(conflict, ['primary_expression', 'method_definition']))
     .filter((conflict) => !sameConflict(conflict, ['_initializer', 'binary_expression']))
     .concat([
       [$.subscript_expression, $.match_arm_expression_statement],
@@ -205,6 +207,21 @@ module.exports = grammar(JavaScript, {
     ]),
 
   rules: {
+    _property_name: $ => reserved('properties', choice(
+      alias(
+        choice($.identifier, $._reserved_identifier),
+        $.property_identifier,
+      ),
+      $.string,
+      alias(token(integerName()), $.number),
+    )),
+
+    pair_pattern: $ => seq(
+      field('key', choice($._property_name, $.computed_property_name)),
+      ':',
+      field('value', choice($.pattern, $.assignment_pattern)),
+    ),
+
     public_field_definition: $ => seq(
       repeat(field('decorator', $.decorator)),
       optional($.accessibility_modifier),
@@ -739,7 +756,7 @@ module.exports = grammar(JavaScript, {
     match_object_pattern_property: $ => choice(
       $.rest_pattern,
       seq(
-        field('name', $._property_name),
+        field('name', choice($._property_name, $.computed_property_name)),
         optional(choice(
           seq(':', field('value', $.match_pattern)),
           seq('=', field('default', choice($.literal_type, $.identifier))),
@@ -2634,6 +2651,20 @@ function sepBy(sep, rule) {
  */
 function sepBy1(sep, rule) {
   return seq(rule, repeat(seq(sep, rule)));
+}
+
+/**
+ * Creates a token for one non-negative integer property name.
+ *
+ * @returns {ChoiceRule}
+ */
+function integerName() {
+  const hexadecimal = seq(choice('0x', '0X'), /[\da-fA-F](_?[\da-fA-F])*/);
+  const binary = seq(choice('0b', '0B'), /[0-1](_?[0-1])*/);
+  const octal = seq(choice('0o', '0O'), /[0-7](_?[0-7])*/);
+  const decimal = choice('0', /[1-9](_?\d)*/);
+
+  return choice(hexadecimal, binary, octal, decimal);
 }
 
 /**

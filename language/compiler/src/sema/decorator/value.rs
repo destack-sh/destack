@@ -362,16 +362,8 @@ impl CheckState<'_> {
         for property in properties {
             let property = self.module_view(module).get(*property).clone();
             let value = match property {
-                dir::Property::Field { key, value, .. } => {
-                    let key = match key {
-                        dir::Key::Name(name) => Some(name.static_key()),
-                        dir::Key::Expression(expression) => {
-                            self.evaluate_static_key(module, expression)?
-                        }
-                    };
-                    let Some(key) = key else {
-                        return Ok(Err(StaticError::NotStatic(expression)));
-                    };
+                dir::Property::Field { name, value, .. } => {
+                    let key = name.into();
                     let value = match self.evaluate_static_expression(module, value)? {
                         Ok(value) => value,
                         Err(error) => return Ok(Err(error)),

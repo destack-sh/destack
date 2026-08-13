@@ -17,7 +17,7 @@ impl Compiler {
         let kind = declaration.symbol_kind()?;
         let role = declaration.symbol_role()?;
         let scope_kind = declaration.symbol_scope_kind()?;
-        let key = declaration.name().map(|name| name.static_key());
+        let key = declaration.name().map(dir::StaticKey::from);
         let export = declaration.export();
 
         // declare symbol and owned scope
@@ -194,7 +194,7 @@ impl Compiler {
         let symbol_id = state.insert_symbol(
             dir::SymbolRole::Item,
             dir::SymbolKind::Variant,
-            Some(field.name.static_key()),
+            Some(field.name.into()),
             None,
             dir::SymbolVisibility::Member,
         );

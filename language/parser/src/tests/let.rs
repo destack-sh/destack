@@ -1,8 +1,7 @@
 use destack_dir::{
     Asynchrony, Declaration, Declarator, Expression, FloatType, FunctionDeclaration, FunctionForm,
-    GenericArgument, GenericParameter, IntegerType, Key, LetKind, Name, NodeType, Parameter,
-    Pattern, PatternField, PlaceModifier, ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
-    TypeMember,
+    GenericArgument, GenericParameter, IntegerType, LetKind, Name, NodeType, Parameter, Pattern,
+    PatternField, PlaceModifier, ScalarLiteral, TokenType, TypeExpression, TypeLiteral, TypeMember,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -596,7 +595,7 @@ const registry: Map<
                             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                                     assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                                         assert_eq!(properties.len(), 1);
-                                        assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), .. } => {
+                                        assert_node!(parser.tree, properties[0], TypeMember::Field { name: Name::Identifier(name), .. } => {
                                             assert_string!(parser, *name, "count");
                                         });
                                     });

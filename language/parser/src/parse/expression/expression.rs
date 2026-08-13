@@ -65,7 +65,12 @@ impl Parser {
             };
 
         // parse the operand and iterative operator tail
-        let first = if self.peek_is(TokenType::ElementwiseOr) {
+        let first = if OperatorPrecedence::Assignment > context.minimum_precedence
+            && self.peek_destructuring_assignment()
+        {
+            let start = self.mark_parse_start();
+            self.parse_destructuring_assignment(&start, context)?
+        } else if self.peek_is(TokenType::ElementwiseOr) {
             self.parse_leading_or_expression(context)?
         } else {
             self.parse_expression_operand(context)?
@@ -98,6 +103,15 @@ impl Parser {
         // recover a missing operand at an enclosing grammar boundary
         if self.peek_expression_slot_boundary() {
             return Ok(self.recover_missing_expression_here(NodeType::Expression));
+        }
+
+        // parse a destructuring assignment as one right associative operand
+        if context.minimum_precedence == OperatorPrecedence::Assignment
+            && self.peek_destructuring_assignment()
+        {
+            let start = self.mark_parse_start();
+
+            return self.parse_destructuring_assignment(&start, context);
         }
 
         // guard source nesting introduced by a leading separator

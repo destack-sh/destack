@@ -1,6 +1,6 @@
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BindingKeyword, Block, Declarator, Expression,
-    ForEachBinding, ForEachOperator, GenericArgument, Key, Keyword, Name, Pattern, PatternField,
+    ForEachBinding, ForEachOperator, GenericArgument, Keyword, Name, Pattern, PatternField,
     ScalarLiteral, TokenType, TypeExpression, TypeLiteral, TypeMember, UnaryOperator, WhileForm,
 };
 
@@ -234,7 +234,7 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                             assert_eq!(properties.len(), 1);
-                            assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: value, .. } => {
+                            assert_node!(parser.tree, properties[0], TypeMember::Field { name: Name::Identifier(name), declared_type: value, .. } => {
                                 assert_string!(parser, *name, "item");
                                 assert_node!(parser.tree, value.expect("expected declared type"), TypeExpression::Literal { value } => {
                                     assert_eq!(*value, TypeLiteral::String);

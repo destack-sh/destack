@@ -439,12 +439,12 @@ impl Parser {
             return Ok(member_id);
         }
 
-        // key
-        let (key, key_range) =
+        // name
+        let (name, name_range) =
             if matches!(role, Some(FunctionRole::Constructor | FunctionRole::New)) {
                 (None, None)
-            } else if let Some((key, range)) = self.eat_key_with_range_if_present(function)? {
-                (Some(key), Some(range))
+            } else if let Some((name, range)) = self.eat_property_name_with_range_if_present()? {
+                (Some(name), Some(range))
             } else {
                 (None, None)
             };
@@ -471,11 +471,11 @@ impl Parser {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }
 
-            if matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter)) && key.is_none() {
+            if matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter)) && name.is_none() {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }
 
-            let role = if key.is_none() && role.is_none() {
+            let role = if name.is_none() && role.is_none() {
                 Some(FunctionRole::Call)
             } else {
                 role
@@ -501,11 +501,11 @@ impl Parser {
                 container_kind.allows_body(),
             )?;
 
-            let member = match (key, role) {
-                (Some(key), _) => TypeMember::Method {
+            let member = match (name, role) {
+                (Some(name), _) => TypeMember::Method {
                     is_static,
                     is_optional,
-                    key,
+                    name,
                     signature,
                     body,
                 },
@@ -523,7 +523,7 @@ impl Parser {
             };
             let member_id = self.insert_node(member, self.range_since(&start));
 
-            if let Some(range) = key_range.or(role_range) {
+            if let Some(range) = name_range.or(role_range) {
                 self.tree.set_main_range(member_id, range);
             }
 
@@ -561,7 +561,7 @@ impl Parser {
         }
 
         // field
-        let Some(key) = key else {
+        let Some(name) = name else {
             return Err(ParserError::expected(
                 self.peek_token().range(),
                 TokenType::Identifier,
@@ -588,12 +588,12 @@ impl Parser {
             is_static,
             is_optional,
             is_readonly,
-            key,
+            name,
             declared_type,
         };
         let member_id = self.insert_node(member, self.range_since(&start));
 
-        if let Some(range) = key_range {
+        if let Some(range) = name_range {
             self.tree.set_main_range(member_id, range);
         }
 
@@ -633,7 +633,7 @@ impl Parser {
             return Ok(None);
         }
 
-        let (key, key_range) = self.eat_key_with_range(function)?;
+        let (name, name_range) = self.eat_property_name_with_range()?;
 
         let optional_start = self.mark_parse_start();
         let is_optional = self.eat_token_if(TokenType::Maybe);
@@ -652,12 +652,12 @@ impl Parser {
                 is_static: false,
                 is_optional,
                 is_readonly: false,
-                key,
+                name,
                 declared_type: Some(declared_type),
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(member_id, key_range);
+        self.tree.set_main_range(member_id, name_range);
         self.tree.set_side_range(
             member_id,
             NodeSpanType::Region(NodeSpanRegion::Type),

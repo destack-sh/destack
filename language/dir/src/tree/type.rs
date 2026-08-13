@@ -2,10 +2,10 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, MemberSlot,
-    MemberSpace, Mutability, Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind,
-    StaticKey, StringId, SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral, VarianceBound,
-    WhereClause,
+    Expression, FunctionSignature, GenericArgument, GenericParameter, LocalNodeId, MemberSlot,
+    MemberSpace, Mutability, Name, Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral,
+    ScopeKind, StaticKey, StringId, SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral,
+    VarianceBound, WhereClause,
 };
 
 /// One type-surface member.
@@ -13,7 +13,7 @@ use crate::{
 pub enum TypeMember {
     /// Named field.
     Field {
-        key: Key,
+        name: Name,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         is_static: bool,
         is_optional: bool,
@@ -21,7 +21,7 @@ pub enum TypeMember {
     },
     /// Named method.
     Method {
-        key: Key,
+        name: Name,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
         is_static: bool,
@@ -75,11 +75,17 @@ impl TypeMember {
             Self::AssociatedType { name, .. } | Self::AssociatedConst { name, .. } => {
                 Some(MemberSlot::Key(StaticKey::Name(*name)))
             }
-            Self::Field { key, .. } => key.direct_static_key().map(MemberSlot::Key),
-            Self::Method { key, signature, .. } => signature
-                .role
-                .and_then(MemberSlot::from_function_role)
-                .or_else(|| key.direct_static_key().map(MemberSlot::Key)),
+            Self::Field { name, .. } => Some(MemberSlot::Key((*name).into())),
+            Self::Method {
+                name, signature, ..
+            } => {
+                let slot = signature
+                    .role
+                    .and_then(|role| role.try_into().ok())
+                    .unwrap_or(MemberSlot::Key((*name).into()));
+
+                Some(slot)
+            }
             Self::CallSignature { .. } => Some(MemberSlot::Call),
             Self::ConstructSignature { .. } => Some(MemberSlot::New),
             Self::IndexSignature { .. } | Self::Error => None,
@@ -117,8 +123,7 @@ impl TypeMember {
             Self::AssociatedType { name, .. } | Self::AssociatedConst { name, .. } => {
                 Some(StaticKey::Name(*name))
             }
-            Self::Field { key, .. } => key.direct_static_key(),
-            Self::Method { key, .. } => key.direct_static_key(),
+            Self::Field { name, .. } | Self::Method { name, .. } => Some((*name).into()),
             Self::CallSignature { .. }
             | Self::ConstructSignature { .. }
             | Self::IndexSignature { .. }
@@ -149,26 +154,18 @@ impl TypeMember {
         }
     }
 
-    /// Get the declared name of the type member when one exists.
-    pub fn name(&self) -> Option<StringId> {
+    /// Return the authored type member name when one exists.
+    pub fn name(&self) -> Option<Name> {
         match self {
             TypeMember::AssociatedType { name, .. } | TypeMember::AssociatedConst { name, .. } => {
-                Some(*name)
+                Some(Name::Identifier(*name))
             }
+            TypeMember::Field { name, .. } | TypeMember::Method { name, .. } => Some(*name),
             _ => None,
         }
     }
 
-    /// Get the key of the type member when one exists.
-    pub fn key(&self) -> Option<&Key> {
-        match self {
-            TypeMember::Field { key, .. } => Some(key),
-            TypeMember::Method { key, .. } => Some(key),
-            _ => None,
-        }
-    }
-
-    /// Get the function signature of the type member when one exists.
+    /// Return the function signature of the type member when one exists.
     pub fn signature(&self) -> Option<&FunctionSignature> {
         match self {
             TypeMember::Method { signature, .. } => Some(signature),

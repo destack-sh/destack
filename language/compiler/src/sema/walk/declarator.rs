@@ -343,7 +343,7 @@ impl CheckState<'_> {
                 } => {
                     let (name, pattern) = (*name, *pattern);
                     let mut field_path = path.clone();
-                    field_path.push(name.static_key());
+                    field_path.push(name.into());
 
                     self.narrow_pattern(field_path, pattern, true)?;
                 }
@@ -476,11 +476,9 @@ impl CheckState<'_> {
             // { name: "a" }
             dir::Expression::ObjectExpression { properties } => {
                 properties.iter().all(|property| match tree.get(*property) {
-                    dir::Property::Field {
-                        key: dir::Key::Name(_),
-                        value,
-                        ..
-                    } => self.is_transcribable_literal(module, *value),
+                    dir::Property::Field { value, .. } => {
+                        self.is_transcribable_literal(module, *value)
+                    }
                     _ => false,
                 })
             }

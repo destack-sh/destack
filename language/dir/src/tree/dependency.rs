@@ -168,7 +168,7 @@ impl DependencyItem {
             return None;
         };
 
-        name.map(|name| name.static_key())
+        name.map(StaticKey::from)
     }
 
     /// Return the target selector introduced by this export item.
@@ -180,7 +180,7 @@ impl DependencyItem {
         let selector = match binding {
             DependencyBinding::Default => ExportSelector::Default,
             DependencyBinding::Namespace => ExportSelector::Namespace,
-            DependencyBinding::Named => ExportSelector::Named((*name)?.static_key()),
+            DependencyBinding::Named => ExportSelector::Named((*name)?.into()),
         };
 
         Some(selector)

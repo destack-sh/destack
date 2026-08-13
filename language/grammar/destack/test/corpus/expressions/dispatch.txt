@@ -15,7 +15,7 @@ newtype interface Add<T = this> {
 }
 
 extension of Vector2 implements Add<Vector2> {
-    [Add.add](other: Vector2): this.Output {
+    add(other: Vector2): this.Output {
         return other;
     }
 }
@@ -73,10 +73,7 @@ extension of Vector2 implements Add<Vector2> {
           (type_identifier))))
     (class_body
       (method_definition
-        (computed_property_name
-          (member_expression
-            (identifier)
-            (property_identifier)))
+        (property_identifier)
         (formal_parameters
           (required_parameter
             (identifier)

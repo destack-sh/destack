@@ -1,6 +1,6 @@
 use destack_dir::{
     ClassDeclaration, CommentKind, Declaration, ExportKind, Expression, GenericParameter,
-    IntegerType, Key, Member, Name, Parameter, PlaceModifier, ScalarLiteral, StructDeclaration,
+    IntegerType, Member, Name, Parameter, PlaceModifier, ScalarLiteral, StructDeclaration,
     TypeExpression, TypeLiteral, Visibility, WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -304,7 +304,7 @@ fn test_parse_class_member_method_parameter_type_then_default_value() {
         assert_eq!(members.len(), 1);
 
         // usersLimitReached(userCount: number, userLimit = get(this.store).userLimit)
-        assert_node!(parser.tree, members[0], Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(_), .. } => {
+        assert_node!(parser.tree, members[0], Member::Method { name: Some(Name::Identifier(name)), signature, body: Some(_), .. } => {
             assert_string!(parser, *name, "usersLimitReached");
             assert_eq!(signature.parameters.len(), 2);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), default, .. } => {
@@ -472,27 +472,27 @@ struct Foo<T: Numeric> implements Quux {
         assert_eq!(members.len(), 4);
 
         // a: T
-        assert_node!(parser.tree, members[0], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), default: None, .. } => {
+        assert_node!(parser.tree, members[0], Member::Field { name: Name::Identifier(name), declared_type: Some(ty), default: None, .. } => {
             assert_string!(parser, *name, "a");
             assert_node!(parser.tree, *ty, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "T");
             });
         });
         // b?: T
-        assert_node!(parser.tree, members[1], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), is_optional, default: None, .. } => {
+        assert_node!(parser.tree, members[1], Member::Field { name: Name::Identifier(name), declared_type: Some(ty), is_optional, default: None, .. } => {
             assert!(*is_optional);
             assert_string!(parser, *name, "b");
             assert_expression_path!(parser, parser.tree.get(*ty), "T");
         });
         // c: T
-        assert_node!(parser.tree, members[2], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), default: None, .. } => {
+        assert_node!(parser.tree, members[2], Member::Field { name: Name::Identifier(name), declared_type: Some(ty), default: None, .. } => {
             assert_string!(parser, *name, "c");
             assert_node!(parser.tree, *ty, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "T");
             });
         });
         // private d: int32 = 4
-        assert_node!(parser.tree, members[3], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), default: Some(value), visibility, .. } => {
+        assert_node!(parser.tree, members[3], Member::Field { name: Name::Identifier(name), declared_type: Some(ty), default: Some(value), visibility, .. } => {
             assert_eq!(*visibility, Some(Visibility::Private));
             assert_string!(parser, *name, "d");
             assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {

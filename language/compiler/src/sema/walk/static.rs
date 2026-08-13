@@ -7,19 +7,6 @@ use crate::r#static::{StaticError, StaticEvaluator, StaticGuard};
 pub(in crate::sema) use dir::StaticPresence;
 
 impl CheckState<'_> {
-    /// Return the static key named by one key.
-    pub(in crate::sema) fn static_key(
-        &mut self,
-        key: dir::Key,
-    ) -> CompilerResult<Option<dir::StaticKey>> {
-        match key {
-            dir::Key::Name(name) => Ok(Some(name.static_key())),
-            dir::Key::Expression(expression) => {
-                self.evaluate_static_key(self.module_id, expression)
-            }
-        }
-    }
-
     /// Decide the static gates attached to one decorated node.
     ///
     /// Example:
@@ -417,15 +404,10 @@ impl WalkState<'_, '_> {
                 let mut fields = Vec::new();
                 for property in properties {
                     match self.tree.get(property).clone() {
-                        dir::Property::Field { key, value, .. } => {
+                        dir::Property::Field { name, value, .. } => {
                             let ty = self.walk_static_term(value)?;
-                            let Some(key) = key.direct_static_key() else {
-                                self.check
-                                    .report_undecidable_static_value(self.module, source);
-                                continue;
-                            };
                             fields.push(dir::TypeProperty {
-                                key,
+                                key: name.into(),
                                 access: dir::PropertyAccess::Read(ty),
                                 is_optional: false,
                             });

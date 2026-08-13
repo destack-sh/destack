@@ -124,7 +124,7 @@ impl BodyState<'_, '_> {
             let field_node = self.module(module).view().get(*field).clone();
             let field_origin = Origin::Node(field.into_global_any(module), scope);
             let (key, pattern) = match field_node {
-                dir::PatternField::Named { name, pattern, .. } => (name.static_key(), pattern),
+                dir::PatternField::Named { name, pattern, .. } => (name.into(), pattern),
                 dir::PatternField::Computed { key, pattern } => {
                     let key_node = key.into_global_any(module);
                     let key_site = FlowSite {
@@ -285,7 +285,7 @@ impl BodyState<'_, '_> {
             let field_node = self.module(module).view().get(*field).clone();
             let (key, pattern) = match field_node {
                 dir::AssignPatternField::Named { name, pattern, .. } => {
-                    (name.static_key(), Some(pattern))
+                    (name.into(), Some(pattern))
                 }
                 dir::AssignPatternField::Computed { key, pattern } => {
                     let key_node = key.into_global_any(module);

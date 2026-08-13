@@ -3,7 +3,7 @@ use crate::tests::{TestParser, block_expression_ids};
 use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
     Argument, BinaryOperator, Block, Declaration, Declarator, Expression, FunctionDeclaration,
-    FunctionForm, GenericParameter, IfForm, IntegerType, Key, MappedTypeModifier, Name, Parameter,
+    FunctionForm, GenericParameter, IfForm, IntegerType, MappedTypeModifier, Name, Parameter,
     Pattern, PatternField, Property, ScalarLiteral, TokenType, TupleElement, TypeExpression,
     TypeLiteral, TypeMember,
 };
@@ -136,8 +136,8 @@ fn test_parse_lambda_struct_literal_body() {
             assert_node!(parser.tree, body.expect("expected lambda body"), Expression::StructExpression { ty, properties } => {
                 assert_expression_path!(parser, parser.tree.get(*ty), "Node");
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], Property::Field { key, value, .. } => {
-                    let Key::Name(Name::Identifier(name)) = key else {
+                assert_node!(parser.tree, properties[0], Property::Field { name, value, .. } => {
+                    let Name::Identifier(name) = name else {
                         panic!("expected parent field name");
                     };
                     assert_string!(parser, *name, "parent");
@@ -455,15 +455,15 @@ fn test_parse_lambda_pattern_parameter_with_object_type() {
                         panic!("expected exactly three object type members");
                     };
 
-                    assert_node!(parser.tree, *log_member, TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(field_type), .. } => {
+                    assert_node!(parser.tree, *log_member, TypeMember::Field { name: Name::Identifier(name), declared_type: Some(field_type), .. } => {
                         assert_string!(parser, *name, "log");
                         assert_expression_path!(parser, parser.tree.get(*field_type), "LogFun");
                     });
-                    assert_node!(parser.tree, *logger_member, TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(field_type), .. } => {
+                    assert_node!(parser.tree, *logger_member, TypeMember::Field { name: Name::Identifier(name), declared_type: Some(field_type), .. } => {
                         assert_string!(parser, *name, "logger");
                         assert_expression_path!(parser, parser.tree.get(*field_type), "Logger");
                     });
-                    assert_node!(parser.tree, *messenger_member, TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(field_type), .. } => {
+                    assert_node!(parser.tree, *messenger_member, TypeMember::Field { name: Name::Identifier(name), declared_type: Some(field_type), .. } => {
                         assert_string!(parser, *name, "messenger");
                         assert_expression_path!(parser, parser.tree.get(*field_type), "Messenger");
                     });
@@ -578,8 +578,8 @@ fn test_parse_generic_parameter_constraint_object_property_named_in() {
                 assert_string!(parser, *name, "V");
                 assert_node!(parser.tree, *constraint, TypeExpression::Object { members: properties } => {
                     assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], TypeMember::Field { key, declared_type, .. } => {
-                        assert_node!(key, Key::Name(Name::Identifier(name)) => {
+                    assert_node!(parser.tree, properties[0], TypeMember::Field { name, declared_type, .. } => {
+                        assert_node!(name, Name::Identifier(name) => {
                             assert_string!(parser, *name, "in");
                         });
                         assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
@@ -638,7 +638,7 @@ fn test_parse_call_argument_object_relational_arrow_then_typed_block_arrow() {
                 assert_eq!(properties.len(), 2);
 
                 // skip: (req, res) => res.statusCode < 400
-                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+                assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
                     assert_string!(parser, *name, "skip");
                     assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
@@ -651,7 +651,7 @@ fn test_parse_call_argument_object_relational_arrow_then_typed_block_arrow() {
                 });
 
                 // write: (str: string) => { str }
-                assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+                assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, .. } => {
                     assert_string!(parser, *name, "write");
                     assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {

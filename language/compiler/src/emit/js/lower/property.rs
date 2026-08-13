@@ -14,16 +14,16 @@ impl ModuleLowerer<'_> {
 
         let property = match property {
             dir::Property::Field {
-                key,
+                name,
                 value,
                 is_shorthand,
             } => js::Property::Field {
-                key: self.lower_key(*key)?,
+                key: js::Key::Name(self.lower_name(*name)),
                 value: self.lower_expression_as::<js::Expression>(*value)?,
                 is_shorthand: *is_shorthand,
             },
             dir::Property::Method {
-                key,
+                name,
                 signature,
                 body,
             } => {
@@ -33,13 +33,13 @@ impl ModuleLowerer<'_> {
                         Some("JavaScript object methods require executable bodies".to_string()),
                     ));
                 };
-                let Some(key) = key else {
+                let Some(name) = name else {
                     return Err(self.unhandled(
                         property_id.into_global_any(self.module.id),
-                        Some("JavaScript object methods require a key".to_string()),
+                        Some("JavaScript object methods require a name".to_string()),
                     ));
                 };
-                let key = self.lower_key(*key)?;
+                let key = js::Key::Name(self.lower_name(*name));
                 let role = signature
                     .role
                     .map(|role| self.lower_function_role(role))
@@ -82,7 +82,7 @@ impl ModuleLowerer<'_> {
             | dir::Member::AssociatedConst { .. }
             | dir::Member::ComptimeBlock { .. } => return Ok(None),
             dir::Member::Field {
-                key,
+                name,
                 default,
                 is_static,
                 is_accessor,
@@ -92,7 +92,7 @@ impl ModuleLowerer<'_> {
                     is_static: *is_static,
                     is_accessor: *is_accessor,
                 };
-                let key = self.lower_key(*key)?;
+                let key = js::Key::Name(self.lower_name(*name));
                 let default = default
                     .map(|default| self.lower_expression_as::<js::Expression>(default))
                     .transpose()?;
@@ -104,7 +104,7 @@ impl ModuleLowerer<'_> {
                 }
             }
             dir::Member::Method {
-                key,
+                name,
                 signature,
                 body,
                 is_static,
@@ -124,17 +124,17 @@ impl ModuleLowerer<'_> {
                         body,
                     }
                 } else {
-                    let Some(key) = key else {
+                    let Some(name) = name else {
                         return Err(self.unhandled(
                             member_id.into_global_any(self.module.id),
-                            Some("JavaScript methods require a key".to_string()),
+                            Some("JavaScript methods require a name".to_string()),
                         ));
                     };
                     let modifiers = js::MemberModifier {
                         is_static: *is_static,
                         is_accessor: *is_accessor,
                     };
-                    let key = self.lower_key(*key)?;
+                    let key = js::Key::Name(self.lower_name(*name));
                     let role = role
                         .map(|role| self.lower_function_role(role))
                         .transpose()?;

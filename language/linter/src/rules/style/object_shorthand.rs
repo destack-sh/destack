@@ -41,7 +41,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect authored object fields
     for (property, node) in view.iter_nodes::<dir::Property>() {
         let dir::Property::Field {
-            key: dir::Key::Name(dir::Name::Identifier(key)),
+            name: dir::Name::Identifier(key),
             value,
             is_shorthand: false,
         } = node

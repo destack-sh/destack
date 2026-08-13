@@ -15,15 +15,3 @@ The formatter keeps this object inline when it fits.
 ```ds expected
 ({ /* key */ a: 1, /* another */ b: 2 });
 ```
-
-### comment in computed object key
-
-Comments before computed keys stay attached to the key.
-
-```ds:main.ds
-({ /* key */ [k]: value })
-```
-
-```ds expected
-({ /* key */ [k]: value });
-```

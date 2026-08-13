@@ -5,7 +5,7 @@ use crate::{
     assert_string,
 };
 use destack_dir::{
-    Argument, AssignOperator, BinaryOperator, Declarator, Expression, GenericArgument, Key, Name,
+    Argument, AssignOperator, BinaryOperator, Declarator, Expression, GenericArgument, Name,
     Pattern, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
     UnaryOperator,
 };
@@ -283,14 +283,14 @@ await fetchListResult<{
                     assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                         assert_eq!(properties.len(), 2);
 
-                        assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+                        assert_node!(parser.tree, properties[0], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                             assert_string!(parser, *name, "pattern");
                             assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
                                 assert_eq!(*value, TypeLiteral::String);
                             });
                         });
 
-                        assert_node!(parser.tree, properties[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+                        assert_node!(parser.tree, properties[1], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                             assert_string!(parser, *name, "script");
                             assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
                                 assert_eq!(*value, TypeLiteral::String);

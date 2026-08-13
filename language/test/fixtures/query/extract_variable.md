@@ -169,23 +169,6 @@ const computed = 1 + 2;
 const configuration = { total: computed };
 ```
 
-### Preserve computed key evaluation order
-
-Extraction is unavailable when a computed key executes before the selected value.
-
-```ds main.ds
-function key(): string {
-    return "total";
-}
-
-const configuration = { [key()]: 1 + 2 };
-                                 ^^^^^ selection
-```
-
-```query extract_variable main.ds#selection new_name=computed
-@extract_variable.none
-```
-
 ## Member Access
 
 ### Extract a member access
