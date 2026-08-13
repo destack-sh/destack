@@ -97,13 +97,13 @@ struct Header {
     size: uint32;
 }
 
-const size = comptime sizeOf<Header>();
-const alignment = comptime alignOf<Header>();
-const stride = comptime strideOf<Header>();
-const layout = comptime layoutOf<Header>();
+const size = const sizeOf<Header>();
+const alignment = const alignOf<Header>();
+const stride = const strideOf<Header>();
+const layout = const layoutOf<Header>();
 
 declare let bytes: [uint8; sizeOf<Header>()];
-type Slots<T, comptime N: usize = strideOf<T>()> = [uint8; N];
+type Slots<T, const N: usize = strideOf<T>()> = [uint8; N];
 declare let erased: Any<Writer>;
 
 --------------------------------------------------------------------------------
@@ -123,7 +123,7 @@ declare let erased: Any<Writer>;
   (lexical_declaration
     (variable_declarator
       (identifier)
-      (comptime_expression
+      (const_expression
         (call_expression
           (identifier)
           (type_arguments
@@ -132,7 +132,7 @@ declare let erased: Any<Writer>;
   (lexical_declaration
     (variable_declarator
       (identifier)
-      (comptime_expression
+      (const_expression
         (call_expression
           (identifier)
           (type_arguments
@@ -141,7 +141,7 @@ declare let erased: Any<Writer>;
   (lexical_declaration
     (variable_declarator
       (identifier)
-      (comptime_expression
+      (const_expression
         (call_expression
           (identifier)
           (type_arguments
@@ -150,7 +150,7 @@ declare let erased: Any<Writer>;
   (lexical_declaration
     (variable_declarator
       (identifier)
-      (comptime_expression
+      (const_expression
         (call_expression
           (identifier)
           (type_arguments

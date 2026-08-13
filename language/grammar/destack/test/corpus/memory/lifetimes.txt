@@ -78,14 +78,14 @@ Explicit lifetime relationships
 :language(destack)
 ================================================================
 
-declare function only<comptime L: Lifetime>(value: Borrowed<Node, L>): Borrowed<Node, L>;
+declare function only<const L: Lifetime>(value: Borrowed<Node, L>): Borrowed<Node, L>;
 
-declare function choose<comptime L1: Lifetime, comptime L2: Lifetime>(
+declare function choose<const L1: Lifetime, const L2: Lifetime>(
     a: Borrowed<Node, L1>,
     b: Borrowed<Node, L2>,
 ): Borrowed<Node, L1 | L2>;
 
-struct WorldView<comptime L1: Lifetime, comptime L2: Lifetime> {
+struct WorldView<const L1: Lifetime, const L2: Lifetime> {
     engine: Borrowed<Engine, L1>;
     assets: Borrowed<AssetStore, L2>;
 }

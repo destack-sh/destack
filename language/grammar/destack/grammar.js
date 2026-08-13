@@ -89,6 +89,27 @@ module.exports = grammar(JavaScript, {
     .filter((conflict) => !sameConflict(conflict, ['primary_expression', 'method_definition']))
     .filter((conflict) => !sameConflict(conflict, ['_initializer', 'binary_expression']))
     .concat([
+      [$.const_expression, $.let_else_literal_pattern],
+      [$.statement_block, $.object, $.match_object_pattern],
+      [$.object_assignment_pattern, $.assignment_expression, $._property_name],
+      [$.assignment_expression, $._initializer],
+      [$.object, $._property_name],
+      [$.primary_expression, $.memory_pattern, $.memory_expression],
+      [$.object_pattern, $.match_object_pattern_property],
+      [$.object_pattern, $.match_object_pattern],
+      [$.object, $.match_object_pattern],
+      [$.object, $.object_pattern, $.match_object_pattern],
+      [$.object_assignment_pattern, $._property_name],
+      [$.assignment_expression, $.literal_type],
+      [$.assignment_expression, $.match_pattern],
+      [$.range_expression, $.range_pattern],
+      [$.assignment_expression, $.pattern, $.literal_type],
+      [$._range_expression_atom, $._range_pattern_bound],
+      [$.assignment_expression, $.pattern, $.match_pattern],
+      [$.assignment_expression, $.let_else_literal_pattern],
+      [$.primary_expression, $.let_else_literal_pattern],
+      [$.variable_declarator, $.primary_expression, $.let_else_must_pattern],
+      [$.variable_declarator, $.primary_expression],
       [$.subscript_expression, $.match_arm_expression_statement],
       [$.primary_expression, $.await_expression, $.rest_pattern],
       [$.primary_expression, $._static_value_operand],
@@ -173,7 +194,7 @@ module.exports = grammar(JavaScript, {
       [$._range_expression_bound],
       [$._range_expression_atom, $._interval_type_bound],
     ]).concat([
-      [$.comptime_block_statement, $.comptime_expression],
+      [$.const_block_statement, $.const_expression],
       [$.static_if_expression],
       [$.optional_type, $.index_type_query],
       [$.type, $.optional_type],
@@ -350,7 +371,7 @@ module.exports = grammar(JavaScript, {
       $.memory_expression,
       $.placement_expression,
       $.await_try_propagation_expression,
-      $.comptime_expression,
+      $.const_expression,
       $.do_expression,
       $.match_expression,
       $.tuple_expression,
@@ -510,7 +531,7 @@ module.exports = grammar(JavaScript, {
     statement: $ => choice(
       $.decorated_statement,
       $.static_if_statement,
-      $.comptime_block_statement,
+      $.const_block_statement,
       $.for_in_binding_statement,
       $.type_satisfies_statement,
       $.value_satisfies_statement,
@@ -902,8 +923,8 @@ module.exports = grammar(JavaScript, {
 
     _await_try_propagation_operator: _ => token(prec(2, seq('await', choice('?', '!')))),
 
-    comptime_expression: $ => prec.right(seq(
-      'comptime',
+    const_expression: $ => prec.right(1, seq(
+      'const',
       field('value', choice(
         $.statement_block,
         $.if_expression,
@@ -948,8 +969,8 @@ module.exports = grammar(JavaScript, {
       field('argument', $.primary_expression),
     )),
 
-    comptime_block_statement: $ => seq(
-      'comptime',
+    const_block_statement: $ => seq(
+      'const',
       field('body', $.statement_block),
     ),
 
@@ -1012,7 +1033,7 @@ module.exports = grammar(JavaScript, {
       $.return_statement,
       $.labeled_statement,
       $.for_in_binding_statement,
-      $.comptime_block_statement,
+      $.const_block_statement,
     ),
 
     static_if_expression: $ => prec.right('declaration', seq(
@@ -1297,7 +1318,7 @@ module.exports = grammar(JavaScript, {
 
     function_signature: $ => seq(
       repeat(field('decorator', $.decorator)),
-      optional('comptime'),
+      optional('const'),
       optional('async'),
       'function',
       field('name', $.identifier),
@@ -1309,7 +1330,7 @@ module.exports = grammar(JavaScript, {
     declare_function_signature: $ => seq(
       repeat(field('decorator', $.decorator)),
       'declare',
-      optional('comptime'),
+      optional('const'),
       optional('async'),
       'function',
       optional('*'),
@@ -1321,7 +1342,7 @@ module.exports = grammar(JavaScript, {
 
     function_declaration: $ => prec.right('declaration', seq(
       repeat(field('decorator', $.decorator)),
-      optional('comptime'),
+      optional('const'),
       optional('async'),
       'function',
       field('name', $.identifier),
@@ -1333,7 +1354,7 @@ module.exports = grammar(JavaScript, {
 
     generator_function_declaration: $ => prec.right('declaration', seq(
       repeat(field('decorator', $.decorator)),
-      optional('comptime'),
+      optional('const'),
       optional('async'),
       'function',
       '*',
@@ -1422,7 +1443,7 @@ module.exports = grammar(JavaScript, {
             $.class_static_block,
             $.associated_type_declaration,
             $.associated_const_declaration,
-            $.comptime_block_statement,
+            $.const_block_statement,
             $.index_signature,
             $.abstract_method_signature,
           ),
@@ -1848,7 +1869,6 @@ module.exports = grammar(JavaScript, {
     ),
 
     associated_const_declaration: $ => seq(
-      'comptime',
       'const',
       field('name', $._type_identifier),
       field('type', optional($.type_annotation)),
@@ -1883,7 +1903,7 @@ module.exports = grammar(JavaScript, {
       repeat(field('decorator', $.decorator)),
       optional($.accessibility_modifier),
       optional('readonly'),
-      optional(choice('comptime', 'static')),
+      optional('static'),
       field('pattern', choice(
         $.pattern,
         $.this,
@@ -2297,7 +2317,7 @@ module.exports = grammar(JavaScript, {
           $.type,
           $.explicit_type_argument,
           $.static_value_argument,
-          $.comptime_type_argument,
+          $.const_type_argument,
         ),
       ),
       optional(','),
@@ -2368,7 +2388,7 @@ module.exports = grammar(JavaScript, {
       choice(
         seq(
           repeat(field('guard', $.static_if_guard)),
-          optional(choice('const', 'comptime')),
+          optional('const'),
           optional('in'),
           optional('out'),
           optional('...'),
@@ -2382,7 +2402,7 @@ module.exports = grammar(JavaScript, {
 
     default_type: $ => seq(
       '=',
-      choice($.type_value, $.static_value_argument, $.type, $.comptime_default_type),
+      choice($.type_value, $.static_value_argument, $.type, $.const_default_type),
     ),
 
     type_value: $ => prec.right('unary', seq(
@@ -2390,8 +2410,8 @@ module.exports = grammar(JavaScript, {
       field('value', $.type),
     )),
 
-    comptime_default_type: $ => seq(
-      'comptime',
+    const_default_type: $ => seq(
+      'const',
       choice(
         $.number,
         $.string,
@@ -2402,8 +2422,8 @@ module.exports = grammar(JavaScript, {
       ),
     ),
 
-    comptime_type_argument: $ => seq(
-      'comptime',
+    const_type_argument: $ => seq(
+      'const',
       choice(
         $.number,
         $.string,
@@ -2449,7 +2469,7 @@ module.exports = grammar(JavaScript, {
     ),
 
     constraint: $ => seq(
-      choice('extends', ':'),
+      ':',
       optional('static'),
       $.type,
     ),

@@ -175,7 +175,7 @@ Static conditional array lengths
 :language(destack)
 =======================================
 
-type Sized<comptime N: uint> = [uint8; N > 4 ? 2 : 5];
+type Sized<const N: uint> = [uint8; N > 4 ? 2 : 5];
 
 ---
 

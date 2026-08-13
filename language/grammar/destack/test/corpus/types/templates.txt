@@ -11,9 +11,9 @@ type A<B, C> = B extends C
     ? `${C}${"" extends C ? "" : "."}${B}`
     : never
   : never
-type Trim<S extends string> = S extends `${infer R}` ? Trim<R>  : S;
+type Trim<S: string> = S extends `${infer R}` ? Trim<R>  : S;
 type A = `${true & ('foo' | false)}`;
-type StringToNumber<S extends string> = S extends `${infer N extends number}` ? N : never;
+type StringToNumber<S: string> = S extends `${infer N extends number}` ? N : never;
 ---
 
 (program

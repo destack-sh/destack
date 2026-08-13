@@ -189,7 +189,7 @@
         "roles": [],
         "features": [],
         "tags": [],
-        "comptimeEnv": null,
+        "constEnv": null,
         "tree": null,
         "globals": [],
         "derive": [],
@@ -1051,8 +1051,8 @@
           },
           "default": []
         },
-        "comptimeEnv": {
-          "description": "Comptime environment whitelist (if omitted, all env keys are visible).",
+        "constEnv": {
+          "description": "Const evaluation environment whitelist (if omitted, all env keys are visible).",
           "type": [
             "array",
             "null"
@@ -1411,7 +1411,7 @@
         {
           "description": "Compile-time program execution.",
           "type": "string",
-          "const": "comptime"
+          "const": "const"
         },
         {
           "description": "Ordinary program execution.",
@@ -5000,8 +5000,8 @@
           ],
           "default": null
         },
-        "comptimeEnv": {
-          "description": "Comptime environment whitelist.",
+        "constEnv": {
+          "description": "Const evaluation environment whitelist.",
           "type": [
             "array",
             "null"

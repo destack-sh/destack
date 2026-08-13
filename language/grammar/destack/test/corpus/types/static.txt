@@ -3,8 +3,8 @@ Static parameters size arrays
 :language(destack)
 =======================================================
 
-type Lane<comptime N: uint> = [uint8; N * 2];
-declare function double<comptime N: uint>(): N * 2;
+type Lane<const N: uint> = [uint8; N * 2];
+declare function double<const N: uint>(): N * 2;
 
 declare const lane: Lane<4>;
 lane satisfies [uint8; 8];
@@ -60,7 +60,7 @@ Variadic static parameters
 =======================================================
 
 type Tuple<...T> = T;
-type Shape<comptime ...Dims: usize> = [usize; Dims];
+type Shape<const ...Dims: usize> = [usize; Dims];
 
 ---
 
@@ -88,7 +88,7 @@ Static parameter constraints
 =======================================================
 
 type StaticLane<N: static uint> = [uint8; N];
-type StaticFactory<T extends static abstract new (...args: any) => any> = T;
+type StaticFactory<T: static abstract new (...args: any) => any> = T;
 
 ---
 
@@ -120,13 +120,13 @@ type StaticFactory<T extends static abstract new (...args: any) => any> = T;
     (type_identifier)))
 
 =======================================================
-Static and comptime parameter modifiers compose
+Static and const parameter modifiers compose
 :language(destack)
 =======================================================
 
-function allocate<T: static Type, comptime ...Shape: usize>(
+function allocate<T: static Type, const ...Shape: usize>(
   static allocator: Allocator,
-  comptime count: uint,
+  const count: uint,
 ): [T; count] {
   return allocator.make<T, count>();
 }

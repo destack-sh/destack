@@ -1,5 +1,5 @@
 =========================================================================
-Comptime try can catch propagated failures
+Const try can catch propagated failures
 :language(destack)
 =========================================================================
 
@@ -11,7 +11,7 @@ function parse(value: int): Result<int, string> {
     }
 }
 
-const value = comptime {
+const value = const {
     try {
         parse(0)?
     } catch (error) {
@@ -66,7 +66,7 @@ value satisfies int;
   (lexical_declaration
     (variable_declarator
       (identifier)
-      (comptime_expression
+      (const_expression
         (statement_block
           (try_statement
             (statement_block
@@ -89,13 +89,13 @@ value satisfies int;
     (type_identifier)))
 
 ============================================================================
-Module comptime blocks assert static terms
+Module const blocks assert static terms
 :language(destack)
 ============================================================================
 
-const size = comptime 4;
+const size = const 4;
 
-comptime {
+const {
     assert(size == 4);
 };
 
@@ -109,9 +109,9 @@ size satisfies 4;
   (lexical_declaration
     (variable_declarator
       (identifier)
-      (comptime_expression
+      (const_expression
         (number))))
-  (comptime_block_statement
+  (const_block_statement
     (statement_block
       (expression_statement
         (call_expression

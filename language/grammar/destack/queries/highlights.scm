@@ -111,7 +111,7 @@
 [
   "abstract"
   "asserts"
-  "comptime"
+  "const"
   "declare"
   "enum"
   "exclusive"

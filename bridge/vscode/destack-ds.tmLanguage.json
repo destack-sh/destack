@@ -328,7 +328,7 @@
         },
         {
           "name": "meta.binding.definition.ds",
-          "match": "\\b(const|let)\\s+([$A-Za-z_][$\\w]*)",
+          "match": "\\b(const|let)\\s+([$A-Za-z_][$\\w]*)(?![$\\w])(?!\\s*(?:<[^<>\\n]*>)?\\s*\\()",
           "captures": {
             "1": {
               "name": "keyword.declaration.variable.ds"
@@ -340,7 +340,15 @@
         },
         {
           "name": "keyword.declaration.variable.ds",
-          "match": "\\b(?:const|let)\\b"
+          "match": "\\bconst\\b(?=\\s*[\\{\\[][^;\\n]*=(?!=))"
+        },
+        {
+          "name": "storage.modifier.ds",
+          "match": "\\bconst\\b"
+        },
+        {
+          "name": "keyword.declaration.variable.ds",
+          "match": "\\blet\\b"
         }
       ]
     },
@@ -381,10 +389,6 @@
         {
           "name": "keyword.operator.type.ds",
           "match": "\\b(?:where|in|of)\\b"
-        },
-        {
-          "name": "keyword.other.comptime.ds",
-          "match": "\\bcomptime\\b"
         },
         {
           "name": "keyword.other.type.ds",
@@ -459,7 +463,7 @@
       "patterns": [
         {
           "name": "entity.name.function.call.ds",
-          "match": "\\b(?!(?:if|switch|match|for|while|catch|function|constructor|comptime|shared|local|readonly|exclusive)\\b)[$A-Za-z_][$\\w]*(?=\\s*(?:\\?\\.)?\\s*(?:<[^<>\\n]*>)?\\s*\\()"
+          "match": "\\b(?!(?:if|switch|match|for|while|catch|function|constructor|shared|local|readonly|exclusive)\\b)[$A-Za-z_][$\\w]*(?=\\s*(?:\\?\\.)?\\s*(?:<[^<>\\n]*>)?\\s*\\()"
         }
       ]
     },
@@ -497,13 +501,13 @@
     "type_parameters": {
       "patterns": [
         {
-          "match": "([<,])(\\s*)(?:(comptime)\\s+)?(?:(in|out)\\s+)?(\\.\\.\\.)?([$A-Za-z_][$\\w]*)(?=\\s*(?::|=|,|>))",
+          "match": "([<,])(\\s*)(?:(const)\\s+)?(?:(in|out)\\s+)?(\\.\\.\\.)?([$A-Za-z_][$\\w]*)(?=\\s*(?::|=|,|>))",
           "captures": {
             "1": {
               "name": "punctuation.definition.typeparameters.begin.ds"
             },
             "3": {
-              "name": "keyword.other.comptime.ds"
+              "name": "storage.modifier.ds"
             },
             "4": {
               "name": "keyword.operator.variance.ds"

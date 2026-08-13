@@ -212,7 +212,7 @@ Variadic tuple and type argument spreads
 =======================================
 
 type Row<...Fields: readonly (string | number)[]> = (...Fields);
-type Buffer<comptime ...Shape: readonly usize[]> = TensorBuffer<...Shape>;
+type Buffer<const ...Shape: readonly usize[]> = TensorBuffer<...Shape>;
 
 ---
 
@@ -270,11 +270,11 @@ Aliases require static value arguments
 :language(destack)
 ===================================================================
 
-type Buffer<T, comptime N: number> = { value: T };
+type Buffer<T, const N: number> = { value: T };
 
 declare function makeBuffer(): Buffer<string, 4>;
 
-let buffer: Buffer<string, comptime 4> = makeBuffer();
+let buffer: Buffer<string, const 4> = makeBuffer();
 
 
 
@@ -313,18 +313,18 @@ let buffer: Buffer<string, comptime 4> = makeBuffer();
           (type_identifier)
           (type_arguments
             (predefined_type)
-            (comptime_type_argument
+            (const_type_argument
               (number)))))
       (call_expression
         (identifier)
         (arguments)))))
 
 =================================================================
-Comptime defaults can carry types
+Const defaults can carry types
 :language(destack)
 =================================================================
 
-type Borrowed<Q, comptime L: Lifetime = type LifetimeOr<Q, "static">> = Q;
+type Borrowed<Q, const L: Lifetime = type LifetimeOr<Q, "static">> = Q;
 
 ---
 
@@ -354,7 +354,7 @@ Alias static defaults must be static
 :language(destack)
 =================================================================
 
-type Buffer<T, comptime N: number = comptime 4> = { value: T };
+type Buffer<T, const N: number = const 4> = { value: T };
 
 declare function makeBuffer(): Buffer<string>;
 
@@ -375,7 +375,7 @@ let buffer: Buffer<string> = makeBuffer();
         (constraint
           (predefined_type))
         (default_type
-          (comptime_default_type
+          (const_default_type
             (number)))))
     (object_type
       (property_signature

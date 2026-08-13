@@ -288,7 +288,6 @@
   "async"
   "await"
   "catch"
-  "comptime"
   "debugger"
   "declare"
   "default"

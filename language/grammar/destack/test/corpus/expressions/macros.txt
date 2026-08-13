@@ -20,7 +20,7 @@ const decorated = 1;
         (number)))))
 
 ==========================================================
-Macro-shaped decorators and comptime eval
+Macro-shaped decorators and const eval
 :language(destack)
 ==========================================================
 
@@ -32,8 +32,8 @@ newtype memoize = {
 function load(id: UserId): Result<User, Error> {
 }
 
-const source = comptime renderParser(grammar);
-const parser = comptime eval<FunctionDeclaration>(source);
+const source = const renderParser(grammar);
+const parser = const eval<FunctionDeclaration>(source);
 
 ---
 
@@ -70,7 +70,7 @@ const parser = comptime eval<FunctionDeclaration>(source);
   (lexical_declaration
     (variable_declarator
       (identifier)
-      (comptime_expression
+      (const_expression
         (call_expression
           (identifier)
           (arguments
@@ -78,7 +78,7 @@ const parser = comptime eval<FunctionDeclaration>(source);
   (lexical_declaration
     (variable_declarator
       (identifier)
-      (comptime_expression
+      (const_expression
         (call_expression
           (identifier)
           (type_arguments

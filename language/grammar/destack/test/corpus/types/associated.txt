@@ -4,7 +4,7 @@ Associated constants can size fixed arrays
 ============================================================
 
 class Segment<Row> {
-    comptime const Width: uint = Row extends string ? 8 : 4;
+    const Width: uint = Row extends string ? 8 : 4;
     type Lane = [uint8; Width];
 }
 
@@ -61,20 +61,20 @@ Generic associated types and refinements
 
 interface Storage {
     type Handle<T>;
-    type Page<comptime Size: uint>;
+    type Page<const Size: uint>;
 }
 
 struct SharedStorage implements Storage {
     type Handle<T> = shared StorageHandle<T>;
-    type Page<comptime Size: uint> = shared StoragePage<Size>;
+    type Page<const Size: uint> = shared StoragePage<Size>;
 }
 
 interface RegisterBlock {
-    comptime const Width: uint;
+    const Width: uint;
     read(): [uint8; this.Width];
 }
 
-declare function readBlock<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16];
+declare function readBlock<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16];
 
 ---
 
@@ -146,7 +146,7 @@ declare function readBlock<T: RegisterBlock<comptime Width = 16>>(block: T): [ui
           (generic_type
             (type_identifier)
             (type_arguments
-              (comptime_type_argument
+              (const_type_argument
                 (identifier)
                 (number)))))))
     (formal_parameters

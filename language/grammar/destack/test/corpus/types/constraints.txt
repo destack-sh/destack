@@ -18,12 +18,12 @@ type HandlerFunction<T: Element> = void
     (predefined_type)))
 
 ==================================
-Extends
+Constructor type constraints
 :language(destack)
 ==================================
 
-type Foo<T extends abstract new (...args: any) => any> = T;
-type Foo<T extends new (...args: any) => any> = T;
+type Foo<T: abstract new (...args: any) => any> = T;
+type Foo<T: new (...args: any) => any> = T;
 
 ---
 

@@ -72,7 +72,7 @@ function foo<T, U>(this: T[]): U[] {
   return []
 }
 
-function foo<const T, const U extends string>(x: T, y: U) {
+function foo<const T, const U: string>(x: T, y: U) {
 
 }
 
@@ -571,24 +571,24 @@ declare function* ids(): Generator<int32, void, unknown>;
           (predefined_type))))))
 
 ===============================================================================
-Comptime function declarations and parameters
+Const function declarations and parameters
 :language(destack)
 ===============================================================================
 
-comptime function evaluate(comptime value: T, comptime maybe?: U = fallback, comptime ...rest: Item[]): T {
+const function evaluate(const value: T, const maybe?: U = fallback, const ...rest: Item[]): T {
   return value;
 }
 
-comptime async function load(): Promise<T> {
+const async function load(): Promise<T> {
   return source;
 }
 
-comptime function* ids(): Iterable<uint> {
+const function* ids(): Iterable<uint> {
   yield 1;
 }
 
-declare comptime function sizeOf<T>(): usize;
-declare comptime async function fetch<T>(): Promise<T>;
+declare const function sizeOf<T>(): usize;
+declare const async function fetch<T>(): Promise<T>;
 
 -------------------------------------------------------------------------------
 

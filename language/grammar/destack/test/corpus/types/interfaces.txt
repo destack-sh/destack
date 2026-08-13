@@ -12,7 +12,7 @@ interface Friend {
     favoriteColor?: string;
 }
 
-interface G<T, U extends B> {
+interface G<T, U: B> {
     x: T;
     y: U;
 }
