@@ -141,6 +141,7 @@ impl Lock {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(path)
             .map_err(ArtifactError::from)?;
         file.lock().map_err(ArtifactError::from)?;
