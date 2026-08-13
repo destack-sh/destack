@@ -143,7 +143,7 @@ function describe(mode: Mode): int32 {
 "#,
         r#"
 /// @diagnostic.error id=non-exhaustive-pattern message="match is not exhaustive: 'Mode.Write' is not covered"
-/// @diagnostic.label line=8 column=5 span="match (mode) {\n        Mode.Read => 10\n    }" line_source="match (mode) {"
+/// @diagnostic.label line=8 column=5 span="match" line_source="match (mode) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
     );

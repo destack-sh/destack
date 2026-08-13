@@ -252,7 +252,7 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
 "#,
         r#"
 /// @diagnostic.error id=non-exhaustive-pattern message="match is not exhaustive: 'Err<E>' is not covered"
-/// @diagnostic.label line=13 column=5 span="match (outcome) {\n        Ok { value } => value\n    }" line_source="match (outcome) {"
+/// @diagnostic.label line=13 column=5 span="match" line_source="match (outcome) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
     );

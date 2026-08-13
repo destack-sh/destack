@@ -203,7 +203,7 @@ match (point) {
 "#,
         r#"
 /// @diagnostic.error id=non-exhaustive-pattern message="match is not exhaustive: '{ x: int32; y: int32 }' is not covered"
-/// @diagnostic.label line=6 column=1 span="match (point) {\n    Point { x, y } => x + y\n}" line_source="match (point) {"
+/// @diagnostic.label line=6 column=1 span="match" line_source="match (point) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
     );
