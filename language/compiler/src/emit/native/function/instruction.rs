@@ -260,12 +260,6 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 dynamic,
             } => self.emit_dynamic_type(*destination, *dynamic)?,
-            mir::Instruction::DynamicRead { .. } => {
-                return Err(Self::internal(
-                    self.module,
-                    "dynamic field read emission is incomplete",
-                ));
-            }
             mir::Instruction::DynamicFind { .. } => {
                 return Err(Self::internal(
                     self.module,
