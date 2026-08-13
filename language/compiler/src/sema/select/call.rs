@@ -247,15 +247,9 @@ impl BodyState<'_, '_> {
             }),
             // resolve or check an undecided callee in place, then re-dispatch
             None => {
-                // route an identifier callee through its symbol set
-                if let dir::Expression::Identifier { .. } = self.module(module).view().get(callee) {
-                    return match self.decide_reference(callee_node)? {
-                        Some(_) => {
-                            self.callable_candidates(origin, module, callee_site, is_optional)
-                        }
-                        // unresolved names already reported their diagnostic
-                        None => Ok(None),
-                    };
+                // decide any lexical or qualified reference before reading its value
+                if self.decide_reference(callee_node)?.is_some() {
+                    return self.callable_candidates(origin, module, callee_site, is_optional);
                 }
 
                 // decide a member callee by checking it in place, else call its value
