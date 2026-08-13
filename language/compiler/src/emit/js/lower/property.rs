@@ -80,7 +80,7 @@ impl ModuleLowerer<'_> {
         let member = match member {
             dir::Member::AssociatedType { .. }
             | dir::Member::AssociatedConst { .. }
-            | dir::Member::ComptimeBlock { .. } => return Ok(None),
+            | dir::Member::ConstBlock { .. } => return Ok(None),
             dir::Member::Field {
                 name,
                 default,

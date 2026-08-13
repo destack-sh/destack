@@ -274,14 +274,14 @@ type ManagedLifetimeFallback = LifetimeOr<Managed<User>, "static">;
 }
 
 #[test]
-fn test_use_lifetime_query_as_comptime_default() {
+fn test_use_lifetime_query_as_const_default() {
     let session = TestSession::single(
         r#"
 struct Cell {
     value: int32;
 }
 
-type Reborrow<Q, comptime L: Lifetime = type LifetimeOr<Q, "static">> = Borrowed<Q, L>;
+type Reborrow<Q, const L: Lifetime = type LifetimeOr<Q, "static">> = Borrowed<Q, L>;
 type StaticCell = Reborrow<Cell>;
 
 declare const cell: StaticCell;
@@ -299,7 +299,7 @@ struct Cell {
     value: int32;
 }
 
-type Reborrow<Q, comptime L: Lifetime = type LifetimeOr<Q, "static">> = Borrowed<Q, L>;
+type Reborrow<Q, const L: Lifetime = LifetimeOr<Q, "static">> = Borrowed<Q, L>;
 type StaticCell = Reborrow<Cell>;
 
 declare const cell: &'static Cell;
@@ -317,12 +317,12 @@ struct Cell {
 
 }
 
-type Reborrow<Q, comptime L: Lifetime = type LifetimeOr<Q, "static">> = Borrowed<Q, L>;
-/// @generic.template symbol=Reborrow parameters=(Q, comptime L: Lifetime = LifetimeOr<Q, "static">)
+type Reborrow<Q, const L: Lifetime = type LifetimeOr<Q, "static">> = Borrowed<Q, L>;
+/// @generic.template symbol=Reborrow parameters=(Q, const L: Lifetime = LifetimeOr<Q, "static">)
 /// @type.symbol symbol=Reborrow type=Borrowed<Q, L, "mutable">
-/// @definition.type symbol=Reborrow template=(Q, comptime L: Lifetime = LifetimeOr<Q, "static">) value=Borrowed<Q, L, "mutable">
+/// @definition.type symbol=Reborrow template=(Q, const L: Lifetime = LifetimeOr<Q, "static">) value=Borrowed<Q, L, "mutable">
 /// @type.symbol symbol=Reborrow.Q source=Q type=Q
-/// @type.symbol symbol=Reborrow.L source="comptime L: Lifetime = type LifetimeOr<Q, \"static\">" type=L
+/// @type.symbol symbol=Reborrow.L source="const L: Lifetime = type LifetimeOr<Q, \"static\">" type=L
 /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
 /// @resolution.name source=LifetimeOr target=memory.type.LifetimeOr
 /// @resolution.name source=Q target=Reborrow.Q
@@ -352,12 +352,12 @@ cell satisfies Borrowed<Cell, "static">;
 }
 
 #[test]
-fn test_use_place_query_as_comptime_default() {
+fn test_use_place_query_as_const_default() {
     let session = TestSession::single(
         r#"
 struct Cell { value: int32; }
 
-type PreservePlace<Q, comptime P: Place = type PlaceOf<Q>> = WithPlace<BaseOf<Q>, P>;
+type PreservePlace<Q, const P: Place = type PlaceOf<Q>> = WithPlace<BaseOf<Q>, P>;
 
 declare const localCell: PreservePlace<local Cell>;
 declare const sharedCell: PreservePlace<shared Cell>;
@@ -376,7 +376,7 @@ struct Cell {
     value: int32;
 }
 
-type PreservePlace<Q, comptime P: Place = type PlaceOf<Q>> = WithPlace<BaseOf<Q>, P>;
+type PreservePlace<Q, const P: Place = PlaceOf<Q>> = WithPlace<BaseOf<Q>, P>;
 
 declare const localCell: local Cell;
 declare const sharedCell: shared Cell;
@@ -391,12 +391,12 @@ struct Cell { value: int32; }
 /// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @type.symbol symbol=Cell.value source="value: int32" type=int32
 
-type PreservePlace<Q, comptime P: Place = type PlaceOf<Q>> = WithPlace<BaseOf<Q>, P>;
-/// @generic.template symbol=PreservePlace parameters=(Q, comptime P: Place = PlaceOf<Q>)
+type PreservePlace<Q, const P: Place = type PlaceOf<Q>> = WithPlace<BaseOf<Q>, P>;
+/// @generic.template symbol=PreservePlace parameters=(Q, const P: Place = PlaceOf<Q>)
 /// @type.symbol symbol=PreservePlace type=WithPlace<BaseOf<Q>, P>
-/// @definition.type symbol=PreservePlace template=(Q, comptime P: Place = PlaceOf<Q>) value=WithPlace<BaseOf<Q>, P>
+/// @definition.type symbol=PreservePlace template=(Q, const P: Place = PlaceOf<Q>) value=WithPlace<BaseOf<Q>, P>
 /// @type.symbol symbol=PreservePlace.Q source=Q type=Q
-/// @type.symbol symbol=PreservePlace.P source="comptime P: Place = type PlaceOf<Q>" type=P
+/// @type.symbol symbol=PreservePlace.P source="const P: Place = type PlaceOf<Q>" type=P
 /// @resolution.name source=Place target=memory.place.Place
 /// @resolution.name source=PlaceOf target=memory.type.PlaceOf
 /// @resolution.name source=Q target=PreservePlace.Q
@@ -983,7 +983,7 @@ struct Cell {
     value: int32;
 }
 
-type Reborrow<comptime Source: Lifetime, comptime Target: Lifetime> = WithLifetime<
+type Reborrow<const Source: Lifetime, const Target: Lifetime> = WithLifetime<
     Borrowed<Cell, Source>,
     Target
 >;
@@ -999,7 +999,7 @@ struct Cell {
     value: int32;
 }
 
-type Reborrow<comptime Source: Lifetime, comptime Target: Lifetime> = WithLifetime<
+type Reborrow<const Source: Lifetime, const Target: Lifetime> = WithLifetime<
     Borrowed<Cell, Source>,
     Target
 >;
@@ -1015,13 +1015,13 @@ struct Cell {
 
 }
 
-type Reborrow<comptime Source: Lifetime, comptime Target: Lifetime> = WithLifetime<
-/// @generic.template symbol=Reborrow parameters=(comptime Source: Lifetime, comptime Target: Lifetime)
+type Reborrow<const Source: Lifetime, const Target: Lifetime> = WithLifetime<
+/// @generic.template symbol=Reborrow parameters=(const Source: Lifetime, const Target: Lifetime)
 /// @type.symbol symbol=Reborrow type=WithLifetime<Borrowed<Cell, Source, "mutable">, Target>
-/// @definition.type symbol=Reborrow template=(comptime Source: Lifetime, comptime Target: Lifetime) value=WithLifetime<Borrowed<Cell, Source, "mutable">, Target>
-/// @type.symbol symbol=Reborrow.Source source="comptime Source: Lifetime" type=Source
+/// @definition.type symbol=Reborrow template=(const Source: Lifetime, const Target: Lifetime) value=WithLifetime<Borrowed<Cell, Source, "mutable">, Target>
+/// @type.symbol symbol=Reborrow.Source source="const Source: Lifetime" type=Source
 /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
-/// @type.symbol symbol=Reborrow.Target source="comptime Target: Lifetime" type=Target
+/// @type.symbol symbol=Reborrow.Target source="const Target: Lifetime" type=Target
 /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
 /// @resolution.name source=WithLifetime target=memory.type.WithLifetime
 

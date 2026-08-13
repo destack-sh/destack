@@ -54,7 +54,7 @@ pub(in crate::sema) enum ValueUse {
     Operand,
 
     /// Value evaluated as compile-time decorator data.
-    Comptime,
+    Const,
 
     /// Function body value assigned into a return or yield result.
     Output,

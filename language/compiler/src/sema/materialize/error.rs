@@ -9,10 +9,10 @@ pub enum MaterializeError {
     // -------------------------------------------------------------------------
     // compile-time execution
     // -------------------------------------------------------------------------
-    /// Comptime lowering failed.
+    /// Const lowering failed.
     #[diagnostic(
-        id = "comptime-lowering-failed",
-        message = "comptime lowering failed: {message}"
+        id = "const-lowering-failed",
+        message = "const lowering failed: {message}"
     )]
     FailedLower {
         /// Anchor the error to a module.
@@ -25,10 +25,10 @@ pub enum MaterializeError {
         message: String,
     },
 
-    /// Comptime execution failed.
+    /// Const execution failed.
     #[diagnostic(
-        id = "comptime-execution-failed",
-        message = "comptime execution failed: {message}"
+        id = "const-execution-failed",
+        message = "const execution failed: {message}"
     )]
     FailedExecution {
         /// Anchor the error to a module.
@@ -42,10 +42,10 @@ pub enum MaterializeError {
     // -------------------------------------------------------------------------
     // unsupported and internal failures
     // -------------------------------------------------------------------------
-    /// Unsupported construct for comptime execution.
+    /// Unsupported construct for const execution.
     #[diagnostic(
-        id = "unsupported-comptime-construct",
-        message = "unsupported construct for comptime execution"
+        id = "unsupported-const-construct",
+        message = "unsupported construct for const execution"
     )]
     UnsupportedConstruct { anchor: DiagnosticAnchor },
 }

@@ -2380,7 +2380,7 @@ impl CheckState<'_> {
                 module,
                 actual: source,
             },
-            (_, Some(ValueUse::Argument | ValueUse::Comptime)) => {
+            (_, Some(ValueUse::Argument | ValueUse::Const)) => {
                 CheckError::ArgumentNotAssignable {
                     anchor,
                     module,

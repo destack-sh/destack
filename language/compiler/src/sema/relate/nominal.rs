@@ -138,7 +138,7 @@ impl CheckState<'_> {
             return Ok(Verdict::decided(holds));
         }
 
-        // comptime scalars inhabit closed enums by member value
+        // const scalars inhabit closed enums by member value
         if let dir::Type::Literal(literal) = self.ty(source)?
             && let Some(symbol) = self.type_symbol(target)?
             && let Some(dir::Definition::Enum(definition)) = self.definition(symbol)?

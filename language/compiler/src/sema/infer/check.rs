@@ -213,7 +213,7 @@ impl BodyState<'_, '_> {
 
                 Ok(CheckAttempt::Checked(check))
             }
-            dir::Expression::Comptime { body } => {
+            dir::Expression::Const { body } => {
                 self.check_transparent_expression(site, body, expectation)
             }
             dir::Expression::Satisfies { expression, .. } => {

@@ -116,7 +116,7 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
 }
 
 #[test]
-fn test_diagnose_spreading_a_mismatched_pack_into_a_comptime_variadic() {
+fn test_diagnose_spreading_a_mismatched_pack_into_a_const_variadic() {
     let session = TestSession::builder()
         .module(
             "sharding.ds",
@@ -125,9 +125,9 @@ export newtype interface Marker {}
 
 export newtype interface Placed {}
 
-export newtype Wrap<comptime ...Xs: Marker> = intrinsic;
+export newtype Wrap<const ...Xs: Marker> = intrinsic;
 
-export extension<comptime ...Xs: Marker> of Wrap<...Xs> implements Placed {}
+export extension<const ...Xs: Marker> of Wrap<...Xs> implements Placed {}
 
 export newtype Grid<T, P: Placed> = intrinsic;
 
@@ -143,7 +143,7 @@ declare function mesh<T, ...Xs: Axis[]>(
     grid: &readonly Grid<T, Wrap<...Xs>>,
 ): int32;
 
-extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
+extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
     /// Return the mesh id.
     get mesh(): int32 {
         return mesh<T, ...Xs>(this);
@@ -162,7 +162,7 @@ import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
 
 declare function mesh<T, ...Xs: Axis[], 'a>(grid: &'a readonly Grid<T, Wrap<Xs>>): int32;
 
-extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
+extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
     /// Return the mesh id.
     get mesh(): int32 {
         return mesh<T, ...Xs>(this);
@@ -189,12 +189,12 @@ declare function mesh<T, ...Xs: Axis[]>(
 
 ): int32;
 
-extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
-/// @generic.template symbol=<module>#2 parameters=(T#2, comptime ...Xs#2: sharding.Marker)
+extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
+/// @generic.template symbol=<module>#2 parameters=(T#2, const ...Xs#2: sharding.Marker)
 /// @definition.extension symbol=<module>#2 form=local target=sharding.Grid<T#2, sharding.Wrap<Xs#2>>
 /// @definition.method symbol=mesh#2 slot=mesh role=getter type=<mesh#2.'a>(this: &mesh#2.'a readonly this) => int32
 /// @type.symbol symbol=T source=T type=T#2
-/// @type.symbol symbol=Xs source="comptime ...Xs: Marker" type=Xs#2
+/// @type.symbol symbol=Xs source="const ...Xs: Marker" type=Xs#2
 /// @resolution.name source=Marker target=sharding.Marker
 /// @resolution.name source=Grid target=sharding.Grid
 /// @resolution.name source=T target=T
@@ -228,7 +228,7 @@ extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 /// @diagnostic.related file="sharding.ds" line=10 column=24 span="P" line_source="export newtype Grid<T, P: Placed> = intrinsic;" message="required by this bound on 'P'"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'sharding.Marker'"
 /// @diagnostic.label line=5 column=34 span="...Xs" line_source="grid: &readonly Grid<T, Wrap<...Xs>>,"
-/// @diagnostic.related file="sharding.ds" line=6 column=33 span="Xs" line_source="export newtype Wrap<comptime ...Xs: Marker> = intrinsic;" message="required by this bound on 'Xs'"
+/// @diagnostic.related file="sharding.ds" line=6 column=30 span="Xs" line_source="export newtype Wrap<const ...Xs: Marker> = intrinsic;" message="required by this bound on 'Xs'"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'Array<sharding.Axis>'"
 /// @diagnostic.label line=11 column=16 span="mesh<T, ...Xs>(this)" line_source="return mesh<T, ...Xs>(this);"
 /// @diagnostic.related line=4 column=29 span="Xs" line_source="declare function mesh<T, ...Xs: Axis[]>(" message="required by this bound on 'Xs'"

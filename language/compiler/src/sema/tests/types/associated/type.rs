@@ -384,11 +384,11 @@ declare const value: Grid.Cell.Value;
 fn test_resolve_an_implemented_associated_type_through_the_class() {
     let session = TestSession::single(
         r#"
-interface Envelope<T extends string> {
-    type Label<U extends string> = `${T}:${U}`;
+interface Envelope<T: string> {
+    type Label<U: string> = `${T}:${U}`;
 }
 
-class Message<T extends string> implements Envelope<T> {}
+class Message<T: string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
 "#,
@@ -408,31 +408,31 @@ class Message<in out T: string> implements Envelope<T> {}
 type EventLabel = Message<"orders">.Label<"created">;
 
 === checked ===
-interface Envelope<T extends string> {
+interface Envelope<T: string> {
 /// @generic.template symbol=Envelope parameters=(in out T#1: string)
 /// @type.symbol symbol=Envelope type=Envelope
 /// @definition.interface symbol=Envelope template=(in out T#1: string)
 /// @definition.where symbol=Envelope relation=satisfies left=this right=Envelope<T#1>
-/// @definition.associated.type symbol=Envelope.Label source="type Label<U extends string> = `${T}:${U}`" key=Label value=`${T#1}:${U}`
-/// @type.symbol symbol=Envelope.T source="T extends string" type=T#1
+/// @definition.associated.type symbol=Envelope.Label source="type Label<U: string> = `${T}:${U}`" key=Label value=`${T#1}:${U}`
+/// @type.symbol symbol=Envelope.T source="T: string" type=T#1
 
-    type Label<U extends string> = `${T}:${U}`;
+    type Label<U: string> = `${T}:${U}`;
     /// @generic.template symbol=Envelope.Label parent=template#0 parameters=(U: string)
-    /// @type.symbol symbol=Envelope.Label source="type Label<U extends string> = `${T}:${U}`" type=`${T#1}:${U}`
-    /// @type.symbol symbol=Envelope.Label.U source="U extends string" type=U
+    /// @type.symbol symbol=Envelope.Label source="type Label<U: string> = `${T}:${U}`" type=`${T#1}:${U}`
+    /// @type.symbol symbol=Envelope.Label.U source="U: string" type=U
     /// @resolution.name source=T target=Envelope.T
     /// @resolution.name source=U target=Envelope.Label.U
 
 }
 
-class Message<T extends string> implements Envelope<T> {}
+class Message<T: string> implements Envelope<T> {}
 /// @generic.template symbol=Message parameters=(in out T#2: string)
-/// @type.symbol symbol=Message source="class Message<T extends string> implements Envelope<T> {}" type=Message
-/// @definition.class symbol=Message source="class Message<T extends string> implements Envelope<T> {}" template=(in out T#2: string)
+/// @type.symbol symbol=Message source="class Message<T: string> implements Envelope<T> {}" type=Message
+/// @definition.class symbol=Message source="class Message<T: string> implements Envelope<T> {}" template=(in out T#2: string)
 /// @definition.where symbol=Message source=Envelope<T> relation=satisfies left=this right=Envelope<T#2>
 /// @definition.implements symbol=Message source=Envelope<T> target=Envelope<T#2>
 /// @definition.conformance symbol=Message member=Envelope.Label requirement=Envelope.Label
-/// @type.symbol symbol=Message.T source="T extends string" type=T#2
+/// @type.symbol symbol=Message.T source="T: string" type=T#2
 /// @resolution.name source=Envelope target=Envelope
 /// @resolution.name source=T target=Message.T
 
@@ -451,8 +451,8 @@ fn test_resolve_an_imported_implemented_associated_type() {
         .module(
             "envelope.ds",
             r#"
-export interface Envelope<T extends string> {
-    type Label<U extends string> = `${T}:${U}`;
+export interface Envelope<T: string> {
+    type Label<U: string> = `${T}:${U}`;
 }
 "#,
         )
@@ -461,7 +461,7 @@ export interface Envelope<T extends string> {
             r#"
 import { Envelope } from "./envelope.ds";
 
-class Message<T extends string> implements Envelope<T> {}
+class Message<T: string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
 "#,
@@ -482,14 +482,14 @@ type EventLabel = Message<"orders">.Label<"created">;
 === checked ===
 import { Envelope } from "./envelope.ds";
 
-class Message<T extends string> implements Envelope<T> {}
+class Message<T: string> implements Envelope<T> {}
 /// @generic.template symbol=Message parameters=(in out T: string)
-/// @type.symbol symbol=Message source="class Message<T extends string> implements Envelope<T> {}" type=Message
-/// @definition.class symbol=Message source="class Message<T extends string> implements Envelope<T> {}" template=(in out T: string)
+/// @type.symbol symbol=Message source="class Message<T: string> implements Envelope<T> {}" type=Message
+/// @definition.class symbol=Message source="class Message<T: string> implements Envelope<T> {}" template=(in out T: string)
 /// @definition.where symbol=Message source=Envelope<T> relation=satisfies left=this right=envelope.Envelope<T>
 /// @definition.implements symbol=Message source=Envelope<T> target=envelope.Envelope<T>
 /// @definition.conformance symbol=Message member=envelope.Envelope.Label requirement=envelope.Envelope.Label
-/// @type.symbol symbol=Message.T source="T extends string" type=T
+/// @type.symbol symbol=Message.T source="T: string" type=T
 /// @resolution.name source=Envelope target=envelope.Envelope
 /// @resolution.name source=T target=Message.T
 

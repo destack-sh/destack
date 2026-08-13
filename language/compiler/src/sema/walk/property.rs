@@ -519,8 +519,8 @@ impl WalkState<'_, '_> {
                     implementation,
                 })))
             }
-            // static { ... }, comptime { ... }
-            dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. } => Ok(None),
+            // static { ... }, const { ... }
+            dir::Member::StaticBlock { .. } | dir::Member::ConstBlock { .. } => Ok(None),
             // ignore damaged nodes
             dir::Member::Error => Ok(None),
         };
@@ -645,8 +645,8 @@ impl WalkState<'_, '_> {
                     Ok(None)
                 }
             }
-            // static { ... }, comptime { ... }
-            dir::Member::StaticBlock { body } | dir::Member::ComptimeBlock { body } => {
+            // static { ... }, const { ... }
+            dir::Member::StaticBlock { body } | dir::Member::ConstBlock { body } => {
                 let body = *body;
 
                 // check member blocks in declaration context

@@ -94,7 +94,7 @@ const writer: NamedWriter = Buffer {};
 
 #[test]
 fn test_construct_newtype_constant_from_shifted_literal() {
-    // a newtype constructor call over a comptime shift settles at its annotation
+    // a newtype constructor call over a const shift adopts its annotation
     let session = TestSession::single(
         r#"
 export newtype Mask = uint32;

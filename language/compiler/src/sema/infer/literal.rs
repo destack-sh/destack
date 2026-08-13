@@ -76,7 +76,7 @@ impl BodyState<'_, '_> {
                                 match self.infer.variable(variable)?.widening {
                                     Widening::Never => InferMode::Exact,
                                     Widening::Aggregate => default_mode,
-                                    Widening::Multiple | Widening::Comptime => InferMode::Mutable,
+                                    Widening::Multiple | Widening::Const => InferMode::Mutable,
                                     Widening::Always => InferMode::Widen,
                                 }
                             }

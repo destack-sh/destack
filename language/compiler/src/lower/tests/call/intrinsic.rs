@@ -126,7 +126,7 @@ entry:
 }
 
 #[test]
-fn test_lower_atomic_fence_with_comptime_ordering() {
+fn test_lower_atomic_fence_with_const_ordering() {
     let session = TestSession::single(
         r#"
 enum MemoryOrdering {

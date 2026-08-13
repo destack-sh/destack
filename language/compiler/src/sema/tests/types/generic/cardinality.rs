@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_accept_an_exact_value_for_a_consumed_parameter() {
     let session = TestSession::single(
         r#"
-type Buffer<comptime N: uint> = [uint8; N];
+type Buffer<const N: uint> = [uint8; N];
 
 declare const buffer: Buffer<1024>;
 "#,
@@ -15,12 +15,12 @@ declare const buffer: Buffer<1024>;
         DirRows::none(),
         r#"
 === annotated ===
-type Buffer<comptime N: uint> = [uint8; N];
+type Buffer<const N: uint> = [uint8; N];
 
 declare const buffer: [uint8; 1024];
 
 === checked ===
-type Buffer<comptime N: uint> = [uint8; N];
+type Buffer<const N: uint> = [uint8; N];
 
 declare const buffer: Buffer<1024>;
 "#,
@@ -33,7 +33,7 @@ declare const buffer: Buffer<1024>;
 fn test_reject_an_argument_that_leaves_a_consumed_parameter_open() {
     let session = TestSession::single(
         r#"
-type Buffer<comptime N: uint> = [uint8; N];
+type Buffer<const N: uint> = [uint8; N];
 
 declare const buffer: Buffer<uint>;
 "#,
@@ -44,12 +44,12 @@ declare const buffer: Buffer<uint>;
         DirRows::none(),
         r#"
 === annotated ===
-type Buffer<comptime N: uint> = [uint8; N];
+type Buffer<const N: uint> = [uint8; N];
 
 declare const buffer: Buffer<uint>;
 
 === checked ===
-type Buffer<comptime N: uint> = [uint8; N];
+type Buffer<const N: uint> = [uint8; N];
 
 declare const buffer: Buffer<uint>;
 "#,
@@ -64,9 +64,9 @@ declare const buffer: Buffer<uint>;
 fn test_chain_a_consumed_parameter_through_an_alias() {
     let session = TestSession::single(
         r#"
-type Double<comptime N: uint> = [uint8; N];
+type Double<const N: uint> = [uint8; N];
 
-type Quad<comptime M: uint> = Double<M>;
+type Quad<const M: uint> = Double<M>;
 
 declare const quad: Quad<uint>;
 "#,
@@ -77,16 +77,16 @@ declare const quad: Quad<uint>;
         DirRows::none(),
         r#"
 === annotated ===
-type Double<comptime N: uint> = [uint8; N];
+type Double<const N: uint> = [uint8; N];
 
-type Quad<comptime M: uint> = Double<M>;
+type Quad<const M: uint> = Double<M>;
 
 declare const quad: Quad<uint>;
 
 === checked ===
-type Double<comptime N: uint> = [uint8; N];
+type Double<const N: uint> = [uint8; N];
 
-type Quad<comptime M: uint> = Double<M>;
+type Quad<const M: uint> = Double<M>;
 
 declare const quad: Quad<uint>;
 "#,
@@ -101,7 +101,7 @@ declare const quad: Quad<uint>;
 fn test_reject_a_body_read_of_an_unfixed_parameter() {
     let session = TestSession::single(
         r#"
-function count<comptime N: usize>(): usize {
+function count<const N: usize>(): usize {
     let total: usize = 0;
 
     for (let lane: usize = 0; lane < N; lane += 1) {
@@ -118,7 +118,7 @@ function count<comptime N: usize>(): usize {
         DirRows::none(),
         r#"
 === annotated ===
-function count<comptime N: usize>(): usize {
+function count<const N: usize>(): usize {
     let total: usize = 0;
 
     for (let lane: usize = 0; lane < N; lane += 1) {
@@ -129,7 +129,7 @@ function count<comptime N: usize>(): usize {
 }
 
 === checked ===
-function count<comptime N: usize>(): usize {
+function count<const N: usize>(): usize {
     let total: usize = 0;
 
     for (let lane: usize = 0; lane < N; lane += 1) {
@@ -150,7 +150,7 @@ function count<comptime N: usize>(): usize {
 fn test_read_a_signature_fixed_parameter_in_the_body() {
     let session = TestSession::single(
         r#"
-struct Block<comptime N: usize> {
+struct Block<const N: usize> {
     data: [uint8; N];
 
     get length(): usize {
@@ -165,7 +165,7 @@ struct Block<comptime N: usize> {
         DirRows::none(),
         r#"
 === annotated ===
-struct Block<comptime N: usize> {
+struct Block<const N: usize> {
     data: [uint8; N];
 
     get length(): usize {
@@ -174,7 +174,7 @@ struct Block<comptime N: usize> {
 }
 
 === checked ===
-struct Block<comptime N: usize> {
+struct Block<const N: usize> {
     data: [uint8; N];
 
     get length(): usize {

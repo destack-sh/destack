@@ -232,14 +232,11 @@ impl DirSnapshotBuilder<'_> {
         if parameter.is_variadic {
             label = format!("...{label}");
         }
-        if parameter.is_const {
-            label = format!("const {label}");
-        }
-        if parameter.is_comptime() {
-            label = format!("comptime {label}");
-        }
         if let Some(variance) = parameter.variance {
             label = format!("{} {label}", variance.as_str());
+        }
+        if parameter.is_const {
+            label = format!("const {label}");
         }
 
         label

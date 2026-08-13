@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_interval_constrains_static_parameter() {
     let session = TestSession::single(
         r#"
-struct InlineBuffer<T, comptime N: 0..=4096> {
+struct InlineBuffer<T, const N: 0..=4096> {
     storage: [T; N];
 }
 
@@ -19,7 +19,7 @@ const ok: InlineBuffer<uint8, 16> = InlineBuffer<uint8, 16> {
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
-struct InlineBuffer<out T, comptime N: 0..=4096> {
+struct InlineBuffer<out T, const N: 0..=4096> {
     storage: [T; N];
 }
 
@@ -28,13 +28,13 @@ const ok: InlineBuffer<uint8, 16> = InlineBuffer<uint8, 16> {
 };
 
 === checked ===
-struct InlineBuffer<T, comptime N: 0..=4096> {
-/// @generic.template symbol=InlineBuffer parameters=(out T, comptime N: 0..=4096)
+struct InlineBuffer<T, const N: 0..=4096> {
+/// @generic.template symbol=InlineBuffer parameters=(out T, const N: 0..=4096)
 /// @type.symbol symbol=InlineBuffer type=InlineBuffer
-/// @definition.struct symbol=InlineBuffer template=(out T, comptime N: 0..=4096)
+/// @definition.struct symbol=InlineBuffer template=(out T, const N: 0..=4096)
 /// @definition.field symbol=InlineBuffer.storage source="storage: [T; N]" key=storage type=FixedArray<T, N>
 /// @type.symbol symbol=InlineBuffer.T source=T type=T
-/// @type.symbol symbol=InlineBuffer.N source="comptime N: 0..=4096" type=N
+/// @type.symbol symbol=InlineBuffer.N source="const N: 0..=4096" type=N
 
     storage: [T; N];
     /// @type.symbol symbol=InlineBuffer.storage source="storage: [T; N]" type=FixedArray<T, N>
@@ -61,7 +61,7 @@ const ok: InlineBuffer<uint8, 16> = InlineBuffer<uint8, 16> {
 fn test_interval_static_parameter_rejects_out_of_range_argument() {
     let session = TestSession::single(
         r#"
-struct InlineBuffer<T, comptime N: 0..=4096> {
+struct InlineBuffer<T, const N: 0..=4096> {
     storage: [T; N];
 }
 
@@ -74,20 +74,20 @@ type TooLarge = InlineBuffer<uint8, 4097>;
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
-struct InlineBuffer<out T, comptime N: 0..=4096> {
+struct InlineBuffer<out T, const N: 0..=4096> {
     storage: [T; N];
 }
 
 type TooLarge = InlineBuffer<uint8, 4097>;
 
 === checked ===
-struct InlineBuffer<T, comptime N: 0..=4096> {
-/// @generic.template symbol=InlineBuffer parameters=(out T, comptime N: 0..=4096)
+struct InlineBuffer<T, const N: 0..=4096> {
+/// @generic.template symbol=InlineBuffer parameters=(out T, const N: 0..=4096)
 /// @type.symbol symbol=InlineBuffer type=InlineBuffer
-/// @definition.struct symbol=InlineBuffer template=(out T, comptime N: 0..=4096)
+/// @definition.struct symbol=InlineBuffer template=(out T, const N: 0..=4096)
 /// @definition.field symbol=InlineBuffer.storage source="storage: [T; N]" key=storage type=FixedArray<T, N>
 /// @type.symbol symbol=InlineBuffer.T source=T type=T
-/// @type.symbol symbol=InlineBuffer.N source="comptime N: 0..=4096" type=N
+/// @type.symbol symbol=InlineBuffer.N source="const N: 0..=4096" type=N
 
     storage: [T; N];
     /// @type.symbol symbol=InlineBuffer.storage source="storage: [T; N]" type=FixedArray<T, N>
@@ -106,7 +106,7 @@ type TooLarge = InlineBuffer<uint8, 4097>;
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '4097' does not satisfy '0..=4096'"
 /// @diagnostic.label line=6 column=37 span="4097" line_source="type TooLarge = InlineBuffer<uint8, 4097>;"
-/// @diagnostic.related line=2 column=33 span="N" line_source="struct InlineBuffer<T, comptime N: 0..=4096> {" message="required by this bound on 'N'"
+/// @diagnostic.related line=2 column=30 span="N" line_source="struct InlineBuffer<T, const N: 0..=4096> {" message="required by this bound on 'N'"
 "#,
     );
 }

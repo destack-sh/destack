@@ -1280,7 +1280,7 @@ pub enum CheckError {
     /// Static inclusion condition could not be decided statically.
     ///
     /// ```ds
-    /// function f<comptime Enabled: boolean>() {
+    /// function f<const Enabled: boolean>() {
     ///     @if(Enabled)
     ///     const value = 1;
     /// }
@@ -1299,7 +1299,7 @@ pub enum CheckError {
     /// Static value expression is not in the static subset.
     ///
     /// ```ds
-    /// type Value<comptime N: number = runtimeValue> = N;
+    /// type Value<const N: number = runtimeValue> = N;
     /// ```
     #[diagnostic(
         id = "undecidable-static-value",
@@ -2219,7 +2219,7 @@ pub enum CheckError {
     ///
     /// ```ds
     /// function size<T>(): usize {
-    ///     return comptime sizeOf<T>();
+    ///     return const sizeOf<T>();
     /// }
     /// ```
     #[diagnostic(

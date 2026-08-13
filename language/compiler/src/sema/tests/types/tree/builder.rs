@@ -81,17 +81,17 @@ extension of Panel implements Maker {
 }
 
 #[test]
-fn test_implement_comptime_static_interface_members() {
+fn test_implement_const_static_interface_members() {
     let session = TestSession::single(
         r#"
 newtype interface Tagger {
-    static tag<comptime Name: string>(name: Name): this;
+    static tag<const Name: string>(name: Name): this;
 }
 
 class Panel {}
 
 extension of Panel implements Tagger {
-    static tag<comptime Name: string>(name: Name): Panel {
+    static tag<const Name: string>(name: Name): Panel {
         return new Panel();
     }
 }
@@ -104,13 +104,13 @@ extension of Panel implements Tagger {
         r#"
 === annotated ===
 newtype interface Tagger {
-    static tag<comptime Name: string>(name: Name): this;
+    static tag<const Name: string>(name: Name): this;
 }
 
 class Panel {}
 
 extension of Panel implements Tagger {
-    static tag<comptime Name: string>(name: Name): Panel {
+    static tag<const Name: string>(name: Name): Panel {
         return new Panel();
     }
 }
@@ -119,12 +119,12 @@ extension of Panel implements Tagger {
 newtype interface Tagger {
 /// @type.symbol symbol=Tagger type=Tagger
 /// @definition.interface symbol=Tagger nominal=true
-/// @definition.method symbol=Tagger.tag source="static tag<comptime Name: string>(name: Name): this" slot=tag static=true type=<comptime Name#1: string>(Name#1) => this
+/// @definition.method symbol=Tagger.tag source="static tag<const Name: string>(name: Name): this" slot=tag static=true type=<const Name#1: string>(Name#1) => this
 
-    static tag<comptime Name: string>(name: Name): this;
-    /// @generic.template symbol=Tagger.tag parent=template#0 parameters=(comptime Name#1: string)
-    /// @type.symbol symbol=Tagger.tag source="static tag<comptime Name: string>(name: Name): this" type=<comptime Name#1: string>(Name#1) => this
-    /// @type.symbol symbol=Tagger.tag.Name source="comptime Name: string" type=Name#1
+    static tag<const Name: string>(name: Name): this;
+    /// @generic.template symbol=Tagger.tag parent=template#0 parameters=(const Name#1: string)
+    /// @type.symbol symbol=Tagger.tag source="static tag<const Name: string>(name: Name): this" type=<const Name#1: string>(Name#1) => this
+    /// @type.symbol symbol=Tagger.tag.Name source="const Name: string" type=Name#1
     /// @type.symbol symbol=Tagger.tag.name source="name: Name" type=Name#1
     /// @resolution.name source=Name target=Tagger.tag.Name
 
@@ -137,15 +137,15 @@ class Panel {}
 extension of Panel implements Tagger {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=Tagger target=Tagger
-/// @definition.method symbol=tag slot=tag static=true type=<comptime Name#2: string>(Name#2) => Panel
+/// @definition.method symbol=tag slot=tag static=true type=<const Name#2: string>(Name#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=tag requirement=Tagger.tag
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Tagger target=Tagger
 
-    static tag<comptime Name: string>(name: Name): Panel {
-    /// @generic.template symbol=tag parent=template#1 parameters=(comptime Name#2: string)
-    /// @type.symbol symbol=tag type=<comptime Name#2: string>(Name#2) => Panel
-    /// @type.symbol symbol=tag.Name source="comptime Name: string" type=Name#2
+    static tag<const Name: string>(name: Name): Panel {
+    /// @generic.template symbol=tag parent=template#1 parameters=(const Name#2: string)
+    /// @type.symbol symbol=tag type=<const Name#2: string>(Name#2) => Panel
+    /// @type.symbol symbol=tag.Name source="const Name: string" type=Name#2
     /// @type.symbol symbol=tag.name source="name: Name" type=Name#2
     /// @resolution.name source=Name target=tag.Name
     /// @resolution.name source=Panel target=Panel
@@ -167,7 +167,7 @@ fn test_implement_keyof_bounded_static_interface_members() {
 newtype interface Rowed {
     type Rows = {};
 
-    static row<comptime Key: keyof this.Rows>(key: Key): this;
+    static row<const Key: keyof this.Rows>(key: Key): this;
 }
 
 class Panel {}
@@ -175,7 +175,7 @@ class Panel {}
 extension of Panel implements Rowed {
     type Rows = { header: string };
 
-    static row<comptime Key: keyof this.Rows>(key: Key): Panel {
+    static row<const Key: keyof this.Rows>(key: Key): Panel {
         return new Panel();
     }
 }
@@ -190,7 +190,7 @@ extension of Panel implements Rowed {
 newtype interface Rowed {
     type Rows = {};
 
-    static row<comptime Key: keyof this.Rows>(key: Key): this;
+    static row<const Key: keyof this.Rows>(key: Key): this;
 }
 
 class Panel {}
@@ -198,7 +198,7 @@ class Panel {}
 extension of Panel implements Rowed {
     type Rows = { header: string };
 
-    static row<comptime Key: keyof this.Rows>(key: Key): Panel {
+    static row<const Key: keyof this.Rows>(key: Key): Panel {
         return new Panel();
     }
 }
@@ -208,15 +208,15 @@ newtype interface Rowed {
 /// @type.symbol symbol=Rowed type=Rowed
 /// @definition.interface symbol=Rowed nominal=true
 /// @definition.associated.type symbol=Rowed.Rows source="type Rows = {}" key=Rows value={}
-/// @definition.method symbol=Rowed.row source="static row<comptime Key: keyof this.Rows>(key: Key): this" slot=row static=true type=<comptime Key#1: keyof this.Rows>(Key#1) => this
+/// @definition.method symbol=Rowed.row source="static row<const Key: keyof this.Rows>(key: Key): this" slot=row static=true type=<const Key#1: keyof this.Rows>(Key#1) => this
 
     type Rows = {};
     /// @type.symbol symbol=Rowed.Rows source="type Rows = {}" type={}
 
-    static row<comptime Key: keyof this.Rows>(key: Key): this;
-    /// @generic.template symbol=Rowed.row parent=template#0 parameters=(comptime Key#1: keyof this.Rows)
-    /// @type.symbol symbol=Rowed.row source="static row<comptime Key: keyof this.Rows>(key: Key): this" type=<comptime Key#1: keyof this.Rows>(Key#1) => this
-    /// @type.symbol symbol=Rowed.row.Key source="comptime Key: keyof this.Rows" type=Key#1
+    static row<const Key: keyof this.Rows>(key: Key): this;
+    /// @generic.template symbol=Rowed.row parent=template#0 parameters=(const Key#1: keyof this.Rows)
+    /// @type.symbol symbol=Rowed.row source="static row<const Key: keyof this.Rows>(key: Key): this" type=<const Key#1: keyof this.Rows>(Key#1) => this
+    /// @type.symbol symbol=Rowed.row.Key source="const Key: keyof this.Rows" type=Key#1
     /// @type.symbol symbol=Rowed.row.key source="key: Key" type=Key#1
     /// @resolution.name source=Key target=Rowed.row.Key
 
@@ -230,7 +230,7 @@ extension of Panel implements Rowed {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=Rowed target=Rowed
 /// @definition.associated.type symbol=Rows source="type Rows = { header: string }" key=Rows value={ header: string }
-/// @definition.method symbol=row slot=row static=true type=<comptime Key#2: keyof this.Rows>(Key#2) => Panel
+/// @definition.method symbol=row slot=row static=true type=<const Key#2: keyof this.Rows>(Key#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Rows requirement=Rowed.Rows
 /// @definition.conformance symbol=<module>#2 member=row requirement=Rowed.row
 /// @resolution.name source=Panel target=Panel
@@ -239,10 +239,10 @@ extension of Panel implements Rowed {
     type Rows = { header: string };
     /// @type.symbol symbol=Rows source="type Rows = { header: string }" type={ header: string }
 
-    static row<comptime Key: keyof this.Rows>(key: Key): Panel {
-    /// @generic.template symbol=row parent=template#1 parameters=(comptime Key#2: keyof this.Rows)
-    /// @type.symbol symbol=row type=<comptime Key#2: keyof this.Rows>(Key#2) => Panel
-    /// @type.symbol symbol=row.Key source="comptime Key: keyof this.Rows" type=Key#2
+    static row<const Key: keyof this.Rows>(key: Key): Panel {
+    /// @generic.template symbol=row parent=template#1 parameters=(const Key#2: keyof this.Rows)
+    /// @type.symbol symbol=row type=<const Key#2: keyof this.Rows>(Key#2) => Panel
+    /// @type.symbol symbol=row.Key source="const Key: keyof this.Rows" type=Key#2
     /// @type.symbol symbol=row.key source="key: Key" type=Key#2
     /// @resolution.name source=Key target=row.Key
     /// @resolution.name source=Panel target=Panel
@@ -264,7 +264,7 @@ fn test_implement_row_projected_static_interface_members() {
 newtype interface Rowed {
     type Rows = {};
 
-    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this;
+    static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this;
 }
 
 class Panel {}
@@ -272,7 +272,7 @@ class Panel {}
 extension of Panel implements Rowed {
     type Rows = { header: string };
 
-    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
+    static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
         return new Panel();
     }
 }
@@ -287,7 +287,7 @@ extension of Panel implements Rowed {
 newtype interface Rowed {
     type Rows = {};
 
-    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this;
+    static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this;
 }
 
 class Panel {}
@@ -295,7 +295,7 @@ class Panel {}
 extension of Panel implements Rowed {
     type Rows = { header: string };
 
-    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
+    static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
         return new Panel();
     }
 }
@@ -305,15 +305,15 @@ newtype interface Rowed {
 /// @type.symbol symbol=Rowed type=Rowed
 /// @definition.interface symbol=Rowed nominal=true
 /// @definition.associated.type symbol=Rowed.Rows source="type Rows = {}" key=Rows value={}
-/// @definition.method symbol=Rowed.row source="static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this" slot=row static=true type=<comptime Key#1: keyof this.Rows>(Key#1, this.Rows[Key#1]) => this
+/// @definition.method symbol=Rowed.row source="static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this" slot=row static=true type=<const Key#1: keyof this.Rows>(Key#1, this.Rows[Key#1]) => this
 
     type Rows = {};
     /// @type.symbol symbol=Rowed.Rows source="type Rows = {}" type={}
 
-    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this;
-    /// @generic.template symbol=Rowed.row parent=template#0 parameters=(comptime Key#1: keyof this.Rows)
-    /// @type.symbol symbol=Rowed.row source="static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this" type=<comptime Key#1: keyof this.Rows>(Key#1, this.Rows[Key#1]) => this
-    /// @type.symbol symbol=Rowed.row.Key source="comptime Key: keyof this.Rows" type=Key#1
+    static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this;
+    /// @generic.template symbol=Rowed.row parent=template#0 parameters=(const Key#1: keyof this.Rows)
+    /// @type.symbol symbol=Rowed.row source="static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this" type=<const Key#1: keyof this.Rows>(Key#1, this.Rows[Key#1]) => this
+    /// @type.symbol symbol=Rowed.row.Key source="const Key: keyof this.Rows" type=Key#1
     /// @type.symbol symbol=Rowed.row.key source="key: Key" type=Key#1
     /// @resolution.name source=Key target=Rowed.row.Key
     /// @type.symbol symbol=Rowed.row.value source="value: this.Rows[Key]" type=this.Rows[Key#1]
@@ -329,7 +329,7 @@ extension of Panel implements Rowed {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=Rowed target=Rowed
 /// @definition.associated.type symbol=Rows source="type Rows = { header: string }" key=Rows value={ header: string }
-/// @definition.method symbol=row slot=row static=true type=<comptime Key#2: keyof this.Rows>(Key#2, this.Rows[Key#2]) => Panel
+/// @definition.method symbol=row slot=row static=true type=<const Key#2: keyof this.Rows>(Key#2, this.Rows[Key#2]) => Panel
 /// @definition.conformance symbol=<module>#2 member=Rows requirement=Rowed.Rows
 /// @definition.conformance symbol=<module>#2 member=row requirement=Rowed.row
 /// @resolution.name source=Panel target=Panel
@@ -338,10 +338,10 @@ extension of Panel implements Rowed {
     type Rows = { header: string };
     /// @type.symbol symbol=Rows source="type Rows = { header: string }" type={ header: string }
 
-    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
-    /// @generic.template symbol=row parent=template#1 parameters=(comptime Key#2: keyof this.Rows)
-    /// @type.symbol symbol=row type=<comptime Key#2: keyof this.Rows>(Key#2, this.Rows[Key#2]) => Panel
-    /// @type.symbol symbol=row.Key source="comptime Key: keyof this.Rows" type=Key#2
+    static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
+    /// @generic.template symbol=row parent=template#1 parameters=(const Key#2: keyof this.Rows)
+    /// @type.symbol symbol=row type=<const Key#2: keyof this.Rows>(Key#2, this.Rows[Key#2]) => Panel
+    /// @type.symbol symbol=row.Key source="const Key: keyof this.Rows" type=Key#2
     /// @type.symbol symbol=row.key source="key: Key" type=Key#2
     /// @resolution.name source=Key target=row.Key
     /// @type.symbol symbol=row.value source="value: this.Rows[Key]" type=this.Rows[Key#2]
@@ -454,7 +454,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -486,7 +486,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -516,7 +516,7 @@ extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
 /// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
@@ -531,10 +531,10 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parent=template#0 parameters=(comptime Tag: keyof this.Tags, Children#1: (...unknown[],))
-    /// @type.symbol symbol=element type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
-    /// @type.symbol symbol=element.Tag source="comptime Tag: keyof this.Tags" type=Tag
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
 
         tag: Tag,
@@ -592,7 +592,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -629,7 +629,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -668,7 +668,7 @@ extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
 /// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
@@ -683,10 +683,10 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parent=template#0 parameters=(comptime Tag: keyof this.Tags, Children#1: (...unknown[],))
-    /// @type.symbol symbol=element type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
-    /// @type.symbol symbol=element.Tag source="comptime Tag: keyof this.Tags" type=Tag
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
 
         tag: Tag,
@@ -747,7 +747,7 @@ function render(): Panel {
 }
 
 #[test]
-fn test_check_object_literal_against_a_comptime_projected_parameter() {
+fn test_check_object_literal_against_a_const_projected_parameter() {
     let session = TestSession::single(
         r#"
 class Panel {
@@ -760,7 +760,7 @@ extension of Panel {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,

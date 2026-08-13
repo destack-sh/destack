@@ -12,14 +12,14 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         literal: dir::ScalarLiteral,
     ) -> CompilerResult<mir::Value> {
-        // a string or bigint at its singleton type is comptime: zero sized,
+        // a string or bigint at its singleton type is const: zero sized,
         //  its content lives in the type and widening materializes it
-        let is_comptime = matches!(self.node_type(expression)?, dir::Type::Literal(_));
+        let is_const = matches!(self.node_type(expression)?, dir::Type::Literal(_));
         match literal {
-            dir::ScalarLiteral::String(string) if !is_comptime => {
+            dir::ScalarLiteral::String(string) if !is_const => {
                 return self.lower_string_literal(string);
             }
-            dir::ScalarLiteral::Bigint(bigint) if !is_comptime => {
+            dir::ScalarLiteral::Bigint(bigint) if !is_const => {
                 return self.lower_bigint_literal(bigint);
             }
             dir::ScalarLiteral::String(_) | dir::ScalarLiteral::Bigint(_) => {

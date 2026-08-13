@@ -833,7 +833,7 @@ impl CheckState<'_> {
             };
             if binding.variance.is_some()
                 || binding.origin != dir::GenericParameterOrigin::Explicit
-                || binding.is_comptime()
+                || binding.memory_parameter().is_some()
                 || binding.is_const
             {
                 continue;
@@ -897,15 +897,18 @@ impl CheckState<'_> {
                 let Some(binding) = self.generic_parameter(parameter) else {
                     continue;
                 };
-                if matches!(binding.kind, dir::GenericParameterKind::Value) {
+                if binding.is_const && binding.memory_parameter().is_none() {
                     native.push((parameter.local_id, node));
                 }
             }
         }
         for (parameter, node) in native {
-            self.module_mut(module)
-                .generics_tail
-                .set_cardinality(parameter, dir::Cardinality::One { source: node.local_id });
+            self.module_mut(module).generics_tail.set_cardinality(
+                parameter,
+                dir::Cardinality::One {
+                    source: node.local_id,
+                },
+            );
         }
 
         Ok(())

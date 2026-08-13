@@ -452,11 +452,16 @@ impl WalkState<'_, '_> {
                 let Some(binding) = self.check.generic_parameter(parameter) else {
                     continue;
                 };
-                if matches!(binding.kind, dir::GenericParameterKind::Value) {
-                    self.check.module_mut(self.module).generics_tail.set_cardinality(
-                        parameter.local_id,
-                        dir::Cardinality::One { source: id.into_any() },
-                    );
+                if binding.is_const && binding.memory_parameter().is_none() {
+                    self.check
+                        .module_mut(self.module)
+                        .generics_tail
+                        .set_cardinality(
+                            parameter.local_id,
+                            dir::Cardinality::One {
+                                source: id.into_any(),
+                            },
+                        );
                 }
             }
         }

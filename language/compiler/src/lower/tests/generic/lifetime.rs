@@ -271,14 +271,14 @@ entry(v0: int32, v1: ref<User, borrowed, 'a, readonly>):
 }
 
 #[test]
-fn test_lower_comptime_lifetime_unions_to_combined_provenance() {
+fn test_lower_const_lifetime_unions_to_combined_provenance() {
     let session = TestSession::single(
         r#"
 struct User {
     id: int32;
 }
 
-function identity<comptime L0: Lifetime, comptime L1: Lifetime>(
+function identity<const L0: Lifetime, const L1: Lifetime>(
     value: Borrowed<User, L0 | L1, "readonly">,
 ): Borrowed<User, L0 | L1, "readonly"> {
     return value;

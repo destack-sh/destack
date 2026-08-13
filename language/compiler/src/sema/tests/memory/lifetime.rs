@@ -403,7 +403,7 @@ import { Access, WithAccess } from "destack:memory";
 interface Viewing {
     type View;
 
-    view<comptime A: Access = "readonly">(
+    view<const A: Access = "readonly">(
         this: WithAccess<&this, A>,
     ): WithAccess<&this.View, A>;
 }
@@ -420,7 +420,7 @@ import { Access, WithAccess } from "destack:memory";
 interface Viewing {
     type View;
 
-    view<comptime A: Access = "readonly">(this: WithAccess<&this, A>): WithAccess<&this.View, A>;
+    view<const A: Access = "readonly">(this: WithAccess<&this, A>): WithAccess<&this.View, A>;
 }
 
 === checked ===
@@ -430,14 +430,14 @@ interface Viewing {
 /// @type.symbol symbol=Viewing type=Viewing
 /// @definition.interface symbol=Viewing
 /// @definition.associated.type symbol=Viewing.View source="type View" key=View
-/// @definition.method symbol=Viewing.view slot=view type=<comptime A: memory.access.Access = "readonly", Viewing.view.'a>(this: memory.type.WithAccess<&Viewing.view.'a this, A>) => memory.type.WithAccess<&Viewing.view.'a this.View, A>
+/// @definition.method symbol=Viewing.view slot=view type=<const A: memory.access.Access = "readonly", Viewing.view.'a>(this: memory.type.WithAccess<&Viewing.view.'a this, A>) => memory.type.WithAccess<&Viewing.view.'a this.View, A>
 
     type View;
 
-    view<comptime A: Access = "readonly">(
-    /// @generic.template symbol=Viewing.view parent=template#0 parameters=(comptime A: memory.access.Access = "readonly", 'a)
-    /// @type.symbol symbol=Viewing.view type=<comptime A: memory.access.Access = "readonly", Viewing.view.'a>(this: memory.type.WithAccess<&Viewing.view.'a this, A>) => memory.type.WithAccess<&Viewing.view.'a this.View, A>
-    /// @type.symbol symbol=Viewing.view.A source="comptime A: Access = \"readonly\"" type=A
+    view<const A: Access = "readonly">(
+    /// @generic.template symbol=Viewing.view parent=template#0 parameters=(const A: memory.access.Access = "readonly", 'a)
+    /// @type.symbol symbol=Viewing.view type=<const A: memory.access.Access = "readonly", Viewing.view.'a>(this: memory.type.WithAccess<&Viewing.view.'a this, A>) => memory.type.WithAccess<&Viewing.view.'a this.View, A>
+    /// @type.symbol symbol=Viewing.view.A source="const A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=memory.access.Access
 
         this: WithAccess<&this, A>,
@@ -759,7 +759,7 @@ function inspect(user: &readonly User): int32 {
 }
 
 #[test]
-fn test_desugar_tick_parameters_to_comptime_lifetimes() {
+fn test_desugar_tick_parameters_to_const_lifetimes() {
     let session = TestSession::single(
         r#"
 struct Node { id: int32; }

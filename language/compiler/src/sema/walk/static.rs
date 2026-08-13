@@ -300,7 +300,7 @@ impl WalkState<'_, '_> {
 
                 self.bind_static_term(expression, ty)
             }
-            // resolve names to comptime parameters and static constants
+            // resolve names to const parameters and static constants
             dir::Expression::Identifier { .. } => {
                 let reference = self
                     .check
@@ -336,7 +336,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .commit_name(global_source, dir::NameResolution::new(symbol))?;
 
-                // comptime parameters write their parameter type so
+                // const parameters write their parameter type so
                 //  instantiation substitution reaches the predicate
                 if let Some(parameter) = self.check.parameter_by_symbol(symbol) {
                     // declared value reads pin the parameter to one exact value

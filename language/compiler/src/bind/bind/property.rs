@@ -177,7 +177,7 @@ impl Compiler {
                     state.visit_expression(tree, *body, body_node);
                 }
             }
-            dir::Member::StaticBlock { body } | dir::Member::ComptimeBlock { body } => {
+            dir::Member::StaticBlock { body } | dir::Member::ConstBlock { body } => {
                 // visit block body
                 let body_node = tree.get(*body);
                 state.visit_expression(tree, *body, body_node);

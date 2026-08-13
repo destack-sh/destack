@@ -1,7 +1,6 @@
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
-use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::sema::CheckState;
@@ -68,7 +67,9 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         &mut self,
         bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<Option<Vec<dir::LocalNodeId<dir::GenericArgument>>>> {
-        self.reify_generic_argument_bindings_depth(bindings, REIFY_DEPTH)
+        let arguments = dir::GenericArgumentBinding::values(bindings).collect::<Vec<_>>();
+
+        self.reify_arguments(&arguments, REIFY_DEPTH)
     }
 
     /// Fill selected generic arguments on one reified type reference.
@@ -116,11 +117,17 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let Some(name) = self.generic_parameter_name(binding) else {
             return Ok(None);
         };
-        let parameter = if binding.is_comptime() {
-            self.reify_value_parameter(binding, name)?
-        } else {
-            self.reify_type_parameter(binding, name)?
-        };
+
+        // reify tick names as bare lifetime parameters
+        if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+            && self.check.strings().get(name).starts_with('\'')
+        {
+            let parameter = self.insert(dir::GenericParameter::Lifetime { name });
+
+            return Ok(Some(parameter));
+        }
+
+        let parameter = self.reify_type_parameter(binding, name)?;
         let parameter = self.insert(parameter);
         if binding.constraint.is_some() {
             self.tree.set_side_span(
@@ -131,49 +138,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         }
 
         Ok(Some(parameter))
-    }
-
-    /// Reify one value generic parameter binding.
-    fn reify_value_parameter(
-        &mut self,
-        binding: &dir::GenericParameterBinding,
-        name: dir::StringId,
-    ) -> CompilerResult<dir::GenericParameter> {
-        let declared_type = binding
-            .constraint
-            .map(|constraint| self.reify(constraint))
-            .transpose()?
-            .flatten();
-        let default = binding
-            .default
-            .map(|default| self.reify_static(default))
-            .transpose()?
-            .flatten();
-
-        // reify tick names as bare lifetime parameters
-        if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
-            && self.check.strings().get(name).starts_with('\'')
-        {
-            return Ok(dir::GenericParameter::Lifetime { name });
-        }
-
-        let parameter = if binding.is_variadic {
-            dir::GenericParameter::VariadicValue {
-                name,
-                declared_type,
-                default,
-                is_comptime: true,
-            }
-        } else {
-            dir::GenericParameter::Value {
-                name,
-                declared_type,
-                default,
-                is_comptime: true,
-            }
-        };
-
-        Ok(parameter)
     }
 
     /// Reify one settled borrow into its named borrow expression.
@@ -368,14 +332,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 let Some(name) = self.symbol_name(instance.symbol) else {
                     return Ok(None);
                 };
-                let template = self.check.loaded_symbol_template(instance.symbol);
                 let arguments = self
                     .check
                     .type_ids(id.module_id, instance.arguments)?
                     .to_vec();
-                let Some(arguments) =
-                    self.reify_template_arguments_depth(template, &arguments, next)?
-                else {
+                let Some(arguments) = self.reify_arguments(&arguments, next)? else {
                     return Ok(None);
                 };
 
@@ -584,17 +545,17 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         }
                         // render parametric slots through the full algebra
                         else {
-                            let Some(lifetime) = self.reify_static_depth(lifetime, next)? else {
+                            let Some(lifetime) = self.reify_depth(lifetime, next)? else {
                                 return Ok(None);
                             };
-                            let Some(access) = self.reify_static_depth(access, next)? else {
+                            let Some(access) = self.reify_depth(access, next)? else {
                                 return Ok(None);
                             };
                             let target_type =
                                 self.insert(dir::GenericArgument::Type { value: target_type });
                             let lifetime =
-                                self.insert(dir::GenericArgument::Value { value: lifetime });
-                            let access = self.insert(dir::GenericArgument::Value { value: access });
+                                self.insert(dir::GenericArgument::Type { value: lifetime });
+                            let access = self.insert(dir::GenericArgument::Type { value: access });
                             let name = self.language_item_name(dir::LanguageItem::Borrowed);
 
                             dir::TypeExpression::Reference {
@@ -618,13 +579,13 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                             Some(dir::Space::Local) => dir::TypeExpression::Local { target_type },
                             Some(dir::Space::Shared) => dir::TypeExpression::Shared { target_type },
                             None => {
-                                let Some(place) = self.reify_static_depth(place, next)? else {
+                                let Some(place) = self.reify_depth(place, next)? else {
                                     return Ok(None);
                                 };
                                 let target =
                                     self.insert(dir::GenericArgument::Type { value: target_type });
                                 let place =
-                                    self.insert(dir::GenericArgument::Value { value: place });
+                                    self.insert(dir::GenericArgument::Type { value: place });
                                 let name = self.language_item_name(dir::LanguageItem::Placed);
 
                                 dir::TypeExpression::Reference {
@@ -972,73 +933,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
             let argument = self.insert(dir::GenericArgument::Type { value });
             arguments.push(argument);
-        }
-
-        Ok(Some(arguments))
-    }
-
-    /// Reify solved arguments against their declaration parameter forms.
-    fn reify_template_arguments_depth(
-        &mut self,
-        template: Option<dir::GlobalGenericTemplateId>,
-        ids: &[dir::GlobalTypeId],
-        depth: usize,
-    ) -> CompilerResult<Option<Vec<dir::LocalNodeId<dir::GenericArgument>>>> {
-        let parameters = match template {
-            Some(template) => self.check.generic_template_parameters(template)?,
-            None => SmallVec::new(),
-        };
-        let mut arguments = Vec::with_capacity(ids.len());
-        for (index, id) in ids.iter().copied().enumerate() {
-            let parameter = parameters
-                .get(index)
-                .and_then(|parameter| self.check.generic_parameter(*parameter));
-            let argument = if parameter.is_some_and(|parameter| parameter.is_comptime()) {
-                let Some(value) = self.reify_static_depth(id, depth)? else {
-                    return Ok(None);
-                };
-
-                dir::GenericArgument::Value { value }
-            } else {
-                let Some(value) = self.reify_depth(id, depth)? else {
-                    return Ok(None);
-                };
-
-                dir::GenericArgument::Type { value }
-            };
-
-            arguments.push(self.insert(argument));
-        }
-
-        Ok(Some(arguments))
-    }
-
-    /// Reify selected generic argument bindings up to a nesting depth.
-    fn reify_generic_argument_bindings_depth(
-        &mut self,
-        bindings: &[dir::GenericArgumentBinding],
-        depth: usize,
-    ) -> CompilerResult<Option<Vec<dir::LocalNodeId<dir::GenericArgument>>>> {
-        let mut arguments = Vec::with_capacity(bindings.len());
-        for binding in bindings {
-            let Some(parameter) = self.check.generic_parameter(binding.parameter) else {
-                return Ok(None);
-            };
-            let argument = if parameter.is_comptime() {
-                let Some(value) = self.reify_static_depth(binding.argument, depth)? else {
-                    return Ok(None);
-                };
-
-                dir::GenericArgument::Value { value }
-            } else {
-                let Some(value) = self.reify_depth(binding.argument, depth)? else {
-                    return Ok(None);
-                };
-
-                dir::GenericArgument::Type { value }
-            };
-
-            arguments.push(self.insert(argument));
         }
 
         Ok(Some(arguments))

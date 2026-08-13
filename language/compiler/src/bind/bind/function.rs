@@ -133,28 +133,6 @@ impl Compiler {
                     state.visit_type_expression(tree, *default, default_node);
                 }
             }
-            dir::GenericParameter::Value {
-                declared_type,
-                default,
-                ..
-            }
-            | dir::GenericParameter::VariadicValue {
-                declared_type,
-                default,
-                ..
-            } => {
-                // visit value parameter type
-                if let Some(declared_type) = declared_type {
-                    let declared_type_node = tree.get(*declared_type);
-                    state.visit_type_expression(tree, *declared_type, declared_type_node);
-                }
-
-                // visit value default
-                if let Some(default) = default {
-                    let default_node = tree.get(*default);
-                    state.visit_expression(tree, *default, default_node);
-                }
-            }
             dir::GenericParameter::Error => {}
         }
     }

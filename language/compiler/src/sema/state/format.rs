@@ -339,14 +339,11 @@ impl CheckState<'_> {
             if binding.is_variadic {
                 label = format!("...{label}");
             }
-            if binding.is_const {
-                label = format!("const {label}");
-            }
-            if binding.is_comptime() {
-                label = format!("comptime {label}");
-            }
             if let Some(variance) = binding.variance {
                 label = format!("{} {label}", variance.as_str());
+            }
+            if binding.is_const {
+                label = format!("const {label}");
             }
 
             // render the declared bound and default
@@ -885,7 +882,7 @@ impl CheckState<'_> {
             || symbol.role == dir::SymbolRole::Namespace
             || symbol.kind == dir::SymbolKind::TypeAlias
             || symbol.kind == dir::SymbolKind::GenericTypeParameter
-            || symbol.kind == dir::SymbolKind::GenericValueParameter
+            || symbol.kind == dir::SymbolKind::GenericLifetimeParameter
     }
 
     /// Format one module as a compact qualifier.

@@ -8,7 +8,7 @@ struct Grid {
     size: int32;
 }
 
-export extension<comptime A: Access = "readonly"> of Grid {
+export extension<const A: Access = "readonly"> of Grid {
     view(this: WithAccess<&Grid, A>): int32 {
         this.size
     }
@@ -29,7 +29,7 @@ struct Grid {
     size: int32;
 }
 
-export extension<comptime A: Access = "readonly"> of Grid {
+export extension<const A: Access = "readonly"> of Grid {
     view(this: WithAccess<&Grid, A>): int32 {
         this.size
     }
@@ -50,14 +50,13 @@ struct Grid {
 
 }
 
-export extension<comptime A: Access = "readonly"> of Grid {
-/// @generic.template symbol=<module>#2 parameters=(comptime A: Access = "readonly")
+export extension<const A: Access = "readonly"> of Grid {
+/// @generic.template symbol=<module>#2 parameters=(const A: Access = "readonly")
 /// @definition.extension symbol=<module>#2 form=exported target=Grid
 /// @definition.method symbol=peek slot=peek type=<peek.'a>(this: WithAccess<&peek.'a Grid, A>) => int32
 /// @definition.method symbol=view slot=view type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32
-/// @type.symbol symbol=A source="comptime A: Access = \"readonly\"" type=A
+/// @type.symbol symbol=A source="const A: Access = \"readonly\"" type=A
 /// @resolution.name source=Access target=memory.access.Access
-/// @type.node source="\"readonly\"" type="readonly"
 /// @resolution.name source=Grid target=Grid
 
     view(this: WithAccess<&Grid, A>): int32 {
@@ -120,7 +119,7 @@ struct Grid {
     size: int32;
 }
 
-export extension<comptime A: Access = "readonly"> of Grid {
+export extension<const A: Access = "readonly"> of Grid {
     view(this: WithAccess<&Grid, A>): int32 {
         this.size
     }
@@ -145,7 +144,7 @@ struct Grid {
     size: int32;
 }
 
-export extension<comptime A: Access = "readonly"> of Grid {
+export extension<const A: Access = "readonly"> of Grid {
     view(this: WithAccess<&Grid, A>): int32 {
         this.size
     }
@@ -170,13 +169,12 @@ struct Grid {
 
 }
 
-export extension<comptime A: Access = "readonly"> of Grid {
-/// @generic.template symbol=<module>#2 parameters=(comptime A: Access = "readonly")
+export extension<const A: Access = "readonly"> of Grid {
+/// @generic.template symbol=<module>#2 parameters=(const A: Access = "readonly")
 /// @definition.extension symbol=<module>#2 form=exported target=Grid
 /// @definition.method symbol=view slot=view type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32
-/// @type.symbol symbol=A source="comptime A: Access = \"readonly\"" type=A
+/// @type.symbol symbol=A source="const A: Access = \"readonly\"" type=A
 /// @resolution.name source=Access target=memory.access.Access
-/// @type.node source="\"readonly\"" type="readonly"
 /// @resolution.name source=Grid target=Grid
 
     view(this: WithAccess<&Grid, A>): int32 {
@@ -251,7 +249,7 @@ function write(grid: &exclusive Grid): int32 {
 fn test_access_generic_receiver_selects_fixed_array_sibling_method() {
     let session = TestSession::single(
         r#"
-export extension FixedArrayAccess<T, comptime N: usize, comptime A: Access = "readonly"> of [T; N] {
+export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly"> of [T; N] {
     view(this: WithAccess<&[T; N], A>): int32 {
         1
     }
@@ -268,7 +266,7 @@ export extension FixedArrayAccess<T, comptime N: usize, comptime A: Access = "re
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-export extension FixedArrayAccess<T, comptime N: usize, comptime A: Access = "readonly"> of [T; N] {
+export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly"> of [T; N] {
     view(this: WithAccess<&[T; N], A>): int32 {
         1
     }
@@ -279,16 +277,15 @@ export extension FixedArrayAccess<T, comptime N: usize, comptime A: Access = "re
 }
 
 === checked ===
-export extension FixedArrayAccess<T, comptime N: usize, comptime A: Access = "readonly"> of [T; N] {
-/// @generic.template symbol=FixedArrayAccess parameters=(T, comptime N: usize, comptime A: Access = "readonly")
+export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly"> of [T; N] {
+/// @generic.template symbol=FixedArrayAccess parameters=(T, const N: usize, const A: Access = "readonly")
 /// @definition.extension symbol=FixedArrayAccess form=exported target=FixedArray<T, N>
 /// @definition.method symbol=FixedArrayAccess.peek slot=peek type=<FixedArrayAccess.peek.'a>(this: WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>) => int32
 /// @definition.method symbol=FixedArrayAccess.view slot=view type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32
 /// @type.symbol symbol=FixedArrayAccess.T source=T type=T
-/// @type.symbol symbol=FixedArrayAccess.N source="comptime N: usize" type=N
-/// @type.symbol symbol=FixedArrayAccess.A source="comptime A: Access = \"readonly\"" type=A
+/// @type.symbol symbol=FixedArrayAccess.N source="const N: usize" type=N
+/// @type.symbol symbol=FixedArrayAccess.A source="const A: Access = \"readonly\"" type=A
 /// @resolution.name source=Access target=memory.access.Access
-/// @type.node source="\"readonly\"" type="readonly"
 /// @resolution.name source=T target=FixedArrayAccess.T
 /// @resolution.name source=N target=FixedArrayAccess.N
 
@@ -317,9 +314,9 @@ export extension FixedArrayAccess<T, comptime N: usize, comptime A: Access = "re
 
         this.view()
         /// @type.node source=this type=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>
-        /// @type.node source=this.view type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <comptime collections.fixed-array.view.A: Access = "readonly", collections.fixed-array.view.'a>(this: WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>, usize, usize | undefined?) => WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A>
+        /// @type.node source=this.view type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <const collections.fixed-array.view.A: Access = "readonly", collections.fixed-array.view.'a>(this: WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>, usize, usize | undefined?) => WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A>
         /// @type.node source=this.view() type=int32
-        /// @resolution.member source=this.view receiver=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A> type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <comptime collections.fixed-array.view.A: Access = "readonly", collections.fixed-array.view.'a>(this: WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>, usize, usize | undefined?) => WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A> kind=existential targets=[FixedArrayAccess.view, collections.fixed-array.view]
+        /// @resolution.member source=this.view receiver=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A> type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <const collections.fixed-array.view.A: Access = "readonly", collections.fixed-array.view.'a>(this: WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>, usize, usize | undefined?) => WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A> kind=existential targets=[FixedArrayAccess.view, collections.fixed-array.view]
         /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=FixedArrayAccess.view receiver=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A> instance="FixedArrayAccess<T, N, A>.view"
         /// @resolution.receiver source=this kind=this declaration=FixedArrayAccess type=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -346,7 +343,7 @@ export extension FixedArrayAccess<T, comptime N: usize, comptime A: Access = "re
 fn test_access_generic_receiver_selects_array_sibling_method() {
     let session = TestSession::single(
         r#"
-export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
+export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
     view(this: WithAccess<&Array<T>, A>): int32 {
         1
     }
@@ -363,7 +360,7 @@ export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
+export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
     view(this: WithAccess<&Array<T>, A>): int32 {
         1
     }
@@ -374,15 +371,14 @@ export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
 }
 
 === checked ===
-export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
-/// @generic.template symbol=ArrayAccess parameters=(T, comptime A: Access = "readonly")
+export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
+/// @generic.template symbol=ArrayAccess parameters=(T, const A: Access = "readonly")
 /// @definition.extension symbol=ArrayAccess form=exported target=Array<T>
 /// @definition.method symbol=ArrayAccess.peek slot=peek type=<ArrayAccess.peek.'a>(this: WithAccess<&ArrayAccess.peek.'a Array<T>, A>) => int32
 /// @definition.method symbol=ArrayAccess.view slot=view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32
 /// @type.symbol symbol=ArrayAccess.T source=T type=T
-/// @type.symbol symbol=ArrayAccess.A source="comptime A: Access = \"readonly\"" type=A
+/// @type.symbol symbol=ArrayAccess.A source="const A: Access = \"readonly\"" type=A
 /// @resolution.name source=Access target=memory.access.Access
-/// @type.node source="\"readonly\"" type="readonly"
 /// @resolution.name source=Array target=collections.array.Array
 /// @resolution.name source=T target=ArrayAccess.T
 
@@ -411,9 +407,9 @@ export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
 
         this.view()
         /// @type.node source=this type=WithAccess<&ArrayAccess.peek.'a Array<T>, A>
-        /// @type.node source=this.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <comptime collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>, usize, usize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A>
+        /// @type.node source=this.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <const collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>, usize, usize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A>
         /// @type.node source=this.view() type=int32
-        /// @resolution.member source=this.view receiver=WithAccess<&ArrayAccess.peek.'a Array<T>, A> type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <comptime collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>, usize, usize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A> kind=existential targets=[ArrayAccess.view, collections.array.view]
+        /// @resolution.member source=this.view receiver=WithAccess<&ArrayAccess.peek.'a Array<T>, A> type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <const collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>, usize, usize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A> kind=existential targets=[ArrayAccess.view, collections.array.view]
         /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=ArrayAccess.view receiver=WithAccess<&ArrayAccess.peek.'a Array<T>, A> instance="ArrayAccess<T, A>.view"
         /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<&ArrayAccess.peek.'a Array<T>, A>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"

@@ -52,7 +52,7 @@ impl BodyState<'_, '_> {
             &type_arguments,
             None,
             NewtypeOverload::Unambiguous,
-            ValueUse::Comptime,
+            ValueUse::Const,
         )?;
         let (selection, signature) = match matched {
             NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => {

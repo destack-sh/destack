@@ -266,10 +266,10 @@ impl ModuleLowerer<'_> {
                 }
                 .into());
             }
-            dir::Member::ComptimeBlock { .. } => {
+            dir::Member::ConstBlock { .. } => {
                 return Err(LowerError::Unsupported {
                     anchor: self.module.into(),
-                    construct: "a comptime block".to_string(),
+                    construct: "a const block".to_string(),
                 }
                 .into());
             }

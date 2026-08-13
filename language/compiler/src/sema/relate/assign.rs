@@ -231,7 +231,7 @@ impl CheckState<'_> {
             (dir::Type::Literal(literal), _) if widens && !literal.has_uniform_carrier() => false,
             (dir::Type::Range(_), _) if widens => false,
 
-            // adapt a comptime literal to a parameter its scalar-family admits
+            // adapt a const literal to a parameter its scalar-family admits
             (dir::Type::Literal(_), dir::Type::Parameter(_)) => {
                 self.builtin_scalar_accepts_literal(origin, source, target)?
             }

@@ -147,7 +147,7 @@ impl CheckState<'_> {
         else {
             return Ok(Widening::Never);
         };
-        let mut preserves_literals = binding.is_const || binding.is_comptime();
+        let mut preserves_literals = binding.is_const;
         for bound in self.declared_parameter_bounds(parameter)? {
             // reduce key operations to their literal families before classifying
             let bound = self.normalize(origin, bound)?;

@@ -329,11 +329,11 @@ impl WalkState<'_, '_> {
                     .language_type(dir::LanguageItem::Type, &[represented])?;
                 self.commit_node_type(id, reflected)?;
             }
-            // comptime value
-            dir::Expression::Comptime { body } => {
+            // const value
+            dir::Expression::Const { body } => {
                 let body = *body;
 
-                // check comptime bodies in isolated flow
+                // check const bodies in isolated flow
                 let before_body = self.fork_flow();
                 self.walk_expression(body, self.tree.get(body))?;
                 self.restore_flow(before_body);

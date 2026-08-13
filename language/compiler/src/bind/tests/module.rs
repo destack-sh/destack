@@ -15,7 +15,7 @@ global {
 let x: number = 1;
 let x: number = x + 1;
 
-function wrap<T extends Box<_>, U = T>(value: T): U
+function wrap<T: Box<_>, U = T>(value: T): U
 where U: Clone {
     let value: T = value;
     try {
@@ -54,7 +54,7 @@ let x: number = 1;
 let x: number = x + 1;
 /// @binding.symbol symbol=x#2 role=local kind=variable scope=<module>@4 mutability=mutable
 
-function wrap<T extends Box<_>, U = T>(value: T): U
+function wrap<T: Box<_>, U = T>(value: T): U
 /// @binding.symbol symbol=wrap role=item kind=function scope=<module>@5
 /// @binding.scope scope=wrap kind=function parent=<module>@6 owner=wrap
 /// @binding.owner_scope owner=wrap scope=wrap

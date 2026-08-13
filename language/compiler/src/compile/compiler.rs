@@ -8,15 +8,15 @@ use destack_source::DiagnosticRegistry;
 use crate::CompilerResult;
 
 /// Compile source modules into DIR and MIR artifacts.
-/// #Architecture: should Compiler be per-target? what about comptime though?
+/// #Architecture: should Compiler be per-target? what about const though?
 #[allow(clippy::type_complexity)]
 pub struct Compiler {
     /// The repository being compiled.
     pub repository: Arc<Repository>,
     /// The diagnostics accepted by source controls.
     pub(crate) diagnostics: Arc<DiagnosticRegistry>,
-    /// The shared comptime target configuration.
-    pub comptime_target: Target,
+    /// The shared const target configuration.
+    pub const_target: Target,
 }
 
 impl std::fmt::Debug for Compiler {
@@ -30,12 +30,12 @@ impl std::fmt::Debug for Compiler {
 impl Compiler {
     /// Create a new compiler.
     pub fn new(repository: Arc<Repository>, diagnostics: Arc<DiagnosticRegistry>) -> Self {
-        let comptime_target = Target::comptime();
+        let const_target = Target::const_evaluation();
 
         Self {
             repository,
             diagnostics,
-            comptime_target,
+            const_target,
         }
     }
 

@@ -5,7 +5,7 @@ fn test_associated_constant_uses_static_type_argument() {
     let session = TestSession::single(
         r#"
 class Segment<in out Row> {
-    comptime const Width: uint = Row extends string ? 8 : 4;
+    const Width: uint = Row extends string ? 8 : 4;
     type Lane = [uint8; this.Width];
 }
 
@@ -19,7 +19,7 @@ declare const lane: Segment<string>.Lane;
         r#"
 === annotated ===
 class Segment<in out Row> {
-    comptime const Width: uint = Row extends string ? 8 : 4;
+    const Width: uint = Row extends string ? 8 : 4;
     type Lane = [uint8; this.Width];
 }
 
@@ -32,12 +32,12 @@ class Segment<in out Row> {
 /// @static.symbol symbol=Segment value=Segment
 /// @definition.class symbol=Segment template=(in out Row)
 /// @definition.associated.type symbol=Segment.Lane source="type Lane = [uint8; this.Width]" key=Lane value="FixedArray<uint8, this.Width>"
-/// @definition.associated.const symbol=Segment.Width source="comptime const Width: uint = Row extends string ? 8 : 4" key=Width type=uint64
+/// @definition.associated.const symbol=Segment.Width source="const Width: uint = Row extends string ? 8 : 4" key=Width type=uint64
 /// @type.symbol symbol=Segment.Row source="in out Row" type=Row
 
-    comptime const Width: uint = Row extends string ? 8 : 4;
-    /// @type.symbol symbol=Segment.Width source="comptime const Width: uint = Row extends string ? 8 : 4" type=uint64
-    /// @static.symbol symbol=Segment.Width source="comptime const Width: uint = Row extends string ? 8 : 4" value="Row extends string ? 8 : 4"
+    const Width: uint = Row extends string ? 8 : 4;
+    /// @type.symbol symbol=Segment.Width source="const Width: uint = Row extends string ? 8 : 4" type=uint64
+    /// @static.symbol symbol=Segment.Width source="const Width: uint = Row extends string ? 8 : 4" value="Row extends string ? 8 : 4"
     /// @resolution.name source=Row target=Segment.Row
 
     type Lane = [uint8; this.Width];
@@ -59,12 +59,12 @@ fn test_associated_constant_refinement_flows_through_constraint() {
     let session = TestSession::single(
         r#"
 interface RegisterBlock {
-    comptime const Width: usize;
+    const Width: usize;
 
     read(): [uint8; this.Width];
 }
 
-function readHeader<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16] {
+function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
     return block.read();
 }
 "#,
@@ -76,12 +76,12 @@ function readHeader<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16
         r#"
 === annotated ===
 interface RegisterBlock {
-    comptime const Width: usize;
+    const Width: usize;
 
     read(): [uint8; this.Width];
 }
 
-function readHeader<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16] {
+function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
     return block.read();
 }
 
@@ -89,21 +89,21 @@ function readHeader<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16
 interface RegisterBlock {
 /// @type.symbol symbol=RegisterBlock type=RegisterBlock
 /// @definition.interface symbol=RegisterBlock
-/// @definition.associated.const symbol=RegisterBlock.Width source="comptime const Width: usize" key=Width type=usize
+/// @definition.associated.const symbol=RegisterBlock.Width source="const Width: usize" key=Width type=usize
 /// @definition.method symbol=RegisterBlock.read source="read(): [uint8; this.Width]" slot=read type=(this: this) => FixedArray<uint8, this.Width>
 
-    comptime const Width: usize;
-    /// @type.symbol symbol=RegisterBlock.Width source="comptime const Width: usize" type=usize
+    const Width: usize;
+    /// @type.symbol symbol=RegisterBlock.Width source="const Width: usize" type=usize
 
     read(): [uint8; this.Width];
     /// @type.symbol symbol=RegisterBlock.read source="read(): [uint8; this.Width]" type=(this: this) => FixedArray<uint8, this.Width>
 
 }
 
-function readHeader<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16] {
+function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
 /// @generic.template symbol=readHeader parameters=(T: RegisterBlock<type Width = 16>)
 /// @type.symbol symbol=readHeader type=<T: RegisterBlock<type Width = 16>>(T) => FixedArray<uint8, 16>
-/// @type.symbol symbol=readHeader.T source="T: RegisterBlock<comptime Width = 16>" type=T
+/// @type.symbol symbol=readHeader.T source="T: RegisterBlock<const Width = 16>" type=T
 /// @resolution.name source=RegisterBlock target=RegisterBlock
 /// @type.symbol symbol=readHeader.block source="block: T" type=T
 /// @resolution.name source=T target=readHeader.T

@@ -668,7 +668,7 @@ impl BodyState<'_, '_> {
                     Widening::Never
                     | Widening::Aggregate
                     | Widening::Multiple
-                    | Widening::Comptime => InferMode::Exact,
+                    | Widening::Const => InferMode::Exact,
                     Widening::Always => InferMode::Widen,
                 };
                 let ty = self.infer_node(site, PlaceUse::Read, mode)?;

@@ -54,7 +54,7 @@ impl BodyState<'_, '_> {
                 self.infer_name_expression(site, &resolution)
             }
             dir::Expression::Block(block) => self.infer_block(site, block),
-            dir::Expression::Comptime { body } => self.infer_transparent_expression(site, body),
+            dir::Expression::Const { body } => self.infer_transparent_expression(site, body),
             dir::Expression::BorrowOf {
                 mutability, right, ..
             } => self.infer_borrow_expression(site, mutability, right),
@@ -479,10 +479,11 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
-        // read a comptime value parameter as its carrier type
+        // read a const parameter as its carrier type
         if let Some(parameter) = self.check.parameter_by_symbol(*symbol)
             && let Some(binding) = self.check.generic_parameter(parameter)
-            && matches!(binding.kind, dir::GenericParameterKind::Value)
+            && binding.is_const
+            && binding.memory_parameter().is_none()
             && let Some(carrier) = binding.constraint
         {
             // body reads consume the value the signature must fix

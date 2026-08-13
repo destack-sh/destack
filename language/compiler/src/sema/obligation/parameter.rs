@@ -38,11 +38,8 @@ impl CheckState<'_> {
                 continue;
             };
 
-            // skip value parameters, they have no variance role
-            if binding.induced_memory_parameter().is_some()
-                || binding.is_comptime()
-                || binding.is_const
-            {
+            // skip memory parameters, they have no variance role
+            if binding.memory_parameter().is_some() {
                 continue;
             }
             let dir::GenericParameterKey::Symbol(parameter_symbol) = binding.key else {

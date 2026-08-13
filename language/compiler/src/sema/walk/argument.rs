@@ -47,7 +47,7 @@ impl WalkState<'_, '_> {
     ///
     /// Example:
     /// ```ds
-    /// <T, U, comptime Size = 4>
+    /// <T, U, const Size = 4>
     /// ```
     pub(in crate::sema) fn walk_generic_arguments(
         &mut self,
@@ -81,24 +81,11 @@ impl WalkState<'_, '_> {
                 self.walk_type_expression(*value)?,
                 value.into_global_any(self.module),
             ),
-            // <type Item = T>
-            dir::GenericArgument::AssociatedType { name, value } => (
+            // <type Item = T> and <const Size = N>
+            dir::GenericArgument::AssociatedType { name, value }
+            | dir::GenericArgument::AssociatedConst { name, value } => (
                 Some(*name),
                 self.walk_type_expression(*value)?,
-                value.into_global_any(self.module),
-            ),
-            // <C> and <...C>
-            dir::GenericArgument::Value { value } | dir::GenericArgument::SpreadValue { value } => {
-                (
-                    None,
-                    self.walk_static_term(*value)?,
-                    value.into_global_any(self.module),
-                )
-            }
-            // <comptime Size = N>
-            dir::GenericArgument::AssociatedConst { name, value } => (
-                Some(*name),
-                self.walk_static_term(*value)?,
                 value.into_global_any(self.module),
             ),
             // keep the argument arity visible to solve

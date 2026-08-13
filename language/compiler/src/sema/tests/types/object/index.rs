@@ -939,7 +939,7 @@ struct Counter {}
 extension of Counter implements Index<string>, IndexSet<string, int32 | float64> {
     type Output = int32;
 
-    index<comptime L: Lifetime>(
+    index<const L: Lifetime>(
         this: Borrowed<this, L, "readonly">,
         key: string,
     ): Borrowed<this.Output, L, "readonly"> {
@@ -964,7 +964,7 @@ struct Counter {}
 extension of Counter implements Index<string>, IndexSet<string, int32 | float64> {
     type Output = int32;
 
-    index<comptime L: Lifetime>(
+    index<const L: Lifetime>(
         this: Borrowed<this, L, "readonly">,
         key: string,
     ): Borrowed<this.Output, L, "readonly"> {
@@ -987,7 +987,7 @@ extension of Counter implements Index<string>, IndexSet<string, int32 | float64>
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32 | float64>" target="IndexSet<string, int32 | float64>"
 /// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\">"
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=index slot=index type=<comptime L>(this: Borrowed<this, L, "readonly">, string) => Borrowed<this.Output, L, "readonly">
+/// @definition.method symbol=index slot=index type=<const L>(this: Borrowed<this, L, "readonly">, string) => Borrowed<this.Output, L, "readonly">
 /// @definition.method symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32 | float64) => void
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.subscript.Index.Output
 /// @definition.conformance symbol=<module>#2 member=index requirement=ops.subscript.Index.index
@@ -1000,10 +1000,10 @@ extension of Counter implements Index<string>, IndexSet<string, int32 | float64>
     type Output = int32;
     /// @type.symbol symbol=Output source="type Output = int32" type=int32
 
-    index<comptime L: Lifetime>(
-    /// @generic.template symbol=index parent=template#0 parameters=(comptime L: Lifetime)
-    /// @type.symbol symbol=index type=<comptime L>(this: Borrowed<this, L, "readonly">, string) => Borrowed<this.Output, L, "readonly">
-    /// @type.symbol symbol=index.L source="comptime L: Lifetime" type=L
+    index<const L: Lifetime>(
+    /// @generic.template symbol=index parent=template#0 parameters=(const L: Lifetime)
+    /// @type.symbol symbol=index type=<const L>(this: Borrowed<this, L, "readonly">, string) => Borrowed<this.Output, L, "readonly">
+    /// @type.symbol symbol=index.L source="const L: Lifetime" type=L
     /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
 
         this: Borrowed<this, L, "readonly">,

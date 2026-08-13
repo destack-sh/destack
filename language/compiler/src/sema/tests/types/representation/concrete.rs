@@ -5,7 +5,7 @@ fn test_concrete_bound_enables_layout_query() {
     let session = TestSession::single(
         r#"
 function storageSize<T: Concrete>(): usize {
-    const size = comptime sizeOf<T>();
+    const size = const sizeOf<T>();
     return size;
 }
 
@@ -20,7 +20,7 @@ size satisfies usize;
         r#"
 === annotated ===
 function storageSize<T: Concrete>(): usize {
-    const size: usize = comptime sizeOf<T>();
+    const size: usize = const sizeOf<T>();
     return size;
 }
 
@@ -34,7 +34,7 @@ function storageSize<T: Concrete>(): usize {
 /// @type.symbol symbol=storageSize.T source="T: Concrete" type=T
 /// @resolution.name source=Concrete target=memory.capability.Concrete
 
-    const size = comptime sizeOf<T>();
+    const size = const sizeOf<T>();
     /// @type.symbol symbol=storageSize.size source=size type=usize
     /// @resolution.pattern source=size kind=binding target=storageSize.size
     /// @resolution.name source=sizeOf target=reflect.type.sizeOf
@@ -82,7 +82,7 @@ struct Rectangle {
 
 newtype Shape = Circle | Rectangle;
 
-const size = comptime sizeOf<Shape>();
+const size = const sizeOf<Shape>();
 size satisfies usize;
 "#,
     );
@@ -103,7 +103,7 @@ struct Rectangle {
 
 newtype Shape = Circle | Rectangle;
 
-const size: usize = comptime sizeOf<Shape>();
+const size: usize = const sizeOf<Shape>();
 size satisfies usize;
 
 === checked ===
@@ -137,7 +137,7 @@ newtype Shape = Circle | Rectangle;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Rectangle target=Rectangle
 
-const size = comptime sizeOf<Shape>();
+const size = const sizeOf<Shape>();
 /// @type.symbol symbol=size source=size type=usize
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=sizeOf target=reflect.type.sizeOf
@@ -163,7 +163,7 @@ interface Writer {
     write(bytes: readonly uint8[]): uint;
 }
 
-const size = comptime sizeOf<Dynamic<Writer>>();
+const size = const sizeOf<Dynamic<Writer>>();
 size satisfies usize;
 "#,
     );
@@ -177,7 +177,7 @@ interface Writer {
     write(bytes: readonly uint8[]): uint;
 }
 
-const size: usize = comptime sizeOf<Dynamic<Writer>>();
+const size: usize = const sizeOf<Dynamic<Writer>>();
 size satisfies usize;
 
 === checked ===
@@ -192,7 +192,7 @@ interface Writer {
 
 }
 
-const size = comptime sizeOf<Dynamic<Writer>>();
+const size = const sizeOf<Dynamic<Writer>>();
 /// @type.symbol symbol=size source=size type=usize
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=sizeOf target=reflect.type.sizeOf
@@ -219,7 +219,7 @@ type Writer = {
     write(bytes: readonly uint8[]): uint;
 };
 
-const size = comptime sizeOf<Dynamic<Writer>>();
+const size = const sizeOf<Dynamic<Writer>>();
 size satisfies usize;
 "#,
     );
@@ -233,7 +233,7 @@ type Writer = {
     write(bytes: readonly uint8[]): uint;
 };
 
-const size: usize = comptime sizeOf<Dynamic<Writer>>();
+const size: usize = const sizeOf<Dynamic<Writer>>();
 size satisfies usize;
 
 === checked ===
@@ -246,7 +246,7 @@ type Writer = {
 
 };
 
-const size = comptime sizeOf<Dynamic<Writer>>();
+const size = const sizeOf<Dynamic<Writer>>();
 /// @type.symbol symbol=size source=size type=usize
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=sizeOf target=reflect.type.sizeOf

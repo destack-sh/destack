@@ -453,7 +453,7 @@ impl CheckState<'_> {
                     Widening::Aggregate => false,
                     Widening::Multiple => self.has_distinct_types(origin, &candidates)?,
                     Widening::Always => true,
-                    Widening::Comptime => self.has_only_literal_types(&candidates)?,
+                    Widening::Const => self.has_only_literal_types(&candidates)?,
                 };
 
             // defer literal widening to the final fallback stage
@@ -691,7 +691,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         match widening {
-            Widening::Comptime => self.widen_comptime_type(ty),
+            Widening::Const => self.widen_const_type(ty),
             Widening::Never | Widening::Aggregate | Widening::Multiple | Widening::Always => {
                 self.widen_type(ty)
             }

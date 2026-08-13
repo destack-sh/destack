@@ -239,8 +239,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Widen one closed type, keeping comptime integer literals in the integer family.
-    pub(in crate::sema) fn widen_comptime_type(
+    /// Widen one closed type, keeping const integer literals in the integer family.
+    pub(in crate::sema) fn widen_const_type(
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {

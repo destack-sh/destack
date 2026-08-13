@@ -168,7 +168,7 @@ fn test_preserve_explicit_space_parameter() {
         r#"
 class User {}
 
-function identity<comptime S: Space>(value: Placed<User, S>): Placed<User, S> {
+function identity<const S: Space>(value: Placed<User, S>): Placed<User, S> {
     return value;
 }
 
@@ -187,7 +187,7 @@ identity(sharedUser) satisfies shared User;
 === annotated ===
 class User {}
 
-function identity<comptime S: Space>(value: Placed<User, S>): Placed<User, S> {
+function identity<const S: Space>(value: Placed<User, S>): Placed<User, S> {
     return value;
 }
 
@@ -202,10 +202,10 @@ class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
 
-function identity<comptime S: Space>(value: Placed<User, S>): Placed<User, S> {
-/// @generic.template symbol=identity parameters=(comptime S: Space)
-/// @type.symbol symbol=identity type=<comptime S: Space>(Placed<User, S>) => Placed<User, S>
-/// @type.symbol symbol=identity.S source="comptime S: Space" type=S
+function identity<const S: Space>(value: Placed<User, S>): Placed<User, S> {
+/// @generic.template symbol=identity parameters=(const S: Space)
+/// @type.symbol symbol=identity type=<const S: Space>(Placed<User, S>) => Placed<User, S>
+/// @type.symbol symbol=identity.S source="const S: Space" type=S
 /// @resolution.name source=Space target=memory.place.Space
 /// @type.symbol symbol=identity.value source="value: Placed<User, S>" type=Placed<User, S>
 /// @resolution.name source=Placed target=memory.place.Placed

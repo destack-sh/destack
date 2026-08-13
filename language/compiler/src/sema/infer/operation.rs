@@ -119,7 +119,7 @@ impl BodyState<'_, '_> {
             bounds => {
                 let origin = site.origin();
                 let variable =
-                    self.allocate_variable(origin, Widening::Comptime, VariableRole::Regular);
+                    self.allocate_variable(origin, Widening::Const, VariableRole::Regular);
                 let element = self.variable_type(variable)?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 for bound in bounds {

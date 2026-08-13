@@ -605,7 +605,7 @@ impl BodyState<'_, '_> {
         };
         let input = match widening {
             Widening::Always => self.widen_type(input)?,
-            Widening::Never | Widening::Aggregate | Widening::Multiple | Widening::Comptime => {
+            Widening::Never | Widening::Aggregate | Widening::Multiple | Widening::Const => {
                 input
             }
         };

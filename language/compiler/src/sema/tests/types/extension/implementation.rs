@@ -1716,7 +1716,7 @@ export extension<K, V> of Bag<K, V>
         todo("Bag.iterator")
     }
 
-    iterator<comptime A: Access = "readonly">(
+    iterator<const A: Access = "readonly">(
         this: WithAccess<&Bag<K, V>, A>,
     ): Iterator<Entry<&readonly K, WithAccess<&V, A>>> {
         todo("Bag.iterator")
@@ -1752,7 +1752,7 @@ export extension<K, V, 'a, 'b> of Bag<K, V>
         todo("Bag.iterator" as string | undefined)
     }
 
-    iterator<comptime A: Access = "readonly">(
+    iterator<const A: Access = "readonly">(
         this: WithAccess<&Bag<K, V>, A>,
     ): Iterator<Entry<&'a readonly K, WithAccess<&'a V, A>>> {
         todo("Bag.iterator" as string | undefined)
@@ -1808,7 +1808,7 @@ export extension<K, V> of Bag<K, V>
 /// @definition.implements symbol=<module>#2 source="Iterable<(K, V)>" target="iter.iterator.Iterable<(K#3, V#3)>"
 /// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target="iter.iterator.Iterable<Entry<&<module>#2.'a readonly K#3, &<module>#2.'b V#3>>"
 /// @definition.method symbol=iterator#1 slot=iterator type=(this: this) => iter.iterator.Iterator<(K#3, V#3)>
-/// @definition.method symbol=iterator#2 slot=iterator type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>
+/// @definition.method symbol=iterator#2 slot=iterator type=<const A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>
 /// @definition.conformance symbol=<module>#2 member=iterator#1 requirement=iter.iterator.Iterable.iterator
 /// @definition.conformance symbol=<module>#2 member=iterator#2 requirement=iter.iterator.Iterable.iterator
 /// @type.symbol symbol=K source=K type=K#3
@@ -1841,10 +1841,10 @@ export extension<K, V> of Bag<K, V>
 
     }
 
-    iterator<comptime A: Access = "readonly">(
-    /// @generic.template symbol=iterator#2 parent=template#2 parameters=(comptime A: memory.access.Access = "readonly", 'a)
-    /// @type.symbol symbol=iterator#2 type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>
-    /// @type.symbol symbol=iterator.A source="comptime A: Access = \"readonly\"" type=A
+    iterator<const A: Access = "readonly">(
+    /// @generic.template symbol=iterator#2 parent=template#2 parameters=(const A: memory.access.Access = "readonly", 'a)
+    /// @type.symbol symbol=iterator#2 type=<const A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>
+    /// @type.symbol symbol=iterator.A source="const A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=memory.access.Access
 
         this: WithAccess<&Bag<K, V>, A>,

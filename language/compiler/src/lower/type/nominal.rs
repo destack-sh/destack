@@ -419,10 +419,10 @@ impl TypeLowerer<'_, '_> {
                     type_arguments.push(*argument);
                     concrete_types.push(self.type_substitution.resolve(self.lowerer, *argument)?);
                 }
-                dir::GenericParameterKind::Value | dir::GenericParameterKind::Memory(_) => {
+                dir::GenericParameterKind::Memory(_) => {
                     return Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),
-                        construct: "a value-parameterized nominal instance".to_string(),
+                        construct: "a memory-parameterized nominal instance".to_string(),
                     }
                     .into());
                 }

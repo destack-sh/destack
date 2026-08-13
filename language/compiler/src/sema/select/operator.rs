@@ -762,7 +762,7 @@ impl BodyState<'_, '_> {
             && self.operand_is_integral(origin, left)?
             && self.operand_is_integral(origin, right)?;
 
-        // fold literal operands through the comptime static operation
+        // fold literal operands through the const static operation
         if numeric
             && matches!(
                 (self.ty(left)?, self.ty(right)?),
@@ -879,7 +879,7 @@ impl BodyState<'_, '_> {
         source_type: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        // comptime-folded operations have no runtime operands
+        // const-folded operations have no runtime operands
         if matches!(self.ty(target)?, dir::Type::Literal(_)) {
             return Ok(());
         }
@@ -959,7 +959,7 @@ impl BodyState<'_, '_> {
         Ok(result)
     }
 
-    /// Return one comptime integer literal lifted into the float domain.
+    /// Return one const integer literal lifted into the float domain.
     fn float_literal_operand(
         &mut self,
         operand: dir::GlobalTypeId,

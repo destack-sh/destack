@@ -183,14 +183,14 @@ const index: usize = key;
 }
 
 #[test]
-fn test_comptime_arithmetic_keeps_the_operand_type() {
+fn test_const_arithmetic_keeps_the_operand_type() {
     let session = TestSession::single(
         r#"
-struct Tensor<comptime Rank: int> {
+struct Tensor<const Rank: int> {
     rank: usize;
 }
 
-function shrink<comptime Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
+function shrink<const Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
     Tensor { rank: 0 }
 }
 "#,
@@ -201,31 +201,31 @@ function shrink<comptime Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
         DirRows::checked(),
         r#"
 === annotated ===
-struct Tensor<comptime Rank: int> {
+struct Tensor<const Rank: int> {
     rank: usize;
 }
 
-function shrink<comptime Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
+function shrink<const Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
     Tensor { rank: 0 }
 }
 
 === checked ===
-struct Tensor<comptime Rank: int> {
-/// @generic.template symbol=Tensor parameters=(comptime Rank#1: int64)
+struct Tensor<const Rank: int> {
+/// @generic.template symbol=Tensor parameters=(const Rank#1: int64)
 /// @type.symbol symbol=Tensor type=Tensor
-/// @definition.struct symbol=Tensor template=(comptime Rank#1: int64)
+/// @definition.struct symbol=Tensor template=(const Rank#1: int64)
 /// @definition.field symbol=Tensor.rank source="rank: usize" key=rank type=usize
-/// @type.symbol symbol=Tensor.Rank source="comptime Rank: int" type=Rank#1
+/// @type.symbol symbol=Tensor.Rank source="const Rank: int" type=Rank#1
 
     rank: usize;
     /// @type.symbol symbol=Tensor.rank source="rank: usize" type=usize
 
 }
 
-function shrink<comptime Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
-/// @generic.template symbol=shrink parameters=(comptime Rank#2: int64)
-/// @type.symbol symbol=shrink type=<comptime Rank#2: int64>(Tensor<Rank#2>) => Tensor<Rank#2 - 1>
-/// @type.symbol symbol=shrink.Rank source="comptime Rank: int" type=Rank#2
+function shrink<const Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
+/// @generic.template symbol=shrink parameters=(const Rank#2: int64)
+/// @type.symbol symbol=shrink type=<const Rank#2: int64>(Tensor<Rank#2>) => Tensor<Rank#2 - 1>
+/// @type.symbol symbol=shrink.Rank source="const Rank: int" type=Rank#2
 /// @type.symbol symbol=shrink.tensor source="tensor: Tensor<Rank>" type=Tensor<Rank#2>
 /// @resolution.name source=Tensor target=Tensor
 /// @resolution.name source=Rank target=shrink.Rank

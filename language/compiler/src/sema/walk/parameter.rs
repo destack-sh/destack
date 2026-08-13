@@ -27,7 +27,7 @@ impl WalkState<'_, '_> {
     ///
     /// Example:
     /// ```ds
-    /// <T extends Serializable = string>
+    /// <T: Serializable = string>
     /// ```
     pub(in crate::sema) fn open_generic_parameter(
         &mut self,
@@ -55,17 +55,12 @@ impl WalkState<'_, '_> {
                 variance, is_const, ..
             } => (*variance, dir::GenericParameterKind::Type, true, *is_const),
             // <'a>
-            dir::GenericParameter::Lifetime { .. } => {
-                (None, dir::GenericParameterKind::Value, false, false)
-            }
-            // <comptime C: T>
-            dir::GenericParameter::Value { .. } => {
-                (None, dir::GenericParameterKind::Value, false, false)
-            }
-            // <comptime ...C: T>
-            dir::GenericParameter::VariadicValue { .. } => {
-                (None, dir::GenericParameterKind::Value, true, false)
-            }
+            dir::GenericParameter::Lifetime { .. } => (
+                None,
+                dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime),
+                false,
+                false,
+            ),
             // ignore damaged nodes
             dir::GenericParameter::Error => return Ok(None),
         };
@@ -94,7 +89,7 @@ impl WalkState<'_, '_> {
     ///
     /// Example:
     /// ```ds
-    /// <T extends Serializable = string>
+    /// <T: Serializable = string>
     /// ```
     pub(in crate::sema) fn walk_generic_parameter(
         &mut self,
@@ -110,7 +105,7 @@ impl WalkState<'_, '_> {
         };
 
         match generic_parameter {
-            // <T extends U = V>, <...T extends U = V>
+            // <T: U = V>, <...T: U = V>
             dir::GenericParameter::Type {
                 constraint,
                 default,
@@ -138,35 +133,6 @@ impl WalkState<'_, '_> {
 
                 self.check
                     .update_generic_parameter_bounds(parameter, Some(constraint), None)?;
-            }
-            // <comptime C: T = N>, <comptime ...C: T = N>
-            dir::GenericParameter::Value {
-                declared_type,
-                default,
-                ..
-            }
-            | dir::GenericParameter::VariadicValue {
-                declared_type,
-                default,
-                ..
-            } => {
-                let (declared_type, default) = (*declared_type, *default);
-
-                // static parameters require an explicit value type
-                if declared_type.is_none() {
-                    self.check
-                        .report_missing_type_annotation(self.module, id.into_any());
-                }
-
-                let constraint = declared_type
-                    .map(|declared_type| self.walk_type_expression(declared_type))
-                    .transpose()?;
-                let default = default
-                    .map(|default| self.walk_static_term(default))
-                    .transpose()?;
-
-                self.check
-                    .update_generic_parameter_bounds(parameter, constraint, default)?;
             }
             // ignore damaged nodes
             dir::GenericParameter::Error => {}

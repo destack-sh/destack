@@ -9,6 +9,6 @@ pub enum MaterializeWarning {
     // unsupported and internal failures
     // -------------------------------------------------------------------------
     /// Unsupported construct.
-    #[diagnostic(id = "ignored-comptime-construct", message = "unsupported construct")]
+    #[diagnostic(id = "ignored-const-construct", message = "unsupported construct")]
     UnsupportedConstruct { anchor: DiagnosticAnchor },
 }

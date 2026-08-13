@@ -249,7 +249,7 @@ declare const value: Value;
 fn test_conditional_type_infer_inherits_constructor_parameter_bound() {
     let session = TestSession::single(
         r#"
-newtype Vector<T, comptime N: int> = intrinsic;
+newtype Vector<T, const N: int> = intrinsic;
 type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 type Count = LaneCount<Vector<string, 4>>;
 
@@ -262,19 +262,19 @@ declare const count: Count;
         DirRows::checked(),
         r#"
 === annotated ===
-newtype Vector<in out T, comptime N: int> = intrinsic;
+newtype Vector<in out T, const N: int> = intrinsic;
 type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 type Count = LaneCount<Vector<string, 4>>;
 
 declare const count: 4;
 
 === checked ===
-newtype Vector<T, comptime N: int> = intrinsic;
-/// @generic.template symbol=Vector parameters=(in out T#1, comptime N#1: int64)
-/// @type.symbol symbol=Vector source="newtype Vector<T, comptime N: int> = intrinsic" type=Vector
-/// @definition.newtype symbol=Vector source="newtype Vector<T, comptime N: int> = intrinsic" template=(in out T#1, comptime N#1: int64) backing=intrinsic constructors=[<T#1, comptime N#1: int64>(intrinsic) => Vector<T#1, N#1>]
+newtype Vector<T, const N: int> = intrinsic;
+/// @generic.template symbol=Vector parameters=(in out T#1, const N#1: int64)
+/// @type.symbol symbol=Vector source="newtype Vector<T, const N: int> = intrinsic" type=Vector
+/// @definition.newtype symbol=Vector source="newtype Vector<T, const N: int> = intrinsic" template=(in out T#1, const N#1: int64) backing=intrinsic constructors=[<T#1, const N#1: int64>(intrinsic) => Vector<T#1, N#1>]
 /// @type.symbol symbol=Vector.T source=T type=T#1
-/// @type.symbol symbol=Vector.N source="comptime N: int" type=N#1
+/// @type.symbol symbol=Vector.N source="const N: int" type=N#1
 
 type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 /// @generic.template symbol=LaneCount parameters=(V)

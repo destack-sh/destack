@@ -14,7 +14,7 @@ pub enum CompilerPhase {
     Resolve = 5,
     /// Check expanded DIR.
     Check = 6,
-    /// Materialize comptime and patch DIR.
+    /// Materialize const and patch DIR.
     Materialize = 7,
     /// Lower patched DIR into MIR.
     Lower = 8,
@@ -73,7 +73,7 @@ impl CompilerPhase {
             Self::Export => "resolve exports over expanded DIR",
             Self::Resolve => "resolve imports into symbol targets",
             Self::Check => "check expanded DIR",
-            Self::Materialize => "materialize comptime code and patch DIR",
+            Self::Materialize => "materialize const code and patch DIR",
             Self::Lower => "lower DIR into MIR",
             Self::Verify => "verify MIR semantic invariants",
             Self::Elaborate => "elaborate implicit MIR operations",

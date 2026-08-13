@@ -299,7 +299,7 @@ impl CheckState<'_> {
                     return Ok(NumericCapture::OutOfDomain);
                 };
 
-                // integral captures stay comptime integers and adapt
+                // integral captures stay const integers and adapt
                 match text.integer() {
                     Some(value) => dir::ScalarLiteral::Integer(value),
                     None => dir::ScalarLiteral::Float(value),

@@ -132,7 +132,7 @@ impl CheckState<'_> {
             | dir::Expression::StructExpression { .. }
             | dir::Expression::TreeExpression { .. }
             | dir::Expression::Type { .. }
-            | dir::Expression::Comptime { .. }
+            | dir::Expression::Const { .. }
             | dir::Expression::As { .. }
             | dir::Expression::Satisfies { .. }
             | dir::Expression::Is { .. }

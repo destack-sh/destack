@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_value_generic_argument_still_works_when_parameter_is_static() {
     let session = TestSession::single(
         r#"
-type Slots<comptime N: usize> = [uint8; N];
+type Slots<const N: usize> = [uint8; N];
 type Bytes = Slots<16>;
 
 declare const bytes: Bytes;
@@ -16,17 +16,17 @@ declare const bytes: Bytes;
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
-type Slots<comptime N: usize> = [uint8; N];
+type Slots<const N: usize> = [uint8; N];
 type Bytes = Slots<16>;
 
 declare const bytes: [uint8; 16];
 
 === checked ===
-type Slots<comptime N: usize> = [uint8; N];
-/// @generic.template symbol=Slots parameters=(comptime N: usize)
-/// @type.symbol symbol=Slots source="type Slots<comptime N: usize> = [uint8; N]" type=FixedArray<uint8, N>
-/// @definition.type symbol=Slots source="type Slots<comptime N: usize> = [uint8; N]" template=(comptime N: usize) value=FixedArray<uint8, N>
-/// @type.symbol symbol=Slots.N source="comptime N: usize" type=N
+type Slots<const N: usize> = [uint8; N];
+/// @generic.template symbol=Slots parameters=(const N: usize)
+/// @type.symbol symbol=Slots source="type Slots<const N: usize> = [uint8; N]" type=FixedArray<uint8, N>
+/// @definition.type symbol=Slots source="type Slots<const N: usize> = [uint8; N]" template=(const N: usize) value=FixedArray<uint8, N>
+/// @type.symbol symbol=Slots.N source="const N: usize" type=N
 /// @resolution.name source=N target=Slots.N
 
 type Bytes = Slots<16>;

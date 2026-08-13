@@ -13,7 +13,7 @@ struct Panel {
 extension of Panel implements TreeBuilder {
     type Tags = {};
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,

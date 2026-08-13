@@ -552,7 +552,7 @@ impl CheckState<'_> {
                 self.recorded_cardinality(parameter).is_some()
                     || self
                         .generic_parameter(parameter)
-                        .is_some_and(|binding| binding.is_comptime())
+                        .is_some_and(|binding| binding.memory_parameter().is_some())
             }
             _ => false,
         };

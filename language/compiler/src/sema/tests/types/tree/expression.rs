@@ -17,7 +17,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -55,7 +55,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -95,7 +95,7 @@ extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
 /// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
@@ -111,10 +111,10 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parent=template#0 parameters=(comptime Tag: keyof this.Tags, Children#1: (...unknown[],))
-    /// @type.symbol symbol=element type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
-    /// @type.symbol symbol=element.Tag source="comptime Tag: keyof this.Tags" type=Tag
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
 
         tag: Tag,
@@ -192,7 +192,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -230,7 +230,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -270,7 +270,7 @@ extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
 /// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
@@ -286,10 +286,10 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parent=template#0 parameters=(comptime Tag: keyof this.Tags, Children#1: (...unknown[],))
-    /// @type.symbol symbol=element type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
-    /// @type.symbol symbol=element.Tag source="comptime Tag: keyof this.Tags" type=Tag
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
 
         tag: Tag,
@@ -370,7 +370,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -416,7 +416,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -459,7 +459,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -502,7 +502,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -546,7 +546,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -590,7 +590,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -632,7 +632,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -671,7 +671,7 @@ extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
 /// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
@@ -687,10 +687,10 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parent=template#0 parameters=(comptime Tag: keyof this.Tags, Children#1: (...unknown[],))
-    /// @type.symbol symbol=element type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
-    /// @type.symbol symbol=element.Tag source="comptime Tag: keyof this.Tags" type=Tag
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
 
         tag: Tag,
@@ -778,7 +778,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -817,7 +817,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -853,7 +853,7 @@ extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
 /// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
@@ -869,10 +869,10 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parent=template#0 parameters=(comptime Tag: keyof this.Tags, Children#1: (...unknown[],))
-    /// @type.symbol symbol=element type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
-    /// @type.symbol symbol=element.Tag source="comptime Tag: keyof this.Tags" type=Tag
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
 
         tag: Tag,
@@ -959,7 +959,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -1002,7 +1002,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -1044,7 +1044,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -1087,7 +1087,7 @@ extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
 /// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
@@ -1103,10 +1103,10 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parent=template#0 parameters=(comptime Tag: keyof this.Tags, Children#1: (...unknown[],))
-    /// @type.symbol symbol=element type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
-    /// @type.symbol symbol=element.Tag source="comptime Tag: keyof this.Tags" type=Tag
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
 
         tag: Tag,
@@ -1196,7 +1196,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -1243,7 +1243,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -1289,7 +1289,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -1336,7 +1336,7 @@ extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
 /// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
@@ -1352,10 +1352,10 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parent=template#0 parameters=(comptime Tag: keyof this.Tags, Children#1: (...unknown[],))
-    /// @type.symbol symbol=element type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
-    /// @type.symbol symbol=element.Tag source="comptime Tag: keyof this.Tags" type=Tag
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
 
         tag: Tag,
@@ -1463,7 +1463,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -1505,7 +1505,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -1548,7 +1548,7 @@ extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
 /// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
@@ -1564,10 +1564,10 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parent=template#0 parameters=(comptime Tag: keyof this.Tags, Children#1: (...unknown[],))
-    /// @type.symbol symbol=element type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
-    /// @type.symbol symbol=element.Tag source="comptime Tag: keyof this.Tags" type=Tag
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
 
         tag: Tag,
@@ -1655,7 +1655,7 @@ extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,
@@ -1716,7 +1716,7 @@ export extension of Panel implements TreeBuilder {
         span: {};
     };
 
-    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
         attributes: this.Tags[Tag],
         children: Children,

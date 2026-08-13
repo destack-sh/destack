@@ -123,7 +123,7 @@ struct Circle {
     radius: int32;
 }
 
-function read<'a, comptime A: Access>(
+function read<'a, const A: Access>(
     shape: Borrowed<Rectangle | Circle, 'a, A>,
 ): int32 {
     if (shape is Borrowed<Rectangle, 'a, A>) {
@@ -148,7 +148,7 @@ struct Circle {
     radius: int32;
 }
 
-function read<'a, comptime A: Access>(shape: Borrowed<Rectangle | Circle, 'a, A>): int32 {
+function read<'a, const A: Access>(shape: Borrowed<Rectangle | Circle, 'a, A>): int32 {
     if (shape is Borrowed<Rectangle, 'a, A>) {
         return shape.width;
     }
@@ -177,11 +177,11 @@ struct Circle {
 
 }
 
-function read<'a, comptime A: Access>(
-/// @generic.template symbol=read parameters=('a, comptime A: Access)
-/// @type.symbol symbol=read type=<'a, comptime A: Access>(Borrowed<Rectangle | Circle, 'a, A>) => int32
+function read<'a, const A: Access>(
+/// @generic.template symbol=read parameters=('a, const A: Access)
+/// @type.symbol symbol=read type=<'a, const A: Access>(Borrowed<Rectangle | Circle, 'a, A>) => int32
 /// @type.symbol symbol=read.'a source='a type='a
-/// @type.symbol symbol=read.A source="comptime A: Access" type=A
+/// @type.symbol symbol=read.A source="const A: Access" type=A
 /// @resolution.name source=Access target=memory.access.Access
 
     shape: Borrowed<Rectangle | Circle, 'a, A>,

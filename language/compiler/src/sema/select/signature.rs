@@ -574,11 +574,11 @@ impl BodyState<'_, '_> {
         // preserve generic bindings already selected by the callee
         let substitution = substitution.with_carried(carried)?;
 
-        // comptime arguments pin their parameters exactly, values infer from the shape
+        // const arguments pin their parameters to exact literals
         let parameters = self.signature_generic_parameters(function)?;
         let inference = match arguments
             .iter()
-            .all(|argument| argument.use_ == ValueUse::Comptime)
+            .all(|argument| argument.use_ == ValueUse::Const)
         {
             true => TypeArgumentInference::Exact,
             false => TypeArgumentInference::Callable {
@@ -769,17 +769,17 @@ impl BodyState<'_, '_> {
                 }
             }
 
-            // collect staged comptime parameters opened for this candidate
-            let mut comptime_variables = SmallVec::<[dir::TypeVariableId; 2]>::new();
+            // collect staged const parameters opened for this candidate
+            let mut const_variables = SmallVec::<[dir::TypeVariableId; 2]>::new();
             for parameter in &parameters {
                 if self
                     .check
                     .generic_parameter(*parameter)
-                    .is_some_and(|binding| matches!(binding.kind, dir::GenericParameterKind::Value))
+                    .is_some_and(|binding| binding.is_const && binding.memory_parameter().is_none())
                     && let Some(instance) = substitution.argument(*parameter)
                     && let Some(variable) = self.check.root_variable(instance)?
                 {
-                    comptime_variables.push(variable);
+                    const_variables.push(variable);
                 }
             }
 
@@ -823,7 +823,7 @@ impl BodyState<'_, '_> {
                         }
                     }
 
-                    for variable in &comptime_variables {
+                    for variable in &const_variables {
                         if self.check.infer.variable(*variable)?.state.is_open() {
                             self.check.resolve_variables(&[*variable])?;
                         }

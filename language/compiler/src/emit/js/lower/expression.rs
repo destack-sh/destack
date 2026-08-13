@@ -1147,7 +1147,7 @@ impl ModuleLowerer<'_> {
             | dir::Expression::RangeExpression { .. }
             | dir::Expression::FixedArrayExpression { .. }
             | dir::Expression::TreeExpression { .. }
-            | dir::Expression::Comptime { .. }
+            | dir::Expression::Const { .. }
             | dir::Expression::AwaitMaybe { .. }
             | dir::Expression::AwaitMust { .. }
             | dir::Expression::BorrowOf { .. } => {

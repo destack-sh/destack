@@ -682,7 +682,7 @@ impl CheckState<'_> {
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("generic parameter {parameter:?} is not bound"),
                 })?;
-        let kind = if current.kind == dir::GenericParameterKind::Value {
+        let kind = if current.kind == dir::GenericParameterKind::Type {
             let item = match constraint
                 .map(|constraint| self.ty(constraint))
                 .transpose()?

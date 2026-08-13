@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_static_value_argument_specializes_array_length() {
     let session = TestSession::single(
         r#"
-function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
+function take<const N: uint>(value: [uint8; N]): [uint8; N] {
     return value;
 }
 
@@ -17,17 +17,17 @@ const bytes = take<4>([1, 2, 3, 4]);
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
+function take<const N: uint>(value: [uint8; N]): [uint8; N] {
     return value;
 }
 
 const bytes: [uint8; 4] = take<4>([1, 2, 3, 4]);
 
 === checked ===
-function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
-/// @generic.template symbol=take parameters=(comptime N: uint64)
-/// @type.symbol symbol=take type=<comptime N: uint64>(FixedArray<uint8, N>) => FixedArray<uint8, N>
-/// @type.symbol symbol=take.N source="comptime N: uint" type=N
+function take<const N: uint>(value: [uint8; N]): [uint8; N] {
+/// @generic.template symbol=take parameters=(const N: uint64)
+/// @type.symbol symbol=take type=<const N: uint64>(FixedArray<uint8, N>) => FixedArray<uint8, N>
+/// @type.symbol symbol=take.N source="const N: uint" type=N
 /// @type.symbol symbol=take.value source="value: [uint8; N]" type=FixedArray<uint8, N>
 /// @resolution.name source=N target=take.N
 /// @resolution.name source=N target=take.N
@@ -63,7 +63,7 @@ const bytes = take<4>([1, 2, 3, 4]);
 fn test_defaulted_static_value_argument_uses_literal_default() {
     let session = TestSession::single(
         r#"
-function choose<comptime Flag: boolean = true>(value: int32): int32 {
+function choose<const Flag: boolean = true>(value: int32): int32 {
     return value;
 }
 
@@ -76,18 +76,17 @@ const value = choose(1);
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-function choose<comptime Flag: boolean = true>(value: int32): int32 {
+function choose<const Flag: boolean = true>(value: int32): int32 {
     return value;
 }
 
 const value: int32 = choose<true>(1);
 
 === checked ===
-function choose<comptime Flag: boolean = true>(value: int32): int32 {
-/// @generic.template symbol=choose parameters=(comptime Flag: boolean = true)
-/// @type.symbol symbol=choose type=<comptime Flag: boolean = true>(int32) => int32
-/// @type.symbol symbol=choose.Flag source="comptime Flag: boolean = true" type=Flag
-/// @type.node source=true type=true
+function choose<const Flag: boolean = true>(value: int32): int32 {
+/// @generic.template symbol=choose parameters=(const Flag: boolean = true)
+/// @type.symbol symbol=choose type=<const Flag: boolean = true>(int32) => int32
+/// @type.symbol symbol=choose.Flag source="const Flag: boolean = true" type=Flag
 /// @type.symbol symbol=choose.value source="value: int32" type=int32
 
     return value;
@@ -114,10 +113,10 @@ const value = choose(1);
 }
 
 #[test]
-fn test_function_type_comptime_generic_binds_return_type() {
+fn test_function_type_const_generic_binds_return_type() {
     let session = TestSession::single(
         r#"
-type Read = <comptime N: uint>() => [uint8; N];
+type Read = <const N: uint>() => [uint8; N];
 
 declare const read: Read;
 "#,
@@ -128,16 +127,16 @@ declare const read: Read;
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
-type Read = <comptime N: uint>() => [uint8; N];
+type Read = <const N: uint>() => [uint8; N];
 
 declare const read: Read;
 
 === checked ===
-type Read = <comptime N: uint>() => [uint8; N];
-/// @type.symbol symbol=Read source="type Read = <comptime N: uint>() => [uint8; N]" type=Function<(), FixedArray<uint8, N>>
-/// @definition.type symbol=Read source="type Read = <comptime N: uint>() => [uint8; N]" value=Function<(), FixedArray<uint8, N>>
-/// @generic.template source=type_expression parameters=(comptime N: uint64)
-/// @type.symbol symbol=Read.N source="comptime N: uint" type=N
+type Read = <const N: uint>() => [uint8; N];
+/// @type.symbol symbol=Read source="type Read = <const N: uint>() => [uint8; N]" type=Function<(), FixedArray<uint8, N>>
+/// @definition.type symbol=Read source="type Read = <const N: uint>() => [uint8; N]" value=Function<(), FixedArray<uint8, N>>
+/// @generic.template source=type_expression parameters=(const N: uint64)
+/// @type.symbol symbol=Read.N source="const N: uint" type=N
 /// @resolution.name source=N target=Read.N
 
 declare const read: Read;
@@ -152,8 +151,8 @@ declare const read: Read;
 fn test_static_literal_arguments_specialize_aliases() {
     let session = TestSession::single(
         r#"
-type Tagged<comptime Tag: string> = { tag: Tag };
-type Flagged<comptime Config: { name: string; enabled: boolean }> = Config;
+type Tagged<const Tag: string> = { tag: Tag };
+type Flagged<const Config: { name: string; enabled: boolean }> = Config;
 
 declare const tagged: Tagged<"alpha">;
 declare const flagged: Flagged<{ name: "search"; enabled: true }>;
@@ -165,25 +164,25 @@ declare const flagged: Flagged<{ name: "search"; enabled: true }>;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-type Tagged<comptime Tag: string> = { tag: Tag };
-type Flagged<comptime Config: { name: string; enabled: boolean }> = Config;
+type Tagged<const Tag: string> = { tag: Tag };
+type Flagged<const Config: { name: string; enabled: boolean }> = Config;
 
 declare const tagged: { tag: "alpha" };
 declare const flagged: { name: "search"; enabled: true };
 
 === checked ===
-type Tagged<comptime Tag: string> = { tag: Tag };
-/// @generic.template symbol=Tagged parameters=(comptime Tag: string)
-/// @type.symbol symbol=Tagged source="type Tagged<comptime Tag: string> = { tag: Tag }" type={ tag: Tag }
-/// @definition.type symbol=Tagged source="type Tagged<comptime Tag: string> = { tag: Tag }" template=(comptime Tag: string) value={ tag: Tag }
-/// @type.symbol symbol=Tagged.Tag source="comptime Tag: string" type=Tag
+type Tagged<const Tag: string> = { tag: Tag };
+/// @generic.template symbol=Tagged parameters=(const Tag: string)
+/// @type.symbol symbol=Tagged source="type Tagged<const Tag: string> = { tag: Tag }" type={ tag: Tag }
+/// @definition.type symbol=Tagged source="type Tagged<const Tag: string> = { tag: Tag }" template=(const Tag: string) value={ tag: Tag }
+/// @type.symbol symbol=Tagged.Tag source="const Tag: string" type=Tag
 /// @resolution.name source=Tag target=Tagged.Tag
 
-type Flagged<comptime Config: { name: string; enabled: boolean }> = Config;
-/// @generic.template symbol=Flagged parameters=(comptime Config: { name: string; enabled: boolean })
-/// @type.symbol symbol=Flagged source="type Flagged<comptime Config: { name: string; enabled: boolean }> = Config" type=Config
-/// @definition.type symbol=Flagged source="type Flagged<comptime Config: { name: string; enabled: boolean }> = Config" template=(comptime Config: { name: string; enabled: boolean }) value=Config
-/// @type.symbol symbol=Flagged.Config source="comptime Config: { name: string; enabled: boolean }" type=Config
+type Flagged<const Config: { name: string; enabled: boolean }> = Config;
+/// @generic.template symbol=Flagged parameters=(const Config: { name: string; enabled: boolean })
+/// @type.symbol symbol=Flagged source="type Flagged<const Config: { name: string; enabled: boolean }> = Config" type=Config
+/// @definition.type symbol=Flagged source="type Flagged<const Config: { name: string; enabled: boolean }> = Config" template=(const Config: { name: string; enabled: boolean }) value=Config
+/// @type.symbol symbol=Flagged.Config source="const Config: { name: string; enabled: boolean }" type=Config
 /// @resolution.name source=Config target=Flagged.Config
 
 declare const tagged: Tagged<"alpha">;
@@ -346,5 +345,47 @@ function put(destination: &exclusive [int32], value: int32): void {
 
 }
 "#,
+    );
+}
+
+/// Const parameters, const blocks, and const functions check together.
+#[test]
+fn test_check_const_parameter_block_and_function_declarations() {
+    let session = TestSession::single(
+        r#"struct Lane<const Width: usize> {
+    const {}
+    data: [uint8; Width];
+}
+
+const function double(value: usize): usize {
+    return value * 2;
+}
+"#,
+    );
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+struct Lane<const Width: usize> {
+    const {}
+    data: [uint8; Width];
+}
+
+const function double(value: usize): usize {
+    return value * 2;
+}
+
+=== checked ===
+struct Lane<const Width: usize> {
+    const {}
+    data: [uint8; Width];
+}
+
+const function double(value: usize): usize {
+    return value * 2;
+}
+"#,
+        "",
     );
 }

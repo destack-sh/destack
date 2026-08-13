@@ -81,11 +81,12 @@ class Tag<in out T> {
     );
 }
 
+/// Report one const parameter that never occurs in its declaration.
 #[test]
-fn test_comptime_parameter_needs_no_occurrence() {
+fn test_report_an_unused_const_parameter() {
     let session = TestSession::single(
         r#"
-struct Fixed<comptime N: int> {
+struct Fixed<const N: int> {
     name: string;
 }
 "#,
@@ -96,17 +97,17 @@ struct Fixed<comptime N: int> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-struct Fixed<comptime N: int> {
+struct Fixed<const N: int> {
     name: string;
 }
 
 === checked ===
-struct Fixed<comptime N: int> {
-/// @generic.template symbol=Fixed parameters=(comptime N: int64)
+struct Fixed<const N: int> {
+/// @generic.template symbol=Fixed parameters=(const N: int64)
 /// @type.symbol symbol=Fixed type=Fixed
-/// @definition.struct symbol=Fixed template=(comptime N: int64)
+/// @definition.struct symbol=Fixed template=(const N: int64)
 /// @definition.field symbol=Fixed.name source="name: string" key=name type=string
-/// @type.symbol symbol=Fixed.N source="comptime N: int" type=N
+/// @type.symbol symbol=Fixed.N source="const N: int" type=N
 
     name: string;
     /// @type.symbol symbol=Fixed.name source="name: string" type=string
@@ -114,6 +115,9 @@ struct Fixed<comptime N: int> {
 }
 "#,
         r#"
+/// @diagnostic.error id=unused-generic-parameter message="generic parameter 'N' is never used"
+/// @diagnostic.label line=2 column=20 span="N" line_source="struct Fixed<const N: int> {"
+/// @diagnostic.help message="declare explicit variance like 'out T' to keep a marker parameter"
 "#,
     );
 }

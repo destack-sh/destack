@@ -173,7 +173,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(None)
     }
 
-    /// Lower one atomic fence from its comptime ordering configuration.
+    /// Lower one atomic fence from its const ordering configuration.
     ///
     /// Region and memory-scope refinements subsume into a whole-storage fence.
     pub(in crate::lower) fn lower_atomic_fence(
@@ -190,7 +190,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(None)
     }
 
-    /// Lower one atomic load from its pointer and comptime configuration.
+    /// Lower one atomic load from its pointer and const configuration.
     pub(in crate::lower) fn lower_atomic_load(
         &mut self,
         resolution: &dir::Call,
@@ -474,14 +474,14 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
         start: usize,
     ) -> CompilerResult<mir::AtomicAccess> {
-        let ordering = match self.comptime_case(resolution, start, "an atomic ordering")? {
+        let ordering = match self.const_case(resolution, start, "an atomic ordering")? {
             0 => mir::MemoryOrdering::Relaxed,
             1 => mir::MemoryOrdering::Acquire,
             2 => mir::MemoryOrdering::Release,
             3 => mir::MemoryOrdering::AcquireRelease,
             _ => mir::MemoryOrdering::SequentiallyConsistent,
         };
-        let scope = match self.comptime_case(resolution, start + 1, "an atomic scope")? {
+        let scope = match self.const_case(resolution, start + 1, "an atomic scope")? {
             0 => mir::ExecutionScope::Invocation,
             1 => mir::ExecutionScope::Subgroup,
             2 => mir::ExecutionScope::Workgroup,
@@ -502,7 +502,7 @@ impl FunctionLowerer<'_, '_, '_> {
             (5, "an availability-publishing atomic"),
             (6, "a visibility-acquiring atomic"),
         ] {
-            if self.comptime_boolean(resolution, start + offset, flag)? {
+            if self.const_boolean(resolution, start + offset, flag)? {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
                     construct: flag.to_string(),
@@ -647,8 +647,8 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower_expression(source)
     }
 
-    /// Read one comptime enum argument as its declared case ordinal.
-    fn comptime_case(
+    /// Read one const enum argument as its declared case ordinal.
+    fn const_case(
         &mut self,
         resolution: &dir::Call,
         index: usize,
@@ -658,7 +658,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let dir::Type::Variant(member) = self.node_type(source)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
-                construct: format!("{construct} that is not comptime-known"),
+                construct: format!("{construct} without a const-evaluated value"),
             }
             .into());
         };
@@ -671,8 +671,8 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lowerer.variant_position(owner.symbol, member.variant)
     }
 
-    /// Read one comptime boolean argument.
-    fn comptime_boolean(
+    /// Read one const boolean argument.
+    fn const_boolean(
         &mut self,
         resolution: &dir::Call,
         index: usize,
@@ -683,7 +683,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Type::Literal(dir::ScalarLiteral::Boolean(value)) => Ok(value),
             _ => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
-                construct: format!("{construct} that is not comptime-known"),
+                construct: format!("{construct} without a const-evaluated value"),
             }
             .into()),
         }

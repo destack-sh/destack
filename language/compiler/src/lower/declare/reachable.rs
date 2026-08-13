@@ -107,7 +107,7 @@ impl ModuleLowerer<'_> {
                 }
             }
 
-            // collect literals committed at their runtime types, skipping comptime singletons
+            // collect literals committed at their runtime types, skipping const singletons
             if let Ok(expression) = id.try_into_typed::<dir::Expression>()
                 && let dir::Expression::ScalarLiteral(literal) = state.tree().get(expression)
             {
@@ -457,7 +457,7 @@ impl ModuleLowerer<'_> {
         substitution: &TypeSubstitution,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
-        // materialize widened comptime literals as immortal objects
+        // materialize widened const literals as immortal objects
         let resolved_source = substitution.resolve(self, coercion.source)?;
         self.collect_literals(resolved_source, reachable)?;
 
@@ -617,10 +617,10 @@ impl ModuleLowerer<'_> {
             match parameter.kind {
                 dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime) => continue,
                 dir::GenericParameterKind::Type => {}
-                dir::GenericParameterKind::Value | dir::GenericParameterKind::Memory(_) => {
+                dir::GenericParameterKind::Memory(_) => {
                     return Err(LowerError::Unsupported {
                         anchor: self.module.into(),
-                        construct: "a value-parameterized callable instance".to_string(),
+                        construct: "a memory-parameterized callable instance".to_string(),
                     }
                     .into());
                 }

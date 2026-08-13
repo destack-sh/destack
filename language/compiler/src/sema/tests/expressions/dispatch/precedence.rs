@@ -261,7 +261,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
 }
 
 #[test]
-fn test_comptime_enum_arguments_prove_by_member_value() {
+fn test_const_enum_arguments_prove_by_member_value() {
     let session = TestSession::single(
         r#"
 enum Mode {
@@ -269,7 +269,7 @@ enum Mode {
     Write,
 }
 
-newtype Port<comptime M: Mode = Mode.Read> = int32;
+newtype Port<const out M: Mode = Mode.Read> = int32;
 
 export type ReadPort = Port<Mode.Write>;
 "#,
@@ -285,7 +285,7 @@ enum Mode {
     Write,
 }
 
-newtype Port<comptime M: Mode = Mode.Read> = int32;
+newtype Port<const out M: Mode = Mode.Read> = int32;
 
 export type ReadPort = Port<Mode.Write>;
 
@@ -304,15 +304,14 @@ enum Mode {
 
 }
 
-newtype Port<comptime M: Mode = Mode.Read> = int32;
-/// @generic.template symbol=Port parameters=(comptime M: Mode = Mode.Read)
-/// @type.symbol symbol=Port source="newtype Port<comptime M: Mode = Mode.Read> = int32" type=Port
-/// @definition.newtype symbol=Port source="newtype Port<comptime M: Mode = Mode.Read> = int32" template=(comptime M: Mode = Mode.Read) backing=int32 constructors=[<comptime M: Mode = Mode.Read>(int32) => Port<M>]
-/// @type.symbol symbol=Port.M source="comptime M: Mode = Mode.Read" type=M
+newtype Port<const out M: Mode = Mode.Read> = int32;
+/// @generic.template symbol=Port parameters=(const out M: Mode = Mode.Read)
+/// @type.symbol symbol=Port source="newtype Port<const out M: Mode = Mode.Read> = int32" type=Port
+/// @definition.newtype symbol=Port source="newtype Port<const out M: Mode = Mode.Read> = int32" template=(const out M: Mode = Mode.Read) backing=int32 constructors=[<const out M: Mode = Mode.Read>(int32) => Port<M>]
+/// @type.symbol symbol=Port.M source="const out M: Mode = Mode.Read" type=M
 /// @resolution.name source=Mode target=Mode
-/// @type.node source=Mode type=Mode
-/// @type.node source=Mode.Read type=Mode.Read
-/// @resolution.name source=Mode target=Mode
+/// @resolution.name source=Mode.Read target=Mode
+/// @resolution.path source=Mode.Read index=1 target=Mode.Read
 
 export type ReadPort = Port<Mode.Write>;
 /// @type.symbol symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" type=Port<Mode.Write>
