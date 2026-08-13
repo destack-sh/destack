@@ -1,12 +1,10 @@
 ---
 title: "Introducing TypeScript++"
-subtitle: "Making TypeScript the Last Programming Language (in Alpha)"
+subtitle: "Making TypeScript the Last Programming Language"
 date: "2026-08-18"
 tags: ["language", "runtime"]
 author: "Florian"
 ---
-
-# Introduction
 
 - We need a new _universal_ programming language: a language that compiles very fast, is easy analyze statically and dynamically, runs seamlssly on the web, and can run native systems software at machine speed.
 - TypeScript is tantalizingly close to being a serious, native, _universal_ programming language
@@ -29,8 +27,10 @@ author: "Florian"
 
 - why not extend what already exists
 - static hermes, assembly script, ...
+- all in - not incrementally adoptable.
+- (though we do have C ABI ofc)
 
-## Why Human First Design
+## Why "Human-First"
 
 - there is a popular current of "agent first design", but I don't really know what that means, beyond just building software in the way we should have done anyway.
 - human-first design
@@ -60,9 +60,9 @@ author: "Florian"
 - incremental granularity (a la casey muratori)
 - you can't engineer precision and alignment (i.e. understanding) into a system post-hoc (or at least, only with great difficulty that far exceeds the cost of doing it properly from the start)
 
-## Why Does It Need to Be "Universal"
+## Why "Universal"
 
-- universalism, minimalism, and expressivity
+- universalism, complete vs minimalism, and expressivity
 - there is something beautiful about doing the most with the fewest possible parts
 - a minimal, simple language like C or even Go - it's genuinely pleasing to get so much out of relatively little syntax that covers so many use cases
 - the carcinisation of (managed) languages
@@ -90,7 +90,7 @@ requirements, wishlist:
 - typescript is tantalizingly close to a systems language
 - remove all the dynamic / JS baggage, add a little bit of layout and memory control, and we're looking at a surprisingly presentable low level language
 
-## Why "Combine" TypeScript and Rust
+## Why Not Blank Slate
 
 - JVM/CLR by default, Rust on demand
 - okay it's basically a meme at this point
@@ -109,8 +109,6 @@ requirements, wishlist:
 - it's just putting it all togetherin a coherent and sensible way
 
 - the ergonomic ladder of TS++ between TS -> Rust
-
-## Why Stay Within the Lines
 
 - don't try to be cute or clever or fancy
 - don't "fix" what's not badly broken
@@ -145,16 +143,18 @@ requirements, wishlist:
 - do we want to support "escape hatches"? 
 - any sort of backward compatibility
 
-## No Backward Compatibility
 
-- first and most serious cut is to drop support for existing .ts/.tsx
-- no NPM, no JS bridge, no TS "best effort"
+## Types
 
-## destack.json
+- keep muscle memory
+- make it strict and sound
+- no footguns, remove weirdness
+- stable and deterministic, incrementally compilable
+- strict boundaries
+- make it fast
+- cover as much as possible with type algebra (much faster than macros)
 
-- combine electron, expo, package.json, Cargo.toml, ...
-
-## Obviously, No Soundness Holes
+### Obviously, No Soundness Holes
 
 - any
 - sneaky casts
@@ -163,7 +163,7 @@ requirements, wishlist:
 - array holes
 - no predicate functions (e.g. `isUser(user: any): user is User` is unsound)
 
-## Strictest TS
+### Strictest TS
 
 - need strict, sound TS with predictable module boundaries and type behavior
 - `strict`
@@ -187,54 +187,39 @@ requirements, wishlist:
 - `strictPropertyInitialization`
 - no "truthiness"; conditionals always take booleans
 
-## ESM Modules
-
-- strictly ESM imports and exports
-- no CommonJS
-- no export / import type though
-
-## Proper Primitives
+### Proper Primitives
 
 - number, yes, but int32, int64, float32, character too
 - tuples slices inline arrays and the rest
 
-## Nominality
+### Nominality
 
 - usually use symbol branding in TS, which is kinda icky
 - proper nominality and newtypes
 - newtype traits
 
-## TSX
 
-- tag based trees are pretty useful and broadly applicable
-- there are other ways of doing UI, but this is a pretty good one, and it's *very* familiar
-- trees, generalised tree litearls,
-- lowercase tree builders, ..?
+### Classes
 
-## Patterns and Match
+- JVM? C++? Go?
+- zero overhead? vtable pointers?
 
-- expressions as values
-- patterns
-- match
-- catch match
+### instanceof, typeof, is
 
-## Decorators
+### Objects and "Type Algebra"
 
-- extended placement
-- newtypes as decorators
-- incl. union newtypes
-- queryable
-- @if static gating
+- what doees `type Point = { x: number; y: number }` mean?
+- can I pass `{ x: 0, y: 1, z: 2 }` to a function expecting a `Point`?
 
-## No Exceptions, Results Only
+### Unions
 
-- most subjective of the bunch
-- but exceptions have proven troubling over and over and over again
-- checked exceptions are even worse
-- the only sane error handling method is the Swift-y Rust-y ? operator 
+- sum types
+- regular unions
+- newtype / derive(Tagged) unions
 
-## Structural Interfaces, `Dynamic` (?)
+### Structural Interfaces
 
+- how dynamic do we want to go
 - shape mutation
 - excess properties
 - declaration exprsesions
@@ -242,63 +227,96 @@ requirements, wishlist:
 - all sorts of JS hacks that everyone hates anyway
 - `Record` is read-only
 
-## Extensions
+### Funky Signatures
+
+- index
+- call
+- construct
+- can I read through index signatures? can I call through them?
+- index signatures
+- call signatures
+
+### Generics and Variance
+
+- stay the same basically
+- in, out, in out, measured variance
+- generalised `const` parameter for value generics (literal types!)
+
+## Expressions
+
+- keep all the ergonomics and muscle memory
+- remove some legacy weirdness
+
+### TSX
+
+- tag based trees are pretty useful and broadly applicable
+- there are other ways of doing UI, but this is a pretty good one, and it's *very* familiar
+- trees, generalised tree litearls,
+- lowercase tree builders, ..?
+- (unfortunately this also means keeping TS ambiguity around..)
+
+### Patterns and Match
+
+- expressions as values
+- patterns
+- match
+- catch match
+
+### Decorators
+
+- extended placement
+- newtypes as decorators
+- incl. union newtypes
+- queryable
+- @if static gating
+
+### No Exceptions, Results Only
+
+- most subjective of the bunch
+- Try operator, ? ambiguity because TS
+- but exceptions have proven troubling over and over and over again
+- checked exceptions are even worse
+- the only sane error handling method is the Swift-y Rust-y ? operator 
+
+### Extensions
 
 - inherent, anonymous, named extensions
 
-## Operator Overloading
+### Operator Overloading
 
 - serious math-y applications want operator overloading
 - `Add`, `Subtract`, `Multiply`, `Divide`, etc.
 
-## Classes, Yes, but Which Ones
+## Runtime
 
-- JVM? C++? Go?
-- zero overhead? vtable pointers?
+- again keep conceptual muscle memory
+- package.json -> destack.json
 
-## Objects and Type Algebra
-
-- what doees `type Point = { x: number; y: number }` mean?
-- can I pass `{ x: 0, y: 1, z: 2 }` to a function expecting a `Point`?
-
-## `Dynamic` and Structural Interfaces
-
-- how dynamic do we want to go
-- index signatures
-- can I read through index signatures? can I call through them?
-- call signatures
-
-## Generics and Variance
-
-- stay the same basically
-- in, out, in out, measured variance
-- new `comptime` parameter for value generics
-
-## Structs and Value Types
+### Structs and Value Types
 
 - every serious programming language eventually cares about memory layout
 - need fixed no overhead shapes
 
-## Ownership
+### Ownership
 
 - bare T just means whatever the default form is
 - reference types are reference types, value types are value types
 - ^T, T, &T, *T, ...
 - Managed<T>, Owned<T>, ...
 
-## Borrowing
+### Borrowing
 
 - if we want value types and we want to pass them around, we need some form of borrowing
 - we *could* do this asthe C# way and have in / inout / out style params, which is half the solution
 - but we want to be unviversal, and we want ot be safe, 
 
-## Lifetimes
+### Lifetimes
 
 - as soon as we pass and store references, we need to make sure those are safe too
 - well wouldn't you know, lifetimes
 - tried a bunch of things to make this more TS-native, but ultimately, the Rust model really is best (inference only locally within functions, no induced generics beyond that)
 
-## Access, Mutability, Exclusive
+### Access, Mutability, Exclusive
 
 - readonly
 - &T default to mutable
@@ -307,39 +325,51 @@ requirements, wishlist:
 - exclusive ownership
 - worker-local, borrowing
 
-## Local and Shared Memory Spaces
+### Local and Shared Memory Spaces
 
 - SharedArrayBuffer and friends?
 - worker-first, local-first, shared-nothing-first memory model
 
-## Async, Promise, Tasks
+### Async, Promise, Tasks
 
 - proper async
 - keep Promise for aliased async
 - introduce Task for structured affine concurrency (same async/await model)
 - fiber-based execution (e.g. JVM's new model)
 
-## Panics, Traps
+### Panics, Traps
 
 - overflows / underflows
 - out of bounds
 - deliberate unreachable
 
-## Automatic, Implicit Effects
+### No Backward Compatibility
+
+- first and most serious cut is to drop support for existing .ts/.tsx
+- no NPM, no JS bridge, no TS "best effort"
+
+### destack.json
+
+- combine electron, expo, package.json, Cargo.toml, ...
+
+### ESM Modules
+
+- strictly ESM imports and exports
+- no CommonJS
+- no export / import type though
+
+
+### Automatic, Implicit Effects
 
 - proper colored functions
 - stdlib based on explicit @bindings
 - effect tracking
 - @binding
 
-## Durability
+### Durability
 
 - rewind, fork
 
-## Generalised Module
+### Generalised Module
 
 - x.ds, x.test.ds, x.whatever.ds
-
-## Macros
-
-## Reflection
