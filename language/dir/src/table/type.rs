@@ -281,7 +281,6 @@ impl<'a> TypeTable<'a> {
         match ty {
             // leaves without child types
             Type::Variable(_)
-            | Type::Hole(_)
             | Type::Error
             | Type::Never
             | Type::Any
@@ -403,8 +402,8 @@ impl<'a> TypeTable<'a> {
                 }
             }
 
-            // structural shapes and concrete object classes
-            Type::Shape(shape) | Type::Object(shape) => {
+            // concrete object classes
+            Type::Object(shape) => {
                 for property in self.properties(shape.properties) {
                     if let Some(read) = property.access.read() {
                         visit(read);

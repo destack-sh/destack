@@ -16,8 +16,6 @@ use super::{FloatType, IntegerType, MemoryParameter, PrimitiveType};
 pub enum Type {
     /// One open inference variable.
     Variable(TypeVariableId),
-    /// One declared inference hole, named by the node that authored it.
-    Hole(GlobalNodeIdAny),
 
     /// Placeholder type for an already-reported error.
     Error,
@@ -83,8 +81,6 @@ pub enum Type {
     Slice(SliceType),
     /// Tuple type, like `(string, int32)`.
     Tuple(TupleType),
-    /// Structural object shape type, like `{ name: string }`.
-    Shape(ShapeType),
 
     /// Function signature type, like `(value: int32) => string`, interned in the segment.
     FunctionSignature(FunctionSignatureId),
@@ -97,21 +93,6 @@ pub enum Type {
     Union(UnionType),
     /// Intersection type `A & B & C`.
     Intersection(IntersectionType),
-}
-
-impl From<ShapeType> for Type {
-    /// Classify one shape as a concrete class or a signature contract.
-    fn from(shape: ShapeType) -> Self {
-        let has_signatures = !shape.call_signatures.is_empty()
-            || !shape.construct_signatures.is_empty()
-            || !shape.index_signatures.is_empty();
-
-        // field-only shapes are the exact concrete class, signatures keep a contract
-        match has_signatures {
-            true => Self::Shape(shape),
-            false => Self::Object(shape),
-        }
-    }
 }
 
 impl From<TypeLiteral> for Type {
@@ -175,7 +156,6 @@ impl Type {
     pub fn variant_name(&self) -> &'static str {
         match self {
             Self::Variable(_) => "Variable",
-            Self::Hole(_) => "Hole",
             Self::Error => "Error",
             Self::Never => "Never",
             Self::Any => "Any",
@@ -206,7 +186,6 @@ impl Type {
             Self::FixedArray(_) => "FixedArray",
             Self::Slice(_) => "Slice",
             Self::Tuple(_) => "Tuple",
-            Self::Shape(_) => "Shape",
             Self::FunctionSignature(_) => "FunctionSignature",
             Self::Function(_) => "Function",
             Self::FunctionPointer(_) => "FunctionPointer",
@@ -228,7 +207,6 @@ impl Type {
         !matches!(
             self,
             Self::Error
-                | Self::Hole(_)
                 | Self::Never
                 | Self::Void
                 | Self::Null
@@ -245,7 +223,6 @@ impl Type {
             self,
             Self::Parameter(_)
                 | Self::Variable(_)
-                | Self::Hole(_)
                 | Self::This
                 | Self::Member(_)
                 | Self::Operation(_)
@@ -347,7 +324,6 @@ impl Type {
         match self {
             // symbolic leaves, one bit each
             Self::Variable(_) => TypeFlags::HAS_VARIABLE,
-            Self::Hole(_) => TypeFlags::HAS_HOLE,
             Self::Error => TypeFlags::HAS_ERROR,
             Self::Parameter(_) => TypeFlags::HAS_PARAMETER,
             Self::Erased(_) => TypeFlags::HAS_PARAMETER,
@@ -379,7 +355,6 @@ impl Type {
             | Self::Range(_)
             | Self::Slice(_)
             | Self::Tuple(_)
-            | Self::Shape(_)
             | Self::Object(_)
             | Self::FunctionSignature(_)
             | Self::Function(_)
@@ -404,7 +379,6 @@ impl Type {
                 collect(variant.variant.module_id);
             }
             Self::Static(value) => collect(value.module_id),
-            Self::Hole(node) => collect(node.module_id),
 
             // wrapped value heads
             Self::Form(form) => collect(form.value.module_id),
@@ -420,7 +394,6 @@ impl Type {
 
             // list and pool heads scan through the segment
             Self::Object(_)
-            | Self::Shape(_)
             | Self::Tuple(_)
             | Self::Union(_)
             | Self::Intersection(_)
@@ -496,8 +469,6 @@ impl TypeFlags {
     pub const HAS_OPERATION: Self = Self(1 << 6);
     /// The graph contains a conditional infer binding.
     pub const HAS_INFER: Self = Self(1 << 7);
-    /// The graph contains a declared inference hole.
-    pub const HAS_HOLE: Self = Self(1 << 8);
 
     /// Return whether every bit of `other` is set.
     pub fn contains(self, other: Self) -> bool {
@@ -507,7 +478,6 @@ impl TypeFlags {
     /// Return whether the graph contains no open or symbolic leaves.
     pub fn is_ground(self) -> bool {
         let symbolic = Self::HAS_VARIABLE
-            | Self::HAS_HOLE
             | Self::HAS_PARAMETER
             | Self::HAS_THIS
             | Self::HAS_REFERENCE
@@ -561,16 +531,6 @@ impl TypeFlags {
     /// Return whether the graph contains a conditional infer binding.
     pub fn has_infer(self) -> bool {
         self.contains(Self::HAS_INFER)
-    }
-
-    /// Return whether the graph contains a declared inference hole.
-    pub fn has_hole(self) -> bool {
-        self.contains(Self::HAS_HOLE)
-    }
-
-    /// Return whether the graph awaits inference through a variable or a hole.
-    pub fn is_open(self) -> bool {
-        self.contains_any(Self::HAS_VARIABLE | Self::HAS_HOLE)
     }
 }
 
@@ -2306,7 +2266,7 @@ impl TypeElement {
     }
 }
 
-/// A structural object shape type.
+/// The members one anonymous object type declares.
 ///
 /// Examples:
 /// ```ds
@@ -2314,7 +2274,7 @@ impl TypeElement {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ShapeType {
-    /// The shape property list.
+    /// The declared property list.
     pub properties: TypeListId,
     /// The call signature list.
     pub call_signatures: TypeListId,
@@ -2322,6 +2282,18 @@ pub struct ShapeType {
     pub construct_signatures: TypeListId,
     /// The index signature list.
     pub index_signatures: TypeListId,
+}
+
+impl ShapeType {
+    /// Return whether this object type declares call, construct, or index signatures.
+    ///
+    /// An index signature counts, since it makes the object type a keyed view over concrete
+    /// objects, and mapped reduction produces one for `Record<K, V>`.
+    pub fn declares_signatures(&self) -> bool {
+        !self.call_signatures.is_empty()
+            || !self.construct_signatures.is_empty()
+            || !self.index_signatures.is_empty()
+    }
 }
 
 /// One property in a structural object type.
@@ -2493,6 +2465,8 @@ pub struct FunctionSignatureType {
     pub return_type: Option<GlobalTypeId>,
     /// Whether this is a generator function.
     pub is_generator: bool,
+    /// Whether this signature constructs its return type.
+    pub is_construct: bool,
 }
 
 /// A runtime parameter in a function type.
