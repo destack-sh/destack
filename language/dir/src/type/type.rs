@@ -364,10 +364,10 @@ impl Type {
         }
     }
 
-    /// Collect every module id this row mentions directly.
+    /// Collect every module id this entry mentions directly.
     ///
     /// List and pool contents live in the segment and are scanned there;
-    /// this visits only ids embedded in the row itself.
+    /// this visits only ids embedded in the entry itself.
     pub fn referenced_modules(&self, collect: &mut impl FnMut(ModuleId)) {
         match self {
             // parameter and symbol heads

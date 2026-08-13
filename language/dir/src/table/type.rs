@@ -658,7 +658,7 @@ impl TypeSegment {
         }
     }
 
-    /// Allocate one type row without probing for duplicates.
+    /// Allocate one type entry without probing for duplicates.
     fn allocate_type(&mut self, ty: Type, child_flags: TypeFlags) -> LocalTypeId {
         let type_id = LocalTypeId::new(self.type_count());
         let flags = ty.own_flags() | child_flags;
@@ -995,7 +995,7 @@ fn fx_hash(value: &impl Hash) -> u64 {
 /// One growing type segment interning over committed bases.
 #[derive(Debug, Clone)]
 pub struct TypeTail {
-    /// The rows built by this pass.
+    /// The entries built by this pass.
     segment: TypeSegment,
     /// The intern index from value hash to owned type slots.
     index: FxHashMap<u64, SmallVec<[LocalTypeId; 1]>>,
@@ -1071,7 +1071,7 @@ impl TypeTail {
         tail
     }
 
-    /// Finish this tail into its pure row segment.
+    /// Finish this tail into its pure entry segment.
     pub fn finish(self) -> TypeSegment {
         self.segment
     }
@@ -1103,7 +1103,7 @@ impl TypeTail {
         self.intern_type_inserted(ty, child_flags).0
     }
 
-    /// Intern one type row, returning whether this call inserted it.
+    /// Intern one type entry, returning whether this call inserted it.
     pub fn intern_type_inserted(
         &mut self,
         ty: Type,
