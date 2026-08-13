@@ -22,7 +22,7 @@ impl Parser {
         let start = self.mark_parse_start();
 
         // loop
-        self.eat_keyword(Keyword::Loop)?;
+        let keyword_range = self.eat_keyword(Keyword::Loop)?.range();
 
         // { body }
         let body_id = self.parse_block(BlockContext::Statement, function)?;
@@ -35,6 +35,8 @@ impl Parser {
             },
             self.range_since(&start),
         );
+        self.tree.set_main_range(loop_id, keyword_range);
+
         Ok(loop_id)
     }
 
@@ -52,7 +54,7 @@ impl Parser {
         let start = self.mark_parse_start();
 
         // for
-        self.eat_keyword(Keyword::For)?;
+        let keyword_range = self.eat_keyword(Keyword::For)?.range();
 
         // await
         let asynchrony = if self.peek_is_keyword(Keyword::Await) {
@@ -125,6 +127,8 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
+            self.tree.set_main_range(for_id, keyword_range);
+
             Ok(for_id)
         }
         // for [await] (binding in|of iterator) body
@@ -172,6 +176,8 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
+            self.tree.set_main_range(for_id, keyword_range);
+
             Ok(for_id)
         }
     }
@@ -292,7 +298,7 @@ impl Parser {
         // do body while (condition)
         if self.peek_is_keyword(Keyword::Do) {
             // do
-            self.bump();
+            let keyword_range = self.eat_keyword(Keyword::Do)?.range();
 
             // body
             let body_id = self.parse_block_or_statement(function)?;
@@ -316,12 +322,14 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
+            self.tree.set_main_range(while_id, keyword_range);
+
             Ok(while_id)
         }
         // while (condition) body
         else {
             // while
-            self.eat_keyword(Keyword::While)?;
+            let keyword_range = self.eat_keyword(Keyword::While)?.range();
 
             // condition
             let condition_id = self.parse_parenthesized_expression(ExpressionContext {
@@ -343,6 +351,8 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
+            self.tree.set_main_range(while_id, keyword_range);
+
             Ok(while_id)
         }
     }

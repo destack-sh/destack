@@ -24,6 +24,8 @@ loop {
     assert_node!(parser.tree, loop_id, Expression::Loop { body, .. } => {
         let _block = parser.tree.get(*body);
     });
+    let main_span = parser.tree.get_main_span(loop_id).unwrap();
+    assert_eq!(parser.span_str(main_span), "loop");
 }
 
 #[test]
@@ -47,6 +49,8 @@ for (const item in items) {
         // items
         assert_expression_path!(parser, parser.tree.get(*iterator), "items");
     });
+    let main_span = parser.tree.get_main_span(for_id).unwrap();
+    assert_eq!(parser.span_str(main_span), "for");
 }
 
 #[test]
@@ -537,6 +541,8 @@ for (;;) {}
         assert!(condition.is_none());
         assert!(increment.is_none());
     });
+    let main_span = parser.tree.get_main_span(for_id).unwrap();
+    assert_eq!(parser.span_str(main_span), "for");
 }
 
 #[test]
@@ -622,6 +628,8 @@ while (x) {}
     assert_node!(parser.tree, while_id, Expression::While { condition, .. } => {
         assert_expression_path!(parser, parser.tree.get(*condition), "x");
     });
+    let main_span = parser.tree.get_main_span(while_id).unwrap();
+    assert_eq!(parser.span_str(main_span), "while");
 }
 
 #[test]
@@ -704,6 +712,8 @@ do { x } while (true)
         assert_eq!(*form, WhileForm::DoWhile);
         assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
     });
+    let main_span = parser.tree.get_main_span(do_while_id).unwrap();
+    assert_eq!(parser.span_str(main_span), "do");
 }
 
 /// Parse a do-while expression whose block contains statement separators.
