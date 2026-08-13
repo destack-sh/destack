@@ -122,7 +122,7 @@ impl CheckState<'_> {
 
     /// Derive every tagged newtype definition the declared identities name.
     pub(in crate::check) fn derive_tagged_definitions(&mut self) -> CompilerResult<()> {
-        // derive the rows the declare pass deferred on foreign content
+        // derive the entries the declare pass deferred on foreign content
         if !self.is_declaration() {
             return self.derive_deferred_tagged_definitions();
         }
@@ -174,7 +174,7 @@ impl CheckState<'_> {
         self.insert_definition(symbol, source, dir::Definition::Newtype(derived))
     }
 
-    /// Derive the tagged rows the declare pass left unclassified.
+    /// Derive the tagged entries the declare pass left unclassified.
     fn derive_deferred_tagged_definitions(&mut self) -> CompilerResult<()> {
         let module = self.module_id;
         let mut deferred = Vec::new();

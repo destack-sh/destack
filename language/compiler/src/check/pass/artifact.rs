@@ -38,7 +38,7 @@ impl CheckState<'_> {
             ..
         } = self.module;
 
-        // collect the foreign modules the stored rows recorded as they interned
+        // collect the foreign modules the stored entries recorded as they interned
         let references = self.module.references.iter().copied().collect::<Vec<_>>();
 
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
@@ -92,7 +92,7 @@ impl CheckState<'_> {
         let resolutions = self.module.resolutions;
         let decisions = self.module.decisions;
 
-        // collect the foreign modules the stored rows recorded as they interned
+        // collect the foreign modules the stored entries recorded as they interned
         let references = self.module.references.iter().copied().collect::<Vec<_>>();
 
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(

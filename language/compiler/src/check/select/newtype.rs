@@ -323,7 +323,7 @@ impl BodyState<'_, '_> {
         instance: NewtypeSignature,
         arguments: &[CallableArgument],
     ) -> CompilerResult<Option<NewtypeSignature>> {
-        // convert each argument against the decided parameter row
+        // convert each argument against the decided parameter list
         let mut signature = instance;
         for (index, argument) in arguments.iter().copied().enumerate() {
             let parameter = signature
@@ -387,12 +387,12 @@ impl BodyState<'_, '_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<ObligationCheck> {
-        // read the raw declared row without forcing a tagged derivation
+        // read the raw declared entry without forcing a tagged derivation
         let Some(dir::Definition::Newtype(definition)) = self.definition_maybe(symbol) else {
             return Ok(ObligationCheck::holds());
         };
 
-        // leave already derived rows and tagged newtypes alone
+        // leave already derived entries and tagged newtypes alone
         if !definition.constructors.is_empty() || definition.is_tagged {
             return Ok(ObligationCheck::holds());
         }
@@ -426,7 +426,7 @@ impl BodyState<'_, '_> {
             })
             .collect();
 
-        // write the rows onto the checked definition
+        // write the entries onto the checked definition
         if let Some(dir::Definition::Newtype(definition)) = self.definition_mut(symbol) {
             definition.constructors = constructors;
         }
@@ -550,17 +550,17 @@ impl BodyState<'_, '_> {
 }
 
 impl CheckState<'_> {
-    /// Record each declared newtype's constructor rows.
+    /// Record each declared newtype's constructor entries.
     pub(in crate::check) fn derive_module_constructors(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<()> {
-        // declarations leave derived rows to their checking pass
+        // declarations leave derived entries to their checking pass
         if self.is_declaration() {
             return Ok(());
         }
 
-        // derive rows beside each declared newtype
+        // derive entries beside each declared newtype
         let mut newtypes = Vec::new();
         for (symbol, definition) in self.module(module).iter_definitions() {
             if matches!(definition, dir::Definition::Newtype(_)) {

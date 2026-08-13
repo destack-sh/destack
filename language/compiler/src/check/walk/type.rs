@@ -1209,7 +1209,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::TypeExpression>,
         members: &[dir::LocalNodeId<dir::TypeMember>],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // collect the shape rows the written members declare
+        // collect the shape entries the written members declare
         let mut properties = Vec::new();
         let mut call_signatures = Vec::new();
         let mut construct_signatures = Vec::new();

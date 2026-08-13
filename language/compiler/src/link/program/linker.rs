@@ -188,7 +188,7 @@ impl<'a> ProgramLinker<'a> {
             }
         }
 
-        // retain names stored in linked layout rows
+        // retain names stored in linked layout entries
         for (_, object) in &self.objects {
             for ty in object.types() {
                 let Some(layout) = object.layouts().type_layout(ty.id) else {

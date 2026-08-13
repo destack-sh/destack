@@ -51,7 +51,7 @@ impl ModuleGraphBase {
             });
         }
 
-        // classify added, removed, and changed module rows
+        // classify added, removed, and changed module entries
         let mut added_modules = current
             .modules
             .keys()
@@ -86,7 +86,7 @@ impl ModuleGraphBase {
 }
 
 impl ModuleGraphDependencies {
-    /// Read the module graph provider's dependency rows.
+    /// Read the module graph provider's dependency entries.
     fn read(dependencies: &[ArtifactDependency]) -> Option<Self> {
         let mut modules = FxHashMap::default();
         let mut is_module_set_observed = false;
@@ -119,7 +119,7 @@ impl ModuleGraphDependencies {
         Some(Self { modules })
     }
 
-    /// Return whether these rows cover one exact module set.
+    /// Return whether these entries cover one exact module set.
     fn matches_modules(&self, modules: &[ModuleId]) -> bool {
         self.modules.len() == modules.len()
             && modules
@@ -253,7 +253,7 @@ impl Compiler {
             .copied()
             .collect::<FxHashSet<_>>();
 
-        // derive the complete extension list from only changed resolution rows
+        // derive the complete extension list from only changed resolution entries
         let mut extensions = base
             .graph
             .extensions()
@@ -271,7 +271,7 @@ impl Compiler {
         extensions.dedup();
         let is_extensions_changed = extensions.as_slice() != base.graph.extensions();
 
-        // reread import rows with changed resolved relationships
+        // reread import entries with changed resolved relationships
         let mut changed_edges = IndexMap::with_capacity(changed_modules.len());
         let mut is_edges_changed =
             !base.added_modules.is_empty() || !base.removed_modules.is_empty();

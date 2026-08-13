@@ -588,7 +588,7 @@ impl BodyState<'_, '_> {
         exported: bool,
         is_ambient: bool,
     ) -> CompilerResult<()> {
-        // skip statically absent declarators, they keep no rows
+        // skip statically absent declarators, they keep no entries
         if self.check.is_absent(id.into_global_any(module)) {
             return Ok(());
         }

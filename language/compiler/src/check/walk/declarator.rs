@@ -153,7 +153,7 @@ impl WalkState<'_, '_> {
             Some(widening),
         )?;
 
-        // the declared layer already carries transcribed annotation rows
+        // the declared layer already carries transcribed annotation entries
         let declared_row = self
             .check
             .module(self.module)

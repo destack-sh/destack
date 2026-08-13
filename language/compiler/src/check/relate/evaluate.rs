@@ -48,7 +48,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // read solved variables through their committed rows
+        // read solved variables through their committed entries
         let mut source = self.shallow_resolve(source)?;
         if self.type_flags(source)?.has_variable() {
             source = self.fully_resolve(source, &FxIndexSet::default())?;

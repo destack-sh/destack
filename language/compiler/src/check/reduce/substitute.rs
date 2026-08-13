@@ -111,7 +111,7 @@ enum SubstitutionRule<'a> {
     },
     /// Rebuild every node so construction normalizes each head.
     Normalize {
-        /// The declaration whose rows normalize.
+        /// The declaration whose entries normalize.
         origin: Origin,
     },
     /// Replace one type id wherever it occurs.
@@ -123,7 +123,7 @@ enum SubstitutionRule<'a> {
     },
     /// Replace conditional-infer binders with captured types.
     SubstituteInfer {
-        /// The declaration whose computed rows settle.
+        /// The declaration whose computed entries settle.
         origin: Origin,
         /// The captured types keyed by binder symbol.
         captures: &'a [InferSubstitution],
@@ -766,7 +766,7 @@ impl CheckState<'_> {
             substituted => self.intern_type(substituted),
         }?;
 
-        // normalize rebuilt rows that hold no parameter, this, or variable
+        // normalize rebuilt entries that hold no parameter, this, or variable
         if let SubstitutionRule::Normalize { origin }
         | SubstitutionRule::SubstituteInfer { origin, .. } = rule
         {

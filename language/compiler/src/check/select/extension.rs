@@ -291,7 +291,7 @@ impl BodyState<'_, '_> {
         let mut instance_module = module;
         let mut interface_type = self.intern_type(dir::Type::Application(instance))?;
 
-        // fill elided interface arguments before matching declared rows
+        // fill elided interface arguments before matching declared entries
         if let Some(filled) = self.fill_elided_application(interface_type.module_id, &instance)? {
             interface_type = filled;
             let (filled_module, filled_instance) = self.nominal_application(filled)?;

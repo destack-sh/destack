@@ -35,7 +35,7 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) resolved: Arc<DirResolved>,
     /// The expanded DIR input.
     pub(in crate::check) expanded: Arc<DirExpanded>,
-    /// The foreign modules the stored rows mention, accumulated at store time.
+    /// The foreign modules the stored entries mention, accumulated at store time.
     pub(in crate::check) references: FxIndexSet<ModuleId>,
     /// The declared DIR artifact seeding this check, absent while declaring.
     pub(in crate::check) declared: Option<Arc<DirDeclared>>,
@@ -55,7 +55,7 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) statics: dir::StaticTable<'static>,
     /// The committed definitions this pass shadows.
     pub(in crate::check) definitions: Option<Arc<dir::DefinitionSegment>>,
-    /// The committed member rows this pass shadows.
+    /// The committed member entries this pass shadows.
     pub(in crate::check) members: Option<Arc<dir::MemberSegment>>,
 
     // open tails this pass writes over the committed bases
@@ -177,7 +177,7 @@ impl CheckModuleState {
             };
         let bindings_tail = dir::BindingSegment::from_table(&bindings);
 
-        // shadow the committed definitions and member rows, which key by symbol and site
+        // shadow the committed definitions and member entries, which key by symbol and site
         let definitions = match (&elaborated, &declared) {
             (Some(elaborated), _) => Some(elaborated.definitions.clone()),
             (None, Some(declared)) => Some(declared.definitions.clone()),
@@ -503,7 +503,7 @@ impl CheckModuleState {
             return tail;
         };
 
-        // carry unshadowed base rows beneath the pass entries
+        // carry unshadowed base entries beneath the pass entries
         let mut merged = dir::MemberSegment::new(tail.module_id);
         for (site, subject) in base.iter_subjects() {
             if tail.subject(site).is_none() {

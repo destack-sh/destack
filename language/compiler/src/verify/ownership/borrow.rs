@@ -35,7 +35,7 @@ impl BorrowSource {
         match (self, other) {
             // static storage outlives every source
             (Self::Static, _) => true,
-            // slots compare by identity without caller rows
+            // slots compare by identity without caller entries
             (Self::Lifetime(left), Self::Lifetime(right)) => left == right,
             // caller slots outlive the caller's own frame and region
             (Self::Lifetime(_), Self::Owned | Self::Managed { .. }) => true,
@@ -190,7 +190,7 @@ impl BorrowMap {
             return;
         }
 
-        // replace existing bindings instead of growing duplicate rows
+        // replace existing bindings instead of growing duplicate entries
         if let Some(current) = self
             .bindings
             .iter_mut()

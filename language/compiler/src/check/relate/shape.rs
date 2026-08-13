@@ -314,7 +314,7 @@ impl CheckState<'_> {
                 return Ok(false);
             };
 
-            // note a constructed source, whose rows adopt the target's storage
+            // note a constructed source, whose entries adopt the target's storage
             let is_constructed = matches!(self.ty(source)?, dir::Type::Object(_));
 
             // require each target field from the source shape
@@ -485,7 +485,7 @@ impl CheckState<'_> {
                     relations.push((Relation::Widens, source.access.read()?, target_read));
                 }
 
-                // compare reads alone for constructed rows, which adopt the target's storage
+                // compare reads alone for constructed entries, which adopt the target's storage
                 if !is_constructed_source && let Some(target_write) = target.access.write() {
                     relations.push((Relation::Widens, target_write, source.access.write()?));
                 }
@@ -685,7 +685,7 @@ impl CheckState<'_> {
         target: &dir::TypeIndexSignature,
     ) -> CompilerResult<bool> {
         match self.ty(source)? {
-            // compare reads alone for constructed rows, which adopt the target's storage
+            // compare reads alone for constructed entries, which adopt the target's storage
             dir::Type::Object(shape) => {
                 let relation = match relation {
                     Relation::Assignable | Relation::Widens | Relation::Equal => {

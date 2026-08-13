@@ -33,7 +33,7 @@ impl<'a> DispatchLinker<'a> {
         let mut dynamic_shapes = Vec::new();
         let mut shape_index = HashMap::new();
 
-        // project every object's dispatch rows into canonical program ids
+        // project every object's dispatch entries into canonical program ids
         for (module, object) in self.program.objects() {
             for virtual_table in object.dispatch().iter_virtual_tables() {
                 let id = self
@@ -245,7 +245,7 @@ impl DispatchLinker<'_> {
     ) -> HashMap<(TypeId, TypeId), DynamicTableId> {
         let mut ids = HashMap::new();
 
-        // assign one row to each canonical implementation pair
+        // assign one entry to each canonical implementation pair
         for (module, object) in objects {
             for table in object.dispatch().iter_dynamic_tables() {
                 let key = (

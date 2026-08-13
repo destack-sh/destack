@@ -26,7 +26,7 @@ impl<'a> SiteLinker<'a> {
         Self { program }
     }
 
-    /// Link every emitted site row.
+    /// Link every emitted site entry.
     pub(crate) fn link(&self) -> LinkResult<SiteTableBuilder> {
         let mut allocations = Vec::new();
         let mut memory = Vec::new();

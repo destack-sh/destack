@@ -26,7 +26,7 @@ impl CheckState<'_> {
                 state.check_decorators()
             })?;
 
-            // derive variances, constructor rows, and marker conformances
+            // derive variances, constructor entries, and marker conformances
             let module = state.module_id;
             state.derive_module_variances(module)?;
             state.derive_module_constructors(module)?;

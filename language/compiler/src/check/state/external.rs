@@ -27,7 +27,7 @@ pub(in crate::check) struct CheckExternalModuleState {
     pub(in crate::check) definitions: dir::DefinitionTable<'static>,
     /// The committed member table, elaborated while checking.
     pub(in crate::check) members: dir::MemberTable<'static>,
-    /// The modules the elaborated rows mention, empty while elaborating.
+    /// The modules the elaborated entries mention, empty while elaborating.
     pub(in crate::check) references: Vec<ModuleId>,
 }
 

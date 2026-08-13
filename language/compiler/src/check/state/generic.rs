@@ -57,14 +57,14 @@ impl CheckState<'_> {
         self.template_by_symbol(symbol)
     }
 
-    /// Return the template declared by one symbol, scanning its module's rows.
+    /// Return the template declared by one symbol, scanning its module's entries.
     pub(in crate::check) fn template_by_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<GenericTemplateId> {
         let module = symbol.module_id;
 
-        // scan the working and declared rows of the checked module
+        // scan the working and declared entries of the checked module
         if self.is_own_module(module) {
             let working =
                 self.module
@@ -96,7 +96,7 @@ impl CheckState<'_> {
             .map(|local| local.into_global(module))
     }
 
-    /// Return the template declared at one source node, scanning its module's rows.
+    /// Return the template declared at one source node, scanning its module's entries.
     pub(in crate::check) fn template_by_source(
         &self,
         source: dir::GlobalNodeIdAny,
@@ -104,7 +104,7 @@ impl CheckState<'_> {
         let module = source.module_id;
         let working = self.module_maybe(module)?;
 
-        // scan the working rows, then the declared stage
+        // scan the working entries, then the declared stage
         let allocated = working
             .generics_tail
             .iter_templates()
@@ -125,14 +125,14 @@ impl CheckState<'_> {
         })
     }
 
-    /// Return the parameter declared by one symbol, scanning its module's rows.
+    /// Return the parameter declared by one symbol, scanning its module's entries.
     pub(in crate::check) fn parameter_by_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<GenericParameterId> {
         let module = symbol.module_id;
 
-        // scan the working and declared rows of the checked module
+        // scan the working and declared entries of the checked module
         if self.is_own_module(module) {
             let working =
                 self.module

@@ -49,7 +49,7 @@ impl CheckState<'_> {
                     self.apply_representation_decorator(module, &application, &value)?;
                 }
                 // capture directives apply in check, where walked captures
-                //  live; elaborate rows reach check through the segment
+                //  live; elaborate entries reach check through the segment
                 Err(dir::LanguageItem::Capture) => {
                     if self.is_checking() {
                         let source = application.expression.decorator.into_global(module);

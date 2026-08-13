@@ -102,7 +102,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Judge written types: application bounds, predicates, and wellformed rows.
+    /// Judge written types: application bounds, predicates, and wellformed entries.
     fn judge_written_types(&mut self, module: ModuleId) -> CompilerResult<()> {
         let mut written = Vec::new();
         let mut symbols = Vec::new();
@@ -128,7 +128,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // judge application rows for argument bounds and predicates
+            // judge application entries for argument bounds and predicates
             //  here, the one judgment site for built applications
             let mut head = ty;
             while let dir::Type::Refined(refined) = self.ty(head)? {
@@ -159,11 +159,11 @@ impl CheckState<'_> {
             );
         }
 
-        // declared symbol rows carry alias and annotation values
+        // declared symbol entries carry alias and annotation values
         for (symbol, ty) in symbols {
             if let dir::Type::Application(instance) = self.ty(ty)? {
                 // commit written symbol values so bound failures close them,
-                //  canonicalized symbols keep their canonical rows
+                //  canonicalized symbols keep their canonical entries
                 let existing = self.symbol_type_maybe(symbol);
                 if existing.is_none() || existing == Some(ty) {
                     self.commit_declaration_type(symbol, ty)?;
@@ -214,7 +214,7 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Collect bound and predicate constraints for one application row.
+    /// Collect bound and predicate constraints for one application entry.
     fn collect_application_bounds(
         &mut self,
         source: dir::GlobalNodeIdAny,

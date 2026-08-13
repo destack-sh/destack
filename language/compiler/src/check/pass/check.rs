@@ -6,7 +6,7 @@ use crate::CompilerResult;
 use crate::check::{AnnotatedSource, CheckState};
 
 impl CheckState<'_> {
-    /// Run the check pass: infer the module's bodies against the elaborated rows.
+    /// Run the check pass: infer the module's bodies against the elaborated entries.
     pub(in crate::check) fn run_check(&mut self) -> CompilerResult<()> {
         let recorder = self.recorder;
         self.with_scope(|state| {

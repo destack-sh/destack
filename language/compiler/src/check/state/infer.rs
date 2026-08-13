@@ -134,7 +134,7 @@ impl InferContext {
 
     /// Roll inference state back to one trail mark.
     ///
-    /// Allocation is permanent, binding is speculative: interned rows may still reference a
+    /// Allocation is permanent, binding is speculative: interned entries may still reference a
     /// rolled-back variable, so its slot stays allocated and poisons to the error type.
     pub(in crate::check) fn rollback(
         &mut self,

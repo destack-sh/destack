@@ -45,7 +45,7 @@ impl CheckState<'_> {
             }
         }
 
-        // resolve declaration types and normalize their declared rows
+        // resolve declaration types and normalize their declared entries
         for index in 0..self.declaration_types.len() {
             let (symbol, ty) = self
                 .declaration_types
@@ -111,7 +111,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Write one settled symbol type over whatever row the artifact already carries.
+    /// Write one settled symbol type over whatever entry the artifact already carries.
     fn write_symbol_type(&mut self, symbol: dir::GlobalSymbolId, resolved: dir::GlobalTypeId) {
         let written = self
             .module

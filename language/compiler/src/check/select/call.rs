@@ -740,7 +740,7 @@ impl BodyState<'_, '_> {
         selection: SignatureSelection,
         arguments: &[CallableArgument],
     ) -> CompilerResult<Option<SignatureSelection>> {
-        // convert each argument against the decided parameter row
+        // convert each argument against the decided parameter list
         let mut signature = selection;
         for (index, argument) in arguments.iter().copied().enumerate() {
             let parameter = signature

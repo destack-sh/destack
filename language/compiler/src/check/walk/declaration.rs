@@ -489,7 +489,7 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Read the derive list and conformance rows one declaration writes.
+    /// Read the derive list and conformance entries one declaration writes.
     fn declared_derives(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,

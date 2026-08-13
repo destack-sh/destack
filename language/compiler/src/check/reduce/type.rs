@@ -174,7 +174,7 @@ impl CheckState<'_> {
                     return Ok(ty);
                 }
 
-                // adopt module-local borrow rows across the rebuild
+                // adopt module-local borrow entries across the rebuild
                 let adopted = self.adopt_form(ty.module_id, form.form)?;
 
                 self.intern_type(dir::Type::Form(dir::FormType {

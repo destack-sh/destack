@@ -9,7 +9,7 @@ use crate::check::{
 impl WalkState<'_, '_> {
     /// Walk one declaration statement's bodies for the check traversal.
     ///
-    /// Module statements walk against their declared rows; body-local
+    /// Module statements walk against their declared entries; body-local
     /// declarations declare in place first.
     pub(in crate::check) fn visit_body_declaration_statement(
         &mut self,
