@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{Lint, LintResult, MirProgram};
 
 declare_lint_stub! {
     /// Require must-use marking for public functions whose value is their only effect.
@@ -11,14 +8,6 @@ declare_lint_stub! {
         category: Style,
         level: Warning,
         fixable: Suggestion,
-        check: MirProgram(check),
+        check: MirProgram,
     }
-}
-
-/// Check must-use-candidate.
-fn check(_program: &mut MirProgram, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }

@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{Lint, LintResult, MirModule};
 
 declare_lint_stub! {
     /// Disallow suspension while holding a guard or exclusive resource.
@@ -11,14 +8,6 @@ declare_lint_stub! {
         category: Correctness,
         level: Error,
         fixable: None,
-        check: MirModule(check),
+        check: MirModule,
     }
-}
-
-/// Check suspension-holding-guard.
-fn check(_module: &mut MirModule, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }

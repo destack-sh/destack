@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
 
 declare_lint_stub! {
     /// Disallow defaults that cannot be selected by the checked input type.
@@ -11,14 +8,6 @@ declare_lint_stub! {
         category: Suspicious,
         level: Warning,
         fixable: Automatic,
-        check: DirModule(check),
+        check: DirModule,
     }
-}
-
-/// Check no-useless-default-assignment.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }

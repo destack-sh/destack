@@ -4,7 +4,7 @@ use super::{correctness, performance, security, style, suspicious};
 
 /// The lints.
 #[rustfmt::skip]
-pub static LINTS: &[&Lint] = &[
+static LINTS: &[&Lint] = &[
     // correctness
     &correctness::BLOCKING_CALL_IN_ASYNC,
     &correctness::FLOAT_EQUALITY_WITHOUT_ABS,
@@ -352,3 +352,10 @@ pub static LINTS: &[&Lint] = &[
     &suspicious::UNUSED_DEPENDENCY,
     &suspicious::WILDCARD_ENUM_MATCH_ARM,
 ];
+
+impl Lint {
+    /// Iterate implemented lints.
+    pub fn all() -> impl Iterator<Item = &'static Self> {
+        LINTS.iter().copied().filter(|lint| lint.is_implemented())
+    }
+}

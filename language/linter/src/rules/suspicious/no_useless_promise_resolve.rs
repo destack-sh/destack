@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
 
 declare_lint_stub! {
     /// Disallow Promise.resolve calls that preserve the same Promise.
@@ -11,14 +8,6 @@ declare_lint_stub! {
         category: Suspicious,
         level: Warning,
         fixable: Suggestion,
-        check: DirModule(check),
+        check: DirModule,
     }
-}
-
-/// Check no-useless-promise-resolve.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }

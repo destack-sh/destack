@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
 
 declare_lint_stub! {
     /// Disallow accessors that return a different field than they name.
@@ -11,14 +8,6 @@ declare_lint_stub! {
         category: Suspicious,
         level: Warning,
         fixable: None,
-        check: DirModule(check),
+        check: DirModule,
     }
-}
-
-/// Check misnamed-getter.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }

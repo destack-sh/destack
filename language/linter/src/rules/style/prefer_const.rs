@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
 
 declare_lint_stub! {
     /// Require const for bindings never reassigned after initialization.
@@ -31,16 +28,8 @@ function identity(value: int32): int32 {
         category: Style,
         level: Warning,
         fixable: Automatic,
-        check: DirModule(check),
+        check: DirModule,
     }
-}
-
-/// Reject this lint until DIR carries checked flow uses.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} requires checked flow uses in DIR",
-        lint.id
-    )))
 }
 
 #[cfg(test)]

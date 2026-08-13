@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
 
 declare_lint_stub! {
     /// Require isEmpty alongside a length accessor.
@@ -11,14 +8,6 @@ declare_lint_stub! {
         category: Style,
         level: Warning,
         fixable: Suggestion,
-        check: DirModule(check),
+        check: DirModule,
     }
-}
-
-/// Check require-is-empty-with-length.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }

@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
 
 declare_lint_stub! {
     /// Disallow loops whose control flow cannot reach another iteration.
@@ -34,16 +31,8 @@ if (ready()) {
         category: Suspicious,
         level: Warning,
         fixable: None,
-        check: DirModule(check),
+        check: DirModule,
     }
-}
-
-/// Reject this lint until DIR carries checked control flow.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} requires checked control flow in DIR",
-        lint.id
-    )))
 }
 
 #[cfg(test)]

@@ -118,8 +118,7 @@ struct LintListEntry {
 
 /// List lint rules in text or JSON output.
 fn list_rules(args: &LintArgs) -> i32 {
-    let mut entries: Vec<LintListEntry> = linter::LINTS
-        .iter()
+    let mut entries: Vec<LintListEntry> = linter::Lint::all()
         .map(|rule| LintListEntry {
             id: rule.id.as_ref(),
             category: rule.category.name(),

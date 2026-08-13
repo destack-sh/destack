@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{DirProgram, Lint, LintResult};
 
 declare_lint_stub! {
     /// Disallow doc links that resolve to nothing.
@@ -11,14 +8,6 @@ declare_lint_stub! {
         category: Style,
         level: Warning,
         fixable: None,
-        check: DirProgram(check),
+        check: DirProgram,
     }
-}
-
-/// Check unresolved-doc-link.
-fn check(_program: &DirProgram<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }

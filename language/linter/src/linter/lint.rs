@@ -129,13 +129,13 @@ pub type MirProgramCheck = fn(&mut MirProgram, &Lint) -> LintResult;
 #[derive(Clone, Copy)]
 pub enum LintCheck {
     /// Check one module's checked DIR.
-    DirModule(DirModuleCheck),
+    DirModule(Option<DirModuleCheck>),
     /// Check one target program's checked DIR.
-    DirProgram(DirProgramCheck),
+    DirProgram(Option<DirProgramCheck>),
     /// Check one module's verified MIR.
-    MirModule(MirModuleCheck),
+    MirModule(Option<MirModuleCheck>),
     /// Check one target program's verified MIR.
-    MirProgram(MirProgramCheck),
+    MirProgram(Option<MirProgramCheck>),
 }
 
 impl fmt::Debug for LintCheck {
@@ -150,6 +150,17 @@ impl fmt::Debug for LintCheck {
 }
 
 impl LintCheck {
+    /// Return whether this lint has an executable check.
+    pub(crate) const fn is_implemented(self) -> bool {
+        matches!(
+            self,
+            Self::DirModule(Some(_))
+                | Self::DirProgram(Some(_))
+                | Self::MirModule(Some(_))
+                | Self::MirProgram(Some(_))
+        )
+    }
+
     /// Return the IR tier inspected by this check.
     pub const fn tier(self) -> LintTier {
         match self {
@@ -249,6 +260,11 @@ impl Lint {
     /// Return whether this lint can provide fixes.
     pub const fn is_fixable(&self) -> bool {
         !matches!(self.fixability, Fixability::None)
+    }
+
+    /// Return whether this lint has an executable check.
+    pub(crate) const fn is_implemented(&self) -> bool {
+        self.check.is_implemented()
     }
 
     /// Return the IR tier inspected by this lint.

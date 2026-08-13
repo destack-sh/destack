@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{Lint, LintResult, MirProgram};
 
 declare_lint_stub! {
     /// Disallow reachable panics in public APIs.
@@ -36,14 +33,6 @@ export function divide(value: int32, divisor: int32): Result<int32, string> {
         category: Suspicious,
         level: Warning,
         fixable: None,
-        check: MirProgram(check),
+        check: MirProgram,
     }
-}
-
-/// Check panic-in-public-api.
-fn check(_program: &mut MirProgram, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }

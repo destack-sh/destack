@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{Lint, LintResult, MirModule};
 
 declare_lint_stub! {
     /// Disallow exclusive locks on paths that only read.
@@ -11,14 +8,6 @@ declare_lint_stub! {
         category: Performance,
         level: Warning,
         fixable: Suggestion,
-        check: MirModule(check),
+        check: MirModule,
     }
-}
-
-/// Check unnecessary-exclusive-lock.
-fn check(_module: &mut MirModule, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }

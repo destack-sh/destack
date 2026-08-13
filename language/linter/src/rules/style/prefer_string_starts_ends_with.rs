@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
 
 declare_lint_stub! {
     /// Prefer startsWith or endsWith over equivalent string comparisons.
@@ -11,14 +8,6 @@ declare_lint_stub! {
         category: Style,
         level: Warning,
         fixable: Suggestion,
-        check: DirModule(check),
+        check: DirModule,
     }
-}
-
-/// Check prefer-string-starts-ends-with.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }

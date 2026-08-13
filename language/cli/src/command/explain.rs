@@ -188,7 +188,7 @@ pub fn run(args: &ExplainArgs) -> i32 {
     if let Some(definition) = diagnostic::definitions().find(|definition| definition.id == id) {
         return output_diagnostic(args, definition.into());
     }
-    if let Some(rule) = linter::LINTS.iter().find(|rule| rule.id.as_ref() == id) {
+    if let Some(rule) = linter::Lint::all().find(|rule| rule.id.as_ref() == id) {
         return output_lint(args, lint_entry(rule));
     }
 
@@ -240,9 +240,7 @@ fn collect_diagnostics(
 
 /// Collect every lint rule.
 fn collect_lints() -> Vec<LintEntry> {
-    let mut entries = linter::LINTS
-        .iter()
-        .copied()
+    let mut entries = linter::Lint::all()
         .map(lint_entry)
         .collect::<Vec<_>>();
     entries.sort_unstable_by_key(|entry| (entry.category, entry.id));

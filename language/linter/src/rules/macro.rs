@@ -1,5 +1,6 @@
 macro_rules! declare_lint_stub {
     (
+        @declare
         $(#[$attribute:meta])*
         $visibility:vis $name:ident {
             id: $id:literal,
@@ -12,7 +13,7 @@ macro_rules! declare_lint_stub {
             category: $category:ident,
             level: $level:ident,
             fixable: $fixable:ident,
-            check: $check:ident($function:path),
+            check: $check:expr,
         }
     ) => {
         const _: destack_source::DiagnosticDefinition =
@@ -30,8 +31,42 @@ macro_rules! declare_lint_stub {
             category: $crate::LintCategory::$category,
             default_level: destack_repository::LintLevel::$level,
             fixability: $crate::Fixability::$fixable,
-            check: $crate::LintCheck::$check($function),
+            check: $check,
         };
+    };
+    (
+        $(#[$attribute:meta])*
+        $visibility:vis $name:ident {
+            id: $id:literal,
+            summary: $summary:literal,
+            explanation: $explanation:literal,
+            example: {
+                reported: $reported:literal,
+                accepted: $accepted:literal,
+            },
+            category: $category:ident,
+            level: $level:ident,
+            fixable: $fixable:ident,
+            check: $check:ident,
+        }
+    ) => {
+        $crate::rules::declare_lint_stub! {
+            @declare
+            $(#[$attribute])*
+            $visibility $name {
+                id: $id,
+                summary: $summary,
+                explanation: $explanation,
+                example: {
+                    reported: $reported,
+                    accepted: $accepted,
+                },
+                category: $category,
+                level: $level,
+                fixable: $fixable,
+                check: $crate::LintCheck::$check(None),
+            }
+        }
     };
     (
         $(#[$attribute:meta])*
@@ -41,7 +76,7 @@ macro_rules! declare_lint_stub {
             category: $category:ident,
             level: $level:ident,
             fixable: $fixable:ident,
-            check: $check:ident($function:path),
+            check: $check:ident,
         }
     ) => {
         $crate::rules::declare_lint_stub! {
@@ -57,7 +92,7 @@ macro_rules! declare_lint_stub {
                 category: $category,
                 level: $level,
                 fixable: $fixable,
-                check: $check($function),
+                check: $check,
             }
         }
     };
@@ -81,6 +116,7 @@ macro_rules! declare_lint {
         }
     ) => {
         $crate::rules::declare_lint_stub! {
+            @declare
             $(#[$attribute])*
             $visibility $name {
                 id: $id,
@@ -93,7 +129,7 @@ macro_rules! declare_lint {
                 category: $category,
                 level: $level,
                 fixable: $fixable,
-                check: $check($function),
+                check: $crate::LintCheck::$check(Some($function)),
             }
         }
 

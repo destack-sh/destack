@@ -1,5 +1,5 @@
 use destack_compiler::Compiler;
-use destack_linter::{LINTS, LinterError};
+use destack_linter::{Lint, LinterError};
 use destack_mir::parse;
 use destack_parser::ParserError;
 use destack_source::{DiagnosticDefinition, DiagnosticRegistry};
@@ -16,7 +16,7 @@ pub fn definitions() -> impl Iterator<Item = &'static DiagnosticDefinition> {
 /// Build the complete built-in diagnostic registry.
 pub fn registry() -> DiagnosticRegistry {
     let definitions = definitions().map(|definition| (definition.id, definition.is_controllable));
-    let lints = LINTS.iter().map(|lint| (lint.id.as_ref(), true));
+    let lints = Lint::all().map(|lint| (lint.id.as_ref(), true));
 
     DiagnosticRegistry::new(definitions.chain(lints))
 }

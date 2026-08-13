@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
 
 declare_lint_stub! {
     /// Disallow assignment within an explicit or implicit return value.
@@ -30,16 +27,8 @@ function reset(value: int32): int32 {
         category: Suspicious,
         level: Warning,
         fixable: None,
-        check: DirModule(check),
+        check: DirModule,
     }
-}
-
-/// Reject this lint until DIR carries checked value disposition.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} requires checked value disposition in DIR",
-        lint.id
-    )))
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ use destack_repository::{
 use destack_source::{ModuleId, PackageId};
 
 use super::LintSet;
-use crate::{LINTS, Lint};
+use crate::Lint;
 
 /// Linter for one repository.
 #[derive(Clone)]
@@ -32,7 +32,7 @@ impl fmt::Debug for Linter {
 impl Linter {
     /// Create a linter.
     pub fn new(repository: Arc<Repository>) -> Self {
-        let lints = LINTS.iter().map(|lint| (*lint).clone()).collect::<Vec<_>>();
+        let lints = Lint::all().cloned().collect::<Vec<_>>();
 
         Self {
             repository,

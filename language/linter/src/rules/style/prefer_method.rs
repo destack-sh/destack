@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
 
 declare_lint_stub! {
     /// Prefer methods when the first parameter establishes a receiver.
@@ -38,14 +35,6 @@ extension of Counter {
         category: Style,
         level: Warning,
         fixable: None,
-        check: DirModule(check),
+        check: DirModule,
     }
-}
-
-/// Check prefer-method.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }

@@ -102,7 +102,7 @@ impl LintSet {
         &self,
     ) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>, DirModuleCheck)> {
         self.iter().filter_map(|(lint, severity)| match lint.check {
-            LintCheck::DirModule(check) => Some((lint, severity, check)),
+            LintCheck::DirModule(Some(check)) => Some((lint, severity, check)),
             _ => None,
         })
     }
@@ -112,7 +112,7 @@ impl LintSet {
         &self,
     ) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>, DirProgramCheck)> {
         self.iter().filter_map(|(lint, severity)| match lint.check {
-            LintCheck::DirProgram(check) => Some((lint, severity, check)),
+            LintCheck::DirProgram(Some(check)) => Some((lint, severity, check)),
             _ => None,
         })
     }
@@ -122,7 +122,7 @@ impl LintSet {
         &self,
     ) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>, MirModuleCheck)> {
         self.iter().filter_map(|(lint, severity)| match lint.check {
-            LintCheck::MirModule(check) => Some((lint, severity, check)),
+            LintCheck::MirModule(Some(check)) => Some((lint, severity, check)),
             _ => None,
         })
     }
@@ -132,7 +132,7 @@ impl LintSet {
         &self,
     ) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>, MirProgramCheck)> {
         self.iter().filter_map(|(lint, severity)| match lint.check {
-            LintCheck::MirProgram(check) => Some((lint, severity, check)),
+            LintCheck::MirProgram(Some(check)) => Some((lint, severity, check)),
             _ => None,
         })
     }
@@ -172,5 +172,64 @@ impl LintSet {
         self.selected
             .iter()
             .map(|(index, severity)| (&self.registry[*index], *severity))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_repository::LintLevel;
+
+    use super::*;
+    use crate::rules::{FOR_DIRECTION, PREFER_SLICE_PARAMETER};
+
+    /// Expose implemented lints and omit stubs.
+    #[test]
+    fn test_iterates_implemented_lints() {
+        let is_implemented_listed = Lint::all().any(|lint| lint.id == FOR_DIRECTION.id);
+        let is_stub_listed = Lint::all().any(|lint| lint.id == PREFER_SLICE_PARAMETER.id);
+
+        assert!(is_implemented_listed);
+        assert!(!is_stub_listed);
+    }
+
+    /// Reject an unavailable lint selected exclusively.
+    #[test]
+    fn test_rejects_selected_stub() {
+        let package = PackageId::new(0);
+        let options = LinterOptions {
+            only: vec!["prefer-slice-parameter".to_string()],
+            ..LinterOptions::default()
+        };
+        let registry = Lint::all().cloned().collect::<Vec<_>>().into();
+        let lints = LintSet::resolve(package, &options, registry);
+
+        assert!(lints.iter().next().is_none());
+        assert_eq!(
+            lints.errors(),
+            [LinterError::UnknownConfiguredLint {
+                anchor: DiagnosticAnchor::Package(package),
+                lint: "prefer-slice-parameter".to_string(),
+            }]
+        );
+    }
+
+    /// Reject an unavailable lint configured with an explicit level.
+    #[test]
+    fn test_rejects_configured_stub() {
+        let package = PackageId::new(0);
+        let mut options = LinterOptions::default();
+        options
+            .rules
+            .insert("prefer-slice-parameter".to_string(), LintLevel::Error);
+        let registry = Lint::all().cloned().collect::<Vec<_>>().into();
+        let lints = LintSet::resolve(package, &options, registry);
+
+        assert_eq!(
+            lints.errors(),
+            [LinterError::UnknownConfiguredLint {
+                anchor: DiagnosticAnchor::Package(package),
+                lint: "prefer-slice-parameter".to_string(),
+            }]
+        );
     }
 }

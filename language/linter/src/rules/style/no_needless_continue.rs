@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
 
 declare_lint_stub! {
     /// Disallow continue where control already proceeds to the same iteration.
@@ -32,16 +29,8 @@ function visit(values: int32[]): void {
         category: Style,
         level: Warning,
         fixable: Automatic,
-        check: DirModule(check),
+        check: DirModule,
     }
-}
-
-/// Reject this lint until DIR carries checked control flow.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} requires checked control flow in DIR",
-        lint.id
-    )))
 }
 
 #[cfg(test)]

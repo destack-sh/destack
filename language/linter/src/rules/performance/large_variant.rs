@@ -1,7 +1,4 @@
-use destack_repository::ProviderError;
-
 use crate::rules::declare_lint_stub;
-use crate::{Lint, LintResult, MirModule};
 
 declare_lint_stub! {
     /// Disallow variants that disproportionately enlarge an inline union.
@@ -11,14 +8,6 @@ declare_lint_stub! {
         category: Performance,
         level: Warning,
         fixable: None,
-        check: MirModule(check),
+        check: MirModule,
     }
-}
-
-/// Check large-variant.
-fn check(_module: &mut MirModule, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
 }
