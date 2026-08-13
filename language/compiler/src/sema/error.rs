@@ -1814,6 +1814,49 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// An argument leaves a value-consumed const parameter unfixed.
+    ///
+    /// ```ds
+    /// type Buffer<const N: uint> = [uint8; N];
+    /// declare const buffer: Buffer<uint>;
+    /// ```
+    #[diagnostic(
+        id = "argument-not-exact-value",
+        message = "type '{argument}' does not fix const parameter '{parameter}' to one exact value"
+    )]
+    ArgumentNotExactValue {
+        /// Report the written argument.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The written argument type.
+        argument: String,
+        /// The parameter whose value the declaration consumes.
+        parameter: String,
+    },
+
+    /// A body reads a parameter value the signature never fixes.
+    ///
+    /// ```ds
+    /// struct Holder<const N: uint> {
+    ///     get length(): usize {
+    ///         N
+    ///     }
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "value-read-not-fixed",
+        message = "'{parameter}' is read as a value, but no signature position fixes it to one exact value"
+    )]
+    ValueReadNotFixed {
+        /// Report the body read.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The parameter the body reads.
+        parameter: String,
+    },
+
     /// Range endpoints carry different element types.
     ///
     /// ```ds

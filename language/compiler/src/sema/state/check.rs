@@ -532,6 +532,34 @@ impl CheckState<'_> {
         Ok(false)
     }
 
+    /// Return whether one type fixes exactly one runtime value.
+    pub(in crate::sema) fn type_fixes_exact_value(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // expose the value domain behind computation heads before judging
+        let ty = self.normalize_computation(origin, ty)?;
+        let fixes = match self.ty(ty)? {
+            // literals and errors stand for one value
+            dir::Type::Literal(_) | dir::Type::Error => true,
+            // bare enum members carry one discriminant value
+            dir::Type::Variant(_) => true,
+            // variables settle later, the solver re-judges them
+            dir::Type::Variable(_) => true,
+            // rigid parameters carry their own recorded cardinality
+            dir::Type::Parameter(parameter) => {
+                self.recorded_cardinality(parameter).is_some()
+                    || self
+                        .generic_parameter(parameter)
+                        .is_some_and(|binding| binding.is_comptime())
+            }
+            _ => false,
+        };
+
+        Ok(fixes)
+    }
+
     /// Return one type's structural flags.
     pub(in crate::sema) fn type_flags(
         &self,

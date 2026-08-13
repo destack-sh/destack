@@ -270,6 +270,50 @@ impl CheckState<'_> {
         self.report_unresolved_reference(module, source, path);
     }
 
+    /// Report one argument leaving a value-consumed parameter unfixed.
+    pub(in crate::sema) fn report_argument_not_exact_value(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        argument: dir::GlobalTypeId,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.source_anchor(source);
+        let error = CheckError::ArgumentNotExactValue {
+            anchor,
+            module,
+            argument: self.format_type(argument),
+            parameter: self.parameter_label(parameter),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one body read of a parameter value the signature never fixes.
+    pub(in crate::sema) fn report_value_read_not_fixed(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.source_anchor(source);
+        let error = CheckError::ValueReadNotFixed {
+            anchor,
+            module,
+            parameter: self.parameter_label(parameter),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Return one parameter's reported name.
+    fn parameter_label(&self, parameter: dir::GlobalGenericParameterId) -> String {
+        self.generic_parameter(parameter)
+            .and_then(|binding| binding.symbol)
+            .map(|symbol| self.format_symbol(symbol))
+            .unwrap_or_else(|| "the parameter".to_string())
+    }
+
     fn report_unresolved_reference(
         &mut self,
         module: ModuleId,

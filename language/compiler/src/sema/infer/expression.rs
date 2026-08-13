@@ -485,6 +485,11 @@ impl BodyState<'_, '_> {
             && matches!(binding.kind, dir::GenericParameterKind::Value)
             && let Some(carrier) = binding.constraint
         {
+            // body reads consume the value the signature must fix
+            if self.check.recorded_cardinality(parameter).is_none() {
+                self.check
+                    .report_value_read_not_fixed(site.node, parameter)?;
+            }
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
             let carrier = self.flow_type_at(site, carrier)?;
             self.commit_node_type(site.node, carrier)?;
