@@ -60,6 +60,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(target) = module.unlabeled_transfer_target(expression) else {
             continue;
         };
+
+        // resolve the selected label to its declaring control expression
+        let selected = module.symbol_declaration(selected)?;
+
+        // require the unlabeled transfer to select the same expression
         if selected != target.into_global_any(module.id) {
             continue;
         }

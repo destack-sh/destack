@@ -4,6 +4,29 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return the declaration node that introduced one checked symbol.
+    pub fn symbol_declaration(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Result<dir::GlobalNodeIdAny, ProviderError> {
+        if symbol.module_id != self.id {
+            return Err(ProviderError::internal(format!(
+                "symbol {symbol:?} belongs to another module"
+            )));
+        }
+
+        // read the checked symbol declaration
+        let binding = self
+            .bindings
+            .get_symbol_maybe(symbol.local_id)
+            .ok_or_else(|| ProviderError::internal(format!("missing checked symbol {symbol:?}")))?;
+        let declaration = binding.declaration.ok_or_else(|| {
+            ProviderError::internal(format!("checked symbol {symbol:?} has no declaration"))
+        })?;
+
+        Ok(declaration)
+    }
+
     /// Return the symbol introduced by one checked declaration node.
     pub fn declaration_symbol<T: dir::Node>(
         &self,
@@ -23,7 +46,7 @@ impl DirModule<'_> {
         Ok(symbol.into_global(self.id))
     }
 
-    /// Return the unique symbol selected directly by one checked expression.
+    /// Return the single declaration symbol selected directly by one checked expression.
     pub fn selected_symbol(
         &self,
         node: dir::LocalNodeId<dir::Expression>,

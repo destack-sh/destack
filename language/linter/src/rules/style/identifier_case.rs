@@ -82,10 +82,11 @@ impl IdentifierCase {
     }
 
     /// Return the declaration noun used by diagnostics.
-    fn noun(self) -> &'static str {
-        match self {
-            Self::Camel => "value",
-            Self::Pascal => "type",
+    fn noun(self, kind: dir::SymbolKind) -> &'static str {
+        match (self, kind) {
+            (_, dir::SymbolKind::Label) => "label",
+            (Self::Camel, _) => "value",
+            (Self::Pascal, _) => "type",
         }
     }
 
@@ -225,7 +226,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // report the authored declaration name
         let span = module.main_span(declaration.local_id)?;
-        let message = format!("{} name `{name}` must use {}", case.noun(), case.name());
+        let noun = case.noun(symbol.kind);
+        let message = format!("{noun} name `{name}` must use {}", case.name());
         output.report(lint.diagnostic(message, span));
     }
 
@@ -279,6 +281,12 @@ fn is_authored_identifier(view: &dir::View<'_>, node: dir::LocalNodeIdAny) -> bo
             view.get(dir::LocalNodeId::<dir::Parameter>::new(node.id)),
             dir::Parameter::Named { .. } | dir::Parameter::VariadicNamed { .. }
         ),
+
+        // inspect control labels
+        dir::NodeType::Expression => view
+            .get(dir::LocalNodeId::<dir::Expression>::new(node.id))
+            .control_label()
+            .is_some(),
 
         // inspect explicit dependency aliases
         dir::NodeType::DependencyItem => matches!(
@@ -361,6 +369,32 @@ function loadUser(userId: string): void {}
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Report a non-canonical control label.
+    #[test]
+    fn test_reports_non_canonical_label_name() {
+        let session = TestSession::dir(
+            &IDENTIFIER_CASE,
+            r#"
+OuterLoop: loop {
+    break;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[identifier-case]: label name `OuterLoop` must use camelCase
+ ──▶ main.ds:1:1
+  │
+1 │ OuterLoop: loop {
+  │ ^^^^^^^^^
+2 │     break;
+3 │ }
+  │
+"#,
+        );
     }
 
     /// Accept acronyms cased as words.
