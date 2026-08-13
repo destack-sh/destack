@@ -119,6 +119,7 @@ impl IdentifierCase {
             | dir::SymbolKind::Function
             | dir::SymbolKind::GenericValueParameter
             | dir::SymbolKind::Import
+            | dir::SymbolKind::Label
             | dir::SymbolKind::Parameter
             | dir::SymbolKind::Variable => Some(Self::Camel),
             dir::SymbolKind::ExportAlias => None,
