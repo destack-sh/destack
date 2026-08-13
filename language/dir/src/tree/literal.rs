@@ -164,6 +164,15 @@ impl ScalarLiteral {
         }
     }
 
+    /// Return this literal's scalar type in an integer context.
+    pub fn widen_integer(&self) -> Type {
+        match self {
+            // integer literals in an integer context widen to the integer default
+            Self::Integer(_) => Type::Primitive(PrimitiveType::Integer(IntegerType::DEFAULT)),
+            _ => self.widen(),
+        }
+    }
+
     /// Return whether this literal can widen to one target type.
     pub fn widens_to(&self, target: &Type) -> bool {
         match target {

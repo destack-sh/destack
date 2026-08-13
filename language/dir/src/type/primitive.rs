@@ -203,6 +203,12 @@ pub enum IntegerType {
 }
 
 impl IntegerType {
+    /// The integer type of an unconstrained integer literal in an integer context.
+    pub const DEFAULT: Self = Self::Fixed {
+        width: 64,
+        is_signed: true,
+    };
+
     /// Return whether this integer type widens losslessly into another.
     pub fn widens_to(self, target: IntegerType) -> bool {
         match (self, target) {
