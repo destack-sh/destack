@@ -88,3 +88,6 @@ export declare function strideOf<T: Concrete>(): usize;
 @languageItem("reflect.layoutOf")
 @intrinsic("reflect.layoutOf")
 export declare function layoutOf<T: Concrete>(): Layout;
+
+/// One reflected static property key.
+export newtype StaticKey = intrinsic;

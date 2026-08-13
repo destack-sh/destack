@@ -729,30 +729,6 @@ define_language_items! {
         }
     }
 
-    /// Macro types.
-    macro {
-        /// `destack:macro/eval`.
-        eval {
-            /// Comptime eval function.
-            Eval => (Function, "macro/eval", "eval"),
-        }
-
-        /// `destack:macro/macro`.
-        macro {
-            /// Expansion context.
-            ExpansionContext => (Interface, "macro/macro", "ExpansionContext"),
-
-            /// Macro protocol.
-            Macro => (NewtypeInterface, "macro/macro", "Macro"),
-
-            /// Shared macro context.
-            MacroContext => (Interface, "macro/macro", "MacroContext"),
-
-            /// Materialization context.
-            MaterializationContext => (Interface, "macro/macro", "MaterializationContext"),
-        }
-    }
-
     /// Math types.
     math {
         /// `destack:math/bigint`.

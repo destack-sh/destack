@@ -1,4 +1,0 @@
-/// Evaluate source code during comptime evaluation.
-@intrinsic("comptime.eval")
-@languageItem("macro.eval")
-export declare function eval<T = unknown>(source: string): T;

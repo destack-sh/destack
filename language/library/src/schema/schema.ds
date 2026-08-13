@@ -77,7 +77,7 @@ export enum SchemaKind {
 /// Schema field.
 export struct SchemaField {
     /// Field key.
-    key: reflect.dir.StaticKey;
+    key: reflect.StaticKey;
 
     /// Field schema.
     schema: Schema<unknown>;

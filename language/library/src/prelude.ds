@@ -505,9 +505,6 @@ global {
     // destack:module
     export { Derive, Module } from "destack:module";
 
-    // destack:macro
-    export { ExpansionContext, Macro, MacroContext, MaterializationContext } from "destack:macro";
-
     // destack:runtime
     export {
         Action,
