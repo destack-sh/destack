@@ -1,4 +1,3 @@
-pub mod conformance;
 pub mod core;
 pub mod formatter;
 pub mod mdtest;

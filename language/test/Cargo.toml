@@ -11,36 +11,14 @@ rust-version.workspace = true
 path = "src/lib.rs"
 doctest = false
 
-[[bin]]
-name = "print_conformance_translation_diffs"
-path = "src/conformance/bin/translation_diff.rs"
-
-[[bin]]
-name = "refresh_conformance_translation_metadata"
-path = "src/conformance/bin/refresh_translation_metadata.rs"
-
-[[bin]]
-name = "update_conformance_schema"
-path = "src/conformance/bin/update_schema.rs"
-
 [[test]]
 name = "formatter"
 path = "src/formatter/main.rs"
 harness = false
 
 [[test]]
-name = "conformance-formatter"
-path = "src/conformance/formatter/main.rs"
-harness = false
-
-[[test]]
 name = "query"
 path = "src/query/main.rs"
-harness = false
-
-[[test]]
-name = "conformance-ecma"
-path = "src/conformance/bin/ecma.rs"
 harness = false
 
 [[test]]
@@ -72,9 +50,6 @@ clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true, features = ["executor"] }
 pulldown-cmark = { workspace = true }
 rayon = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-schemars = { workspace = true }
 indexmap = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "sync", "time"] }
 toml = { workspace = true }

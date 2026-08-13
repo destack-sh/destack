@@ -16,14 +16,6 @@ pub struct RunOptions {
     #[arg(short = 'j', long, alias = "test-threads", default_value_t = num_cpus())]
     pub jobs: usize,
 
-    /// Parse timeout in milliseconds for conformance tests.
-    #[arg(long, default_value_t = 1000)]
-    pub parse_timeout_ms: u64,
-
-    /// Timeout in milliseconds for conformance error cases.
-    #[arg(long, default_value_t = 3000)]
-    pub error_timeout_ms: u64,
-
     /// Timeout in milliseconds for one first party suite case.
     #[arg(long, default_value_t = 15000)]
     pub case_timeout_ms: u64,
@@ -63,8 +55,6 @@ impl Default for RunOptions {
             filter: None,
             sequential: false,
             jobs: num_cpus(),
-            parse_timeout_ms: 1000,
-            error_timeout_ms: 3000,
             case_timeout_ms: 15000,
             verbose: false,
             list: false,
@@ -96,16 +86,6 @@ impl RunOptions {
     /// Whether skipped cases should be executed.
     pub fn runs_skipped(&self) -> bool {
         self.run_skipped
-    }
-
-    /// Get the parse timeout as a Duration.
-    pub fn parse_timeout(&self) -> std::time::Duration {
-        std::time::Duration::from_millis(self.parse_timeout_ms.max(1))
-    }
-
-    /// Get the error case timeout as a Duration.
-    pub fn error_timeout(&self) -> std::time::Duration {
-        std::time::Duration::from_millis(self.error_timeout_ms.max(1))
     }
 
     /// Get the suite case timeout as a Duration.

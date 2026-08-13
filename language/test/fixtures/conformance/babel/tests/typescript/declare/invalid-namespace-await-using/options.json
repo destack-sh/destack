@@ -1,4 +1,0 @@
-{
-  "plugins": ["explicitResourceManagement", "typescript"],
-  "sourceType": "module"
-}

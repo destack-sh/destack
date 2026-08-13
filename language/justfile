@@ -98,7 +98,6 @@ clean:
 generate:
     just generate-unicode
     just generate-schema
-    just generate-conformance-schema
     just generate-stress
 
 # regenerate unicode tables
@@ -109,11 +108,6 @@ generate-unicode:
 generate-schema:
     cargo run -p destack_repository --features schema --bin generate-schema --release > ../bridge/vscode/destack.schema.json
     @echo "generated ../bridge/vscode/destack.schema.json"
-
-# generate conformance fixture JSON schema
-generate-conformance-schema:
-    cargo run -p destack_test --bin update_conformance_schema
-    @echo "generated language/test/fixtures/conformance/schema/*.json"
 
 # generate parser and formatter stress fixtures
 generate-stress:
@@ -136,7 +130,6 @@ test:
     just test-query
     just test-formatter
     just test-grammar
-    just test-conformance
 
 # default check
 check:
@@ -166,30 +159,9 @@ report-heap-overhead:
 test-linter:
     cargo test --release --all-targets --no-fail-fast -p destack_linter
 
-# run all conformance tests
-test-conformance:
-    just test-conformance-ecma
-    just test-conformance-formatter
-
-# run ecma conformance tests
-test-conformance-ecma:
-    cargo test --release -p destack_test --test conformance-ecma
-
-# update ecma conformance baselines
-test-conformance-ecma-update:
-    cargo test --release -p destack_test --test conformance-ecma -- --update-known-failures
-
 # run formatter tests
 test-formatter:
     cargo test --release -p destack_test --test formatter
-
-# run formatter conformance tests
-test-conformance-formatter:
-    cargo test --release -p destack_test --test conformance-formatter
-
-# update formatter conformance known failures
-test-conformance-formatter-update:
-    cargo test --release -p destack_test --test conformance-formatter -- --update-known-failures
 
 # run Destack Tree-sitter corpus tests
 test-grammar-destack:

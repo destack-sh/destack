@@ -1,8 +1,7 @@
 # parser bench fixtures
 language/test/fixtures/parser/oxc/**.js linguist-generated
 
-# vendored conformance and fixture corpora
-language/test/fixtures/conformance/** linguist-vendored -diff
+# vendored fixture corpora
 language/test/fixtures/ecosystem/packages/** linguist-vendored -diff
 language/test/fixtures/resolver/**/node_modules/** linguist-vendored
 language/test/fixtures/resolver/**/.yarn/** linguist-vendored
