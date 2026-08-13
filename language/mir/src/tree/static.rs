@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::intern::intern_hash;
 
-use crate::{Symbol, Tree, TypeId};
+use crate::{Tree, TypeId};
 
 /// Compact identity of one interned compile-time value.
 #[repr(transparent)]
@@ -86,10 +86,6 @@ pub enum StaticKey {
     Name(StringId),
     /// A positional index key.
     Index(u64),
-    /// A unique symbol key.
-    Unique(Symbol),
-    /// An interned registry symbol key.
-    Registry(StringId),
 }
 
 impl Tree {

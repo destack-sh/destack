@@ -1114,29 +1114,6 @@ const rectangle = {
 @completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="const height: int32" preselect=true matches=0,1,2
 ```
 
-### Keep computed fields distinct
-
-A computed field does not hide a different named field.
-
-```ds main.ds
-declare const token: unique symbol;
-
-type Payload = {
-    [token]: string;
-    name: string;
-};
-
-const payload: Payload = {
-    [token]: "value",
-    na
-    ^^ prefix
-};
-```
-
-```query completion main.ds#prefix@end
-@completion.item label=name kind=field replace=main.ds#prefix suffix=": string" insert="name: ${1}" snippet=true preselect=true matches=0,1
-```
-
 ### Omit a field supplied by a spread
 
 A spread supplies its fields to the surrounding object.

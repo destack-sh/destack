@@ -1,9 +1,7 @@
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_repository::{Module, Package, RepositoryError};
 use rustc_hash::FxHashSet;
 
-use crate::source::strip_module_extension;
 use crate::{QueryError, QueryResult};
 
 use super::Formatter;
@@ -110,51 +108,6 @@ impl Formatter<'_, '_, '_> {
         segments.reverse();
 
         Ok(segments.join("."))
-    }
-
-    /// Format one symbol name with its package and module.
-    fn qualified_symbol(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
-        let source_module = self
-            .module
-            .repository()
-            .module(self.module.revision(), symbol_id.module_id)?
-            .ok_or(RepositoryError::MissingModule {
-                module: symbol_id.module_id,
-            })?;
-        let package = self
-            .module
-            .repository()
-            .package(self.module.revision(), source_module.package_id)?
-            .ok_or(RepositoryError::MissingPackage {
-                package: source_module.package_id,
-            })?;
-
-        let Some(package_name) = package.name.as_ref() else {
-            return Err(QueryError::missing(format!(
-                "symbol package name: {symbol_id:?}"
-            )));
-        };
-        if package_name.is_empty() {
-            return Err(QueryError::missing(format!(
-                "symbol package name: {symbol_id:?}"
-            )));
-        }
-        let module_path = module_path_without_extension(source_module.as_ref(), package.as_ref())?;
-        let symbol_path = self.symbol(symbol_id)?;
-        let module_prefix = if module_path.is_empty() {
-            package_name.to_string()
-        } else {
-            format!("{package_name}/{module_path}")
-        };
-
-        Ok(format!("{module_prefix}:{symbol_path}"))
-    }
-
-    /// Format the qualified name of a unique symbol.
-    pub(super) fn unique_symbol(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
-        let name = self.qualified_symbol(symbol_id)?;
-
-        Ok(format!("{name}#unique"))
     }
 
     /// Format one symbol from its exact declaration.
@@ -416,41 +369,11 @@ impl Formatter<'_, '_, '_> {
     }
 }
 
-/// Resolve the package relative module path without extension.
-fn module_path_without_extension(module: &Module, package: &Package) -> QueryResult<String> {
-    let Some(module_path) = module.path.as_ref() else {
-        return Err(QueryError::missing(format!("module path: {:?}", module.id)));
-    };
-    let Some(package_path) = package.path.as_ref() else {
-        return Err(QueryError::missing(format!(
-            "package path: {:?}",
-            package.id
-        )));
-    };
-    let relative = module_path
-        .strip_prefix(package_path)
-        .map_err(|_| QueryError::invalid(format!("module path: {:?}", module.id)))?;
-    let relative = relative
-        .to_str()
-        .ok_or_else(|| QueryError::invalid(format!("non-Unicode module path: {relative:?}")))?;
-    let module_path = normalize_path_separators(relative);
-
-    Ok(strip_module_extension(&module_path))
-}
-
-/// Normalize a module path to use forward slashes.
-fn normalize_path_separators(path: &str) -> String {
-    let normalized = path.replace('\\', "/");
-
-    normalized.trim_start_matches('/').to_string()
-}
-
 /// Convert a static key into a symbol path segment.
 fn static_key_segment(key: Option<dir::StaticKey>, strings: &StringPool) -> Option<String> {
     let key = key?;
     match key {
         dir::StaticKey::Name(name) => Some(strings.get(name).to_string()),
         dir::StaticKey::Index(index) => Some(index.to_string()),
-        dir::StaticKey::Symbol(_) => None,
     }
 }

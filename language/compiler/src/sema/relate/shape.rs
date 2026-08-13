@@ -38,10 +38,7 @@ impl CheckState<'_> {
             dir::Type::Any | dir::Type::Parameter(_) => true,
             dir::Type::Primitive(primitive) => matches!(
                 primitive,
-                dir::PrimitiveType::String
-                    | dir::PrimitiveType::Symbol
-                    | dir::PrimitiveType::UniqueSymbol
-                    | dir::PrimitiveType::Integer(_)
+                dir::PrimitiveType::String | dir::PrimitiveType::Integer(_)
             ),
             dir::Type::Literal(literal) => {
                 matches!(

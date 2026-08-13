@@ -13,8 +13,6 @@ enum KeyDomain {
     String,
     /// Positional numeric property names.
     Usize,
-    /// Symbol property names.
-    Symbol,
 }
 
 /// One reduced `keyof` result before it is written as a type.
@@ -83,7 +81,6 @@ impl KeyDomain {
         match key {
             dir::StaticKey::Name(_) => Self::String,
             dir::StaticKey::Index(_) => Self::Usize,
-            dir::StaticKey::Symbol(_) => Self::Symbol,
         }
     }
 
@@ -94,7 +91,6 @@ impl KeyDomain {
             Self::Usize => {
                 dir::PrimitiveType::Integer(dir::IntegerType::Pointer { is_signed: false })
             }
-            Self::Symbol => dir::PrimitiveType::Symbol,
         }
     }
 }
@@ -440,9 +436,6 @@ impl CheckState<'_> {
         let domain = match self.ty(key)? {
             dir::Type::Primitive(dir::PrimitiveType::String) => Some(KeyDomain::String),
             dir::Type::Primitive(dir::PrimitiveType::Integer(_)) => Some(KeyDomain::Usize),
-            dir::Type::Primitive(dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol) => {
-                Some(KeyDomain::Symbol)
-            }
             _ => None,
         };
 
@@ -717,11 +710,6 @@ impl CheckState<'_> {
                 keys.insert_domain(KeyDomain::Usize);
             }
 
-            // symbol index signatures accept all symbol keys
-            dir::Type::Primitive(dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol) => {
-                keys.insert_domain(KeyDomain::Symbol);
-            }
-
             // insert literal key domains as exact keys
             _ => {
                 if let Some(key) = self.static_key_from_type(key_type)? {
@@ -762,7 +750,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::StaticKey>> {
         let key = match self.ty(ty)? {
             dir::Type::Key(key) => key,
-            // unique symbol references key by their declaration identity
+            // named static values preserve their exact key
             dir::Type::Application(instance) if instance.arguments.is_empty() => {
                 return self.symbol_static_key(instance.symbol);
             }

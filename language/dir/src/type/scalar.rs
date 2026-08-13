@@ -130,8 +130,6 @@ pub enum ScalarDomain {
     Character,
     /// String scalar values.
     String,
-    /// Symbol scalar values.
-    Symbol,
     /// Boolean scalar values.
     Boolean,
     /// Null singleton values.
@@ -165,7 +163,7 @@ impl ScalarDomain {
             Self::Integer | Self::Float => Some(LanguageItem::Number),
             Self::Bigint => Some(LanguageItem::BigInt),
             Self::String => Some(LanguageItem::String),
-            Self::Character | Self::Symbol | Self::Boolean | Self::Null | Self::Undefined => None,
+            Self::Character | Self::Boolean | Self::Null | Self::Undefined => None,
         }
     }
 
@@ -177,7 +175,6 @@ impl ScalarDomain {
             Self::Integer
             | Self::Float
             | Self::Character
-            | Self::Symbol
             | Self::Boolean
             | Self::Null
             | Self::Undefined => None,

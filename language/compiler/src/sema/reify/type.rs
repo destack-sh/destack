@@ -485,7 +485,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     let key = match field.key {
                         dir::StaticKey::Name(name) => dir::Key::Name(dir::Name::Identifier(name)),
                         dir::StaticKey::Index(index) => dir::Key::Name(dir::Name::Index(index)),
-                        dir::StaticKey::Symbol(_) => return Ok(None),
                     };
                     let Some(declared_type) = self.reify_depth(field.access.store(), next)? else {
                         return Ok(None);
@@ -1131,7 +1130,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 Some(dir::ScalarLiteral::Integer(index))
             }
-            dir::StaticKey::Symbol(_) => None,
         }
     }
 

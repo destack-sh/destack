@@ -9,7 +9,7 @@ impl Formatter<'_, '_, '_> {
     /// Format one definition member name.
     pub(crate) fn member_name(&self, member: &dir::DefinitionMember) -> QueryResult<String> {
         if let Some(key) = member.key() {
-            return self.property_key(key);
+            return Ok(self.property_key(key));
         }
 
         let name = match member {
@@ -31,19 +31,16 @@ impl Formatter<'_, '_, '_> {
     }
 
     /// Format one exact static key type.
-    pub(super) fn key_type(&self, key: dir::StaticKey) -> QueryResult<String> {
-        let text = match key {
+    pub(super) fn key_type(&self, key: dir::StaticKey) -> String {
+        match key {
             dir::StaticKey::Name(name) => quote_string(self.module.strings().get(name)),
             dir::StaticKey::Index(index) => index.to_string(),
-            dir::StaticKey::Symbol(symbol) => self.symbol_key(symbol)?,
-        };
-
-        Ok(text)
+        }
     }
 
     /// Format one static key in a property declaration.
-    pub(crate) fn property_key(&self, key: dir::StaticKey) -> QueryResult<String> {
-        let text = match key {
+    pub(crate) fn property_key(&self, key: dir::StaticKey) -> String {
+        match key {
             dir::StaticKey::Name(name) => {
                 let name = self.module.strings().get(name);
                 if dir::is_identifier_compat(name) || name.parse::<dir::Keyword>().is_ok() {
@@ -53,19 +50,12 @@ impl Formatter<'_, '_, '_> {
                 }
             }
             dir::StaticKey::Index(index) => index.to_string(),
-            dir::StaticKey::Symbol(symbol) => {
-                let symbol = self.symbol_key(symbol)?;
-
-                format!("[{symbol}]")
-            }
-        };
-
-        Ok(text)
+        }
     }
 
     /// Format one static key as a member access suffix.
-    pub(super) fn member_key(&self, key: dir::StaticKey) -> QueryResult<String> {
-        let text = match key {
+    pub(super) fn member_key(&self, key: dir::StaticKey) -> String {
+        match key {
             dir::StaticKey::Name(name) => {
                 let name = self.module.strings().get(name);
                 if dir::is_identifier_compat(name) || name.parse::<dir::Keyword>().is_ok() {
@@ -75,27 +65,6 @@ impl Formatter<'_, '_, '_> {
                 }
             }
             dir::StaticKey::Index(index) => format!("[{index}]"),
-            dir::StaticKey::Symbol(symbol) => {
-                let symbol = self.symbol_key(symbol)?;
-
-                format!("[{symbol}]")
-            }
-        };
-
-        Ok(text)
-    }
-
-    /// Format one static symbol key expression.
-    fn symbol_key(&self, key: dir::SymbolKey) -> QueryResult<String> {
-        let text = match key {
-            dir::SymbolKey::Unique(symbol) => self.unique_symbol(symbol)?,
-            dir::SymbolKey::Registry(name) => {
-                let name = quote_string(self.module.strings().get(name));
-
-                format!("Symbol.for({name})")
-            }
-        };
-
-        Ok(text)
+        }
     }
 }

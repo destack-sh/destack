@@ -786,12 +786,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         match key {
             dir::StaticKey::Name(name) => self.strings.get(name).to_string(),
             dir::StaticKey::Index(index) => index.to_string(),
-            dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol)) => self.symbol_label(symbol),
-            dir::StaticKey::Symbol(dir::SymbolKey::Registry(name)) => {
-                let name = self.strings.get(name);
-
-                format!("Symbol.for(\"{name}\")")
-            }
         }
     }
 

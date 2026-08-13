@@ -20,10 +20,6 @@ pub enum PrimitiveType {
     Integer(IntegerType),
     /// Float type, like `float64` or `bfloat16`.
     Float(FloatType),
-    /// Symbol type `symbol`.
-    Symbol,
-    /// Unique symbol type `unique symbol`.
-    UniqueSymbol,
 }
 
 impl PrimitiveType {
@@ -34,8 +30,6 @@ impl PrimitiveType {
             Self::String => "string".to_string(),
             Self::Character => "char".to_string(),
             Self::Bigint => "bigint".to_string(),
-            Self::Symbol => "symbol".to_string(),
-            Self::UniqueSymbol => "unique symbol".to_string(),
             Self::Integer(integer) => integer.as_str(),
             Self::Float(float) => float.as_str().to_string(),
         }
@@ -50,7 +44,6 @@ impl PrimitiveType {
             Self::Bigint => ScalarDomain::Bigint,
             Self::Integer(_) => ScalarDomain::Integer,
             Self::Float(_) => ScalarDomain::Float,
-            Self::Symbol | Self::UniqueSymbol => ScalarDomain::Symbol,
         }
     }
 

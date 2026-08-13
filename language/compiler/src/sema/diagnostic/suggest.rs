@@ -197,7 +197,7 @@ impl CheckState<'_> {
     fn reference_key_text(&self, key: &dir::StaticKey) -> Option<String> {
         match key {
             dir::StaticKey::Name(name) => Some(self.strings().get(*name).to_string()),
-            dir::StaticKey::Index(_) | dir::StaticKey::Symbol(_) => None,
+            dir::StaticKey::Index(_) => None,
         }
     }
 }

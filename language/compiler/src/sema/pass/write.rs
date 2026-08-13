@@ -24,7 +24,7 @@ impl CheckState<'_> {
                 .set_symbol_static(symbol, id.into_global(module));
         }
 
-        // collect the identity values, like unique symbol keys
+        // collect the identity values
         let identities = self
             .module(module)
             .static_values

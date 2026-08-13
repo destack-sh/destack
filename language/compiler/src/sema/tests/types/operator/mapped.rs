@@ -379,51 +379,6 @@ type Actual = WithoutSecret<{ name: string; secret: string }>;
 }
 
 #[test]
-fn test_mapped_type_preserves_unique_symbol_key() {
-    let session = TestSession::single(
-        r#"
-declare const token: unique symbol;
-
-type Clone<T> = { [K in keyof T]: T[K] };
-type Actual = Clone<{ readonly [token]: int32 }>;
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked(),
-        r#"
-=== annotated ===
-declare const token: unique symbol;
-
-type Clone<T> = { [K in keyof T]: T[K] };
-type Actual = Clone<{ readonly [token]: int32 }>;
-
-=== checked ===
-declare const token: unique symbol;
-/// @type.symbol symbol=token source=token type=unique symbol
-/// @resolution.pattern source=token kind=binding target=token
-
-type Clone<T> = { [K in keyof T]: T[K] };
-/// @generic.template symbol=Clone parameters=(T)
-/// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
-/// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=(T) value={ [K in keyof T]: T[K] }
-/// @type.symbol symbol=Clone.T source=T type=T
-/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
-/// @type.symbol symbol=Clone.K source=[K in keyof T] type=K
-/// @resolution.name source=T target=Clone.T
-/// @resolution.name source=T target=Clone.T
-/// @resolution.name source=K target=Clone.K
-
-type Actual = Clone<{ readonly [token]: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Clone<{ readonly [token]: int32 }>" type={ readonly [token]: int32 }
-/// @definition.type symbol=Actual source="type Actual = Clone<{ readonly [token]: int32 }>" value={ readonly [token]: int32 }
-/// @resolution.name source=Clone target=Clone
-"#,
-    );
-}
-
-#[test]
 fn test_mapped_type_combines_readonly_and_optional_modifiers() {
     let session = TestSession::single(
         r#"

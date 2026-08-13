@@ -469,8 +469,6 @@ pub enum TemplateLiteral {
 /// int2
 /// float64
 /// boolean
-/// symbol
-/// unique symbol
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TypeLiteral {
@@ -502,10 +500,6 @@ pub enum TypeLiteral {
     Integer(IntegerType),
     /// Width-spelled floating-point type, like `float32`.
     Float(FloatType),
-    /// Symbol type.
-    Symbol,
-    /// Unique symbol type.
-    UniqueSymbol,
 }
 
 impl From<PrimitiveType> for TypeLiteral {
@@ -518,8 +512,6 @@ impl From<PrimitiveType> for TypeLiteral {
             PrimitiveType::Bigint => Self::Bigint,
             PrimitiveType::Integer(integer) => Self::Integer(integer),
             PrimitiveType::Float(float) => Self::Float(float),
-            PrimitiveType::Symbol => Self::Symbol,
-            PrimitiveType::UniqueSymbol => Self::UniqueSymbol,
         }
     }
 }
@@ -537,7 +529,6 @@ impl TypeLiteral {
             Self::Number | Self::Float(_) => ScalarDomain::Float,
             Self::Alias(alias) => alias.primitive().scalar_domain(),
             Self::Integer(_) => ScalarDomain::Integer,
-            Self::Symbol | Self::UniqueSymbol => ScalarDomain::Symbol,
             Self::Never | Self::Any | Self::Unknown | Self::Void => return None,
         };
 

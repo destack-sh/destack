@@ -51,40 +51,6 @@ let x: ({a: any});
                 (predefined_type)))))))))
 
 =======================================
-Symbol types
-:language(destack)
-=======================================
-
-const symFoo: unique symbol = Symbol("foo");
-const symBar: symbol = Symbol.for("bar");
-
----
-
-(program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (type_annotation
-        (predefined_type))
-      (call_expression
-        (identifier)
-        (arguments
-          (string
-            (string_fragment))))))
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (type_annotation
-        (predefined_type))
-      (call_expression
-        (member_expression
-          (identifier)
-          (property_identifier))
-        (arguments
-          (string
-            (string_fragment)))))))
-
-=======================================
 Type annotations in parenthesized expressions
 :language(destack)
 =======================================
@@ -164,6 +130,20 @@ type ConflictInfo = {
         (property_identifier)
         (type_annotation
           (type_identifier))))))
+
+=======================================
+Symbol as a type identifier
+:language(destack)
+=======================================
+
+type Token = symbol;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier)))
 
 =======================================
 Predefined types as identifiers

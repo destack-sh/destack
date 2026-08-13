@@ -825,7 +825,6 @@ impl TemplateText<'_> {
             }
             dir::ScalarDomain::Float
             | dir::ScalarDomain::String
-            | dir::ScalarDomain::Symbol
             | dir::ScalarDomain::Boolean
             | dir::ScalarDomain::Null
             | dir::ScalarDomain::Undefined => return None,

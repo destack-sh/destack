@@ -1269,8 +1269,6 @@ fn primitive_label(primitive: dir::PrimitiveType) -> String {
         dir::PrimitiveType::Bigint => "bigint".to_string(),
         dir::PrimitiveType::Integer(integer) => integer.as_str(),
         dir::PrimitiveType::Float(float) => float_label(float),
-        dir::PrimitiveType::Symbol => "symbol".to_string(),
-        dir::PrimitiveType::UniqueSymbol => "unique symbol".to_string(),
     }
 }
 

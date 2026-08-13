@@ -1501,8 +1501,7 @@ impl BodyState<'_, '_> {
             .map(|selected| selected.parameter)
             .collect::<Vec<_>>();
         let arguments = self.argument_bindings(origin, module, argument_nodes, &parameters)?;
-        let return_type =
-            self.select_call_return_type(module, candidate, argument_nodes, signature.return_type)?;
+        let return_type = signature.return_type;
         let target = match &candidate.target {
             CallableTarget::Expression => dir::CallTarget::Expression {
                 generic_arguments: signature.generic_arguments.clone(),
@@ -1553,37 +1552,6 @@ impl BodyState<'_, '_> {
         };
 
         Ok(resolution)
-    }
-
-    /// Select the exact result type of one accepted call.
-    fn select_call_return_type(
-        &mut self,
-        module: ModuleId,
-        candidate: &CallableCandidate,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-        declared: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let CallableTarget::Symbol(symbol) = &candidate.target else {
-            return Ok(declared);
-        };
-        if self.language_item(*symbol)? != Some(dir::LanguageItem::SymbolFor) {
-            return Ok(declared);
-        }
-
-        // known registry strings select their singleton symbol type
-        let [argument] = argument_nodes else {
-            return Ok(declared);
-        };
-        let Some(value) = self.argument_expression(module, *argument) else {
-            return Ok(declared);
-        };
-        let ty = self.require_node_type(value)?;
-        let Some(dir::StaticKey::Name(name)) = self.static_key_from_type(ty)? else {
-            return Ok(declared);
-        };
-        let key = dir::StaticKey::Symbol(dir::SymbolKey::Registry(name));
-
-        self.intern_type(dir::Type::Key(key))
     }
 
     /// Commit one selected tagged variant constructor signature.

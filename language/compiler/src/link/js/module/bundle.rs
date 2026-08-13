@@ -108,8 +108,6 @@ impl JsLinker<'_> {
             module_id,
             target_module,
             profile_id,
-            target,
-            target_id,
             package_id,
         )?;
 

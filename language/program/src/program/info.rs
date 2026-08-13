@@ -691,10 +691,6 @@ pub enum PrimitiveTag {
     Int,
     /// Floating-point primitive.
     Float,
-    /// Symbol primitive.
-    Symbol,
-    /// Unique symbol primitive.
-    UniqueSymbol,
 }
 
 /// Reflected scalar literal program type.

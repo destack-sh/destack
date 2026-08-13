@@ -10647,10 +10647,6 @@
     "named": false
   },
   {
-    "type": "symbol",
-    "named": false
-  },
-  {
     "type": "target",
     "named": false
   },
@@ -10685,10 +10681,6 @@
   {
     "type": "undefined",
     "named": true
-  },
-  {
-    "type": "unique symbol",
-    "named": false
   },
   {
     "type": "unknown",

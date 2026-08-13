@@ -388,9 +388,8 @@ fn test_report_template_literal_legacy_octal_escape() {
 
 #[test]
 fn test_parse_type_literal() {
-    let test = TestParser::new(
-        "int32 uint8 u8 float float16 bfloat16 float32 float64 boolean char symbol unique symbol",
-    );
+    let test =
+        TestParser::new("int32 uint8 u8 float float16 bfloat16 float32 float64 boolean char");
     let mut parser = test.prepare();
 
     assert!(matches!(
@@ -441,14 +440,6 @@ fn test_parse_type_literal() {
     assert!(matches!(
         parser.parse_type_literal().unwrap(),
         TypeLiteral::Character
-    ));
-    assert!(matches!(
-        parser.parse_type_literal().unwrap(),
-        TypeLiteral::Symbol
-    ));
-    assert!(matches!(
-        parser.parse_type_literal().unwrap(),
-        TypeLiteral::UniqueSymbol
     ));
 }
 

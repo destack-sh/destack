@@ -166,7 +166,7 @@ pub enum IndexTarget {
 /// point.x                 // Structural(point, "x")
 /// tuple[0]                // Structural(tuple, 0)
 /// user.name               // Member(User.name) for nominal stored fields
-/// object[Symbol.for("x")] // Structural(object, Symbol.for("x"))
+/// object["tag"]           // Structural(object, "tag")
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum FieldTarget {
@@ -177,8 +177,8 @@ pub enum FieldTarget {
     /// declare const point: { x: int32 };
     /// point.x
     ///
-    /// declare const object: { [Symbol.for("tag")]: string };
-    /// object[Symbol.for("tag")]
+    /// declare const object: { tag: string };
+    /// object["tag"]
     /// ```
     Structural {
         /// The aggregate that declares the field.

@@ -8193,10 +8193,6 @@
         },
         {
           "type": "STRING",
-          "value": "symbol"
-        },
-        {
-          "type": "STRING",
           "value": "export"
         },
         {
@@ -16302,28 +16298,6 @@
         {
           "type": "STRING",
           "value": "string"
-        },
-        {
-          "type": "STRING",
-          "value": "symbol"
-        },
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "STRING",
-                "value": "unique"
-              },
-              {
-                "type": "STRING",
-                "value": "symbol"
-              }
-            ]
-          },
-          "named": false,
-          "value": "unique symbol"
         },
         {
           "type": "STRING",

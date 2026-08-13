@@ -4,7 +4,7 @@ use crate::emit::js;
 use destack_artifact::{DirBound, DirExpanded, DirExported};
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
-use destack_repository::{ProviderContext, Target};
+use destack_repository::ProviderContext;
 use destack_source::{ModuleId, PackageId, TargetId};
 
 use crate::{JsLinker, LinkError, LinkResult};
@@ -148,8 +148,6 @@ impl JsLinker<'_> {
         module_id: ModuleId,
         target_module: ModuleId,
         profile_id: destack_source::ProfileId,
-        target: &Target,
-        target_id: &TargetId,
         package_id: PackageId,
     ) -> LinkResult<Vec<js::LocalNodeId<js::Statement>>> {
         let mut declarators = Vec::new();
@@ -193,11 +191,8 @@ impl JsLinker<'_> {
                 let value = self.build_same_output_namespace_bridge_expression(
                     module,
                     statement_id,
-                    module_id,
                     target_module,
                     profile_id,
-                    target,
-                    target_id,
                     package_id,
                 )?;
                 let pattern = module.tree.insert_from(
@@ -529,11 +524,8 @@ impl JsLinker<'_> {
         &self,
         module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
-        module_id: ModuleId,
         target_module: ModuleId,
         profile_id: destack_source::ProfileId,
-        _target: &Target,
-        target_id: &TargetId,
         package_id: PackageId,
     ) -> LinkResult<js::LocalNodeId<js::Expression>> {
         let target_directory = self
@@ -570,14 +562,11 @@ impl JsLinker<'_> {
             let target_symbol = target_symbol.into_global(target_module);
             let (target_symbol, target_name) =
                 self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id)?;
-            let key = self.same_output_namespace_key(
-                module_id,
+            let key = Self::same_output_namespace_key(
                 module,
                 self.compiler.repository.string_pool().as_ref(),
                 static_key,
-                target_id,
-                package_id,
-            )?;
+            );
             let value = self.insert_same_output_symbol_path(
                 module,
                 statement_id,
@@ -617,14 +606,10 @@ impl JsLinker<'_> {
 
     /// Convert one exported static key into one namespace bridge property key.
     fn same_output_namespace_key(
-        &self,
-        module_id: ModuleId,
         module: &mut js::Module,
         target_strings: &StringPool,
         key: dir::StaticKey,
-        target_id: &TargetId,
-        package_id: PackageId,
-    ) -> LinkResult<js::Key> {
+    ) -> js::Key {
         let name = match key {
             dir::StaticKey::Name(name) => {
                 let content = target_strings.get(name);
@@ -640,18 +625,8 @@ impl JsLinker<'_> {
                 let name = module.strings.intern(&index.to_string());
                 js::Name::String(name)
             }
-            dir::StaticKey::Symbol(_) => {
-                return Err(LinkError::InvalidTarget {
-                    anchor: module_id.into(),
-                    package: package_id,
-                    target: *target_id,
-                    message: format!(
-                        "bundled same-output namespace imports do not support symbol-keyed exports in '{target_id}'"
-                    ),
-                });
-            }
         };
 
-        Ok(js::Key::Name(name))
+        js::Key::Name(name)
     }
 }

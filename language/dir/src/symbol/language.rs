@@ -1613,15 +1613,6 @@ define_language_items! {
             /// Uppercase string mapping alias.
             Uppercase => (Type, "types/string", "Uppercase"),
         }
-
-        /// `destack:types/symbol`.
-        symbol {
-            /// Symbol value.
-            Symbol => (Class, "types/symbol", "Symbol"),
-
-            /// Shared symbol registry lookup.
-            SymbolFor => (Function, "types/symbol", "for", "types.Symbol.for"),
-        }
     }
 }
 

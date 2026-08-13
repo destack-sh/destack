@@ -99,7 +99,6 @@ declare const booleanValue: boolean;
 declare const characterValue: char;
 declare const integerValue: int32;
 declare const floatValue: float64;
-declare const symbolValue: symbol;
 declare const stringValue: string;
 declare const bigintValue: bigint;
 
@@ -107,7 +106,6 @@ requireEqual(booleanValue);
 requireEqual(characterValue);
 requireEqual(integerValue);
 requirePartialEqual(floatValue);
-requireEqual(symbolValue);
 requireEqual(stringValue);
 requireEqual(bigintValue);
 requireEqual(true);

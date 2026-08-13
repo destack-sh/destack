@@ -250,66 +250,7 @@ type Bad = Record<{ name: string }, boolean>;
 /// @diagnostic.error id=constraint-not-satisfied message="type '{ name: string }' does not satisfy 'PropertyKey'"
 /// @diagnostic.label line=2 column=19 span="{ name: string }" line_source="type Bad = Record<{ name: string }, boolean>;"
 /// @diagnostic.related file="object.ds" line=7 column=20 span="K" line_source="export type Record<K: PropertyKey, V> = {" message="required by this bound on 'K'"
-/// @diagnostic.note message="'PropertyKey' reduces to 'string | usize | symbol'"
-"#,
-    );
-}
-
-#[test]
-fn test_record_unique_symbol_key_builds_exact_field() {
-    let session = TestSession::single(
-        r#"
-declare const key: unique symbol;
-
-type Flags = Record<typeof key, boolean>;
-
-const flags: Flags = { [key]: true };
-
-flags[key] satisfies boolean;
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked(),
-        r#"
-=== annotated ===
-declare const key: unique symbol;
-
-type Flags = Record<typeof key, boolean>;
-
-const flags: Flags = { [key]: true };
-
-flags[key] satisfies boolean;
-
-=== checked ===
-declare const key: unique symbol;
-/// @type.symbol symbol=key source=key type=unique symbol
-/// @resolution.pattern source=key kind=binding target=key
-
-type Flags = Record<typeof key, boolean>;
-/// @type.symbol symbol=Flags source="type Flags = Record<typeof key, boolean>" type={ [key]: boolean }
-/// @definition.type symbol=Flags source="type Flags = Record<typeof key, boolean>" value={ [key]: boolean }
-/// @resolution.name source=Record target=types.object.Record
-/// @resolution.name source=key target=key
-
-const flags: Flags = { [key]: true };
-/// @type.symbol symbol=flags source=flags type={ [key]: boolean }
-/// @resolution.pattern source=flags kind=binding target=flags
-/// @resolution.name source=Flags target=Flags
-/// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
-/// @resolution.access source=key root=key
-
-flags[key] satisfies boolean;
-/// @resolution.name source=flags target=flags
-/// @resolution.place source=flags placement="local" lifetime="static" access="exclusive"
-/// @resolution.access source=flags root=flags
-/// @resolution.place source=flags[key] placement="local" lifetime="static" access="exclusive"
-/// @resolution.subscript source=flags[key] type=boolean kind=member target="receiver={ [key]: boolean }, target=field(receiver={ [key]: boolean }, target=key, type=boolean), type=boolean"
-/// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
-/// @resolution.access source=key root=key
+/// @diagnostic.note message="'PropertyKey' reduces to 'string | usize'"
 "#,
     );
 }

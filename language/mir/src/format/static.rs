@@ -203,15 +203,6 @@ fn format_static_key<'a>(key: &StaticKey, f: &mut Writer<'a, '_>) -> FormatResul
             }
         }
         StaticKey::Index(index) => write!(f, [copied_text(&index.to_string())]),
-        StaticKey::Unique(symbol) => write!(
-            f,
-            [copied_text(&format!("[symbol(0x{:016x})]", symbol.raw()))]
-        ),
-        StaticKey::Registry(name) => {
-            let name = f.context().strings.get(*name);
-
-            write!(f, [copied_text(&format!("[Symbol.for({name:?})]"))])
-        }
     }
 }
 

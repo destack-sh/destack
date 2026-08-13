@@ -873,7 +873,7 @@ fn test_parse_type_literal_index_signature() {
 
 #[test]
 fn test_parse_type_literal_index_signature_union_key_on_union_rhs() {
-    let test = TestParser::new("type T = string | { [x: string | number | symbol]: unknown }");
+    let test = TestParser::new("type T = string | { [x: string | number]: unknown }");
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionContext {
@@ -882,7 +882,7 @@ fn test_parse_type_literal_index_signature_union_key_on_union_rhs() {
         })
         .unwrap();
 
-    // type T = string | { [x: string | number | symbol]: unknown }
+    // type T = string | { [x: string | number]: unknown }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
@@ -895,15 +895,12 @@ fn test_parse_type_literal_index_signature_union_key_on_union_rhs() {
                     assert_node!(parser.tree, properties[0], TypeMember::IndexSignature { name, key_type, value_type, .. } => {
                         assert_string!(parser, *name, "x");
                         assert_node!(parser.tree, *key_type, TypeExpression::Union { elements } => {
-                            assert_eq!(elements.len(), 3);
+                            assert_eq!(elements.len(), 2);
                             assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {
                                 assert_eq!(*value, TypeLiteral::String);
                             });
                             assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
                                 assert_eq!(*value, TypeLiteral::Number);
-                            });
-                            assert_node!(parser.tree, elements[2], TypeExpression::Literal { value } => {
-                                assert_eq!(*value, TypeLiteral::Symbol);
                             });
                         });
                         assert_node!(parser.tree, *value_type, TypeExpression::Literal { value } => {
@@ -1152,6 +1149,27 @@ fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
                         });
                 });
             });
+        });
+    });
+}
+
+#[test]
+fn test_parse_symbol_type_as_reference() {
+    let test = TestParser::new("type Token = symbol");
+    let mut parser = test.prepare();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type Token = symbol
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_plain_type_reference(&parser, *value, "symbol");
         });
     });
 }

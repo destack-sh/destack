@@ -570,59 +570,6 @@ for (const key in user) {
 }
 
 #[test]
-fn test_for_in_excludes_symbol_keys() {
-    let session = TestSession::single(
-        r#"
-declare const token: unique symbol;
-declare const target: { name: string; readonly [token]: int32 };
-
-for (const key in target) {
-    key satisfies string;
-}
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked().with_reference_types(),
-        r#"
-=== annotated ===
-declare const token: unique symbol;
-declare const target: { name: string; readonly [token]: int32 };
-
-for (const key in target) {
-    key satisfies string;
-}
-
-=== checked ===
-declare const token: unique symbol;
-/// @type.symbol symbol=token source=token type=unique symbol
-/// @resolution.pattern source=token kind=binding target=token
-
-declare const target: { name: string; readonly [token]: int32 };
-/// @type.symbol symbol=target source=target type={ name: string; readonly [token]: int32 }
-/// @resolution.pattern source=target kind=binding target=target
-
-for (const key in target) {
-/// @type.symbol symbol=key source=key type=string
-/// @resolution.pattern source=key kind=binding target=key
-/// @type.node source=target type={ name: string; readonly [token]: int32 }
-/// @resolution.name source=target target=target
-/// @resolution.access source=target root=target
-
-    key satisfies string;
-    /// @type.node source="key satisfies string" type=string
-    /// @type.node source=key type=string
-    /// @resolution.name source=key target=key
-    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=key root=key
-
-}
-"#,
-    );
-}
-
-#[test]
 fn test_for_in_accepts_optional_fields() {
     let session = TestSession::single(
         r#"

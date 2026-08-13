@@ -1,7 +1,7 @@
 use destack_core::StringId;
 
 use crate::source::TokenType;
-use crate::{Static, StaticField, StaticId, StaticKey, Symbol, TypeId};
+use crate::{Static, StaticField, StaticId, StaticKey, TypeId};
 
 use super::{ParseError, ParseResult, Parser};
 
@@ -271,36 +271,8 @@ impl Parser {
 
                 Ok(StaticKey::Index(index))
             }
-            TokenType::OpenBracket => self.parse_static_symbol_key(),
             _ => Err(ParseError::unexpected("static key", ty, start)),
         }
-    }
-
-    /// Parse one computed static symbol key.
-    fn parse_static_symbol_key(&mut self) -> ParseResult<StaticKey> {
-        self.eat_token(TokenType::OpenBracket)?;
-        let token = self.eat_token(TokenType::Identifier)?;
-        let text = self.tree.source_text(token.span).to_string();
-
-        let key = if text == "symbol" {
-            self.eat_token(TokenType::OpenParenthesis)?;
-            let symbol = Symbol::from_raw(self.parse_static_u64("static symbol")?);
-            self.eat_token(TokenType::CloseParenthesis)?;
-
-            StaticKey::Unique(symbol)
-        } else if text == "Symbol.for" {
-            self.eat_token(TokenType::OpenParenthesis)?;
-            let name = self.parse_static_string_id("registry key")?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-
-            StaticKey::Registry(name)
-        } else {
-            return Err(ParseError::invalid("static symbol key", token.start()));
-        };
-
-        self.eat_token(TokenType::CloseBracket)?;
-
-        Ok(key)
     }
 
     /// Parse one static string and intern it.

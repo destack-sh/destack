@@ -158,14 +158,6 @@ impl TypeHasher {
                 self.hasher.write_u8(1);
                 self.hasher.write_u64(*index);
             }
-            StaticKey::Unique(symbol) => {
-                self.hasher.write_u8(2);
-                self.hasher.write_u64(symbol.raw());
-            }
-            StaticKey::Registry(name) => {
-                self.hasher.write_u8(3);
-                self.hasher.write_u64(name.raw());
-            }
         }
     }
 

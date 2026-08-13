@@ -144,7 +144,7 @@ impl CheckState<'_> {
 
                 let mut fields = Vec::new();
                 for property in shape_properties.iter().take(FORMAT_WIDTH) {
-                    let key = self.format_type_field_key(&property.key);
+                    let key = self.format_static_key(&property.key);
                     let optional = if property.is_optional { "?" } else { "" };
 
                     fields.push(match property.access {
@@ -660,7 +660,6 @@ impl CheckState<'_> {
         match key {
             dir::StaticKey::Name(name) => format!("\"{}\"", self.text(*name)),
             dir::StaticKey::Index(index) => index.to_string(),
-            dir::StaticKey::Symbol(_) => self.format_static_key(key),
         }
     }
 
@@ -906,24 +905,11 @@ impl CheckState<'_> {
         format!("module#{module}")
     }
 
-    /// Format one member or symbol key.
+    /// Format one member key.
     pub(in crate::sema) fn format_static_key(&self, key: &dir::StaticKey) -> String {
         match key {
             dir::StaticKey::Name(name) => self.text(*name),
             dir::StaticKey::Index(index) => index.to_string(),
-            // show a unique symbol as its declaring binding's name
-            dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol)) => self.format_symbol(*symbol),
-            dir::StaticKey::Symbol(dir::SymbolKey::Registry(name)) => {
-                format!("Symbol.for(\"{}\")", self.text(*name))
-            }
-        }
-    }
-
-    /// Format one field key as it appears in object type text.
-    fn format_type_field_key(&self, key: &dir::StaticKey) -> String {
-        match key {
-            dir::StaticKey::Symbol(_) => format!("[{}]", self.format_static_key(key)),
-            _ => self.format_static_key(key),
         }
     }
 

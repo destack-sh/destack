@@ -179,30 +179,6 @@ impl WalkState<'_, '_> {
             None => None,
         };
 
-        // create declaration identity for const unique symbols
-        if binding_kind == Some(dir::LetKind::Const)
-            && let Some(matched) = matched
-            && matches!(
-                self.check.ty(matched)?,
-                dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
-            )
-            && matches!(
-                self.tree.get(declarator.pattern),
-                dir::Pattern::Binding { .. }
-            )
-        {
-            let symbol = self
-                .check
-                .module(self.module)
-                .declaration_symbol(declarator.pattern.into_any())
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("declaration pattern {:?} has no symbol", declarator.pattern),
-                })?;
-            let key = dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol));
-            let value = self.intern_type(dir::Type::Key(key))?;
-            self.commit_static_value(symbol, value)?;
-        }
-
         Ok(matched)
     }
 

@@ -125,7 +125,6 @@ impl JsLinker<'_> {
         if output_graph.shares_output(module_id, target_module) {
             if is_import {
                 return self.rewrite_same_output_import_root(
-                    target,
                     module_id,
                     module,
                     statement_id,
@@ -169,7 +168,6 @@ impl JsLinker<'_> {
     /// Rewrite one same-output import statement.
     fn rewrite_same_output_import_root(
         &self,
-        target: &Target,
         module_id: ModuleId,
         module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
@@ -219,8 +217,6 @@ impl JsLinker<'_> {
             module_id,
             target_module,
             profile_id,
-            target,
-            self.target_id,
             self.package_id,
         )?;
 

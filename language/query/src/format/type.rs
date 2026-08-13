@@ -71,7 +71,7 @@ impl Formatter<'_, '_, '_> {
             dir::Type::Refined(refined) => {
                 let refined = *self.types()?.refined(*refined);
                 let base = self.type_operand(refined.base, TypeOperand::Postfix)?;
-                let key = self.property_key(refined.key)?;
+                let key = self.property_key(refined.key);
                 let value = self.global_type(refined.value)?;
 
                 format!("{base}<type {key} = {value}>")
@@ -118,7 +118,7 @@ impl Formatter<'_, '_, '_> {
             dir::Type::Operation(operation) => {
                 return self.operation(self.types()?.operation(*operation));
             }
-            dir::Type::Key(key) => return self.key_type(*key),
+            dir::Type::Key(key) => self.key_type(*key),
             dir::Type::Memory(literal) => quote_string(literal.text()),
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::Variable(_) | dir::Type::Static(_) => {
@@ -140,8 +140,6 @@ impl Formatter<'_, '_, '_> {
             dir::PrimitiveType::Bigint => "bigint".to_string(),
             dir::PrimitiveType::Integer(integer) => self.integer(integer),
             dir::PrimitiveType::Float(float) => float.as_str().to_string(),
-            dir::PrimitiveType::Symbol => "symbol".to_string(),
-            dir::PrimitiveType::UniqueSymbol => "unique symbol".to_string(),
         }
     }
 
@@ -178,7 +176,7 @@ impl Formatter<'_, '_, '_> {
     /// Format one member type.
     fn member(&self, member: dir::MemberType) -> QueryResult<String> {
         let owner = self.type_operand(member.owner, TypeOperand::Postfix)?;
-        let key = self.member_key(member.key)?;
+        let key = self.member_key(member.key);
         let arguments = self.types()?.type_ids(member.arguments);
 
         if arguments.is_empty() {
@@ -380,7 +378,7 @@ impl Formatter<'_, '_, '_> {
     /// Format one structural property.
     fn property(&self, property: &dir::TypeProperty) -> QueryResult<String> {
         let optional = if property.is_optional { "?" } else { "" };
-        let key = self.property_key(property.key)?;
+        let key = self.property_key(property.key);
 
         match property.access {
             dir::PropertyAccess::Read(ty) => {

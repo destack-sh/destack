@@ -304,7 +304,6 @@ impl<'a> ExportState<'a> {
         match key {
             dir::StaticKey::Name(name) => self.strings().get(name).to_string(),
             dir::StaticKey::Index(index) => index.to_string(),
-            dir::StaticKey::Symbol(symbol) => symbol.debug_string(self.strings()),
         }
     }
 

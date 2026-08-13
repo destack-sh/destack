@@ -133,7 +133,6 @@ impl DirSnapshotBuilder<'_> {
         match key {
             dir::StaticKey::Name(name) => format!("\"{}\"", self.strings.get(name)),
             dir::StaticKey::Index(index) => index.to_string(),
-            dir::StaticKey::Symbol(_) => self.static_key(key),
         }
     }
 
@@ -236,8 +235,6 @@ impl DirSnapshotBuilder<'_> {
             dir::PrimitiveType::Bigint => "bigint".to_string(),
             dir::PrimitiveType::Integer(integer) => integer.as_str(),
             dir::PrimitiveType::Float(float) => float.as_str().to_string(),
-            dir::PrimitiveType::Symbol => "symbol".to_string(),
-            dir::PrimitiveType::UniqueSymbol => "unique symbol".to_string(),
         }
     }
 
@@ -762,10 +759,7 @@ impl DirSnapshotBuilder<'_> {
 
     /// Return one field key as it appears in object type text.
     fn type_field_key_label(&self, key: dir::StaticKey) -> String {
-        match key {
-            dir::StaticKey::Symbol(_) => format!("[{}]", self.static_key(key)),
-            _ => self.static_key(key),
-        }
+        self.static_key(key)
     }
 
     /// Return one index signature label.

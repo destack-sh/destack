@@ -1,6 +1,6 @@
 /// Type of valid object property keys.
 @languageItem("types.PropertyKey")
-export type PropertyKey = string | usize | symbol;
+export type PropertyKey = string | usize;
 
 /// Object type with keys `K` and values `V`.
 @languageItem("types.Record")

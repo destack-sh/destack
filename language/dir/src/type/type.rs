@@ -37,7 +37,7 @@ pub enum Type {
     Primitive(PrimitiveType),
     /// Scalar literal type, like `"id"` or `42`.
     Literal(ScalarLiteral),
-    /// Singleton property key type, like `Symbol.for("id")`.
+    /// Singleton static property key type.
     Key(StaticKey),
     /// Singleton type of one normalized memory value.
     Memory(MemoryLiteral),
@@ -113,8 +113,6 @@ impl From<TypeLiteral> for Type {
             TypeLiteral::Alias(alias) => Self::Primitive(alias.primitive()),
             TypeLiteral::Integer(integer) => Self::Primitive(PrimitiveType::Integer(integer)),
             TypeLiteral::Float(float) => Self::Primitive(PrimitiveType::Float(float)),
-            TypeLiteral::Symbol => Self::Primitive(PrimitiveType::Symbol),
-            TypeLiteral::UniqueSymbol => Self::Primitive(PrimitiveType::UniqueSymbol),
         }
     }
 }
@@ -238,7 +236,6 @@ impl Type {
             Self::Literal(literal) => return literal.scalar_domain(),
             Self::Key(key) if key.is_string_like() => ScalarDomain::String,
             Self::Key(key) if key.is_number_like() => ScalarDomain::Integer,
-            Self::Key(key) if key.is_symbol_like() => ScalarDomain::Symbol,
             Self::Range(range) => return range.scalar_domain(),
             _ => return None,
         };
@@ -255,7 +252,6 @@ impl Type {
             Self::Key(StaticKey::Index(_)) => {
                 PrimitiveType::Integer(IntegerType::Pointer { is_signed: false })
             }
-            Self::Key(StaticKey::Symbol(_)) => PrimitiveType::Symbol,
             _ => return None,
         };
 
@@ -1833,7 +1829,6 @@ impl RangeType {
             ScalarDomain::Character => Type::Primitive(PrimitiveType::Character),
             ScalarDomain::Float
             | ScalarDomain::String
-            | ScalarDomain::Symbol
             | ScalarDomain::Boolean
             | ScalarDomain::Null
             | ScalarDomain::Undefined => return None,

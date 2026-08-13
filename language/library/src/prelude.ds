@@ -40,7 +40,6 @@ global {
         Record,
         Required,
         ReturnType,
-        Symbol,
         ThisParameterType,
         ThisType,
         Uncapitalize,

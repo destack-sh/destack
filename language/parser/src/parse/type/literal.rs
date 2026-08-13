@@ -37,8 +37,6 @@ impl Parser {
                 is_signed: false,
             })),
             "float" => Some(TypeLiteral::Alias(ScalarAlias::Float)),
-            "symbol" => Some(TypeLiteral::Symbol),
-            "unique" if self.peek_next_identifier_is("symbol") => Some(TypeLiteral::UniqueSymbol),
             _ => None,
         }
     }
@@ -68,14 +66,6 @@ impl Parser {
         }
 
         bound
-    }
-
-    /// Return whether the next token is the given identifier text.
-    #[inline]
-    fn peek_next_identifier_is(&self, expected: &str) -> bool {
-        let token = self.peek_next_token();
-
-        token.is(TokenType::Identifier) && self.token_str(token) == expected
     }
 
     /// Return the explicitly sized type literal at the current token.
@@ -145,18 +135,14 @@ impl Parser {
     /// ```ds
     /// string
     /// int32
-    /// unique symbol
     /// ```
     pub fn parse_type_literal(&mut self) -> ParserResult<TypeLiteral> {
         let literal = self
             .peek_type_literal()
             .ok_or_else(|| ParserError::unexpected(self.peek_token_span()))?;
 
-        // consume the literal tokens
+        // consume the literal token
         self.bump();
-        if let TypeLiteral::UniqueSymbol = literal {
-            self.bump();
-        }
 
         Ok(literal)
     }

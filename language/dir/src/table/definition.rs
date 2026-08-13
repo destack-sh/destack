@@ -1428,8 +1428,7 @@ impl NewtypeDefinition {
 
     /// Return the derived Tagged variant with one member key.
     pub fn tagged_variant_by_key(&self, key: StaticKey) -> Option<&TaggedVariantDefinition> {
-        self.tagged_variants()
-            .find(|variant| variant.key.matches(&key))
+        self.tagged_variants().find(|variant| variant.key == key)
     }
 
     /// Return the derived Tagged variant with one discriminant.

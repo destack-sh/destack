@@ -439,8 +439,6 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for TypeLiteral {
             TypeLiteral::Alias(alias) => write!(f, [token(alias.as_str())]),
             TypeLiteral::Integer(int_type) => write!(f, [int_type]),
             TypeLiteral::Float(float_type) => write!(f, [float_type]),
-            TypeLiteral::Symbol => write!(f, [token("symbol")]),
-            TypeLiteral::UniqueSymbol => write!(f, [token("unique symbol")]),
         }?;
 
         Ok(())

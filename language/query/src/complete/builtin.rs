@@ -16,8 +16,6 @@ pub(super) fn primitive_type_completions() -> Vec<CompletionCandidate> {
         "string".to_string(),
         "bigint".to_string(),
         "number".to_string(),
-        "symbol".to_string(),
-        "unique symbol".to_string(),
         "int".to_string(),
         "uint".to_string(),
         "float".to_string(),
