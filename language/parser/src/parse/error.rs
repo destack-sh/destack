@@ -4,7 +4,8 @@ use std::error::Error;
 use destack_core::Blob;
 use destack_dir::{NodeType, Token, TokenSpan, TokenType};
 use destack_source::{
-    ByteRange, Diagnostic, DiagnosticDefinition, DiagnosticLabel, DiagnosticTarget, FileId, Span,
+    ByteRange, Diagnostic, DiagnosticDefinition, DiagnosticLabel, DiagnosticSeverity,
+    DiagnosticTarget, FileId, Span,
 };
 
 /// All parser diagnostic definitions.
@@ -40,7 +41,6 @@ const PARSER_DIAGNOSTICS: &[DiagnosticDefinition] = &[
     ParserDiagnostic::Expected(NodeType::Decorator).definition(),
     ParserDiagnostic::Expected(NodeType::SwitchCase).definition(),
     ParserDiagnostic::InvalidAssignmentTarget.definition(),
-    ParserDiagnostic::InvalidDocumentationTag.definition(),
     ParserDiagnostic::InvalidDocumentationOwner.definition(),
     ParserDiagnostic::MissingDocumentationTarget.definition(),
     ParserDiagnostic::DuplicateDocumentationTarget.definition(),
@@ -59,8 +59,6 @@ enum ParserDiagnostic {
     Expected(NodeType),
     /// An expression that cannot be assigned to.
     InvalidAssignmentTarget,
-    /// A malformed or unsupported documentation tag.
-    InvalidDocumentationTag,
     /// Documentation that cannot attach to its authored owner.
     InvalidDocumentationOwner,
     /// A documentation tag naming no child of its owner.
@@ -146,9 +144,6 @@ impl ParserDiagnostic {
             Self::InvalidAssignmentTarget => {
                 ("invalid-assignment-target", "Invalid assignment target.")
             }
-            Self::InvalidDocumentationTag => {
-                ("invalid-documentation-tag", "Invalid documentation tag.")
-            }
             Self::InvalidDocumentationOwner => (
                 "invalid-documentation-owner",
                 "Documentation is not valid for this owner.",
@@ -163,7 +158,13 @@ impl ParserDiagnostic {
             ),
         };
 
-        DiagnosticDefinition::error(id, description)
+        // downgrade unattached documentation and unmatched tag targets to warnings
+        match self {
+            Self::InvalidDocumentationOwner | Self::MissingDocumentationTarget => {
+                DiagnosticDefinition::warning(id, description)
+            }
+            _ => DiagnosticDefinition::error(id, description),
+        }
     }
 }
 
@@ -189,8 +190,6 @@ pub enum ParserErrorKind {
     Expected(TokenType),
     /// The source expression is not an assignment target.
     InvalidAssignmentTarget,
-    /// A malformed or unsupported documentation tag.
-    InvalidDocumentationTag,
     /// Documentation that cannot attach to its authored owner.
     InvalidDocumentationOwner,
     /// A documentation tag naming no child of its owner.
@@ -299,11 +298,6 @@ impl ParserError {
         }
     }
 
-    /// Create an invalid documentation tag error.
-    pub fn invalid_documentation_tag(range: ByteRange) -> Self {
-        Self::documentation(range, ParserErrorKind::InvalidDocumentationTag)
-    }
-
     /// Create an invalid documentation owner error.
     pub fn invalid_documentation_owner(range: ByteRange) -> Self {
         Self::documentation(range, ParserErrorKind::InvalidDocumentationOwner)
@@ -335,7 +329,6 @@ impl ParserError {
             ParserErrorKind::Expected(expected) => Some(expected),
             ParserErrorKind::Unexpected
             | ParserErrorKind::InvalidAssignmentTarget
-            | ParserErrorKind::InvalidDocumentationTag
             | ParserErrorKind::InvalidDocumentationOwner
             | ParserErrorKind::MissingDocumentationTarget
             | ParserErrorKind::DuplicateDocumentationTarget => None,
@@ -374,7 +367,10 @@ impl ParserError {
         let primary =
             DiagnosticLabel::message(blob, DiagnosticTarget::Span(self.span(file_id)), label);
 
-        Diagnostic::error(definition.id, message, primary)
+        match definition.severity {
+            DiagnosticSeverity::Warning => Diagnostic::warning(definition.id, message, primary),
+            _ => Diagnostic::error(definition.id, message, primary),
+        }
     }
 
     /// Return the diagnostic for this parser error.
@@ -382,9 +378,6 @@ impl ParserError {
         match (self.kind, self.expected_node, self.actual) {
             (ParserErrorKind::InvalidAssignmentTarget, _, _) => {
                 ParserDiagnostic::InvalidAssignmentTarget
-            }
-            (ParserErrorKind::InvalidDocumentationTag, _, _) => {
-                ParserDiagnostic::InvalidDocumentationTag
             }
             (ParserErrorKind::InvalidDocumentationOwner, _, _) => {
                 ParserDiagnostic::InvalidDocumentationOwner
@@ -439,11 +432,6 @@ impl ParserError {
             }
             ParserErrorKind::InvalidAssignmentTarget => {
                 let message = "invalid assignment target".to_string();
-
-                (message.clone(), message)
-            }
-            ParserErrorKind::InvalidDocumentationTag => {
-                let message = "invalid documentation tag".to_string();
 
                 (message.clone(), message)
             }

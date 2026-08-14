@@ -50,6 +50,8 @@ enum DocumentationTagHeader<'a> {
         /// The Markdown after the tag.
         markdown: &'a str,
     },
+    /// One general section header kept as authored.
+    Section,
 }
 
 impl Parser {
@@ -86,9 +88,24 @@ impl Parser {
             return None;
         }
 
-        // select the final contiguous documentation block
-        let mut documentation_start = group_end;
+        // skip over ordinary line comments between the documentation and its owner
+        let mut documentation_end = group_end;
         let mut following_start = token_start;
+        while documentation_end > group_start {
+            let comment = comments[documentation_end - 1];
+            if comment.is_documentation()
+                || !comment.is_line()
+                || !self.documentation_is_adjacent(comment.span.end, following_start)
+            {
+                break;
+            }
+
+            documentation_end -= 1;
+            following_start = comment.span.start;
+        }
+
+        // select the final contiguous documentation block
+        let mut documentation_start = documentation_end;
         while documentation_start > group_start {
             let comment = comments[documentation_start - 1];
             if !comment.is_documentation()
@@ -100,7 +117,7 @@ impl Parser {
             documentation_start -= 1;
             following_start = comment.span.start;
         }
-        if documentation_start == group_end {
+        if documentation_start == documentation_end {
             self.report_unowned_documentation(unowned_start, group_end);
 
             return None;
@@ -108,10 +125,13 @@ impl Parser {
 
         // retain comment text with exact source spans
         let first = comments[documentation_start];
-        let last = comments[group_end - 1];
+        let last = comments[documentation_end - 1];
         let span = first.span.merge(last.span);
         let mut lines = Vec::new();
-        for comment in comments[documentation_start..group_end].iter().copied() {
+        for comment in comments[documentation_start..documentation_end]
+            .iter()
+            .copied()
+        {
             lines.extend(self.documentation_lines(comment));
         }
 
@@ -252,6 +272,9 @@ impl Parser {
             DocumentationTagHeader::TypeParameter { name, .. } => (*name, false),
             DocumentationTagHeader::Example { .. } => {
                 return Some(DocumentationTag::Example { markdown });
+            }
+            DocumentationTagHeader::Section => {
+                return Some(DocumentationTag::Section { markdown });
             }
         };
         let name = self.strings.intern(name);
@@ -406,29 +429,27 @@ impl DocumentationComment {
         parser: &mut Parser,
     ) -> Option<Documentation> {
         let tag_starts = self.tag_starts(source);
-        let markdown_end = tag_starts.first().copied().unwrap_or(self.lines.len());
+        let markdown_end = tag_starts
+            .first()
+            .map_or(self.lines.len(), |(start, _)| *start);
         let markdown = self.markdown(0, markdown_end, None, source);
         let markdown = parser.strings.intern(&markdown);
         let mut tags = Vec::with_capacity(tag_starts.len());
         let mut is_complete = true;
 
         // parse each block tag independently
-        for (ordinal, start) in tag_starts.iter().copied().enumerate() {
+        for (ordinal, (start, header)) in tag_starts.iter().enumerate() {
+            let start = *start;
             let end = tag_starts
                 .get(ordinal + 1)
-                .copied()
-                .unwrap_or(self.lines.len());
-            let line = &self.lines[start];
-            let Some(header) = DocumentationTagHeader::parse(line.text(source)) else {
-                parser.report_error(ParserError::invalid_documentation_tag(line.span.range()));
-                is_complete = false;
-
-                continue;
+                .map_or(self.lines.len(), |(next_start, _)| *next_start);
+            let span = self.lines[start].span.merge(self.lines[end - 1].span);
+            let markdown = match header {
+                DocumentationTagHeader::Section => self.markdown(start, end, None, source),
+                header => self.markdown(start + 1, end, Some(header.markdown()), source),
             };
-            let span = line.span.merge(self.lines[end - 1].span);
-            let markdown = self.markdown(start + 1, end, Some(header.markdown()), source);
             let markdown = parser.strings.intern(&markdown);
-            let Some(tag) = parser.bind_documentation_tag(owner, &header, markdown, span, &tags)
+            let Some(tag) = parser.bind_documentation_tag(owner, header, markdown, span, &tags)
             else {
                 is_complete = false;
 
@@ -444,8 +465,8 @@ impl DocumentationComment {
         })
     }
 
-    /// Return every block tag line outside fenced code.
-    fn tag_starts(&self, source: &str) -> Vec<usize> {
+    /// Return every recognized block tag line outside fenced code.
+    fn tag_starts<'a>(&self, source: &'a str) -> Vec<(usize, DocumentationTagHeader<'a>)> {
         let mut starts = Vec::new();
         let mut fence = None;
 
@@ -461,9 +482,11 @@ impl DocumentationComment {
                 };
             }
 
-            // collect block tags outside fences
-            if fence.is_none() && trimmed.starts_with('@') {
-                starts.push(index);
+            // collect recognized block tags outside fences and keep other lines as prose
+            if fence.is_none()
+                && let Some(header) = DocumentationTagHeader::parse(trimmed)
+            {
+                starts.push((index, header));
             }
         }
 
@@ -502,6 +525,7 @@ impl<'a> DocumentationTagHeader<'a> {
             Self::Parameter { markdown, .. }
             | Self::TypeParameter { markdown, .. }
             | Self::Example { markdown } => markdown,
+            Self::Section => "",
         }
     }
 
@@ -509,21 +533,33 @@ impl<'a> DocumentationTagHeader<'a> {
     fn parse(line: &'a str) -> Option<Self> {
         let line = line.trim_start();
 
+        // require a line-start tag identifier
+        let identifier = documentation_tag_identifier(line)?;
+
         // parse examples without a declared target
-        if line == "@example" {
-            return Some(Self::Example { markdown: "" });
-        }
-        if let Some(markdown) = line.strip_prefix("@example ") {
+        if identifier == "example" {
+            if line == "@example" {
+                return Some(Self::Example { markdown: "" });
+            }
+
+            let markdown = line.strip_prefix("@example ")?;
+
             return Some(Self::Example {
                 markdown: markdown.trim(),
             });
         }
 
+        // keep every non-target tag block as authored
+        let is_parameter = identifier == "param";
+        if !is_parameter && identifier != "typeParam" {
+            return Some(Self::Section);
+        }
+
         // select one named tag keyword
-        let (body, is_parameter) = if let Some(body) = line.strip_prefix("@param ") {
-            (body, true)
+        let body = if is_parameter {
+            line.strip_prefix("@param ")?
         } else {
-            (line.strip_prefix("@typeParam ")?, false)
+            line.strip_prefix("@typeParam ")?
         };
 
         // split the declared name from its Markdown
@@ -552,6 +588,16 @@ impl<'a> DocumentationTagHeader<'a> {
             Some(Self::TypeParameter { name, markdown })
         }
     }
+}
+
+/// Return the tag identifier opening one documentation line.
+fn documentation_tag_identifier(line: &str) -> Option<&str> {
+    let rest = line.strip_prefix('@')?;
+    let end = rest
+        .find(|character: char| !character.is_alphanumeric() && character != '_')
+        .unwrap_or(rest.len());
+
+    (end > 0).then(|| &rest[..end])
 }
 
 /// Return the opening or closing Markdown fence marker on one line.

@@ -173,6 +173,212 @@ function select<Value>(plain: Value, dash: Value, colon: Value): Value {
     );
 }
 
+/// Keep any unknown line-start tag as one preserved section block.
+#[test]
+fn test_parse_keeps_an_unknown_line_start_tag_as_a_section() {
+    let test = TestParser::new(
+        r#"
+/// Provides access to the Cache API.
+///
+/// @category Cache
+/// Grouped under the Cache namespace.
+/// @since 1.2.0
+function open(): void {}
+"#,
+    );
+    let (parser, roots) = test.parse();
+
+    let root = roots[0];
+    let declaration = match parser.tree.get(root) {
+        Expression::Declaration(declaration) => *declaration,
+        expression => panic!("expected declaration expression, got {expression:?}"),
+    };
+    let documentation = parser
+        .tree
+        .get_documentation(declaration.id)
+        .expect("function declaration should have documentation");
+
+    assert_eq!(
+        parser.strings.get(documentation.markdown),
+        "Provides access to the Cache API."
+    );
+    let markdown = documentation
+        .tags
+        .iter()
+        .map(|tag| {
+            assert!(tag.is_section());
+
+            parser.strings.get(tag.markdown())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        markdown,
+        vec![
+            "@category Cache\nGrouped under the Cache namespace.",
+            "@since 1.2.0"
+        ]
+    );
+    assert!(parser.diagnostics().is_empty());
+}
+
+/// Keep tag text after the start of a line as plain Markdown prose.
+#[test]
+fn test_parse_keeps_inline_tag_text_as_prose() {
+    let test = TestParser::new(
+        r#"
+/// Mail admin@example.com when the @memo decorator runs.
+function notify(): void {}
+"#,
+    );
+    let (parser, roots) = test.parse();
+
+    let root = roots[0];
+    let declaration = match parser.tree.get(root) {
+        Expression::Declaration(declaration) => *declaration,
+        expression => panic!("expected declaration expression, got {expression:?}"),
+    };
+    let documentation = parser
+        .tree
+        .get_documentation(declaration.id)
+        .expect("function declaration should have documentation");
+
+    assert_eq!(
+        parser.strings.get(documentation.markdown),
+        "Mail admin@example.com when the @memo decorator runs."
+    );
+    assert!(documentation.tags.is_empty());
+    assert!(parser.diagnostics().is_empty());
+}
+
+/// Keep braced inline tags as plain Markdown prose.
+#[test]
+fn test_parse_keeps_a_braced_inline_tag_as_prose() {
+    let test = TestParser::new(
+        r#"
+/// See {@link open} for details.
+/// {@linkcode Cache} starts this line.
+function close(): void {}
+"#,
+    );
+    let (parser, roots) = test.parse();
+
+    let root = roots[0];
+    let declaration = match parser.tree.get(root) {
+        Expression::Declaration(declaration) => *declaration,
+        expression => panic!("expected declaration expression, got {expression:?}"),
+    };
+    let documentation = parser
+        .tree
+        .get_documentation(declaration.id)
+        .expect("function declaration should have documentation");
+
+    assert_eq!(
+        parser.strings.get(documentation.markdown),
+        "See {@link open} for details.\n{@linkcode Cache} starts this line."
+    );
+    assert!(documentation.tags.is_empty());
+    assert!(parser.diagnostics().is_empty());
+}
+
+/// Keep an at sign without a tag identifier as plain Markdown prose.
+#[test]
+fn test_parse_keeps_a_bare_at_sign_as_prose() {
+    let test = TestParser::new(
+        r#"
+/// @
+/// @ mentions ping the author.
+/// @!important punctuation stays prose.
+function ping(): void {}
+"#,
+    );
+    let (parser, roots) = test.parse();
+
+    let root = roots[0];
+    let declaration = match parser.tree.get(root) {
+        Expression::Declaration(declaration) => *declaration,
+        expression => panic!("expected declaration expression, got {expression:?}"),
+    };
+    let documentation = parser
+        .tree
+        .get_documentation(declaration.id)
+        .expect("function declaration should have documentation");
+
+    assert_eq!(
+        parser.strings.get(documentation.markdown),
+        "@\n@ mentions ping the author.\n@!important punctuation stays prose."
+    );
+    assert!(documentation.tags.is_empty());
+    assert!(parser.diagnostics().is_empty());
+}
+
+/// Retain recognized section tags as authored lines including their headers.
+#[test]
+fn test_parse_documentation_retains_section_tags_as_authored() {
+    let test = TestParser::new(
+        r#"
+/// Read one value.
+///
+/// @returns The stored value, or `null` when unset.
+/// @deprecated Use `readValue` instead.
+function read(): void {}
+"#,
+    );
+    let (parser, roots) = test.parse();
+
+    let root = roots[0];
+    let declaration = match parser.tree.get(root) {
+        Expression::Declaration(declaration) => *declaration,
+        expression => panic!("expected declaration expression, got {expression:?}"),
+    };
+    let documentation = parser
+        .tree
+        .get_documentation(declaration.id)
+        .expect("function declaration should have documentation");
+
+    assert_eq!(
+        parser.strings.get(documentation.markdown),
+        "Read one value."
+    );
+    let markdown = documentation
+        .tags
+        .iter()
+        .map(|tag| {
+            assert!(tag.is_section());
+
+            parser.strings.get(tag.markdown())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        markdown,
+        vec![
+            "@returns The stored value, or `null` when unset.",
+            "@deprecated Use `readValue` instead."
+        ]
+    );
+}
+
+/// Attach documentation across intervening ordinary line comments.
+#[test]
+fn test_attach_documentation_skips_intervening_line_comments() {
+    let test = TestParser::new(
+        r#"
+/// Run work.
+// prettier-ignore
+function run(): void {}
+"#,
+    );
+    let (parser, roots) = test.parse();
+
+    let root = roots[0];
+    let declaration = match parser.tree.get(root) {
+        Expression::Declaration(declaration) => *declaration,
+        expression => panic!("expected declaration expression, got {expression:?}"),
+    };
+
+    assert_eq!(test.documentation(&parser, declaration), Some("Run work."));
+    assert!(parser.diagnostics().is_empty());
+}
+
 /// Attach documentation to complete value expressions and nested operand expressions.
 #[test]
 fn test_attach_documentation_to_value_expressions() {
