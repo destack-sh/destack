@@ -219,7 +219,7 @@ impl FieldTarget {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct VariantCase {
-    /// The selected variant family symbol.
+    /// The selected enum symbol.
     pub owner: GlobalSymbolId,
     /// The source-level case key.
     pub key: StaticKey,

@@ -299,13 +299,26 @@ impl Type {
         .into_iter()
     }
 
+    /// Return the only scalar literal inhabiting this type.
+    pub fn singleton_literal(&self) -> Option<ScalarLiteral> {
+        match self {
+            Self::Null => Some(ScalarLiteral::Null),
+            Self::Undefined => Some(ScalarLiteral::Undefined),
+            Self::Literal(literal) => Some(*literal),
+            _ => None,
+        }
+    }
+
     /// Return every inhabitant when this type has a finite literal set.
     pub fn finite_literals(&self) -> Option<SmallVec<[ScalarLiteral; 2]>> {
+        // return the exact singleton directly
+        if let Some(literal) = self.singleton_literal() {
+            return Some(smallvec![literal]);
+        }
+
+        // enumerate the remaining finite domains
         match self {
             Self::Never => Some(SmallVec::new()),
-            Self::Null => Some(smallvec![ScalarLiteral::Null]),
-            Self::Undefined => Some(smallvec![ScalarLiteral::Undefined]),
-            Self::Literal(literal) => Some(smallvec![*literal]),
             Self::Primitive(PrimitiveType::Boolean) => Some(smallvec![
                 ScalarLiteral::Boolean(false),
                 ScalarLiteral::Boolean(true),
@@ -930,7 +943,7 @@ pub struct RefinedType {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct VariantType {
-    /// The instantiated variant family.
+    /// The instantiated enum.
     pub owner: GlobalTypeId,
     /// The selected variant declaration.
     pub variant: GlobalSymbolId,
