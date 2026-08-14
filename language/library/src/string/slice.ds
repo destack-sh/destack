@@ -1,5 +1,5 @@
 import { Slice } from "destack:collections";
-import { As, ToOwned } from "destack:convert";
+import { As, Borrow, ToOwned } from "destack:convert";
 import { todo } from "destack:error";
 import { Equal, Hash, Hasher } from "destack:ops";
 
@@ -39,5 +39,31 @@ export extension of StringSlice
     /// Add this string slice to `state`.
     hash(&readonly this, state: &Hasher): void {
         todo("StringSlice.hash");
+    }
+}
+
+export extension<S: Borrow<StringSlice>> of S {
+    /// Split this text once around the first exact separator.
+    splitOnce<Q: Borrow<StringSlice>>(
+        &readonly this,
+        separator: &readonly Q,
+    ): (&readonly StringSlice, &readonly StringSlice) | undefined {
+        todo("StringSlice.splitOnce")
+    }
+
+    /// Borrow the text after an exact prefix.
+    stripPrefix<Q: Borrow<StringSlice>>(
+        &readonly this,
+        prefix: &readonly Q,
+    ): &readonly StringSlice | undefined {
+        todo("StringSlice.stripPrefix")
+    }
+
+    /// Borrow the text before an exact suffix.
+    stripSuffix<Q: Borrow<StringSlice>>(
+        &readonly this,
+        suffix: &readonly Q,
+    ): &readonly StringSlice | undefined {
+        todo("StringSlice.stripSuffix")
     }
 }
