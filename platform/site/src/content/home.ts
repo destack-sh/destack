@@ -41,7 +41,7 @@ type HomeExampleShape = {
 export const homeExamples = [
     {
         action: "read",
-        claim: "Read and write what you already know.",
+        claim: "Leverage what you already know.",
         description:
             "Meet Relay: a small webhook service built with typed routes, Web APIs, TSX, and workers.",
         editors: [
@@ -79,7 +79,7 @@ serve({
     },
     {
         action: "understand",
-        claim: "Map out the exact, actual system.",
+        claim: "Map the shape of the system.",
         description:
             "Ask the source where events can leave the process and get precise structural answers.",
         editors: [
