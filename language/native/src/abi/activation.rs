@@ -1,4 +1,4 @@
-use super::{ConstantSpace, Exit, Runtime, StaticSpace};
+use super::{Exit, Runtime, StaticSpace};
 
 /// Native activation passed to generated code and runtime operations.
 #[repr(C)]
@@ -17,7 +17,7 @@ pub struct Activation {
     /// The first byte in world memory.
     pub memory_base: *mut u8,
     /// Program constant bytes.
-    pub constants: ConstantSpace,
+    pub constants: StaticSpace,
     /// Immortal object bytes.
     pub immortals: StaticSpace,
     /// Runtime-shared static bytes.
@@ -56,7 +56,7 @@ impl Activation {
         virtuals: *const *const u32,
         dynamics: *const *const u32,
         memory_base: *mut u8,
-        constants: ConstantSpace,
+        constants: StaticSpace,
         immortals: StaticSpace,
         shared_statics: StaticSpace,
         local_statics: StaticSpace,
