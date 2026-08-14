@@ -1049,7 +1049,7 @@ function get<T>(items: Slice<T>, index: usize): T {
 
 ### Derive
 
-Similar to Rust, Destack supports `@derive` providers for extending annotated declarations at compile time.
+Similar to Rust, Destack `derive`s compiler-known interfaces for annotated declarations.
 
 ```ds
 @derive(Clone, Debug)
