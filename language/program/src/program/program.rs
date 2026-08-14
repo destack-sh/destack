@@ -7,7 +7,7 @@ use destack_heap::{
     AllocationPlan, AllocationShape, DropId, HeapOptions, HeapResult, ReferenceRange, RootSlot,
     SharedHeapOptions, TraceTable, TraceView, visit_heap_root_slots,
 };
-use destack_memory::{MemoryMap, MemoryRange, MemoryResult};
+use destack_memory::{MemoryError, MemoryMap, MemoryRange, MemoryResult};
 use destack_mir::{Space, Storage, TargetLayout, TraceId, TraceMap};
 use destack_native as native;
 use destack_serde::{Reflect, Schema, Type};
@@ -18,12 +18,12 @@ use crate::{
     ActivationImage, Binding, BindingId, BindingTable, CallSite, CallSiteId, DispatchTable,
     DropEntry, DropTable, DynamicEntry, DynamicTable, DynamicTableId, Error, FrameLayout,
     FrameLayoutId, FramePoint, FrameSlot, FrameState, FrameStateId, FrameTable, Function,
-    FunctionId, FunctionTable, Global, GlobalAddress, GlobalId, GlobalLocation, GlobalTable,
-    Layout, LayoutField, LayoutId, LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result,
-    SampleKey, SampleSite, SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId,
-    SiteTable, StaticImage, StaticSpace, StringTable, Symbol, TensorDimension, TensorLayout,
-    TensorViewLayout, TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout,
-    VirtualTable, VirtualTableId, Word, WordLayout,
+    FunctionId, FunctionTable, Global, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField,
+    LayoutId, LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite,
+    SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage,
+    StaticSpace, StringTable, Symbol, TensorDimension, TensorLayout, TensorViewLayout,
+    TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable,
+    VirtualTableId, Word, WordLayout,
 };
 
 /// Linked program.
@@ -59,7 +59,7 @@ pub struct Program {
 
     /// Immutable constant storage owned by this program.
     pub(crate) constants: StaticImage,
-    /// Immortal object storage materialized once per world.
+    /// Initial immortal object storage for each runtime.
     pub(crate) immortals: StaticImage,
     /// Initial shared static storage for each runtime.
     pub(crate) shared_statics: StaticImage,
@@ -349,19 +349,56 @@ impl Program {
         &self.local_statics
     }
 
-    /// Materialize immortal object storage with rebased addresses.
-    pub fn materialize_immortals(&self, memory: Arc<MemoryMap>) -> MemoryResult<StaticSpace> {
-        self.immortals.materialize(self.sections(), memory)
+    /// Materialize constant, immortal, and shared static storage for one runtime.
+    pub fn materialize_runtime_statics(
+        &self,
+        memory: Arc<MemoryMap>,
+    ) -> MemoryResult<(StaticSpace, StaticSpace, StaticSpace)> {
+        let sections = self.sections();
+        let constants = self
+            .constants
+            .materialize_constant(sections, memory.clone())?;
+        let immortals = self.immortals.materialize(sections, memory.clone())?;
+        let shared = self.shared_statics.materialize(sections, memory)?;
+
+        // resolve every runtime-visible static address
+        let base = |location| match location {
+            GlobalLocation::Constant => Ok(constants.offset()),
+            GlobalLocation::Immortal => Ok(immortals.offset()),
+            GlobalLocation::SharedStatic => Ok(shared.offset()),
+            GlobalLocation::LocalStatic => Err(MemoryError::internal(
+                "runtime static relocation targets local storage",
+            )),
+        };
+        constants.relocate(self.constants.relocations(sections), base)?;
+        immortals.relocate(self.immortals.relocations(sections), base)?;
+        shared.relocate(self.shared_statics.relocations(sections), base)?;
+        constants.freeze()?;
+
+        Ok((constants, immortals, shared))
     }
 
-    /// Materialize initial shared static storage.
-    pub fn materialize_shared_statics(&self, memory: Arc<MemoryMap>) -> MemoryResult<StaticSpace> {
-        self.shared_statics.materialize(self.sections(), memory)
-    }
+    /// Materialize local static storage for one worker.
+    pub fn materialize_local_statics(
+        &self,
+        memory: Arc<MemoryMap>,
+        constants: &StaticSpace,
+        immortals: &StaticSpace,
+        shared: &StaticSpace,
+    ) -> MemoryResult<StaticSpace> {
+        let sections = self.sections();
+        let local = self.local_statics.materialize(sections, memory)?;
 
-    /// Materialize initial local static storage.
-    pub fn materialize_local_statics(&self, memory: Arc<MemoryMap>) -> MemoryResult<StaticSpace> {
-        self.local_statics.materialize(self.sections(), memory)
+        // resolve every worker-visible static address
+        let base = |location| match location {
+            GlobalLocation::Constant => Ok(constants.offset()),
+            GlobalLocation::Immortal => Ok(immortals.offset()),
+            GlobalLocation::SharedStatic => Ok(shared.offset()),
+            GlobalLocation::LocalStatic => Ok(local.offset()),
+        };
+        local.relocate(self.local_statics.relocations(sections), base)?;
+
+        Ok(local)
     }
 
     /// Resolve one function id by source name.
@@ -490,21 +527,6 @@ impl Program {
     /// Return the program trace table.
     pub fn trace_table(&self) -> &TraceTable {
         &self.traces
-    }
-
-    /// Resolve one constant byte range to a native address.
-    pub fn constant_address(&self, address: GlobalAddress, byte_len: usize) -> Option<usize> {
-        let sections = self.sections();
-
-        self.constants.address(sections, address, byte_len)
-    }
-
-    /// Return whether constants own one byte range.
-    pub fn constants_own_address_range(&self, address: GlobalAddress, byte_len: usize) -> bool {
-        let sections = self.sections();
-
-        self.constants
-            .owns_address_range(sections, address, byte_len)
     }
 
     /// Return one canonical frame state.

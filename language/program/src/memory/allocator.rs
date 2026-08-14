@@ -1,12 +1,12 @@
-use crate::{GlobalAddress, StaticBytes};
+use crate::{GlobalAddress, GlobalLocation, StaticBytes, StaticRelocation};
 
 /// Construction-time allocator for static global bytes.
 #[derive(Debug)]
 pub struct GlobalAllocator {
     /// Static bytes.
     bytes: Vec<u8>,
-    /// Image-relative word offsets holding image-relative target offsets.
-    relocations: Vec<u64>,
+    /// Static address words rebased when the image is materialized.
+    relocations: Vec<StaticRelocation>,
     /// Maximum global alignment.
     alignment: usize,
 }
@@ -58,13 +58,14 @@ impl GlobalAllocator {
     }
 
     /// Record one address word to rebase at materialization.
-    pub fn relocate(&mut self, word_offset: usize) {
-        self.relocations.push(word_offset as u64);
+    pub fn relocate(&mut self, byte_offset: usize, location: GlobalLocation) {
+        self.relocations
+            .push(StaticRelocation::new(byte_offset, location));
     }
 
     /// Build the initialized and aligned static bytes.
     pub fn build(self) -> StaticBytes {
-        StaticBytes::relocated(self.bytes, self.relocations, self.alignment)
+        StaticBytes::new(self.bytes, self.relocations, self.alignment)
     }
 }
 

@@ -6,7 +6,7 @@ use destack_heap::{
 };
 use destack_mir::Space;
 
-use crate::{AllocationSiteId, StaticImage, StaticSpace};
+use crate::{AllocationSiteId, Global, GlobalAddress, GlobalLocation, StaticSpace};
 
 /// Memory available to one program activation.
 pub struct Memory<'a> {
@@ -27,7 +27,7 @@ pub struct Memory<'a> {
     /// Immortal object memory.
     pub immortals: &'a StaticSpace,
     /// Program constant memory.
-    pub constants: &'a StaticImage,
+    pub constants: &'a StaticSpace,
 }
 
 impl Memory<'_> {
@@ -49,6 +49,17 @@ impl Memory<'_> {
             shared_statics: self.shared_statics,
             immortals: self.immortals,
             constants: self.constants,
+        }
+    }
+
+    /// Return one global's reference inside world memory.
+    #[inline(always)]
+    pub fn reference(&self, global: &Global) -> GlobalAddress {
+        match global.location {
+            GlobalLocation::Constant => self.constants.reference(global),
+            GlobalLocation::Immortal => self.immortals.reference(global),
+            GlobalLocation::SharedStatic => self.shared_statics.reference(global),
+            GlobalLocation::LocalStatic => self.local_statics.reference(global),
         }
     }
 

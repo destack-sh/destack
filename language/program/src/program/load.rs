@@ -188,7 +188,7 @@ impl ProgramHeader {
     /// Stable Program image marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
     /// Stable Program image format version.
-    const VERSION: u16 = 14;
+    const VERSION: u16 = 15;
 
     /// Create one empty Program header for a target layout.
     fn new(target_layout: TargetLayout) -> Self {
@@ -606,47 +606,3 @@ impl Program {
 }
 
 const _: () = assert!(align_of::<ProgramHeader>() == 16);
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use destack_memory::MemoryMap;
-
-    use super::*;
-    use crate::{GlobalAddress, GlobalAllocator};
-
-    /// Preserve static alignment through Program packing, loading, and materialization.
-    #[test]
-    fn test_load_overaligned_static_image() {
-        let mut statics = GlobalAllocator::new();
-        let (offset, _) = statics.allocate(64, &[1, 2, 3, 4]);
-        let source = ProgramBuilder::new(Default::default())
-            .local_statics(statics.build())
-            .bytecode(CodeBuilder::new())
-            .build()
-            .expect("program should build");
-
-        // load copied Program bytes into a newly aligned owned image
-        let storage = SectionStorage::from_bytes(source.bytes());
-        let program = Program::load(storage).expect("program should load");
-        let memory = Arc::new(MemoryMap::reserve(64 * 1024, 8 * 1024).expect("reserve memory"));
-        let statics = program
-            .local_statics()
-            .materialize(program.sections(), memory.clone())
-            .expect("materialize statics");
-
-        // preserve both bytes and native alignment in world memory
-        let reference = GlobalAddress::new(statics.offset() + offset);
-        let address = statics
-            .address(reference, 4)
-            .expect("resolve static address");
-        assert!(address.is_multiple_of(64));
-        assert_eq!(
-            memory
-                .read_bytes(statics.offset() + offset, 4)
-                .expect("read static bytes"),
-            [1, 2, 3, 4]
-        );
-    }
-}

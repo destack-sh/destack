@@ -1,12 +1,25 @@
+use std::mem::size_of;
 use std::sync::Arc;
 
 use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
-use destack_memory::{MemoryMap, MemoryRange, MemoryResult};
+use destack_memory::{MemoryError, MemoryMap, MemoryRange, MemoryResult};
 use destack_native::abi;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Global, GlobalAddress};
+use crate::{Global, GlobalAddress, GlobalLocation};
+
+/// One static address word rebased when its image is materialized.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct StaticRelocation {
+    /// The byte offset of the address word inside its source image.
+    pub byte_offset: u64,
+    /// The static location containing the referenced global.
+    pub location: GlobalLocation,
+    /// Reserved relocation word.
+    reserved: u32,
+}
 
 /// Section-backed static memory image carried by a program.
 #[repr(C)]
@@ -14,8 +27,8 @@ use crate::{Global, GlobalAddress};
 pub struct StaticImage {
     /// Static bytes.
     bytes: SectionSlice<u8>,
-    /// Image-relative word offsets rebased to the placed range at materialization.
-    relocations: SectionSlice<u64>,
+    /// Static address words rebased when the image is materialized.
+    relocations: SectionSlice<StaticRelocation>,
     /// Required byte alignment.
     alignment: u32,
     /// Reserved image word.
@@ -27,8 +40,8 @@ pub struct StaticImage {
 pub struct StaticBytes {
     /// Initialized bytes.
     bytes: Vec<u8>,
-    /// Image-relative word offsets holding image-relative target offsets.
-    relocations: Vec<u64>,
+    /// Static address words rebased when the image is materialized.
+    relocations: Vec<StaticRelocation>,
     /// Required byte alignment.
     alignment: usize,
 }
@@ -57,13 +70,8 @@ impl Default for StaticImage {
 }
 
 impl StaticBytes {
-    /// Create initialized static bytes with one required alignment.
-    pub fn new(bytes: Vec<u8>, alignment: usize) -> Self {
-        Self::relocated(bytes, Vec::new(), alignment)
-    }
-
     /// Create initialized static bytes with address words to rebase.
-    pub fn relocated(bytes: Vec<u8>, relocations: Vec<u64>, alignment: usize) -> Self {
+    pub fn new(bytes: Vec<u8>, relocations: Vec<StaticRelocation>, alignment: usize) -> Self {
         assert!(
             alignment.is_power_of_two(),
             "static alignment must be a power of two"
@@ -77,6 +85,17 @@ impl StaticBytes {
             bytes,
             relocations,
             alignment,
+        }
+    }
+}
+
+impl StaticRelocation {
+    /// Create one static address relocation.
+    pub(crate) const fn new(byte_offset: usize, location: GlobalLocation) -> Self {
+        Self {
+            byte_offset: byte_offset as u64,
+            location,
+            reserved: 0,
         }
     }
 }
@@ -103,48 +122,27 @@ impl StaticImage {
         sections.entries(self.bytes).get(global.offset()..end)
     }
 
-    /// Return one stable reference to a global in this image.
-    pub fn reference(&self, global: &Global) -> GlobalAddress {
-        GlobalAddress::new(global.offset())
-    }
-
-    /// Return a native address for one static byte range.
-    pub fn address(
-        &self,
-        sections: SectionImage<'_>,
-        address: GlobalAddress,
-        byte_len: usize,
-    ) -> Option<usize> {
-        let start = address.offset()?;
-        let end = start.checked_add(byte_len)?;
-        let bytes = sections.entries(self.bytes);
-        if end > bytes.len() {
-            return None;
-        }
-
-        Some(bytes.as_ptr() as usize + start)
-    }
-
-    /// Return whether static memory owns one byte range.
-    pub fn owns_address_range(
-        &self,
-        sections: SectionImage<'_>,
-        address: GlobalAddress,
-        byte_len: usize,
-    ) -> bool {
-        self.address(sections, address, byte_len).is_some()
-    }
-
-    /// Materialize this image into runtime static memory with rebased addresses.
-    pub fn materialize(
+    /// Materialize this image into runtime static memory.
+    pub(crate) fn materialize(
         &self,
         sections: SectionImage<'_>,
         memory: Arc<MemoryMap>,
     ) -> MemoryResult<StaticSpace> {
-        let space = StaticSpace::new(memory, sections.entries(self.bytes), self.alignment())?;
-        space.rebase(sections.entries(self.relocations))?;
+        StaticSpace::new(memory, sections.entries(self.bytes), self.alignment())
+    }
 
-        Ok(space)
+    /// Materialize this image into dedicated mapping frames.
+    pub(crate) fn materialize_constant(
+        &self,
+        sections: SectionImage<'_>,
+        memory: Arc<MemoryMap>,
+    ) -> MemoryResult<StaticSpace> {
+        StaticSpace::constant(memory, sections.entries(self.bytes), self.alignment())
+    }
+
+    /// Borrow the static address relocations.
+    pub(crate) fn relocations<'a>(&self, sections: SectionImage<'a>) -> &'a [StaticRelocation] {
+        sections.entries(self.relocations)
     }
 
     /// Return whether no static bytes exist.
@@ -173,19 +171,9 @@ impl StaticImage {
         let bytes = sections.entries(self.bytes);
         bytes.is_empty() || (bytes.as_ptr() as usize).is_multiple_of(alignment)
     }
-
-    /// Return a native projection of this constant image.
-    pub fn native(&self, sections: SectionImage<'_>) -> abi::ConstantSpace {
-        let bytes = sections.entries(self.bytes);
-
-        abi::ConstantSpace {
-            bytes: bytes.as_ptr(),
-            byte_len: bytes.len(),
-        }
-    }
 }
 
-/// Durable mutable static memory image.
+/// Durable static memory image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct StaticSpaceImage {
     /// The static byte offset inside world memory.
@@ -194,7 +182,7 @@ pub struct StaticSpaceImage {
     pub byte_len: usize,
 }
 
-/// Runtime-owned mutable static memory.
+/// Runtime-owned static memory.
 #[derive(Debug)]
 pub struct StaticSpace {
     /// The world memory map.
@@ -207,6 +195,18 @@ impl StaticSpace {
     /// Create static memory from initial bytes.
     pub fn new(memory: Arc<MemoryMap>, bytes: &[u8], alignment: usize) -> MemoryResult<Self> {
         let range = memory.allocate(bytes.len(), alignment)?;
+        let space = Self { memory, range };
+        space.memory.write_bytes(space.range.offset, bytes)?;
+
+        Ok(space)
+    }
+
+    /// Create constant memory in dedicated mapping frames.
+    fn constant(memory: Arc<MemoryMap>, bytes: &[u8], alignment: usize) -> MemoryResult<Self> {
+        let frame_byte_len = memory.frame_size_bytes();
+        let byte_len = bytes.len().next_multiple_of(frame_byte_len);
+        let alignment = alignment.max(frame_byte_len);
+        let range = memory.allocate(byte_len, alignment)?;
         let space = Self { memory, range };
         space.memory.write_bytes(space.range.offset, bytes)?;
 
@@ -231,7 +231,7 @@ impl StaticSpace {
         }
     }
 
-    /// Capture mutable static memory.
+    /// Capture static memory.
     pub fn image(&self) -> StaticSpaceImage {
         StaticSpaceImage {
             memory_offset: self.range.offset,
@@ -239,14 +239,26 @@ impl StaticSpace {
         }
     }
 
-    /// Rebase relocated address words by this space's world offset.
-    ///
-    /// Each relocation names a space-relative word holding a space-relative
-    /// target offset; after rebasing, the word holds a world offset.
-    pub fn rebase(&self, relocations: &[u64]) -> MemoryResult<()> {
-        for &relocation in relocations {
-            // read the space-relative target offset
-            let word_offset = self.range.offset + relocation as usize;
+    /// Rebase static address words against their concrete target spaces.
+    pub(crate) fn relocate(
+        &self,
+        relocations: &[StaticRelocation],
+        base: impl Fn(GlobalLocation) -> MemoryResult<usize>,
+    ) -> MemoryResult<()> {
+        for relocation in relocations {
+            // locate the address word inside this static space
+            let byte_offset = usize::try_from(relocation.byte_offset).map_err(|_| {
+                MemoryError::internal("static relocation exceeds host address width")
+            })?;
+            let byte_end = byte_offset
+                .checked_add(GlobalAddress::BYTE_LEN)
+                .ok_or_else(|| MemoryError::internal("static relocation offset overflow"))?;
+            if byte_end > self.range.byte_len {
+                return Err(MemoryError::internal(
+                    "static relocation lies outside its source space",
+                ));
+            }
+            let word_offset = self.range.offset + byte_offset;
             let bytes = self
                 .memory
                 .read_bytes(word_offset, GlobalAddress::BYTE_LEN)?;
@@ -254,12 +266,25 @@ impl StaticSpace {
             word.copy_from_slice(&bytes);
 
             // rebase the target into world memory
-            let target = u64::from_le_bytes(word) + self.range.offset as u64;
+            let target = usize::try_from(u64::from_le_bytes(word))
+                .map_err(|_| MemoryError::internal("static target exceeds host address width"))?;
+            let target = target
+                .checked_add(base(relocation.location)?)
+                .ok_or_else(|| MemoryError::internal("static target address overflow"))?;
             self.memory
-                .write_bytes(word_offset, &target.to_le_bytes())?;
+                .write_bytes(word_offset, &(target as u64).to_le_bytes())?;
         }
 
         Ok(())
+    }
+
+    /// Make this static range immutable.
+    pub(crate) fn freeze(&self) -> MemoryResult<()> {
+        if self.range.byte_len == 0 {
+            return Ok(());
+        }
+
+        self.memory.freeze(self.range)
     }
 
     /// Borrow one mapped global byte range mutably.
@@ -299,27 +324,6 @@ impl StaticSpace {
         Some(self.memory.base_address() + start)
     }
 
-    /// Return a mutable native address for one static byte range.
-    pub fn address_mut(
-        &mut self,
-        address: GlobalAddress,
-        byte_len: usize,
-    ) -> MemoryResult<Option<usize>> {
-        let Some(start) = address.offset() else {
-            return Ok(None);
-        };
-        let Some(end) = start.checked_add(byte_len) else {
-            return Ok(None);
-        };
-        if start < self.range.offset || end > self.range.end() {
-            return Ok(None);
-        }
-
-        self.memory.make_writable(start, byte_len)?;
-
-        Ok(Some(self.memory.base_address() + start))
-    }
-
     /// Return the static byte count.
     pub fn byte_len(&self) -> usize {
         self.range.byte_len
@@ -338,6 +342,8 @@ impl StaticSpace {
         }
     }
 }
+
+const _: () = assert!(size_of::<StaticRelocation>() == 16);
 
 impl Drop for StaticSpace {
     fn drop(&mut self) {
