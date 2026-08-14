@@ -151,14 +151,14 @@ impl ModuleQueryContext<'_> {
         let mut signatures = Vec::new();
         for call in calls {
             let signature = match &call.target {
-                dir::CallTarget::Symbol { function, .. } => self.call_signature_item(
+                dir::CallableTarget::Symbol { function, .. } => self.call_signature_item(
                     program,
                     function.symbol,
                     &function.generic_arguments,
                     &call.arguments,
                     call.return_type,
                 )?,
-                dir::CallTarget::Dynamic {
+                dir::CallableTarget::Dynamic {
                     function: dir::DynamicFunction::Symbol(symbol),
                     generic_arguments,
                     ..
@@ -169,7 +169,7 @@ impl ModuleQueryContext<'_> {
                     &call.arguments,
                     call.return_type,
                 )?,
-                dir::CallTarget::Dynamic {
+                dir::CallableTarget::Dynamic {
                     function,
                     generic_arguments,
                     ..
@@ -180,7 +180,7 @@ impl ModuleQueryContext<'_> {
                     &call.arguments,
                     call.return_type,
                 )?,
-                dir::CallTarget::Expression { generic_arguments } => self
+                dir::CallableTarget::Expression { generic_arguments } => self
                     .expression_signature_item(
                         program,
                         callee_id,

@@ -202,16 +202,16 @@ impl ModuleQueryContext<'_> {
         // read parameter names from every selected call arm
         for selected in resolution.arms() {
             let names = match &selected.target {
-                dir::CallTarget::Symbol { function, .. } => {
+                dir::CallableTarget::Symbol { function, .. } => {
                     self.symbol_call_parameter_names(program, call, function.symbol)?
                 }
-                dir::CallTarget::Dynamic {
+                dir::CallableTarget::Dynamic {
                     function: dir::DynamicFunction::Symbol(symbol),
                     ..
                 } => self.symbol_call_parameter_names(program, call, *symbol)?,
-                dir::CallTarget::Expression { .. } => Formatter::new(self, program)
+                dir::CallableTarget::Expression { .. } => Formatter::new(self, program)
                     .callable_parameter_labels(selected.callable_type)?,
-                dir::CallTarget::Dynamic {
+                dir::CallableTarget::Dynamic {
                     function:
                         dir::DynamicFunction::CallSignature(node)
                         | dir::DynamicFunction::IndexRead(node)

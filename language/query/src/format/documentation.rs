@@ -28,6 +28,7 @@ impl Formatter<'_, '_, '_> {
         let mut type_parameters = Vec::new();
         let mut parameters = Vec::new();
         let mut examples = Vec::new();
+        let mut sections = Vec::new();
 
         // collect every parsed tag
         for tag in &documentation.tags {
@@ -52,6 +53,9 @@ impl Formatter<'_, '_, '_> {
                 dir::DocumentationTag::Parameter { .. } => {}
                 dir::DocumentationTag::Example { markdown } => {
                     examples.push(self.module.strings().get(markdown));
+                }
+                dir::DocumentationTag::Section { markdown } => {
+                    sections.push(self.module.strings().get(markdown));
                 }
             }
         }
@@ -82,6 +86,11 @@ impl Formatter<'_, '_, '_> {
                 .collect::<Vec<_>>()
                 .join("\n\n");
             blocks.push(format!("## {heading}\n\n{entries}"));
+        }
+
+        // retain authored section lines
+        for section in sections {
+            blocks.push(section.to_string());
         }
 
         // retain authored example order and Markdown
