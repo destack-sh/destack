@@ -57,7 +57,7 @@ pub struct CompilerOptions {
     pub emit_checked_types: bool,
 }
 
-/// Well-known compiler-owned derive provider.
+/// Well-known interface selected for automatic derivation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "PascalCase")]
@@ -84,8 +84,6 @@ pub enum Derive {
     PartialEqual,
     /// Derive `Serialize`.
     Serialize,
-    /// Derive `Tagged`.
-    Tagged,
 }
 
 impl Derive {
@@ -103,7 +101,6 @@ impl Derive {
             Self::PartialCompare => "PartialCompare",
             Self::PartialEqual => "PartialEqual",
             Self::Serialize => "Serialize",
-            Self::Tagged => "Tagged",
         }
     }
 }

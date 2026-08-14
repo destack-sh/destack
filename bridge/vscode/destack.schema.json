@@ -1230,7 +1230,7 @@
       ]
     },
     "Derive": {
-      "description": "Well-known compiler-owned derive provider.",
+      "description": "Well-known interface selected for automatic derivation.",
       "oneOf": [
         {
           "description": "Derive `Compare`.",
@@ -1286,11 +1286,6 @@
           "description": "Derive `Serialize`.",
           "type": "string",
           "const": "Serialize"
-        },
-        {
-          "description": "Derive `Tagged`.",
-          "type": "string",
-          "const": "Tagged"
         }
       ]
     },

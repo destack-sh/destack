@@ -52,7 +52,7 @@ pub struct ProfileKey {
     pub globals: Vec<String>,
     /// Default tree tag builder provider.
     pub tree: Option<String>,
-    /// Auto derive providers for the profile.
+    /// Automatically derived interfaces for the profile.
     pub derive: Vec<String>,
     /// Compile-time environment identity for `import.meta.env`.
     pub env: EnvironmentKey,
