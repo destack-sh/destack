@@ -6,9 +6,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, Argument, ArgumentBinding, Decorator, Expression, GenericArgument, GlobalNodeId,
-    GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalNodeId,
-    NewtypeSelection, SegmentView, TypeFold,
+    Arena, Argument, ArgumentBinding, AutoInterface, Decorator, Expression, GenericArgument,
+    GlobalNodeId, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LanguageItem,
+    LocalNodeId, NewtypeSelection, SegmentView, TypeFold,
 };
 
 /// Cumulative decorator applications for one DIR module.
@@ -350,20 +350,9 @@ pub enum DecoratorSelection {
         /// The source arguments bound to the selected parameters.
         arguments: Vec<ArgumentBinding>,
     },
-    /// Providers selected by the compiler-owned derive dispatcher.
+    /// Interfaces selected by the compiler-owned derive dispatcher.
     Derive {
-        /// The selected providers in argument order.
-        providers: Vec<DeriveProvider>,
+        /// The selected interfaces in argument order.
+        interfaces: Vec<AutoInterface>,
     },
-}
-
-/// One provider selected by a compiler-owned derive decorator.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
-pub struct DeriveProvider {
-    /// The source provider argument.
-    pub argument: GlobalNodeId<Argument>,
-    /// The selected provider backing.
-    pub newtype: NewtypeSelection,
-    /// The instantiated provider type.
-    pub ty: GlobalTypeId,
 }

@@ -58,6 +58,6 @@ pub struct MacroInvocation {
 pub enum MacroTrigger {
     /// A decorator on the target node.
     Decorator(GlobalNodeId<Decorator>),
-    /// A configured auto-derive provider.
+    /// A configured automatic derivation.
     AutoDerive,
 }

@@ -452,9 +452,6 @@ define_language_items! {
         derive {
             /// `@derive` macro dispatcher.
             Derive => (Newtype, "decorator/derive", "derive"),
-
-            /// The `Tagged` derive provider.
-            Tagged => (Newtype, "decorator/derive", "Tagged"),
         }
 
         /// `destack:decorator/diagnostic`.
