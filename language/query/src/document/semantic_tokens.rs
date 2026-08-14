@@ -432,7 +432,6 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                     "semantic token pattern: {pattern:?}"
                 )))?;
         let fields = match resolution {
-            dir::PatternDecision::Variant(resolution) => &resolution.fields,
             dir::PatternDecision::Destructure(resolution) => match resolution.as_ref() {
                 dir::PatternDestructureResolution::Object(resolution) => &resolution.fields,
                 dir::PatternDestructureResolution::Nominal(resolution) => &resolution.fields,
@@ -489,13 +488,14 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                     Some(symbol) => self.symbol_token(symbol)?,
                     None => Some((SemanticTokenType::Property, SemanticTokenModifiers::NONE)),
                 },
+                dir::Projection::Discriminant { .. } => {
+                    Some((SemanticTokenType::Property, SemanticTokenModifiers::NONE))
+                }
                 dir::Projection::Subscript(_)
                 | dir::Projection::ObjectRest { .. }
                 | dir::Projection::SliceLength { .. }
                 | dir::Projection::DynamicPayload { .. }
                 | dir::Projection::DynamicType { .. }
-                | dir::Projection::VariantTag { .. }
-                | dir::Projection::VariantPayload { .. }
                 | dir::Projection::NewtypePayload { .. }
                 | dir::Projection::Borrow { .. }
                 | dir::Projection::Move { .. }

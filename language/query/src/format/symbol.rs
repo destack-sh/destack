@@ -235,11 +235,6 @@ impl Formatter<'_, '_, '_> {
 
                 format!("{name}: {type_text}")
             }
-            dir::DefinitionMember::TaggedKey(_) | dir::DefinitionMember::TaggedVariant(_) => {
-                return Err(QueryError::invalid(format!(
-                    "generated tagged member has no query representation: {symbol_id:?}"
-                )));
-            }
             dir::DefinitionMember::CallSignature(_)
             | dir::DefinitionMember::ConstructSignature(_) => {
                 let signature = self.authored_member_signature(member.source())?;

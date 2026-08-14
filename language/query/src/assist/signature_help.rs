@@ -402,40 +402,6 @@ impl ModuleQueryContext<'_> {
                     resolution.return_type,
                 )?
             }
-            dir::ConstructTarget::Variant(candidate) => {
-                let symbol_id = candidate.case.variant;
-                let module = program.module(symbol_id.module_id)?;
-                let (declaring, definition, member) = module
-                    .definition_member(program, symbol_id)?
-                    .ok_or(QueryError::missing(format!(
-                        "signature member: {symbol_id:?}"
-                    )))?;
-                let owner = definition
-                    .member_owner(declaring)
-                    .ok_or(QueryError::missing(format!(
-                        "signature member owner: {symbol_id:?}"
-                    )))?;
-                let container = program
-                    .symbol_name(owner)?
-                    .ok_or(QueryError::missing(format!(
-                        "signature member owner name: {owner:?}"
-                    )))?;
-                let member_name = Formatter::new(&module, program).member_name(member)?;
-                let name = format!("{container}.{member_name}");
-                let parameter_names = vec![None; resolution.arguments.len()];
-                let parameter_documentation = vec![None; resolution.arguments.len()];
-
-                self.signature_item(
-                    program,
-                    program.symbol_callable_documentation(symbol_id)?,
-                    &name,
-                    &candidate.generic_arguments,
-                    &parameter_names,
-                    &parameter_documentation,
-                    &resolution.arguments,
-                    resolution.return_type,
-                )?
-            }
         };
 
         Ok(vec![item])

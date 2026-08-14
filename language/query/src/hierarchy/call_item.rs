@@ -190,11 +190,6 @@ impl CallItem {
         let selected = match &resolution.target {
             dir::ConstructTarget::Newtype(candidate) => candidate.symbol,
             dir::ConstructTarget::Class(_) => return Self::from_symbol(program, entry.callee),
-            dir::ConstructTarget::Variant(_) => {
-                return Err(QueryError::invalid(
-                    "generated tagged construction has no call item",
-                ));
-            }
             // skip dynamic constructions, they index no declaration edge
             dir::ConstructTarget::Dynamic { .. } => {
                 return Err(QueryError::invalid(format!(
@@ -225,9 +220,7 @@ impl CallItem {
 
                 module.newtype_call_item(program, entry.callee, Some(call))
             }
-            dir::ConstructTarget::Class(_)
-            | dir::ConstructTarget::Variant(_)
-            | dir::ConstructTarget::Dynamic { .. } => {
+            dir::ConstructTarget::Class(_) | dir::ConstructTarget::Dynamic { .. } => {
                 Err(QueryError::invalid("construct call item"))
             }
         }
@@ -392,9 +385,6 @@ impl CallableSelection<'_> {
                 symbol_id: candidate.symbol,
                 call: ConstructorCall::new(&candidate.generic_arguments, resolution),
             }),
-            dir::ConstructTarget::Variant(_) => Err(QueryError::invalid(
-                "generated tagged construction has no call item",
-            )),
             dir::ConstructTarget::Dynamic { .. } => Ok(CallableSelection::DeclarationFree),
         }
     }

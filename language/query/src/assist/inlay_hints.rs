@@ -304,9 +304,7 @@ impl ModuleQueryContext<'_> {
 
                 self.symbol_call_parameter_names(program, call, symbol_id)
             }
-            dir::ConstructTarget::Newtype(_) | dir::ConstructTarget::Variant(_) => {
-                Ok(vec![None; resolution.arguments.len()])
-            }
+            dir::ConstructTarget::Newtype(_) => Ok(vec![None; resolution.arguments.len()]),
             // read dynamic construction names from their construct signature
             dir::ConstructTarget::Dynamic {
                 function:
