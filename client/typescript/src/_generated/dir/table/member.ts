@@ -401,7 +401,7 @@ export function fromJsonMemberOrigin(value: Json): MemberOrigin {
 }
 
 /** How one declaration member behaves at a use site. */
-export type MemberRole = "field" | "method" | "getter" | "setter" | "associated" | "variantValue" | "variantConstructor";
+export type MemberRole = "field" | "method" | "getter" | "setter" | "associated" | "variantValue";
 
 export const MemberRole = {
     /** Encode this value. */
@@ -446,9 +446,6 @@ export function encodeMemberRole(writer: BinaryWriter, value: MemberRole): void 
         case "variantValue":
             writer.writeUnsigned(5);
             return;
-        case "variantConstructor":
-            writer.writeUnsigned(6);
-            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -471,8 +468,6 @@ export function decodeMemberRole(reader: BinaryReader): MemberRole {
             return "associated";
         case 5:
             return "variantValue";
-        case 6:
-            return "variantConstructor";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -500,8 +495,6 @@ export function fromJsonMemberRole(value: Json): MemberRole {
             return "associated";
         case "variantValue":
             return "variantValue";
-        case "variantConstructor":
-            return "variantConstructor";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);

@@ -3446,7 +3446,7 @@ export type Type =
           readonly kind: "refined";
           readonly refined: RefinedTypeId;
       }
-    /** One selected enum or Tagged variant, like `Mode.Read` or `Result.Ok`. */
+    /** One selected enum variant, like `Mode.Read`. */
     | {
           readonly kind: "variant";
           readonly variant: VariantType;
@@ -3629,7 +3629,7 @@ export const Type = {
         return { kind: "refined", refined };
     },
 
-    /** One selected enum or Tagged variant, like `Mode.Read` or `Result.Ok`. */
+    /** One selected enum variant, like `Mode.Read`. */
     variant(variant: VariantType): Type {
         return { kind: "variant", variant };
     },
@@ -5345,7 +5345,7 @@ export function fromJsonUnionType(value: Json): UnionType {
     };
 }
 
-/** One selected enum or Tagged variant type. */
+/** One selected enum variant type. */
 export type VariantType = {
     /** The instantiated variant family. */
     readonly owner: GlobalTypeId;

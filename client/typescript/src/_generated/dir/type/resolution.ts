@@ -6,7 +6,6 @@ import type { StaticKey } from "../symbol/key.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
 import type { ClassConstructor } from "../table/definition.js";
 import type { MemberSpace } from "../table/member.js";
-import type { ScalarLiteral } from "../tree/literal.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { ArgumentBinding } from "./generic.js";
 import type { GenericArgumentBinding } from "./generic.js";
@@ -21,7 +20,6 @@ import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } 
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
 import { decodeClassConstructor, encodeClassConstructor, fromJsonClassConstructor, toJsonClassConstructor } from "../table/definition.js";
 import { decodeMemberSpace, encodeMemberSpace, fromJsonMemberSpace, toJsonMemberSpace } from "../table/member.js";
-import { decodeScalarLiteral, encodeScalarLiteral, fromJsonScalarLiteral, toJsonScalarLiteral } from "../tree/literal.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeArgumentBinding, encodeArgumentBinding, fromJsonArgumentBinding, toJsonArgumentBinding } from "./generic.js";
 import { decodeGenericArgumentBinding, encodeGenericArgumentBinding, fromJsonGenericArgumentBinding, toJsonGenericArgumentBinding } from "./generic.js";
@@ -1162,11 +1160,6 @@ export type ConstructTarget =
           readonly kind: "newtype";
           readonly newtype: NewtypeSelection;
       }
-    /** Tagged union variant constructor selected at compile time. */
-    | {
-          readonly kind: "variant";
-          readonly variant: VariantConstructCandidate;
-      }
     /** Construction through one erased interface construct signature. */
     | {
           readonly kind: "dynamic";
@@ -1186,11 +1179,6 @@ export const ConstructTarget = {
     /** Newtype wrapper constructor selected at compile time. */
     newtype(newtype: NewtypeSelection): ConstructTarget {
         return { kind: "newtype", newtype };
-    },
-
-    /** Tagged union variant constructor selected at compile time. */
-    variant(variant: VariantConstructCandidate): ConstructTarget {
-        return { kind: "variant", variant };
     },
 
     /** Construction through one erased interface construct signature. */
@@ -1230,12 +1218,8 @@ export function encodeConstructTarget(writer: BinaryWriter, value: ConstructTarg
             writer.writeUnsigned(1);
             encodeNewtypeSelection(writer, value.newtype);
             return;
-        case "variant":
-            writer.writeUnsigned(2);
-            encodeVariantConstructCandidate(writer, value.variant);
-            return;
         case "dynamic":
-            writer.writeUnsigned(3);
+            writer.writeUnsigned(2);
             encodeDynamicDispatch(writer, value.dispatch);
             encodeDynamicFunction(writer, value.function);
             return;
@@ -1260,11 +1244,6 @@ export function decodeConstructTarget(reader: BinaryReader): ConstructTarget {
             return { kind: "newtype", newtype };
         }
         case 2: {
-            const variant = decodeVariantConstructCandidate(reader);
-
-            return { kind: "variant", variant };
-        }
-        case 3: {
             const dispatch = decodeDynamicDispatch(reader);
             const function_ = decodeDynamicFunction(reader);
 
@@ -1292,11 +1271,6 @@ export function toJsonConstructTarget(value: ConstructTarget): Json {
                 kind: "newtype",
                 newtype: toJsonNewtypeSelection(value.newtype),
             };
-        case "variant":
-            return {
-                kind: "variant",
-                variant: toJsonVariantConstructCandidate(value.variant),
-            };
         case "dynamic":
             return {
                 kind: "dynamic",
@@ -1323,11 +1297,6 @@ export function fromJsonConstructTarget(value: Json): ConstructTarget {
             return {
                 kind,
                 newtype: fromJsonNewtypeSelection(jsonField(object, "newtype")),
-            };
-        case "variant":
-            return {
-                kind,
-                variant: fromJsonVariantConstructCandidate(jsonField(object, "variant")),
             };
         case "dynamic":
             return {
@@ -3050,6 +3019,8 @@ export type MemberTarget =
           readonly kind: "projection";
           /** The source member key. */
           readonly key: StaticKey;
+          /** The receiver adjustments applied before projection. */
+          readonly receiver: AdjustedReceiver;
           /** The selected value projection. */
           readonly projection: Projection;
       }
@@ -3087,8 +3058,8 @@ export type MemberTarget =
 
 export const MemberTarget = {
     /** Compiler-defined stored projection selected by this member access. */
-    projection(key: StaticKey, projection: Projection): MemberTarget {
-        return { kind: "projection", key, projection };
+    projection(key: StaticKey, receiver: AdjustedReceiver, projection: Projection): MemberTarget {
+        return { kind: "projection", key, receiver, projection };
     },
 
     /** Structural field selected from a shape type. */
@@ -3148,6 +3119,7 @@ export function encodeMemberTarget(writer: BinaryWriter, value: MemberTarget): v
         case "projection":
             writer.writeUnsigned(0);
             encodeStaticKey(writer, value.key);
+            encodeAdjustedReceiver(writer, value.receiver);
             encodeProjection(writer, value.projection);
             return;
         case "field":
@@ -3192,11 +3164,13 @@ export function decodeMemberTarget(reader: BinaryReader): MemberTarget {
     switch (variant) {
         case 0: {
             const key = decodeStaticKey(reader);
+            const receiver = decodeAdjustedReceiver(reader);
             const projection = decodeProjection(reader);
 
             return {
                 kind: "projection",
                 key,
+                receiver,
                 projection,
             };
         }
@@ -3242,6 +3216,7 @@ export function toJsonMemberTarget(value: MemberTarget): Json {
             return {
                 kind: "projection",
                 key: toJsonStaticKey(value.key),
+                receiver: toJsonAdjustedReceiver(value.receiver),
                 projection: toJsonProjection(value.projection),
             };
         case "field":
@@ -3289,6 +3264,7 @@ export function fromJsonMemberTarget(value: Json): MemberTarget {
             return {
                 kind,
                 key: fromJsonStaticKey(jsonField(object, "key")),
+                receiver: fromJsonAdjustedReceiver(jsonField(object, "receiver")),
                 projection: fromJsonProjection(jsonField(object, "projection")),
             };
         case "field":
@@ -4908,16 +4884,12 @@ export function fromJsonPatternTupleDestructureResolution(value: Json): PatternT
     };
 }
 
-/** Tagged variant selected by one pattern. */
+/** Enum variant selected by one pattern. */
 export type PatternVariantResolution = {
     /** The selected variant case. */
     readonly case: VariantCase;
     /** The selected variant predicate. */
     readonly predicate: Predicate;
-    /** The nested pattern matching the complete case payload. */
-    readonly payload?: GlobalNodeIdAny;
-    /** The payload fields in source order. */
-    readonly fields: ReadonlyArray<PatternFieldResolution>;
 };
 
 export const PatternVariantResolution = {
@@ -4946,27 +4918,16 @@ export const PatternVariantResolution = {
 export function encodePatternVariantResolution(writer: BinaryWriter, value: PatternVariantResolution): void {
     encodeVariantCase(writer, value.case);
     encodePredicate(writer, value.predicate);
-    writer.writeOption(value.payload, (value2) => {
-        encodeGlobalNodeIdAny(writer, value2);
-    });
-    writer.writeUnsigned(value.fields.length);
-    for (const item3 of value.fields) {
-        encodePatternFieldResolution(writer, item3);
-    }
 }
 
 /** Decode one PatternVariantResolution. */
 export function decodePatternVariantResolution(reader: BinaryReader): PatternVariantResolution {
     const case_ = decodeVariantCase(reader);
     const predicate = decodePredicate(reader);
-    const payload = reader.readOption(() => decodeGlobalNodeIdAny(reader));
-    const fields = (() => { const length3 = reader.readNumber(); const items3: Array<PatternFieldResolution> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodePatternFieldResolution(reader)); } return items3; })();
 
     return {
         case: case_,
         predicate,
-        ...(payload === undefined ? {} : { payload }),
-        fields,
     };
 }
 
@@ -4975,8 +4936,6 @@ export function toJsonPatternVariantResolution(value: PatternVariantResolution):
     return {
         case: toJsonVariantCase(value.case),
         predicate: toJsonPredicate(value.predicate),
-        ...(value.payload === undefined ? {} : { payload: toJsonGlobalNodeIdAny(value.payload) }),
-        fields: value.fields.map((item0) => toJsonPatternFieldResolution(item0)),
     };
 }
 
@@ -4987,8 +4946,6 @@ export function fromJsonPatternVariantResolution(value: Json): PatternVariantRes
     return {
         case: fromJsonVariantCase(jsonField(object, "case")),
         predicate: fromJsonPredicate(jsonField(object, "predicate")),
-        payload: jsonOptional(object, "payload", (value) => fromJsonGlobalNodeIdAny(value)),
-        fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonPatternFieldResolution(item0)),
     };
 }
 
@@ -6157,7 +6114,7 @@ export function fromJsonTreeTarget(value: Json): TreeTarget {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
-/** One tagged union case selected during checking. */
+/** One enum case selected during checking. */
 export type VariantCase = {
     /** The selected variant family symbol. */
     readonly owner: GlobalSymbolId;
@@ -6226,104 +6183,6 @@ export function fromJsonVariantCase(value: Json): VariantCase {
         owner: fromJsonGlobalSymbolId(jsonField(object, "owner")),
         key: fromJsonStaticKey(jsonField(object, "key")),
         variant: fromJsonGlobalSymbolId(jsonField(object, "variant")),
-    };
-}
-
-/** One tagged variant construction candidate after checking. */
-export type VariantConstructCandidate = {
-    /** The selected tagged case. */
-    readonly case: VariantCase;
-    /** The selected generic argument bindings for the owner symbol. */
-    readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
-    /** The selected instantiated case backing. */
-    readonly backing: GlobalTypeId;
-    /** The generated constructor argument type, absent for a unit variant. */
-    readonly argument?: GlobalTypeId;
-    /** The selected discriminator field. */
-    readonly discriminator: StaticKey;
-    /** The discriminant value injected by the constructor. */
-    readonly discriminant: ScalarLiteral;
-};
-
-export const VariantConstructCandidate = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: VariantConstructCandidate): void {
-        encodeVariantConstructCandidate(writer, value);
-    },
-
-    /** Decode one VariantConstructCandidate. */
-    decode(reader: BinaryReader): VariantConstructCandidate {
-        return decodeVariantConstructCandidate(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: VariantConstructCandidate): Json {
-        return toJsonVariantConstructCandidate(value);
-    },
-
-    /** Return one VariantConstructCandidate from one JSON value. */
-    fromJson(value: Json): VariantConstructCandidate {
-        return fromJsonVariantConstructCandidate(value);
-    },
-};
-
-/** Encode one VariantConstructCandidate. */
-export function encodeVariantConstructCandidate(writer: BinaryWriter, value: VariantConstructCandidate): void {
-    encodeVariantCase(writer, value.case);
-    writer.writeUnsigned(value.genericArguments.length);
-    for (const item1 of value.genericArguments) {
-        encodeGenericArgumentBinding(writer, item1);
-    }
-    encodeGlobalTypeId(writer, value.backing);
-    writer.writeOption(value.argument, (value3) => {
-        encodeGlobalTypeId(writer, value3);
-    });
-    encodeStaticKey(writer, value.discriminator);
-    encodeScalarLiteral(writer, value.discriminant);
-}
-
-/** Decode one VariantConstructCandidate. */
-export function decodeVariantConstructCandidate(reader: BinaryReader): VariantConstructCandidate {
-    const case_ = decodeVariantCase(reader);
-    const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<GenericArgumentBinding> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGenericArgumentBinding(reader)); } return items1; })();
-    const backing = decodeGlobalTypeId(reader);
-    const argument = reader.readOption(() => decodeGlobalTypeId(reader));
-    const discriminator = decodeStaticKey(reader);
-    const discriminant = decodeScalarLiteral(reader);
-
-    return {
-        case: case_,
-        genericArguments,
-        backing,
-        ...(argument === undefined ? {} : { argument }),
-        discriminator,
-        discriminant,
-    };
-}
-
-/** Return one JSON value for one VariantConstructCandidate. */
-export function toJsonVariantConstructCandidate(value: VariantConstructCandidate): Json {
-    return {
-        case: toJsonVariantCase(value.case),
-        genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
-        backing: toJsonGlobalTypeId(value.backing),
-        ...(value.argument === undefined ? {} : { argument: toJsonGlobalTypeId(value.argument) }),
-        discriminator: toJsonStaticKey(value.discriminator),
-        discriminant: toJsonScalarLiteral(value.discriminant),
-    };
-}
-
-/** Return one VariantConstructCandidate from one JSON value. */
-export function fromJsonVariantConstructCandidate(value: Json): VariantConstructCandidate {
-    const object = jsonObject(value);
-
-    return {
-        case: fromJsonVariantCase(jsonField(object, "case")),
-        genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
-        backing: fromJsonGlobalTypeId(jsonField(object, "backing")),
-        argument: jsonOptional(object, "argument", (value) => fromJsonGlobalTypeId(value)),
-        discriminator: fromJsonStaticKey(jsonField(object, "discriminator")),
-        discriminant: fromJsonScalarLiteral(jsonField(object, "discriminant")),
     };
 }
 

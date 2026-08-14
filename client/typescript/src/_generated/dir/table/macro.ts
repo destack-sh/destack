@@ -175,7 +175,7 @@ export type MacroTrigger =
           readonly kind: "decorator";
           readonly decorator: GlobalNodeId;
       }
-    /** A configured auto-derive provider. */
+    /** A configured automatic derivation. */
     | {
           readonly kind: "autoDerive";
       }
@@ -187,7 +187,7 @@ export const MacroTrigger = {
         return { kind: "decorator", decorator };
     },
 
-    /** A configured auto-derive provider. */
+    /** A configured automatic derivation. */
     autoDerive(): MacroTrigger {
         return { kind: "autoDerive" };
     },

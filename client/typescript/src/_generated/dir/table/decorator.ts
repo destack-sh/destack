@@ -3,6 +3,7 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, compareBytes, jsonArray, jsonField, jsonInteger, jsonObject, jsonString, nestedBytes } from "../../../protocol/serde.js";
 import type { LanguageItem } from "../symbol/language.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
+import type { AutoInterface } from "./auto.js";
 import type { GlobalNodeId } from "../tree/node.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { LocalNodeId } from "../tree/node.js";
@@ -13,6 +14,7 @@ import type { GlobalTypeId } from "../type/type.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeLanguageItem, encodeLanguageItem, fromJsonLanguageItem, toJsonLanguageItem } from "../symbol/language.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
+import { decodeAutoInterface, encodeAutoInterface, fromJsonAutoInterface, toJsonAutoInterface } from "./auto.js";
 import { decodeGlobalNodeId, encodeGlobalNodeId, fromJsonGlobalNodeId, toJsonGlobalNodeId } from "../tree/node.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "../tree/node.js";
@@ -296,11 +298,11 @@ export type DecoratorSelection =
           /** The source arguments bound to the selected parameters. */
           readonly arguments: ReadonlyArray<ArgumentBinding>;
       }
-    /** Providers selected by the compiler-owned derive dispatcher. */
+    /** Interfaces selected by the compiler-owned derive dispatcher. */
     | {
           readonly kind: "derive";
-          /** The selected providers in argument order. */
-          readonly providers: ReadonlyArray<DeriveProvider>;
+          /** The selected interfaces in argument order. */
+          readonly interfaces: ReadonlyArray<AutoInterface>;
       }
 ;
 
@@ -310,9 +312,9 @@ export const DecoratorSelection = {
         return { kind: "newtype", newtype, arguments: arguments_ };
     },
 
-    /** Providers selected by the compiler-owned derive dispatcher. */
-    derive(providers: ReadonlyArray<DeriveProvider>): DecoratorSelection {
-        return { kind: "derive", providers };
+    /** Interfaces selected by the compiler-owned derive dispatcher. */
+    derive(interfaces: ReadonlyArray<AutoInterface>): DecoratorSelection {
+        return { kind: "derive", interfaces };
     },
 
     /** Encode this value. */
@@ -349,9 +351,9 @@ export function encodeDecoratorSelection(writer: BinaryWriter, value: DecoratorS
             return;
         case "derive":
             writer.writeUnsigned(1);
-            writer.writeUnsigned(value.providers.length);
-            for (const item0 of value.providers) {
-                encodeDeriveProvider(writer, item0);
+            writer.writeUnsigned(value.interfaces.length);
+            for (const item0 of value.interfaces) {
+                encodeAutoInterface(writer, item0);
             }
             return;
     }
@@ -375,11 +377,11 @@ export function decodeDecoratorSelection(reader: BinaryReader): DecoratorSelecti
             };
         }
         case 1: {
-            const providers = (() => { const length0 = reader.readNumber(); const items0: Array<DeriveProvider> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeDeriveProvider(reader)); } return items0; })();
+            const interfaces = (() => { const length0 = reader.readNumber(); const items0: Array<AutoInterface> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeAutoInterface(reader)); } return items0; })();
 
             return {
                 kind: "derive",
-                providers,
+                interfaces,
             };
         }
     }
@@ -399,7 +401,7 @@ export function toJsonDecoratorSelection(value: DecoratorSelection): Json {
         case "derive":
             return {
                 kind: "derive",
-                providers: value.providers.map((item0) => toJsonDeriveProvider(item0)),
+                interfaces: value.interfaces.map((item0) => toJsonAutoInterface(item0)),
             };
     }
 
@@ -421,7 +423,7 @@ export function fromJsonDecoratorSelection(value: Json): DecoratorSelection {
         case "derive":
             return {
                 kind,
-                providers: jsonArray(jsonField(object, "providers")).map((item0) => fromJsonDeriveProvider(item0)),
+                interfaces: jsonArray(jsonField(object, "interfaces")).map((item0) => fromJsonAutoInterface(item0)),
             };
     }
 
@@ -660,78 +662,6 @@ export function fromJsonDecoratorUse(value: Json): DecoratorUse {
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
         genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonLocalNodeId(item0)),
         arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonLocalNodeId(item0)),
-    };
-}
-
-/** One provider selected by a compiler-owned derive decorator. */
-export type DeriveProvider = {
-    /** The source provider argument. */
-    readonly argument: GlobalNodeId;
-    /** The selected provider backing. */
-    readonly newtype: NewtypeSelection;
-    /** The instantiated provider type. */
-    readonly ty: GlobalTypeId;
-};
-
-export const DeriveProvider = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: DeriveProvider): void {
-        encodeDeriveProvider(writer, value);
-    },
-
-    /** Decode one DeriveProvider. */
-    decode(reader: BinaryReader): DeriveProvider {
-        return decodeDeriveProvider(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: DeriveProvider): Json {
-        return toJsonDeriveProvider(value);
-    },
-
-    /** Return one DeriveProvider from one JSON value. */
-    fromJson(value: Json): DeriveProvider {
-        return fromJsonDeriveProvider(value);
-    },
-};
-
-/** Encode one DeriveProvider. */
-export function encodeDeriveProvider(writer: BinaryWriter, value: DeriveProvider): void {
-    encodeGlobalNodeId(writer, value.argument);
-    encodeNewtypeSelection(writer, value.newtype);
-    encodeGlobalTypeId(writer, value.ty);
-}
-
-/** Decode one DeriveProvider. */
-export function decodeDeriveProvider(reader: BinaryReader): DeriveProvider {
-    const argument = decodeGlobalNodeId(reader);
-    const newtype = decodeNewtypeSelection(reader);
-    const ty = decodeGlobalTypeId(reader);
-
-    return {
-        argument,
-        newtype,
-        ty,
-    };
-}
-
-/** Return one JSON value for one DeriveProvider. */
-export function toJsonDeriveProvider(value: DeriveProvider): Json {
-    return {
-        argument: toJsonGlobalNodeId(value.argument),
-        newtype: toJsonNewtypeSelection(value.newtype),
-        ty: toJsonGlobalTypeId(value.ty),
-    };
-}
-
-/** Return one DeriveProvider from one JSON value. */
-export function fromJsonDeriveProvider(value: Json): DeriveProvider {
-    const object = jsonObject(value);
-
-    return {
-        argument: fromJsonGlobalNodeId(jsonField(object, "argument")),
-        newtype: fromJsonNewtypeSelection(jsonField(object, "newtype")),
-        ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
     };
 }
 

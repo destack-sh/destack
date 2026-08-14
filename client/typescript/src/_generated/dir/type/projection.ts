@@ -10,7 +10,6 @@ import type { Dereference } from "./resolution.js";
 import type { FieldResolution } from "./resolution.js";
 import type { MemberAccess } from "./resolution.js";
 import type { Subscript } from "./resolution.js";
-import type { VariantCase } from "./resolution.js";
 import type { Access } from "./type.js";
 import type { GlobalTypeId } from "./type.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../symbol/key.js";
@@ -22,9 +21,73 @@ import { decodeDereference, encodeDereference, fromJsonDereference, toJsonDerefe
 import { decodeFieldResolution, encodeFieldResolution, fromJsonFieldResolution, toJsonFieldResolution } from "./resolution.js";
 import { decodeMemberAccess, encodeMemberAccess, fromJsonMemberAccess, toJsonMemberAccess } from "./resolution.js";
 import { decodeSubscript, encodeSubscript, fromJsonSubscript, toJsonSubscript } from "./resolution.js";
-import { decodeVariantCase, encodeVariantCase, fromJsonVariantCase, toJsonVariantCase } from "./resolution.js";
 import { decodeAccess, encodeAccess, fromJsonAccess, toJsonAccess } from "./type.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "./type.js";
+
+/** One source property value encoded by a union arm. */
+export type DiscriminantCase = {
+    /** The physical union arm selected by this value. */
+    readonly arm: GlobalTypeId;
+    /** The source property value represented by this arm. */
+    readonly value: ScalarLiteral;
+};
+
+export const DiscriminantCase = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: DiscriminantCase): void {
+        encodeDiscriminantCase(writer, value);
+    },
+
+    /** Decode one DiscriminantCase. */
+    decode(reader: BinaryReader): DiscriminantCase {
+        return decodeDiscriminantCase(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: DiscriminantCase): Json {
+        return toJsonDiscriminantCase(value);
+    },
+
+    /** Return one DiscriminantCase from one JSON value. */
+    fromJson(value: Json): DiscriminantCase {
+        return fromJsonDiscriminantCase(value);
+    },
+};
+
+/** Encode one DiscriminantCase. */
+export function encodeDiscriminantCase(writer: BinaryWriter, value: DiscriminantCase): void {
+    encodeGlobalTypeId(writer, value.arm);
+    encodeScalarLiteral(writer, value.value);
+}
+
+/** Decode one DiscriminantCase. */
+export function decodeDiscriminantCase(reader: BinaryReader): DiscriminantCase {
+    const arm = decodeGlobalTypeId(reader);
+    const value = decodeScalarLiteral(reader);
+
+    return {
+        arm,
+        value,
+    };
+}
+
+/** Return one JSON value for one DiscriminantCase. */
+export function toJsonDiscriminantCase(value: DiscriminantCase): Json {
+    return {
+        arm: toJsonGlobalTypeId(value.arm),
+        value: toJsonScalarLiteral(value.value),
+    };
+}
+
+/** Return one DiscriminantCase from one JSON value. */
+export function fromJsonDiscriminantCase(value: Json): DiscriminantCase {
+    const object = jsonObject(value);
+
+    return {
+        arm: fromJsonGlobalTypeId(jsonField(object, "arm")),
+        value: fromJsonScalarLiteral(jsonField(object, "value")),
+    };
+}
 
 /** One source field used to materialize an object rest value. */
 export type ObjectRestField = {
@@ -145,28 +208,16 @@ export type Projection =
           /** The projected type descriptor type. */
           readonly ty: GlobalTypeId;
       }
-    /** Read the active tag from a physical tagged sum value. */
+    /** Read a singleton property that distinguishes every arm of a union. */
     | {
-          readonly kind: "variantTag";
-          /** The checked variant carrier type. */
-          readonly carrier: GlobalTypeId;
-          /** The selected discriminator field. */
-          readonly discriminator: StaticKey;
-          /** The projected tag type. */
-          readonly ty: GlobalTypeId;
-      }
-    /** Extract the payload selected by one concrete variant tag. */
-    | {
-          readonly kind: "variantPayload";
-          /** The selected tagged case. */
-          readonly case: VariantCase;
-          /** The instantiated backing arm. */
-          readonly backing: GlobalTypeId;
-          /** The selected discriminator field. */
-          readonly discriminator: StaticKey;
-          /** The discriminant value tested at runtime. */
-          readonly discriminant: ScalarLiteral;
-          /** The projected payload type. */
+          readonly kind: "discriminant";
+          /** The physical union carrying the discriminant. */
+          readonly union: GlobalTypeId;
+          /** The singleton property selecting each union arm. */
+          readonly key: StaticKey;
+          /** The reachable union arms and their source property values. */
+          readonly cases: ReadonlyArray<DiscriminantCase>;
+          /** The union of the projected singleton property types. */
           readonly ty: GlobalTypeId;
       }
     /** Unwrap one newtype payload. */
@@ -254,14 +305,9 @@ export const Projection = {
         return { kind: "dynamicType", ty };
     },
 
-    /** Read the active tag from a physical tagged sum value. */
-    variantTag(carrier: GlobalTypeId, discriminator: StaticKey, ty: GlobalTypeId): Projection {
-        return { kind: "variantTag", carrier, discriminator, ty };
-    },
-
-    /** Extract the payload selected by one concrete variant tag. */
-    variantPayload(case_: VariantCase, backing: GlobalTypeId, discriminator: StaticKey, discriminant: ScalarLiteral, ty: GlobalTypeId): Projection {
-        return { kind: "variantPayload", case: case_, backing, discriminator, discriminant, ty };
+    /** Read a singleton property that distinguishes every arm of a union. */
+    discriminant(union: GlobalTypeId, key: StaticKey, cases: ReadonlyArray<DiscriminantCase>, ty: GlobalTypeId): Projection {
+        return { kind: "discriminant", union, key, cases, ty };
     },
 
     /** Unwrap one newtype payload. */
@@ -353,22 +399,18 @@ export function encodeProjection(writer: BinaryWriter, value: Projection): void 
             writer.writeUnsigned(8);
             encodeGlobalTypeId(writer, value.ty);
             return;
-        case "variantTag":
+        case "discriminant":
             writer.writeUnsigned(9);
-            encodeGlobalTypeId(writer, value.carrier);
-            encodeStaticKey(writer, value.discriminator);
-            encodeGlobalTypeId(writer, value.ty);
-            return;
-        case "variantPayload":
-            writer.writeUnsigned(10);
-            encodeVariantCase(writer, value.case);
-            encodeGlobalTypeId(writer, value.backing);
-            encodeStaticKey(writer, value.discriminator);
-            encodeScalarLiteral(writer, value.discriminant);
+            encodeGlobalTypeId(writer, value.union);
+            encodeStaticKey(writer, value.key);
+            writer.writeUnsigned(value.cases.length);
+            for (const item2 of value.cases) {
+                encodeDiscriminantCase(writer, item2);
+            }
             encodeGlobalTypeId(writer, value.ty);
             return;
         case "newtypePayload":
-            writer.writeUnsigned(11);
+            writer.writeUnsigned(10);
             encodeGlobalSymbolId(writer, value.symbol);
             writer.writeUnsigned(value.genericArguments.length);
             for (const item1 of value.genericArguments) {
@@ -377,25 +419,25 @@ export function encodeProjection(writer: BinaryWriter, value: Projection): void 
             encodeGlobalTypeId(writer, value.ty);
             return;
         case "borrow":
-            writer.writeUnsigned(12);
+            writer.writeUnsigned(11);
             writer.writeOption(value.access, (value0) => {
                 encodeAccess(writer, value0);
             });
             encodeGlobalTypeId(writer, value.ty);
             return;
         case "move":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(12);
             writer.writeOption(value.access, (value0) => {
                 encodeAccess(writer, value0);
             });
             encodeGlobalTypeId(writer, value.ty);
             return;
         case "dereference":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(13);
             encodeDereference(writer, value.dereference);
             return;
         case "copy":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(14);
             encodeGlobalTypeId(writer, value.ty);
             return;
     }
@@ -471,34 +513,20 @@ export function decodeProjection(reader: BinaryReader): Projection {
             };
         }
         case 9: {
-            const carrier = decodeGlobalTypeId(reader);
-            const discriminator = decodeStaticKey(reader);
+            const union = decodeGlobalTypeId(reader);
+            const key = decodeStaticKey(reader);
+            const cases = (() => { const length2 = reader.readNumber(); const items2: Array<DiscriminantCase> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeDiscriminantCase(reader)); } return items2; })();
             const ty = decodeGlobalTypeId(reader);
 
             return {
-                kind: "variantTag",
-                carrier,
-                discriminator,
+                kind: "discriminant",
+                union,
+                key,
+                cases,
                 ty,
             };
         }
         case 10: {
-            const case_ = decodeVariantCase(reader);
-            const backing = decodeGlobalTypeId(reader);
-            const discriminator = decodeStaticKey(reader);
-            const discriminant = decodeScalarLiteral(reader);
-            const ty = decodeGlobalTypeId(reader);
-
-            return {
-                kind: "variantPayload",
-                case: case_,
-                backing,
-                discriminator,
-                discriminant,
-                ty,
-            };
-        }
-        case 11: {
             const symbol_ = decodeGlobalSymbolId(reader);
             const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<GenericArgumentBinding> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGenericArgumentBinding(reader)); } return items1; })();
             const ty = decodeGlobalTypeId(reader);
@@ -510,7 +538,7 @@ export function decodeProjection(reader: BinaryReader): Projection {
                 ty,
             };
         }
-        case 12: {
+        case 11: {
             const access = reader.readOption(() => decodeAccess(reader));
             const ty = decodeGlobalTypeId(reader);
 
@@ -520,7 +548,7 @@ export function decodeProjection(reader: BinaryReader): Projection {
                 ty,
             };
         }
-        case 13: {
+        case 12: {
             const access = reader.readOption(() => decodeAccess(reader));
             const ty = decodeGlobalTypeId(reader);
 
@@ -530,12 +558,12 @@ export function decodeProjection(reader: BinaryReader): Projection {
                 ty,
             };
         }
-        case 14: {
+        case 13: {
             const dereference = decodeDereference(reader);
 
             return { kind: "dereference", dereference };
         }
-        case 15: {
+        case 14: {
             const ty = decodeGlobalTypeId(reader);
 
             return {
@@ -597,20 +625,12 @@ export function toJsonProjection(value: Projection): Json {
                 kind: "dynamicType",
                 ty: toJsonGlobalTypeId(value.ty),
             };
-        case "variantTag":
+        case "discriminant":
             return {
-                kind: "variantTag",
-                carrier: toJsonGlobalTypeId(value.carrier),
-                discriminator: toJsonStaticKey(value.discriminator),
-                ty: toJsonGlobalTypeId(value.ty),
-            };
-        case "variantPayload":
-            return {
-                kind: "variantPayload",
-                case: toJsonVariantCase(value.case),
-                backing: toJsonGlobalTypeId(value.backing),
-                discriminator: toJsonStaticKey(value.discriminator),
-                discriminant: toJsonScalarLiteral(value.discriminant),
+                kind: "discriminant",
+                union: toJsonGlobalTypeId(value.union),
+                key: toJsonStaticKey(value.key),
+                cases: value.cases.map((item0) => toJsonDiscriminantCase(item0)),
                 ty: toJsonGlobalTypeId(value.ty),
             };
         case "newtypePayload":
@@ -699,20 +719,12 @@ export function fromJsonProjection(value: Json): Projection {
                 kind,
                 ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
             };
-        case "variantTag":
+        case "discriminant":
             return {
                 kind,
-                carrier: fromJsonGlobalTypeId(jsonField(object, "carrier")),
-                discriminator: fromJsonStaticKey(jsonField(object, "discriminator")),
-                ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
-            };
-        case "variantPayload":
-            return {
-                kind,
-                case: fromJsonVariantCase(jsonField(object, "case")),
-                backing: fromJsonGlobalTypeId(jsonField(object, "backing")),
-                discriminator: fromJsonStaticKey(jsonField(object, "discriminator")),
-                discriminant: fromJsonScalarLiteral(jsonField(object, "discriminant")),
+                union: fromJsonGlobalTypeId(jsonField(object, "union")),
+                key: fromJsonStaticKey(jsonField(object, "key")),
+                cases: jsonArray(jsonField(object, "cases")).map((item0) => fromJsonDiscriminantCase(item0)),
                 ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
             };
         case "newtypePayload":
