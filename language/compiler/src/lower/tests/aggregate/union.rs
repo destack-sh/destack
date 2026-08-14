@@ -1,44 +1,20 @@
 use crate::tests::TestSession;
 
 #[test]
-fn test_lower_scalar_union_entries_to_tagged_variants() {
+fn test_lower_three_union_arms_with_two_discriminant_bits() {
     let session = TestSession::single(
         r#"
-function pick(flag: boolean, count: int32): int32 | boolean {
-    if (flag) {
-        return count;
-    }
-    return 5;
+function keep(value: int32 | boolean | float64): int32 | boolean | float64 {
+    return value;
 }
 "#,
     );
 
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
-function test.main.pick(v0: boolean, v1: int32): variant<uint8> { 0uint8 = int32; 1uint8 = boolean; } {
-entry(v0: boolean, v1: int32):
-    branch v0 => b1 | b2
-
-b1:
-    v2: variant<uint8> { 0uint8 = int32; 1uint8 = boolean; } = variant.new 0, v1
-    return v2
-
-b2:
-    v3: int32 = 5
-    v4: variant<uint8> { 0uint8 = int32; 1uint8 = boolean; } = variant.new 0, v3
-    return v4
-}
-/// @layout.variant name=type@3 size=8 align=4
-/// @layout.discriminant owner=type@3 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=4
-"#,
-    );
+    session.assert_mir_lowered("main.ds", r#"TODO"#);
 }
 
 #[test]
-fn test_lower_tagged_newtype_to_a_variant_carrier() {
+fn test_lower_discriminated_newtype_to_an_indexed_variant() {
     let session = TestSession::single(
         r#"
 struct Circle {
@@ -51,7 +27,6 @@ struct Square {
     side: int32;
 }
 
-@derive(Tagged)
 newtype Shape = Circle | Square;
 
 function keep(shape: Shape): Shape {
@@ -76,7 +51,7 @@ type Square {
 }
 
 @copy
-type Shape = variant<uint8> { 0uint8 = Circle; 1uint8 = Square; };
+type Shape = variant<uint1> { 0uint1 = Circle; 1uint1 = Square; };
 
 function test.main.keep(v0: Shape): Shape {
 entry(v0: Shape):
@@ -113,14 +88,14 @@ function forget(): boolean | undefined {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.keep(v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; }): variant<uint8> { 0uint8 = boolean; 1uint8 = void; } {
-entry(v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; }):
+function test.main.keep(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
+entry(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }):
     return v0
 }
 
-function test.main.forget(): variant<uint8> { 0uint8 = boolean; 1uint8 = void; } {
+function test.main.forget(): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
 entry:
-    v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; } = variant.new 1
+    v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; } = variant.new 1
     return v0
 }
 /// @layout.variant name=type@3 size=1 align=1
@@ -132,7 +107,7 @@ entry:
 }
 
 #[test]
-fn test_lower_tagged_case_construction_to_variant_new() {
+fn test_lower_discriminated_newtype_construction_to_variant_new() {
     let session = TestSession::single(
         r#"
 struct Circle {
@@ -145,11 +120,10 @@ struct Square {
     side: int32;
 }
 
-@derive(Tagged)
 newtype Shape = Circle | Square;
 
 function make(radius: float64): Shape {
-    return Shape.Circle({ radius });
+    return Shape(Circle { kind: "circle", radius });
 }
 "#,
     );
@@ -170,7 +144,7 @@ type Square {
 }
 
 @copy
-type Shape = variant<uint8> { 0uint8 = Circle; 1uint8 = Square; };
+type Shape = variant<uint1> { 0uint1 = Circle; 1uint1 = Square; };
 
 function test.main.make(v0: float64): Shape {
 entry(v0: float64):
@@ -196,7 +170,7 @@ entry(v0: float64):
 }
 
 #[test]
-fn test_lower_payload_free_tagged_member() {
+fn test_lower_singleton_union_arm_construction() {
     let session = TestSession::single(
         r#"
 struct Ready {
@@ -207,11 +181,10 @@ struct Pending {
     state: "pending";
 }
 
-@derive(Tagged)
 newtype Status = Ready | Pending;
 
 function pending(): Status {
-    Status.Pending
+    Status(Pending { state: "pending" })
 }
 "#,
     );
@@ -230,7 +203,7 @@ type Pending {
 }
 
 @copy
-type Status = variant<uint8> { 0uint8 = Ready; 1uint8 = Pending; };
+type Status = variant<uint1> { 0uint1 = Ready; 1uint1 = Pending; };
 
 function test.main.pending(): Status {
 entry:
@@ -250,7 +223,7 @@ entry:
 }
 
 #[test]
-fn test_construct_a_tagged_object_literal_into_its_union_carrier() {
+fn test_construct_an_object_literal_into_its_union_carrier() {
     let session = TestSession::single(
         r#"
 type Selector =
@@ -271,14 +244,14 @@ function value(chosen: int32): Selector {
 
     session.assert_mir_lowered("main.ds", r#"
 @copy
-type Selector = variant<uint8> { 0uint8 = ref<{ kind: void, value: int32 }, managed, mutable>; 1uint8 = ref<{ kind: void, flag: boolean }, managed, mutable>; };
+type Selector = variant<uint1> { 0uint1 = ref<{ kind: void, value: int32 }, managed, mutable>; 1uint1 = ref<{ kind: void, flag: boolean }, managed, mutable>; };
 
 function test.main.value(v0: int32): Selector {
 entry(v0: int32):
     v1: void = undefined
     v2: { kind: void, value: int32 } = aggregate (v1, v0)
     v3: ref<{ kind: void, value: int32 }, managed, mutable> = new.complete v2
-    v4: variant<uint8> { 0uint8 = ref<{ kind: void, value: int32 }, managed, mutable>; 1uint8 = ref<{ kind: void, flag: boolean }, managed, mutable>; } = variant.new 0, v3
+    v4: variant<uint1> { 0uint1 = ref<{ kind: void, value: int32 }, managed, mutable>; 1uint1 = ref<{ kind: void, flag: boolean }, managed, mutable>; } = variant.new 0, v3
     return v4
 }
 /// @layout.variant name=Selector size=16 align=8
@@ -342,4 +315,82 @@ entry(v0: ref<Meter, borrowed, 'a, readonly>):
 /// @layout.field owner=Meter index=0 name=label offset=0 size=8 align=8
 "#,
     );
+}
+
+#[test]
+fn test_lower_discriminant_reads_and_comparisons() {
+    let session = TestSession::single(
+        r#"
+struct Circle {
+    kind: "circle" = "circle";
+    radius: float64;
+}
+
+struct Square {
+    kind: "square" = "square";
+    side: float64;
+}
+
+newtype Shape = Circle | Square;
+
+function circle(): "circle" {
+    return "circle";
+}
+
+function key(): "kind" {
+    return "kind";
+}
+
+function kind(shape: Shape): "circle" | "square" {
+    return shape.kind;
+}
+
+function computedKind(shape: Shape): "circle" | "square" {
+    return shape[key()];
+}
+
+function label(shape: Shape): string {
+    return shape.kind;
+}
+
+function matches(shape: Shape): boolean {
+    return shape.kind == circle();
+}
+
+function differs(shape: Shape): boolean {
+    return circle() !== shape.kind;
+}
+"#,
+    );
+
+    session.assert_mir_lowered("main.ds", r#"TODO"#);
+}
+
+#[test]
+fn test_lower_borrowed_narrowed_union_payload() {
+    let session = TestSession::single(
+        r#"
+struct Circle {
+    kind: "circle" = "circle";
+    radius: float64;
+}
+
+struct Square {
+    kind: "square" = "square";
+    side: float64;
+}
+
+newtype Shape = Circle | Square;
+
+function radius(shape: &readonly Shape): float64 {
+    if (shape.kind !== "circle") {
+        return 0.0;
+    }
+
+    return shape.radius;
+}
+"#,
+    );
+
+    session.assert_mir_lowered("main.ds", r#"TODO"#);
 }

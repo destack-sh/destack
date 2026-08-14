@@ -9,6 +9,6 @@ mod newtype;
 mod object;
 mod slice;
 mod r#struct;
-mod tagged;
 mod tuple;
+mod union;
 mod write;
