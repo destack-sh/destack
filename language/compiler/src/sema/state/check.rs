@@ -193,8 +193,6 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) decorators: Vec<DecoratorApplication>,
     /// The authored decorators this pass's walk already visited.
     pub(in crate::sema) walked_decorators: FxIndexSet<dir::LocalNodeId<dir::Decorator>>,
-    /// Tagged newtypes whose derivation is on the stack.
-    pub(in crate::sema) deriving_newtypes: FxIndexSet<dir::GlobalSymbolId>,
     /// Declaration types scanned for induced memory variables.
     pub(in crate::sema) induced_parameter_sites: Vec<InducedParameterSite>,
     /// Induced parameters already rebound to their sites this run.
@@ -327,7 +325,6 @@ impl<'a> CheckState<'a> {
             fulfill: Fulfillment::new(),
             decorators: Vec::new(),
             walked_decorators: FxIndexSet::default(),
-            deriving_newtypes: FxIndexSet::default(),
             induced_parameter_sites: Vec::new(),
             claimed_induced: FxIndexSet::default(),
             declaration_types: FxIndexMap::default(),
@@ -1163,21 +1160,6 @@ impl CheckState<'_> {
         // unloaded foreign definitions stay symbolic
         if !self.is_own_module(symbol.module_id) {
             self.import_external_module(symbol.module_id)?;
-        }
-
-        // derive tagged newtype variants into the working definitions
-        let underived = matches!(
-            self.definition_maybe(symbol),
-            Some(dir::Definition::Newtype(newtype))
-                if newtype.is_tagged && newtype.discriminator.is_none()
-        );
-        if !self.is_declaration() && underived && self.deriving_newtypes.insert(symbol) {
-            let derived = self.classify_tagged_newtype(symbol)?;
-            self.deriving_newtypes.swap_remove(&symbol);
-            if let Some(derived) = derived {
-                let source = self.symbol_source(symbol)?;
-                self.insert_definition(symbol, source, dir::Definition::Newtype(derived))?;
-            }
         }
 
         Ok(self.definition_maybe(symbol))

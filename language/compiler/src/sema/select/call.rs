@@ -7,8 +7,8 @@ use smallvec::SmallVec;
 use crate::sema::{
     BodyState, CallableArgument, Callee, CandidateVerdict, CheckFailure, CheckOutcome,
     DeferredCheck, Expectation, FlowSite, InferMode, Origin, PlaceUse, Selection, SignatureFamily,
-    SignatureInstance, SignatureMatch, SignatureSelection, TypeSubstitution, Value, ValueCheck,
-    ValueUse, VariableRole, Widening,
+    SignatureInstance, SignatureMatch, SignatureSelection, Value, ValueCheck, ValueUse,
+    VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -30,8 +30,6 @@ enum CallableTarget {
     },
     /// Construct one newtype.
     Newtype(dir::GlobalSymbolId),
-    /// Construct one derived tagged variant.
-    Variant(dir::VariantCase),
 }
 
 /// One checked receiver and its durable member resolution.
@@ -378,40 +376,15 @@ impl BodyState<'_, '_> {
         candidate: &dir::MemberCandidate,
     ) -> CompilerResult<CallableTarget> {
         match self.symbol_kind(candidate.symbol)? {
-            dir::SymbolKind::AssociatedConst => return Ok(CallableTarget::Expression),
-            dir::SymbolKind::Function => return Ok(CallableTarget::Symbol(candidate.symbol)),
-            dir::SymbolKind::Variant => {}
-            kind => {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "callable member {:?} has non-callable symbol kind {kind:?}",
-                        candidate.symbol
-                    ),
-                });
-            }
-        }
-
-        let variant = match self.definition(candidate.owner)? {
-            Some(dir::Definition::Newtype(definition)) => {
-                definition.tagged_variant_by_symbol(candidate.symbol)
-            }
-            _ => None,
-        };
-        let Some(variant) = variant else {
-            return Err(CompilerError::Internal {
+            dir::SymbolKind::AssociatedConst => Ok(CallableTarget::Expression),
+            dir::SymbolKind::Function => Ok(CallableTarget::Symbol(candidate.symbol)),
+            kind => Err(CompilerError::Internal {
                 message: format!(
-                    "callable variant member {:?} is absent from its owner",
+                    "callable member {:?} has non-callable symbol kind {kind:?}",
                     candidate.symbol
                 ),
-            });
-        };
-        let case = dir::VariantCase {
-            owner: candidate.owner,
-            key: variant.key,
-            variant: candidate.symbol,
-        };
-
-        Ok(CallableTarget::Variant(case))
+            }),
+        }
     }
 
     /// Return the generic scope whose arguments participate in this call.
@@ -1447,9 +1420,6 @@ impl BodyState<'_, '_> {
             | CallableTarget::CallSignature { .. } => {
                 self.commit_call_signature(node, callee, candidate, argument_nodes, signature)
             }
-            CallableTarget::Variant(case) => {
-                self.commit_variant_signature(node, argument_nodes, signature, case)
-            }
             CallableTarget::Newtype(symbol) => Err(CompilerError::Internal {
                 message: format!("newtype {symbol:?} reached signature selection"),
             }),
@@ -1538,7 +1508,7 @@ impl BodyState<'_, '_> {
                     dispatch: dir::FunctionDispatch::Direct,
                 },
             },
-            CallableTarget::Newtype(_) | CallableTarget::Variant(_) => {
+            CallableTarget::Newtype(_) => {
                 return Err(CompilerError::Internal {
                     message: "constructor target reached call resolution".to_string(),
                 });
@@ -1552,86 +1522,6 @@ impl BodyState<'_, '_> {
         };
 
         Ok(resolution)
-    }
-
-    /// Commit one selected tagged variant constructor signature.
-    fn commit_variant_signature(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-        signature: SignatureSelection,
-        case: &dir::VariantCase,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let generic_arguments = signature.generic_arguments.clone();
-        let return_variant = match self.ty(signature.return_type)? {
-            dir::Type::Variant(variant) if variant.variant == case.variant => variant,
-            ty => {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "tagged case {:?} selected non-variant return type {ty:?}",
-                        case.variant,
-                    ),
-                });
-            }
-        };
-        let (variant, discriminator) = match self.definition(case.owner)? {
-            Some(dir::Definition::Newtype(definition)) => {
-                let Some(variant) = definition.tagged_variant_by_symbol(case.variant).cloned()
-                else {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "tagged case {:?} is absent from owner {:?}",
-                            case.variant, case.owner,
-                        ),
-                    });
-                };
-                let Some(discriminator) = definition.discriminator else {
-                    return Err(CompilerError::Internal {
-                        message: format!("tagged owner {:?} has no discriminator", case.owner),
-                    });
-                };
-
-                (variant, discriminator)
-            }
-            _ => {
-                return Err(CompilerError::Internal {
-                    message: format!("tagged case owner {:?} is not a newtype", case.owner),
-                });
-            }
-        };
-        let substitution = TypeSubstitution::default()
-            .with_carried(&generic_arguments)?
-            .with_receiver(return_variant.owner);
-        let backing = self.substitute_type(variant.backing, &substitution)?;
-        let argument = variant
-            .argument
-            .map(|argument| self.substitute_type(argument, &substitution))
-            .transpose()?;
-        let target = dir::ConstructTarget::Variant(dir::VariantConstructCandidate {
-            case: case.clone(),
-            generic_arguments,
-            backing,
-            argument,
-            discriminator,
-            discriminant: dir::ScalarLiteral::String(variant.discriminant),
-        });
-        let parameters = signature
-            .parameters
-            .iter()
-            .map(|selected| selected.parameter)
-            .collect::<Vec<_>>();
-        let arguments = self.argument_bindings(
-            Origin::Node(node, None),
-            node.module_id,
-            argument_nodes,
-            &parameters,
-        )?;
-        let resolution = dir::ConstructDecision::new(target, arguments, signature.return_type);
-
-        self.commit_decision(node, dir::Decision::Construct(resolution))?;
-        self.commit_node_type(node, signature.return_type)?;
-
-        Ok(signature.return_type)
     }
 
     /// Commit one accepted call selection.

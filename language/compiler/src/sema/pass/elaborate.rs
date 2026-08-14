@@ -16,7 +16,6 @@ impl CheckState<'_> {
         let recorder = self.recorder;
         self.with_scope(|state| {
             state.import_external_modules()?;
-            state.derive_tagged_definitions()?;
 
             // translate the declared types into the semantic tables
             state.translate_declared_types()?;

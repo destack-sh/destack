@@ -208,7 +208,7 @@ impl CheckState<'_> {
                 continue;
             };
             // read loaded templates and signature heads only, demanding a
-            //  definition would re-report its tagged derivation diagnostics
+            //  definition would re-report its declaration diagnostics
             if let Some(template) = self.loaded_symbol_template(symbol) {
                 return Ok(Some(template));
             }

@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::sema::{CheckState, Origin};
-use crate::{CompilerError, CompilerResult};
 
 /// One newtype instance with its declared backing substituted.
 pub(in crate::sema) struct NewtypeInstance {
@@ -38,7 +38,7 @@ impl NewtypeInstance {
 }
 
 impl CheckState<'_> {
-    /// Return one physical newtype payload when the instance is not Tagged.
+    /// Return one physical newtype payload.
     pub(in crate::sema) fn newtype_payload(
         &mut self,
         origin: Origin,
@@ -47,20 +47,6 @@ impl CheckState<'_> {
         let Some(instance) = self.decompose_newtype(origin, value)? else {
             return Ok(None);
         };
-        let Some(definition) = self.definition(instance.symbol)? else {
-            return Err(CompilerError::Internal {
-                message: format!("newtype {:?} has no definition", instance.symbol),
-            });
-        };
-        let dir::Definition::Newtype(definition) = definition else {
-            return Err(CompilerError::Internal {
-                message: format!("newtype {:?} has a non-newtype definition", instance.symbol),
-            });
-        };
-        if definition.is_tagged() {
-            return Ok(None);
-        }
-
         Ok(Some(instance))
     }
 

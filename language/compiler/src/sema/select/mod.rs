@@ -23,10 +23,10 @@ mod scalar;
 mod selection;
 mod sequence;
 mod signature;
-mod tagged;
 mod template;
 mod tree;
 mod tuple;
+mod variant;
 
 pub(in crate::sema) use instantiation::TypeArgumentInference;
 pub(in crate::sema) use member::*;
@@ -40,4 +40,3 @@ pub(in crate::sema) use selection::*;
 pub(in crate::sema) use signature::{
     CallableArgument, SignatureInstance, SignatureMatch, SignatureRejection, SignatureSelection,
 };
-pub(in crate::sema) use tagged::VariantOwner;

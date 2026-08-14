@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::{BodyState, Cause, CauseKind, FlowPointId, Origin, Relation, VariantOwner};
+use crate::sema::{BodyState, Cause, CauseKind, FlowPointId, Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
@@ -24,7 +24,7 @@ impl BodyState<'_, '_> {
         }
 
         // select owner.case patterns before ordinary newtype unwraps
-        if self.select_variant_type_pattern(node, origin, flow, scope, module, ty, fields)? {
+        if self.select_variant_type_pattern(node, origin, module, ty, fields)? {
             return Ok(());
         }
 
@@ -62,19 +62,26 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         case: dir::VariantCase,
-        owners: &[VariantOwner],
+        owners: &[dir::GlobalTypeId],
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<()> {
         // reject fields, enum members have no payload to destructure
         if !fields.is_empty() {
-            return self.reject_pattern(node, origin, owners[0].owner);
+            return self.reject_pattern(node, origin, owners[0]);
         }
 
-        // select the declared variant by the written key
-        let variant = match self.definition(case.owner)? {
+        // read the selected variant from its enum definition
+        let value = match self.definition(case.owner)? {
             Some(dir::Definition::Enum(definition)) => definition
-                .variant_by_key(case.key)
-                .map(|variant| (variant.symbol, variant.value)),
+                .variants()
+                .find(|variant| variant.symbol == case.variant)
+                .map(|variant| variant.value)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!(
+                        "enum {:?} lost selected variant {:?}",
+                        case.owner, case.variant
+                    ),
+                })?,
             _ => {
                 return Err(CompilerError::Internal {
                     message: format!(
@@ -84,25 +91,19 @@ impl BodyState<'_, '_> {
                 });
             }
         };
-        let Some((member, value)) = variant else {
-            let key = self.format_static_key(&case.key);
-            self.report_pattern_variant_missing(origin, key, owners[0].owner)?;
-
-            return self.commit_rejected_pattern(node);
-        };
 
         // test the discriminant and narrow to the variant's own type
         let discriminant = dir::ScalarLiteral::from(value);
         let mut narrowed = Vec::with_capacity(owners.len());
         for owner in owners {
             let member = self.intern_type(dir::Type::Variant(dir::VariantType {
-                owner: owner.owner,
-                variant: member,
+                owner: *owner,
+                variant: case.variant,
             }))?;
             narrowed.push(member);
         }
         let narrowed = self.normalized_union_type(narrowed)?;
-        let carrier = self.normalized_union_type(owners.iter().map(|owner| owner.owner))?;
+        let carrier = self.normalized_union_type(owners.iter().copied())?;
         let predicate = dir::Predicate::unary(
             dir::PredicateOperand::direct(carrier),
             dir::PredicateCondition::Literal(discriminant),
@@ -114,8 +115,6 @@ impl BodyState<'_, '_> {
             dir::PatternDecision::Variant(Box::new(dir::PatternVariantResolution {
                 case,
                 predicate,
-                payload: None,
-                fields: Vec::new(),
             })),
         )
     }
@@ -138,7 +137,7 @@ impl BodyState<'_, '_> {
         }
 
         // select owner.case patterns before nominal fields
-        if self.select_variant_type_pattern(node, origin, flow, scope, module, ty, fields)? {
+        if self.select_variant_type_pattern(node, origin, module, ty, fields)? {
             return Ok(());
         }
 

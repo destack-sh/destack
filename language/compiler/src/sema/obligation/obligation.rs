@@ -466,9 +466,9 @@ pub(in crate::sema) enum ObligationFailure {
 pub(in crate::sema) enum UncoveredValue {
     /// A type-shaped uncovered value.
     Type(dir::GlobalTypeId),
-    /// A tagged case uncovered value.
+    /// An enum variant left uncovered.
     VariantCase {
-        /// The matched tagged type.
+        /// The matched enum type.
         ty: dir::GlobalTypeId,
         /// The uncovered case key.
         key: dir::StaticKey,

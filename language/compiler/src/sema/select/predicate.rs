@@ -333,7 +333,7 @@ impl BodyState<'_, '_> {
             // reject erased values, they have no testable type
             dir::Type::Dynamic(_) => Ok(None),
 
-            // tagged unions can still test their known arms
+            // unions can still test their known runtime arms
             dir::Type::Union(union) => {
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(value.module_id, union.elements)?.into();
@@ -378,7 +378,7 @@ impl BodyState<'_, '_> {
         }
     }
 
-    /// Return the runtime predicate that selects one tagged union arm.
+    /// Return the runtime predicate that selects one union arm.
     fn runtime_union_arm_predicate(
         &mut self,
         origin: Origin,

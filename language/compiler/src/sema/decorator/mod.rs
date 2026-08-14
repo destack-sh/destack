@@ -6,7 +6,6 @@ mod control;
 mod object;
 mod representation;
 mod select;
-mod tagged;
 mod value;
 
 pub(in crate::sema) use application::*;

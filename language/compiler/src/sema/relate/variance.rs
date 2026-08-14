@@ -358,9 +358,7 @@ impl CheckState<'_> {
 
                     Some((signature.value_type, storage))
                 }
-                dir::DefinitionMember::EnumVariant(_)
-                | dir::DefinitionMember::TaggedKey(_)
-                | dir::DefinitionMember::TaggedVariant(_) => None,
+                dir::DefinitionMember::EnumVariant(_) => None,
             };
             if let Some(measured) = measured {
                 members.push(measured);

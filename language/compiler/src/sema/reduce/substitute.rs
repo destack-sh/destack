@@ -448,20 +448,13 @@ impl CheckState<'_> {
                 dir::DefinitionMember::Field(_)
                 | dir::DefinitionMember::Method(_)
                 | dir::DefinitionMember::AssociatedConst(_)
-                | dir::DefinitionMember::EnumVariant(_)
-                | dir::DefinitionMember::TaggedKey(_) => {}
+                | dir::DefinitionMember::EnumVariant(_) => {}
                 dir::DefinitionMember::AssociatedType(member) => {
                     if let Some(constraint) = &mut member.constraint {
                         self.translate_root(module, origin, constraint)?;
                     }
                     if let Some(value) = &mut member.value {
                         self.translate_root(module, origin, value)?;
-                    }
-                }
-                dir::DefinitionMember::TaggedVariant(member) => {
-                    self.translate_root(module, origin, &mut member.backing)?;
-                    if let Some(argument) = &mut member.argument {
-                        self.translate_root(module, origin, argument)?;
                     }
                 }
                 dir::DefinitionMember::CallSignature(member)

@@ -387,13 +387,13 @@ impl BodyState<'_, '_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<ObligationCheck> {
-        // read the raw declared entry without forcing a tagged derivation
+        // read the raw declared entry without forcing constructor derivation
         let Some(dir::Definition::Newtype(definition)) = self.definition_maybe(symbol) else {
             return Ok(ObligationCheck::holds());
         };
 
-        // leave already derived entries and tagged newtypes alone
-        if !definition.constructors.is_empty() || definition.is_tagged {
+        // leave already derived entries alone
+        if !definition.constructors.is_empty() {
             return Ok(ObligationCheck::holds());
         }
         let backing = definition.backing;

@@ -43,7 +43,7 @@ impl CheckState<'_> {
                         }
                     }
                 }
-                // leave derive decorators to the end of the walk
+                // derive lists are recorded while declarations are walked
                 Err(dir::LanguageItem::Derive) => {}
                 Err(dir::LanguageItem::ReprDecorator) => {
                     self.apply_representation_decorator(module, &application, &value)?;

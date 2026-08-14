@@ -452,7 +452,7 @@ impl CheckState<'_> {
                     dir::PropertyAccess::Write(parameter.ty)
                 }
             }
-            MemberRole::Associated | MemberRole::VariantValue | MemberRole::VariantConstructor => {
+            MemberRole::Associated | MemberRole::VariantValue => {
                 return Ok(None);
             }
         };
@@ -578,7 +578,7 @@ impl CheckState<'_> {
             let lookup = self
                 .body()
                 .lookup_member(origin, module, subject, field.key)?;
-            let found = self.body().member_read_type(origin, &lookup)?;
+            let found = self.body().member_read_type(&lookup)?;
             let Some(found) = found else {
                 if field.is_optional {
                     continue;

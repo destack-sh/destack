@@ -417,10 +417,7 @@ impl WalkState<'_, '_> {
                 representation: dir::Representation::default(),
                 derives: self.declared_derives(id)?.0,
                 backing: value,
-                is_tagged: false,
-                tagged_options: None,
                 constructors: Vec::new(),
-                discriminator: None,
                 members: Vec::new(),
             })
         } else {
@@ -460,10 +457,7 @@ impl WalkState<'_, '_> {
                 representation: dir::Representation::default(),
                 derives: None,
                 backing: value,
-                is_tagged: false,
-                tagged_options: None,
                 constructors: Vec::new(),
-                discriminator: None,
                 members: Vec::new(),
             });
             self.check.insert_definition(symbol, source, definition)?;

@@ -71,12 +71,7 @@ impl CheckState<'_> {
         let instance = match self.ty(receiver)? {
             dir::Type::Form(form) => return self.apparent_instance(form.value),
             dir::Type::Variant(variant) => {
-                let apparent = match self.tagged_variant_backing(receiver.module_id, &variant)? {
-                    Some(backing) => backing,
-                    None => variant.owner,
-                };
-
-                return self.apparent_instance(apparent);
+                return self.apparent_instance(variant.owner);
             }
             dir::Type::Application(instance) => ApparentInstance {
                 symbol: instance.symbol,

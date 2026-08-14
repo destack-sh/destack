@@ -33,9 +33,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Return every extension member of one subject, grouped by key.
-    ///
-    /// Extension applicability is key independent, so the table matches each
-    /// visible extension once per subject.
     pub(in crate::sema) fn subject_extension_members(
         &mut self,
         origin: Origin,
@@ -1131,7 +1128,7 @@ impl BodyState<'_, '_> {
             };
 
             let ty = self.substitute_type(ty, substitution)?;
-            let callable = member.callable_type(origin.module(), extension_symbol, ty, self)?;
+            let callable = member.callable_type(ty);
             let access_type = member.access_type(self, ty)?;
             let access_type = self.projected_member_type(
                 origin,
