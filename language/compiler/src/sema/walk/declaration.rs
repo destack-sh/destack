@@ -1,4 +1,4 @@
-use destack_core::FxIndexMap;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
@@ -522,28 +522,36 @@ impl WalkState<'_, '_> {
             return Ok((None, Vec::new()));
         };
 
-        // name each capability provider as its auto interface
-        let provider_count = arguments.len();
+        // name each derivable interface and its nominal conformance
+        let mut selected = FxIndexSet::default();
         let mut interfaces = Vec::new();
         let mut conformances = Vec::new();
         for argument in arguments {
+            // resolve the written argument reference
             let Some(expression) = self.tree.get(argument).value() else {
-                continue;
+                return Ok((Some(Vec::new()), Vec::new()));
             };
             let expression = expression.into_global_any(self.module);
-            let Some(provider) = self.check.reference_symbol(expression) else {
-                continue;
+            let Some(symbol) = self.check.reference_symbol(expression) else {
+                return Ok((Some(Vec::new()), Vec::new()));
             };
+
+            // require a compiler-known derivable interface
             let Some(interface) = self
                 .check
                 .environment_bound
                 .language
-                .item(provider)
+                .item(symbol)
                 .and_then(dir::AutoInterface::from_language_item)
                 .filter(|interface| interface.is_derivable())
             else {
-                continue;
+                return Ok((Some(Vec::new()), Vec::new()));
             };
+
+            // reject duplicates without retaining a valid prefix
+            if !selected.insert(interface) {
+                return Ok((Some(Vec::new()), Vec::new()));
+            }
 
             // record the conformance against the naming argument
             let arguments = if interface.has_receiver_argument() {
@@ -560,11 +568,6 @@ impl WalkState<'_, '_> {
                 interface: applied,
                 members: Vec::new(),
             });
-        }
-
-        // member providers alone leave the capability auto set untouched
-        if interfaces.is_empty() && provider_count > 0 {
-            return Ok((None, Vec::new()));
         }
 
         Ok((Some(interfaces), conformances))

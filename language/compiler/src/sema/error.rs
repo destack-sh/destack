@@ -738,188 +738,40 @@ pub enum CheckError {
         arguments: String,
     },
 
-    /// A derive argument is not a registered derive provider.
+    /// A derive argument does not name a derivable interface.
     ///
     /// ```ds
     /// @derive(ordinaryValue)
     /// newtype Shape = { kind: "shape" };
     /// ```
     #[diagnostic(
-        id = "invalid-derive-provider",
-        message = "derive argument must name a registered provider newtype"
+        id = "invalid-derive-interface",
+        message = "derive argument must name a derivable interface"
     )]
-    InvalidDeriveProvider {
-        /// Report the derive provider argument.
+    InvalidDeriveInterface {
+        /// Report the derive interface argument.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
     },
 
-    /// A derive provider does not support the annotated declaration.
+    /// A declaration selects the same derive interface more than once.
     ///
     /// ```ds
-    /// @derive(Tagged)
-    /// struct Shape {}
+    /// @derive(Clone, Clone)
+    /// struct Point { x: int32 }
     /// ```
     #[diagnostic(
-        id = "invalid-derive-target",
-        message = "'{provider}' cannot be derived for this declaration"
+        id = "duplicate-derive-interface",
+        message = "duplicate derive interface '{interface}'"
     )]
-    InvalidDeriveTarget {
+    DuplicateDeriveInterface {
         /// Report the derive application.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The rejected derive provider.
-        provider: String,
-    },
-
-    /// A declaration selects the same derive provider more than once.
-    ///
-    /// ```ds
-    /// @derive(Tagged, Tagged)
-    /// newtype Shape = { kind: "shape" };
-    /// ```
-    #[diagnostic(
-        id = "duplicate-derive-provider",
-        message = "duplicate derive provider '{provider}'"
-    )]
-    DuplicateDeriveProvider {
-        /// Report the derive application.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The duplicated derive provider.
-        provider: String,
-    },
-
-    /// One Tagged backing arm lies outside the constructible record domain.
-    ///
-    /// ```ds
-    /// @derive(Tagged)
-    /// newtype Shape = string;
-    /// ```
-    #[diagnostic(
-        id = "invalid-tagged-variant",
-        message = "Tagged backing arm must be a constructible shape or struct"
-    )]
-    InvalidTaggedVariant {
-        /// Report the derive application.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-    },
-
-    /// A Tagged backing has no inferable discriminator.
-    ///
-    /// ```ds
-    /// @derive(Tagged)
-    /// newtype Shape = { value: int32 };
-    /// ```
-    #[diagnostic(
-        id = "missing-tagged-discriminator",
-        message = "Tagged backing has no common required field with distinct string literal types"
-    )]
-    MissingTaggedDiscriminator {
-        /// Report the derive application.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-    },
-
-    /// A Tagged backing has more than one inferable discriminator.
-    ///
-    /// ```ds
-    /// @derive(Tagged)
-    /// newtype State = { kind: "on"; state: "ready" } | { kind: "off"; state: "done" };
-    /// ```
-    #[diagnostic(
-        id = "ambiguous-tagged-discriminator",
-        message = "Tagged backing has multiple possible discriminators: {discriminators}"
-    )]
-    AmbiguousTaggedDiscriminator {
-        /// Report the derive application.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The possible discriminator fields.
-        discriminators: String,
-    },
-
-    /// An explicitly selected Tagged discriminator is invalid.
-    ///
-    /// ```ds
-    /// @derive(Tagged({ discriminator: "type" }))
-    /// newtype Shape = { kind: "circle" };
-    /// ```
-    #[diagnostic(
-        id = "invalid-tagged-discriminator",
-        message = "Tagged discriminator '{discriminator}' must be a required string literal field in every backing arm"
-    )]
-    InvalidTaggedDiscriminator {
-        /// Report the derive application.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The rejected discriminator field.
-        discriminator: String,
-    },
-
-    /// Two Tagged backing arms carry the same discriminant.
-    ///
-    /// ```ds
-    /// @derive(Tagged)
-    /// newtype Shape = { kind: "shape" } | { kind: "shape"; radius: float64 };
-    /// ```
-    #[diagnostic(
-        id = "duplicate-tagged-discriminant",
-        message = "duplicate Tagged discriminant '{discriminant}'"
-    )]
-    DuplicateTaggedDiscriminant {
-        /// Report the derive application.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The duplicated discriminant value.
-        discriminant: String,
-    },
-
-    /// A Tagged discriminant cannot produce a declaration member name.
-    ///
-    /// ```ds
-    /// @derive(Tagged)
-    /// newtype Shape = { kind: "---" };
-    /// ```
-    #[diagnostic(
-        id = "invalid-tagged-case",
-        message = "Tagged discriminant '{discriminant}' does not produce a valid case name"
-    )]
-    InvalidTaggedCase {
-        /// Report the derive application.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The rejected discriminant value.
-        discriminant: String,
-    },
-
-    /// Two Tagged backing arms select the same case name.
-    ///
-    /// ```ds
-    /// @derive(Tagged)
-    /// newtype Shape = { kind: "shape" } | { kind: "Shape" };
-    /// ```
-    #[diagnostic(
-        id = "duplicate-tagged-case",
-        message = "duplicate Tagged case '{key}'"
-    )]
-    DuplicateTaggedCase {
-        /// Report the derive application.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The duplicated case name.
-        key: String,
+        /// The duplicated derive interface.
+        interface: String,
     },
 
     /// Member selection has multiple valid targets.

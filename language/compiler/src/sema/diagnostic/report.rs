@@ -993,160 +993,29 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one argument that does not name a registered derive provider.
-    pub(in crate::sema) fn report_invalid_derive_provider(
+    /// Report one argument that does not name a derivable interface.
+    pub(in crate::sema) fn report_invalid_derive_interface(
         &mut self,
         origin: Origin,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::InvalidDeriveProvider { anchor, module };
+        let error = CheckError::InvalidDeriveInterface { anchor, module };
         self.report(module, error);
 
         Ok(())
     }
 
-    /// Report one derive provider applied to an unsupported declaration.
-    pub(in crate::sema) fn report_invalid_derive_target(
+    /// Report one derive interface selected more than once for a declaration.
+    pub(in crate::sema) fn report_duplicate_derive_interface(
         &mut self,
         origin: Origin,
-        provider: dir::GlobalSymbolId,
+        interface: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::InvalidDeriveTarget {
+        let error = CheckError::DuplicateDeriveInterface {
             anchor,
             module,
-            provider: self.format_symbol(provider),
-        };
-        self.report(module, error);
-
-        Ok(())
-    }
-
-    /// Report one derive provider selected more than once for a declaration.
-    pub(in crate::sema) fn report_duplicate_derive_provider(
-        &mut self,
-        origin: Origin,
-        provider: dir::GlobalSymbolId,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::DuplicateDeriveProvider {
-            anchor,
-            module,
-            provider: self.format_symbol(provider),
-        };
-        self.report(module, error);
-
-        Ok(())
-    }
-
-    /// Report one Tagged backing arm outside the constructible record domain.
-    pub(in crate::sema) fn report_invalid_tagged_variant(
-        &mut self,
-        origin: Origin,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::InvalidTaggedVariant { anchor, module };
-        self.report(module, error);
-
-        Ok(())
-    }
-
-    /// Report a Tagged backing without an inferable discriminator.
-    pub(in crate::sema) fn report_missing_tagged_discriminator(
-        &mut self,
-        origin: Origin,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::MissingTaggedDiscriminator { anchor, module };
-        self.report(module, error);
-
-        Ok(())
-    }
-
-    /// Report a Tagged backing with multiple inferable discriminators.
-    pub(in crate::sema) fn report_ambiguous_tagged_discriminator(
-        &mut self,
-        origin: Origin,
-        discriminators: &[dir::StaticKey],
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let discriminators = discriminators
-            .iter()
-            .map(|key| format!("'{}'", self.format_static_key(key)))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let error = CheckError::AmbiguousTaggedDiscriminator {
-            anchor,
-            module,
-            discriminators,
-        };
-        self.report(module, error);
-
-        Ok(())
-    }
-
-    /// Report an invalid explicitly selected Tagged discriminator.
-    pub(in crate::sema) fn report_invalid_tagged_discriminator(
-        &mut self,
-        origin: Origin,
-        discriminator: dir::StaticKey,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::InvalidTaggedDiscriminator {
-            anchor,
-            module,
-            discriminator: self.format_static_key(&discriminator),
-        };
-        self.report(module, error);
-
-        Ok(())
-    }
-
-    /// Report two Tagged backing arms carrying the same discriminant.
-    pub(in crate::sema) fn report_duplicate_tagged_discriminant(
-        &mut self,
-        origin: Origin,
-        discriminant: dir::StringId,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::DuplicateTaggedDiscriminant {
-            anchor,
-            module,
-            discriminant: self.strings().get(discriminant).to_string(),
-        };
-        self.report(module, error);
-
-        Ok(())
-    }
-
-    /// Report one Tagged discriminant that cannot produce a case name.
-    pub(in crate::sema) fn report_invalid_tagged_case(
-        &mut self,
-        origin: Origin,
-        discriminant: dir::StringId,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::InvalidTaggedCase {
-            anchor,
-            module,
-            discriminant: self.strings().get(discriminant).to_string(),
-        };
-        self.report(module, error);
-
-        Ok(())
-    }
-
-    /// Report two Tagged backing arms that select the same case key.
-    pub(in crate::sema) fn report_duplicate_tagged_case(
-        &mut self,
-        origin: Origin,
-        key: dir::StringId,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::DuplicateTaggedCase {
-            anchor,
-            module,
-            key: self.strings().get(key).to_string(),
+            interface: self.format_symbol(interface),
         };
         self.report(module, error);
 

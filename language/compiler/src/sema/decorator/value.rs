@@ -45,15 +45,15 @@ impl CheckState<'_> {
                     Err(error) => return Ok(Err(error)),
                 }
             }
-            dir::DecoratorSelection::Derive { providers } => {
-                let mut elements = Vec::with_capacity(providers.len());
+            dir::DecoratorSelection::Derive { interfaces } => {
+                let mut elements = Vec::with_capacity(interfaces.len());
 
-                // evaluate selected providers in argument order
-                for provider in providers {
-                    match self.evaluate_derive_provider(provider)? {
-                        Ok(value) => elements.push(value),
-                        Err(error) => return Ok(Err(error)),
-                    }
+                // encode the selected interface types in argument order
+                for interface in interfaces {
+                    let symbol = self.language_symbol((*interface).into())?;
+                    let ty =
+                        self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+                    elements.push(dir::StaticTerm::Type { ty });
                 }
 
                 dir::StaticTerm::Newtype {
@@ -64,47 +64,6 @@ impl CheckState<'_> {
         };
 
         Ok(Ok((application, resolution, value)))
-    }
-
-    /// Evaluate one selected compiler-owned derive provider.
-    fn evaluate_derive_provider(
-        &mut self,
-        provider: &dir::DeriveProvider,
-    ) -> CompilerResult<Result<dir::StaticTerm, StaticError>> {
-        let module = provider.argument.module_id;
-        let argument = provider.argument.local_id;
-        let view = self.module_view(module);
-        let Some(expression) = view.get(argument).value() else {
-            return Err(CompilerError::Internal {
-                message: format!("derive provider argument {argument:?} has no value"),
-            });
-        };
-
-        // capability interfaces carry no configuration value
-        let is_capability = self
-            .environment_bound
-            .language
-            .item(provider.newtype.symbol)
-            .and_then(dir::AutoInterface::from_language_item)
-            .is_some_and(dir::AutoInterface::is_derivable);
-        if is_capability {
-            return Ok(Ok(dir::StaticTerm::Type { ty: provider.ty }));
-        }
-
-        // evaluate a configured provider through its construction resolution
-        if matches!(view.get(expression), dir::Expression::Call { .. }) {
-            self.evaluate_static_expression(module, expression)
-        }
-        // otherwise evaluate a bare provider through the backing derive selected
-        else {
-            self.evaluate_selected_static_newtype(
-                module,
-                expression,
-                &[],
-                provider.newtype.backing,
-                provider.ty,
-            )
-        }
     }
 
     /// Evaluate one selected newtype backing into a nominal static value.

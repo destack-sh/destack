@@ -1,22 +1,11 @@
 use destack_core::FxIndexSet;
 use destack_dir as dir;
-use destack_source::ModuleId;
 
 use crate::sema::{
     BodyState, DecoratorApplication, FlowSite, NewtypeMatch, NewtypeOverload, NewtypeRejection,
     Origin, PlaceUse, SelectedDecorator, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
-
-/// One selected compiler-owned derive provider.
-struct SelectedDeriveProvider {
-    /// The source provider argument.
-    argument: dir::GlobalNodeId<dir::Argument>,
-    /// The exact provider backing.
-    newtype: dir::NewtypeSelection,
-    /// The instantiated provider type.
-    ty: dir::GlobalTypeId,
-}
 
 impl BodyState<'_, '_> {
     /// Check one decorator application.
@@ -131,7 +120,7 @@ impl BodyState<'_, '_> {
         }))
     }
 
-    /// Select one compiler-owned derive decorator and its providers.
+    /// Select one compiler-owned derive decorator and its interfaces.
     fn select_derive_decorator(
         &mut self,
         site: FlowSite,
@@ -154,34 +143,52 @@ impl BodyState<'_, '_> {
             return Ok(None);
         }
 
-        // select every provider as nominal newtype data
-        let mut providers = Vec::with_capacity(application.expression.arguments.len());
-        let mut selected_symbols = FxIndexSet::default();
+        // select every written argument as a derivable interface
+        let mut interfaces = Vec::with_capacity(application.expression.arguments.len());
+        let mut selected = FxIndexSet::default();
         for argument in application.expression.arguments.iter().copied() {
-            let selected = self.select_derive_provider(module, argument)?;
-            let Some(selected) = selected else {
+            // resolve the written argument reference
+            let Some(expression) = self.argument_expression(module, argument) else {
+                return Err(CompilerError::Internal {
+                    message: format!("derive argument {argument:?} has no expression"),
+                });
+            };
+            let expression = expression.into_typed::<dir::Expression>().local_id;
+            let source = expression.into_global_any(module);
+            let origin = Origin::Node(source, None);
+            let Some(symbol) = self.reference_symbol(source) else {
+                self.report_invalid_derive_interface(origin)?;
                 self.commit_error_node(site.node)?;
 
                 return Ok(None);
             };
-            // reject duplicate providers without a second report
-            if !selected_symbols.insert(selected.newtype.symbol) {
+
+            // require a compiler-known derivable interface
+            let Some(interface) = self
+                .environment_bound
+                .language
+                .item(symbol)
+                .and_then(dir::AutoInterface::from_language_item)
+                .filter(|interface| interface.is_derivable())
+            else {
+                self.report_invalid_derive_interface(origin)?;
+                self.commit_error_node(site.node)?;
+
+                return Ok(None);
+            };
+
+            // reject duplicate interfaces at the repeated argument
+            if !selected.insert(interface) {
+                self.report_duplicate_derive_interface(origin, symbol)?;
                 self.commit_error_node(site.node)?;
 
                 return Ok(None);
             }
-            providers.push(selected);
+            let reference =
+                self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+            self.commit_node_type(source, reference)?;
+            interfaces.push(interface);
         }
-
-        // retain exact provider selections in argument order
-        let providers = providers
-            .into_iter()
-            .map(|provider| dir::DeriveProvider {
-                argument: provider.argument,
-                newtype: provider.newtype,
-                ty: provider.ty,
-            })
-            .collect();
 
         // construct the opaque compiler-defined derive type
         let type_arguments = self.intern_type_ids(&[])?;
@@ -194,7 +201,7 @@ impl BodyState<'_, '_> {
                 symbol: application.symbol,
                 item: dir::LanguageItem::Derive,
             },
-            selection: dir::DecoratorSelection::Derive { providers },
+            selection: dir::DecoratorSelection::Derive { interfaces },
             ty,
         };
         self.commit_node_type(site.node, ty)?;
@@ -202,194 +209,6 @@ impl BodyState<'_, '_> {
         Ok(Some(SelectedDecorator {
             application,
             resolution,
-        }))
-    }
-
-    /// Select one compiler-owned derive provider.
-    fn select_derive_provider(
-        &mut self,
-        module: ModuleId,
-        argument: dir::LocalNodeId<dir::Argument>,
-    ) -> CompilerResult<Option<SelectedDeriveProvider>> {
-        let Some(expression) = self.argument_expression(module, argument) else {
-            return Err(CompilerError::Internal {
-                message: format!("derive provider argument {argument:?} has no expression"),
-            });
-        };
-        let expression = expression.into_typed::<dir::Expression>().local_id;
-        let origin = Origin::Node(expression.into_global_any(module), None);
-        let node = self.module_view(module).get(expression).clone();
-
-        // select the exact newtype backing of a configured provider
-        let (selection, ty) = if let dir::Expression::Call {
-            left,
-            generic_arguments,
-            arguments,
-            ..
-        } = node
-        {
-            let target = left.into_global_any(module);
-            let Some(symbol) = self.reference_symbol(target) else {
-                self.report_invalid_derive_provider(origin)?;
-
-                return Ok(None);
-            };
-            // require a newtype provider
-            if self
-                .symbol_kind_maybe(symbol)?
-                .is_some_and(|kind| !matches!(kind, dir::SymbolKind::Newtype))
-            {
-                self.report_invalid_derive_provider(origin)?;
-
-                return Ok(None);
-            }
-            let reference = dir::Type::Reference(dir::TypeReference { symbol });
-            let reference = self.intern_type(reference)?;
-            self.commit_node_type(target, reference)?;
-
-            // collect written generic arguments
-            let mut type_arguments = Vec::with_capacity(generic_arguments.len());
-            for argument in &generic_arguments {
-                type_arguments.push(self.require_node_type(argument.into_global_any(module))?);
-            }
-
-            // select the only viable provider backing
-            let matched = self.match_newtype(
-                origin,
-                symbol,
-                &arguments,
-                &type_arguments,
-                None,
-                NewtypeOverload::Unambiguous,
-                ValueUse::Comptime,
-            )?;
-            let (selection, signature) = match matched {
-                NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => {
-                    (signature.selection, signature.signature)
-                }
-                NewtypeMatch::Invalid { rejection, .. } => {
-                    self.report_decorator_rejection(
-                        origin,
-                        NewtypeRejection::Signature(rejection),
-                    )?;
-                    self.commit_error_node(expression.into_global_any(module))?;
-
-                    return Ok(None);
-                }
-                NewtypeMatch::Rejected(rejection) => {
-                    self.report_decorator_rejection(origin, rejection)?;
-                    self.commit_error_node(expression.into_global_any(module))?;
-
-                    return Ok(None);
-                }
-            };
-
-            // retain the selected provider construction for static evaluation
-            let resolution = dir::ConstructDecision::new(
-                dir::ConstructTarget::Newtype(selection.clone()),
-                self.selected_argument_bindings(
-                    expression.into_global_any(module),
-                    module,
-                    &arguments,
-                    &signature,
-                )?,
-                signature.return_type,
-            );
-            self.commit_decision(
-                expression.into_global_any(module),
-                dir::Decision::Construct(resolution),
-            )?;
-            self.commit_node_type(expression.into_global_any(module), signature.return_type)?;
-
-            (selection, signature.return_type)
-        }
-        // otherwise select the zero-argument backing of a bare provider
-        else {
-            let source = expression.into_global_any(module);
-            let Some(symbol) = self.reference_symbol(source) else {
-                self.report_invalid_derive_provider(origin)?;
-
-                return Ok(None);
-            };
-
-            // accept capability interfaces as compiler-owned derives
-            let is_capability = self
-                .environment_bound
-                .language
-                .item(symbol)
-                .and_then(dir::AutoInterface::from_language_item)
-                .is_some_and(dir::AutoInterface::is_derivable);
-            if is_capability {
-                let reference = dir::Type::Reference(dir::TypeReference { symbol });
-                let ty = self.intern_type(reference)?;
-                self.commit_node_type(source, ty)?;
-
-                return Ok(Some(SelectedDeriveProvider {
-                    argument: argument.into_global(module),
-                    newtype: dir::NewtypeSelection {
-                        symbol,
-                        backing: ty,
-                        generic_arguments: Vec::new(),
-                    },
-                    ty,
-                }));
-            }
-
-            // require a newtype provider
-            if self
-                .symbol_kind_maybe(symbol)?
-                .is_some_and(|kind| !matches!(kind, dir::SymbolKind::Newtype))
-            {
-                self.report_invalid_derive_provider(origin)?;
-
-                return Ok(None);
-            }
-            let matched = self.match_newtype(
-                origin,
-                symbol,
-                &[],
-                &[],
-                None,
-                NewtypeOverload::Unambiguous,
-                ValueUse::Comptime,
-            )?;
-            let (selection, return_type) = match matched {
-                NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => {
-                    (signature.selection, signature.signature.return_type)
-                }
-                NewtypeMatch::Invalid { rejection, .. } => {
-                    self.report_decorator_rejection(
-                        origin,
-                        NewtypeRejection::Signature(rejection),
-                    )?;
-                    self.commit_error_node(source)?;
-
-                    return Ok(None);
-                }
-                NewtypeMatch::Rejected(rejection) => {
-                    self.report_decorator_rejection(origin, rejection)?;
-                    self.commit_error_node(source)?;
-
-                    return Ok(None);
-                }
-            };
-            self.commit_node_type(source, return_type)?;
-
-            (selection, return_type)
-        };
-
-        // require the compiler-owned Tagged provider
-        if self.environment_bound.language.item(selection.symbol) != Some(dir::LanguageItem::Tagged)
-        {
-            self.report_invalid_derive_provider(origin)?;
-
-            return Ok(None);
-        }
-
-        Ok(Some(SelectedDeriveProvider {
-            argument: argument.into_global(module),
-            newtype: selection,
-            ty,
         }))
     }
 

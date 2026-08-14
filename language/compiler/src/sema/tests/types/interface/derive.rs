@@ -635,6 +635,127 @@ struct Sample {
     );
 }
 
+/// Reject derive arguments that do not name derivable interfaces.
+#[test]
+fn test_reject_non_interface_derive_argument() {
+    let session = TestSession::single(
+        r#"
+const value = 1;
+
+@derive(value)
+struct Point {
+    x: int32;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const value: 1 = 1;
+
+@derive(value)
+struct Point {
+    x: int32;
+}
+
+=== checked ===
+const value = 1;
+/// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source=1 type=1
+
+@derive(value)
+/// @resolution.name source=derive target=decorator.derive.derive
+/// @resolution.name source=value target=value
+
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=invalid-derive-interface message="derive argument must name a derivable interface"
+/// @diagnostic.label line=4 column=9 span=value line_source="@derive(value)"
+"#,
+    );
+}
+
+/// Reject a derivable interface selected more than once.
+#[test]
+fn test_reject_duplicate_derive_interface() {
+    let session = TestSession::single(
+        r#"
+@derive(Clone, Clone)
+struct Point {
+    x: int32;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+@derive(Clone, Clone)
+struct Point {
+    x: int32;
+}
+
+=== checked ===
+@derive(Clone, Clone)
+/// @resolution.name source=derive target=decorator.derive.derive
+/// @resolution.name source=Clone target=memory.capability.Clone
+/// @resolution.name source=Clone target=memory.capability.Clone
+
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=duplicate-derive-interface message="duplicate derive interface 'Clone'"
+/// @diagnostic.label line=2 column=16 span=Clone line_source="@derive(Clone, Clone)"
+"#,
+    );
+}
+
+/// Apply no interfaces from an invalid derive list.
+#[test]
+fn test_invalid_derive_list_applies_no_interfaces() {
+    let session = TestSession::single(
+        r#"
+const invalid = 1;
+
+@derive(Clone, invalid)
+struct Point {
+    x: int32;
+}
+
+function requireClone<T: Clone>(value: T): void {}
+function requireEqual<T: Equal>(value: T): void {}
+
+requireClone(Point { x: 1 });
+requireEqual(Point { x: 1 });
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#""#, r#""#);
+}
+
 #[test]
 fn test_check_replaces_auto_set_with_written_derives() {
     let session = TestSession::single(
