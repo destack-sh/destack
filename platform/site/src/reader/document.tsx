@@ -83,6 +83,7 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                                 <ContentsTree
                                     activeId={props.activeHeading}
                                     entries={props.contents}
+                                    isNested
                                 />
                             </Show>
                         </li>
@@ -164,8 +165,8 @@ const styles = stylex.create({
     articleDescription: {
         color: tokens.soft,
         fontFamily: tokens.textFont,
-        fontSize: "1.2rem",
-        lineHeight: 1.45,
+        fontSize: "var(--size-page-description)",
+        lineHeight: 1.4,
         margin: `calc(${tokens.publicationSpace} * 2) 0 0`,
         maxWidth: "42rem",
     },
@@ -178,10 +179,10 @@ const styles = stylex.create({
         paddingBottom: `calc(${tokens.publicationSpace} * 4)`,
     },
     articleTitle: {
-        fontFamily: tokens.monoFont,
-        fontSize: "clamp(2.5rem, 5vw, 3.5rem)",
+        fontFamily: tokens.textFont,
+        fontSize: "var(--size-page-title)",
         fontWeight: 300,
-        letterSpacing: "-0.04em",
+        letterSpacing: "-0.035em",
         lineHeight: 1,
         margin: `calc(${tokens.publicationSpace} * 4) 0 0`,
     },
@@ -194,7 +195,7 @@ const styles = stylex.create({
     bookLink: {
         color: tokens.soft,
         display: "block",
-        fontSize: "0.8rem",
+        fontSize: "var(--size-navigation)",
         lineHeight: 1.3,
         paddingBlock: "0.25rem",
         ":hover": {
@@ -219,7 +220,7 @@ const styles = stylex.create({
         color: tokens.ink,
         display: "flex",
         fontFamily: tokens.monoFont,
-        fontSize: "0.75rem",
+        fontSize: "var(--size-label)",
         fontWeight: 600,
         gap: "0.75rem",
         letterSpacing: "0.02em",

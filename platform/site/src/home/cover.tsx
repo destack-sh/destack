@@ -371,7 +371,7 @@ const installationStyles = stylex.create({
         backgroundColor: tokens.code,
         borderLeftColor: tokens.creamDeep,
         borderLeftStyle: "solid",
-        borderLeftWidth: "1px",
+        borderLeftWidth: tokens.hairline,
         color: tokens.cream,
         display: "inline-flex",
         fontWeight: 600,

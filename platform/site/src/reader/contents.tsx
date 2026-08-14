@@ -36,6 +36,9 @@ type ContentsTreeProps = {
 
     /// The document headings.
     entries: readonly ContentsEntry[];
+
+    /// Whether the root headings sit below a parent entry.
+    isNested?: boolean;
 };
 
 /// Render the active article heading tree.
@@ -44,7 +47,11 @@ export function ContentsTree(props: ContentsTreeProps) {
 
     return (
         <Show when={props.entries.length > 0}>
-            <ContentsList activeId={props.activeId} isNested nodes={nodes()} />
+            <ContentsList
+                activeId={props.activeId}
+                isNested={props.isNested}
+                nodes={nodes()}
+            />
         </Show>
     );
 }
@@ -59,7 +66,6 @@ type ContentsListProps = {
 
     /// Whether this level is nested below another heading.
     isNested?: boolean;
-
 };
 
 /// Render one level of the article outline.

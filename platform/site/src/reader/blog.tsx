@@ -3,7 +3,6 @@ import { type Accessor, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
 import { type Post, type PostContent } from "../generated/posts";
-import { Breadcrumbs } from "./breadcrumbs";
 import { ContentsTree, type ContentsEntry } from "./contents";
 import { tokens } from "../style/tokens.stylex";
 import { Reader } from "./reader";
@@ -52,7 +51,6 @@ type BlogLocationProps = {
 function BlogLocation(props: BlogLocationProps) {
     return (
         <div {...stylex.attrs(styles.location)}>
-            <Breadcrumbs items={[{ href: "/blog/", label: "blog" }]} />
             <span>
                 <time {...stylex.attrs(styles.locationDate)}>{props.post.date}</time>
                 {" / "}{props.post.author}
@@ -160,16 +158,16 @@ const styles = stylex.create({
     articleSubtitle: {
         color: tokens.soft,
         fontFamily: tokens.textFont,
-        fontSize: "clamp(1.15rem, 1.7vw, 1.3rem)",
-        lineHeight: 1.45,
+        fontSize: "var(--size-page-description)",
+        lineHeight: 1.4,
         margin: 0,
         maxWidth: "44rem",
     },
     articleTitle: {
-        fontFamily: tokens.monoFont,
-        fontSize: "clamp(2.5rem, 5vw, 3.5rem)",
+        fontFamily: tokens.textFont,
+        fontSize: "var(--size-page-title)",
         fontWeight: 300,
-        letterSpacing: "-0.04em",
+        letterSpacing: "-0.035em",
         lineHeight: 1,
         margin: 0,
     },
@@ -180,9 +178,15 @@ const styles = stylex.create({
     },
     bookTitle: {
         alignItems: "center",
+        borderBottomColor: tokens.ink,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+        borderTopColor: tokens.ink,
+        borderTopStyle: "solid",
+        borderTopWidth: tokens.hairline,
         display: "flex",
         fontFamily: tokens.monoFont,
-        fontSize: "0.75rem",
+        fontSize: "var(--size-label)",
         fontWeight: 600,
         letterSpacing: "0.02em",
         minHeight: tokens.publicationRow,
@@ -198,12 +202,12 @@ const styles = stylex.create({
     },
     locationDate: {
         fontFamily: tokens.monoFont,
-        fontSize: "0.78rem",
+        fontSize: "var(--size-navigation)",
     },
     pagination: {
-        borderTopColor: tokens.line,
+        borderTopColor: tokens.ink,
         borderTopStyle: "solid",
-        borderTopWidth: "1px",
+        borderTopWidth: tokens.hairline,
         display: "flex",
         flexWrap: "wrap",
         fontFamily: tokens.monoFont,

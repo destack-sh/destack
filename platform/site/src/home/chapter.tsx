@@ -463,7 +463,7 @@ const listingStyles = stylex.create({
         alignItems: "stretch",
         borderBottomColor: tokens.ink,
         borderBottomStyle: "solid",
-        borderBottomWidth: "1px",
+        borderBottomWidth: tokens.hairline,
         display: "flex",
         minHeight: tokens.publicationRow,
         minWidth: 0,

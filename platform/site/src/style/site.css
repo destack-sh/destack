@@ -7,6 +7,26 @@
 @layer reset, priority1, priority2;
 
 @layer reset {
+:root {
+    --publication-page: #f1eadb;
+    --publication-page-muted: #ebe3d4;
+    --publication-ink: #171512;
+    --publication-soft: #625c52;
+    --publication-line: #c9beaa;
+    --publication-accent: #dc5b2d;
+    --publication-rust: #a44328;
+    --publication-hairline: 1px;
+    --publication-stroke: 3px;
+    --size-page-title: clamp(2.625rem, 4vw, 3rem);
+    --size-page-description: 1.375rem;
+    --size-section-title: 2rem;
+    --size-subsection-title: 1.5rem;
+    --size-minor-title: 1.125rem;
+    --size-body: 1.0625rem;
+    --size-navigation: 0.8125rem;
+    --size-label: 0.75rem;
+}
+
 *,
 *::before,
 *::after {
@@ -22,7 +42,7 @@ body {
 }
 
 body {
-    background: #f1eadb;
+    background: var(--publication-page);
 }
 
 a {
@@ -46,7 +66,7 @@ summary::-webkit-details-marker {
 }
 
 :focus-visible {
-    outline: 2px solid #dc5b2d;
+    outline: 2px solid var(--publication-accent);
     outline-offset: 3px;
 }
 }
@@ -56,7 +76,7 @@ summary::-webkit-details-marker {
     display: grid;
     min-width: 0;
     gap: 1rem;
-    font-size: inherit;
+    font-size: var(--size-body);
     font-weight: 400;
     line-height: 1.6;
 }
@@ -65,31 +85,32 @@ summary::-webkit-details-marker {
 .markdown h2,
 .markdown h3 {
     margin: 0;
-    color: #171512;
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--publication-ink);
+    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
 }
 
 .markdown h1 {
     margin-top: 2rem;
-    font-size: clamp(1.75rem, 3vw, 2.25rem);
-    font-weight: 300;
-    letter-spacing: -0.035em;
-    line-height: 1.15;
+    font-size: var(--size-section-title);
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
 }
 
 .markdown h2 {
     margin-top: 1.5rem;
-    font-size: 1.4rem;
-    font-weight: 400;
+    font-size: var(--size-subsection-title);
+    font-weight: 500;
     letter-spacing: -0.02em;
     line-height: 1.25;
 }
 
 .markdown h3 {
     margin-top: 1rem;
-    font-size: 1.05rem;
+    font-size: var(--size-minor-title);
     font-weight: 600;
     letter-spacing: 0;
+    line-height: 1.35;
 }
 
 .markdown p,
@@ -130,7 +151,7 @@ summary::-webkit-details-marker {
 }
 
 .markdown li::marker {
-    color: #625c52;
+    color: var(--publication-soft);
 }
 
 .markdown li > p {
@@ -149,25 +170,25 @@ summary::-webkit-details-marker {
 
 .markdown input[type="checkbox"] {
     margin-right: 0.5rem;
-    accent-color: #dc5b2d;
+    accent-color: var(--publication-accent);
 }
 
 .markdown a {
-    color: #171512;
-    text-decoration-color: #dc5b2d;
+    color: var(--publication-ink);
+    text-decoration-color: var(--publication-accent);
     text-decoration-line: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 0.2rem;
 }
 
 .markdown a:hover {
-    color: #dc5b2d;
+    color: var(--publication-accent);
 }
 
 .markdown :not(pre) > code {
-    background: #ebe3d4;
+    background: var(--publication-page-muted);
     padding: 0.1rem 0.35rem;
-    color: #171512;
+    color: var(--publication-ink);
     font-size: 0.85em;
     font-weight: 400;
 }
@@ -177,9 +198,9 @@ summary::-webkit-details-marker {
 }
 
 .markdown blockquote {
-    border-left: 2px solid #dc5b2d;
+    border-left: var(--publication-hairline) solid var(--publication-accent);
     padding: 0.5rem 0 0.5rem 1rem;
-    color: #171512;
+    color: var(--publication-ink);
 }
 
 .markdown blockquote > * + * {
@@ -189,7 +210,7 @@ summary::-webkit-details-marker {
 .markdown hr {
     width: 100%;
     border: 0;
-    border-top: 1px solid #c9beaa;
+    border-top: var(--publication-hairline) solid var(--publication-ink);
 }
 
 /* generated tables */
@@ -198,14 +219,14 @@ summary::-webkit-details-marker {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
-    border-block: 1px solid #171512;
+    border-block: var(--publication-hairline) solid var(--publication-ink);
     outline: 0;
     overscroll-behavior-inline: contain;
     -webkit-overflow-scrolling: touch;
 }
 
 .markdown-table:focus-visible {
-    outline: 2px solid #dc5b2d;
+    outline: 2px solid var(--publication-accent);
     outline-offset: 2px;
 }
 
@@ -219,7 +240,7 @@ summary::-webkit-details-marker {
 
 .markdown th,
 .markdown td {
-    border-bottom: 1px solid #c9beaa;
+    border-bottom: var(--publication-hairline) solid var(--publication-line);
     padding: 0.5rem 0.75rem;
     text-align: left;
     vertical-align: top;
@@ -241,7 +262,7 @@ summary::-webkit-details-marker {
 }
 
 .markdown-footnote-ref a {
-    color: #dc5b2d;
+    color: var(--publication-accent);
     text-decoration: none;
 }
 
@@ -251,13 +272,13 @@ summary::-webkit-details-marker {
 
 .markdown-footnotes {
     margin-top: 2rem;
-    border-top: 1px solid #c9beaa;
+    border-top: var(--publication-hairline) solid var(--publication-ink);
     padding-top: 1rem;
 }
 
 .markdown-footnotes h2 {
     margin: 0 0 0.75rem;
-    color: #625c52;
+    color: var(--publication-soft);
     font-size: inherit;
     line-height: 1.5;
 }
@@ -276,7 +297,7 @@ summary::-webkit-details-marker {
 }
 
 .markdown-footnote-number {
-    color: #625c52;
+    color: var(--publication-soft);
 }
 
 .markdown-footnote-back {
@@ -294,8 +315,8 @@ summary::-webkit-details-marker {
     min-width: 0;
     margin: 0.5rem 0;
     overflow: hidden;
-    border-block: 1px solid #171512;
-    background: #f1eadb;
+    border-block: var(--publication-hairline) solid var(--publication-ink);
+    background: var(--publication-page);
 }
 
 .markdown-callout {
@@ -309,17 +330,17 @@ summary::-webkit-details-marker {
     align-items: baseline;
     gap: 0.625rem;
     background: transparent;
-    border-bottom: 1px solid #171512;
+    border-bottom: var(--publication-hairline) solid var(--publication-ink);
     padding: 0.5rem 0.75rem;
-    color: #171512;
+    color: var(--publication-ink);
     font-size: 0.72rem;
     line-height: 1.4;
 }
 
 .markdown-callout strong {
     margin: -1rem -1.25rem 1rem;
-    background: #dc5b2d;
-    color: #171512;
+    background: transparent;
+    color: var(--publication-accent);
     font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.9rem;
     font-weight: 700;
@@ -339,7 +360,7 @@ summary::-webkit-details-marker {
 
 .markdown-code figcaption .markdown-code__format {
     align-self: center;
-    color: #dc5b2d;
+    color: var(--publication-accent);
     grid-column: 3;
     padding-right: 0.75rem;
 }
@@ -367,8 +388,8 @@ summary::-webkit-details-marker {
 /* shared publication listings */
 [data-publication-listing],
 .markdown-code {
-    background: #f1eadb;
-    color: #171512;
+    background: var(--publication-page);
+    color: var(--publication-ink);
 }
 
 [data-publication-caption],
@@ -378,8 +399,8 @@ summary::-webkit-details-marker {
     grid-template-columns: 2.75rem minmax(0, 1fr) auto;
     align-items: stretch;
     gap: 0;
-    border-bottom: 1px solid #171512;
-    color: #171512;
+    border-bottom: var(--publication-hairline) solid var(--publication-ink);
+    color: var(--publication-ink);
     font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.75rem;
     font-weight: 600;
@@ -393,8 +414,8 @@ summary::-webkit-details-marker {
     content: "";
     grid-column: 1;
     grid-row: 1;
-    border-right: 1px solid #171512;
-    background: #ebe3d4;
+    border-right: var(--publication-hairline) solid var(--publication-ink);
+    background: var(--publication-page-muted);
 }
 
 [data-publication-caption-title],
@@ -408,7 +429,6 @@ summary::-webkit-details-marker {
 [data-publication-body],
 .markdown-code pre {
     overflow-x: auto;
-    padding-block: 0;
     font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.875rem;
     line-height: 1.5rem;
@@ -434,10 +454,10 @@ summary::-webkit-details-marker {
 
 [data-publication-gutter],
 .markdown-code-gutter {
-    border-right: 1px solid #171512;
-    background: #ebe3d4;
+    border-right: var(--publication-hairline) solid var(--publication-ink);
+    background: var(--publication-page-muted);
     padding-inline: 0.5rem;
-    color: #a58b62;
+    color: var(--publication-soft);
     text-align: right;
 }
 
@@ -445,6 +465,20 @@ summary::-webkit-details-marker {
 .markdown-code-text {
     padding-inline: 1rem;
     white-space: pre;
+}
+
+[data-publication-line]:first-child > [data-publication-gutter],
+[data-publication-line]:first-child > [data-publication-code],
+.markdown-code-line:first-child > .markdown-code-gutter,
+.markdown-code-line:first-child > .markdown-code-text {
+    padding-top: 0.75rem;
+}
+
+[data-publication-line]:last-child > [data-publication-gutter],
+[data-publication-line]:last-child > [data-publication-code],
+.markdown-code-line:last-child > .markdown-code-gutter,
+.markdown-code-line:last-child > .markdown-code-text {
+    padding-bottom: 0.75rem;
 }
 
 .markdown-diagram {
@@ -467,12 +501,12 @@ summary::-webkit-details-marker {
 
 .markdown-figure img {
     width: 100%;
-    border-bottom: 1px solid #c9beaa;
+    border-bottom: var(--publication-hairline) solid var(--publication-ink);
 }
 
 .markdown-figure figcaption {
-    background: #e4dbc9;
-    color: #625c52;
+    background: transparent;
+    color: var(--publication-soft);
     font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
 }
 
@@ -492,47 +526,48 @@ summary::-webkit-details-marker {
 /* generated syntax spans */
 .markdown-code :is(.hljs-keyword, [data-k="keyword"]),
 [data-publication-listing] :is(.hljs-keyword, [data-k="keyword"]) {
-    color: #b23708;
+    color: var(--publication-accent);
 }
 
 .markdown-code :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]),
 [data-publication-listing] :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]) {
-    color: #0f6470;
+    color: var(--publication-ink);
 }
 
 .markdown-code :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]),
 [data-publication-listing] :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]) {
-    color: #0f6470;
+    color: var(--publication-ink);
+    font-weight: 600;
 }
 
 .markdown-code :is(.hljs-attr, .hljs-property, [data-k="property"]),
 [data-publication-listing] :is(.hljs-attr, .hljs-property, [data-k="property"]) {
-    color: #0f6470;
+    color: var(--publication-ink);
 }
 
 .markdown-code :is(.hljs-literal, .hljs-number, [data-k="literal"]),
 [data-publication-listing] :is(.hljs-literal, .hljs-number, [data-k="literal"]) {
-    color: #3f7038;
+    color: var(--publication-ink);
 }
 
 .markdown-code :is(.hljs-string, [data-k="string"]),
 [data-publication-listing] :is(.hljs-string, [data-k="string"]) {
-    color: #3f7038;
+    color: var(--publication-ink);
 }
 
 .markdown-code :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]),
 [data-publication-listing] :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]) {
-    color: #171512;
+    color: var(--publication-ink);
 }
 
 .markdown-code :is(.hljs-comment, .hljs-meta, [data-k="comment"]),
 [data-publication-listing] :is(.hljs-comment, .hljs-meta, [data-k="comment"]) {
-    color: #8d7a5c;
+    color: var(--publication-soft);
 }
 
 .markdown-code :is(.hljs-params, [data-k="punct"]),
 [data-publication-listing] :is(.hljs-params, [data-k="punct"]) {
-    color: #6d5b45;
+    color: var(--publication-soft);
 }
 
 @media (width < 60rem) {

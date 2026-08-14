@@ -187,7 +187,7 @@ const styles = stylex.create({
     reader: {
         display: "grid",
         fontFamily: tokens.textFont,
-        fontSize: "1rem",
+        fontSize: "var(--size-body)",
         gridTemplateColumns: "repeat(16, minmax(0, 1fr))",
         marginInline: "auto",
         maxWidth: tokens.siteWidth,
@@ -207,7 +207,7 @@ const styles = stylex.create({
         alignContent: "start",
         display: "none",
         fontFamily: tokens.monoFont,
-        fontSize: "0.8rem",
+        fontSize: "var(--size-navigation)",
         gridColumn: "1 / span 4",
         gap: "2rem",
         "@media (min-width: 60rem)": {
@@ -243,9 +243,9 @@ const styles = stylex.create({
     toolbarBottom: {
         display: "none",
         [mobile]: {
-            borderTopColor: tokens.line,
+            borderTopColor: tokens.ink,
             borderTopStyle: "solid",
-            borderTopWidth: "1px",
+            borderTopWidth: tokens.hairline,
             display: "grid",
             marginTop: "1rem",
             paddingBottom: 0,
@@ -254,7 +254,7 @@ const styles = stylex.create({
     },
     toolbarPublication: {
         fontFamily: tokens.monoFont,
-        fontSize: "0.75rem",
+        fontSize: "var(--size-label)",
     },
     toolbarTop: {
         [mobile]: {

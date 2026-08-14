@@ -83,14 +83,14 @@ const styles = stylex.create({
     date: {
         color: tokens.soft,
         fontFamily: tokens.monoFont,
-        fontSize: "0.78rem",
+        fontSize: "var(--size-navigation)",
         whiteSpace: "nowrap",
     },
     header: {
         alignItems: "baseline",
         borderTopColor: tokens.ink,
         borderTopStyle: "solid",
-        borderTopWidth: "2px",
+        borderTopWidth: tokens.hairline,
         display: "flex",
         gap: "1.5rem",
         justifyContent: "space-between",
@@ -98,9 +98,9 @@ const styles = stylex.create({
     },
     heading: {
         fontFamily: tokens.textFont,
-        fontSize: "clamp(2rem, 5vw, 2.75rem)",
-        fontWeight: 500,
-        letterSpacing: "-0.025em",
+        fontSize: "var(--size-page-title)",
+        fontWeight: 300,
+        letterSpacing: "-0.035em",
         lineHeight: 1,
         margin: 0,
     },
@@ -115,7 +115,7 @@ const styles = stylex.create({
     postCount: {
         color: tokens.soft,
         fontFamily: tokens.monoFont,
-        fontSize: "0.78rem",
+        fontSize: "var(--size-navigation)",
     },
     postLink: {
         alignItems: "baseline",
@@ -129,9 +129,9 @@ const styles = stylex.create({
         },
     },
     postRow: {
-        borderTopColor: tokens.line,
+        borderTopColor: tokens.ink,
         borderTopStyle: "solid",
-        borderTopWidth: "1px",
+        borderTopWidth: tokens.hairline,
     },
     postRowFirst: {
         borderTopWidth: 0,
@@ -142,7 +142,7 @@ const styles = stylex.create({
     },
     title: {
         fontFamily: tokens.textFont,
-        fontSize: "1.25rem",
+        fontSize: "var(--size-minor-title)",
         fontWeight: 600,
         lineHeight: 1.25,
     },
