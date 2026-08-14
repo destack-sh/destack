@@ -209,7 +209,7 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Sequence | `[head, ...tail]` | destructure finite ordered elements |
 | Object | `{ kind: "ok", value }` | destructure a structural object |
 | Nominal object | `Point { x, y }`, `User { name }` | match a nominal object-shaped value and destructure stored fields |
-| Nominal tuple | `UserId(value)`, `Config({ debug })`, `Shape.Circle({ radius })` | match a nominal tuple-shaped head, then resolve it as a newtype or tagged variant |
+| Nominal tuple | `UserId(value)`, `Config({ debug })` | match a newtype and project its backing value |
 | Enum | `State.Ready` | match a nominal enum variant without payload |
 | Union | `0 | 1 | 2` | accept any listed pattern |
 | Rest | `...tail` | bind the remaining sequence view or object fields |
@@ -253,7 +253,7 @@ match (point) {
 }
 
 declare const result: Result<int32, string>;
-let Result.Ok(value)! = result else {
+let Ok { value }! = result else {
     return Result.err("missing value");
 };
 ```
@@ -1057,14 +1057,9 @@ struct User {
     id: UserId;
     name: string;
 }
-
-@derive(Tagged({ case: "UpperCamelCase" }))
-newtype Shape =
-    | { kind: "rectangle"; width: int32; height: int32 }
-    | { kind: "circle"; radius: int32 };
 ```
 
-Destack supports all the common capability-like derives one would expect from a systems-y language, with the notable addition of `Serialize`, `Deserialize`, and `Tagged`:
+Destack supports capability derives for memory, comparison, formatting, hashing, and serialization:
 
 | Derive | Library identity | Applies to | Explicit failure |
 |--------|------------------|------------|------------------|
@@ -1081,7 +1076,6 @@ Destack supports all the common capability-like derives one would expect from a 
 | `Hash` | `destack:ops.Hash` | nominal value types | field is not hashable |
 | `Serialize` | `destack:serde.Serialize` | nominal value types | field cannot be serialized by the selected serializer |
 | `Deserialize` | `destack:serde.Deserialize` | nominal value types | field cannot be deserialized by the selected deserializer |
-| `Tagged` | `destack:decorator.Tagged` | discriminated newtype unions | declaration is not a supported tagged union |
 
 Also unlike Rust, Destack's `derive` supports automatic globally configured (and module/target/..-overridable) derives that are applied by default without explicit `derive` annotation whenever possible.
 This is very convenient since most types do in fact want all the same basic well known `derive`s, but we can also trivially disable this globally, or override it per-item with an empty `@derive()`.

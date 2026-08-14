@@ -330,74 +330,36 @@ enum Priority {
 }
 ```
 
-## Tagged Unions
+## Discriminated Unions
 
-Discriminated unions are very convenient and fit well into existing TypeScript, but by themselves lack nominal containers (and items) to attach behavior to.
-Using Destack's nominality via `newtype` and the builtin `Tagged` [`derive`](./expressions.md#derive), TypeScript's well known discriminated unions become even more ergonomic sum types:
+Destack supports TypeScript's structural discriminated unions directly, and via `newtype` nominality we even get discriminated union nominal identity with a place for methods and constants:
 
 ```ds
-@derive(Tagged)
 newtype Shape =
     | { kind: "rectangle"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
 
 extension of Shape {
-    static DEFAULT = Shape.Rectangle({ width: 10, height: 20 });
+    const UNIT_RECTANGLE = { kind: "rectangle", width: 0, height: 0 };
 
-    variant() {
+    static rectangle(width: int32, height: int32): Shape {
+        Shape({ kind: "rectangle", width, height })
+    }
+
+    static circle(radius: int32): Shape {
+        Shape({ kind: "circle", radius })
+    }
+
+    area(this): int32 {
         match (this) {
-            Shape.Rectangle({ width, height }) => "rectangle"
-            Shape.Circle({ radius }) => "circle"
+            { kind: "rectangle", width, height } => width * height
+            { kind: "circle", radius } => radius * radius
         }
     }
 }
 
-// create values of tagged newtype unions with <Type>.<Variant>
-const rectangle = Shape.Rectangle({ width: 10, height: 20 });
-const circle = Shape.Circle({ radius: 5 });
-```
-
-The discriminant field is inferred from the union via the `Tagged` derive macro from the unique common field whose variants carry distinct literal values.
-It behaves essentially just like builtin sugar that is expanded into a constructor function, the derive adds one static constructor for each variant:
-
-```ds
-extension of Shape {
-    // for each tagged variant, expose a "constructor" by tag
-    static Rectangle({ width: int32, height: int32 }) {
-        { kind: "rectangle", width, height }
-    }
-
-    // ...
-}
-```
-
-Derived Tagged variants also retain their exact declaration identity in patterns:
-
-```ds
-match (shape) {
-    Shape.Rectangle({ width, height }) => width * height
-    Shape.Circle({ radius }) => radius * radius
-}
-```
-
-By default, string discriminants are exposed as `UpperCamelCase` constructor names - the other supported naming policies are:
-
-| Tagged Casing | Example |
-|--------|---------|
-| `"preserve"` | `rectangle` → `rectangle` |
-| `"camelCase"` | `rectangle_shape` → `rectangleShape` |
-| `"UpperCamelCase"` | `rectangle_shape` → `RectangleShape` |
-| `"snake_case"` | `RectangleShape` → `rectangle_shape` |
-| `"SCREAMING_SNAKE_CASE"` | `RectangleShape` → `RECTANGLE_SHAPE` |
-
-```ds
-@derive(Tagged({ case: "preserve" }))
-newtype Shape =
-    | { kind: "rectangle"; width: int32; height: int32 }
-    | { kind: "circle"; radius: int32 };
-
-const rectangle = Shape.rectangle( /* ... */ );
-const circle = Shape.circle( /* ... */ );
+const rectangle = Shape.rectangle(10, 20);
+const circle = Shape.circle(5);
 ```
 
 ## Structs
@@ -660,12 +622,8 @@ const double = (value) => value * 2.0; // OK - function values infer fully
 
 ## Variance
 
-Variance describes how subtyping relates generic types, including the types that "managed language" users may not usually think of as "generic" (like `Array` or `Record`).
+Variance defines how subtyping relates generic types, which includes common types that "managed language" users may not usually think of as "generic" (like `Array` or `Record`).
 Mutable covariance - the fact that TypeScript lets us assign `Circle[]` to `Shape[]` and then mutate the `Circle[]` _through_ the widened `Shape[]` alias - is one of TypeScript's best known soundness holes, so Destack derives variance from one principle: **a position is invariant exactly when a widened value and the original can reach the same mutable storage.**
-
-Widening compiles to nothing.
-An implicit conversion that must rewrite the representation - injecting a value into a tagged union, erasing behind `Dynamic<T>`, widening a numeric literal into a concrete carrier - only happens where a fresh value materializes: an assignment, an argument, a return.
-Inside an existing value there is no site to convert at, so type arguments only relate along **identity-witnessed** edges:
 
 ```ds
 declare const circles: Holder<Circle>;
@@ -890,8 +848,8 @@ struct Rectangle<TPosition: PointLike> {
 }
 ```
 
-Index signatures are also supported in both `interface`s and `type`s, but because we do cannot know all fields ahead of time, they are open and must be stored behind a `Dynamic` wrapper.
-Unlike in TypeScript, index signature fields may only be read but not written (we have proper `Map` types for this and found this behavior to cover most relevant use cases with much more predictable performance).
+Index signatures are also supported in both `interface`s and `type`s, but because we do cannot know all fields ahead of time, they are _open_ and can only be stored behind a `Dynamic` wrapper.
+Unlike in TypeScript, index signature fields are read-only - we have proper `Map` types for this and found this behavior to cover most relevant use cases with much more predictable performance.
 
 ```ds
 type Counts = { [key: string]: int32 };
@@ -903,10 +861,6 @@ counts["pears"] = 3; // ERROR: keyed writes need an IndexSet implementer like Ma
 const scores = new Map<string, int32>();
 scores["pears"] = 3; // OK: Map implements IndexSet
 ```
-
-A representation change is also exactly what separates a compiled conversion from a plain type-level widening.
-An implicit conversion reifies as a coercion only when the identity function is not a valid witness for it: injecting a value into a tagged union writes a tag and erasing behind `Dynamic<T>` builds the fat pointer, while readonly and variance widenings change nothing physical and compile to nothing.
-Literals never convert at all; a constant materializes directly at its solved type.
 
 ## Layout
 
