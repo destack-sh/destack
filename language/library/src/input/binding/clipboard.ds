@@ -83,7 +83,6 @@ export struct ClipboardPayloadBytes {
 }
 
 /// Clipboard representation payload.
-@derive(Tagged)
 export newtype ClipboardPayload =
     | ClipboardPayloadText
     | ClipboardPayloadFile

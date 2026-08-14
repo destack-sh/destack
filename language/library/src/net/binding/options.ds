@@ -186,7 +186,6 @@ export struct SocketOptionPacketTimestamp {
 }
 
 /// Socket option value.
-@derive(Tagged)
 export newtype SocketOptionValue =
     | SocketOptionReuseAddress
     | SocketOptionReusePort

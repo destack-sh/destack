@@ -237,7 +237,6 @@ export struct UsbWatchEventOverflow {
 }
 
 /// USB topology event.
-@derive(Tagged)
 export newtype UsbWatchEvent =
     | UsbWatchEventAttached
     | UsbWatchEventDetached

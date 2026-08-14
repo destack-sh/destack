@@ -4,7 +4,6 @@ import { Try } from "destack:ops";
 
 /// The union of iterator yield and completion results.
 @languageItem("iter.IteratorResult")
-@derive(Tagged)
 export newtype IteratorResult<Y, R = void> = IteratorYield<Y> | IteratorReturn<R>;
 
 /// A yielded iterator value.

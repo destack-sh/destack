@@ -23,7 +23,6 @@ export struct Layout {
 
 /// Reflected layout shape.
 @languageItem("reflect.LayoutShape")
-@derive(Tagged)
 export newtype LayoutShape =
     | { kind: "scalar" }
     | { kind: "aggregate"; fields: readonly LayoutField[] }

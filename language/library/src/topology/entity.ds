@@ -73,7 +73,6 @@ export struct EntityChooseOne {
 }
 
 /// Topology entity selector.
-@derive(Tagged)
 export newtype EntitySelector =
     | EntityAny
     | EntityById

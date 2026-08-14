@@ -304,7 +304,6 @@ export struct AccessibilityTextQueryReadObjects {
 }
 
 /// Inbound accessibility text query.
-@derive(Tagged)
 export newtype AccessibilityTextQuery =
     | AccessibilityTextQueryRead
     | AccessibilityTextQueryReadUnitRanges
@@ -386,7 +385,6 @@ export struct AccessibilityTextResponseObjects {
 }
 
 /// Outbound accessibility text response.
-@derive(Tagged)
 export newtype AccessibilityTextResponse =
     | AccessibilityTextResponseText
     | AccessibilityTextResponseRanges

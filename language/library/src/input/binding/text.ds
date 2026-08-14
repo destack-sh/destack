@@ -264,7 +264,6 @@ export struct TextSessionEventClipboard {
 }
 
 /// Text session event.
-@derive(Tagged)
 export newtype TextSessionEvent =
     | TextSessionEventState
     | TextSessionEventComposition

@@ -257,7 +257,6 @@ export struct CameraWatchEventOverflow {
 }
 
 /// Camera topology event.
-@derive(Tagged)
 export newtype CameraWatchEvent =
     | CameraWatchEventAttached
     | CameraWatchEventDetached

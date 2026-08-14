@@ -2,11 +2,27 @@ import { PartialCompare } from "destack:ops";
 
 /// One endpoint of a range.
 @languageItem("range.Bound")
-@derive(Tagged)
 export newtype Bound<T> =
     | { kind: "included"; value: T }
     | { kind: "excluded"; value: T }
     | { kind: "unbounded" };
+
+export extension<T> of Bound<T> {
+    /// Create an inclusive bound.
+    static included(value: T): Bound<T> {
+        Bound({ kind: "included", value })
+    }
+
+    /// Create an exclusive bound.
+    static excluded(value: T): Bound<T> {
+        Bound({ kind: "excluded", value })
+    }
+
+    /// Create an unbounded endpoint.
+    static unbounded(): Bound<T> {
+        Bound({ kind: "unbounded" })
+    }
+}
 
 /// Common protocol for range bounds.
 @languageItem("range.RangeBounds")
@@ -23,17 +39,17 @@ export newtype interface RangeBounds<T> {
         value: &readonly U,
     ): boolean where T: PartialCompare<U> {
         let isAfterStart = match (this.startBound()) {
-            Bound.Included { value: bound } => *bound <= *value
-            Bound.Excluded { value: bound } => *bound < *value
-            Bound.Unbounded => true
+            { kind: "included", value: bound } => *bound <= *value
+            { kind: "excluded", value: bound } => *bound < *value
+            { kind: "unbounded" } => true
         };
 
         // inspect the end only when the start admits the value
         isAfterStart &&
             (match (this.endBound()) {
-                Bound.Included { value: bound } => *value <= *bound
-                Bound.Excluded { value: bound } => *value < *bound
-                Bound.Unbounded => true
+                { kind: "included", value: bound } => *value <= *bound
+                { kind: "excluded", value: bound } => *value < *bound
+                { kind: "unbounded" } => true
             })
     }
 }

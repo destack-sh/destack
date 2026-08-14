@@ -21,7 +21,6 @@ export struct CowOwned<T> {
 }
 
 /// Copy-on-write value.
-@derive(Tagged)
 export newtype Cow<'a, T> = CowBorrowed<&'a readonly T> | CowOwned<^T>;
 
 /// Readonly borrowed or owned value.

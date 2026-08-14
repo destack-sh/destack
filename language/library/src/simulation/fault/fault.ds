@@ -63,7 +63,6 @@ export struct OperationDelay {
 }
 
 /// Operation fault.
-@derive(Tagged)
 export newtype OperationFault = OperationError | OperationTimeout | OperationDelay;
 
 /// Resource class for capacity and quota faults.
@@ -97,7 +96,6 @@ export enum Resource {
 }
 
 /// Resource limit value with explicit units.
-@derive(Tagged)
 export newtype ResourceLimitValue =
     | {
           /// Limit discriminator.
@@ -145,7 +143,6 @@ export struct ResourceLimit {
 }
 
 /// Resource fault.
-@derive(Tagged)
 export newtype ResourceFault = ResourcePressure | ResourceLimit;
 
 /// Data corruption mode for payload faults.
@@ -249,7 +246,6 @@ export struct StorageConsistency {
 }
 
 /// Storage fault.
-@derive(Tagged)
 export newtype StorageFault =
     | StorageCorrupt
     | StorageOrder
@@ -257,7 +253,6 @@ export newtype StorageFault =
     | StorageConsistency;
 
 /// Transport limit mode for delivery-shaped faults.
-@derive(Tagged)
 export newtype TransportLimitMode =
     | {
           /// Limit discriminator.
@@ -373,7 +368,6 @@ export struct TransportLimit {
 }
 
 /// Transport fault.
-@derive(Tagged)
 export newtype TransportFault =
     | TransportDelay
     | TransportDrop
@@ -431,7 +425,6 @@ export struct ClockJitter {
 }
 
 /// Clock fault.
-@derive(Tagged)
 export newtype ClockFault = ClockJump | ClockDrift | ClockFreeze | ClockResolution | ClockJitter;
 
 /// Random-source error fault.
@@ -467,7 +460,6 @@ export struct RandomBias {
 }
 
 /// Random fault.
-@derive(Tagged)
 export newtype RandomFault = RandomError | RandomRepeat | RandomZero | RandomBias;
 
 /// Lifecycle crash fault.
@@ -503,7 +495,6 @@ export struct LifecycleReboot {
 }
 
 /// Lifecycle fault.
-@derive(Tagged)
 export newtype LifecycleFault =
     | LifecycleCrash
     | LifecyclePause
@@ -521,7 +512,6 @@ export struct CustomFault {
 }
 
 /// Simulation fault payload.
-@derive(Tagged)
 export newtype Fault =
     | OperationFault
     | ResourceFault

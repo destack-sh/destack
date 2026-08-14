@@ -56,7 +56,6 @@ export struct ProgramBinary {
 }
 
 /// Compute program source.
-@derive(Tagged)
 export newtype ProgramSource = ProgramText | ProgramBinary;
 
 /// Compile options for one compute program.

@@ -3,36 +3,3 @@ import { intrinsic } from "./intrinsic.ds";
 /// Derive provider dispatcher.
 @languageItem("decorator.derive")
 export newtype derive = intrinsic;
-
-/// Constructor naming policy for tagged newtype unions.
-export type TaggedCase =
-    | "preserve"
-    | "camelCase"
-    | "UpperCamelCase"
-    | "snake_case"
-    | "SCREAMING_SNAKE_CASE";
-
-/// Explicit constructor names keyed by discriminant spelling.
-export type TaggedNames = {
-    readonly [discriminant: string]: string;
-};
-
-/// Derive named cases for newtype unions with string discriminants.
-///
-/// ```ds
-/// @derive(Tagged({ case: "UpperCamelCase" }))
-/// newtype Shape =
-///     | { kind: "rectangle"; width: int32; height: int32 }
-///     | { kind: "circle"; radius: int32 };
-/// ```
-@languageItem("decorator.Tagged")
-export newtype Tagged =
-    | ()
-    | {
-          /// The explicitly selected discriminator property.
-          discriminator?: string;
-          /// The constructor naming policy.
-          case?: TaggedCase;
-          /// Explicit constructor names keyed by discriminant value.
-          names?: TaggedNames;
-      };

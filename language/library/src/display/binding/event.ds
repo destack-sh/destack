@@ -379,7 +379,6 @@ export struct DisplayEventOverflow {
 }
 
 /// Display event.
-@derive(Tagged)
 export newtype DisplayEvent =
     | DisplayEventMonitorAdded
     | DisplayEventMonitorRemoved

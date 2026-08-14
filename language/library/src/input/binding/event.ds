@@ -379,7 +379,6 @@ export struct InputEventComposition {
 }
 
 /// Input event.
-@derive(Tagged)
 export newtype InputEvent =
     | InputEventDevice
     | InputEventKey

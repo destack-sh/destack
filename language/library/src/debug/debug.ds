@@ -154,7 +154,6 @@ export struct ValueUnavailable {
 }
 
 /// Debug binding value.
-@derive(Tagged)
 export newtype Value = ValueSlot | ValueBytes | ValueOptimizedOut | ValueUnavailable;
 
 /// Debug scope list page.

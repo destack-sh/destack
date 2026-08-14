@@ -82,7 +82,6 @@ export struct ActionSelector {
 }
 
 /// Runtime policy target selector.
-@derive(Tagged)
 export newtype TargetSelector =
     | {
           /// Match any target.

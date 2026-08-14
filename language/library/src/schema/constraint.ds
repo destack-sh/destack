@@ -67,7 +67,6 @@ export struct RefinementConstraint<T> {
 }
 
 /// Schema constraint.
-@derive(Tagged)
 export newtype Constraint<T> =
     | LengthConstraint
     | RangeConstraint<T>

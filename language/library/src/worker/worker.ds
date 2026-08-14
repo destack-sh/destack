@@ -56,14 +56,12 @@ export local class WorkerPool<T, R> {
 }
 
 /// Worker exit status observed by the supervising parent.
-@derive(Tagged)
 export newtype WorkerExit =
     | { kind: "completed" }
     | { kind: "terminated" }
     | { kind: "panicked"; panic: Panic };
 
 /// Worker request failure.
-@derive(Tagged)
 export newtype WorkerError = { kind: "terminated" } | { kind: "panicked"; panic: Panic };
 
 /// Entry function for a worker.

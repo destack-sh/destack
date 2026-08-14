@@ -301,7 +301,6 @@ export struct BluetoothScanEventOverflow {
 }
 
 /// Bluetooth scan event.
-@derive(Tagged)
 export newtype BluetoothScanEvent =
     | BluetoothScanEventDiscovered
     | BluetoothScanEventUpdated
@@ -353,7 +352,6 @@ export struct BluetoothSessionEventOverflow {
 }
 
 /// Bluetooth session event.
-@derive(Tagged)
 export newtype BluetoothSessionEvent =
     | BluetoothSessionEventDisconnected
     | BluetoothSessionEventPairingChanged

@@ -360,7 +360,6 @@ export struct AccessibilityActionCustom {
 }
 
 /// Inbound accessibility action.
-@derive(Tagged)
 export newtype AccessibilityAction =
     | AccessibilityActionActivate
     | AccessibilityActionLongPress

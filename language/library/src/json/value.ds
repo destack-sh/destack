@@ -5,7 +5,6 @@ export type JsonObject = { readonly [key: string]: Json };
 export type JsonArray = readonly Json[];
 
 /// JSON value.
-@derive(Tagged)
 export newtype Json =
     | { kind: "null" }
     | { kind: "boolean"; value: boolean }

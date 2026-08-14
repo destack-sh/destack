@@ -10,8 +10,7 @@ export type Derive =
     | "Hash"
     | "PartialCompare"
     | "PartialEqual"
-    | "Serialize"
-    | "Tagged";
+    | "Serialize";
 
 /// Static configuration for one source module.
 export interface Module {

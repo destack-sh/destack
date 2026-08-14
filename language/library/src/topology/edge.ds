@@ -98,7 +98,6 @@ export struct EdgeByLabels {
 }
 
 /// Topology edge selector.
-@derive(Tagged)
 export newtype EdgeSelector =
     | EdgeAny
     | EdgeById

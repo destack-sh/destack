@@ -1,4 +1,4 @@
-import { Result } from "destack:error";
+import { Err, Ok, Result } from "destack:error";
 import { Copy, Default } from "destack:memory";
 import { FromResidual } from "destack:ops";
 
@@ -45,11 +45,11 @@ export extension<T, E> of AsyncResult<T, E> {
 
         match (result) {
             // rebuild the continuation result at the joined error type
-            Result.Ok { value } => match (await f(value)) {
-                Result.Ok { value } => Result.ok(value)
-                Result.Err { error } => Result.err(error)
+            Ok { value } => match (await f(value)) {
+                Ok { value } => Result.ok(value)
+                Err { error } => Result.err(error)
             }
-            Result.Err { error } => Result.err(error)
+            Err { error } => Result.err(error)
         }
     }
 
@@ -65,8 +65,8 @@ export extension<T, E> of AsyncResult<T, E> {
         const result = await this;
 
         match (result) {
-            Result.Ok { value } => Result.ok(value)
-            Result.Err { error } => await f(error)
+            Ok { value } => Result.ok(value)
+            Err { error } => await f(error)
         }
     }
 
