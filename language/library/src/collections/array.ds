@@ -37,7 +37,7 @@ export class Array<T> {
     private storage: Unique<[MaybeUninit<T>]> = Unique.empty();
 
     /// The number of initialized elements.
-    private count: usize = 0;
+    private count: isize = 0;
 
     /// The allocated element count.
     private allocated: usize = 0;
@@ -56,7 +56,7 @@ export extension<T> of ^Array<T> implements Iterable<T>, Sequence {
 
     /// Return the number of elements.
     get length(): isize {
-        this.count as isize
+        this.count
     }
 
     /// Move the elements from `start..end` for a rest pattern.
@@ -126,7 +126,7 @@ export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
 
     /// Return the number of elements.
     get length(): isize {
-        this.count as isize
+        this.count
     }
 
     /// Copy the elements from `start..end` for a rest pattern.
@@ -249,7 +249,7 @@ export extension<T, 'a, const A: Access> of Borrowed<Array<T>, 'a, A>
 
     /// Return the number of elements.
     get length(): isize {
-        this.count as isize
+        this.count
     }
 
     /// Borrow the elements from `start..end` for a rest pattern.
@@ -424,11 +424,11 @@ export extension<T> of Array<T>
 
     /// Return the number of elements.
     get length(): isize {
-        this.count as isize
+        this.count
     }
 
     /// Return the number of elements.
-    get size(): usize {
+    get size(): isize {
         this.count
     }
 
@@ -467,7 +467,7 @@ export extension<T> of Array<T>
     }
 
     /// Append `values` and return the new length.
-    push(&exclusive this, ...values: T[]): usize {
+    push(&exclusive this, ...values: T[]): isize {
         todo("Array.push")
     }
 
@@ -497,7 +497,7 @@ export extension<T> of Array<T>
     }
 
     /// Prepend `values` and return the new length.
-    unshift(&exclusive this, ...values: T[]): usize {
+    unshift(&exclusive this, ...values: T[]): isize {
         todo("Array.unshift")
     }
 
@@ -522,17 +522,17 @@ export extension<T> of Array<T>
     }
 
     /// Remove all elements after `length`.
-    truncate(&exclusive this, length: usize): void {
+    truncate(&exclusive this, length: isize): void {
         todo("Array.truncate");
     }
 
     /// Resize this array, cloning `value` when it grows.
-    resize(&exclusive this, length: usize, value: T): void where T: Copy {
+    resize(&exclusive this, length: isize, value: T): void where T: Copy {
         todo("Array.resize");
     }
 
     /// Resize this array, creating each new element with `makeValue`.
-    resizeWith(&exclusive this, length: usize, makeValue: () => T): void {
+    resizeWith(&exclusive this, length: isize, makeValue: () => T): void {
         todo("Array.resizeWith");
     }
 
@@ -727,7 +727,7 @@ export extension<T, const A: Access = "readonly"> of Array<T>
     }
 }
 
-export extension<T, R: RangeBounds<usize>, const A: Access = "readonly"> of Array<T>
+export extension<T, R: RangeBounds<isize>, const A: Access = "readonly"> of Array<T>
     implements
         Index<R, A> {
     /// The indexed output type.

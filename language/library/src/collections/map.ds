@@ -217,7 +217,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Group `values` by a computed key.
-    static groupBy<T>(values: Iterable<T>, key: (value: T, index: usize) => K): ^Map<K, ^Array<T>> {
+    static groupBy<T>(values: Iterable<T>, key: (value: T, index: isize) => K): ^Map<K, ^Array<T>> {
         todo("Map.groupBy")
     }
 

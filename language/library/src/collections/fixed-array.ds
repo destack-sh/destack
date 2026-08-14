@@ -42,8 +42,8 @@ export extension<T, const N: usize> of FixedArray<T, N>
     }
 
     /// Return the number of elements.
-    get size(): usize {
-        N
+    get size(): isize {
+        N as isize
     }
 
     /// Return whether this fixed array has no elements.
@@ -132,7 +132,7 @@ export extension<T, const N: usize, const A: Access = "readonly"> of FixedArray<
     }
 }
 
-export extension<T, const N: usize, R: RangeBounds<usize>, const A: Access = "readonly"> of
+export extension<T, const N: usize, R: RangeBounds<isize>, const A: Access = "readonly"> of
     FixedArray<T, N>
     implements Index<R, A> {
     /// The indexed output type.
@@ -144,7 +144,7 @@ export extension<T, const N: usize, R: RangeBounds<usize>, const A: Access = "re
     }
 }
 
-export extension<T, const N: usize, R: RangeBounds<usize>> of FixedArray<T, N>
+export extension<T, const N: usize, R: RangeBounds<isize>> of FixedArray<T, N>
     implements
         IndexSet<R, [T]> where T: Copy {
     /// Copy `source` into the selected range.
@@ -153,7 +153,7 @@ export extension<T, const N: usize, R: RangeBounds<usize>> of FixedArray<T, N>
     }
 }
 
-export extension<T, const N: usize, R: RangeBounds<usize>> of FixedArray<T, N>
+export extension<T, const N: usize, R: RangeBounds<isize>> of FixedArray<T, N>
     implements
         IndexSet<R, &readonly [T]> where T: Copy {
     /// Copy `source` into the selected range.

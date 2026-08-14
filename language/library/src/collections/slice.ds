@@ -40,13 +40,13 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Return the number of elements.
-    get size(): usize {
-        return sliceLength<T>(this);
+    get size(): isize {
+        return sliceLength<T>(this) as isize;
     }
 
     /// Return the number of elements.
     get length(): isize {
-        return this.size as isize;
+        return this.size;
     }
 
     /// Return whether this slice has no elements.
@@ -103,7 +103,7 @@ export extension<T> of Slice<T> implements Default {
             panic("slice copy length mismatch")
         }
 
-        for (let index: usize = 0; index < this.size; index += 1) {
+        for (let index: usize = 0; index < sliceLength<T>(this); index += 1) {
             this.unsafeSet(index, source.unsafeGet(index));
         }
     }
@@ -138,7 +138,7 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
 
     /// Return the number of elements.
     get length(): isize {
-        this.size as isize
+        this.size
     }
 
     /// Copy the elements from `start..end` for a rest pattern.
@@ -193,7 +193,7 @@ export extension<T, 'a, const A: Access> of Borrowed<Slice<T>, 'a, A>
 
     /// Return the number of elements.
     get length(): isize {
-        this.size as isize
+        this.size
     }
 
     /// Borrow the elements from `start..end` for a rest pattern.
@@ -244,14 +244,14 @@ export extension<T> of Slice<T> implements Index<isize>, IndexSet<isize, T> {
     }
 }
 
-export extension<T, R: RangeBounds<usize>, const A: Access = "readonly"> of Slice<T>
+export extension<T, R: RangeBounds<isize>, const A: Access = "readonly"> of Slice<T>
     implements
         Index<R, A> {
     /// The indexed output type.
     type Output = [T];
 
     /// Return the normalized start and length for `range`.
-    rangeSpan(&readonly this, range: &readonly R): (usize, usize) {
+    rangeSpan(&readonly this, range: &readonly R): (isize, isize) {
         let start = match (range.startBound()) {
             { kind: "included", value } => *value
             { kind: "excluded", value } => *value + 1
@@ -275,11 +275,11 @@ export extension<T, R: RangeBounds<usize>, const A: Access = "readonly"> of Slic
     index(this: WithAccess<&[T], A>, range: R): WithAccess<&[T], A> {
         let (start, length) = this.rangeSpan(&readonly range);
 
-        this.subslice(start, length)
+        this.subslice(start as usize, length as usize)
     }
 }
 
-export extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, [T]> where T: Copy {
+export extension<T, R: RangeBounds<isize>> of Slice<T> implements IndexSet<R, [T]> where T: Copy {
     /// Copy `source` into the selected range.
     indexSet(&exclusive this, range: R, source: [T]): void {
         let target = this.index(range);
@@ -288,7 +288,7 @@ export extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, [T
     }
 }
 
-export extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, &readonly [T]>
+export extension<T, R: RangeBounds<isize>> of Slice<T> implements IndexSet<R, &readonly [T]>
     where T: Copy {
     /// Copy `source` into the selected range.
     indexSet(&exclusive this, range: R, source: &readonly [T]): void {

@@ -9,7 +9,7 @@ export class ByteBuffer {
     storage: Unique<[MaybeUninit<uint8>]> = Unique.empty();
 
     /// The initialized byte count.
-    initializedLength: usize = 0;
+    initializedLength: isize = 0;
 
     /// The allocated byte capacity.
     allocatedCapacity: usize = 0;
@@ -31,11 +31,11 @@ export class ByteBuffer {
 
     /// Return the initialized byte count.
     get length(): isize {
-        this.initializedLength as isize
+        this.initializedLength
     }
 
     /// Return the initialized byte count.
-    get size(): usize {
+    get size(): isize {
         this.initializedLength
     }
 

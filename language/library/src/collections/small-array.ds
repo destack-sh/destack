@@ -19,7 +19,7 @@ export struct SmallArray<T, const N: usize> {
     private spillStorage: Unique<[MaybeUninit<T>]> | undefined = undefined;
 
     /// The number of initialized elements.
-    private count: usize = 0;
+    private count: isize = 0;
 
     /// The allocated spill element count.
     private spillCapacity: usize = 0;
@@ -43,7 +43,7 @@ export extension<T, const N: usize> of SmallArray<T, N> implements Iterable<T>, 
 
     /// Return the number of elements.
     get length(): isize {
-        this.count as isize
+        this.count
     }
 
     /// Move the elements from `start..end` for a rest pattern.
@@ -66,7 +66,7 @@ export extension<T, const N: usize, 'a, const A: Access> of Borrowed<SmallArray<
 
     /// Return the number of elements.
     get length(): isize {
-        this.count as isize
+        this.count
     }
 
     /// Borrow the elements from `start..end` for a rest pattern.
@@ -145,11 +145,11 @@ export extension<T, const N: usize> of SmallArray<T, N>
 
     /// Return the number of elements.
     get length(): isize {
-        this.count as isize
+        this.count
     }
 
     /// Return the number of elements.
-    get size(): usize {
+    get size(): isize {
         this.count
     }
 
@@ -307,14 +307,14 @@ export extension<T, const N: usize, const A: Access = "readonly"> of SmallArray<
     }
 }
 
-export extension<T, const N: usize, R: RangeBounds<usize>, const A: Access = "readonly"> of
+export extension<T, const N: usize, R: RangeBounds<isize>, const A: Access = "readonly"> of
     SmallArray<T, N>
     implements Index<R, A> {
     /// The indexed output type.
     type Output = [T];
 
     /// Return the normalized start and length for `range`.
-    rangeSpan(&readonly this, range: &readonly R): (usize, usize) {
+    rangeSpan(&readonly this, range: &readonly R): (isize, isize) {
         let start = match (range.startBound()) {
             { kind: "included", value } => *value
             { kind: "excluded", value } => *value + 1
@@ -340,7 +340,7 @@ export extension<T, const N: usize, R: RangeBounds<usize>, const A: Access = "re
     }
 }
 
-export extension<T, const N: usize, R: RangeBounds<usize>> of SmallArray<T, N>
+export extension<T, const N: usize, R: RangeBounds<isize>> of SmallArray<T, N>
     implements
         IndexSet<R, [T]> where T: Copy {
     /// Copy `source` into the selected range.
@@ -349,7 +349,7 @@ export extension<T, const N: usize, R: RangeBounds<usize>> of SmallArray<T, N>
     }
 }
 
-export extension<T, const N: usize, R: RangeBounds<usize>> of SmallArray<T, N>
+export extension<T, const N: usize, R: RangeBounds<isize>> of SmallArray<T, N>
     implements
         IndexSet<R, &readonly [T]> where T: Copy {
     /// Copy `source` into the selected range.

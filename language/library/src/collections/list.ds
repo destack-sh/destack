@@ -42,7 +42,7 @@ export class LinkedList<T> {
     private firstFree: LinkedListNodeKey | undefined = undefined;
 
     /// The number of nodes.
-    private count: usize = 0;
+    private count: isize = 0;
 }
 
 export extension<T> of ^LinkedList<T> implements Iterable<T>, Sequence {
@@ -51,7 +51,7 @@ export extension<T> of ^LinkedList<T> implements Iterable<T>, Sequence {
 
     /// Return the number of elements.
     get length(): isize {
-        this.count as isize
+        this.count
     }
 
     /// Move the elements from `start..end` for a rest pattern.
@@ -71,7 +71,7 @@ export extension<T: Copy> of LinkedList<T> implements Iterable<T>, Sequence {
 
     /// Return the number of elements.
     get length(): isize {
-        this.count as isize
+        this.count
     }
 
     /// Copy the elements from `start..end` for a rest pattern.
@@ -104,7 +104,7 @@ export extension<T, 'a, const A: Access> of Borrowed<LinkedList<T>, 'a, A>
 
     /// Return the number of elements.
     get length(): isize {
-        this.count as isize
+        this.count
     }
 
     /// Borrow the elements from `start..end` for a rest pattern.
@@ -156,11 +156,11 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "exclusive"> 
 
     /// Return the number of elements.
     get length(): isize {
-        this.count as isize
+        this.count
     }
 
     /// Return the number of elements.
-    get size(): usize {
+    get size(): isize {
         this.count
     }
 
