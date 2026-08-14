@@ -34,17 +34,33 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Return true when this result is successful.
-    isOk(): boolean {
+    isOk(&readonly this): boolean {
         this.kind == "Ok"
     }
 
-    /// Return true when this result is failed.
-    isErr(): boolean {
+    /// Return true when this result contains an error.
+    isErr(&readonly this): boolean {
         this.kind == "Err"
     }
 
+    /// Return the success value or undefined.
+    ok(this): T | undefined {
+        match (this) {
+            Result.Ok { value } => value
+            Result.Err { error: _ } => undefined
+        }
+    }
+
+    /// Return the failure value or undefined.
+    err(this): E | undefined {
+        match (this) {
+            Result.Ok { value: _ } => undefined
+            Result.Err { error } => error
+        }
+    }
+
     /// Return the success value or panic.
-    unwrap(): T {
+    unwrap(this): T {
         match (this) {
             Result.Ok { value } => value
             Result.Err { error: _ } => panic("called Result.unwrap() on Err")
@@ -52,7 +68,7 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Return the success value or `default`.
-    unwrapOr(default: T): T {
+    unwrapOr(this, default: T): T {
         match (this) {
             Result.Ok { value } => value
             Result.Err { error: _ } => default
@@ -60,7 +76,7 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Return the success value or the default value.
-    unwrapOrDefault(): T where T: Default {
+    unwrapOrDefault(this): T where T: Default {
         match (this) {
             Result.Ok { value } => value
             Result.Err { error: _ } => T.default()
@@ -68,7 +84,7 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Return the success value or compute one from the error.
-    unwrapOrElse(f: (error: E) => T): T {
+    unwrapOrElse(this, f: (error: E) => T): T {
         match (this) {
             Result.Ok { value } => value
             Result.Err { error } => f(error)
@@ -76,7 +92,7 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Return the failure value or panic.
-    unwrapErr(): E {
+    unwrapErr(this): E {
         match (this) {
             Result.Ok { value: _ } => panic("called Result.unwrapErr() on Ok")
             Result.Err { error } => error
@@ -84,7 +100,7 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Map the success value.
-    map<U>(f: (value: T) => U): Result<U, E> {
+    map<U>(this, f: (value: T) => U): Result<U, E> {
         match (this) {
             Result.Ok { value } => Result.ok(f(value))
             Result.Err { error } => Result.err(error)
@@ -92,7 +108,7 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Map the failure value.
-    mapErr<F>(f: (error: E) => F): Result<T, F> {
+    mapErr<F>(this, f: (error: E) => F): Result<T, F> {
         match (this) {
             Result.Ok { value } => Result.ok(value)
             Result.Err { error } => Result.err(f(error))
@@ -100,7 +116,7 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Continue with another result-returning operation.
-    andThen<U, F>(f: (value: T) => Result<U, F>): Result<U, E | F> {
+    andThen<U, F>(this, f: (value: T) => Result<U, F>): Result<U, E | F> {
         match (this) {
             // rebuild the continuation result at the joined error type
             Result.Ok { value } => match (f(value)) {
@@ -112,7 +128,7 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Recover from a failure.
-    orElse<F>(f: (error: E) => Result<T, F>): Result<T, F> {
+    orElse<F>(this, f: (error: E) => Result<T, F>): Result<T, F> {
         match (this) {
             Result.Ok { value } => Result.ok(value)
             Result.Err { error } => f(error)
@@ -120,7 +136,7 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Fold either result variant into one value.
-    match<U>(arms: { ok: (value: T) => U; err: (error: E) => U }): U {
+    match<U>(this, arms: { ok: (value: T) => U; err: (error: E) => U }): U {
         match (this) {
             Result.Ok { value } => arms.ok(value)
             Result.Err { error } => arms.err(error)
@@ -128,23 +144,23 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Run a side effect on success and keep the original result.
-    tap(f: (value: T) => void): Result<T, E> {
+    tap(this, f: (value: &readonly T) => void): Result<T, E> {
         match (this) {
             Result.Ok { value } => {
-                f(value);
-                this
+                f(&readonly value);
+                Result.ok(value)
             }
-            Result.Err { error: _ } => this
+            Result.Err { error } => Result.err(error)
         }
     }
 
     /// Run a side effect on failure and keep the original result.
-    tapErr(f: (error: E) => void): Result<T, E> {
+    tapErr(this, f: (error: &readonly E) => void): Result<T, E> {
         match (this) {
-            Result.Ok { value: _ } => this
+            Result.Ok { value } => Result.ok(value)
             Result.Err { error } => {
-                f(error);
-                this
+                f(&readonly error);
+                Result.err(error)
             }
         }
     }
@@ -168,7 +184,7 @@ export extension<T, E> of Result<T, E> implements Try {
     }
 
     /// Branch into success or failure control flow.
-    branch(): ControlFlow<E, T> {
+    branch(this): ControlFlow<E, T> {
         match (this) {
             Result.Ok { value } => ControlFlow.Continue({ value })
             Result.Err { error } => ControlFlow.Break({ residual: error })

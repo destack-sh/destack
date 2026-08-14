@@ -78,14 +78,14 @@ export extension<T, E> of AsyncResult<T, E> {
     }
 
     /// Run a side effect on success and keep the original result.
-    async tap(this, f: (value: T) => void): AsyncResult<T, E> {
+    async tap(this, f: (value: &readonly T) => void): AsyncResult<T, E> {
         const result = await this;
 
         result.tap(f)
     }
 
     /// Run a side effect on failure and keep the original result.
-    async tapErr(this, f: (error: E) => void): AsyncResult<T, E> {
+    async tapErr(this, f: (error: &readonly E) => void): AsyncResult<T, E> {
         const result = await this;
 
         result.tapErr(f)
