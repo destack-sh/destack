@@ -276,23 +276,14 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(None)
             }
 
-            // select the declared carrier position of unit variants
-            dir::PatternDecision::Variant(resolution)
-                if resolution.payload.is_none() && resolution.fields.is_empty() =>
-            {
+            // select the declared carrier position of enum variants
+            dir::PatternDecision::Variant(resolution) => {
                 let index = self
                     .lowerer
                     .variant_position(resolution.case.owner, resolution.case.variant)?;
 
                 Ok(Some(index))
             }
-
-            // reject payload variants
-            dir::PatternDecision::Variant(_) => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: "a tagged payload pattern".to_string(),
-            }
-            .into()),
 
             other => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),

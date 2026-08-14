@@ -111,10 +111,14 @@ impl ModuleLowerer<'_> {
             if let Ok(expression) = id.try_into_typed::<dir::Expression>()
                 && let dir::Expression::ScalarLiteral(literal) = state.tree().get(expression)
             {
-                let is_runtime = state
-                    .types
-                    .get_node_type_id(node)
-                    .is_some_and(|ty| !matches!(self.ty(ty), Ok(dir::Type::Literal(_))));
+                let ty =
+                    state
+                        .types
+                        .get_node_type_id(node)
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: "a scalar literal has no checked type".to_string(),
+                        })?;
+                let is_runtime = !matches!(self.ty(ty)?, dir::Type::Literal(_));
                 match literal {
                     _ if !is_runtime => {}
                     dir::ScalarLiteral::String(string) => {
@@ -454,17 +458,8 @@ impl ModuleLowerer<'_> {
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         // materialize widened comptime literals as immortal objects
-        if let Ok(source) = substitution.resolve(self, coercion.source) {
-            match self.ty(source)? {
-                dir::Type::Literal(dir::ScalarLiteral::String(string)) => {
-                    reachable.strings.insert(string);
-                }
-                dir::Type::Literal(dir::ScalarLiteral::Bigint(bigint)) => {
-                    reachable.bigints.insert(bigint);
-                }
-                _ => {}
-            }
-        }
+        let resolved_source = substitution.resolve(self, coercion.source)?;
+        self.collect_literals(resolved_source, reachable)?;
 
         // walk the adjustment chain, collecting each erasing step
         let mut source = coercion.source;
@@ -473,6 +468,31 @@ impl ModuleLowerer<'_> {
                 self.collect_existential(source, *target, substitution, reachable)?;
             }
             source = adjustment.target();
+        }
+
+        Ok(())
+    }
+
+    /// Collect string and bigint values a coercion may materialize at runtime.
+    fn collect_literals(
+        &self,
+        source: dir::GlobalTypeId,
+        reachable: &mut Reachable,
+    ) -> CompilerResult<()> {
+        match self.ty(source)? {
+            dir::Type::Literal(dir::ScalarLiteral::String(string)) => {
+                reachable.strings.insert(string);
+            }
+            dir::Type::Literal(dir::ScalarLiteral::Bigint(bigint)) => {
+                reachable.bigints.insert(bigint);
+            }
+            dir::Type::Union(union) => {
+                let members = self.types(source.module_id)?.type_ids(union.elements);
+                for member in members {
+                    self.collect_literals(*member, reachable)?;
+                }
+            }
+            _ => {}
         }
 
         Ok(())

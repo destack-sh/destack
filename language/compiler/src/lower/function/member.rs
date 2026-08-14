@@ -11,7 +11,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        // construct the case value for enum and payload-free tagged members
+        // construct the case value for enum members
         if let dir::Type::Variant(variant) = self.node_type(expression)? {
             return self.lower_variant_member(&variant);
         }
@@ -39,8 +39,12 @@ impl FunctionLowerer<'_, '_, '_> {
 
         match &access.target {
             // project a compiler-defined member off the receiver
-            dir::MemberTarget::Projection { projection, .. } => {
-                let receiver = self.lower_expression(left)?;
+            dir::MemberTarget::Projection {
+                receiver,
+                projection,
+                ..
+            } => {
+                let receiver = self.lower_adjusted_receiver(left, receiver)?;
 
                 self.lower_member_projection(receiver, projection)
             }
@@ -95,8 +99,32 @@ impl FunctionLowerer<'_, '_, '_> {
 
         match subscript.target {
             dir::SubscriptTarget::Member(access) => match access.target {
+                // project a compiler-defined member off the receiver
+                dir::MemberTarget::Projection {
+                    receiver,
+                    projection,
+                    ..
+                } => {
+                    let receiver = self.lower_adjusted_receiver(left, &receiver)?;
+
+                    // preserve evaluation of a computed singleton key
+                    if let Some(index) = index {
+                        self.lower_expression(index)?;
+                    }
+
+                    self.lower_member_projection(receiver, &projection)
+                }
                 // read the constant key straight off its field
-                dir::MemberTarget::Field(field) => self.lower_field_read(expression, left, &field),
+                dir::MemberTarget::Field(field) => {
+                    let value = self.lower_member_receiver(left, &field.receiver)?;
+
+                    // preserve evaluation of a computed singleton key
+                    if let Some(index) = index {
+                        self.lower_expression(index)?;
+                    }
+
+                    self.lower_field_value(expression, value, &field)
+                }
                 // find the computed key through the receiver's dynamic table
                 dir::MemberTarget::Index(read)
                     if matches!(read.target, dir::IndexTarget::Signature(_)) =>
@@ -192,11 +220,22 @@ impl FunctionLowerer<'_, '_, '_> {
         field: &dir::FieldResolution,
     ) -> CompilerResult<mir::Value> {
         // lower the receiver the resolution selected
+        let value = self.lower_member_receiver(left, &field.receiver)?;
+
+        self.lower_field_value(expression, value, field)
+    }
+
+    /// Lower one field read from its already adjusted receiver value.
+    fn lower_field_value(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        value: mir::Value,
+        field: &dir::FieldResolution,
+    ) -> CompilerResult<mir::Value> {
+        // resolve the selected storage field and result type
         let receiver = field.receiver.ty();
         let index = self.member_field_index(field)?;
         let result_type = self.lower_type(self.node_type_id(expression)?)?;
-        let value = self.lower_expression(left)?;
-        let value = self.lower_member_receiver(value, &field.receiver)?;
 
         // load fields through addresses for reference receivers
         if let Some(layer) = self
@@ -234,7 +273,9 @@ impl FunctionLowerer<'_, '_, '_> {
         projection: &dir::Projection,
     ) -> CompilerResult<mir::Value> {
         match projection {
-            dir::Projection::VariantTag { .. } => Ok(self.builder.variant_tag(receiver)),
+            dir::Projection::Discriminant {
+                union, cases, ty, ..
+            } => self.lower_discriminant_value(receiver, *union, cases, *ty),
             other => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("a projected member read through {other:?}"),
@@ -243,10 +284,130 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
+    /// Lower one structural discriminant to its source property value.
+    fn lower_discriminant_value(
+        &mut self,
+        receiver: mir::Value,
+        union: dir::GlobalTypeId,
+        cases: &[dir::DiscriminantCase],
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::Value> {
+        // require at least one checked runtime case
+        if cases.is_empty() {
+            return Err(CompilerError::Internal {
+                message: "a discriminant projection has no reachable cases".to_string(),
+            });
+        }
+        let source_members = self.union_members(union)?;
+
+        // read the result's literal arms when it remains an indexed union
+        let result = self.lowerer.ty(ty)?;
+        let is_singleton = result.singleton_literal().is_some();
+        let result_members = match result {
+            dir::Type::Union(result) => Some(
+                self.lowerer
+                    .types(ty.module_id)?
+                    .type_ids(result.elements)
+                    .to_vec(),
+            ),
+            _ => None,
+        };
+
+        // map physical union cases to the projected source values
+        let mut mappings = Vec::with_capacity(cases.len());
+        for case in cases {
+            let Some(source_index) = source_members.iter().position(|arm| *arm == case.arm) else {
+                return Err(CompilerError::Internal {
+                    message: "a discriminant projection selects an absent union arm".to_string(),
+                });
+            };
+            let mut result_index = None;
+            if let Some(result_members) = &result_members {
+                for (index, member) in result_members.iter().enumerate() {
+                    let value = self.lowerer.ty(*member)?.singleton_literal();
+                    if value == Some(case.value) {
+                        result_index = Some(index as u32);
+                        break;
+                    }
+                }
+                if result_index.is_none() {
+                    return Err(CompilerError::Internal {
+                        message: "a discriminant projection value is absent from its result type"
+                            .to_string(),
+                    });
+                }
+            };
+
+            mappings.push((source_index as i128, result_index, case.value));
+        }
+
+        // dispatch on the physical tag and construct the corresponding source value
+        let tag = self.lower_discriminant_tag(receiver, union)?;
+        let result_type = self.lower_type(ty)?;
+        let result = self.builder.local(result_type, mir::Mutability::Immutable);
+        let exit = self.builder.block();
+        let unreachable = self.builder.block();
+        let blocks = mappings
+            .iter()
+            .map(|(source, _, _)| (*source, self.builder.block()))
+            .collect::<Vec<_>>();
+        self.builder.switch(tag, unreachable, blocks.clone());
+
+        // materialize the source-level property value in every reachable case
+        for ((_, result_index, literal), (_, block)) in mappings.into_iter().zip(blocks) {
+            self.builder.switch_to_block(block);
+            let value = match result_index {
+                Some(result_index) => self.builder.variant_new(result_type, result_index, None),
+                None if is_singleton => {
+                    self.builder.constant(mir::Constant::Undefined, result_type)
+                }
+                None => {
+                    let result_type = self.builder.tree().get(result_type).clone();
+
+                    self.lower_constant(literal, result_type)?
+                }
+            };
+            self.builder.local_set(result, value);
+            self.builder.jump(exit);
+        }
+
+        // reject any physical case excluded by the checked flow type
+        self.builder.switch_to_block(unreachable);
+        self.builder.unreachable();
+        self.builder.switch_to_block(exit);
+
+        Ok(self.builder.local_get(result))
+    }
+
+    /// Lower the physical tag carried by one union receiver.
+    pub(in crate::lower) fn lower_discriminant_tag(
+        &mut self,
+        receiver: mir::Value,
+        union: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::Value> {
+        let Some(receiver_type) = self.builder.value_type(receiver) else {
+            return Err(CompilerError::Internal {
+                message: "a discriminant receiver has no lowered type".to_string(),
+            });
+        };
+
+        // stored unions expose their tag through their address
+        if matches!(
+            self.builder.tree().get(receiver_type),
+            mir::Type::Reference { .. } | mir::Type::Pointer { .. }
+        ) {
+            let union = self.lower_type(union)?;
+
+            return Ok(self.builder.variant_tag_load(receiver, union));
+        }
+
+        Ok(self.builder.variant_tag(receiver))
+    }
+
     /// Apply the selected receiver adjustments before one member read.
     fn lower_member_receiver(
         &mut self,
-        value: mir::Value,
+        expression: dir::LocalNodeId<dir::Expression>,
         receiver: &dir::MemberReceiver,
     ) -> CompilerResult<mir::Value> {
         let dir::MemberReceiver::Direct(receiver) = receiver else {
@@ -257,7 +418,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
-        self.lower_receiver_adjustments(value, &receiver.adjustments)
+        self.lower_adjusted_receiver(expression, receiver)
     }
 
     /// Return the storage index selected by one field resolution.

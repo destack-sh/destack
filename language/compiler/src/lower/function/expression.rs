@@ -37,16 +37,26 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Classify one expression before applying its coercion path.
     fn coercion_source(
-        &self,
+        &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         source: dir::GlobalTypeId,
     ) -> CompilerResult<CoercionValue> {
-        Ok(match self.lowerer.ty(source)? {
+        let value = match self.lowerer.ty(source)? {
             dir::Type::Literal(literal) => CoercionValue::Literal(literal),
             dir::Type::Null => CoercionValue::Null,
             dir::Type::Undefined => CoercionValue::Undefined,
-            _ => CoercionValue::Expression(expression),
-        })
+            _ => return Ok(CoercionValue::Expression(expression)),
+        };
+
+        // evaluate nonliteral expressions even when their exact value is known statically
+        if !matches!(
+            self.source().tree().get(expression),
+            dir::Expression::ScalarLiteral(_)
+        ) {
+            self.lower_expression_value(expression)?;
+        }
+
+        Ok(value)
     }
 
     /// Apply one complete adjustment path.
@@ -472,7 +482,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let dir::Type::Union(union) = self.lowerer.ty(ty)? else {
             return Err(CompilerError::Internal {
-                message: "a union adjustment targeting a non-union type".to_string(),
+                message: "union members requested from a non-union type".to_string(),
             });
         };
 
@@ -586,11 +596,6 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        // materialize comptime-folded values directly as constants
-        if let dir::Type::Literal(literal) = self.node_type(expression)? {
-            return self.lower_scalar_literal(expression, literal);
-        }
-
         match self.source().tree().get(expression).clone() {
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);

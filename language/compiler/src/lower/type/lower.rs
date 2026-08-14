@@ -474,40 +474,32 @@ impl TypeLowerer<'_, '_> {
             false => mir::Copy::No,
         };
 
-        // index the payloads as cases of one tagged variant
-        let variant = self.variant_type(payloads, copy);
-
-        self.tree.intern_type(variant)
-    }
-
-    /// Build one indexed variant type over the given case payloads.
-    pub(in crate::lower) fn variant_type(
-        &mut self,
-        payloads: Vec<mir::LocalNodeId<mir::Type>>,
-        copy: mir::Copy,
-    ) -> mir::Type {
-        // discriminate cases by their declaration index
+        // select enough bits to distinguish every union arm
+        let width = payloads.len().next_power_of_two().ilog2().max(1) as u16;
         let discriminant = self.tree.intern_type(mir::Type::Int {
-            width: 8,
+            width,
             is_signed: false,
         });
-        let cases: Vec<_> = payloads
-            .iter()
+
+        // assign each payload its zero-based arm index
+        let cases = payloads
+            .into_iter()
             .enumerate()
-            .map(|(index, payload)| mir::VariantCase {
+            .map(|(index, ty)| mir::VariantCase {
                 discriminant: mir::Constant::UInt {
                     value: index as u128,
-                    width: 8,
+                    width,
                 },
-                ty: *payload,
+                ty,
             })
             .collect();
-
-        mir::Type::Variant {
+        let variant = mir::Type::Variant {
             discriminant,
             cases,
             copy,
-        }
+        };
+
+        self.tree.intern_type(variant)
     }
 
     /// Insert one tuple type with copy composed over its elements.

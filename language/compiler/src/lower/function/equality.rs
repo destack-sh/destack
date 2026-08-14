@@ -40,6 +40,13 @@ impl FunctionLowerer<'_, '_, '_> {
         right: dir::LocalNodeId<dir::Expression>,
         operands: &[dir::BuiltinOperand; 2],
     ) -> CompilerResult<mir::Value> {
+        // compare structural discriminants through their physical union tag
+        if operator.is_equality()
+            && let Some(result) = self.lower_discriminant_equality(left, operator, right)?
+        {
+            return Ok(result);
+        }
+
         let left = self.lower_operand(left, &operands[0])?;
         let right = self.lower_operand(right, &operands[1])?;
 
@@ -54,6 +61,11 @@ impl FunctionLowerer<'_, '_, '_> {
         right: dir::LocalNodeId<dir::Expression>,
         operands: &[dir::BuiltinOperand; 2],
     ) -> CompilerResult<mir::Value> {
+        // compare structural discriminants through their physical union tag
+        if let Some(result) = self.lower_discriminant_equality(left, operator, right)? {
+            return Ok(result);
+        }
+
         let left = self.lower_operand(left, &operands[0])?;
         let right = self.lower_operand(right, &operands[1])?;
         let equal = self.lower_carrier_equality(left, right)?;
@@ -65,6 +77,156 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "strict equality lowering received a different operator".to_string(),
             }),
         }
+    }
+
+    /// Lower equality between one structural discriminant and one singleton literal.
+    fn lower_discriminant_equality(
+        &mut self,
+        left: dir::LocalNodeId<dir::Expression>,
+        operator: dir::BinaryOperator,
+        right: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Option<mir::Value>> {
+        // classify the exact scalar value on each side
+        let left_literal = self.node_type(left)?.singleton_literal();
+        let right_literal = self.node_type(right)?.singleton_literal();
+
+        // evaluate a leading discriminant before the trailing literal
+        let equal = if let Some(literal) = right_literal
+            && let Some(access) = self.discriminant_access(left)
+        {
+            let equal = self.lower_discriminant_comparison(left, literal, &access)?;
+            self.lower_expression(right)?;
+
+            Some(equal)
+        }
+        // evaluate a leading literal before the trailing discriminant access
+        else if let Some(literal) = left_literal
+            && let Some(access) = self.discriminant_access(right)
+        {
+            self.lower_expression(left)?;
+            let equal = self.lower_discriminant_comparison(right, literal, &access)?;
+
+            Some(equal)
+        }
+        // leave all other operand pairs to their selected equality carrier
+        else {
+            None
+        };
+        let Some(equal) = equal else {
+            return Ok(None);
+        };
+
+        // apply the source equality operator to the physical tag comparison
+        let result = match operator {
+            dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict => equal,
+            dir::BinaryOperator::NotEqual | dir::BinaryOperator::NotEqualStrict => {
+                self.builder.bnot(equal)
+            }
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "discriminant equality received a different operator".to_string(),
+                });
+            }
+        };
+
+        Ok(Some(result))
+    }
+
+    /// Return a discriminant member access selected for one expression.
+    fn discriminant_access(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::MemberAccess> {
+        let node = expression.into_global_any(self.source);
+        let access = self
+            .source()
+            .decisions
+            .decision(node)
+            .and_then(dir::Decision::member_access)?;
+
+        // select only structural discriminant projections
+        if matches!(
+            access.target,
+            dir::MemberTarget::Projection {
+                projection: dir::Projection::Discriminant { .. },
+                ..
+            }
+        ) {
+            Some(access.clone())
+        } else {
+            None
+        }
+    }
+
+    /// Lower one structural discriminant comparison against an exact literal.
+    fn lower_discriminant_comparison(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        literal: dir::ScalarLiteral,
+        access: &dir::MemberAccess,
+    ) -> CompilerResult<mir::Value> {
+        let dir::MemberTarget::Projection {
+            receiver,
+            projection: dir::Projection::Discriminant { union, cases, .. },
+            ..
+        } = &access.target
+        else {
+            return Err(CompilerError::Internal {
+                message: "a selected discriminant access has a different target".to_string(),
+            });
+        };
+        let receiver = receiver.clone();
+        let union = *union;
+        let arm = cases
+            .iter()
+            .find(|case| case.value == literal)
+            .map(|case| case.arm);
+        let (left, index) = match *self.source().tree().get(expression) {
+            dir::Expression::Member { left, .. } => (left, None),
+            dir::Expression::Index { left, index, .. } => (left, index),
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "a discriminant decision is attached to a non-access expression"
+                        .to_string(),
+                });
+            }
+        };
+
+        // evaluate the discriminant receiver and computed key exactly once
+        let receiver = self.lower_adjusted_receiver(left, &receiver)?;
+        if let Some(index) = index {
+            self.lower_expression(index)?;
+        }
+        let tag = self.lower_discriminant_tag(receiver, union)?;
+
+        // reject literals outside the projected source domain
+        let Some(arm) = arm else {
+            return Ok(self.builder.bconst(false));
+        };
+        let members = self.union_members(union)?;
+        let Some(index) = members.iter().position(|member| *member == arm) else {
+            return Err(CompilerError::Internal {
+                message: "a discriminant comparison selects an absent union arm".to_string(),
+            });
+        };
+
+        // compare the tag with a constant of its exact integer carrier
+        let Some(tag_type) = self.builder.value_type(tag) else {
+            return Err(CompilerError::Internal {
+                message: "a lowered discriminant tag has no type".to_string(),
+            });
+        };
+        let mir::Type::Int { width, is_signed } = *self.builder.tree().get(tag_type) else {
+            return Err(CompilerError::Internal {
+                message: "a lowered discriminant tag is not an integer".to_string(),
+            });
+        };
+        let expected = self.builder.iconst(index as i128, width, is_signed);
+        let equal = self
+            .builder
+            .binary_op(mir::BinaryOperator::Equal, tag, expected);
+
+        Ok(equal)
     }
 
     /// Return the type carrying one operand after reading through a view.
@@ -147,9 +309,6 @@ impl FunctionLowerer<'_, '_, '_> {
             else {
                 break;
             };
-            if definition.is_tagged() {
-                break;
-            }
             if self.type_is_singleton(definition.backing)? {
                 return Ok(LoweredOperand::Singleton);
             }
@@ -247,9 +406,6 @@ impl FunctionLowerer<'_, '_, '_> {
                     else {
                         return Ok(false);
                     };
-                    if definition.is_tagged() {
-                        return Ok(false);
-                    }
                     ty = definition.backing;
                 }
                 _ => return Ok(false),
@@ -324,8 +480,8 @@ impl FunctionLowerer<'_, '_, '_> {
         right_carrier: dir::GlobalTypeId,
         right: mir::Value,
     ) -> CompilerResult<mir::Value> {
-        let left_members = self.variant_members(left_carrier)?;
-        let right_members = self.variant_members(right_carrier)?;
+        let left_members = self.union_members(left_carrier)?;
+        let right_members = self.union_members(right_carrier)?;
         if left_members.len() != right_members.len() {
             return Err(CompilerError::Internal {
                 message: "equality variants have different case counts".to_string(),
@@ -390,42 +546,6 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.switch_to_block(exit);
 
         Ok(self.builder.local_get(result))
-    }
-
-    /// Return the logical members of one indexed variant carrier.
-    fn variant_members(
-        &self,
-        carrier: dir::GlobalTypeId,
-    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        match self.lowerer.ty(carrier)? {
-            dir::Type::Union(union) => Ok(self
-                .lowerer
-                .types(carrier.module_id)?
-                .type_ids(union.elements)
-                .to_vec()),
-            dir::Type::Application(instance) => {
-                let Some(dir::Definition::Newtype(definition)) =
-                    self.lowerer.definition(instance.symbol)?
-                else {
-                    return Err(CompilerError::Internal {
-                        message: "the variant carrier is not a tagged newtype".to_string(),
-                    });
-                };
-                if !definition.is_tagged() {
-                    return Err(CompilerError::Internal {
-                        message: "the variant carrier is not a tagged newtype".to_string(),
-                    });
-                }
-
-                Ok(definition
-                    .tagged_variants()
-                    .map(|variant| variant.backing)
-                    .collect())
-            }
-            other => Err(CompilerError::Internal {
-                message: format!("the variant carrier has type {other:?}"),
-            }),
-        }
     }
 
     /// Lower equality between two leaf operands.

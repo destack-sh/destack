@@ -428,7 +428,7 @@ impl ModuleLowerer<'_> {
                 );
             }
 
-            // follow the reference carrier of a nullish union, hold tagged unions directly
+            // follow the reference carrier of a nullish union, hold indexed unions directly
             dir::Type::Union(union) => {
                 let Some((_, carrier)) =
                     self.decompose_nullish_union(module, union, type_substitution)?

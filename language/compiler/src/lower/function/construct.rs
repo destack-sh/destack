@@ -26,10 +26,6 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::ConstructTarget::Class(candidate) => {
                 self.lower_class_construct(resolution, candidate)
             }
-            // Shape.Circle(2.0)
-            dir::ConstructTarget::Variant(candidate) => {
-                self.lower_variant_construct(resolution, candidate)
-            }
             // new factory(1)
             dir::ConstructTarget::Dynamic { .. } => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -187,62 +183,6 @@ impl FunctionLowerer<'_, '_, '_> {
         let value = self.lower_argument(source)?;
 
         Ok(self.builder.aggregate(ty, vec![value]))
-    }
-
-    /// Lower one tagged case construction into its variant carrier.
-    fn lower_variant_construct(
-        &mut self,
-        resolution: &dir::ConstructDecision,
-        candidate: &dir::VariantConstructCandidate,
-    ) -> CompilerResult<mir::Value> {
-        // lower the tagged owner named by the construct resolution
-        let carrier = self.lower_type(resolution.return_type)?;
-
-        // select the constructed case in carrier order
-        let Some(dir::Definition::Newtype(definition)) =
-            self.lowerer.definition(candidate.case.owner)?
-        else {
-            return Err(CompilerError::Internal {
-                message: "a tagged case selected outside a newtype definition".to_string(),
-            });
-        };
-        let Some(index) = definition.tagged_variant_position(candidate.case.variant) else {
-            return Err(CompilerError::Internal {
-                message: "a case missing from its tagged owner".to_string(),
-            });
-        };
-
-        // detect singleton case backings carrying no runtime payload
-        let payload_is_void = match self.builder.tree().get(carrier) {
-            mir::Type::Variant { cases, .. } => cases
-                .get(index)
-                .is_some_and(|case| matches!(self.builder.tree().get(case.ty), mir::Type::Void)),
-            _ => false,
-        };
-
-        // wrap the single bound payload value
-        let payload = match resolution.arguments.as_slice() {
-            [] => None,
-            [binding] => {
-                let dir::ArgumentSource::Provided(source) = binding.source else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a defaulted case payload".to_string(),
-                    }
-                    .into());
-                };
-                let value = self.lower_argument(source)?;
-
-                (!payload_is_void).then_some(value)
-            }
-            _ => {
-                return Err(CompilerError::Internal {
-                    message: "multiple payloads bound to one case construction".to_string(),
-                });
-            }
-        };
-
-        Ok(self.builder.variant_new(carrier, index as u32, payload))
     }
 
     /// Lower one struct expression to an aggregate value.

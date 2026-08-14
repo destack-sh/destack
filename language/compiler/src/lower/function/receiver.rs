@@ -38,14 +38,53 @@ impl FunctionLowerer<'_, '_, '_> {
 
                     self.spill_borrow(value, target)?
                 }
+                // read through one reference or pointer receiver
                 dir::ReceiverAdjustment::Dereference(dereference) => {
                     self.lower_dereference(value, dereference)?
                 }
-                dir::ReceiverAdjustment::NewtypePayload { .. } => self.builder.field_get(value, 0),
-                dir::ReceiverAdjustment::VariantPayload { case, .. } => {
-                    let index = self.lowerer.variant_position(case.owner, case.variant)?;
+                // unwrap a newtype value or stored newtype place
+                dir::ReceiverAdjustment::NewtypePayload { ty, .. } => {
+                    let Some(value_type) = self.builder.value_type(value) else {
+                        return Err(CompilerError::Internal {
+                            message: "a newtype payload receiver has no lowered type".to_string(),
+                        });
+                    };
 
-                    self.builder.variant_payload(value, index)
+                    // retain the address form of stored receivers
+                    match self.builder.tree().get(value_type) {
+                        mir::Type::Reference { .. } | mir::Type::Pointer { .. } => {
+                            let target = self.lower_type(*ty)?;
+
+                            self.builder.field_addr(value, 0, target)
+                        }
+                        _ => self.builder.field_get(value, 0),
+                    }
+                }
+                // project a narrowed union value or stored union place
+                dir::ReceiverAdjustment::UnionPayload { union, arm, .. } => {
+                    let members = self.union_members(*union)?;
+                    let Some(index) = members.iter().position(|member| member == arm) else {
+                        return Err(CompilerError::Internal {
+                            message: "a union payload adjustment selecting an absent arm"
+                                .to_string(),
+                        });
+                    };
+                    let Some(value_type) = self.builder.value_type(value) else {
+                        return Err(CompilerError::Internal {
+                            message: "a union payload receiver has no lowered type".to_string(),
+                        });
+                    };
+
+                    // retain the address form of stored receivers
+                    match self.builder.tree().get(value_type) {
+                        mir::Type::Reference { .. } | mir::Type::Pointer { .. } => {
+                            let target = self.lower_type(adjustment.ty())?;
+
+                            self.builder
+                                .variant_payload_addr(value, index as u32, target)
+                        }
+                        _ => self.builder.variant_payload(value, index as u32),
+                    }
                 }
             };
         }
