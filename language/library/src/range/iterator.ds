@@ -7,10 +7,10 @@ import { Step } from "./step.ds";
 /// Iterator over a stepped range.
 export struct RangeIterator<T: Step<T>> {
     /// The next value to yield.
-    current?: T;
+    private current?: T;
 
     /// The end bound.
-    end: Bound<T>;
+    private end: Bound<T>;
 }
 
 export extension<T: Step<T>> of RangeIterator<T> implements Iterator<T, void> {

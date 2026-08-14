@@ -1,7 +1,8 @@
 import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
+import { Iterable } from "destack:iter";
 
 import { Bound, RangeBounds } from "./bound.ds";
+import { RangeIterator } from "./iterator.ds";
 import { Step } from "./step.ds";
 
 /// Half-open range `start..end`.
@@ -15,8 +16,11 @@ export struct Range<T> {
 }
 
 export extension<T: Step<T>> of Range<T> implements Iterable<T> {
+    /// The range iterator.
+    type Iterator = RangeIterator<T>;
+
     /// Return an iterator over this range.
-    iterator(this): Iterator<T> {
+    iterator(this): RangeIterator<T> {
         todo("Range.iterator")
     }
 }
@@ -44,8 +48,11 @@ export struct RangeInclusive<T> {
 }
 
 export extension<T: Step<T>> of RangeInclusive<T> implements Iterable<T> {
+    /// The inclusive range iterator.
+    type Iterator = RangeIterator<T>;
+
     /// Return an iterator over this range.
-    iterator(this): Iterator<T> {
+    iterator(this): RangeIterator<T> {
         todo("RangeInclusive.iterator")
     }
 }
@@ -70,8 +77,11 @@ export struct RangeFrom<T> {
 }
 
 export extension<T: Step<T>> of RangeFrom<T> implements Iterable<T> {
+    /// The unbounded range iterator.
+    type Iterator = RangeIterator<T>;
+
     /// Return an iterator over this range.
-    iterator(this): Iterator<T> {
+    iterator(this): RangeIterator<T> {
         todo("RangeFrom.iterator")
     }
 }

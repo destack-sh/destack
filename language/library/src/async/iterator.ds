@@ -13,14 +13,20 @@ export local newtype interface AsyncIterator<T: Copy, R: Copy = void> {
 /// Value that can produce an async iterator.
 @languageItem("async.AsyncIterable")
 export local newtype interface AsyncIterable<T: Copy, R: Copy = void> {
-    /// Return a new async iterator for this receiver form.
-    asyncIterator(): AsyncIterator<T, R>;
+    /// The asynchronous iterator produced by this value.
+    type Iterator: AsyncIterator<T, R> = AsyncIterator<T, R>;
+
+    /// Return an asynchronous iterator over this value.
+    asyncIterator(): this.Iterator;
 }
 
 /// Every async iterator is trivially async-iterable as itself.
 export extension<T: Copy, R: Copy, I: AsyncIterator<T, R>> of I implements AsyncIterable<T, R> {
+    /// The asynchronous iterator itself.
+    type Iterator = I;
+
     /// Return this async iterator.
-    asyncIterator(): I {
+    asyncIterator(this): I {
         this
     }
 }
