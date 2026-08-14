@@ -60,7 +60,7 @@ pub enum Type {
     Member(MemberTypeId),
     /// Applied type refined by one associated member equality.
     Refined(RefinedTypeId),
-    /// One selected enum or Tagged variant, like `Mode.Read` or `Result.Ok`.
+    /// One selected enum variant, like `Mode.Read`.
     Variant(VariantType),
 
     /// Canonical memory or access form, like `^User` or `&exclusive User`.
@@ -921,12 +921,12 @@ pub struct RefinedType {
     pub value: GlobalTypeId,
 }
 
-/// One selected enum or Tagged variant type.
+/// One selected enum variant type.
 ///
 /// Examples:
 /// ```ds
 /// Mode.Read
-/// Result.Ok({ value: 1 })
+/// Mode.Write
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct VariantType {

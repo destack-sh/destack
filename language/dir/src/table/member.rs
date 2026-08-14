@@ -349,8 +349,6 @@ pub enum MemberRole {
     Associated,
     /// Variant values select one unit case.
     VariantValue,
-    /// Variant constructors accept one payload value.
-    VariantConstructor,
 }
 
 impl From<Option<FunctionRole>> for MemberRole {
@@ -379,10 +377,7 @@ impl TryFrom<&DefinitionMember> for MemberRole {
 impl MemberRole {
     /// Return whether this role selects a callable declaration.
     pub fn is_callable(self) -> bool {
-        matches!(
-            self,
-            Self::Method | Self::Getter | Self::Setter | Self::VariantConstructor
-        )
+        matches!(self, Self::Method | Self::Getter | Self::Setter)
     }
 
     /// Return the use-site role of one definition member.
@@ -400,11 +395,6 @@ impl MemberRole {
                 Some(Self::Associated)
             }
             DefinitionMember::EnumVariant(_) => Some(Self::VariantValue),
-            DefinitionMember::TaggedKey(_) => Some(Self::VariantValue),
-            DefinitionMember::TaggedVariant(variant) if variant.argument.is_some() => {
-                Some(Self::VariantConstructor)
-            }
-            DefinitionMember::TaggedVariant(_) => Some(Self::VariantValue),
             DefinitionMember::CallSignature(_)
             | DefinitionMember::ConstructSignature(_)
             | DefinitionMember::IndexSignature(_) => None,

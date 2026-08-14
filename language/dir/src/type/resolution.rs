@@ -7,8 +7,8 @@ use crate::{
     AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor,
     DynamicDispatch, Expression, GenericArgumentBinding, GlobalNodeId, GlobalNodeIdAny,
     GlobalSymbolId, GlobalTypeId, MemberReceiver, MemberSpace, Predicate, Projection,
-    ProjectionResolution, ScalarFamily, ScalarFamilySet, ScalarLiteral, StaticKey, StringId,
-    TypeFold, UnaryOperator,
+    ProjectionResolution, ScalarFamily, ScalarFamilySet, StaticKey, StringId, TypeFold,
+    UnaryOperator,
 };
 
 /// One operation or the operations selected for every runtime union arm.
@@ -210,12 +210,12 @@ impl FieldTarget {
     }
 }
 
-/// One tagged union case selected during checking.
+/// One enum case selected during checking.
 ///
 /// Examples:
 /// ```ds
-/// Result.Ok(value)       // variant: Ok, key: Ok
-/// Event.Click({ x, y })  // variant: Click, key: Click
+/// Mode.Read  // variant: Read, key: Read
+/// Mode.Write // variant: Write, key: Write
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct VariantCase {
@@ -1233,13 +1233,6 @@ pub enum ConstructTarget {
     /// UserId("u-1")      // wraps the raw value in the newtype
     /// ```
     Newtype(NewtypeSelection),
-    /// Tagged union variant constructor selected at compile time.
-    ///
-    /// Examples:
-    /// ```ds
-    /// Shape.Rectangle({ width, height })
-    /// ```
-    Variant(VariantConstructCandidate),
     /// Construction through one erased interface construct signature.
     Dynamic {
         /// The erased receiver dispatch.
@@ -1255,7 +1248,6 @@ impl ConstructTarget {
         match self {
             Self::Class(candidate) => Some(candidate.symbol),
             Self::Newtype(candidate) => Some(candidate.symbol),
-            Self::Variant(candidate) => Some(candidate.case.variant),
             Self::Dynamic { .. } => None,
         }
     }
@@ -1271,7 +1263,6 @@ impl ConstructTarget {
                 }
             },
             Self::Newtype(candidate) => Some(candidate.symbol),
-            Self::Variant(candidate) => Some(candidate.case.variant),
             Self::Dynamic { .. } => None,
         }
     }
@@ -1310,28 +1301,6 @@ pub struct NewtypeSelection {
     pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
-/// One tagged variant construction candidate after checking.
-///
-/// Examples:
-/// ```ds
-/// Shape.Rectangle({ width, height })
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
-pub struct VariantConstructCandidate {
-    /// The selected tagged case.
-    pub case: VariantCase,
-    /// The selected generic argument bindings for the owner symbol.
-    pub generic_arguments: Vec<GenericArgumentBinding>,
-    /// The selected instantiated case backing.
-    pub backing: GlobalTypeId,
-    /// The generated constructor argument type, absent for a unit variant.
-    pub argument: Option<GlobalTypeId>,
-    /// The selected discriminator field.
-    pub discriminator: StaticKey,
-    /// The discriminant value injected by the constructor.
-    pub discriminant: ScalarLiteral,
-}
-
 /// Pattern meaning selected during checking.
 ///
 /// Examples:
@@ -1341,7 +1310,7 @@ pub struct VariantConstructCandidate {
 /// value!                    // Must
 /// value = fallback          // Default
 /// "ready"                   // Test
-/// Status.Ok(value)          // Variant
+/// Mode.Read                 // Variant
 /// *point                    // Project
 /// Point { x, y }            // Destructure
 /// "yes" | "no"              // Or
@@ -1387,8 +1356,8 @@ pub enum PatternDecision {
     ///
     /// Examples:
     /// ```ds
-    /// match value { Status.Ok(value) => value }
-    /// match value { Status.Pending => false }
+    /// match mode { Mode.Read => read() }
+    /// match mode { Mode.Write => write() }
     /// ```
     Variant(Box<PatternVariantResolution>),
     /// Pattern that projects the input before matching, like `*Point { x, y }`.
@@ -1597,12 +1566,12 @@ pub struct PatternSequenceArity {
     pub maximum: Option<usize>,
 }
 
-/// Tagged variant selected by one pattern.
+/// Enum variant selected by one pattern.
 ///
 /// Examples:
 /// ```ds
-/// match status { Status.Ok(value) => value }
-/// match status { Status.Pending => false }
+/// match mode { Mode.Read => read() }
+/// match mode { Mode.Write => write() }
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct PatternVariantResolution {
@@ -1610,10 +1579,6 @@ pub struct PatternVariantResolution {
     pub case: VariantCase,
     /// The selected variant predicate.
     pub predicate: Predicate,
-    /// The nested pattern matching the complete case payload.
-    pub payload: Option<GlobalNodeIdAny>,
-    /// The payload fields in source order.
-    pub fields: Vec<PatternFieldResolution>,
 }
 
 /// Or-pattern branches selected during checking.
