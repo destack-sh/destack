@@ -157,8 +157,8 @@ warning[prefer-array-literal]: empty array uses the Array.new factory
         let session = TestSession::dir(
             &PREFER_ARRAY_LITERAL,
             r#"
-@derive(Tagged)
-newtype Status = { kind: "ready" } | { kind: "pending" };
+@derive(Clone)
+struct Status {}
 "#,
         );
 

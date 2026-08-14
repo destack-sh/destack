@@ -299,17 +299,16 @@ warning[prefer-find]: filtered array is only used for its first element
         );
     }
 
-    /// Ignore call-shaped tagged variant construction.
+    /// Ignore call-shaped newtype construction.
     #[test]
-    fn test_accepts_tagged_variant_construction() {
+    fn test_accepts_newtype_construction() {
         let session = TestSession::dir(
             &PREFER_FIND,
             r#"
-@derive(Tagged)
 newtype Status = { kind: "ready"; value: int32 } | { kind: "pending" };
 
 function ready(value: int32): Status {
-    return Status.Ready({ value });
+    return Status({ kind: "ready", value });
 }
 "#,
         );
