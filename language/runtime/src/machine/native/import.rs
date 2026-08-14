@@ -17,6 +17,8 @@ unsafe extern "C" {
     fn nearbyint(value: f64) -> f64;
     fn fmaf(left: f32, right: f32, addend: f32) -> f32;
     fn fma(left: f64, right: f64, addend: f64) -> f64;
+    fn fmodf(left: f32, right: f32) -> f32;
+    fn fmod(left: f64, right: f64) -> f64;
     fn sinf(value: f32) -> f32;
     fn sin(value: f64) -> f64;
     fn cosf(value: f32) -> f32;
@@ -85,6 +87,8 @@ impl Platform {
             native::Import::NearestF64 => nearbyint as *const () as usize,
             native::Import::FmaF32 => fmaf as *const () as usize,
             native::Import::FmaF64 => fma as *const () as usize,
+            native::Import::RemainderF32 => fmodf as *const () as usize,
+            native::Import::RemainderF64 => fmod as *const () as usize,
             native::Import::SinF32 => sinf as *const () as usize,
             native::Import::SinF64 => sin as *const () as usize,
             native::Import::CosF32 => cosf as *const () as usize,
