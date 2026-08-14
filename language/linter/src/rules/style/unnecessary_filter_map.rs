@@ -170,7 +170,7 @@ function positives(values: int32[]): int32[] {
         let session = TestSession::dir(
             &UNNECESSARY_FILTER_MAP,
             r#"
-function increment(value: int32, index: usize): int32 {
+function increment(value: int32, index: isize): int32 {
     return value + 1;
 }
 

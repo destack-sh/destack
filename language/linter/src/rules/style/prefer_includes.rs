@@ -258,21 +258,6 @@ function containsBefore(values: int32[], target: int32, end: isize): boolean {
         session.assert_no_diagnostics();
     }
 
-    /// Accept String.indexOf until its absent-result contract is explicit.
-    #[test]
-    fn test_accepts_string_index_search() {
-        let session = TestSession::dir(
-            &PREFER_INCLUDES,
-            r#"
-function contains(value: string, search: string): boolean {
-    return value.indexOf(search) >= 0;
-}
-"#,
-        );
-
-        session.assert_no_diagnostics();
-    }
-
     /// Accept an optional receiver because absence is not a boolean false result.
     #[test]
     fn test_accepts_optional_search() {

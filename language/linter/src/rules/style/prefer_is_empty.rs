@@ -182,7 +182,7 @@ mod tests {
         let session = TestSession::dir(
             &PREFER_IS_EMPTY,
             r#"
-const zero: usize = 0;
+const zero: isize = 0;
 function unequal(values: int32[]): boolean {
     return values.length !== 0;
 }
@@ -197,7 +197,7 @@ function bounded(values: int32[]): boolean {
 
         session.assert_fixes(
             r#"
-const zero: usize = 0;
+const zero: isize = 0;
 function unequal(values: int32[]): boolean {
     return !values.isEmpty;
 }
@@ -280,7 +280,7 @@ function reduce<
             &PREFER_IS_EMPTY,
             r#"
 function visit(values: int32[]): void {
-    for (let index: usize = 0; index < values.length; index += 1) {}
+    for (let index: isize = 0; index < values.length; index += 1) {}
 }
 "#,
         );

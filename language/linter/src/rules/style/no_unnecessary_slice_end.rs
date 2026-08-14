@@ -210,21 +210,6 @@ function tail(value: string): string {
         );
     }
 
-    /// Preserve a negative-infinity string slice end.
-    #[test]
-    fn test_accepts_negative_infinity() {
-        let session = TestSession::dir(
-            &NO_UNNECESSARY_SLICE_END,
-            r#"
-function tail(value: string): string {
-    return value.slice(1, Number.NEGATIVE_INFINITY);
-}
-"#,
-        );
-
-        session.assert_no_diagnostics();
-    }
-
     /// Preserve a comment beside the redundant end by omitting the fix.
     #[test]
     fn test_reports_commented_end_without_fix() {

@@ -239,7 +239,7 @@ warning[prefer-for-of-over-for-each]: array iteration uses a forEach callback
         let session = TestSession::dir(
             &PREFER_FOR_OF_OVER_FOR_EACH,
             r#"
-function copy(values: int32[], indexes: usize[], output: int32[]): void {
+function copy(values: int32[], indexes: isize[], output: int32[]): void {
     values.forEach((value, index) => {
         indexes.push(index);
         output.push(value);
@@ -253,7 +253,7 @@ function copy(values: int32[], indexes: usize[], output: int32[]): void {
 warning[prefer-for-of-over-for-each]: array iteration uses a forEach callback
  ──▶ main.ds:2:5
   │
-1 │ function copy(values: int32[], indexes: usize[], output: int32[]): void {
+1 │ function copy(values: int32[], indexes: isize[], output: int32[]): void {
 2 │     values.forEach((value, index) => {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         indexes.push(index);

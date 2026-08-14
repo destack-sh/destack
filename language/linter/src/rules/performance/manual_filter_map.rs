@@ -16,14 +16,14 @@ Instead, you SHOULD call `filterMap` to keep defined mapped values in one operat
 "#,
         example: {
             reported: r#"
-function defined(values: (int32 | undefined)[]): int32[] {
-    return values.map((value) => value).filter((value) => value !== undefined);
-}
+declare const values: (int32 | undefined)[];
+
+const defined = values.map((value) => value).filter((value) => value !== undefined);
 "#,
             accepted: r#"
-function defined(values: (int32 | undefined)[]): int32[] {
-    return values.filterMap((value) => value);
-}
+declare const values: (int32 | undefined)[];
+
+const defined = values.filterMap((value) => value);
 "#,
         },
         category: Performance,

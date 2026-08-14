@@ -415,7 +415,7 @@ const unchanged = counter.value === counter.value;
             &NO_SELF_COMPARE,
             r#"
 declare const values: int32[];
-declare const index: usize;
+declare const index: isize;
 
 const unchanged = values[index] === values[index];
 "#,
