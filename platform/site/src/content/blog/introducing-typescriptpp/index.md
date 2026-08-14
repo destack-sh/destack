@@ -229,7 +229,7 @@ Many of the most egregious flags don't even come up in TS++ because we don't all
 
 - sum types
 - regular unions
-- newtype / derive(Tagged) unions
+- nominal and structural discriminated unions
 
 ### Structural Interfaces
 

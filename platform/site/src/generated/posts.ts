@@ -34,7 +34,7 @@ export const posts = [
         tags: ["language","runtime"],
         textRoute: "/blog/introducing-typescriptpp.txt",
         title: "Introducing TypeScript++",
-        tokens: 4426,
+        tokens: 4431,
     }
 ] as const satisfies readonly Post[];
 
