@@ -146,12 +146,6 @@ fn add_newtype_row(
                 .template
                 .and_then(|template| template_label(builder, symbol, template)),
         )
-        .optional_field(
-            "discriminator",
-            definition
-                .discriminator
-                .map(|discriminator| builder.static_key(discriminator)),
-        )
         .type_field("backing", builder.global_type_label(definition.backing));
     let row = add_representation_fields(row, definition.representation);
     let row = if definition.constructors.is_empty() {
@@ -364,12 +358,6 @@ fn add_members(
             dir::DefinitionMember::EnumVariant(variant) => {
                 add_enum_variant(builder, owner, variant);
             }
-            dir::DefinitionMember::TaggedKey(variant) => {
-                add_tagged_key(builder, owner, variant);
-            }
-            dir::DefinitionMember::TaggedVariant(variant) => {
-                add_tagged_variant(builder, owner, variant);
-            }
             dir::DefinitionMember::CallSignature(signature) => {
                 add_signature(builder, owner, "call", signature);
             }
@@ -498,42 +486,6 @@ fn add_enum_variant(
         .optional_field("source", builder.node_source(variant.source))
         .field("key", builder.static_key(variant.key))
         .field("value", builder.scalar_literal_label(&variant.value.into()));
-
-    builder.push(row);
-}
-
-/// Add one derived tagged variant row.
-/// Add one declared tagged variant identity row.
-fn add_tagged_key(
-    builder: &mut DirSnapshotBuilder<'_>,
-    owner: dir::GlobalSymbolId,
-    variant: &dir::TaggedKeyDefinition,
-) {
-    let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "variant")
-        .field("symbol", builder.symbol_path_label(variant.symbol))
-        .optional_field("source", builder.node_source(variant.source))
-        .field("index", variant.index.to_string());
-
-    builder.push(row);
-}
-
-fn add_tagged_variant(
-    builder: &mut DirSnapshotBuilder<'_>,
-    owner: dir::GlobalSymbolId,
-    variant: &dir::TaggedVariantDefinition,
-) {
-    let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "variant")
-        .field("symbol", builder.symbol_path_label(variant.symbol))
-        .optional_field("source", builder.node_source(variant.source))
-        .field("key", builder.static_key(variant.key))
-        .field("discriminant", builder.strings.get(variant.discriminant))
-        .type_field("backing", builder.global_type_label(variant.backing))
-        .optional_type_field(
-            "argument",
-            variant
-                .argument
-                .map(|argument| builder.global_type_label(argument)),
-        );
 
     builder.push(row);
 }

@@ -814,31 +814,29 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
         dir::Projection::DynamicType { ty } => {
             format!("dynamic.type({})", builder.global_type_label(*ty))
         }
-        dir::Projection::VariantTag {
-            carrier,
-            discriminator,
+        dir::Projection::Discriminant {
+            union,
+            key,
+            cases,
             ty,
         } => {
+            let cases = cases
+                .iter()
+                .map(|case| {
+                    format!(
+                        "{}: {}",
+                        builder.global_type_label(case.arm),
+                        builder.scalar_literal_value_label(&case.value)
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+
             format!(
-                "variant.tag({}, {}, {})",
-                builder.global_type_label(*carrier),
-                builder.static_key(*discriminator),
-                builder.global_type_label(*ty)
-            )
-        }
-        dir::Projection::VariantPayload {
-            case,
-            backing,
-            discriminator,
-            discriminant,
-            ty,
-        } => {
-            format!(
-                "variant.payload({}.{}, backing={}, discriminator={}, value={discriminant:?}, type={})",
-                builder.symbol_path_label(case.owner),
-                builder.static_key(case.key),
-                builder.global_type_label(*backing),
-                builder.static_key(*discriminator),
+                "discriminant({}, {}, cases=[{}], {})",
+                builder.global_type_label(*union),
+                builder.static_key(*key),
+                cases,
                 builder.global_type_label(*ty)
             )
         }
@@ -1310,25 +1308,6 @@ fn add_construct_decision_row(
         dir::ConstructTarget::Newtype(candidate) => {
             add_construct_candidate_fields(builder, row.field("kind", "newtype"), candidate)
         }
-        dir::ConstructTarget::Variant(candidate) => row
-            .field("kind", "variant")
-            .field("owner", builder.symbol_path_label(candidate.case.owner))
-            .field("variant", builder.static_key(candidate.case.key))
-            .optional_field(
-                "instance",
-                generic_instance_label(builder, candidate.case.owner, &candidate.generic_arguments),
-            )
-            .type_field("backing", builder.global_type_label(candidate.backing))
-            .optional_field(
-                "argument",
-                candidate
-                    .argument
-                    .map(|argument| builder.global_type_label(argument)),
-            )
-            .field(
-                "discriminant",
-                builder.scalar_literal_value_label(&candidate.discriminant),
-            ),
         dir::ConstructTarget::Dynamic { dispatch, function } => row
             .field("kind", "dynamic")
             .field("target", dynamic_function_label(builder, function))
@@ -1418,7 +1397,6 @@ fn construct_target_label(
     match target {
         dir::ConstructTarget::Class(candidate) => builder.symbol_path_label(candidate.symbol),
         dir::ConstructTarget::Newtype(candidate) => builder.symbol_path_label(candidate.symbol),
-        dir::ConstructTarget::Variant(candidate) => builder.symbol_path_label(candidate.case.owner),
         dir::ConstructTarget::Dynamic { function, .. } => dynamic_function_label(builder, function),
     }
 }
@@ -1476,9 +1454,16 @@ fn add_pattern_decision_row(
             .field("pattern", builder.node_label(default.pattern))
             .field("value", builder.node_label(default.value)),
         dir::PatternDecision::Test(test) => add_pattern_test_fields(builder, row, &test.predicate),
-        dir::PatternDecision::Variant(variant) => {
-            add_pattern_variant_resolution_fields(builder, segment, row, variant)
-        }
+        dir::PatternDecision::Variant(variant) => row
+            .field("predicate", predicate_label(builder, &variant.predicate))
+            .optional_field(
+                "projection",
+                variant
+                    .predicate
+                    .projection
+                    .as_ref()
+                    .map(|projection| projection_label(builder, projection)),
+            ),
         dir::PatternDecision::Project(project) => row
             .field(
                 "projection",
@@ -1653,34 +1638,6 @@ fn add_pattern_destructure_fields(
     }
 }
 
-/// Add fields for one selected variant pattern.
-fn add_pattern_variant_resolution_fields(
-    builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::DecisionTable<'_>,
-    row: SnapshotRow,
-    variant: &dir::PatternVariantResolution,
-) -> SnapshotRow {
-    let row = row
-        .field("predicate", predicate_label(builder, &variant.predicate))
-        .optional_field(
-            "projection",
-            variant
-                .predicate
-                .projection
-                .as_ref()
-                .map(|projection| projection_label(builder, projection)),
-        )
-        .optional_field(
-            "payload",
-            match variant.payload {
-                Some(_) => Some("pattern".to_string()),
-                None => pattern_variant_payload_label(builder, &variant.fields).map(str::to_string),
-            },
-        );
-
-    add_pattern_variant_fields(builder, segment, row, &variant.fields)
-}
-
 /// Add one assignment pattern resolution row.
 fn add_assign_pattern_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
@@ -1831,9 +1788,10 @@ fn receiver_adjustment_label(
             builder.symbol_path_label(*symbol),
             builder.global_type_label(*ty)
         ),
-        dir::ReceiverAdjustment::VariantPayload { case, ty, .. } => format!(
-            "variant.payload({}, {})",
-            builder.symbol_path_label(case.variant),
+        dir::ReceiverAdjustment::UnionPayload { union, arm, ty } => format!(
+            "union.payload({}, {}, {})",
+            builder.global_type_label(*union),
+            builder.global_type_label(*arm),
             builder.global_type_label(*ty)
         ),
     }
@@ -2095,15 +2053,6 @@ fn add_construct_target_generic_instances(
                 &candidate.generic_arguments,
             );
         }
-        dir::ConstructTarget::Variant(candidate) => {
-            add_generic_instance(
-                builder,
-                anchor,
-                source,
-                candidate.case.owner,
-                &candidate.generic_arguments,
-            );
-        }
         dir::ConstructTarget::Dynamic { .. } => {}
     }
 }
@@ -2229,8 +2178,7 @@ fn add_projection_generic_instance(
         | dir::Projection::SliceLength { .. }
         | dir::Projection::DynamicPayload { .. }
         | dir::Projection::DynamicType { .. }
-        | dir::Projection::VariantTag { .. }
-        | dir::Projection::VariantPayload { .. }
+        | dir::Projection::Discriminant { .. }
         | dir::Projection::Borrow { .. }
         | dir::Projection::Move { .. }
         | dir::Projection::Dereference(_)
@@ -2496,30 +2444,6 @@ fn add_pattern_sequence_arity_field(
     row.field("arity", label)
 }
 
-/// Add one variant payload field list.
-fn add_pattern_variant_fields(
-    builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::DecisionTable<'_>,
-    row: SnapshotRow,
-    fields: &[dir::PatternFieldResolution],
-) -> SnapshotRow {
-    if fields.is_empty() {
-        return row;
-    }
-
-    if is_positional_variant_payload(builder, fields) {
-        row.tuple_field(
-            "fields",
-            pattern_positional_field_labels(builder, segment, fields),
-        )
-    } else {
-        row.object_field(
-            "fields",
-            pattern_keyed_fields_label(builder, segment, fields),
-        )
-    }
-}
-
 /// Return keyed pattern field labels.
 fn pattern_keyed_field_labels<'a>(
     builder: &'a DirSnapshotBuilder<'_>,
@@ -2589,37 +2513,6 @@ fn pattern_positional_field_label(
     };
 
     pattern_child_label(builder, segment, pattern)
-}
-
-/// Return one variant payload label.
-fn pattern_variant_payload_label(
-    builder: &DirSnapshotBuilder<'_>,
-    fields: &[dir::PatternFieldResolution],
-) -> Option<&'static str> {
-    if fields.is_empty() {
-        return None;
-    }
-
-    if is_positional_variant_payload(builder, fields) {
-        Some("tuple")
-    } else {
-        Some("object")
-    }
-}
-
-/// Return whether one variant payload uses positional fields.
-fn is_positional_variant_payload(
-    builder: &DirSnapshotBuilder<'_>,
-    fields: &[dir::PatternFieldResolution],
-) -> bool {
-    fields.iter().all(|field| {
-        let field = field.source.local_id.into_typed::<dir::PatternField>();
-
-        matches!(
-            builder.tree.get(field),
-            dir::PatternField::Positional { .. }
-        )
-    })
 }
 
 /// Return the source-facing target label for one pattern field projection.

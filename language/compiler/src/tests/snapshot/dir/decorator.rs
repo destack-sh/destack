@@ -35,12 +35,12 @@ impl SnapshotTable for dir::DecoratorSegment {
 
                     builder.add_newtype_selection(row, newtype)
                 }
-                dir::DecoratorSelection::Derive { providers } => {
+                dir::DecoratorSelection::Derive { interfaces } => {
                     row.field("kind", "derive").list_field(
-                        "providers",
-                        providers
+                        "interfaces",
+                        interfaces
                             .iter()
-                            .map(|provider| builder.derive_provider_label(provider)),
+                            .map(|interface| interface.name().to_string()),
                     )
                 }
             }
@@ -82,14 +82,5 @@ impl DirSnapshotBuilder<'_> {
                 "generic_arguments",
                 self.generic_arguments_label(&selection.generic_arguments),
             )
-    }
-
-    /// Return the snapshot label for one selected derive provider.
-    fn derive_provider_label(&self, provider: &dir::DeriveProvider) -> String {
-        let symbol = self.symbol_path_label(provider.newtype.symbol);
-        let backing = self.global_type_label(provider.newtype.backing);
-        let ty = self.global_type_label(provider.ty);
-
-        format!("{symbol} backing={backing} type={ty}")
     }
 }

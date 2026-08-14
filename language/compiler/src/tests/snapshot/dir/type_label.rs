@@ -105,9 +105,6 @@ impl DirSnapshotBuilder<'_> {
                 .variants()
                 .find(|member| member.symbol == variant.variant)
                 .map(|member| member.key),
-            dir::Definition::Newtype(definition) if definition.is_tagged() => definition
-                .tagged_variant_by_symbol(variant.variant)
-                .map(|member| member.key),
             _ => None,
         }
         .unwrap_or_else(|| {
