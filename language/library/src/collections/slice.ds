@@ -122,6 +122,14 @@ export extension<T> of Slice<T> implements Default {
     sort(&exclusive this, compare?: (left: &readonly T, right: &readonly T) => Ordering): void {
         todo("Slice.sort");
     }
+
+    /// Sort this slice without preserving the order of equal elements.
+    sortUnstable(
+        &exclusive this,
+        compare?: (left: &readonly T, right: &readonly T) => Ordering,
+    ): void {
+        todo("Slice.sortUnstable");
+    }
 }
 
 export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {

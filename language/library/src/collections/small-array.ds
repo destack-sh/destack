@@ -210,6 +210,11 @@ export extension<T, comptime N: usize> of SmallArray<T, N>
         todo("SmallArray.pop")
     }
 
+    /// Remove and return the last element when `predicate` accepts it.
+    popIf(&exclusive this, predicate: (value: &readonly T) => boolean): T | undefined {
+        todo("SmallArray.popIf")
+    }
+
     /// Insert `value` at `index`.
     insert(&exclusive this, index: usize, value: T): void {
         todo("SmallArray.insert");
@@ -276,6 +281,14 @@ export extension<T, comptime N: usize> of SmallArray<T, N>
     /// Sort this array in place.
     sort(&exclusive this, compare?: (left: &readonly T, right: &readonly T) => Ordering): this {
         todo("SmallArray.sort")
+    }
+
+    /// Sort this array without preserving the order of equal elements.
+    sortUnstable(
+        &exclusive this,
+        compare?: (left: &readonly T, right: &readonly T) => Ordering,
+    ): this {
+        todo("SmallArray.sortUnstable")
     }
 }
 

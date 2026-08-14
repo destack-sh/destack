@@ -470,6 +470,11 @@ export extension<T> of Array<T>
         todo("Array.pop")
     }
 
+    /// Remove and return the last element when `predicate` accepts it.
+    popIf(&exclusive this, predicate: (value: &readonly T) => boolean): T | undefined {
+        todo("Array.popIf")
+    }
+
     /// Remove and return the first element.
     shift(&exclusive this): T | undefined {
         todo("Array.shift")
@@ -611,6 +616,19 @@ export extension<T> of Array<T>
         todo("Array.sort")
     }
 
+    /// Sort this array without preserving the order of equal elements.
+    sortUnstable(&exclusive this): this where T: Compare<T> {
+        todo("Array.sortUnstable")
+    }
+
+    /// Sort this array without preserving the order of equal elements.
+    sortUnstable(
+        &exclusive this,
+        compare: (left: &readonly T, right: &readonly T) => Ordering,
+    ): this {
+        todo("Array.sortUnstable")
+    }
+
     /// Return a naturally sorted clone.
     toSorted(&readonly this): ^Array<T> where T: Clone, T: Compare<T> {
         todo("Array.toSorted")
@@ -622,6 +640,19 @@ export extension<T> of Array<T>
         compare: (left: &readonly T, right: &readonly T) => Ordering,
     ): ^Array<T> where T: Clone {
         todo("Array.toSorted")
+    }
+
+    /// Return a naturally sorted clone without preserving equal-element order.
+    toSortedUnstable(&readonly this): ^Array<T> where T: Clone, T: Compare<T> {
+        todo("Array.toSortedUnstable")
+    }
+
+    /// Return a sorted clone without preserving equal-element order.
+    toSortedUnstable(
+        &readonly this,
+        compare: (left: &readonly T, right: &readonly T) => Ordering,
+    ): ^Array<T> where T: Clone {
+        todo("Array.toSortedUnstable")
     }
 
     /// Splice this array.
