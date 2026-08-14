@@ -10,12 +10,12 @@ fn test_execute_scalar_call_control_flow() {
         r#"
 function f0 {
     poll
-    int.add r1, r0, r0: int32
+    add.int32 r1, r0, r0
     return r1
 }
 
 function f1 {
-    int.add r3, r0, r1: int32
+    add.int32 r3, r0, r1
     branch r2 => b0 | b1
 
 b0:
@@ -44,19 +44,18 @@ fn test_execute_checked_control_flow() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    check.add.overflow r0, r1: int8 | b2
-    branch.lt r0, r1: int8 => b0 | b1
-
+    check.add.overflow.int8 r0, r1 | b2
+    branch.lt.int8 r0, r1 => b0 | b1
 b0:
-    constant r2, 1: int8
+    constant.int8 r2, 1
     return r2
 
 b1:
-    constant r2, 2: int8
+    constant.int8 r2, 2
     return r2
 
 b2:
-    constant r2, 3: int8
+    constant.int8 r2, 3
     return r2
 }
 "#,
@@ -82,7 +81,7 @@ fn test_execute_tail_call() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    constant r1, 0: int32
+    constant.int32 r1, 0
     equal r2, r0, r1
     branch r2 => b0 | b1
 
@@ -90,8 +89,8 @@ b0:
     return r0
 
 b1:
-    constant r3, 1: int32
-    int.sub r4, r0, r3: int32
+    constant.int32 r3, 1
+    sub.int32 r4, r0, r3
     tail.call f0(r4)
 }
 "#,
@@ -177,7 +176,7 @@ b0:
 }
 
 function next {
-    constant r0, 7: int32
+    constant.int32 r0, 7
     return r0
 }
 "#,

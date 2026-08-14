@@ -17,7 +17,7 @@ fn test_execute_tensor_arithmetic() {
 function f0 {
     tensor.splat r4, r0, a0
     tensor.splat r5, r1, a1
-    tensor.element r6, [r4 @ l0, r5 @ l0], int.add, a2
+    tensor.element r6, [r4 @ l0, r5 @ l0], add.int, a2
     tensor.extract r7, r6 @ l0, [r2, r3]
     return r7
 }
@@ -54,7 +54,7 @@ function f0 {
     tensor.splat r5, r0, a0
     tensor.splat r6, r1, a1
     tensor.splat r7, r2, a2
-    tensor.element r8, [r5 @ l0, r6 @ l0, r7 @ l0], int.clamp, a3
+    tensor.element r8, [r5 @ l0, r6 @ l0, r7 @ l0], clamp.int, a3
     tensor.extract r9, r8 @ l0, [r3, r4]
     return r9
 }
@@ -221,7 +221,7 @@ fn test_execute_tensor_indexed_kernels() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    constant r6, 0: uint64
+    constant.uint64 r6, 0
     tensor.splat r7, r0, a0
     tensor.splat r8, r1, a1
     tensor.concat r9, [r7 @ l0, r8 @ l0], 0, a2
@@ -279,8 +279,8 @@ fn test_execute_tensor_convolution() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    constant r5, 0: uint64
-    constant r6, 1: uint64
+    constant.uint64 r5, 0
+    constant.uint64 r6, 1
     tensor.splat r7, r0, a0
     tensor.splat r8, r1, a1
     tensor.splat r9, r2, a2
@@ -341,7 +341,7 @@ fn test_execute_tensor_element_pipeline() {
 function f0 {
     tensor.splat r4, r0, a0
     tensor.splat r5, r1, a1
-    tensor.compare r6, r4 @ l0, r5 @ l0, int.lt, a2
+    tensor.compare r6, r4 @ l0, r5 @ l0, lt.int, a2
     tensor.select r7, r6 @ l1, r5 @ l0, r4 @ l0, a3
     tensor.convert r8, r7 @ l0, exact, a4
     tensor.extract r9, r8 @ l2, [r2, r3]

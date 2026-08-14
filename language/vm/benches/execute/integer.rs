@@ -16,8 +16,8 @@ b0:
     branch.lt.int32 r1, r0 => b1 | b2
 
 b1:
-    int.add.int32 r3, r3, r1
-    int.add.int32 r1, r1, r2
+    add.int32 r3, r3, r1
+    add.int32 r1, r1, r2
     jump b0
 
 b2:
@@ -29,7 +29,7 @@ b2:
 pub(crate) fn bench_integer(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("vm_integer");
     group.throughput(Throughput::Elements(ITERATIONS as u64));
-    group.bench_function("int32.add", |bencher| {
+    group.bench_function("add.int32", |bencher| {
         let mut runtime = Runtime::parse(PROGRAM);
 
         bencher.iter(|| black_box(runtime.run(ITERATIONS)));

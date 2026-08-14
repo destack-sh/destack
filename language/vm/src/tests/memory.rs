@@ -9,9 +9,9 @@ fn test_execute_global_memory() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    global.address.local r3, g0
-    store r3, r0: int32
-    load r2, r3: int32
+    global.address r3, g0
+    store.int32 r3, r0
+    load.int32 r2, r3
     return r2
 }
 
@@ -55,10 +55,10 @@ fn test_execute_value_memory() {
         r#"
 function f0 {
     aggregate r2:r3, [r0 @ 0:8, r1 @ 8:8]
-    constant r4:r5, zeroed
+    constant.zeroed r4:r5
     frame.address r11, r4:r5
-    store r11, r2:r3, 16
-    load r7:r8, r11, 16
+    memory.store r11, r2:r3, 16
+    memory.load r7:r8, r11, 16
     extract r9, r7:r8, 0:8
     extract r10, r7:r8, 8:8
     return r9:r10
@@ -81,15 +81,15 @@ fn test_execute_byte_ranges() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    global.address.local r11, g0
-    reference.add r2, r11, 4
-    constant r3, 4: uint64
-    store r11, r0: uint32
+    global.address r11, g0
+    address.add r2, r11, 4
+    constant.uint64 r3, 4
+    store.uint32 r11, r0
     memory.copy r2, r11, r3
-    constant r6, 2: int64
-    reference.add r7, r11, r6, 4
-    reference.diff r8, r2, r7
-    load r9, r2: uint32
+    constant.int64 r6, 2
+    address.add r7, r11, r6, 4
+    address.diff r8, r2, r7
+    load.uint32 r9, r2
     memory.compare r10, r11, r2, r3
     return r8:r10
 }
@@ -111,9 +111,9 @@ fn test_execute_atomics() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    global.address.shared r4, g0
-    atomic.rmw.add r2, r4, r0, sequentiallyConsistent: uint32
-    atomic.load r3, r4, acquire: uint32
+    global.address r4, g0
+    atomic.rmw.add.uint32 r2, r4, r0, sequentiallyConsistent
+    atomic.load.uint32 r3, r4, acquire
     atomic.fence sequentiallyConsistent, storage(shared)
     return r2:r3
 }

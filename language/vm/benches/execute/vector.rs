@@ -19,7 +19,7 @@ b0:
 b1:
     vector.add.int32x4 r7:r8, r3:r4, r5:r6
     move r3:r4, r7:r8
-    int.add.int32 r1, r1, r2
+    add.int32 r1, r1, r2
     jump b0
 
 b2:

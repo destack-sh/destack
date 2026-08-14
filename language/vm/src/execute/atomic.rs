@@ -1,4 +1,3 @@
-use std::mem::size_of;
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering, fence};
 
 use destack_bytecode::{
@@ -80,7 +79,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     ) -> Result<()> {
         let mut operands = self.operands(instruction);
         let target = operands.register()?;
-        let pointer = operands.register()?;
+        let register = operands.register()?;
         let access = operands
             .u16()
             .ok()
@@ -89,7 +88,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .ok_or_else(|| self.invalid_instruction())?;
 
         // SAFETY: atomic bytecode requires a live naturally aligned atomic address
-        let address = self.resolve_address(pointer.0, address, scalar.bit_width() as usize / 8)?;
+        let address = self.resolve_address(register.0, address)?;
         let atomic = unsafe { A::from_address(address) };
         let value = atomic.load(Self::atomic_order(access.order));
 
@@ -106,7 +105,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         address: Address,
     ) -> Result<()> {
         let mut operands = self.operands(instruction);
-        let pointer = operands.register()?;
+        let register = operands.register()?;
         let value = operands.register()?;
         let access = operands
             .u16()
@@ -116,7 +115,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .ok_or_else(|| self.invalid_instruction())?;
 
         // SAFETY: atomic bytecode requires a live naturally aligned atomic address
-        let address = self.resolve_address(pointer.0, address, size_of::<A>())?;
+        let address = self.resolve_address(register.0, address)?;
         let atomic = unsafe { A::from_address(address) };
         atomic.store(self.read(value.0).bits(), Self::atomic_order(access.order));
 
@@ -135,7 +134,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let mut operands = self.operands(instruction);
         let target = operands.register()?;
         let status = operands.register()?;
-        let pointer = operands.register()?;
+        let register = operands.register()?;
         let expected = operands.register()?;
         let replacement = operands.register()?;
         let access = operands
@@ -146,7 +145,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .ok_or_else(|| self.invalid_instruction())?;
 
         // SAFETY: atomic bytecode requires a live naturally aligned atomic address
-        let address = self.resolve_address(pointer.0, address, scalar.bit_width() as usize / 8)?;
+        let address = self.resolve_address(register.0, address)?;
         let atomic = unsafe { A::from_address(address) };
         let result = atomic.compare_exchange(
             self.read(expected.0).bits(),
@@ -177,7 +176,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     ) -> Result<()> {
         let mut operands = self.operands(instruction);
         let target = operands.register()?;
-        let pointer = operands.register()?;
+        let register = operands.register()?;
         let value = operands.register()?;
         let access = operands
             .u16()
@@ -186,7 +185,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .ok_or_else(|| self.invalid_instruction())?;
 
         // SAFETY: atomic bytecode requires a live naturally aligned atomic address
-        let address = self.resolve_address(pointer.0, address, scalar.bit_width() as usize / 8)?;
+        let address = self.resolve_address(register.0, address)?;
         let atomic = unsafe { A::from_address(address) };
         let value = self.read(value.0).bits();
         let order = Self::atomic_order(access.order);

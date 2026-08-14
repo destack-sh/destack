@@ -54,16 +54,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             None
         };
 
-        // require the linked site to select the same storage
-        let is_expected_space = matches!(
-            (operation.space, site.space),
-            (bytecode::Space::LOCAL, mir::Space::Local)
-                | (bytecode::Space::SHARED, mir::Space::Shared)
-        );
-        if !is_expected_space {
-            return Err(self.invalid_instruction().into());
-        }
-
         // derive repeated storage only for variable-length slice allocation
         let plan = if operation.kind == NewKind::Slice {
             self.repeated_plan(site.space, plan, length)?

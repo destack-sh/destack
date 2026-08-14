@@ -79,9 +79,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     | Opcode::INSERT
                     | Opcode::VARIANT_NEW
                     | Opcode::VARIANT_TAG => self.execute_aggregate(instruction)?,
-                    Opcode::VARIANT_TAG_LOAD
-                    | Opcode::VARIANT_TAG_LOAD_CONSTANT
-                    | Opcode::VARIANT_TAG_LOAD_POINTER => {
+                    Opcode::VARIANT_TAG_LOAD | Opcode::VARIANT_TAG_LOAD_POINTER => {
                         let needs_range = is_observing_memory
                             || (WATCH
                                 && self
@@ -130,21 +128,14 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     | Opcode::CONSTANT_ZEROED => self.execute_value(instruction)?,
 
                     // address construction
-                    Opcode::GLOBAL_ADDRESS_CONSTANT
-                    | Opcode::GLOBAL_ADDRESS_IMMORTAL
-                    | Opcode::GLOBAL_ADDRESS_LOCAL
-                    | Opcode::GLOBAL_ADDRESS_SHARED => self.execute_global_address(instruction)?,
+                    Opcode::GLOBAL_ADDRESS => self.execute_global_address(instruction)?,
                     Opcode::FRAME_ADDRESS => self.execute_frame_address(instruction)?,
 
                     // reference and pointer arithmetic
-                    Opcode::REFERENCE_ADD_IMMEDIATE
-                    | Opcode::REFERENCE_ADD
-                    | Opcode::REFERENCE_ADD_SCALED
-                    | Opcode::REFERENCE_DIFF
-                    | Opcode::POINTER_ADD_IMMEDIATE
-                    | Opcode::POINTER_ADD
-                    | Opcode::POINTER_ADD_SCALED
-                    | Opcode::POINTER_DIFF => self.execute_address_arithmetic(instruction)?,
+                    Opcode::ADDRESS_ADD_IMMEDIATE
+                    | Opcode::ADDRESS_ADD
+                    | Opcode::ADDRESS_ADD_SCALED
+                    | Opcode::ADDRESS_DIFF => self.execute_address_arithmetic(instruction)?,
                     Opcode::CAST_POINTER_TO_INT | Opcode::CAST_INT_TO_POINTER => {
                         let Some((operation, source, target)) = opcode.cast_operation() else {
                             unreachable!("pointer cast opcodes carry one exact conversion");
@@ -154,7 +145,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                     // references
                     Opcode::LOAD
-                    | Opcode::LOAD_CONSTANT
                     | Opcode::LOAD_POINTER
                     | Opcode::STORE
                     | Opcode::STORE_POINTER
@@ -165,7 +155,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         let is_load = matches!(
                             opcode,
                             Opcode::LOAD
-                                | Opcode::LOAD_CONSTANT
                                 | Opcode::LOAD_POINTER
                                 | Opcode::LOAD_VOLATILE
                                 | Opcode::LOAD_VOLATILE_POINTER

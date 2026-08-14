@@ -82,9 +82,9 @@ fn test_observe_memory() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    new.zeroed r1, a0: ref<managed, local>
-    store r1, r0: int32
-    load r2, r1: int32
+    new.zeroed r1, a0
+    store.int32 r1, r0
+    load.int32 r2, r1
     return r1
 }
 "#,
@@ -128,9 +128,9 @@ fn test_observe_memory_sites() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    global.address.local r0, g0
-    reference.add r1, r0, 4
-    constant r2, 4: uint64
+    global.address r0, g0
+    address.add r1, r0, 4
+    constant.uint64 r2, 4
     memory.copy r1, r0, r2
     return
 }
@@ -186,11 +186,11 @@ function f0 {
     branch r0 => b0 | b1
 
 b0:
-    constant r1, 1: int32
+    constant.int32 r1, 1
     return r1
 
 b1:
-    constant r1, 2: int32
+    constant.int32 r1, 2
     return r1
 }
 "#,

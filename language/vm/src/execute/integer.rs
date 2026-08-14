@@ -694,7 +694,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             IntegerOperation::IsMultipleOf if is_signed => {
                 (((left as i128) % (right as i128) == 0) as u128, false)
             }
-            IntegerOperation::IsMultipleOf => ((left % right == 0) as u128, false),
+            IntegerOperation::IsMultipleOf => (left.is_multiple_of(right) as u128, false),
             IntegerOperation::AbsDiff if is_signed => {
                 ((left as i128).abs_diff(right as i128), false)
             }

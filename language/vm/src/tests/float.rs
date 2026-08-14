@@ -10,9 +10,9 @@ fn test_execute_float_casts() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    float.add r3, r0, r1: float32
-    cast.floatToInt.s r4, r3: float32 -> int8
-    cast.intToFloat.s r5, r2: int64 -> float64
+    add.float32 r3, r0, r1
+    truncate.float32.int8 r4, r3
+    convert.int64.float64 r5, r2
     return r3:r5
 }
 "#,
@@ -36,9 +36,9 @@ fn test_execute_float_midpoint_and_clamp() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    float.midpoint r6, r0, r1: float64
-    float.clamp r7, r2, r3, r4: float64
-    float.midpoint r8, r1, r5: float64
+    midpoint.float64 r6, r0, r1
+    clamp.float64 r7, r2, r3, r4
+    midpoint.float64 r8, r1, r5
     return r6:r8
 }
 "#,
@@ -72,11 +72,11 @@ fn test_execute_float_predicates() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    float.isFinite r4, r0: float64
-    float.isFinite r5, r1: float64
-    float.isFinite r6, r2: float64
-    float.isInfinite r7, r1: float64
-    float.isInfinite r8, r3: float64
+    isFinite.float64 r4, r0
+    isFinite.float64 r5, r1
+    isFinite.float64 r6, r2
+    isInfinite.float64 r7, r1
+    isInfinite.float64 r8, r3
     return r4:r8
 }
 
@@ -111,12 +111,12 @@ fn test_execute_float_rounding() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    float.round r6, r0: float64
-    float.round r7, r1: float64
-    float.roundTiesEven r8, r2: float64
-    float.roundTiesEven r9, r3: float64
-    float.roundTiesAway r10, r4: float64
-    float.roundTiesAway r11, r5: float64
+    round.float64 r6, r0
+    round.float64 r7, r1
+    roundTiesEven.float64 r8, r2
+    roundTiesEven.float64 r9, r3
+    roundTiesAway.float64 r10, r4
+    roundTiesAway.float64 r11, r5
     return r6:r11
 }
 "#,
@@ -153,10 +153,10 @@ fn test_execute_float_extrema() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    float.min r4, r0, r1: float64
-    float.max r5, r0, r1: float64
-    float.min r6, r2, r0: float64
-    float.max r7, r3, r0: float64
+    min.float64 r4, r0, r1
+    max.float64 r5, r0, r1
+    min.float64 r6, r2, r0
+    max.float64 r7, r3, r0
     return r4:r7
 }
 "#,
@@ -189,7 +189,7 @@ fn test_trap_inverted_float_clamp() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    float.clamp r3, r0, r1, r2: float64
+    clamp.float64 r3, r0, r1, r2
     return r3
 }
 "#,

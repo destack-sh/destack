@@ -13,7 +13,7 @@ fn test_execute_dynamic_value() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    constant r1, 41: int32
+    constant.int32 r1, 41
     return r1
 }
 

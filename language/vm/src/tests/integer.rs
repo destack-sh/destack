@@ -10,10 +10,10 @@ fn test_execute_integer_widths() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    int.add.overflowing r3, r4, r0, r1: int8
-    int.add.saturating r5, r0, r1: int8
-    int.countLeadingZeros r6, r0: int8
-    int.byteSwap r7, r2: uint16
+    add.overflowing.int8 r3, r4, r0, r1
+    add.saturating.int8 r5, r0, r1
+    countLeadingZeros.int8 r6, r0
+    byteSwap.uint16 r7, r2
     return r3:r7
 }
 
@@ -41,9 +41,9 @@ fn test_execute_integer128() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    int.add.overflowing r7:r8, r9, r0:r1, r2:r3: int128
-    int.rotateLeft r10:r11, r4:r5, r6: uint128
-    int.countOnes r12, r10:r11: uint128
+    add.overflowing.int128 r7:r8, r9, r0:r1, r2:r3
+    rotateLeft.uint128 r10:r11, r4:r5, r6
+    countOnes.uint128 r12, r10:r11
     return r7:r12
 }
 "#,
@@ -84,28 +84,28 @@ fn test_execute_integer_intrinsics() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    int.midpoint r8, r0, r1: int64
-    int.clamp r9, r2, r3, r4: int64
-    int.divideCeil r10, r5, r6: int64
-    int.remainderEuclidean r11, r5, r6: int64
-    int.isMultipleOf r12, r5, r7: int64
-    int.isolateLowestOne r13, r7: int64
+    midpoint.int64 r8, r0, r1
+    clamp.int64 r9, r2, r3, r4
+    divideCeil.int64 r10, r5, r6
+    remainderEuclidean.int64 r11, r5, r6
+    isMultipleOf.int64 r12, r5, r7
+    isolateLowestOne.int64 r13, r7
     return r8:r13
 }
 
 function f1 {
-    int.midpoint r2, r0, r1: uint64
-    int.isMultipleOf r3, r0, r1: uint64
+    midpoint.uint64 r2, r0, r1
+    isMultipleOf.uint64 r3, r0, r1
     return r2:r3
 }
 
 function f2 {
-    int.isMultipleOf r2, r0, r1: int64
+    isMultipleOf.int64 r2, r0, r1
     return r2
 }
 
 function f3 {
-    int.absDiff r2, r0, r1: int32
+    absDiff.int32 r2, r0, r1
     return r2
 }
 "#,
@@ -159,9 +159,9 @@ fn test_execute_integer128_intrinsics() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    int.midpoint r6:r7, r0:r1, r2:r3: int128
-    int.isolateLowestOne r8:r9, r4:r5: uint128
-    int.absDiff r10:r11, r0:r1, r2:r3: int128
+    midpoint.int128 r6:r7, r0:r1, r2:r3
+    isolateLowestOne.uint128 r8:r9, r4:r5
+    absDiff.int128 r10:r11, r0:r1, r2:r3
     return r6:r11
 }
 "#,
@@ -202,12 +202,12 @@ fn test_trap_invalid_integer_operations() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    int.clamp r3, r0, r1, r2: int32
+    clamp.int32 r3, r0, r1, r2
     return r3
 }
 
 function f1 {
-    int.rem r2, r0, r1: int8
+    rem.int8 r2, r0, r1
     return r2
 }
 "#,

@@ -47,6 +47,8 @@ pub(crate) struct Runtime {
     shared_cache: AllocationCache,
     /// Shared collector worker state.
     shared_mark_worker: SharedMarkWorker,
+    /// Runtime constant bytes.
+    constant_space: program::StaticSpace,
     /// Runtime immortal object bytes.
     immortal_space: program::StaticSpace,
     /// Worker-local static bytes.
@@ -132,15 +134,17 @@ impl Runtime {
         .expect("benchmark shared heap should build");
         let shared_cache = shared_heap.allocation_cache();
         let shared_mark_worker = shared_heap.register_mark_worker();
+        let (constant_space, immortal_space, shared_static) = program
+            .materialize_runtime_statics(memory.clone())
+            .expect("benchmark runtime statics should materialize");
         let local_static = program
-            .materialize_local_statics(memory.clone())
+            .materialize_local_statics(
+                memory.clone(),
+                &constant_space,
+                &immortal_space,
+                &shared_static,
+            )
             .expect("benchmark local statics should materialize");
-        let shared_static = program
-            .materialize_shared_statics(memory.clone())
-            .expect("benchmark shared statics should materialize");
-        let immortal_space = program
-            .materialize_immortals(memory.clone())
-            .expect("benchmark immortals should materialize");
         shared_heap.set_immortal_range(MemoryRange {
             offset: immortal_space.offset(),
             byte_len: immortal_space.byte_len(),
@@ -165,6 +169,7 @@ impl Runtime {
             shared_heap,
             shared_cache,
             shared_mark_worker,
+            constant_space,
             local_static,
             shared_static,
             immortal_space,
@@ -186,7 +191,7 @@ impl Runtime {
                 local_statics: &mut self.local_static,
                 shared_statics: &mut self.shared_static,
                 immortals: &self.immortal_space,
-                constants: self.program.constants(),
+                constants: &self.constant_space,
             },
         };
         let parameter = self

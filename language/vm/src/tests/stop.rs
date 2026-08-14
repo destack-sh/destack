@@ -15,7 +15,7 @@ fn test_pause_at_poll() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    new.zeroed r0, a0: ref<managed, local>
+    new.zeroed r0, a0
     poll
     return r0
 }
@@ -56,7 +56,7 @@ fn test_stop_at_breakpoint() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    int.add r2, r0, r1: int32
+    add.int32 r2, r0, r1
     return r2
 }
 "#,
@@ -126,9 +126,9 @@ fn test_stop_at_watchpoint() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    global.address.local r15, g0
-    store r15, r0: int32
-    load r2, r15: int32
+    global.address r15, g0
+    store.int32 r15, r0
+    load.int32 r2, r15
     return r2
 }
 "#,
@@ -181,7 +181,7 @@ function f0 {
 }
 
 function f1 {
-    load r1, r0: int32
+    load.int32 r1, r0
     return r1
 }
 "#,
@@ -211,7 +211,7 @@ fn test_visit_stopped_roots() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    new.zeroed r0, a0: ref<managed, local>
+    new.zeroed r0, a0
     breakpoint
     return r0
 }

@@ -27,7 +27,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             operands.register()?
         };
         let byte_len = scalar.bit_width() as usize / 8;
-        let address = self.resolve_address(address.0, mode, byte_len)?;
+        let address = self.resolve_address(address.0, mode)?;
 
         Ok((address, byte_len))
     }
@@ -55,7 +55,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .memory_range_operation()
             .map(|(_, address, _)| address)
             .unwrap_or_else(|| unreachable!("value memory dispatch selects one address"));
-        let address = self.resolve_address(address.0, mode, byte_len)?;
+        let address = self.resolve_address(address.0, mode)?;
 
         Ok((address, byte_len))
     }
@@ -69,7 +69,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         scalar: Scalar,
     ) -> Result<(usize, usize)> {
         let mut operands = self.operands(instruction);
-        let pointer = if operation == AtomicOperation::Load {
+        let register = if operation == AtomicOperation::Load {
             let _target = operands.register()?;
 
             operands.register()?
@@ -86,7 +86,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             operands.register()?
         };
         let byte_len = scalar.bit_width() as usize / 8;
-        let address = self.resolve_address(pointer.0, mode, byte_len)?;
+        let address = self.resolve_address(register.0, mode)?;
 
         Ok((address, byte_len))
     }
@@ -108,8 +108,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                 self.read(byte_len.0).bits() as usize
             };
-            let source = self.resolve_address(source.0, source_mode, byte_len)?;
-            let target = self.resolve_address(target.0, target_mode, byte_len)?;
+            let source = self.resolve_address(source.0, source_mode)?;
+            let target = self.resolve_address(target.0, target_mode)?;
 
             Ok([
                 Some((MemoryAccess::Read, (source, byte_len))),
@@ -125,7 +125,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                 self.read(byte_len.0).bits() as usize
             };
-            let target = self.resolve_address(target.0, target_mode, byte_len)?;
+            let target = self.resolve_address(target.0, target_mode)?;
 
             Ok([Some((MemoryAccess::Write, (target, byte_len))), None])
         } else if let Some((left_mode, right_mode, is_immediate)) = opcode.compare_operation() {
@@ -139,8 +139,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                 self.read(byte_len.0).bits() as usize
             };
-            let left = self.resolve_address(left.0, left_mode, byte_len)?;
-            let right = self.resolve_address(right.0, right_mode, byte_len)?;
+            let left = self.resolve_address(left.0, left_mode)?;
+            let right = self.resolve_address(right.0, right_mode)?;
 
             Ok([
                 Some((MemoryAccess::Read, (left, byte_len))),
@@ -254,40 +254,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         // scan cold debugger metadata only when a range watchpoint is active
         for (global_id, global) in self.machine.program.globals(location) {
-            let global_address = match location {
-                GlobalLocation::Constant => self.machine.program.constants().reference(global),
-                GlobalLocation::Immortal => self.activation.memory.immortals.reference(global),
-                GlobalLocation::SharedStatic => {
-                    self.activation.memory.shared_statics.reference(global)
-                }
-                GlobalLocation::LocalStatic => {
-                    self.activation.memory.local_statics.reference(global)
-                }
-            };
-            let base = match location {
-                GlobalLocation::Constant => self
-                    .machine
-                    .program
-                    .constant_address(global_address, global.byte_len()),
-                GlobalLocation::Immortal => self
-                    .activation
-                    .memory
-                    .immortals
-                    .address(global_address, global.byte_len()),
-                GlobalLocation::SharedStatic => self
-                    .activation
-                    .memory
-                    .shared_statics
-                    .address(global_address, global.byte_len()),
-                GlobalLocation::LocalStatic => self
-                    .activation
-                    .memory
-                    .local_statics
-                    .address(global_address, global.byte_len()),
-            };
-            let Some(base) = base else {
-                continue;
-            };
+            let reference = self.activation.memory.reference(global);
+            let reference = reference
+                .offset()
+                .ok_or_else(|| self.invalid_instruction())?;
+            let base = self.activation.memory.base_address() + reference;
             let Some(offset) = address.checked_sub(base) else {
                 continue;
             };

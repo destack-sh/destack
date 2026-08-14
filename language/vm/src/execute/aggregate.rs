@@ -17,9 +17,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             Opcode::INSERT => self.execute_insert(instruction),
             Opcode::VARIANT_NEW => self.execute_variant_new(instruction),
             Opcode::VARIANT_TAG => self.execute_variant_tag(instruction),
-            Opcode::VARIANT_TAG_LOAD
-            | Opcode::VARIANT_TAG_LOAD_CONSTANT
-            | Opcode::VARIANT_TAG_LOAD_POINTER => self.execute_variant_tag_load(instruction),
+            Opcode::VARIANT_TAG_LOAD | Opcode::VARIANT_TAG_LOAD_POINTER => {
+                self.execute_variant_tag_load(instruction)
+            }
             _ => unreachable!("aggregate dispatch selects one aggregate opcode"),
         }
     }
@@ -174,12 +174,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let layout = self.layout(layout)?;
         let variant = self.variant(&layout)?;
         let field = variant.encoding.field();
-        let byte_len = field.offset as usize + field.byte_len as usize;
         let address = instruction
             .opcode()
             .variant_tag_load_address()
             .ok_or_else(|| self.invalid_instruction())?;
-        let source = self.resolve_address(source.0, address, byte_len)?;
+        let source = self.resolve_address(source.0, address)?;
         let scalar = self.read_address_discriminant(source, field)?;
         let discriminant = self.decode_variant_tag(variant, scalar)?;
 
@@ -199,12 +198,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let layout = self.layout(layout)?;
         let variant = self.variant(&layout)?;
         let field = variant.encoding.field();
-        let byte_len = field.offset as usize + field.byte_len as usize;
         let address = instruction
             .opcode()
             .variant_tag_load_address()
             .ok_or_else(|| self.invalid_instruction())?;
-        let address = self.resolve_address(source.0, address, byte_len)?;
+        let address = self.resolve_address(source.0, address)?;
 
         Ok((address + field.offset as usize, field.byte_len as usize))
     }

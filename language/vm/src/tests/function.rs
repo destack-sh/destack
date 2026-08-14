@@ -25,7 +25,7 @@ function f2 {
 
 function f3 {
     function.bind r2:r3, f0, r0
-    constant r4, null
+    constant.null r4
     function.bind r5:r6, f2, r4
     call.indirect r7, r5:r6(r1)
     extract r8, r2:r3, 8:8

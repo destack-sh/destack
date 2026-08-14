@@ -32,36 +32,24 @@ impl TestProgram {
         let mut code = object.code().to_vec();
         for relocation in object.relocations() {
             let start = relocation.byte_offset as usize;
-            if relocation.tag == RelocationTag::GLOBAL {
-                let end = start + size_of::<u64>();
-                let encoded = u64::from_le_bytes(
-                    code[start..end]
-                        .try_into()
-                        .expect("global relocation should be complete"),
-                );
-                let global = globals
-                    .get(encoded as usize)
-                    .expect("global relocation should name test metadata");
-                code[start..end].copy_from_slice(&global.offset.to_le_bytes());
-            } else {
-                let end = start + size_of::<u32>();
-                let encoded = u32::from_le_bytes(
-                    code[start..end]
-                        .try_into()
-                        .expect("relocation operand should be complete"),
-                );
-                let value = match relocation.tag {
-                    RelocationTag::TYPE => encoded,
-                    RelocationTag::LAYOUT => encoded + 1,
-                    RelocationTag::FUNCTION => encoded,
-                    RelocationTag::DYNAMIC => encoded,
-                    RelocationTag::ALLOCATION => encoded,
-                    RelocationTag::COUNTER => encoded,
-                    RelocationTag::SAMPLER => encoded,
-                    _ => panic!("unknown test bytecode relocation"),
-                };
-                code[start..end].copy_from_slice(&value.to_le_bytes());
-            }
+            let end = start + size_of::<u32>();
+            let encoded = u32::from_le_bytes(
+                code[start..end]
+                    .try_into()
+                    .expect("relocation operand should be complete"),
+            );
+            let value = match relocation.tag {
+                RelocationTag::TYPE => encoded,
+                RelocationTag::LAYOUT => encoded + 1,
+                RelocationTag::FUNCTION => encoded,
+                RelocationTag::GLOBAL => encoded,
+                RelocationTag::DYNAMIC => encoded,
+                RelocationTag::ALLOCATION => encoded,
+                RelocationTag::COUNTER => encoded,
+                RelocationTag::SAMPLER => encoded,
+                _ => panic!("unknown test bytecode relocation"),
+            };
+            code[start..end].copy_from_slice(&value.to_le_bytes());
         }
 
         // build physical bytecode and canonical Program frame tables

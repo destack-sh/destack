@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::{ptr, slice};
 
 use destack_bytecode::{Address, Instruction, MemoryOperation, Opcode, Prefetch, Scalar, Transfer};
-use destack_program::{GlobalAddress, Runtime, Word};
+use destack_program::{GlobalId, Runtime, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;
@@ -12,33 +12,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     pub(crate) fn execute_global_address(&mut self, instruction: Instruction<'_>) -> Result<()> {
         let mut operands = self.operands(instruction);
         let target = operands.register()?;
-        let offset = usize::try_from(operands.u64()?).map_err(|_| self.invalid_instruction())?;
-        let offset = match instruction.opcode() {
-            Opcode::GLOBAL_ADDRESS_CONSTANT => offset,
-            Opcode::GLOBAL_ADDRESS_IMMORTAL => self
-                .activation
-                .memory
-                .immortals
-                .offset()
-                .checked_add(offset)
-                .ok_or_else(|| self.invalid_instruction())?,
-            Opcode::GLOBAL_ADDRESS_LOCAL => self
-                .activation
-                .memory
-                .local_statics
-                .offset()
-                .checked_add(offset)
-                .ok_or_else(|| self.invalid_instruction())?,
-            Opcode::GLOBAL_ADDRESS_SHARED => self
-                .activation
-                .memory
-                .shared_statics
-                .offset()
-                .checked_add(offset)
-                .ok_or_else(|| self.invalid_instruction())?,
-            _ => unreachable!("global address dispatch selects one static storage"),
-        };
-        let reference = GlobalAddress::new(offset);
+        let global = GlobalId(operands.u32()?);
+        let global = self
+            .machine
+            .program
+            .global(global)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let reference = self.activation.memory.reference(global);
 
         self.write(target.0, reference.into());
 
@@ -69,24 +49,24 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let left = operands.register()?;
         let left = self.read(left.0).bits();
         let value = match instruction.opcode() {
-            Opcode::REFERENCE_ADD_IMMEDIATE | Opcode::POINTER_ADD_IMMEDIATE => {
+            Opcode::ADDRESS_ADD_IMMEDIATE => {
                 let offset = operands.i32()?;
 
                 left.wrapping_add_signed(i64::from(offset))
             }
-            Opcode::REFERENCE_ADD | Opcode::POINTER_ADD => {
+            Opcode::ADDRESS_ADD => {
                 let offset = operands.register()?;
 
                 left.wrapping_add_signed(self.read(offset.0).as_i64())
             }
-            Opcode::REFERENCE_ADD_SCALED | Opcode::POINTER_ADD_SCALED => {
+            Opcode::ADDRESS_ADD_SCALED => {
                 let offset = operands.register()?;
                 let stride = operands.u32()?;
                 let offset = self.read(offset.0).as_i64().wrapping_mul(i64::from(stride));
 
                 left.wrapping_add_signed(offset)
             }
-            Opcode::REFERENCE_DIFF | Opcode::POINTER_DIFF => {
+            Opcode::ADDRESS_DIFF => {
                 let origin = operands.register()?;
 
                 left.wrapping_sub(self.read(origin.0).bits())
@@ -112,9 +92,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let mut operands = self.operands(instruction);
         if operation == MemoryOperation::Load {
             let target = operands.register()?;
-            let reference = operands.register()?;
-            let byte_len = usize::from(scalar.bit_width() / 8);
-            let address = self.resolve_address(reference.0, mode, byte_len)?;
+            let register = operands.register()?;
+            let address = self.resolve_address(register.0, mode)?;
             let value = if is_volatile {
                 self.load_volatile(address, scalar)
             } else {
@@ -123,10 +102,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
             self.write(target.0, value);
         } else {
-            let reference = operands.register()?;
+            let register = operands.register()?;
             let value = operands.register()?;
-            let byte_len = usize::from(scalar.bit_width() / 8);
-            let address = self.resolve_address(reference.0, mode, byte_len)?;
+            let address = self.resolve_address(register.0, mode)?;
 
             if is_volatile {
                 self.store_volatile(address, scalar, self.read(value.0));
@@ -157,8 +135,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
             self.read(byte_len.0).bits() as usize
         };
-        let target = self.resolve_address(target.0, target_mode, byte_len)? as *mut u8;
-        let source = self.resolve_address(source.0, source_mode, byte_len)? as *const u8;
+        let target = self.resolve_address(target.0, target_mode)? as *mut u8;
+        let source = self.resolve_address(source.0, source_mode)? as *const u8;
 
         // SAFETY: bytecode range operations require live ranges for the encoded byte length
         unsafe {
@@ -188,7 +166,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
             self.read(byte_len.0).bits() as usize
         };
-        let target = self.resolve_address(target.0, target_mode, byte_len)? as *mut u8;
+        let target = self.resolve_address(target.0, target_mode)? as *mut u8;
         let byte = self.read(byte.0).bits() as u8;
 
         // SAFETY: bytecode fill requires one live mutable target range
@@ -216,8 +194,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
             self.read(byte_len.0).bits() as usize
         };
-        let left = self.resolve_address(left.0, left_mode, byte_len)?;
-        let right = self.resolve_address(right.0, right_mode, byte_len)?;
+        let left = self.resolve_address(left.0, left_mode)?;
+        let right = self.resolve_address(right.0, right_mode)?;
         let order = if byte_len == 0 {
             Ordering::Equal
         } else {
@@ -246,7 +224,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         _address: Address,
     ) -> Result<()> {
         let mut operands = self.operands(instruction);
-        let _pointer = operands.register()?;
+        let _register = operands.register()?;
 
         Ok(())
     }
@@ -280,7 +258,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if byte_len > target.len() {
             return Err(self.invalid_instruction());
         }
-        let address = self.resolve_address(address.0, mode, byte_len)?;
+        let address = self.resolve_address(address.0, mode)?;
 
         // clear register padding before loading exact layout bytes
         self.fiber.stack.zero(target.start, target.len())?;
@@ -318,7 +296,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if byte_len > value.len() {
             return Err(self.invalid_instruction());
         }
-        let address = self.resolve_address(address.0, mode, byte_len)?;
+        let address = self.resolve_address(address.0, mode)?;
 
         // store each volatile byte exactly once or copy the ordinary range
         let value = self.fiber.stack.address(value.start) as *const u8;
@@ -340,24 +318,14 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
     /// Resolve one encoded memory operand to a process-local address.
     #[inline(always)]
-    pub(crate) fn resolve_address(
-        &self,
-        register: u16,
-        mode: Address,
-        byte_len: usize,
-    ) -> Result<usize> {
+    pub(crate) fn resolve_address(&self, register: u16, mode: Address) -> Result<usize> {
         let bits = self.read(register).bits();
-        let pointer = match mode {
-            Address::Memory => self.activation.memory.base_address() + bits as usize,
-            Address::Constant => self
-                .machine
-                .program
-                .constant_address(GlobalAddress::from_bits(bits), byte_len)
-                .ok_or_else(|| self.invalid_instruction())?,
+        let address = match mode {
+            Address::Reference => self.activation.memory.base_address() + bits as usize,
             Address::Pointer => bits as usize,
         };
 
-        Ok(pointer)
+        Ok(address)
     }
 
     /// Load one scalar from a valid native address.

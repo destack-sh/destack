@@ -21,8 +21,8 @@ b0:
     branch.lt.int32 r1, r0 => b1 | b2
 
 b1:
-    tensor.element r7, [(r5, l0), (r6, l0)], int.add, a3
-    int.add.int32 r1, r1, r2
+    tensor.element r7, [(r5, l0), (r6, l0)], add.int, a3
+    add.int32 r1, r1, r2
     jump b0
 
 b2:
@@ -35,7 +35,7 @@ b2:
 pub(crate) fn bench_tensor(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("vm_tensor");
     group.throughput(Throughput::Elements(ITERATIONS as u64 * ELEMENT_COUNT));
-    group.bench_function("int32.add", |bencher| {
+    group.bench_function("add.int32", |bencher| {
         bencher.iter_batched(
             || Runtime::tensor(PROGRAM, &[ELEMENT_COUNT]),
             |mut runtime| black_box(runtime.run(ITERATIONS)),

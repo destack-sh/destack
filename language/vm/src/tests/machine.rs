@@ -43,8 +43,11 @@ pub(crate) struct TestMachine {
     shared_cache: AllocationCache,
     /// Shared collector worker state.
     shared_mark_worker: SharedMarkWorker,
-    /// Worker-local static memory.
+    /// Immutable constant memory.
+    constants: program::StaticSpace,
+    /// Runtime immortal object memory.
     immortals: program::StaticSpace,
+    /// Worker-local static memory.
     local_statics: program::StaticSpace,
     /// Runtime-shared static memory.
     shared_statics: program::StaticSpace,
@@ -71,9 +74,9 @@ impl TestMachine {
         .expect("test shared heap should build");
         let shared_cache = shared_heap.allocation_cache();
         let shared_mark_worker = shared_heap.register_mark_worker();
-        let immortals = program
-            .materialize_immortals(memory.clone())
-            .expect("test immortals should materialize");
+        let (constants, immortals, shared_statics) = program
+            .materialize_runtime_statics(memory.clone())
+            .expect("test runtime statics should materialize");
         let immortal_range = MemoryRange {
             offset: immortals.offset(),
             byte_len: immortals.byte_len(),
@@ -81,11 +84,8 @@ impl TestMachine {
         local_heap.set_immortal_range(immortal_range);
         shared_heap.set_immortal_range(immortal_range);
         let local_statics = program
-            .materialize_local_statics(memory.clone())
+            .materialize_local_statics(memory.clone(), &constants, &immortals, &shared_statics)
             .expect("test local statics should materialize");
-        let shared_statics = program
-            .materialize_shared_statics(memory.clone())
-            .expect("test shared statics should materialize");
         let allocation_plans = program
             .plan_allocations(local_heap.options(), shared_heap.options())
             .expect("test allocation plans should build")
@@ -108,6 +108,7 @@ impl TestMachine {
             shared_heap,
             shared_cache,
             shared_mark_worker,
+            constants,
             immortals,
             local_statics,
             shared_statics,
@@ -295,7 +296,7 @@ impl TestMachine {
                 local_statics: &mut self.local_statics,
                 shared_statics: &mut self.shared_statics,
                 immortals: &self.immortals,
-                constants: self.program.constants(),
+                constants: &self.constants,
             },
         };
 
