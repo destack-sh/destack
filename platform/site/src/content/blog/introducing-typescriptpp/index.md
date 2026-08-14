@@ -6,7 +6,7 @@ tags: ["language", "runtime"]
 author: "Florian"
 ---
 
-- We need a new _universal_ programming system to write all the world's software: a language that compiles very fast, supports deep static and dynamic analysis, runs seamlssly everywhere (incl. on the web), can run systems software at machine speed, and is legible to humans and agents alike.
+- We need a new _universal_ programming system to write all the world's software: a language that compiles very fast, runs very fast (ideally at machine speed), supports deep static and dynamic analysis, runs seamlssly everywhere (incl. on the web), can run systems software at machine speed, and is legible to humans and agents alike.
 - above all, we need a complete system, a method of software production, to reliably produce correct, optimal, integrated software in one standardized way
 - fully integrated infrastructure, from the bottom to the top of the "stack". 
 - at the centre of it must sit a universal language and runtime.
@@ -28,25 +28,31 @@ author: "Florian"
 # Why
 
 - the history of programming is one of rising levels of abstraction, from literally wiring up vacuum tubes to punch cards to machine code to assembly to C to Java to TypeScript
-- climbing the ladder of abstraction is attractive, as we remove ourselves from the troubling burden of having to actually spell out what exactly it is we want the machine to be doing
+- climbing the ladder of abstraction is broadly attractive, as we remove ourselves from the troubling burden of having to actually spell out what _exactly_ it is we want the machine to be doing
 - it follows then, that we might want to go all the way, that the ultimate sophistication of programming is not programming at all, but like "talking to a colleague"? 
 - oh, how great software could be, how magnificient, how accessible, if only we could make programming as simple as natural language?
 - if we didn't have to write code at all, nor trouble ourselves with any of the nuances and rigor imposed by formal languages
 
-- and.. dropping code, doing something higher level, this sorta kinda works, sometimes, actually!
-- spreadsheets are old, game dev people have been doing this for a while, we have now figured out a new way to prompt simple software into existence
-- the trouble is, in software, there is no meaningful separation of the system and its specification
-- there is no magic abstraction on top of code that will solve all our problems
-- every attempt to put something "above" code and then have it define the behavior of the software with sufficient specificity ends up reinventing code in a worse way (config languages, Gherkin tests, drag and drop coding tools, etc.)
+- and.. amazingly, dropping code, doing something higher level, this sorta kinda works, sometimes, actually!
+- spreadsheets have worked for decades, game dev people have been doing this for a while, we have now figured out a new way to prompt simple software into existence
+- (historically, when some more "accessible" programming-ish becomes too common, the "real" programmers no longer consider it programming. thus, excel is not "programming", just like image classification is not AI)
 
-- why not extend what already exists
-- there is a wide range of prior art in the realm of "TS ergonomics with systems performance", but that is just one aspect of what we'Re trying to do here
-- static hermes, assembly script, ...
-- all in - not incrementally adoptable.
-- (though we do have C ABI ofc)
-- fully standardized across the stack
+- the trouble is, in software, there is no meaningful separation of the system and its specification, and there is no magic abstraction on top of code that will solve all our problems - if the job is solving novel problems.
+- every attempt to put something "above" code and then have it define the behavior of the software with sufficient specificity ends up reinventing code in a worse way (config languages, Gherkin tests, drag and drop coding tools, "APIs will replace everything", etc.)
+
+- think the future of software development is lots more like game development
+- sometimes you write engine, sometimes you write scripts
+- lot of the time is just iterating in some more interactive editor
+- sometimes you "play" the game, sometimes you pop out to edit the game
+- lots of internal tools and proprietary
 
 ## Why Care About Code
+
+- why should we even think about code at all if it can all be AI written anyway
+- feels much like asking why think about materials when a crane will assemble your house anyway
+- idea of just generating bytecode _directly and only_ is fanciful and basically a meme
+- it makes very little sense, why would we waste tokens on less maintainable code with fewer guarantees
+- there is a reason humans have evolved higher level languages, and while we may not settle at the exact same level of abstraction (indeed, TS++ draws the lines a little differently), it will almost certainly not be "generate machine code directly" for general purpose software
 
 - there is not a single test, or suite of tests, mathematical proof, or specific gate that you can run to convince me that some non-trivial program is correct (irrespective of human written or not)
 - correctness = alignment + visibility
@@ -55,8 +61,10 @@ author: "Florian"
 - correctness is iterative, the shape is changing
 - correctness must be specified acrosss many layers to systematically exclude all the things we do _not_ want
 
-- our tools for writing, interacting with, understanding code are hopelessly primitive
-- if everything is code, how do we make sure it's right?
+- our tools for writing, interacting with, understanding code are pretty primitive
+- if everything is code, how do we make sure it's the right code?
+- "oh just have the AI tell you if the code is right" but again what is right?
+- (in this sense, the "alignment problem" feels much more like a product and legibility problem, and certainly not _merely_ an intelligence problem, which is short term bearish but long term very bullish)
 - this does not magically go away with more abstractions or "smarter AI"
 - understand the shape of software and the space of all possible software
 - code is going to run everything (literally)
@@ -64,11 +72,12 @@ author: "Florian"
 - study software and code
 - uncover the true nature of software
 
-- incremental precision
-- who measures the measurer? how do we know that the 1kg calibration stone is really exactly 1kg?
+- incremental, granular precision
+- who measures the measurer? where is the kernel of truth?
 - an equivalent problem with proof systems (hello Gödel)
-- alignment requires precision
-- precision must be built on a solid foundation, incrementally
+- alignment requires visibility, we cannot align what we cannot see
+- need a common vocabulary
+- visibility and precision must be built on a solid foundation, incrementally
 - precision requires looking at the code, systems
 - .. from many angles, in detail, high low, in motion, statically, all sorts of dynamics, ...
 - incremental granularity (a la casey muratori)
@@ -76,50 +85,58 @@ author: "Florian"
 
 ## Why "Human-First"
 
-- there is a popular current of "agent first design", but I don't really know what that means, beyond just building software in the way we should have done anyway.
+- there is a popular current of "agent first design", and a bunch of developer-adjacent tools are being rebuilt to become "agent native".
+- I don't really know what that means, beyond good APIs, high performance, and .. just building software in the way we should have done anyway.
 - human-first design
-- curious trend of "agent native" programming tools
-- common theme seems to be in _removing_ me from the details, and "just have humans give high level direction"
-- I've tried that, it doesn't work, I don't want to do that
-- I want to be _more_ in the details than ever, I want the code to be right and look right, I want to understand every byte, every cycle, every pixel.
 
 - so "agent native" makes for good marketing and pitch decks, but means little in practice
 - most things that are "good for agents" - fast iteration, clean boundaries, programmable software - are good for humans too, we just haven't had the opportunity to the big rewrite until now
 - and there also just hasn't been a goodopportunity to reconsider deepset habits yet 
 
 - programming is fundamentally about problem solving
-- we used to do that by typing every character, now we can - sometimes - work at a higher level. but we must still understand, or the software sits in some weird disconnected castle in the sky that serves nobody
-- on one hand, I'm lazy, and don't want to learn new stuff unless absolutely necessary (or really interesting)
-- tools for those who still care
+- common theme seems to be in _removing_ me from the details, and "just have humans give high level direction"
+- I've tried that, it doesn't work, I don't want to do that
+- I want to be _more_ in the details than ever, I want the code to be right and look right, I want to understand every byte, every cycle, every pixel.
+- we used to solve problems by a manual next-character-predictor with a keyword, now we can often work at a higher level.
+- but we must still understand, or the software sits in some weird disconnected castle in the sky that serves nobody
+- (well over a year of "vibe coding" has shown this pretty concolusively)
 
 - there is something beautiful about doing the most with the fewest possible parts
-- a minimal, simple language like C or even Go - it's genuinely pleasing to get so much out of relatively little syntax that covers so many use cases
+- a minimal, simple language like C or even Go - though very few people would have called either "minimal" at the time they were introduced - is elegant
+- it's genuinely pleasing to get so much out of relatively little syntax that covers so many use cases
 - the carcinisation of (managed) languages
 - universalism, complete vs minimalism, and expressivity
 - Go and generics, Java / C# and unsafe / structs / ref, ...
 - JVM/CLR by default, Rust on demand
 
-## Why Not Reinvent Everything
+## Why Not Reinvent _Everything_
+
+- there is already wide range of prior art in the realm of "TS ergonomics with systems performance", but that is just one aspect of what we'Re trying to do here
+- so, before doing something new, the first question is: why not extend what already exists
+- static hermes, assembly script, ...
+- all in - not incrementally adoptable.
+- (though we do have C ABI ofc)
+- fully standardized across the stack
 
 - if we finally have the unique opportunity to build a new programming system, why not just .. throw everything away and start from scratch?
-- there are undoubtedly many suboptimal choices embedded deep into contemporary programming systems
-- pragmatic perfection
-- all things considered, if you take this premise I have laid out and contrast it with the actual Destack design, it's quite conservative
-- I'm not proposing a radical change in how we program, necessarily, or even any wild new programming concepts that don't already exist. the language is quite conservative, and os on
-- it's just putting it all together in a coherent and sensible way
-
-- the ergonomic ladder of TS++ between TS -> Rust
-- don't try to be cute or clever or fancy
-- don't "fix" what's not badly broken
-- only use boring ideas already proven by other languages / libraries / ..
-
+- there are all these suboptimal choices embedded deep into contemporary programming systems
+- soo "why not fix all the problems"
+- what is the "*ideal* system"
 - "second system effect"
-- "why not fix all the problems"
 - "boiling the ocean"
-- the "ideal system"
 - if we can port to whatever we want, why not do something entirely new?
-- safety, safety, and "safety"
-- aliasing mutable borrows, the loss of a bit of entropy with `&T`
+
+- why innovate here? what is the ideal final system?
+- where do we begin change? where do we want to end up?
+- what is the ideal final system?
+
+- pragmatic perfection
+- I don't want to learn your very smart totally new and totally different language
+- I like imperative programming
+- I want to use the Web, basically TypeScript, and build with stuff I'm familiar with
+- I want to use what I already know, with minimal new learning
+- Predictable, known behavior - even if imperfect - is better than something totally new, theoretically perfect thing
+- (besides, we usually figure out that the grass isn't quite greener anyway..)
 
 - colored functions are fine, and nice and familiar, it's just an effect
 - Promises are fine actually
@@ -127,6 +144,11 @@ author: "Florian"
 - bigint and string are fine
 - all in all, it's fine, and most importantly: it's familiar
 - (... and it's how the web works!)
+
+- the ergonomic ladder of TS++ between TS -> Rust
+- don't try to be cute or clever or fancy
+- don't "fix" what's not badly broken
+- only use boring ideas already proven by other languages / libraries / ..
 
 ---
 
@@ -137,12 +159,13 @@ author: "Florian"
 - (it's not entirely clear what to _do_ with 1M lines of unaudited C code, but the tests it wrote are green. success?) 
 - the more interesting question however is: now that we can translate software with ease, now that most code is no longer written directly by humans, and now that .. which language and stack should we end up with?
 
+- so what do we want, what do I want?
+- well some good 15+ years writing software in all kinds of language, I have accumulated a wishlist:
+- basically: TS but JVM/CLR with som Rust-y bits? kinda? like that's actually it.
 - what is the minimum set of changes / additions we need to good prior art to get what we need
 - safe, sound, predictable
 - about two dozen or so key decisions to be made when building "typescript++"
-- how dynamic do we want to support?
-- do we want to support "escape hatches"? 
-- any sort of backward compatibility
+- and they roughly split into: how do we support which types, which expressions do we add, how do we deal with memory and layouts, and where does any of this actually run
 
 ## Types
 
@@ -158,6 +181,9 @@ author: "Florian"
 
 - TS++ fashions itself as a "superset of a strict subset of TS", which is vaguely reminiscient of the relationship between C and C++
 - the obvious first cut is to remove any express soundness holes from TS. 
+
+### Soundness
+
 - no `any`, no `as` (where that is unsound), no array holes, no predicate functions (e.g. `isUser(user: any): user is User` is unsound)
 - and certainly no dynamic JS shenanigans or monkey patching, so goodbyte `__proto__` or anything like that
 - no `Object.isOwnProperty`, ...
@@ -171,33 +197,43 @@ Many of the most egregious flags don't even come up in TS++ because we don't all
 - `strictFunctionTypes`: Checks function parameters covariantly.
 - `strictNullChecks`: `null` and `undefined` are distinct types.
 
-### Proper Primitives
+### Primitives
 
 - number, yes, but int32, int64, float32, character too
 - no real symbol use case left, so no `symbol` or `unique symbol`
+- string and bigint are just regular classes (String, BigInt)
+- variable sized integers
+- isize / usize
+- (sequence collections default to isize instead of number)
+
+### Enums
+
+- enums are reasonably simple
+- string and integer
+- auto enum
 
 ### Arrays, Slices and Tuples
 
 - tuples, slices, inline arrays and the rest
+- no more array tuples (need to free up `[T]` and `[T; N]`)
 - fixed arrays `[T; N]`
 
 ### Classes
 
+- classes are generally pretty straightforward, it's just about which tradeoffs do we want?
 - JVM? C++? Go?
-- zero overhead? vtable pointers?
+- zero overhead? vtable pointers? explicit or implicit virtual?
 - allocation metadata sidetable on the heap / runtime
-
-### Enums
-
-- string and integer
-- auto enum
+- classes are reference types by default, alias freely
 
 ### This
 
-- implicit and explicit this
-- value and borrowed forms
+- in TS, like in many managed languages, we can just omit "this" in a method and it will just default to the aliasing managed reference
+- we support this ofc as well:
 - `this` = `&exclusive T` for value types
 - `this` = `Managed<T>` for reference types
+- implicit and explicit this
+- value and borrowed forms
 
 ### Nominality
 
@@ -205,20 +241,12 @@ Many of the most egregious flags don't even come up in TS++ because we don't all
 - proper nominality and newtypes
 - newtype, newtype traits
 
-### Narrowing
-
-- instanceof, typeof, is
-- type narrowing as usual, narrowing is just doing runtime type checking
-- typeof in type position
-- is for type queries
-- instanceof for classes
-
 ### Readonly
 
 - deep readonly
 - const is *not* readonly (just like in TS)
 
-### Type Aliases and Algebra
+### Algebra
 
 - what doees `type Point = { x: number; y: number }` mean?
 - can I pass `{ x: 0, y: 1, z: 2 }` to a function expecting a `Point`? (no, has to match exactly, in order)
@@ -231,7 +259,7 @@ Many of the most egregious flags don't even come up in TS++ because we don't all
 - regular unions
 - nominal and structural discriminated unions
 
-### Structural Interfaces
+### Interfaces
 
 - structural interfaces are a key part of typescript
 - `type` vs `interface`
@@ -258,6 +286,14 @@ Many of the most egregious flags don't even come up in TS++ because we don't all
 - stay the same basically
 - in, out, in out, measured variance
 - generalised `const` parameter for value generics (literal types!)
+
+### Narrowing
+
+- instanceof, typeof, is
+- type narrowing as usual, narrowing is just doing runtime type checking
+- typeof in type position
+- is for type queries
+- instanceof for classes
 
 ## Expressions
 
@@ -322,10 +358,11 @@ Many of the most egregious flags don't even come up in TS++ because we don't all
 
 ### Const Evaluation
 
+- originally envisioned something closer to Zig's comptime (or even Jai's version of it)
 - `const <expr>` and `const { ... }` for comptime evaluation
 - `const function` for comptime functions
 
-### Functions and Captures
+### Functions, Lambdas and Captures
 
 - lambdas (fat pointers with env)
 - `Function`, `^Function`, `&Function`
@@ -336,6 +373,7 @@ Many of the most egregious flags don't even come up in TS++ because we don't all
 - proper async
 - keep Promise for aliased async
 - introduce Task for structured affine concurrency (same async/await model)
+- (Promise = managed class, Task = value type, Promise requires aliasable / copyable type)
 - fiber-based execution (e.g. JVM's new model)
 
 ### Panics, Traps
@@ -361,6 +399,8 @@ Many of the most egregious flags don't even come up in TS++ because we don't all
 
 ### Representation
 
+- so, TS++ should behave as much as TS as we can physically manage while keeping sane and predictable performance _and_ behavior
+- (and something we can actually build into a good toolchain)
 - @repr
 - layout
 
@@ -380,9 +420,7 @@ Many of the most egregious flags don't even come up in TS++ because we don't all
 - reference types are reference types, value types are value types
 - ^T, T, &T, *T, ...
 - Managed<T>, Owned<T>, ...
-
-### References and Pointers
-
+- references and pointers
 - arrghh yes seriously pointers in TypeScript let's go
 
 ### Borrowing
@@ -418,9 +456,18 @@ Many of the most egregious flags don't even come up in TS++ because we don't all
 ## Runtime
 
 - again keep conceptual muscle memory
-- familiar mental model
-- package.json -> destack.json
-- combine disparate pieces
+- as with everything else try to keep as familiar as possible
+- json based, json is nice, let's use use that
+- package.json is okay, let's just use that -> destack.json
+- familiar mental model, just combine the disparate pieces
+
+### Burning the Boats
+
+- No Backward Compatibility
+- first and most serious cut is to drop support for existing .ts/.tsx alltogether
+- no NPM, no JS bridge, no TS "best effort", no fallbacks, nada.
+- standardization, integration, .. the whole thing only works with a blank slate
+- (I had to figure this out the hard way)
 
 ### destack.json
 
@@ -462,10 +509,7 @@ Many of the most egregious flags don't even come up in TS++ because we don't all
 - Generalised Module
 - x.ds, x.test.ds, x.whatever.ds
 
-### Burning the Boats
+## So
 
-- No Backward Compatibility
-- first and most serious cut is to drop support for existing .ts/.tsx
-- standardization, integration, .. the whole thing only works with a blank slate
-- (I had to figure this out the hard way)
-- no NPM, no JS bridge, no TS "best effort"
+- so what
+- first, most central piece of the puzzle
