@@ -50,8 +50,6 @@ pub(crate) struct VmSetup;
 
 /// Initialized VM machine.
 pub(crate) struct VmMachine {
-    /// Immutable Program retained by this machine.
-    program: Arc<program::Program>,
     /// Footprint entry function.
     entry: FunctionId,
     /// Reusable footprint execution fiber.
@@ -62,6 +60,8 @@ pub(crate) struct VmMachine {
     allocation_plans: Arc<[Option<AllocationPlan>]>,
     /// Runtime services used by direct VM execution.
     runtime: VmRuntime,
+    /// Runtime constant byte space.
+    constant_space: StaticSpace,
     /// Worker static byte space.
     local_static: StaticSpace,
     /// Runtime shared static byte space.
@@ -187,15 +187,17 @@ impl VmMachine {
         let mut shared = setup.shared_heap(memory.clone());
         let shared_mark_worker = shared.register_mark_worker();
         let shared_cache = shared.allocation_cache();
+        let (constant_space, immortal_space, shared_static) = program
+            .materialize_runtime_statics(memory.clone())
+            .expect("footprint runtime statics should build");
         let local_static = program
-            .materialize_local_statics(memory.clone())
+            .materialize_local_statics(
+                memory.clone(),
+                &constant_space,
+                &immortal_space,
+                &shared_static,
+            )
             .expect("footprint local statics should build");
-        let shared_static = program
-            .materialize_shared_statics(memory.clone())
-            .expect("footprint shared statics should build");
-        let immortal_space = program
-            .materialize_immortals(memory.clone())
-            .expect("footprint immortals should build");
         shared.set_immortal_range(MemoryRange {
             offset: immortal_space.offset(),
             byte_len: immortal_space.byte_len(),
@@ -214,12 +216,12 @@ impl VmMachine {
             .expect("footprint fiber should reserve");
 
         Self {
-            program,
             entry,
             fiber,
             machine,
             allocation_plans,
             runtime: VmRuntime,
+            constant_space,
             local_static,
             shared_static,
             immortal_space,
@@ -245,7 +247,7 @@ impl VmMachine {
                 local_statics: &mut self.local_static,
                 shared_statics: &mut self.shared_static,
                 immortals: &self.immortal_space,
-                constants: self.program.constants(),
+                constants: &self.constant_space,
             },
         };
         let outcome = self

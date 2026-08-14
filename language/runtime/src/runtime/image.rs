@@ -32,6 +32,8 @@ pub struct RuntimeImage {
     pub engine: EngineImage,
     /// Captured runtime-owned shared heap state.
     pub shared_heap: heap::SharedHeapImage,
+    /// Captured immutable constant bytes.
+    pub constant_space: program::StaticSpaceImage,
     /// Captured runtime-owned immortal object bytes.
     pub immortal_space: program::StaticSpaceImage,
     /// Captured runtime-owned shared static bytes.
@@ -53,6 +55,7 @@ impl PartialEq for RuntimeImage {
             && is_same_program
             && self.engine == other.engine
             && self.shared_heap == other.shared_heap
+            && self.constant_space == other.constant_space
             && self.immortal_space == other.immortal_space
             && self.shared_static == other.shared_static
             && self.default_worker_id == other.default_worker_id
@@ -78,6 +81,7 @@ impl Runtime {
             program: self.program.clone(),
             engine: self.engine.image(),
             shared_heap: self.shared_heap.image(),
+            constant_space: self.constant_space.image(),
             immortal_space: self.immortal_space.image(),
             shared_static: self.shared_static.image(),
             next_worker_cursor: self.next_worker_cursor,
@@ -161,8 +165,9 @@ impl Runtime {
         );
         let shared_collection = SharedCollectionState::new(&collector);
         let allocation_plans = self.allocation_plans.clone();
+        let constant_space = self.constant_space.fork(memory.clone());
         let immortal_space = self.immortal_space.fork(memory.clone());
-        let shared_static = self.shared_static.fork(memory);
+        let shared_static = self.shared_static.fork(memory.clone());
 
         // fork each owned worker first
         let mut workers = BTreeMap::new();
@@ -192,7 +197,7 @@ impl Runtime {
             shared_heap,
             shared_collection,
             allocation_plans,
-            constant_space: self.constant_space,
+            constant_space,
             immortal_space,
             shared_static,
             workers,
@@ -222,7 +227,8 @@ impl Runtime {
         let program = image.program.clone();
         let binding_table = restore.binding_table(&program)?;
         let engine = Engine::restore(program.clone(), image.engine, restore.native_loader())?;
-        let constant_space = *program.constants();
+        let constant_space =
+            program::StaticSpace::from_image(memory.clone(), &image.constant_space);
         let local_heap_options = image
             .options
             .heap

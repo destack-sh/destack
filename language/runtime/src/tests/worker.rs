@@ -38,7 +38,7 @@ pub(crate) struct TestWorker {
     /// Shared collection state used by the worker.
     collection: Arc<SharedCollectionState>,
     /// Immutable program constant space used by the worker.
-    constant_space: program::StaticImage,
+    constant_space: program::StaticSpace,
     /// Immortal space used by the worker.
     immortal_space: program::StaticSpace,
     /// Runtime-owned shared static bytes used by the worker.
@@ -104,13 +104,9 @@ impl TestWorker {
             .plan_allocations(&local_heap_options, shared_heap.options())
             .expect("allocation plans should build")
             .into();
-        let constant_space = *program.constants();
-        let immortal_space = program
-            .materialize_immortals(world.memory.clone())
-            .expect("test immortals should materialize");
-        let shared_static = program
-            .materialize_shared_statics(world.memory.clone())
-            .expect("shared test statics should build");
+        let (constant_space, immortal_space, shared_static) = program
+            .materialize_runtime_statics(world.memory.clone())
+            .expect("test runtime statics should materialize");
 
         // allocate the isolated runtime and worker identities
         let runtime_id = world
@@ -140,6 +136,9 @@ impl TestWorker {
             &mut world.state,
             &shared_heap,
             &allocation_plans,
+            &constant_space,
+            &immortal_space,
+            &shared_static,
             MemoryRange {
                 offset: immortal_space.offset(),
                 byte_len: immortal_space.byte_len(),

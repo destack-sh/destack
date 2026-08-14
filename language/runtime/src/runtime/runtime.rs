@@ -42,7 +42,7 @@ pub struct Runtime {
     /// Allocation plans indexed by Program allocation site id.
     pub(crate) allocation_plans: Arc<[Option<heap::AllocationPlan>]>,
     /// Immutable program constant space.
-    pub(crate) constant_space: program::StaticImage,
+    pub(crate) constant_space: program::StaticSpace,
     /// Runtime-owned immortal object space.
     pub(crate) immortal_space: program::StaticSpace,
     /// Runtime-owned shared static space.
@@ -109,9 +109,8 @@ impl Runtime {
         let worker_options = WorkerOptions::default();
 
         // materialize runtime-owned storage before publishing topology
-        let constant_space = *program.constants();
-        let immortal_space = program.materialize_immortals(memory.clone())?;
-        let shared_static = program.materialize_shared_statics(memory.clone())?;
+        let (constant_space, immortal_space, shared_static) =
+            program.materialize_runtime_statics(memory.clone())?;
         let local_heap_options = options
             .heap
             .local_heap_options()
@@ -140,6 +139,9 @@ impl Runtime {
             world,
             &shared_heap,
             &allocation_plans,
+            &constant_space,
+            &immortal_space,
+            &shared_static,
             immortal_range,
             runtime_id,
             default_worker_id,
@@ -320,6 +322,9 @@ impl Runtime {
             world,
             &self.shared_heap,
             &self.allocation_plans,
+            &self.constant_space,
+            &self.immortal_space,
+            &self.shared_static,
             self.immortal_range(),
             self.id,
             worker_id,

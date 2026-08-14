@@ -20,7 +20,7 @@ fn test_execute_binding_definition() {
 export function task(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#,
@@ -180,7 +180,7 @@ entry(v0: int32):
 export function fallback(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#,

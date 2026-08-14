@@ -155,6 +155,9 @@ impl Worker {
         world: &mut WorldState,
         shared_heap: &Arc<heap::SharedHeap>,
         allocation_plans: &Arc<[Option<heap::AllocationPlan>]>,
+        constants: &program::StaticSpace,
+        immortals: &program::StaticSpace,
+        shared_statics: &program::StaticSpace,
         immortal_range: MemoryRange,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
@@ -185,7 +188,12 @@ impl Worker {
         heap.set_immortal_range(immortal_range);
         let machine = engine.spawn(shared_heap.memory().clone())?;
         let handshake = Arc::new(Handshake::new());
-        let local_static = program.materialize_local_statics(shared_heap.memory().clone())?;
+        let local_static = program.materialize_local_statics(
+            shared_heap.memory().clone(),
+            constants,
+            immortals,
+            shared_statics,
+        )?;
         let shared_mark_worker = shared_heap.register_mark_worker();
         let shared_cache = shared_heap.allocation_cache();
         let event_loop = EventLoop::default();
