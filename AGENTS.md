@@ -248,6 +248,7 @@ else {
 - For the avoidance of doubt, tests asserting stuff like `x.contains('part of foo')` instead of the full expected string and anything like this are not good.
 - For any non-trivial assertions you should comment the logic block like we do with any other logic block, though you don't need to comment _every_ logic block as with regular/main logic.
 - If the tests are slow - and by that we mean slower than a few ms, tens of ms tops - we should investigate why and figure out what the fundamental model issues are.
+- When running tests, always put a tight timeout on them. Figure out a way. Like with cargo you can build first, separately, no timeout, then run the test with a tight timeout. Always do this so we catch loops and slowness explicitly. Slow tests are a hard failure mode.
 
 ### Formatting
 
