@@ -443,15 +443,15 @@ fn access_marker_position(
     left_id: LocalNodeId<Expression>,
     is_optional: bool,
 ) -> Option<PostfixPosition> {
-    // optional accesses print `?.`; try receivers keep the plain dot
+    // optional accesses print `?.`; absorbed maybe receivers keep their authored marker
     if is_optional {
         return Some(PostfixPosition::Direct);
     }
-    let Expression::Maybe { .. } = tree.get(left_id) else {
+    let Expression::Maybe { position, .. } = tree.get(left_id) else {
         return None;
     };
 
-    Some(PostfixPosition::Indirect)
+    Some(*position)
 }
 
 /// Return whether the normalized chain contains at least one call-like operation.

@@ -33,7 +33,7 @@ pub(crate) fn format_comment<'ast>(
 fn format_comment_group<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comment: Comment,
-) -> FormatResult<Span> {
+) -> FormatResult<(Span, bool)> {
     if let Some(span) = format_documentation_comment(f, comment)? {
         let is_marked = f
             .context_mut()
@@ -45,7 +45,7 @@ fn format_comment_group<'ast>(
             });
         }
 
-        return Ok(span);
+        return Ok((span, true));
     }
 
     f.context_mut().comments_mut().mark_comment_printed(comment);
@@ -57,7 +57,7 @@ fn format_comment_group<'ast>(
         if block_comment_is_alignable(comment_source) {
             let mut lines = comment_source.lines();
             let Some(first_line) = lines.next() else {
-                return Ok(comment.span);
+                return Ok((comment.span, false));
             };
 
             write!(f, [text(first_line.trim_end())])?;
@@ -73,13 +73,13 @@ fn format_comment_group<'ast>(
                 )?;
             }
 
-            return Ok(comment.span);
+            return Ok((comment.span, false));
         }
 
         let mut normalized_comment = String::with_capacity(comment_source.len());
         let mut lines = comment_source.lines();
         let Some(first_line) = lines.next() else {
-            return Ok(comment.span);
+            return Ok((comment.span, false));
         };
 
         normalized_comment.push_str(first_line.trim_end());
@@ -90,12 +90,12 @@ fn format_comment_group<'ast>(
         }
 
         write!(f, [copied_text(&normalized_comment)])?;
-        return Ok(comment.span);
+        return Ok((comment.span, false));
     }
 
     write!(f, [text(comment_source.trim_end())])?;
 
-    Ok(comment.span)
+    Ok((comment.span, false))
 }
 
 /// Return the number of source comments covered by one formatted span.
@@ -141,12 +141,13 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for FormatLeadingComments<'_> {
 
             while let Some(first) = comments.get(index).copied() {
                 // render one documentation group or ordinary comment
-                let span = format_comment_group(f, first)?;
+                let (span, rendered_documentation) = format_comment_group(f, first)?;
                 let count = comment_group_count(&comments[index..], span)?;
                 let next_index = index + count;
                 let comment = comments[next_index - 1];
 
-                if comment.is_block() {
+                // canonical documentation lines always end their output line
+                if comment.is_block() && !rendered_documentation {
                     match source.lines_after(comment.span.end) {
                         0 => {
                             let should_nestle = comments.get(next_index).is_some_and(|next| {
@@ -304,6 +305,7 @@ pub(crate) fn write_comment_slice<'ast>(
 ) -> FormatResult<()> {
     let source = f.context().source_text();
     let mut previous_comment = None;
+    let mut previous_rendered_documentation = false;
     let mut index = 0;
 
     while let Some(comment) = comments.get(index).copied() {
@@ -318,7 +320,8 @@ pub(crate) fn write_comment_slice<'ast>(
         match lines_before {
             0 if should_nestle => {}
             0 => {
-                if previous_comment.is_some_and(Comment::is_line) {
+                if previous_comment.is_some_and(Comment::is_line) || previous_rendered_documentation
+                {
                     write!(f, [hard_line_break()])?;
                 } else {
                     write!(f, [space()])?;
@@ -332,10 +335,11 @@ pub(crate) fn write_comment_slice<'ast>(
             }
         }
 
-        let span = format_comment_group(f, comment)?;
+        let (span, rendered_documentation) = format_comment_group(f, comment)?;
         let count = comment_group_count(&comments[index..], span)?;
         index += count;
         previous_comment = Some(comments[index - 1]);
+        previous_rendered_documentation = rendered_documentation;
     }
 
     Ok(())
@@ -350,7 +354,7 @@ pub(crate) fn write_comment_sequence<'ast>(
         return Ok(());
     };
 
-    let span = format_comment_group(f, first_comment)?;
+    let (span, _) = format_comment_group(f, first_comment)?;
     let count = comment_group_count(comments, span)?;
 
     write_comment_slice(f, &comments[count..])

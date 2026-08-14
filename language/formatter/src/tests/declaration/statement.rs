@@ -409,21 +409,52 @@ declare let sessionStorage: Storage;
 /** Provides access to the Cache API. */
 declare let caches: CacheStorage;
 "#,
-        r#"/**
- * Deno's `sessionStorage` API operates similarly to the {@linkcode localStorage} API.
- *
- * @example
- *     ```ts
- *     const value = sessionStorage.getItem("key");
- *     console.log(value); // Output: "value"
- *     ```
- */
+        r#"/// Deno's `sessionStorage` API operates similarly to the {@linkcode localStorage} API.
+///
+/// @example
+/// ```ts
+/// const value = sessionStorage.getItem("key");
+/// console.log(value); // Output: "value"
+/// ```
 declare let sessionStorage: Storage;
-/** @category Cache */
-/** Provides access to the Cache API. */
+/// @category Cache
+/// Provides access to the Cache API.
 declare let caches: CacheStorage;
 "#,
         FileType::DestackDeclaration,
+    );
+}
+
+/// Documentation prose should keep authored line breaks between sentences.
+#[test]
+fn test_format_doc_comment_keeps_authored_line_breaks() {
+    assert_format_program!(
+        r#"/// Atomically replaces the value at `ptr` with `value`.
+/// Returns the previous value.
+const value = 1;
+"#,
+        r#"/// Atomically replaces the value at `ptr` with `value`.
+/// Returns the previous value.
+const value = 1;
+"#,
+        FileType::Destack,
+    );
+}
+
+/// Documentation prose should wrap overlong lines without merging the next authored line.
+#[test]
+fn test_format_doc_comment_wraps_overlong_authored_line() {
+    assert_format_program!(
+        r#"/// Atomically replaces the value at `ptr` with `value` while holding the global runtime lock for the full call duration.
+/// Returns the previous value.
+const value = 1;
+"#,
+        r#"/// Atomically replaces the value at `ptr` with `value` while holding the global runtime lock for
+/// the full call duration.
+/// Returns the previous value.
+const value = 1;
+"#,
+        FileType::Destack,
     );
 }
 
@@ -436,7 +467,7 @@ fn test_format_program_keeps_next_declaration_doc_comment_leading() {
 declare const second: string
 "#,
         r#"declare const first: string;
-/** Doc */
+/// doc
 declare const second: string;
 "#,
         FileType::DestackDeclaration,

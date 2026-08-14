@@ -14,6 +14,13 @@ use crate::{DestackFormatContext, DestackFormatOptions, statement_list};
 
 const MAX_PARSE_ERROR_MESSAGES: usize = 8;
 
+/// Documentation diagnostics that never block formatting.
+const DOCUMENTATION_DIAGNOSTIC_IDS: &[&str] = &[
+    "invalid-documentation-owner",
+    "missing-documentation-target",
+    "duplicate-documentation-target",
+];
+
 /// One formatter failure over one whole source file.
 #[derive(Debug, Clone)]
 pub struct FormatFileError {
@@ -86,10 +93,7 @@ pub fn format_file_source(
     options: FormatterOptions,
 ) -> Result<String, FormatFileError> {
     let formatted = format_source(file, source, options)?;
-    if formatted
-        .diagnostics
-        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
-    {
+    if has_blocking_diagnostics(&formatted.diagnostics) {
         return Err(format_diagnostic_error(&formatted.diagnostics));
     }
 
@@ -109,7 +113,7 @@ pub fn format_source(
     let mut parser = source_parser(parser_file.clone(), language_type);
     let expressions = parser.parse();
     let diagnostics = parser.diagnostics();
-    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+    if has_blocking_diagnostics(&diagnostics) {
         return Ok(FormattedFile {
             text: source.to_owned(),
             diagnostics,
@@ -153,7 +157,7 @@ pub fn format_source_range(
     let mut parser = source_parser(parser_file.clone(), language_type);
     let expressions = parser.parse();
     let diagnostics = parser.diagnostics();
-    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+    if has_blocking_diagnostics(&diagnostics) {
         return Ok(FormattedRange {
             edit: None,
             diagnostics,
@@ -239,6 +243,14 @@ fn source_parser(file: Arc<File>, language_type: LanguageType) -> Parser {
         CommentRetention::All,
         Arc::new(StringPool::new()),
     )
+}
+
+/// Return whether parser diagnostics block formatting.
+fn has_blocking_diagnostics(diagnostics: &DiagnosticCollection) -> bool {
+    diagnostics.iter().any(|diagnostic| {
+        diagnostic.severity == DiagnosticSeverity::Error
+            && !DOCUMENTATION_DIAGNOSTIC_IDS.contains(&diagnostic.id.as_str())
+    })
 }
 
 /// Convert parser diagnostics to a formatter error.

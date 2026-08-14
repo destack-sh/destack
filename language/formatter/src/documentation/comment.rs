@@ -47,18 +47,13 @@ fn documentation_for_comment<'a>(
             message: "documentation comment has multiple owners",
         });
     }
+    // format unowned documentation as an ordinary comment
     let Some((_, node_id)) = nodes.first() else {
-        return Err(FormatError::SyntaxError {
-            message: "documentation comment has no owner",
-        });
+        return Ok(None);
     };
-    let documentation =
-        context
-            .tree
-            .get_documentation(*node_id)
-            .ok_or(FormatError::SyntaxError {
-                message: "documented node has no documentation",
-            })?;
+    let Some(documentation) = context.tree.get_documentation(*node_id) else {
+        return Ok(None);
+    };
 
     Ok(Some(documentation))
 }

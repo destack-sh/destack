@@ -18,7 +18,7 @@ use crate::declaration::{
     format_using_statement_expression,
 };
 use crate::tree::tree_control_child_should_expand;
-use destack_dir::{Catch, Comment, Expression, IfForm, LocalNodeId, StringId, TokenType};
+use destack_dir::{Catch, Expression, IfForm, LocalNodeId, StringId, TokenType};
 use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
@@ -272,20 +272,23 @@ fn format_statement_label<'ast>(
     target: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     // collect the comments between the label colon and its target
-    let target_span = f.context().span(target);
-    let separator_comments =
-        if let Some(separator_token) = f.context().previous_token_before_span(target_span) {
-            if separator_token.token.ty() == TokenType::Colon {
-                let comments = f.context().comments();
-                comments
-                    .comments_in_range(separator_token.span.end, target_span.start)
-                    .to_vec()
-            } else {
-                Vec::<Comment>::new()
-            }
-        } else {
-            Vec::<Comment>::new()
-        };
+    let context = f.context();
+    let separator_comments = context
+        .tree
+        .get_main_span(target)
+        .and_then(|label_span| context.next_token_after_span(label_span))
+        .filter(|separator_token| separator_token.token.ty() == TokenType::Colon)
+        .and_then(|separator_token| {
+            let target_token = context.next_token_after_span(separator_token.span)?;
+
+            Some(
+                context
+                    .comments()
+                    .comments_in_range(separator_token.span.end, target_token.span.start)
+                    .to_vec(),
+            )
+        })
+        .unwrap_or_default();
     let has_line_comment = separator_comments.iter().any(|comment| comment.is_line());
 
     // keep line comments ahead of the label, trailing comments after the colon

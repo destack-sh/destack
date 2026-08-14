@@ -91,10 +91,11 @@ impl<'a> DocumentationRenderer<'a> {
         let mut previous = None;
         for tag in &documentation.tags {
             let follows_prose = previous.is_none();
-            let follows_example = previous.is_some_and(DocumentationTag::is_example);
-            let starts_example = tag.is_example();
+            let follows_block =
+                previous.is_some_and(|tag: DocumentationTag| tag.is_example() || tag.is_section());
+            let starts_block = tag.is_example() || tag.is_section();
             let needs_blank =
-                !self.lines.is_empty() && (follows_prose || follows_example || starts_example);
+                !self.lines.is_empty() && (follows_prose || follows_block || starts_block);
             if needs_blank && !self.lines.last_is_empty() {
                 self.lines.push_empty();
             }
@@ -131,6 +132,12 @@ impl<'a> DocumentationRenderer<'a> {
                 let markdown = MarkdownFormatter::new(self.width, self.options).format(markdown)?;
                 if !markdown.is_empty() {
                     self.lines.push(markdown);
+                }
+            }
+            DocumentationTag::Section { markdown } => {
+                // keep authored section lines verbatim
+                for line in self.strings.get(*markdown).split('\n') {
+                    self.lines.push(line);
                 }
             }
         }

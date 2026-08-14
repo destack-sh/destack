@@ -282,9 +282,9 @@ fn test_format_type_member_doc_comment_after_missing_terminator() {
 }
 "#,
         r#"interface WebidlErrors {
-    /** Instantiate an error */
+    /// @description Instantiate an error
     exception(opts: { header: string; message: string }): TypeError;
-    /** Instantiate an error when conversion from one type to another has failed */
+    /// @description Instantiate an error when conversion from one type to another has failed
     conversionFailed(opts: { prefix: string; argument: string; types: string[] }): TypeError;
 }
 "#,
@@ -304,7 +304,7 @@ fn test_format_type_member_comment_only_tail() {
 }
 "#,
         r#"interface BlobPropertyBag {
-    /** Set a default "type". Not yet implemented. */
+    /// Set a default "type". Not yet implemented.
     type?: string;
     /** Not implemented in Bun yet. */
     // endings?: "transparent" | "native";
@@ -333,7 +333,7 @@ fn test_format_type_member_blank_line_before_doc_comment() {
     method(options: {
         source: string;
 
-        /** Library names to link against */
+        /// Library names to link against
         library?: string[] | string;
     }): void;
 }
@@ -781,9 +781,8 @@ type A3 =
   | b;
 
 type A2 =
-  | /**
-     * 21
-     */ a
+  | /// 21
+    a
   | b;
 
 type A3 =
@@ -802,9 +801,8 @@ type A3 =
   | b;
 
 type A2 =
-  | /**
-     * 21
-     */ a
+  | /// 21
+    a
   | b;
 
 type A3 =
@@ -900,7 +898,8 @@ x: boolean }
             (
                 80,
                 r#"export type AddressAllocator =
-  /** Reserve a specific IP address. The pool is inferred from the address since IP pools cannot have overlapping ranges. */
+  /// Reserve a specific IP address. The pool is inferred from the address since
+  /// IP pools cannot have overlapping ranges.
   | {
       y: boolean;
     }
@@ -912,7 +911,8 @@ x: boolean }
             (
                 100,
                 r#"export type AddressAllocator =
-  /** Reserve a specific IP address. The pool is inferred from the address since IP pools cannot have overlapping ranges. */
+  /// Reserve a specific IP address. The pool is inferred from the address since IP pools cannot
+  /// have overlapping ranges.
   | {
       y: boolean;
     }
@@ -1128,8 +1128,7 @@ fn test_format_union_doc_head_width_behavior() {
             (
                 80,
                 r#"export type xxxxxxxxxxxxxx =
-  /** xxxx
-   */
+  /// xxxx
   | { xxxxxxxxxxxxxxx: true }
   | { xxxxxxxxxxxxxxx: false; xxxxxxxxxxxxxxx: bigint | null };
 "#,
@@ -1137,8 +1136,7 @@ fn test_format_union_doc_head_width_behavior() {
             (
                 100,
                 r#"export type xxxxxxxxxxxxxx =
-  /** xxxx
-   */
+  /// xxxx
   { xxxxxxxxxxxxxxx: true } | { xxxxxxxxxxxxxxx: false; xxxxxxxxxxxxxxx: bigint | null };
 "#,
             ),

@@ -40,7 +40,7 @@ impl MarkdownFormatter<'_> {
         }
     }
 
-    /// Wrap one Markdown paragraph.
+    /// Wrap one Markdown paragraph preserving authored line breaks.
     pub(super) fn wrap_paragraph(
         &self,
         text: &str,
@@ -49,11 +49,6 @@ impl MarkdownFormatter<'_> {
         continuation_indent: usize,
         lines: &mut LineBuffer,
     ) {
-        let words = Self::words(text);
-        if words.is_empty() {
-            return;
-        }
-
         let first_width = width.saturating_sub(first_line_offset);
         let continuation_width = width.saturating_sub(continuation_indent);
         let indentation = Self::indentation_text(continuation_indent);
@@ -61,33 +56,39 @@ impl MarkdownFormatter<'_> {
         let mut line_width = 0;
         let mut is_first = true;
 
-        // append words until the current line is full
-        for word in words {
-            let word_width = Self::text_width(word);
-            let available = if is_first {
-                first_width
-            } else {
-                continuation_width
-            };
-            let separator_width = usize::from(!line.is_empty());
-            if !line.is_empty() && line_width + separator_width + word_width > available {
+        // wrap each authored line without refilling across line breaks
+        for authored in text.split('\n') {
+            // append words until the current line is full
+            for word in Self::words(authored) {
+                let word_width = Self::text_width(word);
+                let available = if is_first {
+                    first_width
+                } else {
+                    continuation_width
+                };
+                let separator_width = usize::from(!line.is_empty());
+                if !line.is_empty() && line_width + separator_width + word_width > available {
+                    Self::push_wrapped_line(&line, is_first, &indentation, lines);
+                    line.clear();
+                    line_width = 0;
+                    is_first = false;
+                }
+
+                if !line.is_empty() {
+                    line.push(' ');
+                    line_width += 1;
+                }
+                line.push_str(word);
+                line_width += word_width;
+            }
+
+            // end the output line at the authored line break
+            if !line.is_empty() {
                 Self::push_wrapped_line(&line, is_first, &indentation, lines);
                 line.clear();
                 line_width = 0;
                 is_first = false;
             }
-
-            if !line.is_empty() {
-                line.push(' ');
-                line_width += 1;
-            }
-            line.push_str(word);
-            line_width += word_width;
-        }
-
-        // append the remaining line
-        if !line.is_empty() {
-            Self::push_wrapped_line(&line, is_first, &indentation, lines);
         }
     }
 

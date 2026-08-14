@@ -45,19 +45,21 @@ impl MarkdownFormatter<'_> {
         width: usize,
     ) -> FormatResult<Cow<'code, str>> {
         // format a declared Destack language
-        if let Some(language) = language {
+        let file_type = if let Some(language) = language {
             let Some(file_type) = fenced_code_file_type(language) else {
                 return Ok(Cow::Borrowed(code));
             };
-            let formatted = format_embedded_code(code, width, self.options, file_type)?;
 
-            return Ok(Cow::Owned(formatted));
+            file_type
+        } else {
+            // use the surrounding source language when no language was declared
+            FileType::from(self.options.language_type)
+        };
+
+        // keep unformattable snippets verbatim
+        match format_embedded_code(code, width, self.options, file_type) {
+            Ok(formatted) => Ok(Cow::Owned(formatted)),
+            Err(_) => Ok(Cow::Borrowed(code)),
         }
-
-        // use the surrounding source language when no language was declared
-        let file_type = FileType::from(self.options.language_type);
-        let formatted = format_embedded_code(code, width, self.options, file_type)?;
-
-        Ok(Cow::Owned(formatted))
     }
 }
