@@ -26,6 +26,10 @@ const cacheDirectory = join(tmpdir(), "destack-highlight-cache");
 const highlighterFingerprint = createHash("sha256").update(readFileSync(scriptFile)).digest("hex");
 
 const languages = {
+    bytecode: loadGrammar(
+        join(repositoryDirectory, "language/grammar/bytecode"),
+        "destack_bytecode",
+    ),
     destack: loadGrammar(join(repositoryDirectory, "language/grammar/destack"), "destack"),
     mir: loadGrammar(join(repositoryDirectory, "language/grammar/mir"), "mir"),
 };
@@ -114,8 +118,12 @@ function grammarFor(language) {
         return languages.destack;
     }
 
-    if (language === "mir" || language === "dsmir") {
+    if (language === "dsm" || language === "mir") {
         return languages.mir;
+    }
+
+    if (language === "dsa" || language === "bytecode") {
+        return languages.bytecode;
     }
 
     return undefined;
@@ -287,6 +295,10 @@ function captureKind(capture) {
     }
 
     if (capture === "variable" || capture.startsWith("variable.")) {
+        return "name";
+    }
+
+    if (capture === "label" || capture.startsWith("label.")) {
         return "name";
     }
 

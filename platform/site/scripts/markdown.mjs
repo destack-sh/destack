@@ -7,7 +7,9 @@ import { searchTextFor } from "./text.mjs";
 
 const codeExtensions = {
     bash: "sh",
+    bytecode: "dsa",
     javascript: "js",
+    mir: "dsm",
     shell: "sh",
     typescript: "ts",
 };

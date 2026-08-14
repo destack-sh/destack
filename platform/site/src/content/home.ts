@@ -1,5 +1,5 @@
 /// Languages used by homepage technical listings.
-export type HomeLanguage = "bash" | "destack" | "json" | "text";
+export type HomeLanguage = "bash" | "destack" | "dsa" | "dsm" | "json" | "text";
 
 /// The public installation command.
 export const installCommand = "curl -fsSL https://destack.sh/install | sh";
