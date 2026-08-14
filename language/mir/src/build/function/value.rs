@@ -136,7 +136,12 @@ impl<'a> FunctionBuilder<'a> {
     // instruction builders: binary operations
 
     /// Insert a binary operation.
-    fn binary(&mut self, operator: BinaryOperator, left_value: Value, right_value: Value) -> Value {
+    pub fn binary(
+        &mut self,
+        operator: BinaryOperator,
+        left_value: Value,
+        right_value: Value,
+    ) -> Value {
         let destination = self.allocate_value();
         let left_type_id = self.expect_value_type(left_value, "binary left");
         let right_type_id = self.expect_value_type(right_value, "binary right");
@@ -164,95 +169,10 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Insert a binary operation with an explicit operator.
-    pub fn binary_op(
-        &mut self,
-        operator: BinaryOperator,
-        left_value: Value,
-        right_value: Value,
-    ) -> Value {
-        self.binary(operator, left_value, right_value)
-    }
-
-    /// Integer addition.
-    pub fn iadd(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::Add, left_value, right_value)
-    }
-
-    /// Integer subtraction.
-    pub fn isub(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::Subtract, left_value, right_value)
-    }
-
-    /// Integer multiplication.
-    pub fn imul(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::Multiply, left_value, right_value)
-    }
-
-    /// Signed integer division.
-    pub fn sdiv(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::SignedDivide, left_value, right_value)
-    }
-
-    /// Unsigned integer division.
-    pub fn udiv(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::UnsignedDivide, left_value, right_value)
-    }
-
-    /// Bitwise AND.
-    pub fn band(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::And, left_value, right_value)
-    }
-
-    /// Bitwise OR.
-    pub fn bor(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::Or, left_value, right_value)
-    }
-
-    /// Bitwise XOR.
-    pub fn bxor(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::Xor, left_value, right_value)
-    }
-
-    /// Integer comparison: equal.
-    pub fn icmp_eq(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::Equal, left_value, right_value)
-    }
-
-    /// Integer comparison: not equal.
-    pub fn icmp_ne(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::NotEqual, left_value, right_value)
-    }
-
-    /// Signed integer comparison: less than.
-    pub fn icmp_slt(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::SignedLessThan, left_value, right_value)
-    }
-
-    /// Signed integer comparison: less than or equal.
-    pub fn icmp_sle(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::SignedLessEqual, left_value, right_value)
-    }
-
-    /// Signed integer comparison: greater than.
-    pub fn icmp_sgt(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::SignedGreaterThan, left_value, right_value)
-    }
-
-    /// Signed integer comparison: greater than or equal.
-    pub fn icmp_sge(&mut self, left_value: Value, right_value: Value) -> Value {
-        self.binary(BinaryOperator::SignedGreaterEqual, left_value, right_value)
-    }
-
     // instruction builders: unary operations
 
-    /// Insert a unary operation with an explicit operator.
-    pub fn unary_op(&mut self, operator: UnaryOperator, argument_value: Value) -> Value {
-        self.unary(operator, argument_value)
-    }
-
     /// Insert a unary operation.
-    fn unary(&mut self, operator: UnaryOperator, argument_value: Value) -> Value {
+    pub fn unary(&mut self, operator: UnaryOperator, argument_value: Value) -> Value {
         let destination = self.allocate_value();
         let argument_type = self.expect_value_type(argument_value, "unary argument");
         self.insert_instruction(Instruction::Unary {
@@ -262,16 +182,6 @@ impl<'a> FunctionBuilder<'a> {
         });
         self.define_value(destination, argument_type);
         destination
-    }
-
-    /// Integer negation.
-    pub fn ineg(&mut self, argument_value: Value) -> Value {
-        self.unary(UnaryOperator::Negate, argument_value)
-    }
-
-    /// Bitwise NOT.
-    pub fn bnot(&mut self, argument_value: Value) -> Value {
-        self.unary(UnaryOperator::Not, argument_value)
     }
 
     // instruction builders: casts

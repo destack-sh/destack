@@ -44,7 +44,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token(operator.to_str()),
+                        token(operator.name()),
                         space(),
                         left,
                         token(","),
@@ -66,7 +66,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token(operator.to_str()),
+                        token(operator.name()),
                         space(),
                         argument
                     ]
@@ -927,7 +927,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("vector.compare"),
                         space(),
-                        token(operator.to_str()),
+                        token(operator.name()),
                         token(","),
                         space(),
                         left,
@@ -1292,7 +1292,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("tensor.compare"),
                         space(),
-                        token(operator.to_str()),
+                        token(operator.name()),
                         token(","),
                         space(),
                         left,
@@ -1774,7 +1774,7 @@ impl FormatNode for Instruction {
                 write!(
                     f,
                     [
-                        token(operator.to_str()),
+                        token(operator.name()),
                         space(),
                         pointer,
                         token(","),

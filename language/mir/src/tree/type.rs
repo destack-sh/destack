@@ -829,6 +829,25 @@ impl Type {
         }
     }
 
+    /// Return whether this is a signed integer type.
+    pub const fn integer_signedness(&self) -> Option<bool> {
+        match self {
+            Type::Int { is_signed, .. } => Some(*is_signed),
+            Type::Isize => Some(true),
+            Type::Usize => Some(false),
+            _ => None,
+        }
+    }
+
+    /// Return whether operators on this type use floating point semantics.
+    pub fn is_float(&self, tree: &Tree) -> bool {
+        match self {
+            Type::Float(_) => true,
+            Type::Vector { element, .. } => matches!(tree.get(*element), Type::Float(_)),
+            _ => false,
+        }
+    }
+
     /// Whether this type is a scalar (non-compound).
     pub fn is_scalar(&self) -> bool {
         matches!(

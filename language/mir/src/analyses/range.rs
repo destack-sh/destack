@@ -197,28 +197,6 @@ impl ValueRange {
             return None;
         }
 
-        // reject comparisons that do not match operand signedness
-        let expects_signed = matches!(
-            operator,
-            mir::BinaryOperator::SignedLessThan
-                | mir::BinaryOperator::SignedLessEqual
-                | mir::BinaryOperator::SignedGreaterThan
-                | mir::BinaryOperator::SignedGreaterEqual
-        );
-        let expects_unsigned = matches!(
-            operator,
-            mir::BinaryOperator::UnsignedLessThan
-                | mir::BinaryOperator::UnsignedLessEqual
-                | mir::BinaryOperator::UnsignedGreaterThan
-                | mir::BinaryOperator::UnsignedGreaterEqual
-        );
-        if expects_signed && !*left_signed {
-            return None;
-        }
-        if expects_unsigned && *left_signed {
-            return None;
-        }
-
         // evaluate comparison from range relationships
         match operator {
             mir::BinaryOperator::Equal => {
@@ -241,7 +219,7 @@ impl ValueRange {
                     None
                 }
             }
-            mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
+            mir::BinaryOperator::LessThan => {
                 if left_max < right_min {
                     Some(true)
                 } else if left_min >= right_max {
@@ -250,7 +228,7 @@ impl ValueRange {
                     None
                 }
             }
-            mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
+            mir::BinaryOperator::LessEqual => {
                 if left_max <= right_min {
                     Some(true)
                 } else if left_min > right_max {
@@ -259,7 +237,7 @@ impl ValueRange {
                     None
                 }
             }
-            mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
+            mir::BinaryOperator::GreaterThan => {
                 if left_min > right_max {
                     Some(true)
                 } else if left_max <= right_min {
@@ -268,7 +246,7 @@ impl ValueRange {
                     None
                 }
             }
-            mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
+            mir::BinaryOperator::GreaterEqual => {
                 if left_min >= right_max {
                     Some(true)
                 } else if left_max < right_min {
@@ -818,37 +796,29 @@ fn range_for_binary(
         return ValueRange::from_constant(&result);
     }
 
-    match operator {
-        mir::BinaryOperator::Add => integer_range_add(left, right),
-        mir::BinaryOperator::Subtract => integer_range_sub(left, right),
-        mir::BinaryOperator::Multiply => integer_range_mul(left, right),
-        mir::BinaryOperator::SignedDivide => integer_range_div_signed(left, right),
-        mir::BinaryOperator::UnsignedDivide => integer_range_div_unsigned(left, right),
-        mir::BinaryOperator::SignedRemainder => integer_range_rem_signed(left, right),
-        mir::BinaryOperator::UnsignedRemainder => integer_range_rem_unsigned(left, right),
-        mir::BinaryOperator::FloatAdd => float_range_add(left, right),
-        mir::BinaryOperator::FloatSubtract => float_range_sub(left, right),
-        mir::BinaryOperator::FloatMultiply => float_range_mul(left, right),
-        mir::BinaryOperator::FloatDivide => float_range_div(left, right),
-        mir::BinaryOperator::Equal
-        | mir::BinaryOperator::NotEqual
-        | mir::BinaryOperator::SignedLessThan
-        | mir::BinaryOperator::SignedLessEqual
-        | mir::BinaryOperator::SignedGreaterThan
-        | mir::BinaryOperator::SignedGreaterEqual
-        | mir::BinaryOperator::UnsignedLessThan
-        | mir::BinaryOperator::UnsignedLessEqual
-        | mir::BinaryOperator::UnsignedGreaterThan
-        | mir::BinaryOperator::UnsignedGreaterEqual => range_for_comparison(operator, left, right),
-        mir::BinaryOperator::FloatEqual
-        | mir::BinaryOperator::FloatNotEqual
-        | mir::BinaryOperator::FloatLessThan
-        | mir::BinaryOperator::FloatLessEqual
-        | mir::BinaryOperator::FloatGreaterThan
-        | mir::BinaryOperator::FloatGreaterEqual => {
-            range_for_float_comparison(operator, left, right)
-        }
-        _ => None,
+    match left {
+        ValueRange::Integer { is_signed, .. } => match operator {
+            mir::BinaryOperator::Add => integer_range_add(left, right),
+            mir::BinaryOperator::Subtract => integer_range_sub(left, right),
+            mir::BinaryOperator::Multiply => integer_range_mul(left, right),
+            mir::BinaryOperator::Divide if *is_signed => integer_range_div_signed(left, right),
+            mir::BinaryOperator::Divide => integer_range_div_unsigned(left, right),
+            mir::BinaryOperator::Remainder if *is_signed => integer_range_rem_signed(left, right),
+            mir::BinaryOperator::Remainder => integer_range_rem_unsigned(left, right),
+            operator if operator.is_comparison() => range_for_comparison(operator, left, right),
+            _ => None,
+        },
+        ValueRange::Float { .. } => match operator {
+            mir::BinaryOperator::Add => float_range_add(left, right),
+            mir::BinaryOperator::Subtract => float_range_sub(left, right),
+            mir::BinaryOperator::Multiply => float_range_mul(left, right),
+            mir::BinaryOperator::Divide => float_range_div(left, right),
+            operator if operator.is_comparison() => {
+                range_for_float_comparison(operator, left, right)
+            }
+            _ => None,
+        },
+        ValueRange::Boolean { .. } => None,
     }
 }
 
@@ -866,9 +836,9 @@ fn range_for_unary(
         return ValueRange::from_constant(&result);
     }
 
-    match operator {
-        mir::UnaryOperator::Negate => integer_range_negate(argument),
-        mir::UnaryOperator::FloatNegate => float_range_negate(argument),
+    match (operator, argument) {
+        (mir::UnaryOperator::Negate, ValueRange::Integer { .. }) => integer_range_negate(argument),
+        (mir::UnaryOperator::Negate, ValueRange::Float { .. }) => float_range_negate(argument),
         _ => None,
     }
 }
@@ -2292,15 +2262,15 @@ fn range_for_float_comparison(
 
     if !left_has_non_nan || !right_has_non_nan {
         return match operator {
-            mir::BinaryOperator::FloatNotEqual => Some(ValueRange::Boolean {
+            mir::BinaryOperator::NotEqual => Some(ValueRange::Boolean {
                 can_be_true: true,
                 can_be_false: false,
             }),
-            mir::BinaryOperator::FloatEqual
-            | mir::BinaryOperator::FloatLessThan
-            | mir::BinaryOperator::FloatLessEqual
-            | mir::BinaryOperator::FloatGreaterThan
-            | mir::BinaryOperator::FloatGreaterEqual => Some(ValueRange::Boolean {
+            mir::BinaryOperator::Equal
+            | mir::BinaryOperator::LessThan
+            | mir::BinaryOperator::LessEqual
+            | mir::BinaryOperator::GreaterThan
+            | mir::BinaryOperator::GreaterEqual => Some(ValueRange::Boolean {
                 can_be_true: false,
                 can_be_false: true,
             }),
@@ -2314,7 +2284,7 @@ fn range_for_float_comparison(
     let mut is_always_false = false;
 
     match operator {
-        mir::BinaryOperator::FloatEqual => {
+        mir::BinaryOperator::Equal => {
             if left_bounds.max < right_bounds.min || right_bounds.max < left_bounds.min {
                 is_always_false = true;
             } else if left_bounds.min == left_bounds.max
@@ -2325,7 +2295,7 @@ fn range_for_float_comparison(
                 is_always_true = true;
             }
         }
-        mir::BinaryOperator::FloatNotEqual => {
+        mir::BinaryOperator::NotEqual => {
             if left_bounds.min == left_bounds.max
                 && left_bounds.min == right_bounds.min
                 && right_bounds.min == right_bounds.max
@@ -2336,28 +2306,28 @@ fn range_for_float_comparison(
                 is_always_true = true;
             }
         }
-        mir::BinaryOperator::FloatLessThan => {
+        mir::BinaryOperator::LessThan => {
             if left_bounds.max < right_bounds.min && !can_be_nan {
                 is_always_true = true;
             } else if left_bounds.min >= right_bounds.max {
                 is_always_false = true;
             }
         }
-        mir::BinaryOperator::FloatLessEqual => {
+        mir::BinaryOperator::LessEqual => {
             if left_bounds.max <= right_bounds.min && !can_be_nan {
                 is_always_true = true;
             } else if left_bounds.min > right_bounds.max {
                 is_always_false = true;
             }
         }
-        mir::BinaryOperator::FloatGreaterThan => {
+        mir::BinaryOperator::GreaterThan => {
             if left_bounds.min > right_bounds.max && !can_be_nan {
                 is_always_true = true;
             } else if left_bounds.max <= right_bounds.min {
                 is_always_false = true;
             }
         }
-        mir::BinaryOperator::FloatGreaterEqual => {
+        mir::BinaryOperator::GreaterEqual => {
             if left_bounds.min >= right_bounds.max && !can_be_nan {
                 is_always_true = true;
             } else if left_bounds.max < right_bounds.min {
@@ -2418,28 +2388,28 @@ fn range_for_comparison(
                 is_always_false = true;
             }
         }
-        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
+        mir::BinaryOperator::LessThan => {
             if left_max < right_min {
                 is_always_true = true;
             } else if left_min >= right_max {
                 is_always_false = true;
             }
         }
-        mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
+        mir::BinaryOperator::LessEqual => {
             if left_max <= right_min {
                 is_always_true = true;
             } else if left_min > right_max {
                 is_always_false = true;
             }
         }
-        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
+        mir::BinaryOperator::GreaterThan => {
             if left_min > right_max {
                 is_always_true = true;
             } else if left_max <= right_min {
                 is_always_false = true;
             }
         }
-        mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
+        mir::BinaryOperator::GreaterEqual => {
             if left_min >= right_max {
                 is_always_true = true;
             } else if left_max < right_min {
@@ -2481,7 +2451,7 @@ mod tests {
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 5
-    v2: int32 = int.add v1, v0
+    v2: int32 = add v1, v0
     return v2
 }
 "#,
@@ -2652,7 +2622,7 @@ b2:
 
 b3(v3: int32):
     v4: int32 = 1
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     return v5
 }
 "#,
@@ -2702,7 +2672,7 @@ b2:
 
 b3(v3: int32):
     v4: int32 = 10
-    v5: boolean = int.lt.s v3, v4
+    v5: boolean = lt v3, v4
     return v5
 }
 "#,
@@ -2788,7 +2758,7 @@ b2:
 
 b3(v3: float32):
     v4: float32 = 2
-    v5: float32 = float.add v3, v4
+    v5: float32 = add v3, v4
     return v5
 }
 "#,
@@ -2840,7 +2810,7 @@ b2:
     jump b3(v3, v4)
 
 b3(v5: float32, v6: float32):
-    v7: float32 = float.add v5, v6
+    v7: float32 = add v5, v6
     return v7
 }
 "#,
@@ -2881,7 +2851,7 @@ function test(): float32 {
 entry:
     v0: float32 = inf
     v1: float32 = 2
-    v2: float32 = float.add v0, v1
+    v2: float32 = add v0, v1
     return v2
 }
 "#,
@@ -2933,7 +2903,7 @@ b2:
     jump b3(v3, v4)
 
 b3(v5: float32, v6: float32):
-    v7: float32 = float.sub v5, v6
+    v7: float32 = sub v5, v6
     return v7
 }
 "#,
@@ -2974,7 +2944,7 @@ function test(): float32 {
 entry:
     v0: float32 = 2
     v1: float32 = inf
-    v2: float32 = float.sub v0, v1
+    v2: float32 = sub v0, v1
     return v2
 }
 "#,
@@ -3025,7 +2995,7 @@ b2:
 
 b3(v3: float32):
     v4: float32 = 5
-    v5: boolean = float.lt v3, v4
+    v5: boolean = lt v3, v4
     return v5
 }
 "#,
@@ -3063,9 +3033,9 @@ function test(): boolean {
 entry:
     v0: float32 = 1
     v1: float32 = 0
-    v2: float32 = float.div v0, v1
+    v2: float32 = div v0, v1
     v3: float32 = 5
-    v4: boolean = float.gt v2, v3
+    v4: boolean = gt v2, v3
     return v4
 }
 "#,
@@ -3115,7 +3085,7 @@ b5:
     jump b6(v4, v7)
 
 b6(v8: float32, v9: float32):
-    v10: float32 = float.div v9, v8
+    v10: float32 = div v9, v8
     return v10
 }
 "#,
@@ -3169,7 +3139,7 @@ b2:
 
 b3(v3: float32):
     v4: float32 = 2
-    v5: float32 = float.div v4, v3
+    v5: float32 = div v4, v3
     return v5
 }
 "#,
@@ -3223,7 +3193,7 @@ b2:
 
 b3(v3: float32):
     v4: float32 = 0
-    v5: float32 = float.div v4, v3
+    v5: float32 = div v4, v3
     return v5
 }
 "#,
@@ -3274,7 +3244,7 @@ b2:
 
 b3(v3: float32):
     v4: float32 = 0
-    v5: float32 = float.div v4, v3
+    v5: float32 = div v4, v3
     return v5
 }
 "#,
@@ -3326,7 +3296,7 @@ b2:
     jump b3(v3, v4)
 
 b3(v5: float32, v6: float32):
-    v7: float32 = float.mul v5, v6
+    v7: float32 = mul v5, v6
     return v7
 }
 "#,
@@ -3377,7 +3347,7 @@ b2:
 
 b3(v3: float32):
     v4: float32 = inf
-    v5: float32 = float.mul v4, v3
+    v5: float32 = mul v4, v3
     return v5
 }
 "#,
@@ -3429,7 +3399,7 @@ b2:
     jump b3(v3, v4)
 
 b3(v5: float32, v6: float32):
-    v7: float32 = float.div v5, v6
+    v7: float32 = div v5, v6
     return v7
 }
 "#,
@@ -3470,7 +3440,7 @@ function test(): float32 {
 entry:
     v0: float32 = inf
     v1: float32 = 0
-    v2: float32 = float.div v0, v1
+    v2: float32 = div v0, v1
     return v2
 }
 "#,
@@ -3511,7 +3481,7 @@ function test(): float32 {
 entry:
     v0: float32 = 2
     v1: float32 = inf
-    v2: float32 = float.div v0, v1
+    v2: float32 = div v0, v1
     return v2
 }
 "#,
@@ -3552,7 +3522,7 @@ function test(): float32 {
 entry:
     v0: float32 = inf
     v1: float32 = -2
-    v2: float32 = float.div v0, v1
+    v2: float32 = div v0, v1
     return v2
 }
 "#,
@@ -3593,9 +3563,9 @@ function test(): float32 {
 entry:
     v0: float32 = 1
     v1: float32 = 0
-    v2: float32 = float.div v0, v1
+    v2: float32 = div v0, v1
     v3: float32 = 0
-    v4: float32 = float.mul v3, v2
+    v4: float32 = mul v3, v2
     return v4
 }
 "#,
@@ -3772,7 +3742,7 @@ b3(v3: int32):
 function test(): int32 {
 entry:
     v0: float32 = 0
-    v1: float32 = float.div v0, v0
+    v1: float32 = div v0, v0
     v2: int32 = cast.floatToIntSaturating.s v1 -> int32
     return v2
 }
@@ -3895,7 +3865,7 @@ entry(v0: boolean):
 
 b1:
     v1: float32 = 0
-    v2: float32 = float.div v1, v1
+    v2: float32 = div v1, v1
     jump b3(v2)
 
 b2:
@@ -3940,9 +3910,9 @@ b3(v4: float32):
 function test(): boolean {
 entry:
     v0: float32 = 0
-    v1: float32 = float.div v0, v0
+    v1: float32 = div v0, v0
     v2: float32 = 1
-    v3: boolean = float.eq v1, v2
+    v3: boolean = eq v1, v2
     return v3
 }
 "#,
@@ -3978,7 +3948,7 @@ function test(): boolean {
 entry:
     v0: float32 = inf
     v1: float32 = 1
-    v2: boolean = float.gt v0, v1
+    v2: boolean = gt v0, v1
     return v2
 }
 "#,
@@ -4014,7 +3984,7 @@ function test(): boolean {
 entry:
     v0: float32 = inf
     v1: float32 = 1
-    v2: boolean = float.le v0, v1
+    v2: boolean = le v0, v1
     return v2
 }
 "#,
@@ -4049,9 +4019,9 @@ entry:
 function test(): boolean {
 entry:
     v0: float32 = 0
-    v1: float32 = float.div v0, v0
+    v1: float32 = div v0, v0
     v2: float32 = 1
-    v3: boolean = float.ne v1, v2
+    v3: boolean = ne v1, v2
     return v3
 }
 "#,
@@ -4089,7 +4059,7 @@ entry(v0: boolean):
 
 b1:
     v1: float32 = 0
-    v2: float32 = float.div v1, v1
+    v2: float32 = div v1, v1
     jump b3(v2)
 
 b2:
@@ -4098,7 +4068,7 @@ b2:
 
 b3(v4: float32):
     v5: float32 = 1
-    v6: boolean = float.ge v4, v5
+    v6: boolean = ge v4, v5
     return v6
 }
 "#,
@@ -4310,7 +4280,7 @@ entry:
 function test(): int32 {
 entry:
     v0: float32 = 0
-    v1: float32 = float.div v0, v0
+    v1: float32 = div v0, v0
     v2: int32 = cast.floatToInt.s v1 -> int32
     return v2
 }

@@ -175,81 +175,56 @@ pub enum AtomicRmwOperator {
     /// Add and return the old value.
     Add,
     /// Subtract and return the old value.
-    Sub,
+    Subtract,
     /// Bitwise and and return the old value.
     And,
     /// Bitwise or and return the old value.
     Or,
     /// Bitwise xor and return the old value.
     Xor,
-    /// Signed minimum and return the old value.
+    /// Minimum and return the old value.
     Min,
-    /// Signed maximum and return the old value.
+    /// Maximum and return the old value.
     Max,
-    /// Unsigned minimum and return the old value.
-    Umin,
-    /// Unsigned maximum and return the old value.
-    Umax,
-    /// Floating add and return the old value.
-    Fadd,
-    /// Floating minimum and return the old value.
-    Fmin,
-    /// Floating maximum and return the old value.
-    Fmax,
 }
 
 impl AtomicRmwOperator {
-    /// Return the canonical text form.
-    pub fn to_str(self) -> &'static str {
+    /// Return the canonical operation name.
+    pub const fn name(self) -> &'static str {
         match self {
             AtomicRmwOperator::Exchange => "xchg",
             AtomicRmwOperator::Add => "add",
-            AtomicRmwOperator::Sub => "sub",
+            AtomicRmwOperator::Subtract => "sub",
             AtomicRmwOperator::And => "and",
             AtomicRmwOperator::Or => "or",
             AtomicRmwOperator::Xor => "xor",
             AtomicRmwOperator::Min => "min",
             AtomicRmwOperator::Max => "max",
-            AtomicRmwOperator::Umin => "umin",
-            AtomicRmwOperator::Umax => "umax",
-            AtomicRmwOperator::Fadd => "fadd",
-            AtomicRmwOperator::Fmin => "fmin",
-            AtomicRmwOperator::Fmax => "fmax",
         }
-    }
-
-    /// Parse one canonical text form.
-    pub fn parse(text: &str) -> Option<Self> {
-        Some(match text {
-            "xchg" => AtomicRmwOperator::Exchange,
-            "add" => AtomicRmwOperator::Add,
-            "sub" => AtomicRmwOperator::Sub,
-            "and" => AtomicRmwOperator::And,
-            "or" => AtomicRmwOperator::Or,
-            "xor" => AtomicRmwOperator::Xor,
-            "min" => AtomicRmwOperator::Min,
-            "max" => AtomicRmwOperator::Max,
-            "umin" => AtomicRmwOperator::Umin,
-            "umax" => AtomicRmwOperator::Umax,
-            "fadd" => AtomicRmwOperator::Fadd,
-            "fmin" => AtomicRmwOperator::Fmin,
-            "fmax" => AtomicRmwOperator::Fmax,
-            _ => return None,
-        })
     }
 }
 
 impl fmt::Display for AtomicRmwOperator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.to_str())
+        f.write_str(self.name())
     }
 }
 
 impl FromStr for AtomicRmwOperator {
     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::parse(s).ok_or(())
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        match text {
+            "xchg" => Ok(Self::Exchange),
+            "add" => Ok(Self::Add),
+            "sub" => Ok(Self::Subtract),
+            "and" => Ok(Self::And),
+            "or" => Ok(Self::Or),
+            "xor" => Ok(Self::Xor),
+            "min" => Ok(Self::Min),
+            "max" => Ok(Self::Max),
+            _ => Err(()),
+        }
     }
 }
 

@@ -109,7 +109,7 @@ entry(v0: ref<atomic<uint32>, borrowed, mutable, frame>):
     v1: uint32 = 1
     v2: uint32 = 2
     v3: (uint32, boolean) = atomic.cas v0, v1, v2, acquireRelease, failure(acquire)
-    v4: uint32 = atomic.rmw.umin v0, v2, relaxed
+    v4: uint32 = atomic.rmw.min v0, v2, relaxed
     return v4
 }
 "#,

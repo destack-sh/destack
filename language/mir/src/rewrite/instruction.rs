@@ -138,7 +138,11 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
 /// Check if an instruction can be speculated without trapping.
 ///
 /// This is a stricter predicate than purity: some pure operations may trap.
-pub fn instruction_is_speculatable(instruction: &mir::Instruction, tree: &mir::Tree) -> bool {
+pub fn instruction_is_speculatable(
+    instruction: &mir::Instruction,
+    function: &mir::Function,
+    tree: &mir::Tree,
+) -> bool {
     // classify instructions by speculative safety
     match instruction {
         // address computations recompute freely once verify sealed their borrows
@@ -172,15 +176,16 @@ pub fn instruction_is_speculatable(instruction: &mir::Instruction, tree: &mir::T
             ..
         } => false,
 
-        // integer division and remainder may trap
+        // float division and remainder do not trap
         mir::Instruction::Binary {
-            operator:
-                mir::BinaryOperator::SignedDivide
-                | mir::BinaryOperator::UnsignedDivide
-                | mir::BinaryOperator::SignedRemainder
-                | mir::BinaryOperator::UnsignedRemainder,
+            operator: mir::BinaryOperator::Divide | mir::BinaryOperator::Remainder,
+            left,
             ..
-        } => false,
+        } => {
+            let ty = function.expect_value_type(*left);
+
+            tree.get(ty).is_float(tree)
+        }
 
         _ => instruction_is_pure(instruction),
     }

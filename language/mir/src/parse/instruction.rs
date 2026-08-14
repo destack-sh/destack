@@ -1,6 +1,4 @@
 use crate::source::TokenType;
-use std::str::FromStr;
-
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
@@ -314,12 +312,12 @@ impl Parser {
                 match opcode_text {
                     // binary ops
                     _ if opcode_text.parse::<BinaryOperator>().is_ok() => {
-                        let operator = opcode_text
-                            .parse()
-                            .map_err(|_| ParseError::invalid("binary operator", opcode_start))?;
                         let left = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let right = self.parse_value_segment(&mut segment_spans)?;
+                        let operator = opcode_text
+                            .parse()
+                            .map_err(|_| ParseError::invalid("binary operator", opcode_start))?;
                         Instruction::Binary {
                             destination,
                             operator,
@@ -330,10 +328,10 @@ impl Parser {
 
                     // unary ops
                     _ if opcode_text.parse::<UnaryOperator>().is_ok() => {
+                        let argument = self.parse_value_segment(&mut segment_spans)?;
                         let operator = opcode_text
                             .parse()
                             .map_err(|_| ParseError::invalid("unary operator", opcode_start))?;
-                        let argument = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::Unary {
                             destination,
                             operator,
@@ -763,11 +761,7 @@ impl Parser {
                         }
                     }
                     "vector.compare" => {
-                        let operator = self.parse_compare_operator()?;
-                        self.eat_token(TokenType::Comma)?;
-                        let left = self.parse_value()?;
-                        self.eat_token(TokenType::Comma)?;
-                        let right = self.parse_value()?;
+                        let (operator, left, right) = self.parse_comparison()?;
                         Instruction::VectorCompare {
                             destination,
                             operator,
@@ -974,11 +968,7 @@ impl Parser {
                         }
                     }
                     "tensor.compare" => {
-                        let operator = self.parse_compare_operator()?;
-                        self.eat_token(TokenType::Comma)?;
-                        let left = self.parse_value()?;
-                        self.eat_token(TokenType::Comma)?;
-                        let right = self.parse_value()?;
+                        let (operator, left, right) = self.parse_comparison()?;
                         Instruction::TensorCompare {
                             destination,
                             operator,
@@ -1519,13 +1509,20 @@ impl Parser {
         Ok(operator)
     }
 
-    /// Parse a comparison operator for vector or tensor operations.
-    fn parse_compare_operator(&mut self) -> ParseResult<BinaryOperator> {
-        // parse the operator token
+    /// Parse one vector or tensor comparison.
+    fn parse_comparison(&mut self) -> ParseResult<(BinaryOperator, Value, Value)> {
         let token = self.eat_token(TokenType::Identifier)?;
-        let operator = BinaryOperator::from_str(self.tree.source_text(token.span))
-            .map_err(|_| ParseError::invalid("comparison operator", token.start()))?;
-        Ok(operator)
+        self.eat_token(TokenType::Comma)?;
+        let left = self.parse_value()?;
+        self.eat_token(TokenType::Comma)?;
+        let right = self.parse_value()?;
+        let operator = self
+            .tree
+            .source_text(token.span)
+            .parse()
+            .map_err(|_| ParseError::invalid("binary operator", token.start()))?;
+
+        Ok((operator, left, right))
     }
 
     /// Parse an optional tensor scatter mode.
@@ -2265,7 +2262,8 @@ impl Parser {
             return Err(ParseError::invalid("atomic.rmw opcode", start));
         };
 
-        AtomicRmwOperator::parse(operator_text)
-            .ok_or_else(|| ParseError::invalid("atomic rmw operator", start))
+        operator_text
+            .parse()
+            .map_err(|_| ParseError::invalid("atomic rmw operator", start))
     }
 }

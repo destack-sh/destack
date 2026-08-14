@@ -2,8 +2,8 @@ use destack_core::StringPool;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, Callee, Copy, ExecutionScope, FenceAccess, FloatType, FormatOptions, Formatter,
-    Lifetime, LifetimeParameter, MemoryOrdering, Multiplicity, Mutability, Nullability,
+    Access, BinaryOperator, Callee, Copy, ExecutionScope, FenceAccess, FloatType, FormatOptions,
+    Formatter, Lifetime, LifetimeParameter, MemoryOrdering, Multiplicity, Mutability, Nullability,
     ReferenceKind, Space, Storage, StorageSet, Symbol, TargetLayout, Tree, Type, TypeId,
 };
 
@@ -63,7 +63,7 @@ fn test_build_function_with_parameters() {
     builder.switch_to_block(entry_block);
     let left_value = builder.function_parameter(0);
     let right_value = builder.function_parameter(1);
-    let sum_value = builder.iadd(left_value, right_value);
+    let sum_value = builder.binary(BinaryOperator::Add, left_value, right_value);
     builder.return_(Some(sum_value));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -74,7 +74,7 @@ fn test_build_function_with_parameters() {
     let expected = "\
 function add(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }";
     assert_eq!(output, expected);
@@ -665,10 +665,10 @@ fn test_build_arithmetic_operations() {
     // chain of arithmetic operations
     let left_value = builder.function_parameter(0);
     let right_value = builder.function_parameter(1);
-    let sum_value = builder.iadd(left_value, right_value);
-    let difference_value = builder.isub(sum_value, right_value);
-    let product_value = builder.imul(difference_value, left_value);
-    let quotient_value = builder.sdiv(product_value, right_value);
+    let sum_value = builder.binary(BinaryOperator::Add, left_value, right_value);
+    let difference_value = builder.binary(BinaryOperator::Subtract, sum_value, right_value);
+    let product_value = builder.binary(BinaryOperator::Multiply, difference_value, left_value);
+    let quotient_value = builder.binary(BinaryOperator::Divide, product_value, right_value);
 
     builder.return_(Some(quotient_value));
     builder.seal_block(entry_block);
@@ -680,10 +680,10 @@ fn test_build_arithmetic_operations() {
     let expected = "\
 function arithmetic(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.sub v2, v1
-    v4: int32 = int.mul v3, v0
-    v5: int32 = int.div.s v4, v1
+    v2: int32 = add v0, v1
+    v3: int32 = sub v2, v1
+    v4: int32 = mul v3, v0
+    v5: int32 = div v4, v1
     return v5
 }";
     assert_eq!(output, expected);
@@ -709,9 +709,9 @@ fn test_build_comparison_operations() {
     // comparison operations
     let left_value = builder.function_parameter(0);
     let right_value = builder.function_parameter(1);
-    let equal_value = builder.icmp_eq(left_value, right_value);
-    let less_than_value = builder.icmp_slt(left_value, right_value);
-    let result_value = builder.band(equal_value, less_than_value);
+    let equal_value = builder.binary(BinaryOperator::Equal, left_value, right_value);
+    let less_than_value = builder.binary(BinaryOperator::LessThan, left_value, right_value);
+    let result_value = builder.binary(BinaryOperator::And, equal_value, less_than_value);
 
     builder.return_(Some(result_value));
     builder.seal_block(entry_block);
@@ -723,9 +723,9 @@ fn test_build_comparison_operations() {
     let expected = "\
 function compare(v0: int32, v1: int32): boolean {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    v3: boolean = int.lt.s v0, v1
-    v4: boolean = int.and v2, v3
+    v2: boolean = eq v0, v1
+    v3: boolean = lt v0, v1
+    v4: boolean = and v2, v3
     return v4
 }";
     assert_eq!(output, expected);
@@ -1523,7 +1523,7 @@ fn test_ssa_passthrough_intermediate_block() {
     builder.switch_to_block(b2);
     let x_body = builder.use_variable(x_var);
     let ten = builder.iconst_i32(10);
-    let x_new = builder.iadd(x_body, ten);
+    let x_new = builder.binary(BinaryOperator::Add, x_body, ten);
     builder.define_variable(x_var, x_new);
     builder.jump(b3);
     builder.seal_block(b2);
@@ -1563,7 +1563,7 @@ b1(v2: int32):
 
 b2:
     v4: int32 = 10
-    v5: int32 = int.add v2, v4
+    v5: int32 = add v2, v4
     jump b3
 
 b3:
@@ -1632,7 +1632,7 @@ fn test_ssa_multiple_phis_at_merge() {
     builder.seal_block(merge);
     let x_val = builder.use_variable(x_var);
     let y_val = builder.use_variable(y_var);
-    let sum = builder.iadd(x_val, y_val);
+    let sum = builder.binary(BinaryOperator::Add, x_val, y_val);
     builder.return_(Some(sum));
     builder.finish().unwrap();
 
@@ -1655,7 +1655,7 @@ b2:
     jump b3(v3, v4)
 
 b3(v5: int32, v6: int32):
-    v7: int32 = int.add v5, v6
+    v7: int32 = add v5, v6
     return v7
 }";
     assert_eq!(output, expected);

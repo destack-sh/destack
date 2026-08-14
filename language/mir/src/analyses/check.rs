@@ -202,7 +202,7 @@ fn overflow_constraint_truth(
             let max = *candidates.iter().max()?;
             (min, max)
         }
-        mir::BinaryOperator::SignedDivide | mir::BinaryOperator::SignedRemainder => {
+        mir::BinaryOperator::Divide | mir::BinaryOperator::Remainder => {
             // require signed overflow semantics
             if !is_signed {
                 return None;

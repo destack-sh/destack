@@ -197,6 +197,8 @@ impl ScalarEvolution {
 
 /// Builder for loop local scalar evolution expressions.
 struct LoopScevBuilder<'a> {
+    /// Function being analyzed.
+    function: &'a mir::Function,
     /// MIR tree.
     tree: &'a mir::Tree,
     /// Control flow graph.
@@ -231,6 +233,7 @@ impl<'a> LoopScevBuilder<'a> {
         let invariants = collect_loop_invariants(function, tree, lp, definitions);
 
         Self {
+            function,
             tree,
             cfg,
             lp,
@@ -367,6 +370,16 @@ impl<'a> LoopScevBuilder<'a> {
         left: mir::Value,
         right: mir::Value,
     ) -> Scev {
+        // require the integer representation modeled by scalar evolution
+        let ty = self.function.expect_value_type(left);
+        let Some((_, is_signed)) = self
+            .tree
+            .get(ty)
+            .int_info_with_pointer_width(self.target_layout.pointer_bits())
+        else {
+            return Scev::Unknown(destination);
+        };
+
         // dispatch based on operator
         match operator {
             mir::BinaryOperator::Add => {
@@ -421,37 +434,39 @@ impl<'a> LoopScevBuilder<'a> {
 
                 scev_mul(left_scev, right_scev)
             }
-            mir::BinaryOperator::SignedDivide => {
+            mir::BinaryOperator::Divide => {
                 let left_scev = self.scev_for_value(left);
                 let right_scev = self.scev_for_value(right);
-                scev_signed_divide(left_scev, right_scev)
+                if is_signed {
+                    scev_signed_divide(left_scev, right_scev)
+                } else {
+                    scev_unsigned_divide(left_scev, right_scev)
+                }
             }
-            mir::BinaryOperator::UnsignedDivide => {
+            mir::BinaryOperator::Remainder => {
                 let left_scev = self.scev_for_value(left);
                 let right_scev = self.scev_for_value(right);
-                scev_unsigned_divide(left_scev, right_scev)
-            }
-            mir::BinaryOperator::SignedRemainder => {
-                let left_scev = self.scev_for_value(left);
-                let right_scev = self.scev_for_value(right);
-                scev_signed_remainder(left_scev, right_scev)
-            }
-            mir::BinaryOperator::UnsignedRemainder => {
-                let left_scev = self.scev_for_value(left);
-                let right_scev = self.scev_for_value(right);
-                scev_unsigned_remainder(left_scev, right_scev)
+                if is_signed {
+                    scev_signed_remainder(left_scev, right_scev)
+                } else {
+                    scev_unsigned_remainder(left_scev, right_scev)
+                }
             }
             mir::BinaryOperator::ShiftLeft => {
                 let left_scev = self.scev_for_value(left);
                 let right_scev = self.scev_for_value(right);
                 scev_shift_left(left_scev, right_scev)
             }
-            mir::BinaryOperator::ArithmeticShiftRight => {
+            mir::BinaryOperator::ShiftRight => {
                 let left_scev = self.scev_for_value(left);
                 let right_scev = self.scev_for_value(right);
-                scev_arithmetic_shift_right(left_scev, right_scev)
+                if is_signed {
+                    scev_arithmetic_shift_right(left_scev, right_scev)
+                } else {
+                    scev_logical_shift_right(left_scev, right_scev)
+                }
             }
-            mir::BinaryOperator::LogicalShiftRight => {
+            mir::BinaryOperator::UnsignedShiftRight => {
                 let left_scev = self.scev_for_value(left);
                 let right_scev = self.scev_for_value(right);
                 scev_logical_shift_right(left_scev, right_scev)
@@ -471,9 +486,7 @@ impl<'a> LoopScevBuilder<'a> {
         let argument_scev = self.scev_for_value(argument);
 
         match operator {
-            mir::UnaryOperator::Negate | mir::UnaryOperator::FloatNegate => {
-                scev_negate(argument_scev)
-            }
+            mir::UnaryOperator::Negate => scev_negate(argument_scev),
             _ => Scev::Unknown(destination),
         }
     }
@@ -1023,7 +1036,7 @@ fn scev_signed_divide(left: Scev, right: Scev) -> Scev {
     // fold constant division when possible
     if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
         && let Some(result) = fold_binary(
-            mir::BinaryOperator::SignedDivide,
+            mir::BinaryOperator::Divide,
             left_const.clone(),
             right_const.clone(),
         )
@@ -1064,7 +1077,7 @@ fn scev_unsigned_divide(left: Scev, right: Scev) -> Scev {
     // fold constant division when possible
     if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
         && let Some(result) = fold_binary(
-            mir::BinaryOperator::UnsignedDivide,
+            mir::BinaryOperator::Divide,
             left_const.clone(),
             right_const.clone(),
         )
@@ -1095,7 +1108,7 @@ fn scev_signed_remainder(left: Scev, right: Scev) -> Scev {
     // fold constant remainder when possible
     if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
         && let Some(result) = fold_binary(
-            mir::BinaryOperator::SignedRemainder,
+            mir::BinaryOperator::Remainder,
             left_const.clone(),
             right_const.clone(),
         )
@@ -1140,7 +1153,7 @@ fn scev_unsigned_remainder(left: Scev, right: Scev) -> Scev {
     // fold constant remainder when possible
     if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
         && let Some(result) = fold_binary(
-            mir::BinaryOperator::UnsignedRemainder,
+            mir::BinaryOperator::Remainder,
             left_const.clone(),
             right_const.clone(),
         )
@@ -1201,7 +1214,7 @@ fn scev_arithmetic_shift_right(left: Scev, right: Scev) -> Scev {
     // fold constant shifts when possible
     if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
         && let Some(result) = fold_binary(
-            mir::BinaryOperator::ArithmeticShiftRight,
+            mir::BinaryOperator::ShiftRight,
             left_const.clone(),
             right_const.clone(),
         )
@@ -1231,7 +1244,7 @@ fn scev_logical_shift_right(left: Scev, right: Scev) -> Scev {
     // fold constant shifts when possible
     if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
         && let Some(result) = fold_binary(
-            mir::BinaryOperator::LogicalShiftRight,
+            mir::BinaryOperator::UnsignedShiftRight,
             left_const.clone(),
             right_const.clone(),
         )
@@ -1319,8 +1332,8 @@ entry(v0: int32, v1: int32):
 
 b1(v3: int32):
     v4: int32 = 1
-    v5: int32 = int.add v3, v4
-    v6: boolean = int.lt.s v5, v1
+    v5: int32 = add v3, v4
+    v6: boolean = lt v5, v1
     branch v6 => b1(v5) | b2(v5)
 
 b2(v7: int32):
@@ -1373,8 +1386,8 @@ entry(v0: int32, v1: int32):
     jump b1(v2)
 
 b1(v3: int32):
-    v4: int32 = int.mul v3, v1
-    v5: boolean = int.lt.s v4, v1
+    v4: int32 = mul v3, v1
+    v5: boolean = lt v4, v1
     branch v5 => b1(v4) | b2(v4)
 
 b2(v6: int32):
@@ -1414,8 +1427,8 @@ entry(v0: int32):
 
 b1(v2: int32):
     v3: int32 = 1
-    v4: int32 = int.sub v2, v3
-    v5: boolean = int.gt.s v4, v0
+    v4: int32 = sub v2, v3
+    v5: boolean = gt v4, v0
     branch v5 => b1(v4) | b2(v4)
 
 b2(v6: int32):
@@ -1468,7 +1481,7 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v2: int32):
-    v3: boolean = int.lt.s v2, v0
+    v3: boolean = lt v2, v0
     branch v3 => b2(v2) | b3(v2)
 
 b2(v4: int32):
@@ -1525,10 +1538,10 @@ entry(v0: int32, v1: int32):
 
 b1(v3: int32):
     v4: int32 = 2
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     v6: int32 = 1
-    v7: int32 = int.add v3, v6
-    v8: boolean = int.lt.s v7, v1
+    v7: int32 = add v3, v6
+    v8: boolean = lt v7, v1
     branch v8 => b1(v7) | b2(v5)
 
 b2(v9: int32):
@@ -1585,10 +1598,10 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v2: int32):
-    v3: int32 = int.add v2, v2
+    v3: int32 = add v2, v2
     v4: int32 = 1
-    v5: int32 = int.add v2, v4
-    v6: boolean = int.lt.s v5, v0
+    v5: int32 = add v2, v4
+    v6: boolean = lt v5, v0
     branch v6 => b1(v5) | b2(v3)
 
 b2(v7: int32):
@@ -1645,10 +1658,10 @@ entry(v0: int32):
 
 b1(v2: int32):
     v3: int32 = 2
-    v4: int32 = int.mul v2, v3
+    v4: int32 = mul v2, v3
     v5: int32 = 1
-    v6: int32 = int.add v2, v5
-    v7: boolean = int.lt.s v6, v0
+    v6: int32 = add v2, v5
+    v7: boolean = lt v6, v0
     branch v7 => b1(v6) | b2(v4)
 
 b2(v8: int32):
@@ -1704,10 +1717,10 @@ entry(v0: int32, v1: int32):
     jump b1(v2)
 
 b1(v3: int32):
-    v4: int32 = int.mul v3, v1
+    v4: int32 = mul v3, v1
     v5: int32 = 1
-    v6: int32 = int.add v3, v5
-    v7: boolean = int.lt.s v6, v0
+    v6: int32 = add v3, v5
+    v7: boolean = lt v6, v0
     branch v7 => b1(v6) | b2(v4)
 
 b2(v8: int32):
@@ -1761,10 +1774,10 @@ entry(v0: int32):
 
 b1(v2: int32):
     v3: int32 = 1
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     v5: int32 = 2
-    v6: int32 = int.add v4, v5
-    v7: boolean = int.lt.s v6, v0
+    v6: int32 = add v4, v5
+    v7: boolean = lt v6, v0
     branch v7 => b1(v6) | b2(v6)
 
 b2(v8: int32):
@@ -1818,10 +1831,10 @@ entry(v0: int32):
 
 b1(v2: int32):
     v3: int32 = 1
-    v4: int32 = int.sub v2, v3
+    v4: int32 = sub v2, v3
     v5: int32 = 2
-    v6: int32 = int.sub v4, v5
-    v7: boolean = int.gt.s v6, v0
+    v6: int32 = sub v4, v5
+    v7: boolean = gt v6, v0
     branch v7 => b1(v6) | b2(v6)
 
 b2(v8: int32):
@@ -1875,10 +1888,10 @@ entry(v0: int32):
 
 b1(v2: int32):
     v3: int32 = -1
-    v4: int32 = int.div.s v2, v3
+    v4: int32 = div v2, v3
     v5: int32 = 1
-    v6: int32 = int.add v2, v5
-    v7: boolean = int.lt.s v6, v0
+    v6: int32 = add v2, v5
+    v7: boolean = lt v6, v0
     branch v7 => b1(v6) | b2(v4)
 
 b2(v8: int32):
@@ -1935,10 +1948,10 @@ entry(v0: int32):
 
 b1(v2: int32):
     v3: int32 = 1
-    v4: int32 = int.shr.s v2, v3
-    v5: int32 = int.shr.u v2, v3
-    v6: int32 = int.add v2, v3
-    v7: boolean = int.lt.s v6, v0
+    v4: int32 = shr v2, v3
+    v5: int32 = ushr v2, v3
+    v6: int32 = add v2, v3
+    v7: boolean = lt v6, v0
     branch v7 => b1(v6) | b2(v4)
 
 b2(v8: int32):
@@ -2011,14 +2024,14 @@ entry(v0: int32, v1: int32):
 
 b1(v3: int32):
     v4: int32 = 2
-    v5: int32 = int.div.s v3, v4
+    v5: int32 = div v3, v4
     v6: int32 = 3
-    v7: int32 = int.shl v3, v6
+    v7: int32 = shl v3, v6
     v8: int32 = 1
-    v9: int32 = int.rem.s v3, v8
+    v9: int32 = rem v3, v8
     v10: int64 = cast.extend.s v3 -> int64
     v11: uint64 = cast.extend.u v3 -> uint64
-    v12: boolean = int.lt.s v3, v1
+    v12: boolean = lt v3, v1
     branch v12 => b1(v3) | b2(v10)
 
 b2(v13: int64):

@@ -1391,7 +1391,7 @@ impl Parser {
                     is_signed,
                 })
             }
-            _ if kind_parts.len() >= 4 && kind_parts[kind_parts.len() - 2] == "overflow" => {
+            _ if kind_parts.len() >= 3 && kind_parts[kind_parts.len() - 2] == "overflow" => {
                 let signedness = kind_parts[kind_parts.len() - 1];
                 let is_signed = match signedness {
                     "s" => true,
@@ -1507,11 +1507,11 @@ impl Parser {
 /// Parse the canonical operator family used in overflow checks.
 fn parse_overflow_check_operator(text: &str) -> Option<BinaryOperator> {
     Some(match text {
-        "int.add" => BinaryOperator::Add,
-        "int.sub" => BinaryOperator::Subtract,
-        "int.mul" => BinaryOperator::Multiply,
-        "int.div" => BinaryOperator::SignedDivide,
-        "int.rem" => BinaryOperator::SignedRemainder,
+        "add" => BinaryOperator::Add,
+        "sub" => BinaryOperator::Subtract,
+        "mul" => BinaryOperator::Multiply,
+        "div" => BinaryOperator::Divide,
+        "rem" => BinaryOperator::Remainder,
         _ => return None,
     })
 }

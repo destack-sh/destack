@@ -456,11 +456,11 @@ fn format_check_constraint<'a>(
 /// Return the canonical operator family used in overflow checks.
 fn overflow_check_family(operator: BinaryOperator) -> FormatResult<&'static str> {
     let family = match operator {
-        BinaryOperator::Add => "int.add",
-        BinaryOperator::Subtract => "int.sub",
-        BinaryOperator::Multiply => "int.mul",
-        BinaryOperator::SignedDivide | BinaryOperator::UnsignedDivide => "int.div",
-        BinaryOperator::SignedRemainder | BinaryOperator::UnsignedRemainder => "int.rem",
+        BinaryOperator::Add => "add",
+        BinaryOperator::Subtract => "sub",
+        BinaryOperator::Multiply => "mul",
+        BinaryOperator::Divide => "div",
+        BinaryOperator::Remainder => "rem",
         _ => {
             return Err(FormatError::SyntaxError {
                 message: "unsupported overflow check operator",

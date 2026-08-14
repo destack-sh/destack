@@ -1065,14 +1065,14 @@ pub fn fold_binary_signed(
         mir::BinaryOperator::Add => result_int(left.wrapping_add(right)),
         mir::BinaryOperator::Subtract => result_int(left.wrapping_sub(right)),
         mir::BinaryOperator::Multiply => result_int(left.wrapping_mul(right)),
-        mir::BinaryOperator::SignedDivide => {
+        mir::BinaryOperator::Divide => {
             if right != 0 {
                 result_int(left.wrapping_div(right))
             } else {
                 None
             }
         }
-        mir::BinaryOperator::SignedRemainder => {
+        mir::BinaryOperator::Remainder => {
             if right != 0 {
                 result_int(left.wrapping_rem(right))
             } else {
@@ -1083,13 +1083,13 @@ pub fn fold_binary_signed(
         mir::BinaryOperator::Or => result_int(left | right),
         mir::BinaryOperator::Xor => result_int(left ^ right),
         mir::BinaryOperator::ShiftLeft => result_int(left.wrapping_shl(right as u32)),
-        mir::BinaryOperator::ArithmeticShiftRight => result_int(left.wrapping_shr(right as u32)),
+        mir::BinaryOperator::ShiftRight => result_int(left.wrapping_shr(right as u32)),
         mir::BinaryOperator::Equal => result_bool(left == right),
         mir::BinaryOperator::NotEqual => result_bool(left != right),
-        mir::BinaryOperator::SignedLessThan => result_bool(left < right),
-        mir::BinaryOperator::SignedLessEqual => result_bool(left <= right),
-        mir::BinaryOperator::SignedGreaterThan => result_bool(left > right),
-        mir::BinaryOperator::SignedGreaterEqual => result_bool(left >= right),
+        mir::BinaryOperator::LessThan => result_bool(left < right),
+        mir::BinaryOperator::LessEqual => result_bool(left <= right),
+        mir::BinaryOperator::GreaterThan => result_bool(left > right),
+        mir::BinaryOperator::GreaterEqual => result_bool(left >= right),
         _ => None,
     }
 }
@@ -1113,14 +1113,14 @@ pub fn fold_binary_unsigned(
         mir::BinaryOperator::Add => result_uint(left.wrapping_add(right)),
         mir::BinaryOperator::Subtract => result_uint(left.wrapping_sub(right)),
         mir::BinaryOperator::Multiply => result_uint(left.wrapping_mul(right)),
-        mir::BinaryOperator::UnsignedDivide => {
+        mir::BinaryOperator::Divide => {
             if right != 0 {
                 result_uint(left.wrapping_div(right))
             } else {
                 None
             }
         }
-        mir::BinaryOperator::UnsignedRemainder => {
+        mir::BinaryOperator::Remainder => {
             if right != 0 {
                 result_uint(left.wrapping_rem(right))
             } else {
@@ -1131,14 +1131,15 @@ pub fn fold_binary_unsigned(
         mir::BinaryOperator::Or => result_uint(left | right),
         mir::BinaryOperator::Xor => result_uint(left ^ right),
         mir::BinaryOperator::ShiftLeft => result_uint(left.wrapping_shl(right as u32)),
-        mir::BinaryOperator::LogicalShiftRight => result_uint(left.wrapping_shr(right as u32)),
+        mir::BinaryOperator::ShiftRight | mir::BinaryOperator::UnsignedShiftRight => {
+            result_uint(left.wrapping_shr(right as u32))
+        }
         mir::BinaryOperator::Equal => result_bool(left == right),
         mir::BinaryOperator::NotEqual => result_bool(left != right),
-        mir::BinaryOperator::UnsignedLessThan => result_bool(left < right),
-        mir::BinaryOperator::UnsignedLessEqual => result_bool(left <= right),
-        mir::BinaryOperator::UnsignedGreaterThan => result_bool(left > right),
-        mir::BinaryOperator::UnsignedGreaterEqual => result_bool(left >= right),
-        _ => None,
+        mir::BinaryOperator::LessThan => result_bool(left < right),
+        mir::BinaryOperator::LessEqual => result_bool(left <= right),
+        mir::BinaryOperator::GreaterThan => result_bool(left > right),
+        mir::BinaryOperator::GreaterEqual => result_bool(left >= right),
     }
 }
 
@@ -1162,16 +1163,17 @@ pub fn fold_binary_float(
         let right = f32::from_bits(right_bits as u32);
 
         return match operator {
-            mir::BinaryOperator::FloatAdd => result_float((left + right) as f64),
-            mir::BinaryOperator::FloatSubtract => result_float((left - right) as f64),
-            mir::BinaryOperator::FloatMultiply => result_float((left * right) as f64),
-            mir::BinaryOperator::FloatDivide => result_float((left / right) as f64),
-            mir::BinaryOperator::FloatEqual => result_bool(left == right),
-            mir::BinaryOperator::FloatNotEqual => result_bool(left != right),
-            mir::BinaryOperator::FloatLessThan => result_bool(left < right),
-            mir::BinaryOperator::FloatLessEqual => result_bool(left <= right),
-            mir::BinaryOperator::FloatGreaterThan => result_bool(left > right),
-            mir::BinaryOperator::FloatGreaterEqual => result_bool(left >= right),
+            mir::BinaryOperator::Add => result_float((left + right) as f64),
+            mir::BinaryOperator::Subtract => result_float((left - right) as f64),
+            mir::BinaryOperator::Multiply => result_float((left * right) as f64),
+            mir::BinaryOperator::Divide => result_float((left / right) as f64),
+            mir::BinaryOperator::Remainder => result_float((left % right) as f64),
+            mir::BinaryOperator::Equal => result_bool(left == right),
+            mir::BinaryOperator::NotEqual => result_bool(left != right),
+            mir::BinaryOperator::LessThan => result_bool(left < right),
+            mir::BinaryOperator::LessEqual => result_bool(left <= right),
+            mir::BinaryOperator::GreaterThan => result_bool(left > right),
+            mir::BinaryOperator::GreaterEqual => result_bool(left >= right),
             _ => None,
         };
     }
@@ -1180,16 +1182,17 @@ pub fn fold_binary_float(
     let right = float_from_bits(format.format(), right_bits);
 
     match operator {
-        mir::BinaryOperator::FloatAdd => result_float(left + right),
-        mir::BinaryOperator::FloatSubtract => result_float(left - right),
-        mir::BinaryOperator::FloatMultiply => result_float(left * right),
-        mir::BinaryOperator::FloatDivide => result_float(left / right),
-        mir::BinaryOperator::FloatEqual => result_bool(left == right),
-        mir::BinaryOperator::FloatNotEqual => result_bool(left != right),
-        mir::BinaryOperator::FloatLessThan => result_bool(left < right),
-        mir::BinaryOperator::FloatLessEqual => result_bool(left <= right),
-        mir::BinaryOperator::FloatGreaterThan => result_bool(left > right),
-        mir::BinaryOperator::FloatGreaterEqual => result_bool(left >= right),
+        mir::BinaryOperator::Add => result_float(left + right),
+        mir::BinaryOperator::Subtract => result_float(left - right),
+        mir::BinaryOperator::Multiply => result_float(left * right),
+        mir::BinaryOperator::Divide => result_float(left / right),
+        mir::BinaryOperator::Remainder => result_float(left % right),
+        mir::BinaryOperator::Equal => result_bool(left == right),
+        mir::BinaryOperator::NotEqual => result_bool(left != right),
+        mir::BinaryOperator::LessThan => result_bool(left < right),
+        mir::BinaryOperator::LessEqual => result_bool(left <= right),
+        mir::BinaryOperator::GreaterThan => result_bool(left > right),
+        mir::BinaryOperator::GreaterEqual => result_bool(left >= right),
         _ => None,
     }
 }
@@ -1666,7 +1669,7 @@ pub fn fold_unary(operator: mir::UnaryOperator, value: mir::Constant) -> Option<
             is_signed: true,
         }),
 
-        (mir::UnaryOperator::FloatNegate, mir::Constant::Float { bits, format }) => {
+        (mir::UnaryOperator::Negate, mir::Constant::Float { bits, format }) => {
             let value = -float_from_bits(format.format(), *bits);
 
             Some(mir::Constant::Float {

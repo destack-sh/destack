@@ -97,6 +97,7 @@ pub fn loop_guard_branch(
 /// Return true when all instructions in a block are speculatable and read free.
 pub fn block_is_speculatable_no_reads(
     block: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
     tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> bool {
@@ -106,7 +107,7 @@ pub fn block_is_speculatable_no_reads(
         let instruction = tree.get(instruction_id);
 
         // reject non speculatable instructions
-        if !instruction_is_speculatable(instruction, tree) {
+        if !instruction_is_speculatable(instruction, function, tree) {
             return false;
         }
 
@@ -211,6 +212,7 @@ pub fn control_instructions_for_latch(
 /// Collect loop memory effects across all loop blocks.
 pub fn collect_loop_effects(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    function: &mir::Function,
     tree: &mir::Tree,
     memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
@@ -230,7 +232,7 @@ pub fn collect_loop_effects(
             // enforce read only instruction requirements
             if matches!(policy, LoopEffectPolicy::ReadOnly) {
                 let instruction = tree.get(*instruction_id);
-                if instruction_is_speculatable(instruction, tree)
+                if instruction_is_speculatable(instruction, function, tree)
                     || instruction_is_borrow_address(instruction)
                 {
                     continue;

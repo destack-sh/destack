@@ -594,9 +594,17 @@ impl Function {
         )
     }
 
-    /// Get the type for an SSA value.
+    /// Return the type for an SSA value.
     pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
         self.body.as_ref().and_then(|body| body.value_type(value))
+    }
+
+    /// Return the expected type for one SSA value.
+    pub fn expect_value_type(&self, value: Value) -> LocalNodeId<Type> {
+        match self.value_type(value) {
+            Some(ty) => ty,
+            None => unreachable!("missing type for value {value:?}"),
+        }
     }
 
     /// Set the linkage and return self (builder pattern).
