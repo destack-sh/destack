@@ -560,11 +560,11 @@ Unsafe begins when code relies on a memory invariant the compiler cannot prove:
 |-----------|---------|-------|-----|
 | create or carry raw pointer values | `let pointer: *User = &user`, `pointer == other` | yes | does not touch memory |
 | reinterpret raw pointer values | `pointer as *uint8`, `0x1000 as *uint8` | yes | makes no validity claim |
-| wrapping address arithmetic | `wrappingOffset(pointer, 4)` | yes | makes no allocation claim |
-| allocation-relative pointer math | `offset(pointer, 4)`, `offsetFrom(pointer, origin)` | no | claims same live allocation |
-| access memory through a pointer | `asReference(pointer)`, `read(pointer)`, `write(pointer, value)` | no | bypasses borrow checking |
+| wrapping address arithmetic | `raw.wrappingOffset(pointer, 4)` | yes | makes no allocation claim |
+| allocation-relative pointer math | `raw.offset(pointer, 4)`, `raw.offsetFrom(pointer, origin)` | no | claims same live allocation |
+| access memory through a pointer | `raw.asReference(pointer)`, `raw.read(pointer)`, `raw.write(pointer, value)` | no | bypasses borrow checking |
 | build typed views from raw storage | `Slice.fromRaw(pointer, length)` | no | claims a valid region of `T` |
-| raw bytes and layout tricks | `copyBytes(dst, src, n)`, `readVolatile(pointer)`, `transmute<T, U>(value)` | no | touches or reinterprets unchecked memory |
+| raw bytes and layout tricks | `raw.copyBytes(dst, src, n)`, `raw.readVolatile(pointer)`, `raw.transmute<T, U>(value)` | no | touches or reinterprets unchecked memory |
 
 The compiler rejects unsafe operations, like raw pointer dereferencing, outside explicit [`@unsafe` / `@safe`](./expressions.md#taint) contexts.
 
