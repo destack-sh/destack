@@ -316,6 +316,8 @@ pub enum MemberTarget {
     Projection {
         /// The source member key.
         key: StaticKey,
+        /// The receiver adjustments applied before projection.
+        receiver: AdjustedReceiver,
         /// The selected value projection.
         projection: Projection,
     },

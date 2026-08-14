@@ -5,7 +5,6 @@ use crate::{
     Access, Call, CallDecision, Dereference, DereferenceResolution, FieldResolution,
     GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, MemberAccess, MemberDecision,
     OperationResolution, ScalarLiteral, StaticKey, Subscript, SubscriptDecision, TypeFold,
-    VariantCase,
 };
 
 /// Value projection selected during checking.
@@ -22,7 +21,7 @@ use crate::{
 /// values.length         // SliceLength
 /// dynamic.payload       // DynamicPayload
 /// dynamic.type          // DynamicType
-/// Shape.Circle(radius)  // VariantTag and VariantPayload
+/// value.kind            // Discriminant, when kind distinguishes union arms
 /// UserId(raw)           // NewtypePayload
 /// &value                // Borrow
 /// ^value                // Move
@@ -114,39 +113,21 @@ pub enum Projection {
         /// The projected type descriptor type.
         ty: GlobalTypeId,
     },
-    /// Read the active tag from a physical tagged sum value.
+    /// Read a singleton property that distinguishes every arm of a union.
     ///
     /// Examples:
     /// ```ds
-    /// shape is Shape.Circle
-    /// match shape { Shape.Circle(radius) => radius }
+    /// shape.kind
+    /// result.success
     /// ```
-    VariantTag {
-        /// The checked variant carrier type.
-        carrier: GlobalTypeId,
-        /// The selected discriminator field.
-        discriminator: StaticKey,
-        /// The projected tag type.
-        ty: GlobalTypeId,
-    },
-    /// Extract the payload selected by one concrete variant tag.
-    ///
-    /// Examples:
-    /// ```ds
-    /// match shape {
-    ///     Shape.Circle(radius) => radius
-    /// }
-    /// ```
-    VariantPayload {
-        /// The selected tagged case.
-        case: VariantCase,
-        /// The instantiated backing arm.
-        backing: GlobalTypeId,
-        /// The selected discriminator field.
-        discriminator: StaticKey,
-        /// The discriminant value tested at runtime.
-        discriminant: ScalarLiteral,
-        /// The projected payload type.
+    Discriminant {
+        /// The physical union carrying the discriminant.
+        union: GlobalTypeId,
+        /// The singleton property selecting each union arm.
+        key: StaticKey,
+        /// The reachable union arms and their source property values.
+        cases: Vec<DiscriminantCase>,
+        /// The union of the projected singleton property types.
         ty: GlobalTypeId,
     },
     /// Unwrap one newtype payload.
@@ -208,6 +189,15 @@ pub enum Projection {
     },
 }
 
+/// One source property value encoded by a union arm.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+pub struct DiscriminantCase {
+    /// The physical union arm selected by this value.
+    pub arm: GlobalTypeId,
+    /// The source property value represented by this arm.
+    pub value: ScalarLiteral,
+}
+
 /// Projection selected for one value or every runtime union arm.
 ///
 /// Examples:
@@ -226,8 +216,7 @@ impl Projection {
             | Self::SliceLength { ty }
             | Self::DynamicPayload { ty }
             | Self::DynamicType { ty }
-            | Self::VariantTag { ty, .. }
-            | Self::VariantPayload { ty, .. }
+            | Self::Discriminant { ty, .. }
             | Self::NewtypePayload { ty, .. }
             | Self::Borrow { ty, .. }
             | Self::Move { ty, .. }

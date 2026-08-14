@@ -9,8 +9,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, Call,
     CallDecision, ConstructDecision, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, GuardDecision,
-    InstantiationDecision, MemberDecision, OperatorDecision, PatternDecision, PlaceResolution,
-    ReceiverDecision, SegmentView, SubscriptDecision, TreeDecision, TypeFold,
+    InstantiationDecision, MemberAccess, MemberDecision, OperationResolution, OperatorDecision,
+    PatternDecision, PlaceResolution, ReceiverDecision, SegmentView, SubscriptDecision,
+    SubscriptTarget, TreeDecision, TypeFold,
 };
 
 /// The one decision inference made for a DIR node.
@@ -48,6 +49,20 @@ pub enum Decision {
     Rejected,
     /// Poisoned node with an already-reported error.
     Poisoned,
+}
+
+impl Decision {
+    /// Return the single static member access selected at this node.
+    pub fn member_access(&self) -> Option<&MemberAccess> {
+        match self {
+            Self::Member(OperationResolution::One(access)) => Some(access),
+            Self::Subscript(OperationResolution::One(subscript)) => match &subscript.target {
+                SubscriptTarget::Member(access) => Some(access),
+                SubscriptTarget::Call(_) | SubscriptTarget::Index(_) => None,
+            },
+            _ => None,
+        }
+    }
 }
 
 /// Cumulative inference decisions for one DIR module.

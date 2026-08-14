@@ -199,7 +199,7 @@ impl MemberSegment {
 /// The exact input to member lookup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MemberSubject {
-    /// The non-nullish receiver type.
+    /// The use-site receiver type before implicit projections.
     pub receiver: GlobalTypeId,
     /// The type searched by member lookup.
     pub target: GlobalTypeId,

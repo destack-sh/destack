@@ -1,10 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Dereference, GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, ScalarLiteral, StaticKey,
-    TypeFold, VariantCase,
-};
+use crate::{Dereference, GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, TypeFold};
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
 ///
@@ -152,7 +149,7 @@ pub struct DynamicDispatch {
 /// value.method()       // Borrow, when `this` expects a borrowed receiver
 /// box.value            // Dereference, when `Box<T>` exposes members of `T`
 /// userId.length        // NewtypePayload, when the backing string exposes `length`
-/// shape.radius         // VariantPayload, when a precise variant exposes its payload
+/// shape.radius         // UnionPayload, after narrowing selects one union arm
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum ReceiverAdjustment {
@@ -172,16 +169,12 @@ pub enum ReceiverAdjustment {
         /// The adjusted receiver type.
         ty: GlobalTypeId,
     },
-    /// Project the payload of one precise tagged variant.
-    VariantPayload {
-        /// The selected tagged case.
-        case: VariantCase,
-        /// The instantiated backing arm.
-        backing: GlobalTypeId,
-        /// The selected discriminator field.
-        discriminator: StaticKey,
-        /// The discriminant value tested at runtime.
-        discriminant: ScalarLiteral,
+    /// Project the payload selected by one precise union arm.
+    UnionPayload {
+        /// The union whose arm order defines the payload position.
+        union: GlobalTypeId,
+        /// The selected union arm.
+        arm: GlobalTypeId,
         /// The adjusted receiver type.
         ty: GlobalTypeId,
     },
@@ -193,7 +186,7 @@ impl ReceiverAdjustment {
         match self {
             Self::Borrow { ty }
             | Self::NewtypePayload { ty, .. }
-            | Self::VariantPayload { ty, .. } => *ty,
+            | Self::UnionPayload { ty, .. } => *ty,
             Self::Dereference(dereference) => dereference.ty,
         }
     }

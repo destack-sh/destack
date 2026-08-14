@@ -11,7 +11,7 @@ use crate::{
 /// Examples:
 /// ```ds
 /// value is string       // Unary
-/// value is Shape.Circle // Unary over VariantTag, projection: VariantPayload
+/// value.kind is "circle" // Unary over Discriminant
 /// "name" in value       // Membership
 /// value is "a" | "b"    // Any
 /// ```
@@ -140,7 +140,7 @@ pub enum PredicateTest {
 /// Examples:
 /// ```ds
 /// value is string       // input: value, condition: Primitive
-/// value is Shape.Circle // input: VariantTag, condition: Literal
+/// value.kind is "circle" // input: Discriminant, condition: Literal
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct PredicateUnaryTest {
