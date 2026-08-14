@@ -1,7 +1,7 @@
 // SYNTAX TEST "source.ds"
 
 // expressions / decorators / derive
-@derive(Tagged)
+@derive(Clone)
 // <~------ entity.name.function.decorator.ds
 newtype Shape =
     | { kind: "rectangle"; width: int32 }

@@ -10,9 +10,7 @@ newtype Rectangle = {
     end: Point;
 };
 
-// types / newtypes / tagged unions
-@derive(Tagged)
-// <~------ entity.name.function.decorator.ds
+// types / newtypes / discriminated unions
 newtype Shape =
     | { kind: "rectangle"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
