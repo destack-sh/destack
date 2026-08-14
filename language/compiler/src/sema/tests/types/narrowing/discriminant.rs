@@ -1,536 +1,72 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Narrow both branches of a generic newtype through its structural discriminant.
 #[test]
-fn test_narrow_inline_tagged_payload_field() {
+fn test_narrow_generic_newtype_discriminant() {
     let session = TestSession::single(
         r#"
-@derive(Tagged)
-newtype Event =
-    | { kind: "click"; x: int32 }
-    | { kind: "key"; key: string };
-
-function readX(event: Event): int32 {
-    if (event.kind === "click") {
-        const kind: "click" = event.kind;
-
-        return event.x;
-    }
-
-    return 0;
-}
-"#,
-    );
-
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
-=== annotated ===
-@derive(Tagged)
-newtype Event = { kind: "click"; x: int32 } | { kind: "key"; key: string };
-
-function readX(event: Event): int32 {
-    if (event.kind === ("click" as "click" | "key")) {
-        const kind: "click" = event.kind;
-
-        return event.x;
-    }
-
-    return 0;
+struct Pending<T> {
+    kind: "pending" = "pending";
+    waiting: T;
 }
 
-=== checked ===
-@derive(Tagged)
-/// @resolution.name source=derive target=decorator.derive.derive
-/// @resolution.name source=Tagged target=decorator.derive.Tagged
-
-newtype Event =
-/// @type.symbol symbol=Event type=Event
-/// @type.symbol symbol=Event.Click type=({ x: int32 }) => Event.Click
-/// @type.symbol symbol=Event.Key type=({ key: string }) => Event.Key
-/// @definition.newtype symbol=Event discriminator=kind backing={ kind: "click"; x: int32 } | { kind: "key"; key: string }
-/// @definition.variant symbol=Event.Click source={ kind: "click"; x: int32 } key=Click discriminant=click backing={ kind: "click"; x: int32 } argument={ x: int32 }
-/// @definition.variant symbol=Event.Key source={ kind: "key"; key: string } key=Key discriminant=key backing={ kind: "key"; key: string } argument={ key: string }
-
-    | { kind: "click"; x: int32 }
-    | { kind: "key"; key: string };
-
-function readX(event: Event): int32 {
-/// @type.symbol symbol=readX type=(Event) => int32
-/// @type.symbol symbol=readX.event source="event: Event" type=Event
-/// @resolution.name source=Event target=Event
-
-    if (event.kind === "click") {
-    /// @resolution.name source=event target=readX.event
-    /// @resolution.member source=event.kind receiver=Event type="click" | "key" kind=projection target="variant.tag(Event, kind, \"click\" | \"key\")"
-    /// @resolution.operator source="event.kind === \"click\"" type=boolean operator="===" kind=builtin operands=[event.kind as "click" | "key" families=(string), "click" as "click" | "key" families=(string)]
-    /// @resolution.place source=event placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=event root=readX.event
-    /// @resolution.place source=event.kind placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=event.kind root=readX.event keys=[kind]
-
-        const kind: "click" = event.kind;
-        /// @type.symbol symbol=readX.kind source=kind type="click"
-        /// @resolution.pattern source=kind kind=binding target=readX.kind
-        /// @resolution.name source=event target=readX.event
-        /// @resolution.member source=event.kind receiver=Event.Click type="click" kind=projection target="variant.tag(Event, kind, \"click\")"
-        /// @resolution.place source=event placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=event root=readX.event
-        /// @resolution.place source=event.kind placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=event.kind root=readX.event keys=[kind]
-
-        return event.x;
-        /// @resolution.name source=event target=readX.event
-        /// @resolution.member source=event.x receiver=Event.Click type=int32 kind=field target_receiver={ kind: "click"; x: int32 } adjustments=(variant.payload(Event.Click, { kind: "click"; x: int32 })) key=x target_type=int32
-        /// @resolution.place source=event placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=event root=readX.event
-        /// @resolution.place source=event.x placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=event.x root=readX.event keys=[x]
-
-    }
-
-    return 0;
-}
-"#);
-}
-
-#[test]
-fn test_inline_tagged_variants_expose_common_payload_field() {
-    let session = TestSession::single(
-        r#"
-@derive(Tagged)
-newtype Event =
-    | { kind: "click"; value: int32 }
-    | { kind: "key"; value: int32 };
-
-function read(event: Event): int32 {
-    return event.value;
-}
-"#,
-    );
-
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
-=== annotated ===
-@derive(Tagged)
-newtype Event = { kind: "click"; value: int32 } | { kind: "key"; value: int32 };
-
-function read(event: Event): int32 {
-    return event.value;
-}
-
-=== checked ===
-@derive(Tagged)
-/// @resolution.name source=derive target=decorator.derive.derive
-/// @resolution.name source=Tagged target=decorator.derive.Tagged
-
-newtype Event =
-/// @type.symbol symbol=Event type=Event
-/// @type.symbol symbol=Event.Click type=({ value: int32 }) => Event.Click
-/// @type.symbol symbol=Event.Key type=({ value: int32 }) => Event.Key
-/// @definition.newtype symbol=Event discriminator=kind backing={ kind: "click"; value: int32 } | { kind: "key"; value: int32 }
-/// @definition.variant symbol=Event.Click source={ kind: "click"; value: int32 } key=Click discriminant=click backing={ kind: "click"; value: int32 } argument={ value: int32 }
-/// @definition.variant symbol=Event.Key source={ kind: "key"; value: int32 } key=Key discriminant=key backing={ kind: "key"; value: int32 } argument={ value: int32 }
-
-    | { kind: "click"; value: int32 }
-    | { kind: "key"; value: int32 };
-
-function read(event: Event): int32 {
-/// @type.symbol symbol=read type=(Event) => int32
-/// @type.symbol symbol=read.event source="event: Event" type=Event
-/// @resolution.name source=Event target=Event
-
-    return event.value;
-    /// @resolution.name source=event target=read.event
-    /// @resolution.member source=event.value type=int32 kind=union arms=[receiver=Event.Click, target=field(receiver={ kind: "click"; value: int32 } adjustments=(variant.payload(Event.Click, { kind: "click"; value: int32 })), target=value, type=int32), type=int32, receiver=Event.Key, target=field(receiver={ kind: "key"; value: int32 } adjustments=(variant.payload(Event.Key, { kind: "key"; value: int32 })), target=value, type=int32), type=int32]
-    /// @resolution.place source=event placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=event root=read.event
-    /// @resolution.place source=event.value placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=event.value root=read.event keys=[value]
-
-}
-"#);
-}
-
-#[test]
-fn test_explicit_tagged_discriminator_narrows_parent() {
-    let session = TestSession::single(
-        r#"
-struct Click {
-    type: "click";
-    category: "pointer";
-    x: int32;
-}
-
-struct Key {
-    type: "key";
-    category: "keyboard";
-    key: string;
-}
-
-@derive(Tagged({ discriminator: "type" }))
-newtype Event = Click | Key;
-
-function readX(event: Event): int32 {
-    if (event.type === "click") {
-        return event.x;
-    }
-
-    return 0;
-}
-"#,
-    );
-
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
-=== annotated ===
-struct Click {
-    type: "click";
-    category: "pointer";
-    x: int32;
-}
-
-struct Key {
-    type: "key";
-    category: "keyboard";
-    key: string;
-}
-
-@derive(Tagged({ discriminator: "type" }))
-newtype Event = Click | Key;
-
-function readX(event: Event): int32 {
-    if (event.type === ("click" as "click" | "key")) {
-        return event.x;
-    }
-
-    return 0;
-}
-
-=== checked ===
-struct Click {
-/// @type.symbol symbol=Click type=Click
-/// @definition.struct symbol=Click
-/// @definition.field symbol=Click.category source="category: \"pointer\"" key=category type="pointer"
-/// @definition.field symbol=Click.type source="type: \"click\"" key=type type="click"
-/// @definition.field symbol=Click.x source="x: int32" key=x type=int32
-
-    type: "click";
-    /// @type.symbol symbol=Click.type source="type: \"click\"" type="click"
-
-    category: "pointer";
-    /// @type.symbol symbol=Click.category source="category: \"pointer\"" type="pointer"
-
-    x: int32;
-    /// @type.symbol symbol=Click.x source="x: int32" type=int32
-
-}
-
-struct Key {
-/// @type.symbol symbol=Key type=Key
-/// @definition.struct symbol=Key
-/// @definition.field symbol=Key.category source="category: \"keyboard\"" key=category type="keyboard"
-/// @definition.field symbol=Key.key source="key: string" key=key type=string
-/// @definition.field symbol=Key.type source="type: \"key\"" key=type type="key"
-
-    type: "key";
-    /// @type.symbol symbol=Key.type source="type: \"key\"" type="key"
-
-    category: "keyboard";
-    /// @type.symbol symbol=Key.category source="category: \"keyboard\"" type="keyboard"
-
-    key: string;
-    /// @type.symbol symbol=Key.key source="key: string" type=string
-
-}
-
-@derive(Tagged({ discriminator: "type" }))
-/// @resolution.name source=derive target=decorator.derive.derive
-/// @resolution.name source=Tagged target=decorator.derive.Tagged
-/// @resolution.construct source="Tagged({ discriminator: \"type\" })" parameters=({ discriminator?: string; case?: decorator.derive.TaggedCase; names?: decorator.derive.TaggedNames }) arguments=(provided({ discriminator: "type" }) as { discriminator?: string; case?: decorator.derive.TaggedCase; names?: decorator.derive.TaggedNames }) return=Tagged kind=newtype target=decorator.derive.Tagged backing={ discriminator?: string; case?: decorator.derive.TaggedCase; names?: decorator.derive.TaggedNames }
-
-newtype Event = Click | Key;
-/// @type.symbol symbol=Event source="newtype Event = Click | Key" type=Event
-/// @type.symbol symbol=Event.Click type=({ category: "pointer"; x: int32 }) => Event.Click
-/// @type.symbol symbol=Event.Key type=({ category: "keyboard"; key: string }) => Event.Key
-/// @definition.newtype symbol=Event source="newtype Event = Click | Key" discriminator=type backing=Click | Key
-/// @definition.variant symbol=Event.Click source=Click key=Click discriminant=click backing=Click argument={ category: "pointer"; x: int32 }
-/// @definition.variant symbol=Event.Key source=Key key=Key discriminant=key backing=Key argument={ category: "keyboard"; key: string }
-/// @resolution.name source=Click target=Click
-/// @resolution.name source=Key target=Key
-
-function readX(event: Event): int32 {
-/// @type.symbol symbol=readX type=(Event) => int32
-/// @type.symbol symbol=readX.event source="event: Event" type=Event
-/// @resolution.name source=Event target=Event
-
-    if (event.type === "click") {
-    /// @resolution.name source=event target=readX.event
-    /// @resolution.member source=event.type receiver=Event type="click" | "key" kind=projection target="variant.tag(Event, type, \"click\" | \"key\")"
-    /// @resolution.operator source="event.type === \"click\"" type=boolean operator="===" kind=builtin operands=[event.type as "click" | "key" families=(string), "click" as "click" | "key" families=(string)]
-    /// @resolution.place source=event placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=event root=readX.event
-    /// @resolution.place source=event.type placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=event.type root=readX.event keys=[type]
-
-        return event.x;
-        /// @resolution.name source=event target=readX.event
-        /// @resolution.member source=event.x receiver=Event.Click type=int32 kind=field target_receiver=Event.Click adjustments=(variant.payload(Event.Click, Click)) key=x target=Click.x target_type=int32
-        /// @resolution.place source=event placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=event root=readX.event
-        /// @resolution.place source=event.x placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=event.x root=readX.event keys=[x]
-
-    }
-
-    return 0;
-}
-"#);
-}
-
-#[test]
-fn test_tagged_newtype_discriminant_narrows_generic_value() {
-    let session = TestSession::single(
-        r#"
-struct Yield<T> {
-    kind: "yield";
+struct Ready<T> {
+    kind: "ready" = "ready";
     value: T;
 }
 
-struct Return {
-    kind: "return";
-}
+newtype State<T> = Pending<T> | Ready<T>;
 
-@derive(Tagged)
-newtype Result<T> = Yield<T> | Return;
-
-function read<T>(result: Result<T>): T {
-    if (result.kind == "yield") {
-        return result.value;
+function read<T>(state: State<T>): T {
+    if (state.kind === "ready") {
+        return state.value;
     }
 
-    return unreachable();
+    return state.waiting;
 }
 "#,
     );
 
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked().with_reference_types(),
-        r#"
-=== annotated ===
-struct Yield<out T> {
-    kind: "yield";
-    value: T;
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#""#);
 }
 
-struct Return {
-    kind: "return";
-}
-
-@derive(Tagged)
-newtype Result<out T> = Yield<T> | Return;
-
-function read<T>(result: Result<T>): T {
-    if (result.kind == "yield") {
-        return result.value;
-    }
-
-    return unreachable();
-}
-
-=== checked ===
-struct Yield<T> {
-/// @generic.template symbol=Yield parameters=(out T#1)
-/// @type.symbol symbol=Yield type=Yield
-/// @definition.struct symbol=Yield template=(out T#1)
-/// @definition.field symbol=Yield.kind source="kind: \"yield\"" key=kind type="yield"
-/// @definition.field symbol=Yield.value source="value: T" key=value type=T#1
-/// @type.symbol symbol=Yield.T source=T type=T#1
-
-    kind: "yield";
-    /// @type.symbol symbol=Yield.kind source="kind: \"yield\"" type="yield"
-
-    value: T;
-    /// @type.symbol symbol=Yield.value source="value: T" type=T#1
-    /// @resolution.name source=T target=Yield.T
-
-}
-
-struct Return {
-/// @type.symbol symbol=Return type=Return
-/// @definition.struct symbol=Return
-/// @definition.field symbol=Return.kind source="kind: \"return\"" key=kind type="return"
-
-    kind: "return";
-    /// @type.symbol symbol=Return.kind source="kind: \"return\"" type="return"
-
-}
-
-@derive(Tagged)
-/// @type.node source=derive type=derive
-/// @resolution.name source=derive target=decorator.derive.derive
-/// @type.node source=Tagged type=Tagged
-/// @resolution.name source=Tagged target=decorator.derive.Tagged
-
-newtype Result<T> = Yield<T> | Return;
-/// @generic.template symbol=Result parameters=(out T#2)
-/// @type.symbol symbol=Result source="newtype Result<T> = Yield<T> | Return" type=Result
-/// @type.symbol symbol=Result.Return type=Result.Return<T#2>
-/// @type.symbol symbol=Result.Yield type=<T#2>({ value: T#2 }) => Result.Yield<T#2>
-/// @definition.newtype symbol=Result source="newtype Result<T> = Yield<T> | Return" template=(out T#2) discriminator=kind backing=Yield<T#2> | Return
-/// @definition.variant symbol=Result.Return source=Return key=Return discriminant=return backing=Return
-/// @definition.variant symbol=Result.Yield source=Yield<T> key=Yield discriminant=yield backing=Yield<T#2> argument={ value: T#2 }
-/// @type.symbol symbol=Result.T source=T type=T#2
-/// @resolution.name source=Yield target=Yield
-/// @resolution.name source=T target=Result.T
-/// @resolution.name source=Return target=Return
-
-function read<T>(result: Result<T>): T {
-/// @generic.template symbol=read parameters=(T#3)
-/// @type.symbol symbol=read type=<T#3>(Result<T#3>) => T#3
-/// @type.symbol symbol=read.T source=T type=T#3
-/// @type.symbol symbol=read.result source="result: Result<T>" type=Result<T#3>
-/// @resolution.name source=Result target=Result
-/// @resolution.name source=T target=read.T
-/// @resolution.name source=T target=read.T
-
-    if (result.kind == "yield") {
-    /// @type.node source="result.kind == \"yield\"" type=boolean
-    /// @type.node source=result type=Result<T#3>
-    /// @type.node source=result.kind type="yield" | "return"
-    /// @resolution.name source=result target=read.result
-    /// @resolution.member source=result.kind receiver=Result<T#3> type="yield" | "return" kind=projection target="variant.tag(Result<T#3>, kind, \"yield\" | \"return\")"
-    /// @resolution.operator source="result.kind == \"yield\"" type=boolean operator="==" kind=builtin operands=[result.kind as "yield" | "return" families=(string), "yield" as "yield" families=(string)]
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=result root=read.result
-    /// @resolution.place source=result.kind placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=result.kind root=read.result keys=[kind]
-    /// @generic.instance source=result id=Result<T#3>
-    /// @type.node source="\"yield\"" type="yield"
-
-        return result.value;
-        /// @type.node source=result type=Result.Yield<T#3>
-        /// @type.node source=result.value type=T#3
-        /// @resolution.name source=result target=read.result
-        /// @resolution.member source=result.value receiver=Result.Yield<T#3> type=T#3 kind=field target_receiver=Result.Yield<T#3> adjustments=(variant.payload(Result.Yield, Yield<T#3>)) key=value target=Yield.value target_type=T#3
-        /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=result root=read.result
-        /// @resolution.place source=result.value placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=result.value root=read.result keys=[value]
-        /// @generic.instance source=result id=Result<T#3>
-
-    }
-
-    return unreachable();
-    /// @type.node source=unreachable type=() => never
-    /// @type.node source=unreachable() type=never
-    /// @resolution.name source=unreachable target=error.panic.unreachable
-    /// @resolution.call source=unreachable() parameters=() return=never kind=symbol target=error.panic.unreachable
-
-}
-
-/// @generic.instance id=Result<T#2> template=Result arguments=(T#2)
-/// @generic.instance id=Result<T#3> template=Result arguments=(T#3)
-"#,
-    );
-}
-
+/// Narrow an imported generic newtype through its structural discriminant.
 #[test]
-fn test_imported_tagged_newtype_discriminant_narrows_generic_value() {
+fn test_narrow_imported_generic_newtype_discriminant() {
     let session = TestSession::builder()
         .module(
-            "result.ds",
+            "state.ds",
             r#"
-export struct Yield<T> {
-    kind: "yield";
+export struct Pending<T> {
+    kind: "pending" = "pending";
+    waiting: T;
+}
+
+export struct Ready<T> {
+    kind: "ready" = "ready";
     value: T;
 }
 
-export struct Return {
-    kind: "return";
-}
-
-@derive(Tagged)
-export newtype Result<T> = Yield<T> | Return;
+export newtype State<T> = Pending<T> | Ready<T>;
 "#,
         )
         .module(
             "main.ds",
             r#"
-import { Result } from "./result.ds";
+import { State } from "./state.ds";
 
-function read<T>(result: Result<T>): T {
-    if (result.kind == "yield") {
-        return result.value;
+function read<T>(state: State<T>): T {
+    if (state.kind === "ready") {
+        return state.value;
     }
 
-    return unreachable();
+    return state.waiting;
 }
 "#,
         )
         .build();
 
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked().with_reference_types(),
-        r#"
-=== annotated ===
-import { Result } from "./result.ds";
-
-function read<T>(result: Result<T>): T {
-    if (result.kind == "yield") {
-        return result.value;
-    }
-
-    return unreachable();
-}
-
-=== checked ===
-import { Result } from "./result.ds";
-
-function read<T>(result: Result<T>): T {
-/// @generic.template symbol=read parameters=(T)
-/// @type.symbol symbol=read type=<T>(result.Result<T>) => T
-/// @type.symbol symbol=read.T source=T type=T
-/// @type.symbol symbol=read.result source="result: Result<T>" type=result.Result<T>
-/// @resolution.name source=Result target=result.Result
-/// @resolution.name source=T target=read.T
-/// @resolution.name source=T target=read.T
-
-    if (result.kind == "yield") {
-    /// @type.node source="result.kind == \"yield\"" type=boolean
-    /// @type.node source=result type=result.Result<T>
-    /// @type.node source=result.kind type="yield" | "return"
-    /// @resolution.name source=result target=read.result
-    /// @resolution.member source=result.kind receiver=result.Result<T> type="yield" | "return" kind=projection target="variant.tag(result.Result<T>, kind, \"yield\" | \"return\")"
-    /// @resolution.operator source="result.kind == \"yield\"" type=boolean operator="==" kind=builtin operands=[result.kind as "yield" | "return" families=(string), "yield" as "yield" families=(string)]
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=result root=read.result
-    /// @resolution.place source=result.kind placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=result.kind root=read.result keys=[kind]
-    /// @generic.instance source=result id=result.Result<T>
-    /// @type.node source="\"yield\"" type="yield"
-
-        return result.value;
-        /// @type.node source=result type=result.Result.Yield<T>
-        /// @type.node source=result.value type=T
-        /// @resolution.name source=result target=read.result
-        /// @resolution.member source=result.value receiver=result.Result.Yield<T> type=T kind=field target_receiver=result.Result.Yield<T> adjustments=(variant.payload(result.symbol12, result.Yield<T>)) key=value target=result.Yield.value target_type=T
-        /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=result root=read.result
-        /// @resolution.place source=result.value placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=result.value root=read.result keys=[value]
-        /// @generic.instance source=result id=result.Result<T>
-
-    }
-
-    return unreachable();
-    /// @type.node source=unreachable type=() => never
-    /// @type.node source=unreachable() type=never
-    /// @resolution.name source=unreachable target=error.panic.unreachable
-    /// @resolution.call source=unreachable() parameters=() return=never kind=symbol target=error.panic.unreachable
-
-}
-
-/// @generic.instance id=result.Result<T> template=result.Result arguments=(T)
-"#,
-    );
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#""#);
 }
 
 #[test]

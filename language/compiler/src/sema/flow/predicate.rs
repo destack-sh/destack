@@ -281,19 +281,29 @@ impl CheckState<'_> {
         }
         let mut relative = relative;
 
-        // map a discriminant back to its variant through a tag projection
-        if let Some(dir::OperationResolution::One(access)) = self
+        // read the physical union mapping retained by a discriminant projection
+        let discriminant_cases = if let Some(access) = self
             .decisions(operand.module_id)
-            .member_decision(operand.into_any())
+            .decision(operand.into_any())
+            .and_then(dir::Decision::member_access)
             && let dir::MemberTarget::Projection {
-                projection: dir::Projection::VariantTag { carrier, .. },
+                projection: dir::Projection::Discriminant { cases, .. },
                 ..
-            } = access.target
+            } = &access.target
         {
-            target = match self.variant_for_discriminant(origin.module(), carrier, target)? {
-                Some(variant) => variant,
-                None => self.intern_type(dir::Type::Never)?,
-            };
+            Some(cases)
+        } else {
+            None
+        };
+
+        // translate the semantic literal into its physical union arm
+        if let Some(cases) = discriminant_cases {
+            let literal = self.ty(target)?.singleton_literal();
+            target =
+                match literal.and_then(|literal| cases.iter().find(|case| case.value == literal)) {
+                    Some(case) => case.arm,
+                    None => self.intern_type(dir::Type::Never)?,
+                };
             relative = &relative[..relative.len() - 1];
         }
 

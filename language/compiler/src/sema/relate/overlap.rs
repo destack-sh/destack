@@ -236,7 +236,7 @@ impl CheckState<'_> {
                 dir::MemberSpace::Instance,
                 field.key,
             )?;
-            if let Some(target_field) = self.body().member_read_type(origin, &lookup)? {
+            if let Some(target_field) = self.body().member_read_type(&lookup)? {
                 let source_field = field.access.read().unwrap_or_else(|| field.access.store());
                 if !self.type_overlap(origin, source_field, target_field, active)? {
                     return Ok(false);

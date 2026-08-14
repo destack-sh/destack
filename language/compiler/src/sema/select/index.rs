@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, FlowSite, InferMode, InterfaceIndexSignature, Origin, PlaceUse,
-    Relation, SubscriptProtocol, TypeSubstitution, Value, ValueUse,
+    BodyState, Cause, CauseKind, FlowSite, InferMode, InterfaceIndexSignature, MemberLookup,
+    Origin, PlaceUse, Relation, SubscriptProtocol, TypeSubstitution, Value, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -320,14 +320,18 @@ impl BodyState<'_, '_> {
         let node = node.into_any();
         let origin = site.origin();
 
-        // infer the receiver and index operands at this site
+        // infer the physical receiver and its flow-narrowed lookup type
         let receiver_node = left.into_global_any(module);
         let receiver_site = self.visit_site(receiver_node)?;
-        let receiver = self.infer_node_type(receiver_site, PlaceUse::Read)?;
+        let receiver = self.infer_node(receiver_site, PlaceUse::Read, InferMode::Exact)?;
+        let written_receiver = self.flow_type_at(receiver_site, receiver)?;
+        self.commit_expression_place(receiver_site, written_receiver)?;
         let receiver_value = self.expression_value(receiver_site, receiver)?;
-        let receiver = self.select_chain_operand(origin, receiver, is_optional)?;
+        let target = self.select_chain_operand(origin, written_receiver, is_optional)?;
+
+        // infer the written index operand
         let Some(index) = index else {
-            return self.reject_operator(node, origin, "[]".to_string(), &[receiver]);
+            return self.reject_operator(node, origin, "[]".to_string(), &[target]);
         };
         let index_node = index.into_global_any(module);
         let index_key = self.check.module(module).view().get(index).static_key();
@@ -339,8 +343,8 @@ impl BodyState<'_, '_> {
             ty: receiver,
             ..receiver_value
         };
-        let receiver_type = self.readable_value(receiver)?;
-        let space = self.member_receiver_space(receiver_node, receiver)?;
+        let receiver_type = self.readable_value(target)?;
+        let space = self.member_receiver_space(receiver_node, target)?;
 
         // select the subscript operation for both operands
         let Some(selection) = self.select_subscript(
@@ -395,6 +399,20 @@ impl BodyState<'_, '_> {
         // inspect the receiver's reduced shape for subscripts
         let receiver_type = self.check.normalize(origin, receiver_type)?;
 
+        // singleton keys use an existing member before any subscript fallback
+        if let Some(key) = self.static_key_from_type(index)? {
+            let subject = dir::MemberSubject::new(receiver.ty, receiver_type, space)
+                .with_scope(self.assuming_scope(origin)?);
+            let mut lookup = self.lookup_member(origin, module, subject, key)?;
+
+            // keep a found static member authoritative over subscript protocols
+            if lookup.is_found() {
+                self.adjust_narrowed_lookup(origin, receiver.ty, receiver_type, &mut lookup)?;
+
+                return self.select_member_subscript(origin, use_, receiver, key, lookup);
+            }
+        }
+
         // unions select one exact subscript operation for every runtime arm
         if let Some(arms) = self.union_arms(origin, receiver_type)? {
             let mut selections = Vec::with_capacity(arms.len());
@@ -437,21 +455,6 @@ impl BodyState<'_, '_> {
             };
             let selection = SubscriptSelection::union(use_, selections, read_type, write_type)?;
 
-            return Ok(Some(selection));
-        }
-
-        // singleton keys use the same member lookup as dot access
-        if let Some(key) = self.static_key_from_type(index)?
-            && let Some(selection) = self.select_member_subscript(
-                origin,
-                module,
-                use_,
-                receiver,
-                receiver_type,
-                space,
-                key,
-            )?
-        {
             return Ok(Some(selection));
         }
 
@@ -771,16 +774,11 @@ impl BodyState<'_, '_> {
     fn select_member_subscript(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         use_: PlaceUse,
         receiver: Value,
-        lookup_receiver: dir::GlobalTypeId,
-        space: dir::MemberSpace,
         key: dir::StaticKey,
+        lookup: MemberLookup,
     ) -> CompilerResult<Option<SubscriptSelection>> {
-        let subject = dir::MemberSubject::new(lookup_receiver, lookup_receiver, space);
-        let lookup = self.lookup_member(origin, module, subject, key)?;
-
         match use_ {
             PlaceUse::Read => {
                 let Some(resolution) = self.select_member_read(origin, receiver, key, &lookup)?

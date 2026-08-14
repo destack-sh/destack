@@ -66,7 +66,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         let value = self.strip_form(origin, value)?;
 
-        // match untagged newtypes through their backing
+        // match newtypes through their backing
         if self.variant_discriminant_domain(value)?.is_none()
             && let Some(instance) = self.decompose_newtype(origin, value)?
         {
@@ -128,7 +128,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<UncoveredValue> {
         let value = self.strip_form(origin, value)?;
 
-        // test untagged newtypes through their backing
+        // test newtypes through their backing
         if self.variant_discriminant_domain(value)?.is_none()
             && let Some(instance) = self.decompose_newtype(origin, value)?
         {
@@ -156,9 +156,6 @@ impl CheckState<'_> {
             for discriminant in domain {
                 if !self.decide_patterns_cover_variant_case(patterns, discriminant)? {
                     if let Some(key) = self.enum_case_key_from_discriminant(value, discriminant)? {
-                        return Ok(UncoveredValue::VariantCase { ty: value, key });
-                    }
-                    if let Some(key) = self.tagged_case_key_from_type(value, discriminant)? {
                         return Ok(UncoveredValue::VariantCase { ty: value, key });
                     }
 
@@ -221,7 +218,7 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Decide whether any pattern alternative covers one tagged discriminant.
+    /// Decide whether any pattern alternative covers one variant discriminant.
     fn decide_patterns_cover_variant_case(
         &mut self,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
@@ -283,7 +280,7 @@ impl CheckState<'_> {
                     if matches!(
                         &test.input,
                         dir::PredicateOperand::Projected(projection)
-                            if matches!(projection.as_ref(), dir::Projection::VariantTag { .. })
+                            if matches!(projection.as_ref(), dir::Projection::Discriminant { .. })
                     ) && matches!(
                         test.condition,
                         dir::PredicateCondition::Literal(selected) if selected == discriminant
@@ -392,7 +389,7 @@ impl CheckState<'_> {
                         message: format!("nominal coverage pattern {pattern:?} has no resolution"),
                     })?;
 
-                // tagged variants decide through their selected predicate and payload
+                // enum variants decide through their selected predicate
                 if let dir::PatternDecision::Variant(variant) = &resolution {
                     if !self.decide_predicate_covers(&variant.predicate, value)? {
                         return Ok(false);
@@ -563,7 +560,7 @@ impl CheckState<'_> {
                     );
                     let subject = dir::MemberSubject::new(value, value, dir::MemberSpace::Instance);
                     let lookup = self.body().lookup_member(origin, module, subject, key)?;
-                    let member = self.body().member_read_type(origin, &lookup)?;
+                    let member = self.body().member_read_type(&lookup)?;
 
                     match member {
                         Some(member) => {
@@ -790,12 +787,7 @@ impl CheckState<'_> {
         &self,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::ScalarLiteral>> {
-        let literal = match self.ty(value)? {
-            dir::Type::Literal(literal) => Some(literal),
-            dir::Type::Null => Some(dir::ScalarLiteral::Null),
-            dir::Type::Undefined => Some(dir::ScalarLiteral::Undefined),
-            _ => None,
-        };
+        let literal = self.ty(value)?.singleton_literal();
 
         Ok(literal)
     }

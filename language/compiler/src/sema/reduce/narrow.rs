@@ -37,7 +37,7 @@ impl CheckState<'_> {
             dir::MemberSpace::Instance,
             key,
         )?;
-        if self.body().member_read_type(origin, &lookup)?.is_some() {
+        if self.body().member_read_type(&lookup)?.is_some() {
             return Ok(receiver);
         }
 
@@ -71,14 +71,26 @@ impl CheckState<'_> {
         is_positive: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let source = self.normalize(origin, source)?;
-        let alternatives = match self.variant_types(origin.module(), source)? {
-            Some(variants) => variants,
-            None => match self.ty(source)? {
-                dir::Type::Union(union) => {
-                    self.type_ids(source.module_id, union.elements)?.to_vec()
-                }
-                _ => return Ok(None),
-            },
+        let alternatives = if let Some(variants) = self.variant_types(source)? {
+            variants
+        } else {
+            // unwrap nominal carriers while retaining the source memory forms
+            let mut carrier = source;
+            loop {
+                let base = self.form_chain(origin, carrier)?.base();
+                let Some(instance) = self.decompose_newtype(origin, base)? else {
+                    break;
+                };
+                let backing = self.normalize(origin, instance.backing)?;
+                carrier = self.replace_form_value(origin, carrier, backing)?;
+            }
+
+            // expose the resulting physical union arms
+            let Some(arms) = self.union_arms(origin, carrier)? else {
+                return Ok(None);
+            };
+
+            arms.into_vec()
         };
 
         // keep original alternatives whose projected predicate remains inhabited
@@ -157,10 +169,10 @@ impl CheckState<'_> {
         let source = self.normalize(origin, narrow.source)?;
         let target = self.normalize(origin, narrow.target)?;
 
-        // preserve precise case identity for enum and Tagged owners
-        let variants = self.variant_types(origin.module(), source)?;
+        // preserve precise case identity for enum owners
+        let variants = self.variant_types(source)?;
 
-        // untagged newtypes narrow through their substituted runtime backing
+        // newtypes narrow through their substituted runtime backing
         if variants.is_none()
             && let Some(instance) = self.decompose_newtype(origin, source)?
         {
@@ -275,8 +287,6 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         is_positive: bool,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let module = origin.module();
-
         // narrow an erased value through its checked runtime domain
         if let dir::Type::Dynamic(dynamic) = self.ty(source)? {
             let constraint = dynamic.constraint;
@@ -310,22 +320,6 @@ impl CheckState<'_> {
                 source
             } else {
                 self.intern_type(dir::Type::Never)?
-            };
-
-            return Ok(narrowed);
-        }
-
-        // unmatched Tagged variants expose their backing to structural predicates
-        if let dir::Type::Variant(variant) = self.ty(source)?
-            && let Some(backing) = self.tagged_variant_backing(module, &variant)?
-        {
-            let narrowed = self.narrow_element(origin, backing, target, is_positive)?;
-            let narrowed = if matches!(self.ty(narrowed)?, dir::Type::Never) {
-                narrowed
-            } else if narrowed == backing {
-                source
-            } else {
-                self.normalized_intersection_type([source, narrowed])?
             };
 
             return Ok(narrowed);

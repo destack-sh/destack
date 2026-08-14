@@ -1340,8 +1340,6 @@ impl CheckState<'_> {
 
         // encode each owner's memoized bindings in both member spaces
         for symbol in owners {
-            let origin = Origin::Symbol(symbol);
-
             // derive each declared parameter's variance at its own context
             if let Some(template) = self.symbol_template(symbol)? {
                 for parameter in self.generic_template_parameters(template)? {
@@ -1359,7 +1357,7 @@ impl CheckState<'_> {
             };
 
             for space in [dir::MemberSpace::Instance, dir::MemberSpace::Static] {
-                let bindings = self.body().member_bindings(origin, symbol, space)?;
+                let bindings = self.body().member_bindings(symbol, space)?;
                 let Some(bindings) = bindings else {
                     continue;
                 };

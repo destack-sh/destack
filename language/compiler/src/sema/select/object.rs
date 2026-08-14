@@ -482,7 +482,7 @@ impl BodyState<'_, '_> {
         let field = match lookup {
             MemberLookup::Field(field) => {
                 // write-only properties expose nothing to an object read
-                let Some(projection) = field.projection(key, self)? else {
+                let Some(projection) = field.projection(owner, key, self)? else {
                     return Ok(ObjectField::Missing);
                 };
 
@@ -558,14 +558,14 @@ impl BodyState<'_, '_> {
                     dir::Projection::Field(dir::FieldResolution {
                         receiver: candidate.receiver.resolve(owner),
                         target: field,
-                        ty: candidate.read_type(origin.module(), self)?.ok_or_else(|| {
-                            CompilerError::Internal {
+                        ty: candidate
+                            .read_type(self)?
+                            .ok_or_else(|| CompilerError::Internal {
                                 message: format!(
                                     "field {:?} has no readable type",
                                     candidate.symbol
                                 ),
-                            }
-                        })?,
+                            })?,
                     })
                     .into(),
                 ))

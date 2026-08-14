@@ -682,7 +682,7 @@ impl CheckState<'_> {
         for (key, field_type, is_optional) in fields {
             let subject = dir::MemberSubject::new(source, source, dir::MemberSpace::Instance);
             let lookup = self.body().lookup_member(origin, module, subject, key)?;
-            let member = self.body().member_read_type(origin, &lookup)?;
+            let member = self.body().member_read_type(&lookup)?;
 
             match member {
                 // missing members satisfy optional targets only

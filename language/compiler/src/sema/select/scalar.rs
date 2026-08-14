@@ -26,7 +26,7 @@ impl BodyState<'_, '_> {
                 self.decide_qualifier_segments(module, left)?;
             }
 
-            return self.select_variant_pattern(node, origin, flow, scope, case, &[]);
+            return self.select_variant_pattern(node, origin, case, &[]);
         }
 
         // infer ordinary closed pattern expressions
@@ -40,12 +40,7 @@ impl BodyState<'_, '_> {
         )?;
 
         // closed literal values select literal predicates
-        let literal = match self.ty(ty)? {
-            dir::Type::Literal(literal) => Some(literal),
-            dir::Type::Null => Some(dir::ScalarLiteral::Null),
-            dir::Type::Undefined => Some(dir::ScalarLiteral::Undefined),
-            _ => None,
-        };
+        let literal = self.ty(ty)?.singleton_literal();
         match literal {
             Some(value) => {
                 let predicate = dir::Predicate::unary(

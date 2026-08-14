@@ -445,8 +445,7 @@ impl CheckState<'_> {
             let member_decision = match access {
                 // properties relate their complete read and write operations
                 Some(required) if member.role != MemberRole::Method => {
-                    let Some(found) = self.body().member_binding(origin, member.key, &lookup)?
-                    else {
+                    let Some(found) = self.body().member_binding(member.key, &lookup)? else {
                         if member.is_optional || member.has_default {
                             continue;
                         }
@@ -476,7 +475,7 @@ impl CheckState<'_> {
                 }
                 // methods compare callable signatures without their receivers
                 Some(_) => {
-                    let Some(found) = self.body().member_read_type(origin, &lookup)? else {
+                    let Some(found) = self.body().member_read_type(&lookup)? else {
                         if member.is_optional || member.has_default {
                             continue;
                         }
@@ -495,7 +494,7 @@ impl CheckState<'_> {
                 }
                 // associated members use their selected value type
                 None => {
-                    let Some(found) = self.body().member_read_type(origin, &lookup)? else {
+                    let Some(found) = self.body().member_read_type(&lookup)? else {
                         if member.is_optional || member.has_default {
                             continue;
                         }

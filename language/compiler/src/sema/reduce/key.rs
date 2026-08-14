@@ -143,7 +143,7 @@ impl CheckState<'_> {
             .body()
             .lookup_member(origin, origin.module(), subject, key)?;
 
-        let reduction = self.reduce_member_lookup(origin, owner, key_type, lookup)?;
+        let reduction = self.reduce_member_lookup(owner, key_type, lookup)?;
 
         Ok(reduction)
     }
@@ -151,7 +151,6 @@ impl CheckState<'_> {
     /// Reduce one completed member lookup to its projected value type.
     fn reduce_member_lookup(
         &mut self,
-        origin: Origin,
         owner: dir::GlobalTypeId,
         key_type: dir::GlobalTypeId,
         lookup: MemberLookup,
@@ -181,7 +180,7 @@ impl CheckState<'_> {
                         return Ok(OperationReduction::Projected(ty));
                     }
 
-                    match candidate.read_type(origin.module(), &mut self.body())? {
+                    match candidate.read_type(&mut self.body())? {
                         Some(ty) => Ok(OperationReduction::Projected(ty)),
                         None => Ok(OperationReduction::Rigid),
                     }
@@ -194,7 +193,7 @@ impl CheckState<'_> {
             MemberLookup::Union(lookups) => {
                 let mut types = Vec::with_capacity(lookups.len());
                 for arm in lookups {
-                    match self.reduce_member_lookup(origin, arm.receiver, key_type, arm.lookup)? {
+                    match self.reduce_member_lookup(arm.receiver, key_type, arm.lookup)? {
                         OperationReduction::Projected(ty) => types.push(ty),
                         OperationReduction::Rigid => return Ok(OperationReduction::Rigid),
                         OperationReduction::Invalid(invalid) => {
@@ -211,7 +210,7 @@ impl CheckState<'_> {
             MemberLookup::Intersection(lookups) => {
                 let mut types = Vec::with_capacity(lookups.len());
                 for lookup in lookups {
-                    match self.reduce_member_lookup(origin, owner, key_type, lookup)? {
+                    match self.reduce_member_lookup(owner, key_type, lookup)? {
                         OperationReduction::Projected(ty) => types.push(ty),
                         OperationReduction::Rigid => return Ok(OperationReduction::Rigid),
                         OperationReduction::Invalid(invalid) => {

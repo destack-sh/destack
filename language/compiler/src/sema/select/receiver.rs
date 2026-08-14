@@ -1,11 +1,126 @@
-use crate::CompilerResult;
-use crate::sema::{BodyState, CandidateOutcome, Cause, CauseKind, Origin, Relation, Value};
+use crate::sema::{
+    BodyState, CandidateOutcome, Cause, CauseKind, MemberLookup, Origin, Relation, Value,
+};
+use crate::{CompilerError, CompilerResult};
 use destack_dir as dir;
 
 /// The implicit adjustments selected for one receiver.
 pub(in crate::sema) type ReceiverSteps = Vec<dir::ReceiverAdjustment>;
 
 impl BodyState<'_, '_> {
+    /// Apply the physical receiver projections required by one flow-narrowed lookup.
+    pub(in crate::sema) fn adjust_narrowed_lookup(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        narrowed: dir::GlobalTypeId,
+        lookup: &mut MemberLookup,
+    ) -> CompilerResult<()> {
+        if source == narrowed {
+            return Ok(());
+        }
+
+        // project ordinary narrowed union lookups through each physical arm
+        if let MemberLookup::Union(lookups) = lookup
+            && let Some(arms) = self.union_arms(origin, narrowed)?
+        {
+            // require one member lookup for every narrowed arm
+            if lookups.len() != arms.len() {
+                return Err(CompilerError::Internal {
+                    message: "narrowed union lookup does not cover every target arm".to_string(),
+                });
+            }
+
+            // attach each physical arm projection to its corresponding lookup
+            for (lookup, arm) in lookups.iter_mut().zip(arms) {
+                let adjustments = self.project_narrowed_receiver(origin, source, arm)?;
+                for adjustment in adjustments.into_iter().rev() {
+                    lookup.lookup.prepend_adjustment(adjustment);
+                }
+            }
+
+            return Ok(());
+        }
+
+        // apply the common projection selected for one precise arm or compiler field
+        let adjustments = self.project_narrowed_receiver(origin, source, narrowed)?;
+        for adjustment in adjustments.into_iter().rev() {
+            lookup.prepend_adjustment(adjustment);
+        }
+
+        Ok(())
+    }
+
+    /// Select the runtime projections from one receiver to its flow-narrowed type.
+    fn project_narrowed_receiver(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        narrowed: dir::GlobalTypeId,
+    ) -> CompilerResult<ReceiverSteps> {
+        if source == narrowed {
+            return Ok(ReceiverSteps::new());
+        }
+
+        // project newtype carriers while retaining their enclosing memory forms
+        let (carrier, mut steps) = self.project_newtype_receiver(origin, source)?;
+        if carrier == narrowed {
+            return Ok(steps);
+        }
+
+        // project a precise physical union arm
+        let Some(arms) = self.union_arms(origin, carrier)? else {
+            return Ok(steps);
+        };
+        if arms.contains(&narrowed) {
+            let union = self.form_chain(origin, carrier)?.base();
+            let arm = self.form_chain(origin, narrowed)?.base();
+            steps.push(dir::ReceiverAdjustment::UnionPayload {
+                union,
+                arm,
+                ty: narrowed,
+            });
+
+            return Ok(steps);
+        }
+
+        // narrowed union subsets retain the physical carrier representation
+        let Some(narrowed_arms) = self.union_arms(origin, narrowed)? else {
+            return Ok(steps);
+        };
+        if narrowed_arms.iter().all(|arm| arms.contains(arm)) {
+            return Ok(steps);
+        }
+
+        Err(CompilerError::Internal {
+            message: "narrowed receiver is outside its physical union carrier".to_string(),
+        })
+    }
+
+    /// Project through every enclosing newtype.
+    pub(in crate::sema) fn project_newtype_receiver(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+    ) -> CompilerResult<(dir::GlobalTypeId, ReceiverSteps)> {
+        let mut receiver = source;
+        let mut steps = ReceiverSteps::new();
+
+        // unwrap each nominal carrier while preserving its memory forms
+        loop {
+            let base = self.form_chain(origin, receiver)?.base();
+            let Some(instance) = self.decompose_newtype(origin, base)? else {
+                break;
+            };
+            let backing = self.normalize(origin, instance.backing)?;
+            let projected = self.replace_form_value(origin, receiver, backing)?;
+            steps.push(instance.into_receiver_adjustment(projected));
+            receiver = projected;
+        }
+
+        Ok((receiver, steps))
+    }
+
     /// Match one implicit method receiver against a `this` parameter.
     pub(in crate::sema) fn constrain_receiver_argument(
         &mut self,

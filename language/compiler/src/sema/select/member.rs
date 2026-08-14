@@ -8,7 +8,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, CheckState, DeferredCheck,
-    FlowSite, NullishPart, Origin, PlaceUse, ReceiverSteps, Relation, SignatureMatch,
+    FlowSite, InferMode, NullishPart, Origin, PlaceUse, ReceiverSteps, Relation, SignatureMatch,
     TypeSubstitution, Value, ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
@@ -20,8 +20,8 @@ pub(in crate::sema) use destack_dir::MemberRole;
 pub(in crate::sema) enum FieldLookup {
     /// One field declared by a structural aggregate.
     Structural {
-        /// The receiver that exposes the field.
-        receiver: dir::MemberReceiver,
+        /// The receiver selection retained during lookup.
+        receiver: LookupReceiver,
         /// The structural aggregate that declares the field.
         owner: dir::GlobalTypeId,
         /// The projected property operations.
@@ -30,7 +30,12 @@ pub(in crate::sema) enum FieldLookup {
         is_optional: bool,
     },
     /// One compiler-defined field projection.
-    Projection(dir::Projection),
+    Projection {
+        /// The receiver adjustments applied before projection.
+        adjustments: ReceiverSteps,
+        /// The selected projection.
+        projection: dir::Projection,
+    },
 }
 
 /// Result of looking up one member on a receiver type.
@@ -70,7 +75,7 @@ impl FieldLookup {
                 is_optional,
                 ..
             } => (access.read(), *is_optional),
-            Self::Projection(projection) => (Some(projection.ty()), false),
+            Self::Projection { projection, .. } => (Some(projection.ty()), false),
         };
 
         let Some(read) = read else {
@@ -92,7 +97,7 @@ impl FieldLookup {
     pub(in crate::sema) fn write_type(&self) -> Option<dir::GlobalTypeId> {
         match self {
             Self::Structural { access, .. } => access.write(),
-            Self::Projection(_) => None,
+            Self::Projection { .. } => None,
         }
     }
 
@@ -100,7 +105,7 @@ impl FieldLookup {
     fn is_optional(&self) -> bool {
         match self {
             Self::Structural { is_optional, .. } => *is_optional,
-            Self::Projection(_) => false,
+            Self::Projection { .. } => false,
         }
     }
 
@@ -117,14 +122,23 @@ impl FieldLookup {
 
         let target = match self {
             Self::Structural {
-                receiver, owner, ..
+                receiver: selection,
+                owner,
+                ..
             } => dir::MemberTarget::Field(dir::FieldResolution {
-                receiver: receiver.clone(),
+                receiver: selection.resolve(receiver),
                 target: dir::FieldTarget::Structural { owner: *owner, key },
                 ty,
             }),
-            Self::Projection(projection) => dir::MemberTarget::Projection {
+            Self::Projection {
+                adjustments,
+                projection,
+            } => dir::MemberTarget::Projection {
                 key,
+                receiver: dir::AdjustedReceiver {
+                    source: receiver,
+                    adjustments: adjustments.clone(),
+                },
                 projection: projection.clone(),
             },
         };
@@ -135,6 +149,7 @@ impl FieldLookup {
     /// Return the value projection selected by reading this field.
     pub(in crate::sema) fn projection(
         &self,
+        source: dir::GlobalTypeId,
         key: dir::StaticKey,
         body: &mut BodyState<'_, '_>,
     ) -> CompilerResult<Option<dir::Projection>> {
@@ -146,11 +161,26 @@ impl FieldLookup {
             Self::Structural {
                 receiver, owner, ..
             } => dir::Projection::Field(dir::FieldResolution {
-                receiver: receiver.clone(),
+                receiver: receiver.resolve(source),
                 target: dir::FieldTarget::Structural { owner: *owner, key },
                 ty,
             }),
-            Self::Projection(projection) => projection.clone(),
+            Self::Projection {
+                adjustments,
+                projection,
+            } => {
+                let target = dir::MemberTarget::Projection {
+                    key,
+                    receiver: dir::AdjustedReceiver {
+                        source,
+                        adjustments: adjustments.clone(),
+                    },
+                    projection: projection.clone(),
+                };
+                let access = dir::MemberAccess::new(source, target, ty);
+
+                dir::Projection::Member(Box::new(access))
+            }
         };
 
         Ok(Some(projection))
@@ -169,11 +199,11 @@ impl FieldLookup {
                 access,
                 ..
             } => (receiver, owner, access.write()?),
-            Self::Projection(_) => return None,
+            Self::Projection { .. } => return None,
         };
 
         let target = dir::MemberTarget::Field(dir::FieldResolution {
-            receiver: field_receiver.clone(),
+            receiver: field_receiver.resolve(receiver),
             target: dir::FieldTarget::Structural { owner: *owner, key },
             ty,
         });
@@ -182,27 +212,23 @@ impl FieldLookup {
     }
 
     /// Prepend one implicit receiver adjustment.
-    fn prepend_adjustment(&mut self, adjustment: dir::ReceiverAdjustment) -> CompilerResult<()> {
+    fn prepend_adjustment(&mut self, adjustment: dir::ReceiverAdjustment) {
         match self {
             Self::Structural { receiver, .. } => receiver.prepend(adjustment),
-            Self::Projection(_) => {
-                return Err(CompilerError::Internal {
-                    message: "compiler-defined field projection received an implicit adjustment"
-                        .to_string(),
-                });
-            }
+            Self::Projection { adjustments, .. } => adjustments.insert(0, adjustment),
         }
-
-        Ok(())
     }
 
     /// Select this field through one erased receiver.
-    fn select_dynamic(&mut self, dispatch: dir::DynamicDispatch) -> CompilerResult<()> {
+    fn select_dynamic(&mut self, constraint: dir::GlobalTypeId) -> CompilerResult<()> {
         match self {
             Self::Structural { receiver, .. } => {
-                *receiver = dir::MemberReceiver::Dynamic(dispatch);
+                *receiver = LookupReceiver::Dynamic {
+                    adjustments: ReceiverSteps::new(),
+                    constraint,
+                };
             }
-            Self::Projection(_) => {
+            Self::Projection { .. } => {
                 return Err(CompilerError::Internal {
                     message: "compiler-defined field projection selected dynamic dispatch"
                         .to_string(),
@@ -311,6 +337,35 @@ impl MemberLookup {
         }
     }
 
+    /// Return the required stored field type selected by this lookup.
+    pub(in crate::sema) fn required_field_type(&self) -> Option<dir::GlobalTypeId> {
+        match self {
+            Self::Field(FieldLookup::Structural {
+                access,
+                is_optional: false,
+                ..
+            }) => access.read(),
+            Self::Found(candidates) => {
+                let candidates = Self::selected_candidates(candidates);
+                let [candidate] = candidates.as_slice() else {
+                    return None;
+                };
+                if candidate.role != MemberRole::Field || candidate.is_optional {
+                    return None;
+                }
+
+                Some(candidate.access_type)
+            }
+            Self::Missing
+            | Self::Field(FieldLookup::Structural {
+                is_optional: true, ..
+            })
+            | Self::Field(FieldLookup::Projection { .. })
+            | Self::Union(_)
+            | Self::Intersection(_) => None,
+        }
+    }
+
     /// Return the member kind represented by this lookup.
     fn kind(&self) -> dir::MemberKind {
         let mut kinds = Vec::new();
@@ -361,13 +416,10 @@ impl MemberLookup {
     }
 
     /// Prepend one implicit adjustment to every selected receiver.
-    pub(in crate::sema) fn prepend_adjustment(
-        &mut self,
-        adjustment: dir::ReceiverAdjustment,
-    ) -> CompilerResult<()> {
+    pub(in crate::sema) fn prepend_adjustment(&mut self, adjustment: dir::ReceiverAdjustment) {
         match self {
             Self::Missing => {}
-            Self::Field(field) => field.prepend_adjustment(adjustment)?,
+            Self::Field(field) => field.prepend_adjustment(adjustment),
             Self::Found(candidates) => {
                 for candidate in candidates {
                     candidate.receiver.prepend(adjustment.clone());
@@ -375,40 +427,41 @@ impl MemberLookup {
             }
             Self::Union(lookups) => {
                 for arm in lookups {
-                    arm.lookup.prepend_adjustment(adjustment.clone())?;
+                    arm.lookup.prepend_adjustment(adjustment.clone());
                 }
             }
             Self::Intersection(lookups) => {
                 for lookup in lookups {
-                    lookup.prepend_adjustment(adjustment.clone())?;
+                    lookup.prepend_adjustment(adjustment.clone());
                 }
             }
         }
-
-        Ok(())
     }
 
     /// Select every found member through one erased receiver.
     pub(in crate::sema) fn select_dynamic(
         &mut self,
-        dispatch: dir::DynamicDispatch,
+        constraint: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         match self {
             Self::Missing => {}
-            Self::Field(field) => field.select_dynamic(dispatch)?,
+            Self::Field(field) => field.select_dynamic(constraint)?,
             Self::Found(candidates) => {
                 for candidate in candidates {
-                    candidate.receiver = LookupReceiver::Dynamic(dispatch.clone());
+                    candidate.receiver = LookupReceiver::Dynamic {
+                        adjustments: ReceiverSteps::new(),
+                        constraint,
+                    };
                 }
             }
             Self::Union(lookups) => {
                 for arm in lookups {
-                    arm.lookup.select_dynamic(dispatch.clone())?;
+                    arm.lookup.select_dynamic(constraint)?;
                 }
             }
             Self::Intersection(lookups) => {
                 for lookup in lookups {
-                    lookup.select_dynamic(dispatch.clone())?;
+                    lookup.select_dynamic(constraint)?;
                 }
             }
         }
@@ -466,43 +519,9 @@ impl DeclaredMember {
     /// Return the callable type exposed by this declaration member.
     pub(in crate::sema) fn callable_type(
         &self,
-        _module: ModuleId,
-        owner: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
-        body: &mut BodyState<'_, '_>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        if self.role.is_callable() {
-            return Ok(Some(ty));
-        }
-
-        if self.role != MemberRole::VariantValue {
-            return Ok(None);
-        }
-
-        // tagged unit variants also admit the explicit zero argument form
-        let is_unit_variant = match body.definition(owner)? {
-            Some(dir::Definition::Newtype(definition)) => definition
-                .tagged_variant_by_symbol(self.symbol)
-                .is_some_and(|variant| variant.argument.is_none()),
-            _ => false,
-        };
-        if !is_unit_variant {
-            return Ok(None);
-        }
-
-        // intern the nullary signature the explicit form calls
-        let parameters = body.intern_parameters(&[])?;
-        let callable = body.intern_signature(dir::FunctionSignatureType {
-            asynchrony: dir::Asynchrony::Sync,
-            template: None,
-            this_parameter: None,
-            parameters,
-            return_type: Some(ty),
-            is_generator: false,
-            is_construct: false,
-        })?;
-
-        Ok(Some(callable))
+    ) -> Option<dir::GlobalTypeId> {
+        self.role.is_callable().then_some(ty)
     }
 }
 
@@ -562,8 +581,13 @@ pub(in crate::sema) struct MemberCandidate {
 pub(in crate::sema) enum LookupReceiver {
     /// Direct adjustments attached to the use-site receiver on resolution.
     Direct(ReceiverSteps),
-    /// Erased receiver already selected for dynamic dispatch.
-    Dynamic(dir::DynamicDispatch),
+    /// Erased receiver selected for dynamic dispatch.
+    Dynamic {
+        /// The receiver adjustments applied before dispatch.
+        adjustments: ReceiverSteps,
+        /// The interface constraint declaring the dispatch member.
+        constraint: dir::GlobalTypeId,
+    },
 }
 
 impl MemberCandidate {
@@ -571,7 +595,7 @@ impl MemberCandidate {
     pub(in crate::sema) fn precedence(&self) -> (dir::MemberOrigin, bool) {
         let is_adjusted = match &self.receiver {
             LookupReceiver::Direct(steps) => !steps.is_empty(),
-            LookupReceiver::Dynamic(_) => true,
+            LookupReceiver::Dynamic { .. } => true,
         };
 
         (self.origin, is_adjusted)
@@ -583,7 +607,7 @@ impl LookupReceiver {
     fn prepend(&mut self, adjustment: dir::ReceiverAdjustment) {
         match self {
             Self::Direct(steps) => steps.insert(0, adjustment),
-            Self::Dynamic(dispatch) => dispatch.receiver.prepend(adjustment),
+            Self::Dynamic { adjustments, .. } => adjustments.insert(0, adjustment),
         }
     }
 
@@ -594,7 +618,16 @@ impl LookupReceiver {
                 source,
                 adjustments: steps.clone(),
             }),
-            Self::Dynamic(dispatch) => dir::MemberReceiver::Dynamic(dispatch.clone()),
+            Self::Dynamic {
+                adjustments,
+                constraint,
+            } => dir::MemberReceiver::Dynamic(dir::DynamicDispatch {
+                receiver: dir::AdjustedReceiver {
+                    source,
+                    adjustments: adjustments.clone(),
+                },
+                constraint: *constraint,
+            }),
         }
     }
 }
@@ -603,7 +636,6 @@ impl MemberCandidate {
     /// Return the type produced by reading this candidate.
     pub(in crate::sema) fn read_type(
         &self,
-        _module: ModuleId,
         body: &mut BodyState<'_, '_>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         if !self.role.is_readable() {
@@ -677,15 +709,16 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver_node: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
     ) -> CompilerResult<(dir::MemberSubject, Option<NullishPart>)> {
-        // split the nullish part off the receiver
-        let split = self.split_nullish_type(origin, receiver)?;
+        // split the nullish part off the lookup target
+        let split = self.split_nullish_type(origin, target)?;
         let rejected = split.map(|split| split.rejected);
-        let receiver = split.map_or(receiver, |split| split.value);
+        let target = split.map_or(target, |split| split.value);
 
-        // settle an open receiver's value variables before member lookup
-        if self.type_flags(receiver)?.has_variable() {
-            let mut variables = self.type_variables(receiver)?;
+        // settle an open target's value variables before member lookup
+        if self.type_flags(target)?.has_variable() {
+            let mut variables = self.type_variables(target)?;
             variables.retain(|variable| {
                 !matches!(
                     self.infer.variable_role(*variable),
@@ -696,8 +729,8 @@ impl BodyState<'_, '_> {
         }
 
         // look the member up in the receiver's own space by default
-        let mut space = self.member_receiver_space(receiver_node, receiver)?;
-        let mut subject = receiver;
+        let mut space = self.member_receiver_space(receiver_node, target)?;
+        let mut subject = target;
 
         // static type aliases look up through their declaration reference
         let resolution = self
@@ -722,7 +755,6 @@ impl BodyState<'_, '_> {
     /// Return the readable type exposed by one member lookup.
     pub(in crate::sema) fn member_read_type(
         &mut self,
-        origin: Origin,
         lookup: &MemberLookup,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match lookup {
@@ -740,7 +772,7 @@ impl BodyState<'_, '_> {
 
                 let mut types = Vec::with_capacity(candidates.len());
                 for candidate in candidates {
-                    types.extend(candidate.read_type(origin.module(), self)?);
+                    types.extend(candidate.read_type(self)?);
                 }
 
                 if types.is_empty() {
@@ -752,7 +784,7 @@ impl BodyState<'_, '_> {
             MemberLookup::Union(arms) => {
                 let mut types = Vec::with_capacity(arms.len());
                 for arm in arms {
-                    let Some(ty) = self.member_read_type(origin, &arm.lookup)? else {
+                    let Some(ty) = self.member_read_type(&arm.lookup)? else {
                         return Ok(None);
                     };
                     types.push(ty);
@@ -763,7 +795,7 @@ impl BodyState<'_, '_> {
             MemberLookup::Intersection(lookups) => {
                 let mut types = Vec::with_capacity(lookups.len());
                 for lookup in lookups {
-                    types.extend(self.member_read_type(origin, lookup)?);
+                    types.extend(self.member_read_type(lookup)?);
                 }
 
                 if types.is_empty() {
@@ -822,12 +854,11 @@ impl BodyState<'_, '_> {
     /// Return the durable binding represented by one completed member lookup.
     pub(in crate::sema) fn member_binding(
         &mut self,
-        origin: Origin,
         key: dir::StaticKey,
         lookup: &MemberLookup,
     ) -> CompilerResult<Option<dir::MemberBinding>> {
         // compose the operations this lookup exposes
-        let read = self.member_read_type(origin, lookup)?;
+        let read = self.member_read_type(lookup)?;
         let write = self.member_write_type(lookup)?;
         let access = match (read, write) {
             (Some(read), Some(write)) => dir::PropertyAccess::ReadWrite { read, write },
@@ -876,7 +907,7 @@ impl BodyState<'_, '_> {
         let mut bindings = Vec::with_capacity(keys.len());
         for key in keys {
             let lookup = self.lookup_member(origin, module, subject, key)?;
-            if let Some(binding) = self.member_binding(origin, key, &lookup)? {
+            if let Some(binding) = self.member_binding(key, &lookup)? {
                 bindings.push(binding);
             }
         }
@@ -947,7 +978,7 @@ impl BodyState<'_, '_> {
                 let mut targets = Vec::new();
                 let mut types = Vec::new();
                 for candidate in candidates {
-                    let Some(ty) = candidate.read_type(origin.module(), self)? else {
+                    let Some(ty) = candidate.read_type(self)? else {
                         continue;
                     };
 
@@ -1225,7 +1256,9 @@ impl BodyState<'_, '_> {
         // infer the receiver before member lookup
         let receiver_node = left.into_global_any(module);
         let receiver_site = self.visit_site(receiver_node)?;
-        let written_receiver = self.infer_node_type(receiver_site, PlaceUse::Read)?;
+        let receiver = self.infer_node(receiver_site, PlaceUse::Read, InferMode::Exact)?;
+        let written_receiver = self.flow_type_at(receiver_site, receiver)?;
+        self.commit_expression_place(receiver_site, written_receiver)?;
 
         // unknown receivers defer selection until their value settles
         if let Some(stalled_on) = self.check.root_variable(written_receiver)? {
@@ -1234,7 +1267,7 @@ impl BodyState<'_, '_> {
 
         // strip the nullish arms the access reads through
         let (subject, rejected) =
-            self.resolve_member_subject(origin, receiver_node, written_receiver)?;
+            self.resolve_member_subject(origin, receiver_node, receiver, written_receiver)?;
         if let Some(rejected) = rejected
             && !is_optional
         {
@@ -1256,7 +1289,8 @@ impl BodyState<'_, '_> {
 
         // look the written key up and commit whatever it finds
         let key = dir::StaticKey::Name(name);
-        let lookup = self.lookup_member(origin, module, subject, key)?;
+        let mut lookup = self.lookup_member(origin, module, subject, key)?;
+        self.adjust_narrowed_lookup(origin, receiver, subject.target, &mut lookup)?;
 
         match lookup {
             MemberLookup::Missing => {
@@ -1731,7 +1765,7 @@ impl BodyState<'_, '_> {
                 [candidate] => {
                     // retain nominal singleton identity for variant values
                     if candidate.role == MemberRole::VariantValue {
-                        return candidate.read_type(module, self);
+                        return candidate.read_type(self);
                     }
 
                     // project associated values through their applied arguments
@@ -1774,7 +1808,7 @@ impl BodyState<'_, '_> {
                         return Ok(None);
                     }
 
-                    candidate.read_type(module, self)
+                    candidate.read_type(self)
                 }
                 _ => Ok(None),
             },

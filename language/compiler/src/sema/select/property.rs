@@ -329,7 +329,7 @@ impl BodyState<'_, '_> {
                     let subject =
                         dir::MemberSubject::new(current, current, dir::MemberSpace::Instance);
                     let lookup = self.lookup_member(origin, module, subject, key)?;
-                    let ty = self.member_read_type(origin, &lookup)?;
+                    let ty = self.member_read_type(&lookup)?;
                     if let Some(ty) = ty {
                         fields.push(dir::TypeProperty {
                             key,

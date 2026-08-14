@@ -663,7 +663,7 @@ impl BodyState<'_, '_> {
 
         // write a field into its own storage directly
         if let Some(field) = fields.into_iter().next() {
-            let read_type = field.read_type(origin.module(), self)?;
+            let read_type = field.read_type(self)?;
             let read = match (use_, read_type) {
                 (PlaceUse::Write, _) | (_, None) => None,
                 (_, Some(ty)) => Some(dir::OperationResolution::One(field.access(
