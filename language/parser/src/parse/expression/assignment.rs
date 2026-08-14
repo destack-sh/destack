@@ -364,7 +364,7 @@ impl Parser {
             return Ok(self.insert_node(pattern, range));
         }
 
-        // every remaining target must denote one writable place
+        // require one syntactic assignment place
         if !self.is_assignment_place(expression) {
             return Err(ParserError::invalid_assignment_target(
                 self.tree.get_range(expression),
@@ -377,10 +377,10 @@ impl Parser {
         ))
     }
 
-    /// Return whether one expression denotes a writable place.
+    /// Return whether one expression can syntactically denote an assignment place.
     fn is_assignment_place(&self, mut expression: LocalNodeId<Expression>) -> bool {
         loop {
-            // accept direct writable places
+            // accept direct place forms
             match self.tree.get(expression) {
                 Expression::Identifier { .. } => return true,
                 Expression::Member { .. } | Expression::Index { .. } => {
@@ -394,8 +394,8 @@ impl Parser {
                 } => expression = *left,
                 Expression::Unary {
                     operator: UnaryOperator::Dereference,
-                    right,
-                } => expression = *right,
+                    ..
+                } => return true,
                 Expression::Must { left, .. } => expression = *left,
                 _ => return false,
             }

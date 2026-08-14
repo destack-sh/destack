@@ -3,6 +3,7 @@ use crate::{assert_expression_path, assert_name, assert_node, assert_string};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Expression,
     IfForm, LocalNodeId, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral,
+    UnaryOperator,
 };
 
 /// Assert one assign pattern is an expression path.
@@ -136,6 +137,39 @@ a['b'] = c[d] = "test"
         assert_eq!(*operator, BinaryOperator::EqualStrict);
     });
     assert_node!(parser.tree, expressions[7], Expression::Assign { .. });
+}
+
+/// Parse dereferences of arbitrary expressions as assignment places.
+#[test]
+fn test_parse_dereference_assignment_targets() {
+    let test = TestParser::new("*reference() += offset; *this = source");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 2);
+
+    assert_node!(parser.tree, expressions[0], Expression::Assign { left, operator, .. } => {
+        assert_eq!(*operator, AssignOperator::AddAssign);
+        assert_node!(parser.tree, *left, AssignPattern::Place { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Unary { operator, right } => {
+                assert_eq!(*operator, UnaryOperator::Dereference);
+                assert_node!(parser.tree, *right, Expression::Call { left, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "reference");
+                });
+            });
+        });
+    });
+
+    assert_node!(parser.tree, expressions[1], Expression::Assign { left, operator, .. } => {
+        assert_eq!(*operator, AssignOperator::Assign);
+        assert_node!(parser.tree, *left, AssignPattern::Place { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Unary { operator, right } => {
+                assert_eq!(*operator, UnaryOperator::Dereference);
+                assert_node!(parser.tree, *right, Expression::This);
+            });
+        });
+    });
 }
 
 /// Parse a long assignment chain without overflowing the parser stack.
