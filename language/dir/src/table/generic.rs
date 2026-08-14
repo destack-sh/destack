@@ -56,10 +56,7 @@ impl<'a> GenericTable<'a> {
     }
 
     /// Return the derived variance recorded for one parameter.
-    pub fn variance(
-        &self,
-        parameter_id: LocalGenericParameterId,
-    ) -> Option<VarianceModifier> {
+    pub fn variance(&self, parameter_id: LocalGenericParameterId) -> Option<VarianceModifier> {
         for segment in self.segments.iter() {
             if let Some(variance) = segment.variance(parameter_id) {
                 return Some(variance);
@@ -151,9 +148,7 @@ impl<'a> GenericTable<'a> {
     ) -> Option<VarianceModifier> {
         let binding = self.get_parameter(parameter);
 
-        binding
-            .variance
-            .or_else(|| self.variance(parameter))
+        binding.variance.or_else(|| self.variance(parameter))
     }
 
     /// Get a generic template by id.
@@ -260,10 +255,7 @@ impl GenericSegment {
     }
 
     /// Return the derived variance recorded for one parameter.
-    pub fn variance(
-        &self,
-        parameter_id: LocalGenericParameterId,
-    ) -> Option<VarianceModifier> {
+    pub fn variance(&self, parameter_id: LocalGenericParameterId) -> Option<VarianceModifier> {
         self.variances
             .iter()
             .find(|(recorded, _)| *recorded == parameter_id)
@@ -271,7 +263,11 @@ impl GenericSegment {
     }
 
     /// Record the cardinality one parameter's value positions derive.
-    pub fn set_cardinality(&mut self, parameter_id: LocalGenericParameterId, cardinality: Cardinality) {
+    pub fn set_cardinality(
+        &mut self,
+        parameter_id: LocalGenericParameterId,
+        cardinality: Cardinality,
+    ) {
         match self
             .cardinalities
             .iter_mut()

@@ -38,6 +38,11 @@ pub enum DocumentationTag {
         /// The example Markdown.
         markdown: StringId,
     },
+    /// One general section kept as authored.
+    Section {
+        /// The authored section lines including the tag header.
+        markdown: StringId,
+    },
 }
 
 impl DocumentationTag {
@@ -47,13 +52,19 @@ impl DocumentationTag {
         matches!(self, Self::Example { .. })
     }
 
+    /// Return whether this tag contains an authored section.
+    #[inline]
+    pub fn is_section(self) -> bool {
+        matches!(self, Self::Section { .. })
+    }
+
     /// Return the exact node documented by this tag.
     #[inline]
     pub fn target(self) -> Option<LocalNodeIdAny> {
         match self {
             Self::Parameter { parameter, .. } => Some(parameter.into_any()),
             Self::TypeParameter { parameter, .. } => Some(parameter.into_any()),
-            Self::Example { .. } => None,
+            Self::Example { .. } | Self::Section { .. } => None,
         }
     }
 
@@ -63,7 +74,8 @@ impl DocumentationTag {
         match self {
             Self::Parameter { markdown, .. }
             | Self::TypeParameter { markdown, .. }
-            | Self::Example { markdown, .. } => markdown,
+            | Self::Example { markdown, .. }
+            | Self::Section { markdown, .. } => markdown,
         }
     }
 }

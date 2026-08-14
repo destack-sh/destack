@@ -57,11 +57,6 @@ impl<'a> ResolutionTable<'a> {
         ResolutionTable::from_view(self.segments.with_tail(tail))
     }
 
-    /// Get the lexical symbol resolution for a node.
-    pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
-        self.name_resolution(node_id).map(NameResolution::symbol)
-    }
-
     /// Get the name resolution for a node.
     pub fn name_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&NameResolution> {
         self.segments
@@ -151,11 +146,6 @@ impl ResolutionSegment {
     /// Set the lexical name resolution for a node.
     pub fn set_name_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: NameResolution) {
         self.names.insert(node_id, resolution);
-    }
-
-    /// Get the lexical symbol resolution for a node.
-    pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
-        self.name_resolution(node_id).map(NameResolution::symbol)
     }
 
     /// Get the name resolution for a node.

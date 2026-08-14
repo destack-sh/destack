@@ -46,6 +46,19 @@ pub struct FlowSegment {
     uses: Vec<(LocalSymbolId, BindingUse)>,
     /// Uses of the foreign symbols this module touches, sorted by symbol.
     foreign_uses: Vec<(GlobalSymbolId, BindingUse)>,
+    /// The node each module symbol use occurred at, sorted by node.
+    occurrences: Vec<BindingOccurrence>,
+}
+
+/// One symbol use at its occurrence node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct BindingOccurrence {
+    /// The occurrence node.
+    pub node: LocalNodeIdAny,
+    /// The used symbol.
+    pub symbol: LocalSymbolId,
+    /// The recorded uses.
+    pub uses: BindingUse,
 }
 
 impl FlowSegment {
@@ -57,6 +70,7 @@ impl FlowSegment {
             diverging: Vec::new(),
             uses: Vec::new(),
             foreign_uses: Vec::new(),
+            occurrences: Vec::new(),
         }
     }
 
@@ -96,6 +110,35 @@ impl FlowSegment {
             Ok(index) => self.foreign_uses[index].1 |= binding_use,
             Err(index) => self.foreign_uses.insert(index, (symbol, binding_use)),
         }
+    }
+
+    /// Record one symbol use at its occurrence node.
+    pub fn record_occurrence(
+        &mut self,
+        node: LocalNodeIdAny,
+        symbol: LocalSymbolId,
+        binding_use: BindingUse,
+    ) {
+        let key = (node, symbol);
+        match self
+            .occurrences
+            .binary_search_by_key(&key, |occurrence| (occurrence.node, occurrence.symbol))
+        {
+            Ok(index) => self.occurrences[index].uses |= binding_use,
+            Err(index) => self.occurrences.insert(
+                index,
+                BindingOccurrence {
+                    node,
+                    symbol,
+                    uses: binding_use,
+                },
+            ),
+        }
+    }
+
+    /// Iterate the recorded symbol uses by occurrence node.
+    pub fn occurrences(&self) -> impl Iterator<Item = BindingOccurrence> + '_ {
+        self.occurrences.iter().copied()
     }
 
     /// Return whether flow proves one node unreachable.

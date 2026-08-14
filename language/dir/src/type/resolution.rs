@@ -79,9 +79,13 @@ impl NameResolution {
         Self { symbols }
     }
 
-    /// Return the first selected symbol.
-    pub fn symbol(&self) -> GlobalSymbolId {
-        self.symbols[0]
+    /// Return the selected symbol when this name denotes exactly one declaration.
+    pub fn single_symbol(&self) -> Option<GlobalSymbolId> {
+        let [symbol] = self.symbols.as_slice() else {
+            return None;
+        };
+
+        Some(*symbol)
     }
 
     /// Return the selected symbols in declaration order.
@@ -467,7 +471,7 @@ pub struct MemberCandidate {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Call {
     /// The selected callable target.
-    pub target: CallTarget,
+    pub target: CallableTarget,
     /// The selected callable type.
     pub callable_type: GlobalTypeId,
     /// The source arguments bound to selected parameters.
@@ -535,7 +539,7 @@ impl OperationResolution<Call> {
 
 /// Callable target selected for one call.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
-pub enum CallTarget {
+pub enum CallableTarget {
     /// Function-typed runtime expression.
     Expression {
         /// The selected generic argument bindings.
@@ -559,7 +563,7 @@ pub enum CallTarget {
     },
 }
 
-impl CallTarget {
+impl CallableTarget {
     /// Return the selected declaration symbol, when this target has one.
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
@@ -580,6 +584,18 @@ impl CallTarget {
         }
     }
 }
+
+/// Function value selected at a declaration or member reference.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+pub struct FunctionValue {
+    /// The selected runtime callable.
+    pub target: CallableTarget,
+    /// The selected callable type.
+    pub callable_type: GlobalTypeId,
+}
+
+/// Function value selected at a usage site.
+pub type FunctionDecision = OperationResolution<FunctionValue>;
 
 /// Dispatch selected for one declaration-backed function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]

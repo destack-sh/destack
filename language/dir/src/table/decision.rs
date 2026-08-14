@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, Call,
-    CallDecision, ConstructDecision, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, GuardDecision,
-    InstantiationDecision, MemberAccess, MemberDecision, OperationResolution, OperatorDecision,
-    PatternDecision, PlaceResolution, ReceiverDecision, SegmentView, SubscriptDecision,
-    SubscriptTarget, TreeDecision, TypeFold,
+    CallDecision, ConstructDecision, FunctionDecision, GlobalNodeIdAny, GlobalSymbolId,
+    GlobalTypeId, GuardDecision, InstantiationDecision, MemberAccess, MemberDecision,
+    OperationResolution, OperatorDecision, PatternDecision, PlaceResolution, ReceiverDecision,
+    SegmentView, SubscriptDecision, SubscriptTarget, TreeDecision, TypeFold,
 };
 
 /// The one decision inference made for a DIR node.
@@ -23,6 +23,8 @@ pub enum Decision {
     Receiver(ReceiverDecision),
     /// Resolved member access.
     Member(MemberDecision),
+    /// Resolved function value.
+    Function(FunctionDecision),
     /// Resolved control transfer target.
     Label(GlobalSymbolId),
     /// Resolved operator application.
@@ -166,6 +168,22 @@ impl<'a> DecisionTable<'a> {
     pub fn member_decision(&self, node_id: GlobalNodeIdAny) -> Option<&MemberDecision> {
         match self.decision(node_id) {
             Some(Decision::Member(decision)) => Some(decision),
+            _ => None,
+        }
+    }
+
+    /// Get the function value selected for a node.
+    pub fn function_decision(&self, node_id: GlobalNodeIdAny) -> Option<&FunctionDecision> {
+        match self.decision(node_id) {
+            Some(Decision::Function(decision)) => Some(decision),
+            _ => None,
+        }
+    }
+
+    /// Get the declaration symbol the selected function value references.
+    pub fn function_symbol(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
+        match self.function_decision(node_id) {
+            Some(OperationResolution::One(value)) => value.target.symbol(),
             _ => None,
         }
     }
