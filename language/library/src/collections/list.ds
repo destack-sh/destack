@@ -50,12 +50,12 @@ export extension<T> of ^LinkedList<T> implements Iterable<T>, Sequence {
     type Rest = ^LinkedList<T>;
 
     /// Return the number of elements.
-    get length(): usize {
-        this.count
+    get length(): isize {
+        this.count as isize
     }
 
     /// Move the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^LinkedList<T> {
+    rest(start: isize, end?: isize): ^LinkedList<T> {
         todo("LinkedList.rest")
     }
 
@@ -70,12 +70,12 @@ export extension<T: Copy> of LinkedList<T> implements Iterable<T>, Sequence {
     type Rest = ^LinkedList<T>;
 
     /// Return the number of elements.
-    get length(): usize {
-        this.count
+    get length(): isize {
+        this.count as isize
     }
 
     /// Copy the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^LinkedList<T> {
+    rest(start: isize, end?: isize): ^LinkedList<T> {
         todo("LinkedList.rest")
     }
 
@@ -103,12 +103,12 @@ export extension<T, 'a, const A: Access> of Borrowed<LinkedList<T>, 'a, A>
     type Rest = ^LinkedList<Borrowed<T, 'a, A>>;
 
     /// Return the number of elements.
-    get length(): usize {
-        this.count
+    get length(): isize {
+        this.count as isize
     }
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^LinkedList<Borrowed<T, 'a, A>> {
+    rest(start: isize, end?: isize): ^LinkedList<Borrowed<T, 'a, A>> {
         todo("LinkedList.rest")
     }
 
@@ -155,8 +155,8 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "exclusive"> 
     }
 
     /// Return the number of elements.
-    get length(): usize {
-        this.count
+    get length(): isize {
+        this.count as isize
     }
 
     /// Return the number of elements.
@@ -200,7 +200,7 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "exclusive"> 
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &readonly T, index: usize) => boolean): void {
+    retain(&exclusive this, predicate: (value: &readonly T, index: isize) => boolean): void {
         todo("LinkedList.retain");
     }
 
@@ -212,7 +212,7 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "exclusive"> 
     /// Remove elements accepted by `predicate` and return them.
     extractIf(
         &exclusive this,
-        predicate: (value: &readonly T, index: usize) => boolean,
+        predicate: (value: &readonly T, index: isize) => boolean,
     ): Iterator<T> {
         todo("LinkedList.extractIf")
     }

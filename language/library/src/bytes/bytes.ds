@@ -190,7 +190,7 @@ export function endsWith(bytes: &readonly [uint8], suffix: &readonly [uint8]): b
 }
 
 /// Return the first index of `needle`.
-export function indexOf(bytes: &readonly [uint8], needle: &readonly [uint8]): usize | undefined {
+export function indexOf(bytes: &readonly [uint8], needle: &readonly [uint8]): isize | undefined {
     todo("bytes.indexOf")
 }
 
@@ -198,7 +198,7 @@ export function indexOf(bytes: &readonly [uint8], needle: &readonly [uint8]): us
 export function lastIndexOf(
     bytes: &readonly [uint8],
     needle: &readonly [uint8],
-): usize | undefined {
+): isize | undefined {
     todo("bytes.lastIndexOf")
 }
 
@@ -221,7 +221,7 @@ export function join(values: Iterator<Bytes>, separator: &readonly [uint8]): Byt
 }
 
 /// Repeat `bytes` `count` times.
-export function repeat(bytes: &readonly [uint8], count: usize): Bytes {
+export function repeat(bytes: &readonly [uint8], count: isize): Bytes {
     todo("bytes.repeat")
 }
 

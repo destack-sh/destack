@@ -43,7 +43,9 @@ export type RepresentationOptions = {
 /// }
 ///
 /// @repr({ align: 64 })
-/// struct CacheLine { value: uint64 }
+/// struct CacheLine {
+///     value: uint64;
+/// }
 /// ```
 @languageItem("decorator.repr")
 export newtype repr =

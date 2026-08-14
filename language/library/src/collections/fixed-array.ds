@@ -27,8 +27,8 @@ export extension<T: Copy, const N: usize> of FixedArray<T, N> {
 export extension<T, const N: usize> of FixedArray<T, N>
     implements
         Sequence,
-        Index<usize>,
-        IndexSet<usize, T>,
+        Index<isize>,
+        IndexSet<isize, T>,
         Iterable<T> {
     /// The indexed output type.
     type Output = T;
@@ -37,8 +37,8 @@ export extension<T, const N: usize> of FixedArray<T, N>
     type Rest = ^Array<T>;
 
     /// Return the number of elements.
-    get length(): usize {
-        N
+    get length(): isize {
+        N as isize
     }
 
     /// Return the number of elements.
@@ -54,27 +54,27 @@ export extension<T, const N: usize> of FixedArray<T, N>
     /// Borrow a view over `start..end`.
     view<const A: Access = "readonly">(
         this: WithAccess<&[T; N], A>,
-        start: usize,
-        end?: usize,
+        start: isize,
+        end?: isize,
     ): WithAccess<&[T], A> {
         todo("FixedArray.view")
     }
 
     /// Move the elements from `start..end` for a rest pattern.
-    rest(this, start: usize, end?: usize): ^Array<T> {
+    rest(this, start: isize, end?: isize): ^Array<T> {
         todo("FixedArray.rest")
     }
 
     /// Borrow the element at `index`.
     index<const A: Access = "readonly">(
         this: WithAccess<&[T; N], A>,
-        index: usize,
+        index: isize,
     ): WithAccess<&T, A> {
         todo("FixedArray.index")
     }
 
     /// Replace the element at `index`.
-    indexSet(&exclusive this, index: usize, value: T): void {
+    indexSet(&exclusive this, index: isize, value: T): void {
         todo("FixedArray.indexSet");
     }
 
@@ -92,12 +92,12 @@ export extension<T, const N: usize, 'a, const A: Access> of Borrowed<FixedArray<
     type Rest = ^Array<Borrowed<T, 'a, A>>;
 
     /// Return the number of elements.
-    get length(): usize {
-        N
+    get length(): isize {
+        N as isize
     }
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^Array<Borrowed<T, 'a, A>> {
+    rest(start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
         todo("FixedArray.rest")
     }
 

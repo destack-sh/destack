@@ -9,7 +9,9 @@ export type InlineHint = "hint" | "always" | "never";
 ///
 /// ```
 /// @inline
-/// function add(a: int, b: int): int { a + b }
+/// function add(a: int, b: int): int {
+///     a + b
+/// }
 /// ```
 @languageItem("decorator.inline")
 export newtype inline = () | (InlineHint,);
@@ -29,10 +31,10 @@ export newtype noinline = ();
 ///
 /// ```
 /// @unroll
-/// for (let i = 0; i < 4; i++) { }
+/// for (let i = 0; i < 4; i++) {}
 ///
 /// @unroll(4)
-/// for (let i = 0; i < 16; i++) { }
+/// for (let i = 0; i < 16; i++) {}
 /// ```
 @languageItem("decorator.unroll")
 export newtype unroll = (int,) | ();
@@ -41,7 +43,7 @@ export newtype unroll = (int,) | ();
 ///
 /// ```
 /// @hot
-/// function parse() { }
+/// function parse() {}
 /// ```
 @languageItem("decorator.hot")
 export newtype hot = ();
@@ -50,7 +52,7 @@ export newtype hot = ();
 ///
 /// ```
 /// @cold
-/// function logError() { }
+/// function logError() {}
 /// ```
 @languageItem("decorator.cold")
 export newtype cold = ();
@@ -59,7 +61,7 @@ export newtype cold = ();
 ///
 /// ```
 /// @likely
-/// function handleHotPath() { }
+/// function handleHotPath() {}
 /// ```
 @languageItem("decorator.likely")
 export newtype likely = ();
@@ -68,7 +70,7 @@ export newtype likely = ();
 ///
 /// ```
 /// @unlikely
-/// function handleColdPath() { }
+/// function handleColdPath() {}
 /// ```
 @languageItem("decorator.unlikely")
 export newtype unlikely = ();
@@ -77,7 +79,7 @@ export newtype unlikely = ();
 ///
 /// ```
 /// @mustUse
-/// function read(): FileHandle { }
+/// function read(): FileHandle {}
 /// ```
 @languageItem("decorator.mustUse")
 export newtype mustUse = ();
@@ -86,7 +88,9 @@ export newtype mustUse = ();
 ///
 /// ```
 /// @pure
-/// function add(a: int, b: int): int { a + b }
+/// function add(a: int, b: int): int {
+///     a + b
+/// }
 /// ```
 @languageItem("decorator.pure")
 export newtype pure = ();

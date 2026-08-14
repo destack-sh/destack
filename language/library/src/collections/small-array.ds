@@ -42,12 +42,12 @@ export extension<T, const N: usize> of SmallArray<T, N> implements Iterable<T>, 
     type Rest = ^Array<T>;
 
     /// Return the number of elements.
-    get length(): usize {
-        this.count
+    get length(): isize {
+        this.count as isize
     }
 
     /// Move the elements from `start..end` for a rest pattern.
-    rest(this, start: usize, end?: usize): ^Array<T> {
+    rest(this, start: isize, end?: isize): ^Array<T> {
         todo("SmallArray.rest")
     }
 
@@ -65,12 +65,12 @@ export extension<T, const N: usize, 'a, const A: Access> of Borrowed<SmallArray<
     type Rest = ^Array<Borrowed<T, 'a, A>>;
 
     /// Return the number of elements.
-    get length(): usize {
-        this.count
+    get length(): isize {
+        this.count as isize
     }
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^Array<Borrowed<T, 'a, A>> {
+    rest(start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
         todo("SmallArray.rest")
     }
 
@@ -92,8 +92,8 @@ export extension<T, const N: usize, 'a, const A: Access> of Borrowed<SmallArray<
 
 export extension<T, const N: usize> of SmallArray<T, N>
     implements
-        Index<usize>,
-        IndexSet<usize, T>,
+        Index<isize>,
+        IndexSet<isize, T>,
         From<Iterable<T>>,
         FromIterator<T>,
         Extend<T, "exclusive">,
@@ -144,8 +144,8 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Return the number of elements.
-    get length(): usize {
-        this.count
+    get length(): isize {
+        this.count as isize
     }
 
     /// Return the number of elements.
@@ -176,8 +176,8 @@ export extension<T, const N: usize> of SmallArray<T, N>
     /// Borrow a view over `start..end`.
     view<const A: Access = "readonly">(
         this: WithAccess<&SmallArray<T, N>, A>,
-        start: usize,
-        end?: usize,
+        start: isize,
+        end?: isize,
     ): WithAccess<&[T], A> {
         todo("SmallArray.view")
     }
@@ -185,13 +185,13 @@ export extension<T, const N: usize> of SmallArray<T, N>
     /// Borrow the element at `index`.
     index<const A: Access = "readonly">(
         this: WithAccess<&SmallArray<T, N>, A>,
-        index: usize,
+        index: isize,
     ): WithAccess<&T, A> {
         todo("SmallArray.index")
     }
 
     /// Replace the element at `index`.
-    indexSet(&exclusive this, index: usize, value: T): void {
+    indexSet(&exclusive this, index: isize, value: T): void {
         todo("SmallArray.indexSet");
     }
 
@@ -216,17 +216,17 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Insert `value` at `index`.
-    insert(&exclusive this, index: usize, value: T): void {
+    insert(&exclusive this, index: isize, value: T): void {
         todo("SmallArray.insert");
     }
 
     /// Remove and return the element at `index`.
-    removeAt(&exclusive this, index: usize): T {
+    removeAt(&exclusive this, index: isize): T {
         todo("SmallArray.removeAt")
     }
 
     /// Swap-remove the element at `index`.
-    swapRemove(&exclusive this, index: usize): T {
+    swapRemove(&exclusive this, index: isize): T {
         todo("SmallArray.swapRemove")
     }
 
@@ -236,7 +236,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &readonly T, index: usize) => boolean): void {
+    retain(&exclusive this, predicate: (value: &readonly T, index: isize) => boolean): void {
         todo("SmallArray.retain");
     }
 
@@ -248,7 +248,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     /// Remove elements accepted by `predicate` and return them.
     extractIf(
         &exclusive this,
-        predicate: (value: &readonly T, index: usize) => boolean,
+        predicate: (value: &readonly T, index: isize) => boolean,
     ): Iterator<T> {
         todo("SmallArray.extractIf")
     }
@@ -269,7 +269,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Move the selected range into a new small array.
-    slice(this, start?: usize, end?: usize): SmallArray<T, N> {
+    slice(this, start?: isize, end?: isize): SmallArray<T, N> {
         todo("SmallArray.slice")
     }
 

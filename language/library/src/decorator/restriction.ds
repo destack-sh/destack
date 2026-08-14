@@ -2,7 +2,7 @@
 ///
 /// ```
 /// @noManaged
-/// function processFrame() { }
+/// function processFrame() {}
 /// ```
 @languageItem("decorator.noManaged")
 export newtype noManaged = ();
@@ -11,7 +11,7 @@ export newtype noManaged = ();
 ///
 /// ```
 /// @noHeap
-/// function interruptHandler() { }
+/// function interruptHandler() {}
 /// ```
 @languageItem("decorator.noHeap")
 export newtype noHeap = ();
@@ -20,7 +20,7 @@ export newtype noHeap = ();
 ///
 /// ```
 /// @noRuntime
-/// function kernel() { }
+/// function kernel() {}
 /// ```
 @languageItem("decorator.noRuntime")
 export newtype noRuntime = ();

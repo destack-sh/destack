@@ -5,8 +5,8 @@ export newtype interface Sequence {
     type Rest;
 
     /// Return the number of elements.
-    get length(): usize;
+    get length(): isize;
 
     /// Return the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): this.Rest;
+    rest(start: isize, end?: isize): this.Rest;
 }

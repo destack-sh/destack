@@ -74,7 +74,7 @@ export extension<T: Compare<T>> of BinaryHeap<T>
 
     /// Return the number of elements.
     get size(): usize {
-        this.storage.length
+        this.storage.size
     }
 
     /// Return the allocated element count.

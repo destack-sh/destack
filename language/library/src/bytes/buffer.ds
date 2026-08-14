@@ -30,8 +30,8 @@ export class ByteBuffer {
     }
 
     /// Return the initialized byte count.
-    get length(): usize {
-        this.initializedLength
+    get length(): isize {
+        this.initializedLength as isize
     }
 
     /// Return the initialized byte count.
@@ -75,7 +75,7 @@ export class ByteBuffer {
     }
 
     /// Append `count` copies of `value`.
-    fill(&exclusive this, value: uint8, count: usize): void {
+    fill(&exclusive this, value: uint8, count: isize): void {
         todo("ByteBuffer.fill");
     }
 

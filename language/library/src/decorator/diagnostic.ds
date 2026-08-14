@@ -24,7 +24,7 @@ export type DiagnosticControlOptions =
 ///
 /// ```
 /// @allow("no-floating-promises", { if: import.meta.dev, otherwise: "deny" })
-/// function oldAPI() { }
+/// function oldAPI() {}
 /// ```
 @languageItem("decorator.allow")
 export newtype allow = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
@@ -33,7 +33,7 @@ export newtype allow = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions
 ///
 /// ```
 /// @warn("no-floating-promises")
-/// function oldAPI() { }
+/// function oldAPI() {}
 /// ```
 @languageItem("decorator.warn")
 export newtype warn = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
@@ -42,7 +42,7 @@ export newtype warn = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions)
 ///
 /// ```
 /// @deny("no-floating-promises")
-/// function oldAPI() { }
+/// function oldAPI() {}
 /// ```
 @languageItem("decorator.deny")
 export newtype deny = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
@@ -51,7 +51,7 @@ export newtype deny = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions)
 ///
 /// ```
 /// @forbid("unsafe-code")
-/// function oldAPI() { }
+/// function oldAPI() {}
 /// ```
 @languageItem("decorator.forbid")
 export newtype forbid = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
@@ -60,7 +60,7 @@ export newtype forbid = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOption
 ///
 /// ```
 /// @expect("no-floating-promises", { reason: "intentional fire-and-forget" })
-/// function oldAPI() { }
+/// function oldAPI() {}
 /// ```
 @languageItem("decorator.expect")
 export newtype expect = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);

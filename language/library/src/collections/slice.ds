@@ -45,8 +45,8 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Return the number of elements.
-    get length(): usize {
-        return this.size;
+    get length(): isize {
+        return this.size as isize;
     }
 
     /// Return whether this slice has no elements.
@@ -78,8 +78,8 @@ export extension<T> of Slice<T> implements Default {
     /// Borrow a selected range as a view.
     slice<const A: Access = "readonly">(
         this: WithAccess<&[T], A>,
-        start?: usize,
-        end?: usize,
+        start?: isize,
+        end?: isize,
     ): WithAccess<&[T], A> {
         todo("Slice.slice")
     }
@@ -87,7 +87,7 @@ export extension<T> of Slice<T> implements Default {
     /// Split this slice into two borrowed views.
     splitAt<const A: Access = "readonly">(
         this: WithAccess<&[T], A>,
-        index: usize,
+        index: isize,
     ): (WithAccess<&[T], A>, WithAccess<&[T], A>) {
         todo("Slice.splitAt")
     }
@@ -137,12 +137,12 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
     type Rest = ^Array<T>;
 
     /// Return the number of elements.
-    get length(): usize {
-        this.size
+    get length(): isize {
+        this.size as isize
     }
 
     /// Copy the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^Array<T> {
+    rest(start: isize, end?: isize): ^Array<T> {
         todo("Slice.rest")
     }
 
@@ -162,7 +162,7 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
 
     /// Return the last element by value.
     last(&readonly this): T | undefined {
-        let length = this.size;
+        let length = this.length;
 
         if (length == 0) {
             return undefined;
@@ -192,12 +192,12 @@ export extension<T, 'a, const A: Access> of Borrowed<Slice<T>, 'a, A>
     type Rest = ^Array<Borrowed<T, 'a, A>>;
 
     /// Return the number of elements.
-    get length(): usize {
-        this.size
+    get length(): isize {
+        this.size as isize
     }
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^Array<Borrowed<T, 'a, A>> {
+    rest(start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
         todo("Slice.rest")
     }
 
@@ -217,15 +217,15 @@ export extension<T, 'a, const A: Access> of Borrowed<Slice<T>, 'a, A>
     }
 }
 
-export extension<T> of Slice<T> implements Index<usize>, IndexSet<usize, T> {
+export extension<T> of Slice<T> implements Index<isize>, IndexSet<isize, T> {
     /// The indexed output type.
     type Output = T;
 
     /// Borrow a view over `start..end`.
     view<const A: Access = "readonly">(
         this: WithAccess<&[T], A>,
-        start: usize,
-        end?: usize,
+        start: isize,
+        end?: isize,
     ): WithAccess<&[T], A> {
         this.slice(start, end)
     }
@@ -233,13 +233,13 @@ export extension<T> of Slice<T> implements Index<usize>, IndexSet<usize, T> {
     /// Borrow the element at `index`.
     index<const A: Access = "readonly">(
         this: WithAccess<&[T], A>,
-        index: usize,
+        index: isize,
     ): WithAccess<&T, A> {
         todo("Slice.index")
     }
 
     /// Replace the element at `index`.
-    indexSet(&exclusive this, index: usize, value: T): void {
+    indexSet(&exclusive this, index: isize, value: T): void {
         todo("Slice.indexSet");
     }
 }

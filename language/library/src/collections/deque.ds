@@ -26,12 +26,12 @@ export extension<T> of ^Deque<T> implements Iterable<T>, Sequence {
     type Rest = ^Deque<T>;
 
     /// Return the number of elements.
-    get length(): usize {
-        this.count
+    get length(): isize {
+        this.count as isize
     }
 
     /// Move the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^Deque<T> {
+    rest(start: isize, end?: isize): ^Deque<T> {
         todo("Deque.rest")
     }
 
@@ -46,12 +46,12 @@ export extension<T: Copy> of Deque<T> implements Iterable<T>, Sequence {
     type Rest = ^Deque<T>;
 
     /// Return the number of elements.
-    get length(): usize {
-        this.count
+    get length(): isize {
+        this.count as isize
     }
 
     /// Copy the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^Deque<T> {
+    rest(start: isize, end?: isize): ^Deque<T> {
         todo("Deque.rest")
     }
 
@@ -79,12 +79,12 @@ export extension<T, 'a, const A: Access> of Borrowed<Deque<T>, 'a, A>
     type Rest = ^Deque<Borrowed<T, 'a, A>>;
 
     /// Return the number of elements.
-    get length(): usize {
-        this.count
+    get length(): isize {
+        this.count as isize
     }
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^Deque<Borrowed<T, 'a, A>> {
+    rest(start: isize, end?: isize): ^Deque<Borrowed<T, 'a, A>> {
         todo("Deque.rest")
     }
 
@@ -107,8 +107,8 @@ export extension<T, 'a, const A: Access> of Borrowed<Deque<T>, 'a, A>
 export extension<T> of Deque<T>
     implements
         Default,
-        Index<usize>,
-        IndexSet<usize, T>,
+        Index<isize>,
+        IndexSet<isize, T>,
         Extend<T, "exclusive"> {
     /// The indexed output type.
     type Output = T;
@@ -139,8 +139,8 @@ export extension<T> of Deque<T>
     }
 
     /// Return the number of elements.
-    get length(): usize {
-        this.count
+    get length(): isize {
+        this.count as isize
     }
 
     /// Return the number of elements.
@@ -156,13 +156,13 @@ export extension<T> of Deque<T>
     /// Borrow the element at `index`.
     index<const A: Access = "readonly">(
         this: WithAccess<&Deque<T>, A>,
-        index: usize,
+        index: isize,
     ): WithAccess<&T, A> {
         todo("Deque.index")
     }
 
     /// Replace the element at `index`.
-    indexSet(&exclusive this, index: usize, value: T): void {
+    indexSet(&exclusive this, index: isize, value: T): void {
         todo("Deque.indexSet");
     }
 
@@ -197,7 +197,7 @@ export extension<T> of Deque<T>
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &readonly T, index: usize) => boolean): void {
+    retain(&exclusive this, predicate: (value: &readonly T, index: isize) => boolean): void {
         todo("Deque.retain");
     }
 
@@ -209,7 +209,7 @@ export extension<T> of Deque<T>
     /// Remove elements accepted by `predicate` and return them.
     extractIf(
         &exclusive this,
-        predicate: (value: &readonly T, index: usize) => boolean,
+        predicate: (value: &readonly T, index: isize) => boolean,
     ): Iterator<T> {
         todo("Deque.extractIf")
     }
