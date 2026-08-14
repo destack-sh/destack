@@ -47,11 +47,9 @@ function githubApi(path) {
     });
 }
 
-/**
- * Get changed files based on the GitHub event type
- *
- * @returns {Promise<string[] | null>} Array of changed file paths, or null to signal "run all"
- */
+/// Get changed files based on the GitHub event type
+///
+/// @returns {Promise<string[] | null>} Array of changed file paths, or null to signal "run all"
 async function getChangedFiles() {
     const eventName = process.env.GITHUB_EVENT_NAME;
     const repository = process.env.GITHUB_REPOSITORY;

@@ -7,13 +7,11 @@
 }
 
 <>
-    {
-        isVideo ? (
-            <Video {...props} />
-        ) : (
-            <Image {...props} /> // eslint-disable-line
-        )
-    }
+    {isVideo ? (
+        <Video {...props} />
+    ) : (
+        <Image {...props} /> // eslint-disable-line
+    )}
 </>;
 
 // https://github.com/oxc-project/oxc/issues/16180

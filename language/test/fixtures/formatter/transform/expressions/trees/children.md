@@ -252,7 +252,7 @@ const node = (
 
 ### template child interpolation comments
 
-Template children keep multiline interpolation comments indented from the template segment.
+Template child interpolations hug their braces while inner comments stay indented from the template segment.
 
 ```ds:main.ds
 const node = <div>{`
@@ -266,12 +266,10 @@ const node = <div>{`
 ```ds expected
 const node = (
     <div>{`
-  color: ${
-      theme?.activeColor[
-          // selected mode
-          mode === "dark" ? "dark" : "light"
-      ]
-  };
+  color: ${theme?.activeColor[
+      // selected mode
+      mode === "dark" ? "dark" : "light"
+  ]};
 `}</div>
 );
 ```

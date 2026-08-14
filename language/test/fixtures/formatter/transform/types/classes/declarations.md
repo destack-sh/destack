@@ -588,18 +588,14 @@ export class Store<T> extends Base<T> implements Reader<T> {
 ```
 
 ```ds expected
-/**
- * Stores values.
- *
- * @typeParam T Value type
- */
+/// Stores values.
+///
+/// @typeParam T - value type
 @entity
 export class Store<T> extends Base<T> implements Reader<T> {
-    /**
-     * Current value.
-     *
-     * @returns Stored value
-     */
+    /// Current value.
+    ///
+    /// @returns stored value
     @tracked
     get value(): T {
         return this.current;

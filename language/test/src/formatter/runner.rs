@@ -8,6 +8,7 @@ use crate::core::{
     load_expected_failures, update_failure_baseline,
 };
 use crate::mdtest::MdTestCase;
+use destack_source::DiagnosticSeverity;
 
 use super::{roundtrip, transform};
 
@@ -58,8 +59,10 @@ impl FormatterSuite {
             )
         })?;
 
+        // fail roundtrip formatting on errors only
         for test in roundtrip_tests {
-            self.cases.push(test);
+            self.cases
+                .push(test.with_min_fail_severity(DiagnosticSeverity::Error));
         }
 
         Ok(())

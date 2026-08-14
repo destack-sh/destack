@@ -54,7 +54,7 @@ const node = <div className={cx("a", { b: cond })} />;
 
 ### template attribute interpolation comments
 
-Template attributes keep multiline interpolation comments indented from the template segment.
+Template attribute interpolations hug their braces while inner comments stay indented from the template segment.
 
 ```ds:main.ds
 const node = <Panel className={`
@@ -69,12 +69,10 @@ const node = <Panel className={`
 const node = (
     <Panel
         className={`
-  color: ${
-      theme?.activeColor[
-          // selected mode
-          mode === "dark" ? "dark" : "light"
-      ]
-  };
+  color: ${theme?.activeColor[
+      // selected mode
+      mode === "dark" ? "dark" : "light"
+  ]};
 `}
     />
 );

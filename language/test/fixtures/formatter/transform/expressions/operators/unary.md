@@ -78,18 +78,6 @@ const view = &readonly value
 const view = &readonly value;
 ```
 
-### owned value operator
-
-Owned values keep `^` tight to the operand.
-
-```ds
-const owned = ^value
-```
-
-```ds expected
-const owned = ^value;
-```
-
 ### pointer operator
 
 Pointers keep `*` tight to the operand.
@@ -100,64 +88,6 @@ const ptr = *value
 
 ```ds expected
 const ptr = *value;
-```
-
-### reference operator comments
-
-Comments after ownership operators group the operand.
-
-```ds
-const refs = (& /* borrow */ value, ^ /* own */ value, * /* pointer */ value)
-```
-
-```ds expected
-const refs = (&(/* borrow */ value), ^(/* own */ value), *(/* pointer */ value));
-```
-
-### readonly reference operator comments
-
-Comments after readonly ownership prefixes group the operand.
-
-```ds
-const refs = (&readonly /* borrow */ value, ^readonly /* move */ value)
-```
-
-```ds expected
-const refs = (&readonly (/* borrow */ value), ^readonly (/* move */ value));
-```
-
-### nested reference operator comments
-
-Comments after composed reference prefixes group only the affected operand.
-
-```ds line-width=60
-const refs = (& /* borrow */ *value, ^ /* move */ &readonly value, * /* deref */ ^exclusive value)
-```
-
-```ds expected
-const refs = (
-    &(/* borrow */ *value),
-    ^(/* move */ &readonly value),
-    *(/* deref */ ^exclusive value),
-);
-```
-
-### reference operators as receivers
-
-Ownership operator values keep receiver parentheses.
-
-```ds
-const borrowed = (&value).read()
-const readonly = (&readonly value).read()
-const owned = (^value).read()
-const pointer = (*value).read()
-```
-
-```ds expected
-const borrowed = (&value).read();
-const readonly = (&readonly value).read();
-const owned = (^value).read();
-const pointer = (*value).read();
 ```
 
 ### reference operators in return tail

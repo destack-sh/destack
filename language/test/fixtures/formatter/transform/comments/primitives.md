@@ -71,16 +71,14 @@ function withFencedCodeBlock() {}
 ```
 
 ```ds expected
-/**
- * Description text.
- *
- * ```ts
- * const store = toStore(
- * 	() => count,
- * 	(v) => (count = v),
- * );
- * ```
- */
+/// Description text.
+///
+/// ```ts
+/// const store = toStore(
+/// 	() => count,
+/// 	(v) => (count = v),
+/// );
+/// ```
 function withFencedCodeBlock() {}
 ```
 
@@ -227,7 +225,9 @@ Doc comments precede declarations.
 
 ```ds expected
 {
-    /** Some multiline doc comment over multiple lines */
+    /// some multiline
+    /// doc comment
+    /// over multiple lines
     const X = 1;
 }
 ```

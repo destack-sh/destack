@@ -31,8 +31,7 @@ export type Value = /** union-doc
 
 ```ds expected
 export type Value =
-    /** union-doc
-     */
+    /// union-doc
     { ok: true } | { ok: false; value: bigint | null };
 ```
 
@@ -115,7 +114,8 @@ x: boolean }
 
 ```ds expected
 export type AddressAllocator =
-  /** Reserve a specific IP address. The pool is inferred from the address since IP pools cannot have overlapping ranges. */
+  /// Reserve a specific IP address. The pool is inferred from the address since
+  /// IP pools cannot have overlapping ranges.
   | {
       y: boolean;
     }

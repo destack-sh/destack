@@ -116,15 +116,15 @@ const A = {
 
 ```ds expected
 const A = {
-    "--theme-primary": `hsl(${
-        theme?.activeColor[mode === "dark" ? "dark" : "light"]
-    })`,
+    "--theme-primary": `hsl(${theme?.activeColor[
+        mode === "dark" ? "dark" : "light"
+    ]})`,
 };
 ```
 
 ### multiline template interpolation comment
 
-Comments inside an indented multiline template interpolation keep the expression indented under `${`.
+Interpolations hug their braces while inner comments stay indented from the template segment.
 
 ```ds:main.ds
 const css = `
@@ -137,12 +137,10 @@ const css = `
 
 ```ds expected
 const css = `
-  color: ${
-      theme?.activeColor[
-          // selected mode
-          mode === "dark" ? "dark" : "light"
-      ]
-  };
+  color: ${theme?.activeColor[
+      // selected mode
+      mode === "dark" ? "dark" : "light"
+  ]};
 `;
 ```
 
@@ -165,18 +163,14 @@ const css = `
 
 ```ds expected
 const css = `
-  color: ${
-      theme?.activeColor[
-          // selected mode
-          mode === "dark" ? "dark" : "light"
-      ]
-  };
-    background: ${
-        theme?.backgroundColor[
-            // selected mode
-            mode === "dark" ? "dark" : "light"
-        ]
-    };
+  color: ${theme?.activeColor[
+      // selected mode
+      mode === "dark" ? "dark" : "light"
+  ]};
+    background: ${theme?.backgroundColor[
+        // selected mode
+        mode === "dark" ? "dark" : "light"
+    ]};
 `;
 ```
 

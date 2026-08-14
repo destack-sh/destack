@@ -17,15 +17,14 @@ import {
 import { isSpaceBetween, isSpaceBetweenTokens } from "../src-js/plugins/tokens.ts";
 import { debugAssertIsNonNull } from "../src-js/utils/asserts.ts";
 
-/**
- * Parse source text into AST using Oxc parser. Set up global state, as if was linting the provided
- * file.
- *
- * @param filename - Filename
- * @param sourceText - Source text
- * @param options - Parse options
- * @returns AST
- */
+/// Parse source text into AST using Oxc parser. Set up global state, as if was linting the provided
+/// file.
+///
+/// @param filename - Filename
+/// @param sourceText - Source text
+/// @param options - Parse options
+///
+/// @returns AST
 function parse(filename: string, sourceText: string, options?: ParseOptions): Program {
     // Set file path
     const path = pathJoin(import.meta.dirname, filename);
