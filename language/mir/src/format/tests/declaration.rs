@@ -13,7 +13,7 @@ function Status.isActive(v0: Status): boolean {
 entry(v0: Status):
     v1: int32 = cast.bit v0 -> int32
     v2: int32 = 1
-    v3: boolean = int.eq v1, v2
+    v3: boolean = eq v1, v2
     return v3
 }
 
@@ -34,7 +34,7 @@ function Status.isActive(v0: Status): boolean {
 entry(v0: Status):
     v1: int32 = cast.bit v0 -> int32
     v2: int32 = 1
-    v3: boolean = int.eq v1, v2
+    v3: boolean = eq v1, v2
     return v3
 }
 

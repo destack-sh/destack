@@ -588,7 +588,7 @@ function test(): int32 {
 entry:
     v0: int32 = 2
     v1: int32 = 3
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#,

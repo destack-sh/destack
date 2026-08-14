@@ -168,7 +168,7 @@ function use(
     v1: int32 // right
 ): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#,

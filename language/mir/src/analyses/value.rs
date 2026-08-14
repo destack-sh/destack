@@ -532,8 +532,8 @@ mod tests {
             r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.add v2, v1
+    v2: int32 = add v0, v1
+    v3: int32 = add v2, v1
     jump b1(v3)
 
 b1(v4: int32):

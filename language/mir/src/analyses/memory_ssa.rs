@@ -2857,13 +2857,13 @@ entry(v0: ref<int32, borrowed, mutable>, v1: int32):
     jump b1(v2)
 
 b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
+    v4: boolean = lt v3, v1
     branch v4 => b2 | b3
 
 b2:
     v5: int32 = 1
     store v0, v5
-    v6: int32 = int.add v3, v5
+    v6: int32 = add v3, v5
     jump b1(v6)
 
 b3:

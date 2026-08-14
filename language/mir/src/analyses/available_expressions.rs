@@ -209,11 +209,11 @@ mod tests {
             r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     jump b1
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     return v3
 }
 "#,
@@ -247,14 +247,14 @@ entry(v0: boolean, v1: int32, v2: int32):
     branch v0 => b1 | b2
 
 b1:
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     jump b3
 
 b2:
     jump b3
 
 b3:
-    v4: int32 = int.add v1, v2
+    v4: int32 = add v1, v2
     return v4
 }
 "#,
@@ -285,15 +285,15 @@ entry(v0: boolean, v1: int32, v2: int32):
     branch v0 => b1 | b2
 
 b1:
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     jump b3
 
 b2:
-    v4: int32 = int.add v1, v2
+    v4: int32 = add v1, v2
     jump b3
 
 b3:
-    v5: int32 = int.add v1, v2
+    v5: int32 = add v1, v2
     return v5
 }
 "#,
@@ -351,15 +351,15 @@ entry(v0: boolean, v1: int32, v2: int32):
     branch v0 => b1 | b2
 
 b1:
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     jump b3
 
 b2:
-    v4: int32 = int.add v2, v1
+    v4: int32 = add v2, v1
     jump b3
 
 b3:
-    v5: int32 = int.add v1, v2
+    v5: int32 = add v1, v2
     return v5
 }
 "#,
@@ -387,8 +387,8 @@ b3:
             r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v3, v2
+    v3: int32 = add v0, v1
+    v4: int32 = add v3, v2
     return v4
 }
 "#,
@@ -431,15 +431,15 @@ entry(v0: int32, v1: int32, v2: int32):
             r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     jump b1
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     return v3
 
 b2:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     return v4
 }
 "#,

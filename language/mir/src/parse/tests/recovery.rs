@@ -45,7 +45,7 @@ fn test_parse_recovers_after_instruction_error() {
     let source = r#"
 function broken(): void {
 b0:
-    v0: int32 = int.add
+    v0: int32 = add
 
 b1:
     return
@@ -80,7 +80,7 @@ fn test_parse_recovers_after_instruction_error_in_same_block() {
     let source = r#"
 function broken(): int32 {
 b0:
-    v0: int32 = int.add
+    v0: int32 = add
     v1: int32 = 1
     return v1
 }
@@ -371,8 +371,8 @@ fn test_parse_collects_multiple_instruction_errors() {
     let source = r#"
 function broken(): int32 {
 b0:
-    v0: int32 = int.add
-    v1: int32 = int.sub
+    v0: int32 = add
+    v1: int32 = sub
     v2: int32 = 1
     return v2
 }

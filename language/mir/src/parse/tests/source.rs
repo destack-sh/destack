@@ -115,7 +115,7 @@ fn test_parse_instruction_spans() {
     let source = r#"
 function use(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 "#;
@@ -131,7 +131,7 @@ entry(v0: int32):
             tree.get_span(instruction_id),
             Some(span_for_text(
                 source,
-                "v1: int32 = int.add v0, v0"
+                "v1: int32 = add v0, v0"
             ))
         );
         assert_eq!(
@@ -142,7 +142,7 @@ entry(v0: int32):
             tree.get_side_span(instruction_id, NodeSpanType::Region(NodeSpanRegion::Type)),
             Some(span_for_text_in(
                 source,
-                "v1: int32 = int.add v0, v0",
+                "v1: int32 = add v0, v0",
                 "int32"
             ))
         );
@@ -150,15 +150,15 @@ entry(v0: int32):
             tree.get_side_span(instruction_id, NodeSpanType::ListItem(NodeSpanList::Segment, 0)),
             Some(span_for_text_in(
                 source,
-                "v1: int32 = int.add v0, v0",
-                "int.add"
+                "v1: int32 = add v0, v0",
+                "add"
             ))
         );
         assert_eq!(
             tree.get_side_span(instruction_id, NodeSpanType::ListItem(NodeSpanList::Segment, 1)),
             Some(span_for_text_in(
                 source,
-                "v1: int32 = int.add v0, v0",
+                "v1: int32 = add v0, v0",
                 "v0"
             ))
         );
@@ -166,7 +166,7 @@ entry(v0: int32):
             tree.get_side_span(instruction_id, NodeSpanType::ListItem(NodeSpanList::Segment, 2)),
             Some(span_for_text_in_after(
                 source,
-                "v1: int32 = int.add v0, v0",
+                "v1: int32 = add v0, v0",
                 "v0",
                 1
             ))

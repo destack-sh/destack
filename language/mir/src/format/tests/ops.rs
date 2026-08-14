@@ -12,7 +12,7 @@ entry(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, managed, mutable, (2, 2
     v6: vector<int32, 4> = vector.insert v4, v1, v1
     v7: vector<int32, 4> = vector.shuffle v4, v6, [0, 1, 2, 3]
     v8: int32 = vector.reduce add, v7
-    v9: vector<boolean, 4> = vector.compare int.eq, v4, v6
+    v9: vector<boolean, 4> = vector.compare eq, v4, v6
     v10: vector<int32, 4> = vector.convert exact, v4
     v11: int32 = 0
     v12: int32 = 1
@@ -28,7 +28,7 @@ entry(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, managed, mutable, (2, 2
     v19: tensor<int32, managed, mutable, (2, 2)> = tensor.slice v2, offsets(v11, v11), sizes(v12, v12), strides(v12, v12)
     v20: tensor<int32, managed, mutable, (2, 2)> = tensor.pad v2, value(v11), low(v11, v11), high(v11, v11), interior(v11, v11)
     v21: tensor<int32, managed, mutable, (2, 2)> = tensor.concat tensors(v2, v2), axis(0)
-    v22: tensor<boolean, managed, mutable, (2, 2)> = tensor.compare int.eq, v2, v2
+    v22: tensor<boolean, managed, mutable, (2, 2)> = tensor.compare eq, v2, v2
     v23: tensor<int32, managed, mutable, (2, 2)> = tensor.reduce add, v2, v11, axes(0)
     v24: tensor<uint64, managed, mutable, (2, 2)> = tensor.indexReduce min, v2, axis(0), tieBreak(first)
     v25: tensor<int32, managed, mutable, (2, 2)> = tensor.dot v2, v2, dims(lhsBatch(), rhsBatch(), lhsContract(1), rhsContract(0))
@@ -50,7 +50,7 @@ fn test_format_check_and_assume() {
         r#"
 function guard(v0: uint32, v1: uint32, v2: [int32; 4]): int32 {
 entry(v0: uint32, v1: uint32, v2: [int32; 4]):
-    v3: boolean = int.lt.u v0, v1
+    v3: boolean = lt v0, v1
     assume v3
     breakpoint
     profile.increment counter(0)
@@ -113,11 +113,11 @@ fn test_format_scalar_instruction_families() {
         r#"
 function scalarOps(v0: int32, v1: int32, v2: boolean, v3: float64): int64 {
 entry(v0: int32, v1: int32, v2: boolean, v3: float64):
-    v4: boolean = int.lt.s v0, v1
+    v4: boolean = lt v0, v1
     v5: int32 = select v2, v0, v1
-    v6: int32 = int.negate v5
-    v7: int32 = int.not v6
-    v8: float64 = float.negate v3
+    v6: int32 = negate v5
+    v7: int32 = not v6
+    v8: float64 = negate v3
     v9: int64 = cast.extend.s v7 -> int64
     v10: float64 = intrinsic.math.float.sqrt(v3)
     v11: float64 = intrinsic.math.float.min(v8, v3)

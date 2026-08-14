@@ -12,7 +12,7 @@ entry:
     v0: ref<int32, borrowed, mutable> = global.address counter
     v1: int32 = load v0
     v2: int32 = 1
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     store v0, v3
     return
 }

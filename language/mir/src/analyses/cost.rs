@@ -472,7 +472,7 @@ mod tests {
 function test(v0: ref<int32, borrowed, mutable>): int32 {
 entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = load v0
-    v2: int32 = int.add v1, v1
+    v2: int32 = add v1, v1
     return v2
 }
 "#,

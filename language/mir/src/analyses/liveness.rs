@@ -454,7 +454,7 @@ function test(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = 2
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#,
@@ -513,7 +513,7 @@ entry(v0: boolean):
 
 b1(v2: int32):
     v3: int32 = 2
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     branch v0 => b1(v4) | b2
 
 b2:
@@ -565,7 +565,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     local.set l0, v0
     v1: int32 = local.get l0
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#,

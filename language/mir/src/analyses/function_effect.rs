@@ -512,7 +512,7 @@ mod tests {
             r#"
 function pure(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 "#,
