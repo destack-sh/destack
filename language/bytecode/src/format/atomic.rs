@@ -17,13 +17,13 @@ impl InstructionFormatter<'_, '_, '_> {
         address: Address,
         scalar: Scalar,
     ) -> FormatResult<()> {
-        let name = format!("atomic.{}{}", operation.name(), address.suffix());
+        let name = format!("atomic.{}.{}", operation.name(), scalar.name());
         self.write_opcode(&name)?;
         self.write_atomic_results(operation)?;
 
-        // write the target pointer
-        let pointer = self.register_id()?;
-        self.write_register(pointer)?;
+        // write the target address
+        let register = self.register_id()?;
+        self.write_address_register(address, register)?;
 
         // write the value operand for non-load operations
         if operation != AtomicOperation::Load {
@@ -39,7 +39,7 @@ impl InstructionFormatter<'_, '_, '_> {
             self.format_atomic_access()?;
         }
 
-        self.write_scalar_representation(scalar)
+        Ok(())
     }
 
     /// Format the logical results of one atomic operation.

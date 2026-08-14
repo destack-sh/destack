@@ -9,21 +9,21 @@ fn test_parse_memory() {
         r#"
 function f0 {
     frame.address r5, r4
-    store r5, r0: int32
-    load r7, r5: int32
-    load.constant r6, r4: uint64
-    store.pointer r11, r1: uint16
-    load.volatile r10, r5: uint32
-    store.volatile.pointer r11, r10: uint32
-    store r5, r8:r9, 12
-    load.pointer r8:r9, r11, 12
-    store.volatile r5, r8:r9, 12
-    load.volatile.pointer r8:r9, r11, 12
+    store.int32 r5, r0
+    load.int32 r7, r5
+    load.uint64 r6, r4
+    store.uint16 pointer r11, r1
+    load.volatile.uint32 r10, r5
+    store.volatile.uint32 pointer r11, r10
+    memory.store r5, r8:r9, 12
+    memory.load r8:r9, pointer r11, 12
+    memory.store.volatile r5, r8:r9, 12
+    memory.load.volatile r8:r9, pointer r11, 12
     memory.copy r2, r1, r3
-    memory.move.pointer.memory r2, r1, 16
-    memory.fill.pointer r2, r0, r3
-    memory.compare.constant.pointer r10, r2, r1, 16
-    prefetch.read.pointer r1
+    memory.move pointer r2, r1, 16
+    memory.fill pointer r2, r0, r3
+    memory.compare r10, r2, pointer r1, 16
+    prefetch.read pointer r1
     return r7
 }
 "#,
@@ -36,47 +36,54 @@ function f0 {
             Opcode::FRAME_ADDRESS,
             Opcode::memory(
                 MemoryOperation::Store,
-                Address::Memory,
+                Address::Reference,
                 Scalar::Int32,
-                false
-            )
-            .expect("memory store opcode"),
-            Opcode::memory(MemoryOperation::Load, Address::Memory, Scalar::Int32, false)
-                .expect("memory load opcode"),
+                false,
+            ),
             Opcode::memory(
                 MemoryOperation::Load,
-                Address::Constant,
+                Address::Reference,
+                Scalar::Int32,
+                false,
+            ),
+            Opcode::memory(
+                MemoryOperation::Load,
+                Address::Reference,
                 Scalar::Uint64,
-                false
-            )
-            .expect("constant load opcode"),
+                false,
+            ),
             Opcode::memory(
                 MemoryOperation::Store,
                 Address::Pointer,
                 Scalar::Uint16,
-                false
-            )
-            .expect("pointer store opcode"),
-            Opcode::memory(MemoryOperation::Load, Address::Memory, Scalar::Uint32, true,)
-                .expect("volatile load opcode"),
+                false,
+            ),
+            Opcode::memory(
+                MemoryOperation::Load,
+                Address::Reference,
+                Scalar::Uint32,
+                true,
+            ),
             Opcode::memory(
                 MemoryOperation::Store,
                 Address::Pointer,
                 Scalar::Uint32,
                 true,
-            )
-            .expect("volatile pointer store opcode"),
+            ),
             Opcode::STORE,
             Opcode::LOAD_POINTER,
             Opcode::STORE_VOLATILE,
             Opcode::LOAD_VOLATILE_POINTER,
-            Opcode::transfer(Transfer::Copy, Address::Memory, Address::Memory, false)
-                .expect("memory copy opcode"),
-            Opcode::transfer(Transfer::Move, Address::Pointer, Address::Memory, true)
-                .expect("pointer move opcode"),
-            Opcode::fill(Address::Pointer, false).expect("pointer fill opcode"),
-            Opcode::compare(Address::Constant, Address::Pointer, true),
-            Opcode::prefetch(Prefetch::Read, Address::Pointer).expect("pointer prefetch opcode"),
+            Opcode::transfer(
+                Transfer::Copy,
+                Address::Reference,
+                Address::Reference,
+                false,
+            ),
+            Opcode::transfer(Transfer::Move, Address::Pointer, Address::Reference, true,),
+            Opcode::fill(Address::Pointer, false),
+            Opcode::compare(Address::Reference, Address::Pointer, true),
+            Opcode::prefetch(Prefetch::Read, Address::Pointer),
             Opcode::RETURN,
         ]
     );

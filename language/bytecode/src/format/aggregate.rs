@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{Opcode, Placement, RegisterSpan, RelocationTag};
+use crate::{Address, Opcode, Placement, RegisterSpan, RelocationTag};
 
 use super::instruction::InstructionFormatter;
 
@@ -15,9 +15,9 @@ impl InstructionFormatter<'_, '_, '_> {
             Opcode::INSERT => self.format_insert(),
             Opcode::VARIANT_NEW => self.format_variant_new(),
             Opcode::VARIANT_TAG => self.format_variant_tag(),
-            Opcode::VARIANT_TAG_LOAD
-            | Opcode::VARIANT_TAG_LOAD_CONSTANT
-            | Opcode::VARIANT_TAG_LOAD_POINTER => self.format_variant_tag_load(opcode),
+            Opcode::VARIANT_TAG_LOAD | Opcode::VARIANT_TAG_LOAD_POINTER => {
+                self.format_variant_tag_load(opcode)
+            }
             _ => Err(FormatError::SyntaxError {
                 message: "invalid aggregate opcode",
             }),
@@ -124,17 +124,19 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one stored variant discriminant load.
     fn format_variant_tag_load(&mut self, opcode: Opcode) -> FormatResult<()> {
-        let name = opcode.name().ok_or(FormatError::SyntaxError {
-            message: "stored variant tag opcode has no name",
-        })?;
-        self.write_opcode(name)?;
+        self.write_opcode("variant.tag.load")?;
         self.result_span()?;
         let variant = self.register_id()?;
         let layout = self.layout()?;
 
         // write the address register and exact linked layout
         self.write_comma()?;
-        self.write_register(variant)?;
+        let address = if opcode == Opcode::VARIANT_TAG_LOAD_POINTER {
+            Address::Pointer
+        } else {
+            Address::Reference
+        };
+        self.write_address_register(address, variant)?;
         self.write_comma()?;
         self.write_text(&layout)
     }

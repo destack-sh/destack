@@ -217,7 +217,7 @@ impl Parser<'_> {
         } else if name == "type" || name == "subtype" {
             self.parse_type_check(name)?
         } else {
-            self.parse_scalar_check(name, token)?
+            return Err(ParseError::new("unknown check operation", token.span));
         };
 
         // parse the failure destination shared by every check
@@ -259,8 +259,21 @@ impl Parser<'_> {
         Ok(instruction)
     }
 
-    /// Parse one scalar check before its failure destination.
-    fn parse_scalar_check(&mut self, name: &str, token: Token) -> ParseResult<InstructionBuilder> {
+    /// Parse one scalar runtime check.
+    pub(super) fn parse_scalar_check(
+        &mut self,
+        scalar: Scalar,
+        name: &str,
+        token: Token,
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let name = name
+            .strip_prefix("check.")
+            .ok_or_else(|| ParseError::new("expected scalar check", token.span))?;
+        let (name, target) = match name.strip_prefix("narrow.") {
+            Some(target) => ("narrow", Scalar::from_name(target)),
+            None => (name, None),
+        };
         let operation = ScalarCheck::from_name(name)
             .ok_or_else(|| ParseError::new("unknown check operation", token.span))?;
 
@@ -271,7 +284,10 @@ impl Parser<'_> {
                 self.eat_token(TokenType::Comma)?;
                 CheckArgument::Width(self.parse_u16()?)
             }
-            ScalarCheck::Narrow => CheckArgument::None,
+            ScalarCheck::Narrow => CheckArgument::Target(
+                target
+                    .ok_or_else(|| ParseError::new("narrow check requires a target", token.span))?,
+            ),
             ScalarCheck::Bounds => {
                 let bound = self.parse_check_value()?;
                 CheckArgument::Register(bound)
@@ -290,14 +306,6 @@ impl Parser<'_> {
             ScalarCheck::Nonzero => CheckArgument::None,
         };
 
-        // parse the source and optional target representations
-        let scalar = self.parse_scalar_representation()?;
-        let argument = if operation == ScalarCheck::Narrow {
-            self.eat_token(TokenType::Arrow)?;
-            CheckArgument::Target(self.parse_scalar_name()?)
-        } else {
-            argument
-        };
         let opcode = Opcode::check(operation, scalar)
             .ok_or_else(|| ParseError::new("invalid check operand", token.span))?;
 
@@ -315,7 +323,12 @@ impl Parser<'_> {
             }
         }
 
-        Ok(instruction)
+        // parse the common failure destination
+        self.eat_token(TokenType::Pipe)?;
+        instruction.branch(self.parse_label()?);
+        let results = self.parse_definitions(instruction.opcode)?;
+
+        function.emit(instruction, &results, self.empty_span())
     }
 
     /// Parse one comma-prefixed scalar check operand.
@@ -329,6 +342,7 @@ impl Parser<'_> {
     /// Parse one fused scalar branch instruction.
     pub(super) fn parse_branch(
         &mut self,
+        scalar: Scalar,
         name: &str,
         token: Token,
         function: &mut FunctionParser,
@@ -343,8 +357,6 @@ impl Parser<'_> {
         let left = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let right = self.parse_register()?;
-        let scalar = self.parse_scalar_representation()?;
-
         // parse both branch destinations
         self.eat_token(TokenType::FatArrow)?;
         let success = self.parse_label()?;

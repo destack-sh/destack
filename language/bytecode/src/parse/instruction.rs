@@ -1,5 +1,6 @@
 use crate::{
-    Label, Opcode, Operand, ParseError, ParseResult, Parser, RegisterSpan, Scalar, Token, TokenType,
+    CastOperation, Label, Opcode, Operand, ParseError, ParseResult, Parser, RegisterSpan, Scalar,
+    Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -20,14 +21,41 @@ impl Parser<'_> {
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // dispatch operations by their first name component
+        // decode scalar conversions before regular scalar families
         let prefix = name.split_once('.').map_or(name, |(prefix, _)| prefix);
+        if let Some((operation, source, target)) = CastOperation::parse(name) {
+            return self.parse_cast(operation, source, target, token, function);
+        }
+        if name == "constant.typeId" {
+            return self.parse_type_operation(name, token, function);
+        }
+
+        // decode narrowing checks with explicit source and target representations
+        if let Some(representations) = name.strip_prefix("check.narrow.")
+            && let Some((source, target)) = representations.split_once('.')
+            && let (Some(source), Some(_)) = (Scalar::from_name(source), Scalar::from_name(target))
+        {
+            let operation = format!("check.narrow.{target}");
+
+            return self.parse_scalar_operation(source, &operation, token, function);
+        }
+
+        // select concrete scalar operations by their final representation
+        if let Some((operation, representation)) = name.rsplit_once('.') {
+            if let Some(scalar) = Scalar::from_name(representation) {
+                return self.parse_scalar_operation(scalar, operation, token, function);
+            }
+            if representation == "int128" || representation == "uint128" {
+                return self.parse_wide_operation(operation, representation, token, function);
+            }
+        }
+
+        // dispatch the remaining operations by their first name component
         match prefix {
             // constants
             "constant" => self.parse_constant_operation(name, token, function),
 
-            // scalar, vector, tensor, and register values
-            "boolean" | "int" | "float" => self.parse_numeric_operation(name, token, function),
+            // vector, tensor, and register values
             "vector" => self.parse_vector_operation(name, token, function),
             "tensor" => self.parse_tensor_operation(name, token, function),
             "select" | "equal" => self.parse_value_operation(name, token, function),
@@ -40,12 +68,10 @@ impl Parser<'_> {
 
             // addresses and pointers
             "frame" | "global" => self.parse_address(name, token, function),
-            "reference" | "pointer" => self.parse_address_arithmetic(name, token, function),
+            "address" => self.parse_address_arithmetic(name, token, function),
 
             // memory ranges, prefetch, and scalar memory
-            "memory" | "prefetch" | "load" | "store" => {
-                self.parse_memory_operation(name, token, function)
-            }
+            "memory" | "prefetch" => self.parse_memory_operation(name, token, function),
             "atomic" => self.parse_atomic_operation(name, token, function),
 
             // function values, slices, and dynamic values
@@ -70,7 +96,6 @@ impl Parser<'_> {
             "call" | "invoke" | "tail" => self.parse_call_operation(name, token, function),
 
             // control flow
-            "branch" if name != "branch" => self.parse_branch(name, token, function),
             "jump" | "branch" | "switch" | "await" | "yield" | "return" | "trap"
             | "unreachable" | "poll" | "breakpoint" => {
                 self.parse_control_operation(name, token, function)
@@ -79,9 +104,8 @@ impl Parser<'_> {
             // panic and unwind
             "panic" | "unwind" => self.parse_control_operation(name, token, function),
 
-            // runtime checks, casts, and profile instrumentation
+            // runtime checks and profile instrumentation
             "check" => self.parse_check_operation(name, token, function),
-            "cast" => self.parse_cast_operation(name, token, function),
             "profile" => self.parse_profile_operation(name, token, function),
 
             _ => Err(ParseError::new("unknown bytecode operation", token.span)),

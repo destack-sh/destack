@@ -87,7 +87,7 @@ impl Header {
     /// The stable bytecode object marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSBC");
     /// The stable bytecode object format version.
-    const VERSION: u16 = 1;
+    const VERSION: u16 = 2;
 
     /// Create one empty bytecode object header.
     pub(super) fn new() -> Self {

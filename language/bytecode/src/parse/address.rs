@@ -18,47 +18,28 @@ impl Parser<'_> {
 
                 self.parse_frame_address(&results, function)
             }
-            "global.address.constant" => {
-                self.parse_global_address(Opcode::GLOBAL_ADDRESS_CONSTANT, token, function)
-            }
-            "global.address.local" => {
-                self.parse_global_address(Opcode::GLOBAL_ADDRESS_LOCAL, token, function)
-            }
-            "global.address.shared" => {
-                self.parse_global_address(Opcode::GLOBAL_ADDRESS_SHARED, token, function)
-            }
+            "global.address" => self.parse_global_address(token, function),
             _ => Err(ParseError::new("unknown address operation", token.span)),
         }
     }
 
-    /// Parse one relative reference or native pointer arithmetic operation.
+    /// Parse one address arithmetic operation.
     pub(super) fn parse_address_arithmetic(
         &mut self,
         name: &str,
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let is_reference = name.starts_with("reference.");
         match name {
-            "reference.add" | "pointer.add" => {
-                let opcode = if is_reference {
-                    Opcode::REFERENCE_ADD
-                } else {
-                    Opcode::POINTER_ADD
-                };
-                let results = self.parse_definitions(opcode)?;
+            "address.add" => {
+                let results = self.parse_definitions(Opcode::ADDRESS_ADD)?;
 
-                self.parse_address_add(token, is_reference, &results, function)
+                self.parse_address_add(token, &results, function)
             }
-            "reference.diff" | "pointer.diff" => {
-                let opcode = if is_reference {
-                    Opcode::REFERENCE_DIFF
-                } else {
-                    Opcode::POINTER_DIFF
-                };
-                let results = self.parse_definitions(opcode)?;
+            "address.diff" => {
+                let results = self.parse_definitions(Opcode::ADDRESS_DIFF)?;
 
-                self.parse_address_diff(opcode, &results, function)
+                self.parse_address_diff(&results, function)
             }
             _ => Err(ParseError::new("unknown address operation", token.span)),
         }
@@ -80,7 +61,6 @@ impl Parser<'_> {
     /// Parse one stable global address.
     fn parse_global_address(
         &mut self,
-        opcode: Opcode,
         operation: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
@@ -91,7 +71,7 @@ impl Parser<'_> {
             .strip_prefix('g')
             .and_then(|index| index.parse::<u32>().ok())
             .ok_or_else(|| ParseError::new("expected global id", token.span))?;
-        let mut instruction = InstructionBuilder::new(opcode);
+        let mut instruction = InstructionBuilder::new(Opcode::GLOBAL_ADDRESS);
         instruction.global(global);
 
         function.emit(instruction, &results, operation.span)
@@ -101,7 +81,6 @@ impl Parser<'_> {
     fn parse_address_add(
         &mut self,
         token: Token,
-        is_reference: bool,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
@@ -113,12 +92,7 @@ impl Parser<'_> {
             let offset = self.parse_i64()?;
             let offset = i32::try_from(offset)
                 .map_err(|_| ParseError::new("address offset exceeds int32", token.span))?;
-            let opcode = if is_reference {
-                Opcode::REFERENCE_ADD_IMMEDIATE
-            } else {
-                Opcode::POINTER_ADD_IMMEDIATE
-            };
-            let mut instruction = InstructionBuilder::new(opcode);
+            let mut instruction = InstructionBuilder::new(Opcode::ADDRESS_ADD_IMMEDIATE);
             instruction.register(address);
             instruction.i32(offset);
 
@@ -132,11 +106,9 @@ impl Parser<'_> {
         } else {
             None
         };
-        let opcode = match (is_reference, scale.is_some()) {
-            (true, false) => Opcode::REFERENCE_ADD,
-            (true, true) => Opcode::REFERENCE_ADD_SCALED,
-            (false, false) => Opcode::POINTER_ADD,
-            (false, true) => Opcode::POINTER_ADD_SCALED,
+        let opcode = match scale {
+            None => Opcode::ADDRESS_ADD,
+            Some(_) => Opcode::ADDRESS_ADD_SCALED,
         };
 
         // encode the register address calculation
@@ -153,7 +125,6 @@ impl Parser<'_> {
     /// Parse one signed byte offset between two addresses.
     fn parse_address_diff(
         &mut self,
-        opcode: Opcode,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
@@ -162,7 +133,7 @@ impl Parser<'_> {
         let origin = self.parse_register()?;
 
         // encode the signed byte offset from the origin
-        let mut instruction = InstructionBuilder::new(opcode);
+        let mut instruction = InstructionBuilder::new(Opcode::ADDRESS_DIFF);
         instruction.register(address);
         instruction.register(origin);
 

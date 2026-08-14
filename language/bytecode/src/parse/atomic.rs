@@ -1,7 +1,7 @@
 use crate::{
-    Address, AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, ExecutionScope,
-    FenceAccess, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId,
-    RegisterSpan, StorageSet, Token, TokenType,
+    AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, ExecutionScope, FenceAccess,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterSpan, Scalar,
+    StorageSet, Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -14,26 +14,30 @@ impl Parser<'_> {
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // fixed operations
-        if name == "atomic.fence" {
-            let results = self.parse_definitions(Opcode::ATOMIC_FENCE)?;
-
-            return self.parse_atomic_fence(&results, function);
+        if name != "atomic.fence" {
+            return Err(ParseError::new("unknown atomic operation", token.span));
         }
+        let results = self.parse_definitions(Opcode::ATOMIC_FENCE)?;
 
-        // parse one scalar atomic operation
+        self.parse_atomic_fence(&results, function)
+    }
+
+    /// Parse one atomic operation selected by a scalar representation.
+    pub(super) fn parse_scalar_atomic(
+        &mut self,
+        scalar: Scalar,
+        name: &str,
+        token: Token,
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
         let name = name
             .strip_prefix("atomic.")
             .ok_or_else(|| ParseError::new("expected atomic operation", token.span))?;
-        let (name, address) = match name.strip_suffix(".pointer") {
-            Some(name) => (name, Address::Pointer),
-            None => (name, Address::Memory),
-        };
         let operation = AtomicOperation::from_name(name)
             .ok_or_else(|| ParseError::new("expected atomic operation", token.span))?;
         let results = self.parse_results(operation.result_count(), true)?;
 
-        self.parse_atomic_access(operation, address, token, &results, function)
+        self.parse_atomic_access(operation, scalar, token, &results, function)
     }
 
     /// Parse one atomic fence.
@@ -73,26 +77,25 @@ impl Parser<'_> {
     fn parse_atomic_access(
         &mut self,
         operation: AtomicOperation,
-        address: Address,
+        scalar: Scalar,
         token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // parse the pointer and optional scalar value
-        let pointer = self.parse_register()?;
+        // parse the address and optional scalar value
+        let (address, register) = self.parse_address_register()?;
         let value = self.parse_atomic_value(operation)?;
 
-        // parse operation specific operands, access, and representation
+        // parse operation specific operands and memory access
         let replacement = self.parse_atomic_replacement(operation)?;
         self.eat_token(TokenType::Comma)?;
         let access = self.parse_atomic_access_bits(operation, token)?;
-        let scalar = self.parse_scalar_representation()?;
         let opcode = Opcode::atomic(operation, address, scalar)
             .ok_or_else(|| ParseError::new("invalid atomic operation", token.span))?;
 
         // encode the complete typed access
         let mut instruction = InstructionBuilder::new(opcode);
-        instruction.register(pointer);
+        instruction.register(register);
         if let Some(value) = value {
             instruction.register(value);
         }

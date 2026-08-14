@@ -11,8 +11,7 @@ insert r5, r2,8:8,r1
 variant.new r7, l1,1,r0
 variant.tag r9, r7,l1
 variant.tag.load r10,r0,l1
-variant.tag.load.constant r11,r0,l1
-variant.tag.load.pointer r12,r0,l1
+variant.tag.load r12,pointer r0,l1
 return r4
 }
 "#;
@@ -24,8 +23,7 @@ function f0 {
     variant.new r7, l1, 1, r0
     variant.tag r9, r7, l1
     variant.tag.load r10, r0, l1
-    variant.tag.load.constant r11, r0, l1
-    variant.tag.load.pointer r12, r0, l1
+    variant.tag.load r12, pointer r0, l1
     return r4
 }
 "#;

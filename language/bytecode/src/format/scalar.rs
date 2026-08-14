@@ -23,24 +23,24 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one linked runtime type identity.
     fn format_type_constant(&mut self) -> FormatResult<()> {
-        self.write_opcode("constant")?;
+        self.write_opcode("constant.typeId")?;
         self.result()?;
         let symbol = self.relocation_text()?;
 
-        // write the symbolic type and its representation
+        // write the symbolic type identity
         self.write_comma()?;
-        self.write_text(&symbol)?;
-        self.write_representation(ValueType::type_id())
+        self.write_text(&symbol)
     }
 
     /// Format one signed or unsigned 128 bit constant.
     fn format_wide_constant(&mut self, opcode: Opcode) -> FormatResult<()> {
-        let ty = if opcode == Opcode::CONSTANT_INT128 {
-            ValueType::int128()
+        let representation = if opcode == Opcode::CONSTANT_INT128 {
+            "int128"
         } else {
-            ValueType::uint128()
+            "uint128"
         };
-        self.write_opcode("constant")?;
+        let name = format!("constant.{representation}");
+        self.write_opcode(&name)?;
         self.result_span()?;
 
         // preserve the declared signedness in source text
@@ -51,59 +51,55 @@ impl InstructionFormatter<'_, '_, '_> {
             bits.to_string()
         };
         self.write_comma()?;
-        self.write_text(&value)?;
-        self.write_representation(ty)
+        self.write_text(&value)
     }
 
     /// Format one nullish reference-like constant.
     fn format_nullish(&mut self, opcode: Opcode) -> FormatResult<()> {
-        let literal = if opcode == Opcode::CONSTANT_NULL {
-            "null"
+        let name = if opcode == Opcode::CONSTANT_NULL {
+            "constant.null"
         } else {
-            "undefined"
+            "constant.undefined"
         };
-        self.write_opcode("constant")?;
+        self.write_opcode(name)?;
         self.result_span()?;
 
-        self.write_comma()?;
-        self.write_token(literal)
+        Ok(())
     }
 
     /// Format one zero-initialized storage value.
     fn format_zeroed(&mut self) -> FormatResult<()> {
-        self.write_opcode("constant")?;
+        self.write_opcode("constant.zeroed")?;
         self.result_span()?;
 
-        self.write_comma()?;
-        self.write_token("zeroed")
+        Ok(())
     }
 
     /// Format one scalar constant.
     pub(super) fn format_constant(&mut self, scalar: Scalar) -> FormatResult<()> {
-        self.write_opcode("constant")?;
+        let name = format!("constant.{}", scalar.name());
+        self.write_opcode(&name)?;
         self.result()?;
         let bits = self.u64()?;
         let literal = scalar.literal(bits);
 
-        // write the canonical literal and physical representation
+        // write the canonical scalar literal
         self.write_comma()?;
-        self.write_text(&literal)?;
-        self.write_scalar_representation(scalar)
+        self.write_text(&literal)
     }
 
     /// Format one boolean operation.
     pub(super) fn format_boolean(&mut self, operation: BooleanOperation) -> FormatResult<()> {
-        let name = format!("boolean.{}", operation.name());
+        let name = format!("{}.boolean", operation.name());
 
-        self.format_scalar_operation(&name, None)
+        self.format_scalar_operation(&name)
     }
 
     /// Format one regular scalar operation.
     pub(super) fn format_scalar(&mut self, operation: &str, scalar: Scalar) -> FormatResult<()> {
-        let family = if scalar.is_float() { "float" } else { "int" };
-        let name = format!("{family}.{operation}");
+        let name = format!("{operation}.{}", scalar.name());
 
-        self.format_scalar_operation(&name, Some(ValueType::scalar(scalar)))
+        self.format_scalar_operation(&name)
     }
 
     /// Format one 128 bit integer operation.
@@ -112,14 +108,10 @@ impl InstructionFormatter<'_, '_, '_> {
         operation: IntegerOperation,
         is_signed: bool,
     ) -> FormatResult<()> {
-        let ty = if is_signed {
-            ValueType::int128()
-        } else {
-            ValueType::uint128()
-        };
-        let name = format!("int.{}", operation.name());
+        let representation = if is_signed { "int128" } else { "uint128" };
+        let name = format!("{}.{representation}", operation.name());
 
-        self.format_scalar_operation(&name, Some(ty))
+        self.format_scalar_operation(&name)
     }
 
     /// Format one scalar cast.
@@ -134,23 +126,20 @@ impl InstructionFormatter<'_, '_, '_> {
             .ok_or(FormatError::SyntaxError {
                 message: "cast has no canonical name",
             })?;
-        let name = format!("cast.{operation}");
+        let source = self.formatter.context().value_type_text(source)?;
+        let target = self.formatter.context().value_type_text(target)?;
+        let name = format!("{operation}.{source}.{target}");
         self.write_opcode(&name)?;
         self.result()?;
         let input = self.register_id()?;
 
-        // write the input and exact conversion
+        // write the input register
         self.write_comma()?;
-        self.write_register(input)?;
-        self.write_conversion(source, target)
+        self.write_register(input)
     }
 
     /// Format one scalar operation from its exact operand layout.
-    fn format_scalar_operation(
-        &mut self,
-        name: &str,
-        representation: Option<ValueType>,
-    ) -> FormatResult<()> {
+    fn format_scalar_operation(&mut self, name: &str) -> FormatResult<()> {
         let layout = self
             .instruction
             .opcode()
@@ -180,11 +169,6 @@ impl InstructionFormatter<'_, '_, '_> {
                     });
                 }
             }
-        }
-
-        // retain only representation information not implied by the family
-        if let Some(representation) = representation {
-            self.write_representation(representation)?;
         }
 
         Ok(())

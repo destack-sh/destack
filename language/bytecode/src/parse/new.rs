@@ -27,17 +27,13 @@ impl Parser<'_> {
             None
         };
 
-        // select ownership and heap space from the trailing representation
-        let reference = self
-            .parse_representation()?
-            .reference_type()
-            .ok_or_else(|| {
-                ParseError::new("new requires a reference representation", token.span)
-            })?;
-        let operation = New::select(reference, kind, initialization, is_fallible)
-            .ok_or_else(|| ParseError::new("invalid new representation", token.span))?;
-        let opcode = Opcode::new(operation)
-            .ok_or_else(|| ParseError::new("invalid new operation", token.span))?;
+        // encode the operation selected by its canonical name
+        let operation = New {
+            kind,
+            initialization,
+            is_fallible,
+        };
+        let opcode = Opcode::new(operation);
         let mut instruction = InstructionBuilder::new(opcode);
         instruction.relocation(RelocationTag::ALLOCATION, allocation);
         if let Some(length) = length {
@@ -55,7 +51,7 @@ impl Parser<'_> {
         function.emit(instruction, &results, token.span)
     }
 
-    /// Parse one allocation form without ownership or storage qualifiers.
+    /// Parse one allocation operation name.
     fn parse_new_name(
         &self,
         name: &str,

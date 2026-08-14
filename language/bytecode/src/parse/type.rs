@@ -13,13 +13,6 @@ impl Parser<'_> {
         self.parse_value_type()
     }
 
-    /// Parse one trailing scalar representation.
-    pub(super) fn parse_scalar_representation(&mut self) -> ParseResult<Scalar> {
-        self.eat_token(TokenType::Colon)?;
-
-        self.parse_scalar_name()
-    }
-
     /// Parse one logical bytecode value type.
     pub(super) fn parse_value_type(&mut self) -> ParseResult<ValueType> {
         let token = self.eat_token(TokenType::Identifier)?;

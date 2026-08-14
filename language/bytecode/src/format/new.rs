@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{New, NewKind, RegisterSpan, RelocationTag, ValueType};
+use crate::{New, NewKind, RegisterSpan, RelocationTag};
 
 use super::instruction::InstructionFormatter;
 
@@ -47,10 +47,6 @@ impl InstructionFormatter<'_, '_, '_> {
             self.write_comma()?;
             self.write_register(length)?;
         }
-
-        // write ownership and heap storage once
-        let reference = operation.reference();
-        self.write_representation(ValueType::reference(reference.kind(), reference.storage()))?;
 
         // write explicit success and failure edges
         if operation.is_fallible {

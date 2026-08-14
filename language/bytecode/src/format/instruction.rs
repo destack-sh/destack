@@ -138,7 +138,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::VARIANT_NEW
             | Opcode::VARIANT_TAG
             | Opcode::VARIANT_TAG_LOAD
-            | Opcode::VARIANT_TAG_LOAD_CONSTANT
             | Opcode::VARIANT_TAG_LOAD_POINTER => self.format_aggregate(opcode),
 
             // constants
@@ -150,18 +149,11 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::CONSTANT_ZEROED => self.format_named_constant(opcode),
 
             // addresses and pointers
-            Opcode::FRAME_ADDRESS
-            | Opcode::GLOBAL_ADDRESS_CONSTANT
-            | Opcode::GLOBAL_ADDRESS_LOCAL
-            | Opcode::GLOBAL_ADDRESS_SHARED => self.format_address(opcode),
-            Opcode::REFERENCE_ADD_IMMEDIATE
-            | Opcode::REFERENCE_ADD
-            | Opcode::REFERENCE_ADD_SCALED
-            | Opcode::REFERENCE_DIFF
-            | Opcode::POINTER_ADD_IMMEDIATE
-            | Opcode::POINTER_ADD
-            | Opcode::POINTER_ADD_SCALED
-            | Opcode::POINTER_DIFF => self.format_address_arithmetic(opcode),
+            Opcode::FRAME_ADDRESS | Opcode::GLOBAL_ADDRESS => self.format_address(opcode),
+            Opcode::ADDRESS_ADD_IMMEDIATE
+            | Opcode::ADDRESS_ADD
+            | Opcode::ADDRESS_ADD_SCALED
+            | Opcode::ADDRESS_DIFF => self.format_address_arithmetic(opcode),
 
             // function values
             Opcode::FUNCTION_ADDRESS | Opcode::FUNCTION_BIND => self.format_function_value(opcode),

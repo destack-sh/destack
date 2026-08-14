@@ -112,11 +112,11 @@ impl InstructionFormatter<'_, '_, '_> {
                 let operation =
                     ElementOperation::from_code(code).filter(|element| operation.accepts(*element));
                 if let Some(operation) = operation.and_then(ElementOperation::integer_operation) {
-                    Some(format!("int.{}", operation.name()))
+                    Some(format!("{}.int", operation.name()))
                 } else {
                     operation
                         .and_then(ElementOperation::float_operation)
-                        .map(|operation| format!("float.{}", operation.name()))
+                        .map(|operation| format!("{}.float", operation.name()))
                 }
             }
             TensorOperation::Convert => ConvertMode::from_code(code as u8)

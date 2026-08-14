@@ -102,10 +102,23 @@ impl BytecodeFormatContext<'_> {
 impl InstructionFormatter<'_, '_, '_> {
     /// Format one typed runtime check.
     pub(super) fn format_check(&mut self, check: ScalarCheck, scalar: Scalar) -> FormatResult<()> {
-        self.write_token("check.")?;
-        self.write_text(check.name())?;
-        self.write_token(" ")?;
         let input = self.register_id()?;
+        let target = if check == ScalarCheck::Narrow {
+            Some(
+                Scalar::from_code(self.u16()? as u8).ok_or(FormatError::SyntaxError {
+                    message: "narrow check has an invalid target scalar",
+                })?,
+            )
+        } else {
+            None
+        };
+        let name = if let Some(target) = target {
+            format!("check.narrow.{}.{}", scalar.name(), target.name())
+        } else {
+            format!("check.{}.{}", check.name(), scalar.name())
+        };
+        self.write_text(&name)?;
+        self.write_token(" ")?;
         self.write_register(input)?;
 
         // format the operation-specific check bounds
@@ -115,15 +128,7 @@ impl InstructionFormatter<'_, '_, '_> {
                 write!(self.formatter, [token(","), space()])?;
                 self.write_text(&width)?;
             }
-            ScalarCheck::Narrow => {
-                let target =
-                    Scalar::from_code(self.u16()? as u8).ok_or(FormatError::SyntaxError {
-                        message: "narrow check has an invalid target scalar",
-                    })?;
-                self.write_scalar_representation(scalar)?;
-                write!(self.formatter, [space(), token("->"), space()])?;
-                self.write_text(target.name())?;
-            }
+            ScalarCheck::Narrow => {}
             ScalarCheck::Bounds
             | ScalarCheck::AddOverflow
             | ScalarCheck::SubtractOverflow
@@ -141,11 +146,6 @@ impl InstructionFormatter<'_, '_, '_> {
                 self.write_register(length)?;
             }
             ScalarCheck::Nonzero => {}
-        }
-
-        // write the scalar representation once after regular operands
-        if check != ScalarCheck::Narrow {
-            self.write_scalar_representation(scalar)?;
         }
 
         // write the common failure destination
@@ -167,13 +167,12 @@ impl InstructionFormatter<'_, '_, '_> {
         let failure = self.branch()?;
 
         // write the typed comparison
-        self.write_token("branch.")?;
-        self.write_text(comparison.name())?;
+        let name = format!("branch.{}.{}", comparison.name(), scalar.name());
+        self.write_text(&name)?;
         self.write_token(" ")?;
         self.write_register(left)?;
         write!(self.formatter, [token(","), space()])?;
         self.write_register(right)?;
-        self.write_scalar_representation(scalar)?;
         write!(self.formatter, [space(), token("=>"), space()])?;
         self.write_label(success)?;
         write!(self.formatter, [space(), token("|"), space()])?;

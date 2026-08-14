@@ -839,41 +839,74 @@ pub enum CastOperation {
 }
 
 impl CastOperation {
-    /// Return the cast operation with one canonical name.
-    pub fn from_name(name: &str) -> Option<Self> {
-        match name {
-            "truncate" => Some(Self::Truncate),
-            "saturate" => Some(Self::Saturate),
-            "extend.s" => Some(Self::SignExtend),
-            "extend.u" => Some(Self::ZeroExtend),
-            "floatToInt.s" | "floatToInt.u" => Some(Self::FloatToInt),
-            "floatToIntSaturating.s" | "floatToIntSaturating.u" => Some(Self::FloatToIntSaturating),
-            "intToFloat.s" | "intToFloat.u" => Some(Self::IntToFloat),
-            "floatTruncate" | "floatExtend" | "floatConvert" => Some(Self::FloatConvert),
-            "bit" => Some(Self::Bit),
-            "pointerToInt" => Some(Self::PointerToInt),
-            "intToPointer" => Some(Self::IntToPointer),
-            _ => None,
-        }
+    /// Parse one conversion name with source and target types.
+    pub fn parse(name: &str) -> Option<(Self, ValueType, ValueType)> {
+        let (conversion, target) = name.rsplit_once('.')?;
+        let (operation, source) = conversion.rsplit_once('.')?;
+        let source = Self::value_type(source)?;
+        let target = Self::value_type(target)?;
+        let source_scalar = source.scalar_type();
+        let target_scalar = target.scalar_type();
+        let cast = match (operation, source_scalar, target_scalar) {
+            ("truncate", Some(source), Some(target))
+                if source.is_integer() && target.is_integer() =>
+            {
+                Self::Truncate
+            }
+            ("saturate", Some(source), Some(target))
+                if source.is_integer() && target.is_integer() =>
+            {
+                Self::Saturate
+            }
+            ("extend", Some(source), Some(target))
+                if source.is_integer() && target.is_integer() =>
+            {
+                if source.is_signed_integer() {
+                    Self::SignExtend
+                } else {
+                    Self::ZeroExtend
+                }
+            }
+            ("truncate", Some(source), Some(target))
+                if source.is_float() && target.is_integer() =>
+            {
+                Self::FloatToInt
+            }
+            ("truncate.saturating", Some(source), Some(target))
+                if source.is_float() && target.is_integer() =>
+            {
+                Self::FloatToIntSaturating
+            }
+            ("convert", Some(source), Some(target)) if source.is_integer() && target.is_float() => {
+                Self::IntToFloat
+            }
+            ("promote" | "demote", Some(source), Some(target))
+                if source.is_float() && target.is_float() =>
+            {
+                Self::FloatConvert
+            }
+            ("reinterpret", Some(_), Some(_)) => Self::Bit,
+            ("reinterpret", None, Some(Scalar::Uint64)) if source.is_pointer() => {
+                Self::PointerToInt
+            }
+            ("reinterpret", Some(Scalar::Uint64), None) if target.is_pointer() => {
+                Self::IntToPointer
+            }
+            _ => return None,
+        };
+
+        Some((cast, source, target))
     }
 
-    /// Return the canonical bytecode text name for one exact conversion.
+    /// Return the canonical operation name for one exact conversion.
     pub const fn name(self, source: ValueType, target: ValueType) -> Option<&'static str> {
         match self {
             Self::Truncate => Some("truncate"),
             Self::Saturate => Some("saturate"),
-            Self::SignExtend => Some("extend.s"),
-            Self::ZeroExtend => Some("extend.u"),
-            Self::FloatToInt if target.is_signed_integer() => Some("floatToInt.s"),
-            Self::FloatToInt if target.is_unsigned_integer() => Some("floatToInt.u"),
-            Self::FloatToIntSaturating if target.is_signed_integer() => {
-                Some("floatToIntSaturating.s")
-            }
-            Self::FloatToIntSaturating if target.is_unsigned_integer() => {
-                Some("floatToIntSaturating.u")
-            }
-            Self::IntToFloat if source.is_signed_integer() => Some("intToFloat.s"),
-            Self::IntToFloat if source.is_unsigned_integer() => Some("intToFloat.u"),
+            Self::SignExtend | Self::ZeroExtend => Some("extend"),
+            Self::FloatToInt => Some("truncate"),
+            Self::FloatToIntSaturating => Some("truncate.saturating"),
+            Self::IntToFloat => Some("convert"),
             Self::FloatConvert => {
                 let Some(source) = source.scalar_type() else {
                     return None;
@@ -883,17 +916,23 @@ impl CastOperation {
                 };
 
                 if target.bit_width() < source.bit_width() {
-                    Some("floatTruncate")
+                    Some("demote")
                 } else if target.bit_width() > source.bit_width() {
-                    Some("floatExtend")
+                    Some("promote")
                 } else {
-                    Some("floatConvert")
+                    None
                 }
             }
-            Self::Bit => Some("bit"),
-            Self::PointerToInt => Some("pointerToInt"),
-            Self::IntToPointer => Some("intToPointer"),
-            _ => None,
+            Self::Bit | Self::PointerToInt | Self::IntToPointer => Some("reinterpret"),
+        }
+    }
+
+    /// Return one scalar or pointer type used in conversion names.
+    fn value_type(name: &str) -> Option<ValueType> {
+        if name == "pointer" {
+            Some(ValueType::pointer())
+        } else {
+            Scalar::from_name(name).map(ValueType::scalar)
         }
     }
 

@@ -8,7 +8,7 @@ fn test_format_calls() {
 external function f0
 
 function f1 {
-    int.add r3, r1,r2: int32
+    add.int32 r3, r1,r2
 move r4, r0
 return r3
 }
@@ -32,7 +32,7 @@ b1:unwind.resume
 external function f0
 
 function f1 {
-    int.add r3, r1, r2: int32
+    add.int32 r3, r1, r2
     move r4, r0
     return r3
 }

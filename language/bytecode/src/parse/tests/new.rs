@@ -1,6 +1,4 @@
-use crate::{
-    FunctionId, Initialization, New, NewKind, Opcode, ReferenceKind, RelocationTag, Space,
-};
+use crate::{FunctionId, Initialization, New, NewKind, Opcode, RelocationTag};
 
 use super::TestParser;
 
@@ -10,8 +8,8 @@ fn test_parse_new() {
     let (object, opcodes) = TestParser::new(
         r#"
 function f0 {
-    new.zeroed r1, a0: ref<managed, local>
-    new.slice.uninit r2:r3, a1, r0: ref<managed, local>
+    new.zeroed r1, a0
+    new.slice.uninit r2:r3, a1, r0
     return r1
 }
 "#,
@@ -21,21 +19,15 @@ function f0 {
         opcodes,
         vec![
             Opcode::new(New {
-                space: Space::LOCAL,
-                ownership: ReferenceKind::MANAGED,
                 kind: NewKind::Value,
                 initialization: Initialization::Zeroed,
                 is_fallible: false,
-            })
-            .expect("new opcode"),
+            }),
             Opcode::new(New {
-                space: Space::LOCAL,
-                ownership: ReferenceKind::MANAGED,
                 kind: NewKind::Slice,
                 initialization: Initialization::Uninit,
                 is_fallible: false,
-            })
-            .expect("new opcode"),
+            }),
             Opcode::RETURN,
         ]
     );

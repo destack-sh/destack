@@ -133,7 +133,7 @@ opcodes! {
         operands: [Result, Register, Register],
     }
     CONSTANT_TYPE = 0x0015 {
-        text: "constant",
+        text: "constant.typeId",
         signature: "(type: TypeId) => typeId",
         operands: [Result, Type],
     }
@@ -174,41 +174,36 @@ opcodes! {
         signature: "(variant: reference, layout: LayoutId) => value",
         operands: [ResultRange, Register, Layout],
     }
-    VARIANT_TAG_LOAD_CONSTANT = 0x001e {
-        text: "variant.tag.load.constant",
-        signature: "(variant: reference, layout: LayoutId) => value",
-        operands: [ResultRange, Register, Layout],
-    }
-    VARIANT_TAG_LOAD_POINTER = 0x001f {
-        text: "variant.tag.load.pointer",
+    VARIANT_TAG_LOAD_POINTER = 0x001e {
+        text: "variant.tag.load",
         signature: "(variant: pointer, layout: LayoutId) => value",
         operands: [ResultRange, Register, Layout],
     }
 
     // constants
     CONSTANT_INT128 = 0x0021 {
-        text: "constant",
+        text: "constant.int128",
         signature: "(bits: int128) => int128",
         operands: [ResultRange, Bits128],
     }
     CONSTANT_UINT128 = 0x0022 {
-        text: "constant",
+        text: "constant.uint128",
         signature: "(bits: uint128) => uint128",
         operands: [ResultRange, Bits128],
     }
     CONSTANT_NULL = 0x0023 {
-        text: "constant",
+        text: "constant.null",
         signature: "() => value",
         operands: [ResultRange],
     }
     CONSTANT_UNDEFINED = 0x0024 {
-        text: "constant",
+        text: "constant.undefined",
         signature: "() => value",
         operands: [ResultRange],
     }
     CONSTANT_ZEROED = 0x0026 {
-        text: "constant",
-        signature: "() => uninit",
+        text: "constant.zeroed",
+        signature: "() => value",
         operands: [ResultRange],
     }
 
@@ -218,105 +213,70 @@ opcodes! {
         signature: "(value: value) => reference",
         operands: [Result, RegisterSpan],
     }
-    GLOBAL_ADDRESS_CONSTANT = 0x0031 {
-        text: "global.address.constant",
+    GLOBAL_ADDRESS = 0x0031 {
+        text: "global.address",
         signature: "(global: GlobalId) => reference",
         operands: [Result, Global],
     }
-    GLOBAL_ADDRESS_LOCAL = 0x0032 {
-        text: "global.address.local",
-        signature: "(global: GlobalId) => reference",
-        operands: [Result, Global],
-    }
-    GLOBAL_ADDRESS_SHARED = 0x0033 {
-        text: "global.address.shared",
-        signature: "(global: GlobalId) => reference",
-        operands: [Result, Global],
-    }
-    REFERENCE_ADD_IMMEDIATE = 0x0034 {
-        text: "reference.add",
-        signature: "(base: reference, byteOffset: int32) => reference",
+    ADDRESS_ADD_IMMEDIATE = 0x0032 {
+        text: "address.add",
+        signature: "(base: address, byteOffset: int32) => address",
         operands: [Result, Register, Signed32],
     }
-    REFERENCE_ADD = 0x0035 {
-        text: "reference.add",
-        signature: "(base: reference, byteOffset: int64) => reference",
+    ADDRESS_ADD = 0x0033 {
+        text: "address.add",
+        signature: "(base: address, byteOffset: int64) => address",
         operands: [Result, Register, Register],
     }
-    REFERENCE_ADD_SCALED = 0x0036 {
-        text: "reference.add",
-        signature: "(base: reference, offset: int64, scale: uint32) => reference",
+    ADDRESS_ADD_SCALED = 0x0034 {
+        text: "address.add",
+        signature: "(base: address, offset: int64, scale: uint32) => address",
         operands: [Result, Register, Register, Unsigned32],
     }
-    REFERENCE_DIFF = 0x0037 {
-        text: "reference.diff",
-        signature: "(reference: reference, origin: reference) => int64",
-        operands: [Result, Register, Register],
-    }
-    POINTER_ADD_IMMEDIATE = 0x0038 {
-        text: "pointer.add",
-        signature: "(base: pointer, byteOffset: int32) => pointer",
-        operands: [Result, Register, Signed32],
-    }
-    POINTER_ADD = 0x0039 {
-        text: "pointer.add",
-        signature: "(base: pointer, byteOffset: int64) => pointer",
-        operands: [Result, Register, Register],
-    }
-    POINTER_ADD_SCALED = 0x003a {
-        text: "pointer.add",
-        signature: "(base: pointer, offset: int64, scale: uint32) => pointer",
-        operands: [Result, Register, Register, Unsigned32],
-    }
-    POINTER_DIFF = 0x003b {
-        text: "pointer.diff",
-        signature: "(pointer: pointer, origin: pointer) => int64",
+    ADDRESS_DIFF = 0x0035 {
+        text: "address.diff",
+        signature: "(address: address, origin: address) => int64",
         operands: [Result, Register, Register],
     }
 
     // memory
     LOAD = 0x0050 {
-        text: "load",
+        text: "memory.load",
         signature: "(reference: reference, byteLength: uint32) => value",
         operands: [ResultRange, Register, Unsigned32],
     }
     STORE = 0x0051 {
-        text: "store",
+        text: "memory.store",
         signature: "(reference: reference, value: value, byteLength: uint32) => void",
         operands: [Register, RegisterSpan, Unsigned32],
     }
-    LOAD_CONSTANT = 0x0052 {
-        text: "load.constant",
-        signature: "(reference: reference, byteLength: uint32) => value",
-        operands: [ResultRange, Register, Unsigned32],
-    }
-    LOAD_POINTER = 0x0053 {
-        text: "load.pointer",
+    LOAD_POINTER = 0x0052 {
+        text: "memory.load",
         signature: "(pointer: pointer, byteLength: uint32) => value",
         operands: [ResultRange, Register, Unsigned32],
     }
-    STORE_POINTER = 0x0054 {
-        text: "store.pointer",
+    STORE_POINTER = 0x0053 {
+        text: "memory.store",
         signature: "(pointer: pointer, value: value, byteLength: uint32) => void",
         operands: [Register, RegisterSpan, Unsigned32],
     }
-    LOAD_VOLATILE = 0x0055 {
-        text: "load.volatile",
+    LOAD_VOLATILE = 0x0054 {
+        text: "memory.load.volatile",
         signature: "(reference: reference, byteLength: uint32) => value",
         operands: [ResultRange, Register, Unsigned32],
     }
-    STORE_VOLATILE = 0x0056 {
-        text: "store.volatile",
+    STORE_VOLATILE = 0x0055 {
+        text: "memory.store.volatile",
         signature: "(reference: reference, value: value, byteLength: uint32) => void",
         operands: [Register, RegisterSpan, Unsigned32],
     }
-    LOAD_VOLATILE_POINTER = 0x0057 {
-        text: "load.volatile.pointer",
+    LOAD_VOLATILE_POINTER = 0x0056 {
+        text: "memory.load.volatile",
         signature: "(pointer: pointer, byteLength: uint32) => value",
         operands: [ResultRange, Register, Unsigned32],
     }
-    STORE_VOLATILE_POINTER = 0x0058 {
-        text: "store.volatile.pointer",
+    STORE_VOLATILE_POINTER = 0x0057 {
+        text: "memory.store.volatile",
         signature: "(pointer: pointer, value: value, byteLength: uint32) => void",
         operands: [Register, RegisterSpan, Unsigned32],
     }
@@ -470,7 +430,6 @@ opcodes! {
         operands: [RegisterSpan],
     }
 
-    // continuation values
     // control flow
     JUMP = 0x00b0 {
         text: "jump",
@@ -556,12 +515,12 @@ opcodes! {
 
     // casts
     CAST_POINTER_TO_INT = 0x00d8 {
-        text: "cast.pointerToInt",
+        text: "reinterpret.pointer.uint64",
         signature: "(value: pointer) => uint64",
         operands: [Result, Register],
     }
     CAST_INT_TO_POINTER = 0x00d9 {
-        text: "cast.intToPointer",
+        text: "reinterpret.uint64.pointer",
         signature: "(value: uint64) => pointer",
         operands: [Result, Register],
     }
@@ -577,12 +536,6 @@ opcodes! {
         signature: "(sampler: SamplerId, value: value) => void",
         operands: [Sampler, Register],
     }
-    GLOBAL_ADDRESS_IMMORTAL = 0x00e2 {
-        text: "global.address.immortal",
-        signature: "(global: GlobalId) => reference",
-        operands: [Result, Global],
-    }
-
     ;
 
     /// Scalar constants.
@@ -638,7 +591,7 @@ opcodes! {
         layout: atomic_layout,
     }
     /// Allocation operations.
-    NEW in 0x0d00..0x0d20 {
+    NEW in 0x0d00..0x0d08 {
         layout: new_layout,
     }
     /// Scalar runtime checks.
@@ -830,17 +783,11 @@ impl Opcode {
         address: Address,
         scalar: Scalar,
         is_volatile: bool,
-    ) -> Option<Self> {
-        if !operation.supports(address, is_volatile) {
-            return None;
-        }
-
+    ) -> Self {
         let operation = operation as u16 * 2 + is_volatile as u16;
         let operation = operation * Address::COUNT + address as u16;
 
-        Some(Self(
-            OpcodeRange::MEMORY.start() + operation * Scalar::OPCODE_STRIDE + scalar.code() as u16,
-        ))
+        Self(OpcodeRange::MEMORY.start() + operation * Scalar::OPCODE_STRIDE + scalar.code() as u16)
     }
 
     /// Create one exact packed memory opcode.
@@ -848,26 +795,23 @@ impl Opcode {
         operation: MemoryOperation,
         address: Address,
         is_volatile: bool,
-    ) -> Option<Self> {
+    ) -> Self {
         match (operation, address, is_volatile) {
-            (MemoryOperation::Load, Address::Memory, false) => Some(Self::LOAD),
-            (MemoryOperation::Load, Address::Constant, false) => Some(Self::LOAD_CONSTANT),
-            (MemoryOperation::Load, Address::Pointer, false) => Some(Self::LOAD_POINTER),
-            (MemoryOperation::Store, Address::Memory, false) => Some(Self::STORE),
-            (MemoryOperation::Store, Address::Pointer, false) => Some(Self::STORE_POINTER),
-            (MemoryOperation::Load, Address::Memory, true) => Some(Self::LOAD_VOLATILE),
-            (MemoryOperation::Load, Address::Pointer, true) => Some(Self::LOAD_VOLATILE_POINTER),
-            (MemoryOperation::Store, Address::Memory, true) => Some(Self::STORE_VOLATILE),
-            (MemoryOperation::Store, Address::Pointer, true) => Some(Self::STORE_VOLATILE_POINTER),
-            _ => None,
+            (MemoryOperation::Load, Address::Reference, false) => Self::LOAD,
+            (MemoryOperation::Load, Address::Pointer, false) => Self::LOAD_POINTER,
+            (MemoryOperation::Store, Address::Reference, false) => Self::STORE,
+            (MemoryOperation::Store, Address::Pointer, false) => Self::STORE_POINTER,
+            (MemoryOperation::Load, Address::Reference, true) => Self::LOAD_VOLATILE,
+            (MemoryOperation::Load, Address::Pointer, true) => Self::LOAD_VOLATILE_POINTER,
+            (MemoryOperation::Store, Address::Reference, true) => Self::STORE_VOLATILE,
+            (MemoryOperation::Store, Address::Pointer, true) => Self::STORE_VOLATILE_POINTER,
         }
     }
 
     /// Create one stored variant discriminant opcode.
     pub const fn variant_tag_load(address: Address) -> Self {
         match address {
-            Address::Memory => Self::VARIANT_TAG_LOAD,
-            Address::Constant => Self::VARIANT_TAG_LOAD_CONSTANT,
+            Address::Reference => Self::VARIANT_TAG_LOAD,
             Address::Pointer => Self::VARIANT_TAG_LOAD_POINTER,
         }
     }
@@ -875,8 +819,7 @@ impl Opcode {
     /// Return this stored variant discriminant opcode's address representation.
     pub const fn variant_tag_load_address(self) -> Option<Address> {
         match self {
-            Self::VARIANT_TAG_LOAD => Some(Address::Memory),
-            Self::VARIANT_TAG_LOAD_CONSTANT => Some(Address::Constant),
+            Self::VARIANT_TAG_LOAD => Some(Address::Reference),
             Self::VARIANT_TAG_LOAD_POINTER => Some(Address::Pointer),
             _ => None,
         }
@@ -888,27 +831,19 @@ impl Opcode {
         target: Address,
         source: Address,
         is_immediate: bool,
-    ) -> Option<Self> {
-        if !target.is_writable() {
-            return None;
-        }
-
+    ) -> Self {
         let operation = operation as u16 * Address::COUNT + target as u16;
         let operation = operation * Address::COUNT + source as u16;
         let operation = operation * 2 + is_immediate as u16;
 
-        Some(Self(OpcodeRange::TRANSFER.start() + operation))
+        Self(OpcodeRange::TRANSFER.start() + operation)
     }
 
     /// Create one exact byte range fill opcode.
-    pub const fn fill(target: Address, is_immediate: bool) -> Option<Self> {
-        if !target.is_writable() {
-            return None;
-        }
-
+    pub const fn fill(target: Address, is_immediate: bool) -> Self {
         let operation = target as u16 * 2 + is_immediate as u16;
 
-        Some(Self(OpcodeRange::FILL.start() + operation))
+        Self(OpcodeRange::FILL.start() + operation)
     }
 
     /// Create one exact byte range comparison opcode.
@@ -920,14 +855,10 @@ impl Opcode {
     }
 
     /// Create one exact prefetch opcode.
-    pub const fn prefetch(operation: Prefetch, address: Address) -> Option<Self> {
-        if !operation.supports(address) {
-            return None;
-        }
-
+    pub const fn prefetch(operation: Prefetch, address: Address) -> Self {
         let operation = operation as u16 * Address::COUNT + address as u16;
 
-        Some(Self(OpcodeRange::PREFETCH.start() + operation))
+        Self(OpcodeRange::PREFETCH.start() + operation)
     }
 
     /// Create one exact scalar atomic opcode.
@@ -936,14 +867,13 @@ impl Opcode {
         address: Address,
         scalar: Scalar,
     ) -> Option<Self> {
-        if !operation.supports(scalar) || !address.is_writable() {
+        if !operation.supports(scalar) {
             return None;
         }
 
         let range = match address {
-            Address::Memory => OpcodeRange::ATOMIC,
+            Address::Reference => OpcodeRange::ATOMIC,
             Address::Pointer => OpcodeRange::ATOMIC_POINTER,
-            Address::Constant => return None,
         };
 
         Some(Self(
@@ -952,11 +882,8 @@ impl Opcode {
     }
 
     /// Create one exact `new` opcode.
-    pub const fn new(operation: New) -> Option<Self> {
-        match operation.code() {
-            Some(code) => Some(Self(OpcodeRange::NEW.start() + code)),
-            None => None,
-        }
+    pub const fn new(operation: New) -> Self {
+        Self(OpcodeRange::NEW.start() + operation.code())
     }
 
     /// Create one exact scalar runtime check opcode.
@@ -1185,9 +1112,7 @@ impl Opcode {
         let scalar = Scalar::from_code((code % Scalar::OPCODE_STRIDE) as u8);
 
         match (operation, address, scalar) {
-            (Some(operation), Some(address), Some(scalar))
-                if operation.supports(address, is_volatile) =>
-            {
+            (Some(operation), Some(address), Some(scalar)) => {
                 Some((operation, address, scalar, is_volatile))
             }
             _ => None,
@@ -1197,14 +1122,13 @@ impl Opcode {
     /// Decode one packed memory opcode.
     pub const fn memory_range_operation(self) -> Option<(MemoryOperation, Address, bool)> {
         match self {
-            Self::LOAD => Some((MemoryOperation::Load, Address::Memory, false)),
-            Self::LOAD_CONSTANT => Some((MemoryOperation::Load, Address::Constant, false)),
+            Self::LOAD => Some((MemoryOperation::Load, Address::Reference, false)),
             Self::LOAD_POINTER => Some((MemoryOperation::Load, Address::Pointer, false)),
-            Self::STORE => Some((MemoryOperation::Store, Address::Memory, false)),
+            Self::STORE => Some((MemoryOperation::Store, Address::Reference, false)),
             Self::STORE_POINTER => Some((MemoryOperation::Store, Address::Pointer, false)),
-            Self::LOAD_VOLATILE => Some((MemoryOperation::Load, Address::Memory, true)),
+            Self::LOAD_VOLATILE => Some((MemoryOperation::Load, Address::Reference, true)),
             Self::LOAD_VOLATILE_POINTER => Some((MemoryOperation::Load, Address::Pointer, true)),
-            Self::STORE_VOLATILE => Some((MemoryOperation::Store, Address::Memory, true)),
+            Self::STORE_VOLATILE => Some((MemoryOperation::Store, Address::Reference, true)),
             Self::STORE_VOLATILE_POINTER => Some((MemoryOperation::Store, Address::Pointer, true)),
             _ => None,
         }
@@ -1225,7 +1149,7 @@ impl Opcode {
         let operation = Transfer::from_code((code / Address::COUNT) as u8);
 
         match (operation, target, source) {
-            (Some(operation), Some(target), Some(source)) if target.is_writable() => {
+            (Some(operation), Some(target), Some(source)) => {
                 Some((operation, target, source, is_immediate))
             }
             _ => None,
@@ -1243,8 +1167,8 @@ impl Opcode {
         let target = Address::from_code((code / 2) as u8);
 
         match target {
-            Some(target) if target.is_writable() => Some((target, is_immediate)),
-            _ => None,
+            Some(target) => Some((target, is_immediate)),
+            None => None,
         }
     }
 
@@ -1277,9 +1201,7 @@ impl Opcode {
         let operation = Prefetch::from_code((code / Address::COUNT) as u8);
 
         match (operation, address) {
-            (Some(operation), Some(address)) if operation.supports(address) => {
-                Some((operation, address))
-            }
+            (Some(operation), Some(address)) => Some((operation, address)),
             _ => None,
         }
     }
@@ -1287,7 +1209,7 @@ impl Opcode {
     /// Decode one scalar atomic opcode.
     pub const fn atomic_operation(self) -> Option<(AtomicOperation, Address, Scalar)> {
         let (range, address) = if OpcodeRange::ATOMIC.contains(self.0) {
-            (OpcodeRange::ATOMIC, Address::Memory)
+            (OpcodeRange::ATOMIC, Address::Reference)
         } else if OpcodeRange::ATOMIC_POINTER.contains(self.0) {
             (OpcodeRange::ATOMIC_POINTER, Address::Pointer)
         } else {

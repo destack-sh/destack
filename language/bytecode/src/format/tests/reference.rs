@@ -8,8 +8,8 @@ fn test_format_reference_operations() {
 external function f0
 
 function f1 {
-    load r4, r0,8
-store r0,r4,8
+    memory.load r4, r0,8
+memory.store r0,r4,8
 pin r4: ref<managed, local>
 unpin r4: ref<managed, local>
 barrier r4,r3,r3: ref<managed, local>
@@ -22,8 +22,8 @@ return r4
 external function f0
 
 function f1 {
-    load r4, r0, 8
-    store r0, r4, 8
+    memory.load r4, r0, 8
+    memory.store r0, r4, 8
     pin r4: ref<managed, local>
     unpin r4: ref<managed, local>
     barrier r4, r3, r3: ref<managed, local>

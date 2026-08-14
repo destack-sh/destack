@@ -32,7 +32,7 @@ pub struct ElementOperation(u16);
 impl ElementOperation {
     /// Parse one canonical integer or floating-point element operation.
     pub fn from_name(name: &str) -> Option<Self> {
-        let (domain, name) = name.split_once('.')?;
+        let (name, domain) = name.rsplit_once('.')?;
 
         match domain {
             "int" => IntegerOperation::from_name(name).map(Self::integer),

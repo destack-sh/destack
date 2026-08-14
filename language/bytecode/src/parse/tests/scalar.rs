@@ -11,9 +11,9 @@ fn test_parse_scalar_operations() {
     let (_, opcodes) = TestParser::new(
         r#"
 function f0 {
-    int.add r2, r0, r1: int32
-    int.add.overflowing r2, r3, r2, r1: int32
-    boolean.not r3, r3
+    add.int32 r2, r0, r1
+    add.overflowing.int32 r2, r3, r2, r1
+    not.boolean r3, r3
     return r2:r3
 }
 "#,
@@ -37,11 +37,11 @@ fn test_parse_casts() {
     let (_, opcodes) = TestParser::new(
         r#"
 function f0 {
-    cast.truncate r4, r0: int64 -> int32
-    cast.floatToInt.u r5, r1: float64 -> uint64
-    cast.intToPointer r6, r3: uint64 -> pointer
-    cast.pointerToInt r7, r2: pointer -> uint64
-    cast.floatTruncate r8, r1: float64 -> float32
+    truncate.int64.int32 r4, r0
+    truncate.float64.uint64 r5, r1
+    reinterpret.uint64.pointer r6, r3
+    reinterpret.pointer.uint64 r7, r2
+    demote.float64.float32 r8, r1
     return r4:r8
 }
 "#,
@@ -82,7 +82,7 @@ fn test_parse_wide_integer_registers() {
     let (object, opcodes) = TestParser::new(
         r#"
 function f0 {
-    int.add r4:r5, r0:r1, r2:r3: int128
+    add.int128 r4:r5, r0:r1, r2:r3
     return r4:r5
 }
 "#,
@@ -104,12 +104,12 @@ fn test_parse_narrow_float_literals() {
     let object = TestParser::new(
         r#"
 function f0 {
-    constant r0, 1.00048828125: float16
-    constant r1, 1.0009765625: float16
-    constant r2, 1.00390625: bfloat16
-    constant r3, 1.0078125: bfloat16
-    constant r4, 1.25e-3: float64
-    constant r5, -2E+2: float64
+    constant.float16 r0, 1.00048828125
+    constant.float16 r1, 1.0009765625
+    constant.bfloat16 r2, 1.00390625
+    constant.bfloat16 r3, 1.0078125
+    constant.float64 r4, 1.25e-3
+    constant.float64 r5, -2E+2
     return r0:r5
 }
 "#,

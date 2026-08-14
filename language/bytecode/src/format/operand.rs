@@ -70,17 +70,6 @@ impl<'code> InstructionFormatter<'code, '_, '_> {
         self.formatter.context().relocation_text(relocation, index)
     }
 
-    /// Read one relocated global operand as canonical text.
-    pub(super) fn global_text(&mut self) -> FormatResult<String> {
-        let offset = self.operand_offset();
-        let relocation = self.formatter.context().relocation(offset)?;
-        let index = u32::try_from(self.u64()?).map_err(|_| FormatError::SyntaxError {
-            message: "object global index exceeds uint32",
-        })?;
-
-        self.formatter.context().relocation_text(relocation, index)
-    }
-
     /// Read one relocation and its canonical text.
     pub(super) fn relocation_with_text(&mut self) -> FormatResult<(String, Relocation)> {
         let (relocation, index) = self.relocation()?;
