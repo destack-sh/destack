@@ -123,6 +123,11 @@ export extension<T> of Box<T> implements Clone where T: Clone {
     clone(&readonly this): Box<T> {
         todo("Box.clone")
     }
+
+    /// Clone `source` into this allocation.
+    cloneFrom(&exclusive this, source: &readonly Box<T>): void {
+        this.asExclusive().cloneFrom(source.asReference());
+    }
 }
 
 export extension<T> of Box<T> implements Default where T: Default {

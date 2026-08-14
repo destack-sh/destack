@@ -23,6 +23,11 @@ export newtype interface SharedSafe {}
 export newtype interface Clone {
     /// Clone this value.
     clone(&readonly this): ^this;
+
+    /// Replace this value with a clone of `source`.
+    cloneFrom(&exclusive this, source: &readonly this): void {
+        *this = source.clone();
+    }
 }
 
 /// Mark a type as safe to move out of pinned storage.

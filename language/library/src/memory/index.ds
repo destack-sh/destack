@@ -67,43 +67,18 @@ export {
 } from "./capability.ds";
 export { Pin } from "./pin.ds";
 export { Drop, drop, forget, ManuallyDrop } from "./drop.ds";
+export { replace, take } from "./replace.ds";
+export { swap } from "./swap.ds";
 export { AsyncDispose, Dispose } from "./dispose.ds";
 export { Phantom } from "./phantom.ds";
 export { Cow, CowBorrowed, CowOwned, MaybeOwned } from "./cow/cow.ds";
+export { Cell, UnsafeCell } from "./cell";
+export { Raw } from "./raw.ds";
+export * from "./init.ds";
 export * as arena from "./arena";
 export * as arc from "./arc";
-export * as cell from "./cell";
-export { Cell, UnsafeCell } from "./cell";
-export * as cow from "./cow";
-export * as rc from "./rc";
-export {
-    asExclusive,
-    asReadonlyReference,
-    asReference,
-    byteOffsetFrom,
-    compareBytes,
-    copy,
-    copyBytes,
-    copyNonOverlapping,
-    dangling,
-    dropInPlace,
-    moveBytes,
-    offset,
-    offsetFrom,
-    prefetchRead,
-    prefetchWrite,
-    Raw,
-    rawEq,
-    read,
-    readVolatile,
-    replace,
-    setBytes,
-    swap,
-    transmute,
-    wrappingOffset,
-    write,
-    writeBytes,
-    writeVolatile,
-} from "./raw.ds";
-export * from "./init.ds";
 export * as binding from "./binding";
+export * as cell from "./cell";
+export * as cow from "./cow";
+export * as raw from "./raw.ds";
+export * as rc from "./rc";
