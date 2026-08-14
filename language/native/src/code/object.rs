@@ -125,7 +125,7 @@ impl ObjectHeader {
     /// Stable native object marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSNO");
     /// Stable native object format version.
-    const VERSION: u16 = 5;
+    const VERSION: u16 = 6;
 
     /// Create one empty native object header.
     fn new(target_layout: TargetLayout) -> Self {

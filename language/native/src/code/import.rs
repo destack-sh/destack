@@ -51,6 +51,10 @@ pub enum Import {
     FmaF32 = 0x28,
     /// Double-precision fused multiply-add.
     FmaF64 = 0x29,
+    /// Single-precision floating-point remainder.
+    RemainderF32 = 0x2a,
+    /// Double-precision floating-point remainder.
+    RemainderF64 = 0x2b,
 
     /// Single-precision sine.
     SinF32 = 0x40,
