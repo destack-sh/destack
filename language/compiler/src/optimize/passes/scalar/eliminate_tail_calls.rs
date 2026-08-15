@@ -10,16 +10,6 @@ use destack_mir::{Mutation, clone_instruction_tables};
 
 declare_pass! {
     /// Eliminates tail-recursive calls by converting them to jumps.
-    ///
-    /// A call is in tail position when it is the last instruction before a return,
-    /// and the return value is exactly the call's result (or void for void functions).
-    /// This pass transforms such patterns into jumps to the entry block, converting
-    /// recursion into iteration and eliminating stack growth.
-    ///
-    /// Also performs accumulator transformation to convert near-tail-recursive
-    /// functions into fully tail-recursive form. The pattern `return x OP call(...)`
-    /// where OP is associative (int.add, int.mul, int.and, int.or, int.xor) is transformed by adding
-    /// an accumulator parameter.
     #[pass(id = "eliminate-tail-calls")]
     pub EliminateTailCalls,
     "Eliminate tail-recursive calls"
@@ -30,27 +20,19 @@ impl ModulePass for EliminateTailCalls {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mut mir::ModuleAnalyses,
+        _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let layouts = &mut optimized.layouts;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // eliminate tail calls across the module
-        let changed = eliminate_tail_calls(tree, layouts, memory, ctx.strings);
+        let changed = eliminate_tail_calls(tree, layouts, accesses, ctx.strings);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
-    }
-
-    fn name(&self) -> &'static str {
-        "EliminateTailCalls"
-    }
-
-    fn id(&self) -> &'static str {
-        "eliminate-tail-calls"
     }
 }
 
@@ -58,7 +40,7 @@ impl ModulePass for EliminateTailCalls {
 fn eliminate_tail_calls(
     tree: &mut mir::Tree,
     layouts: &mut mir::LayoutTable,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     strings: &StringPool,
 ) -> bool {
     let mut changed = false;
@@ -86,7 +68,7 @@ fn eliminate_tail_calls(
             &mut function,
             tree,
             layouts,
-            memory,
+            accesses,
             function_id,
             entry_block,
             strings,
@@ -135,6 +117,16 @@ struct AccumulatorPattern {
     call_signature: mir::TypeId,
 }
 
+/// One cloned internal function.
+struct FunctionClone {
+    /// The cloned function.
+    function: mir::LocalNodeId<mir::Function>,
+    /// The cloned entry block.
+    entry: mir::LocalNodeId<mir::Block>,
+    /// The cloned block ids by original block id.
+    blocks: HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+}
+
 /// Try to transform a non-tail-recursive function into tail-recursive form.
 ///
 /// Pattern: `v1 = call self(...); v2 = OP v1, x; return v2` (or OP x, v1)
@@ -147,7 +139,7 @@ fn try_accumulator_transform(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     layouts: &mut mir::LayoutTable,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
     strings: &StringPool,
@@ -179,7 +171,7 @@ fn try_accumulator_transform(
             function,
             tree,
             layouts,
-            memory,
+            accesses,
             current_function_id,
             entry_block,
             &patterns,
@@ -259,7 +251,7 @@ fn try_accumulator_transform_exported(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     layouts: &mut mir::LayoutTable,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
     patterns: &[AccumulatorPattern],
@@ -273,18 +265,17 @@ fn try_accumulator_transform_exported(
     let impl_name_str = format!("{}_impl", strings.get(function.name));
     let impl_name = strings.intern(&impl_name_str);
 
-    // clone the function to create the impl version
-    let (impl_function_id, impl_entry_block, block_map) =
-        clone_function_as_impl(function, tree, memory, impl_name);
+    // clone the internal accumulator function
+    let cloned = clone_function(function, tree, accesses, impl_name);
 
     // find base cases in the IMPL function (using mapped block IDs)
-    let impl_function = tree.get(impl_function_id).clone();
+    let impl_function = tree.get(cloned.function).clone();
     let impl_base_cases =
         find_base_case_blocks(&impl_function, tree, current_function_id, identity);
     let impl_patterns: Vec<AccumulatorPattern> = patterns
         .iter()
         .map(|p| AccumulatorPattern {
-            block_id: block_map[&p.block_id],
+            block_id: cloned.blocks[&p.block_id],
             operator: p.operator,
             other_operand: p.other_operand,
             call_index: p.call_index,
@@ -294,19 +285,19 @@ fn try_accumulator_transform_exported(
         })
         .collect();
 
-    let mut impl_function = tree.get(impl_function_id).clone();
+    let mut impl_function = tree.get(cloned.function).clone();
     impl_function.recompute_next_value_id(tree);
 
     // add accumulator parameter to impl entry block
     let acc_value = impl_function.next_typed_value(return_type);
 
-    let impl_entry = tree.get(impl_entry_block);
+    let impl_entry = tree.get(cloned.entry);
     let mut new_impl_entry = impl_entry.clone();
     new_impl_entry.parameters.push(mir::BlockParameter {
         value: acc_value,
         ty: return_type,
     });
-    tree.set(impl_entry_block, new_impl_entry);
+    tree.set(cloned.entry, new_impl_entry);
 
     // add to impl function parameters
     impl_function
@@ -319,13 +310,7 @@ fn try_accumulator_transform_exported(
 
     // transform impl function's accumulator blocks
     for pattern in &impl_patterns {
-        transform_accumulator_block(
-            pattern,
-            impl_entry_block,
-            acc_value,
-            &mut impl_function,
-            tree,
-        );
+        transform_accumulator_block(pattern, cloned.entry, acc_value, &mut impl_function, tree);
     }
 
     // transform impl function's base case blocks
@@ -340,14 +325,14 @@ fn try_accumulator_transform_exported(
         );
     }
 
-    *tree.get_mut(impl_function_id) = impl_function;
+    *tree.get_mut(cloned.function) = impl_function;
 
     // rewrite original function as wrapper: call impl with identity
     rewrite_as_wrapper(
         function,
         tree,
         entry_block,
-        impl_function_id,
+        cloned.function,
         impl_signature,
         identity,
     );
@@ -355,22 +340,13 @@ fn try_accumulator_transform_exported(
     true
 }
 
-/// Clone a function to create an internal impl version.
-///
-/// Returns (impl_function_id, impl_entry_block, block_mapping).
-#[allow(clippy::type_complexity)]
-fn clone_function_as_impl(
+/// Clone a function into an internal function.
+fn clone_function(
     original: &mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     impl_name: destack_core::StringId,
-) -> (
-    mir::LocalNodeId<mir::Function>,
-    mir::LocalNodeId<mir::Block>,
-    std::collections::HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
-) {
-    use std::collections::HashMap;
-
+) -> FunctionClone {
     let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>> =
         HashMap::new();
 
@@ -384,7 +360,7 @@ fn clone_function_as_impl(
         for &old_instr_id in &old_block.instructions {
             let old_instr = tree.get(old_instr_id).clone();
             let new_instr_id = tree.insert(old_instr);
-            clone_instruction_tables(tree, memory, old_instr_id, new_instr_id, &HashMap::new());
+            clone_instruction_tables(tree, accesses, old_instr_id, new_instr_id, &HashMap::new());
             new_instructions.push(new_instr_id);
         }
 
@@ -409,7 +385,10 @@ fn clone_function_as_impl(
     }
 
     // create impl function
-    let impl_entry = block_map[&original.entry().unwrap()];
+    let Some(entry) = original.entry() else {
+        unreachable!("defined function must have an entry block");
+    };
+    let impl_entry = block_map[&entry];
     let impl_blocks: Vec<_> = original.blocks().iter().map(|id| block_map[id]).collect();
     let mut impl_function = mir::Function::define(
         impl_name,
@@ -429,7 +408,11 @@ fn clone_function_as_impl(
 
     let impl_function_id = tree.insert(impl_function);
 
-    (impl_function_id, impl_entry, block_map)
+    FunctionClone {
+        function: impl_function_id,
+        entry: impl_entry,
+        blocks: block_map,
+    }
 }
 
 /// Remap block references in a terminator.
@@ -1277,7 +1260,6 @@ fn transform_sibling_tail_call(
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
-
     #[test]
     fn test_eliminate_basic_tail_recursion() {
         // factorial(n, acc) with accumulator style
@@ -1285,16 +1267,16 @@ mod tests {
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
-    v3: boolean = int.eq v0, v2
+    v3: boolean = eq v0, v2
     branch v3 => b1 | b2
 
 b1:
     return v1
 
 b2:
-    v4: int32 = int.mul v0, v1
+    v4: int32 = mul v0, v1
     v5: int32 = 1
-    v6: int32 = int.sub v0, v5
+    v6: int32 = sub v0, v5
     v7: int32 = call test(v6, v4): (int32, int32) => int32
     return v7
 }
@@ -1303,16 +1285,16 @@ b2:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
-    v3: boolean = int.eq v0, v2
+    v3: boolean = eq v0, v2
     branch v3 => b1 | b2
 
 b1:
     return v1
 
 b2:
-    v4: int32 = int.mul v0, v1
+    v4: int32 = mul v0, v1
     v5: int32 = 1
-    v6: int32 = int.sub v0, v5
+    v6: int32 = sub v0, v5
     jump entry(v6, v4)
 }
 "#;
@@ -1321,7 +1303,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_eliminate_void_tail_recursion() {
         // countdown to zero
@@ -1329,7 +1310,7 @@ b2:
 function test(v0: int32): void {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1337,7 +1318,7 @@ b1:
 
 b2:
     v3: int32 = 1
-    v4: int32 = int.sub v0, v3
+    v4: int32 = sub v0, v3
     call test(v4): (int32) => void
     return
 }
@@ -1346,7 +1327,7 @@ b2:
 function test(v0: int32): void {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1354,7 +1335,7 @@ b1:
 
 b2:
     v3: int32 = 1
-    v4: int32 = int.sub v0, v3
+    v4: int32 = sub v0, v3
     jump entry(v4)
 }
 "#;
@@ -1363,7 +1344,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_transform_factorial_with_accumulator() {
         // classic factorial: n * factorial(n-1), transformed via accumulator
@@ -1371,16 +1351,16 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: boolean = int.le.s v0, v1
+    v2: boolean = le v0, v1
     branch v2 => b1 | b2
 
 b1:
     return v1
 
 b2:
-    v3: int32 = int.sub v0, v1
+    v3: int32 = sub v0, v1
     v4: int32 = call test(v3): (int32) => int32
-    v5: int32 = int.mul v0, v4
+    v5: int32 = mul v0, v4
     return v5
 }
 "#;
@@ -1389,15 +1369,15 @@ b2:
 function test(v0: int32, v6: int32): int32 {
 entry(v0: int32, v6: int32):
     v1: int32 = 1
-    v2: boolean = int.le.s v0, v1
+    v2: boolean = le v0, v1
     branch v2 => b1 | b2
 
 b1:
     return v6
 
 b2:
-    v3: int32 = int.sub v0, v1
-    v7: int32 = int.mul v6, v0
+    v3: int32 = sub v0, v1
+    v7: int32 = mul v6, v0
     jump entry(v3, v7)
 }
 "#;
@@ -1406,7 +1386,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_preserve_non_associative_operation() {
         // subtraction is not associative, cannot transform
@@ -1414,7 +1393,7 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1422,9 +1401,9 @@ b1:
 
 b2:
     v3: int32 = 1
-    v4: int32 = int.sub v0, v3
+    v4: int32 = sub v0, v3
     v5: int32 = call test(v4): (int32) => int32
-    v6: int32 = int.sub v0, v5
+    v6: int32 = sub v0, v5
     return v6
 }
 "#;
@@ -1433,7 +1412,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
-
     #[test]
     fn test_transform_sibling_tail_call() {
         // sibling call (to different function) in tail position becomes tailcall
@@ -1465,7 +1443,6 @@ entry(v0: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_eliminate_gcd_recursion() {
         // euclidean gcd is naturally tail recursive
@@ -1473,14 +1450,14 @@ entry(v0: int32):
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
-    v3: boolean = int.eq v1, v2
+    v3: boolean = eq v1, v2
     branch v3 => b1 | b2
 
 b1:
     return v0
 
 b2:
-    v4: int32 = int.rem.s v0, v1
+    v4: int32 = rem v0, v1
     v5: int32 = call test(v1, v4): (int32, int32) => int32
     return v5
 }
@@ -1489,14 +1466,14 @@ b2:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
-    v3: boolean = int.eq v1, v2
+    v3: boolean = eq v1, v2
     branch v3 => b1 | b2
 
 b1:
     return v0
 
 b2:
-    v4: int32 = int.rem.s v0, v1
+    v4: int32 = rem v0, v1
     jump entry(v1, v4)
 }
 "#;
@@ -1505,7 +1482,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_convert_infinite_recursion_to_loop() {
         // infinite recursion becomes infinite loop
@@ -1527,7 +1503,6 @@ entry:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_preserve_return_value_mismatch() {
         // returning different value than call result
@@ -1544,7 +1519,6 @@ entry(v0: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
-
     #[test]
     fn test_eliminate_fibonacci_recursion() {
         // fib(n, a, b) where a and b are accumulators
@@ -1552,7 +1526,7 @@ entry(v0: int32):
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
     v3: int32 = 0
-    v4: boolean = int.eq v0, v3
+    v4: boolean = eq v0, v3
     branch v4 => b1 | b2
 
 b1:
@@ -1560,8 +1534,8 @@ b1:
 
 b2:
     v5: int32 = 1
-    v6: int32 = int.sub v0, v5
-    v7: int32 = int.add v1, v2
+    v6: int32 = sub v0, v5
+    v7: int32 = add v1, v2
     v8: int32 = call test(v6, v2, v7): (int32, int32, int32) => int32
     return v8
 }
@@ -1570,7 +1544,7 @@ b2:
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
     v3: int32 = 0
-    v4: boolean = int.eq v0, v3
+    v4: boolean = eq v0, v3
     branch v4 => b1 | b2
 
 b1:
@@ -1578,8 +1552,8 @@ b1:
 
 b2:
     v5: int32 = 1
-    v6: int32 = int.sub v0, v5
-    v7: int32 = int.add v1, v2
+    v6: int32 = sub v0, v5
+    v7: int32 = add v1, v2
     jump entry(v6, v2, v7)
 }
 "#;
@@ -1588,7 +1562,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_eliminate_multiple_tail_calls() {
         // function with multiple blocks that have tail calls
@@ -1596,21 +1569,21 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.negate v0
+    v3: int32 = negate v0
     v4: int32 = call test(v3): (int32) => int32
     return v4
 
 b2:
     v5: int32 = 10
-    v6: boolean = int.gt.s v0, v5
+    v6: boolean = gt v0, v5
     branch v6 => b3 | b4
 
 b3:
-    v7: int32 = int.sub v0, v5
+    v7: int32 = sub v0, v5
     v8: int32 = call test(v7): (int32) => int32
     return v8
 
@@ -1622,20 +1595,20 @@ b4:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.negate v0
+    v3: int32 = negate v0
     jump entry(v3)
 
 b2:
     v5: int32 = 10
-    v6: boolean = int.gt.s v0, v5
+    v6: boolean = gt v0, v5
     branch v6 => b3 | b4
 
 b3:
-    v7: int32 = int.sub v0, v5
+    v7: int32 = sub v0, v5
     jump entry(v7)
 
 b4:
@@ -1647,14 +1620,13 @@ b4:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_eliminate_reordered_args_call() {
         // swap(a, b) calls swap(b, a)
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.gt.s v0, v1
+    v2: boolean = gt v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1668,7 +1640,7 @@ b2:
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.gt.s v0, v1
+    v2: boolean = gt v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1683,7 +1655,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_handle_empty_block() {
         // block with only terminator, no instructions
@@ -1698,7 +1669,6 @@ entry(v0: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
-
     #[test]
     fn test_preserve_non_final_call() {
         // call followed by other instruction before return
@@ -1706,7 +1676,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.sub v0, v1
+    v2: int32 = sub v0, v1
     v3: int32 = call test(v2): (int32) => int32
     v4: int32 = 0
     return v3
@@ -1717,7 +1687,6 @@ entry(v0: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
-
     #[test]
     fn test_transform_mutual_recursion() {
         // even/odd mutual recursion becomes sibling tail calls
@@ -1725,7 +1694,7 @@ entry(v0: int32):
 function even(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1734,7 +1703,7 @@ b1:
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.sub v0, v4
+    v5: int32 = sub v0, v4
     v6: boolean = call odd(v5): (int32) => boolean
     return v6
 }
@@ -1742,7 +1711,7 @@ b2:
 function odd(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1751,7 +1720,7 @@ b1:
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.sub v0, v4
+    v5: int32 = sub v0, v4
     v6: boolean = call even(v5): (int32) => boolean
     return v6
 }
@@ -1760,7 +1729,7 @@ b2:
 function even(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1769,14 +1738,14 @@ b1:
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.sub v0, v4
+    v5: int32 = sub v0, v4
     tail.call odd(v5): (int32) => boolean
 }
 
 function odd(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1785,7 +1754,7 @@ b1:
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.sub v0, v4
+    v5: int32 = sub v0, v4
     tail.call even(v5): (int32) => boolean
 }
 "#;
@@ -1794,7 +1763,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_transform_sum_with_accumulator() {
         // sum(n) = n + sum(n-1), identity for add is 0
@@ -1802,7 +1770,7 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1810,9 +1778,9 @@ b1:
 
 b2:
     v3: int32 = 1
-    v4: int32 = int.sub v0, v3
+    v4: int32 = sub v0, v3
     v5: int32 = call test(v4): (int32) => int32
-    v6: int32 = int.add v0, v5
+    v6: int32 = add v0, v5
     return v6
 }
 "#;
@@ -1820,7 +1788,7 @@ b2:
 function test(v0: int32, v7: int32): int32 {
 entry(v0: int32, v7: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1828,8 +1796,8 @@ b1:
 
 b2:
     v3: int32 = 1
-    v4: int32 = int.sub v0, v3
-    v8: int32 = int.add v7, v0
+    v4: int32 = sub v0, v3
+    v8: int32 = add v7, v0
     jump entry(v4, v8)
 }
 "#;
@@ -1838,7 +1806,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_transform_bitwise_or_accumulator() {
         // or_bits(n) = n | or_bits(n-1), identity for or is 0
@@ -1846,7 +1813,7 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1854,9 +1821,9 @@ b1:
 
 b2:
     v3: int32 = 1
-    v4: int32 = int.sub v0, v3
+    v4: int32 = sub v0, v3
     v5: int32 = call test(v4): (int32) => int32
-    v6: int32 = int.or v0, v5
+    v6: int32 = or v0, v5
     return v6
 }
 "#;
@@ -1864,7 +1831,7 @@ b2:
 function test(v0: int32, v7: int32): int32 {
 entry(v0: int32, v7: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1872,8 +1839,8 @@ b1:
 
 b2:
     v3: int32 = 1
-    v4: int32 = int.sub v0, v3
-    v8: int32 = int.or v7, v0
+    v4: int32 = sub v0, v3
+    v8: int32 = or v7, v0
     jump entry(v4, v8)
 }
 "#;
@@ -1882,7 +1849,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_transform_non_identity_base_case() {
         // sum with non-zero base: returns 5 when n=0
@@ -1890,7 +1856,7 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1899,9 +1865,9 @@ b1:
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.sub v0, v4
+    v5: int32 = sub v0, v4
     v6: int32 = call test(v5): (int32) => int32
-    v7: int32 = int.add v0, v6
+    v7: int32 = add v0, v6
     return v7
 }
 "#;
@@ -1910,18 +1876,18 @@ b2:
 function test(v0: int32, v8: int32): int32 {
 entry(v0: int32, v8: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
     v3: int32 = 5
-    v10: int32 = int.add v8, v3
+    v10: int32 = add v8, v3
     return v10
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.sub v0, v4
-    v9: int32 = int.add v8, v0
+    v5: int32 = sub v0, v4
+    v9: int32 = add v8, v0
     jump entry(v5, v9)
 }
 "#;
@@ -1930,7 +1896,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_preserve_call_result_used_twice() {
         // call result used in multiple places, not just the binary op
@@ -1938,17 +1903,17 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: boolean = int.le.s v0, v1
+    v2: boolean = le v0, v1
     branch v2 => b1 | b2
 
 b1:
     return v1
 
 b2:
-    v3: int32 = int.sub v0, v1
+    v3: int32 = sub v0, v1
     v4: int32 = call test(v3): (int32) => int32
-    v5: int32 = int.mul v0, v4
-    v6: int32 = int.add v5, v4
+    v5: int32 = mul v0, v4
+    v6: int32 = add v5, v4
     return v6
 }
 "#;
@@ -1957,7 +1922,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
-
     #[test]
     fn test_preserve_mixed_operators() {
         // multiple recursive sites with different operators
@@ -1965,7 +1929,7 @@ b2:
 function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 0
-    v3: boolean = int.eq v0, v2
+    v3: boolean = eq v0, v2
     branch v3 => b1 | b2
 
 b1:
@@ -1974,17 +1938,17 @@ b1:
 
 b2:
     v5: int32 = 1
-    v6: int32 = int.sub v0, v5
+    v6: int32 = sub v0, v5
     branch v1 => b3 | b4
 
 b3:
     v7: int32 = call test(v6, v1): (int32, boolean) => int32
-    v8: int32 = int.mul v0, v7
+    v8: int32 = mul v0, v7
     return v8
 
 b4:
     v9: int32 = call test(v6, v1): (int32, boolean) => int32
-    v10: int32 = int.add v0, v9
+    v10: int32 = add v0, v9
     return v10
 }
 "#;
@@ -1994,7 +1958,6 @@ b4:
         // should not transform: different operators in different paths
         test.assert_unchanged(input);
     }
-
     #[test]
     fn test_transform_with_external_caller() {
         // factorial with accumulator pattern, called from main
@@ -2003,16 +1966,16 @@ b4:
 function factorial(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: boolean = int.le.s v0, v1
+    v2: boolean = le v0, v1
     branch v2 => b1 | b2
 
 b1:
     return v1
 
 b2:
-    v3: int32 = int.sub v0, v1
+    v3: int32 = sub v0, v1
     v4: int32 = call factorial(v3): (int32) => int32
-    v5: int32 = int.mul v0, v4
+    v5: int32 = mul v0, v4
     return v5
 }
 
@@ -2028,15 +1991,15 @@ entry:
 function factorial(v0: int32, v6: int32): int32 {
 entry(v0: int32, v6: int32):
     v1: int32 = 1
-    v2: boolean = int.le.s v0, v1
+    v2: boolean = le v0, v1
     branch v2 => b1 | b2
 
 b1:
     return v6
 
 b2:
-    v3: int32 = int.sub v0, v1
-    v7: int32 = int.mul v6, v0
+    v3: int32 = sub v0, v1
+    v7: int32 = mul v6, v0
     jump entry(v3, v7)
 }
 
@@ -2052,7 +2015,6 @@ entry:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_transform_exported_with_wrapper() {
         // exported factorial: should create impl + wrapper
@@ -2060,16 +2022,16 @@ entry:
 export function factorial(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: boolean = int.le.s v0, v1
+    v2: boolean = le v0, v1
     branch v2 => b1 | b2
 
 b1:
     return v1
 
 b2:
-    v3: int32 = int.sub v0, v1
+    v3: int32 = sub v0, v1
     v4: int32 = call factorial(v3): (int32) => int32
-    v5: int32 = int.mul v0, v4
+    v5: int32 = mul v0, v4
     return v5
 }
 "#;
@@ -2085,15 +2047,15 @@ entry(v0: int32):
 function factorial_impl(v0: int32, v6: int32): int32 {
 entry(v0: int32, v6: int32):
     v1: int32 = 1
-    v2: boolean = int.le.s v0, v1
+    v2: boolean = le v0, v1
     branch v2 => b1 | b2
 
 b1:
     return v6
 
 b2:
-    v3: int32 = int.sub v0, v1
-    v7: int32 = int.mul v6, v0
+    v3: int32 = sub v0, v1
+    v7: int32 = mul v6, v0
     jump entry(v3, v7)
 }
 "#;
@@ -2102,7 +2064,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_transform_indirect_tail_call() {
         // indirect call in tail position becomes tail.call.indirect
@@ -2124,7 +2085,6 @@ entry(v0: fn(int32) => int32, v1: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_transform_void_sibling_tail_call() {
         // void sibling tail call
@@ -2156,16 +2116,15 @@ entry(v0: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_transform_bitwise_and_accumulator() {
-        // and_bits(n) = n & and_bits(n-1), identity for int.and is all-ones (-1)
+        // and_bits(n) = n & and_bits(n-1), identity for and is all-ones (-1)
         // base case returns v1 (defined in b0) to avoid leftover instruction
         let input = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     v3: int32 = -1
     branch v2 => b1 | b2
 
@@ -2174,9 +2133,9 @@ b1:
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.sub v0, v4
+    v5: int32 = sub v0, v4
     v6: int32 = call test(v5): (int32) => int32
-    v7: int32 = int.and v0, v6
+    v7: int32 = and v0, v6
     return v7
 }
 "#;
@@ -2184,7 +2143,7 @@ b2:
 function test(v0: int32, v8: int32): int32 {
 entry(v0: int32, v8: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     v3: int32 = -1
     branch v2 => b1 | b2
 
@@ -2193,8 +2152,8 @@ b1:
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.sub v0, v4
-    v9: int32 = int.and v8, v0
+    v5: int32 = sub v0, v4
+    v9: int32 = and v8, v0
     jump entry(v5, v9)
 }
 "#;
@@ -2203,7 +2162,6 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
-
     #[test]
     fn test_transform_bitwise_xor_accumulator() {
         // xor_bits(n) = n ^ xor_bits(n-1), identity for bxor is 0
@@ -2211,7 +2169,7 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -2219,9 +2177,9 @@ b1:
 
 b2:
     v3: int32 = 1
-    v4: int32 = int.sub v0, v3
+    v4: int32 = sub v0, v3
     v5: int32 = call test(v4): (int32) => int32
-    v6: int32 = int.xor v0, v5
+    v6: int32 = xor v0, v5
     return v6
 }
 "#;
@@ -2229,7 +2187,7 @@ b2:
 function test(v0: int32, v7: int32): int32 {
 entry(v0: int32, v7: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -2237,8 +2195,8 @@ b1:
 
 b2:
     v3: int32 = 1
-    v4: int32 = int.sub v0, v3
-    v8: int32 = int.xor v7, v0
+    v4: int32 = sub v0, v3
+    v8: int32 = xor v7, v0
     jump entry(v4, v8)
 }
 "#;

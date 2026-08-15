@@ -7,15 +7,10 @@ use crate::optimize::{MirOptimized, ModulePass, PipelineContext, declare_pass};
 declare_pass! {
     /// Remove functions the analysis scope cannot reach.
     ///
-    /// Scope-agnostic: with module analysis it drops module-dead functions, with program
-    /// analysis it drops program-dead functions. A function survives only when some root
-    /// reaches it over call or address edges; a never-address-taken function is dead even
-    /// amid unknown indirect calls, since no pointer to it can exist.
-    ///
     /// ```mir
     /// export function root(): void {
     /// b0:
-    ///     call live()
+    ///     call live(): () => void
     ///     return
     /// }
     /// function live(): void {
@@ -31,7 +26,7 @@ declare_pass! {
     /// ```mir
     /// export function root(): void {
     /// b0:
-    ///     call live()
+    ///     call live(): () => void
     ///     return
     /// }
     /// function live(): void {
@@ -51,11 +46,11 @@ impl ModulePass for EliminateDeadFunctions {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mut mir::ModuleAnalyses,
+        _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
-        let changed = run_eliminate_dead_functions(tree, memory, ctx.program_analysis());
+        let accesses = &mut optimized.accesses;
+        let changed = run_eliminate_dead_functions(tree, accesses, ctx.program_analysis());
 
         // report stripped definitions as control-flow changes
         if changed {
@@ -64,22 +59,12 @@ impl ModulePass for EliminateDeadFunctions {
             Mutation::NONE
         }
     }
-
-    /// Return the pass display name.
-    fn name(&self) -> &'static str {
-        "EliminateDeadFunctions"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "eliminate-dead-functions"
-    }
 }
 
 /// Strip every defined function the analysis scope cannot reach.
 pub(crate) fn run_eliminate_dead_functions(
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     program: &ProgramAnalysis,
 ) -> bool {
     // an empty scope defines no symbols, so nothing can be proven dead
@@ -97,7 +82,7 @@ pub(crate) fn run_eliminate_dead_functions(
 
     // strip each unreachable function down to an external declaration
     for function_id in &dead {
-        strip_function_body(*function_id, tree, memory);
+        strip_function_body(*function_id, tree, accesses);
     }
 
     !dead.is_empty()
@@ -107,7 +92,7 @@ pub(crate) fn run_eliminate_dead_functions(
 pub(crate) fn strip_function_body(
     function_id: mir::LocalNodeId<mir::Function>,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
 ) {
     // collect blocks and instructions before stripping the body
     let block_ids = tree.get(function_id).blocks().to_vec();
@@ -121,7 +106,7 @@ pub(crate) fn strip_function_body(
     for block_id in &block_ids {
         let instruction_ids = tree.get(*block_id).instructions.clone();
         for instruction_id in instruction_ids {
-            memory.remove_memory_accesses(instruction_id);
+            accesses.remove(instruction_id);
         }
     }
 }
@@ -133,8 +118,8 @@ mod tests {
 
     /// Build a program analysis treating the module as a standalone program.
     fn module_analysis(test: &TestProgram) -> ProgramAnalysis {
-        let mut analyses = test.module_analyses();
-        let links = analyses.link_graph(&test.optimized.tree, &test.optimized.effects);
+        let mut analyses = test.analysis_cache();
+        let links = analyses.link(&test.optimized.tree, &test.optimized.effects);
         let roots: Vec<_> = links
             .nodes()
             .filter(|(_, node)| node.linkage().is_exported())
@@ -144,7 +129,6 @@ mod tests {
 
         ProgramAnalysis::analyze(&supergraph, &roots)
     }
-
     #[test]
     fn test_eliminates_functions_no_root_reaches() {
         let mut test = TestProgram::new(
@@ -174,7 +158,7 @@ entry:
         let program = module_analysis(&test);
         let changed = run_eliminate_dead_functions(
             &mut test.optimized.tree,
-            &mut test.optimized.memory,
+            &mut test.optimized.accesses,
             &program,
         );
 

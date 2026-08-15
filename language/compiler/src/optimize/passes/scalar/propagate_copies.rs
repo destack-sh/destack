@@ -12,9 +12,6 @@ use destack_mir::{
 declare_pass! {
     /// Copy propagation pass.
     ///
-    /// Replaces uses of block parameters that are copies of another value.
-    /// A block parameter is a "copy" when all predecessors pass the same value.
-    ///
     /// ```mir
     /// function before(v0: int32): int32 {
     /// b0(v0: int32):
@@ -47,13 +44,13 @@ impl FunctionPass for PropagateCopies {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        _analyses: &mut mir::FunctionAnalyses,
+        _analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // run copy propagation
-        let changed = run_propagate_copies(function, tree, memory);
+        let changed = run_propagate_copies(function, tree, accesses);
 
         // report what this pass changed
         if changed {
@@ -62,28 +59,17 @@ impl FunctionPass for PropagateCopies {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "PropagateCopies"
-    }
-
-    fn id(&self) -> &'static str {
-        "propagate-copies"
-    }
 }
 
-/// Core copy propagation logic.
-#[allow(clippy::type_complexity)]
+/// Propagate copies through one function.
 fn run_propagate_copies(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
 ) -> bool {
-    // build predecessor map: block -> list of (predecessor_block, arguments passed)
-    let mut predecessors: HashMap<
-        mir::LocalNodeId<mir::Block>,
-        Vec<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)>,
-    > = HashMap::new();
+    // collect incoming argument lists by target block
+    let mut predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<Vec<mir::Value>>> =
+        HashMap::new();
 
     // initialize all blocks with empty predecessor lists
     for &block_id in function.blocks() {
@@ -97,10 +83,7 @@ fn run_propagate_copies(
         let terminator = tree.get(block.terminator);
         let mut record_predecessor = |target: &mir::BlockTarget| {
             let arguments = target.arguments(tree).to_vec();
-            predecessors
-                .get_mut(&target.block)
-                .unwrap()
-                .push((block_id, arguments));
+            predecessors.get_mut(&target.block).unwrap().push(arguments);
         };
 
         match terminator {
@@ -189,7 +172,7 @@ fn run_propagate_copies(
             let param_value = param.value;
 
             let mut incoming_values: Vec<mir::Value> = Vec::new();
-            for (_pred_block, args) in preds {
+            for args in preds {
                 if param_idx < args.len() {
                     let argument = args[param_idx];
                     incoming_values.push(argument);
@@ -278,7 +261,7 @@ fn run_propagate_copies(
             // replace instructions when substitutions apply
             if new_instruction != instruction {
                 tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
+                remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
             }
         }
     }
@@ -636,7 +619,7 @@ b2:
     jump b3(v0, v3)
 
 b3(v4: int32, v5: int32):
-    v6: int32 = int.add v4, v5
+    v6: int32 = add v4, v5
     return v6
 }
 "#;
@@ -656,7 +639,7 @@ b2:
     jump b3(v3)
 
 b3(v5: int32):
-    v6: int32 = int.add v0, v5
+    v6: int32 = add v0, v5
     return v6
 }
 "#;
@@ -673,7 +656,7 @@ b3(v5: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;

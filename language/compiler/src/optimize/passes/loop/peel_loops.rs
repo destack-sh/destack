@@ -4,25 +4,21 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
-use destack_mir::{ControlFlowGraph, DominatorTree, Mutation, clone_loop_blocks, terminator_remap};
+use destack_mir::{ControlTable, DominatorTable, Mutation, clone_loop_blocks, terminator_remap};
 
 declare_pass! {
     /// Peel a single iteration from loops guarded at the latch.
     ///
-    /// The peeled iteration preserves the loop guard by redirecting the backedge
-    /// to the original header. This is safe for do-while style loops where the
-    /// first iteration always executes.
-    ///
     /// ```mir
     /// function before(v0: uint32): uint32 {
     /// b0(v0: uint32):
-    ///     v1 = 0uint32
+    ///     v1: uint32 = 0
     ///     jump b1(v1)
     /// b1(v2: uint32):
-    ///     v3 = int.add v2, v0
-    ///     v4 = 1uint32
-    ///     v5 = int.add v2, v4
-    ///     v6 = int.lt.u v5, v0
+    ///     v3: uint32 = add v2, v0
+    ///     v4: uint32 = 1
+    ///     v5: uint32 = add v2, v4
+    ///     v6: boolean = lt v5, v0
     ///     branch v6 => b1(v5) | b2
     /// b2:
     ///     return v3
@@ -32,21 +28,21 @@ declare_pass! {
     /// ```mir
     /// function after(v0: uint32): uint32 {
     /// b0(v0: uint32):
-    ///     v1 = 0uint32
+    ///     v1: uint32 = 0
     ///     jump b3(v1)
     /// b1(v2: uint32):
-    ///     v3 = int.add v2, v0
-    ///     v4 = 1uint32
-    ///     v5 = int.add v2, v4
-    ///     v6 = int.lt.u v5, v0
+    ///     v3: uint32 = add v2, v0
+    ///     v4: uint32 = 1
+    ///     v5: uint32 = add v2, v4
+    ///     v6: boolean = lt v5, v0
     ///     branch v6 => b1(v5) | b2
     /// b2:
     ///     return v3
     /// b3(v7: uint32):
-    ///     v8 = int.add v7, v0
-    ///     v9 = 1uint32
-    ///     v10 = int.add v7, v9
-    ///     v11 = int.lt.u v10, v0
+    ///     v8: uint32 = add v7, v0
+    ///     v9: uint32 = 1
+    ///     v10: uint32 = add v7, v9
+    ///     v11: boolean = lt v10, v0
     ///     branch v11 => b1(v10) | b2
     /// }
     /// ```
@@ -62,32 +58,22 @@ impl FunctionPass for PeelLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
         }
 
-        let changed = run_peel_loops(function, tree, memory, ctx, analyses);
+        let changed = run_peel_loops(function, tree, accesses, ctx, analyses);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the display name for this pass.
-    fn name(&self) -> &'static str {
-        "PeelLoops"
-    }
-
-    /// Return the pipeline identifier for this pass.
-    fn id(&self) -> &'static str {
-        "peel-loops"
     }
 }
 
@@ -95,14 +81,14 @@ impl FunctionPass for PeelLoops {
 fn run_peel_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     _ctx: &PipelineContext<'_>,
-    analyses: &mut mir::FunctionAnalyses,
+    analyses: &mut mir::FunctionCache,
 ) -> bool {
     // gather analyses
     let loops = analyses.loops(function, tree).clone();
-    let cfg = analyses.control_flow(function, tree).clone();
-    let domtree = analyses.dominators(function, tree).clone();
+    let cfg = analyses.control(function, tree).clone();
+    let domtree = analyses.dominator(function, tree).clone();
 
     // bail out when no loops are present
     if loops.num_loops() == 0 {
@@ -134,7 +120,7 @@ fn run_peel_loops(
         };
 
         // clone the loop once to form the peeled iteration
-        let (block_map, value_map) = clone_loop_blocks(&lp.blocks, function, tree, memory);
+        let (block_map, value_map) = clone_loop_blocks(&lp.blocks, function, tree, accesses);
 
         // map header and latch to their cloned counterparts
         let cloned_header = block_map[&lp.header];
@@ -185,8 +171,8 @@ fn run_peel_loops(
 fn find_preheader(
     header: mir::LocalNodeId<mir::Block>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
     tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     // collect outside predecessors
@@ -296,10 +282,10 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v2: uint32):
-    v3: uint32 = int.add v2, v0
+    v3: uint32 = add v2, v0
     v4: uint32 = 1
-    v5: uint32 = int.add v2, v4
-    v6: boolean = int.lt.u v5, v0
+    v5: uint32 = add v2, v4
+    v6: boolean = lt v5, v0
     branch v6 => b1(v5) | b2
 
 b2:
@@ -314,20 +300,20 @@ entry(v0: uint32):
     jump b3(v1)
 
 b1(v2: uint32):
-    v3: uint32 = int.add v2, v0
+    v3: uint32 = add v2, v0
     v4: uint32 = 1
-    v5: uint32 = int.add v2, v4
-    v6: boolean = int.lt.u v5, v0
+    v5: uint32 = add v2, v4
+    v6: boolean = lt v5, v0
     branch v6 => b1(v5) | b2
 
 b2:
     return v3
 
 b3(v7: uint32):
-    v8: uint32 = int.add v7, v0
+    v8: uint32 = add v7, v0
     v9: uint32 = 1
-    v10: uint32 = int.add v7, v9
-    v11: boolean = int.lt.u v10, v0
+    v10: uint32 = add v7, v9
+    v11: boolean = lt v10, v0
     branch v11 => b1(v10) | b2
 }
 "#;
@@ -348,11 +334,11 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v3: uint32):
-    v4: boolean = int.lt.u v3, v0
+    v4: boolean = lt v3, v0
     branch v4 => b2(v3) | b3
 
 b2(v5: uint32):
-    v6: uint32 = int.add v5, v2
+    v6: uint32 = add v5, v2
     jump b1(v6)
 
 b3:
@@ -376,14 +362,14 @@ entry(v0: uint32, v1: boolean):
     jump b1(v2)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v0
+    v5: boolean = lt v4, v0
     branch v5 => b2(v4) | b4
 
 b2(v6: uint32):
     branch v1 => b3(v6) | b5
 
 b3(v7: uint32):
-    v8: uint32 = int.add v7, v3
+    v8: uint32 = add v7, v3
     jump b1(v8)
 
 b4:

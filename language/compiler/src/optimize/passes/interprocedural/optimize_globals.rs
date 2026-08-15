@@ -4,12 +4,10 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
-use destack_mir::{FunctionEffectAnalysis, Mutation, ValueDefinitions};
+use destack_mir::{DefinitionTable, EffectTable, Mutation};
 
 declare_pass! {
     /// Mark private globals readonly when no write can reach them.
-    ///
-    /// This pass promotes mutable globals to immutable when they are never written.
     ///
     /// ```mir
     /// global value: int32 = 42
@@ -41,13 +39,13 @@ impl ModulePass for OptimizeGlobals {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::ModuleAnalyses,
+        analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &optimized.memory;
+        let accesses = &optimized.accesses;
         let effects = &mut optimized.effects;
 
-        let function_effects = analyses.function_effects(tree, memory, effects);
+        let function_effects = analyses.effect(tree, accesses, effects);
         let changed = run_optimize_globals(tree, effects, &function_effects);
 
         // report what this pass changed
@@ -58,23 +56,13 @@ impl ModulePass for OptimizeGlobals {
             Mutation::NONE
         }
     }
-
-    /// Return the pass display name.
-    fn name(&self) -> &'static str {
-        "OptimizeGlobals"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "optimize-globals"
-    }
 }
 
 /// Run global optimizations over the module.
 fn run_optimize_globals(
     tree: &mut mir::Tree,
     effects: &mir::EffectTable,
-    function_effects: &FunctionEffectAnalysis,
+    function_effects: &EffectTable,
 ) -> bool {
     // collect global address definitions and pointer uses
     let addr_info = collect_global_addr_info(tree);
@@ -263,7 +251,7 @@ fn collect_written_globals(
     tree: &mir::Tree,
     addr_info: &GlobalAddrInfo,
     effects: &mir::EffectTable,
-    function_effects: &FunctionEffectAnalysis,
+    function_effects: &EffectTable,
 ) -> HashSet<mir::LocalNodeId<mir::Global>> {
     // prepare the written set
     let mut written = HashSet::new();
@@ -274,7 +262,7 @@ fn collect_written_globals(
             continue;
         }
 
-        let definitions = ValueDefinitions::build(function, tree).instruction_map();
+        let definitions = DefinitionTable::build(function, tree).instruction_map();
 
         for &block_id in function.blocks() {
             let block = tree.get(block_id);
@@ -481,7 +469,7 @@ fn call_writes_memory(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
     effects: &mir::EffectTable,
-    function_effects: &FunctionEffectAnalysis,
+    function_effects: &EffectTable,
 ) -> bool {
     let callsite = mir::CallSite::Instruction(instruction_id);
     let tables = effects.call(callsite);
@@ -507,7 +495,7 @@ fn terminator_write_arguments(
     block_id: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
     effects: &mir::EffectTable,
-    function_effects: &FunctionEffectAnalysis,
+    function_effects: &EffectTable,
 ) -> Option<Vec<mir::Value>> {
     match terminator {
         mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
@@ -532,7 +520,7 @@ fn terminator_write_arguments(
 
 /// Return true when a function effect may write memory.
 fn function_memory_writes(
-    effects: &FunctionEffectAnalysis,
+    effects: &EffectTable,
     function: mir::LocalNodeId<mir::Function>,
 ) -> bool {
     effects

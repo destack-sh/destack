@@ -1,6 +1,8 @@
 use std::fmt;
 
-use crate::optimize::{FunctionPass, MirOptimized, ModulePass, PipelineContext};
+use crate::optimize::{
+    FunctionPass, MirOptimized, ModulePass, PipelineContext, run_function_passes,
+};
 use destack_mir as mir;
 
 use super::pipeline::Pipeline;
@@ -62,33 +64,8 @@ impl Pipeline for FunctionPipeline {
             .collect();
 
         for function_id in function_ids {
-            let mut function = optimized.tree.get(function_id).clone();
-
-            // skip imported functions (no body)
-            if function.entry().is_none() {
-                continue;
-            }
-
-            // retain analyses across the function pass sequence
-            let mut analyses = mir::FunctionAnalyses::with_options(ctx.options.analysis);
-
-            // seal the value counter once on entry; passes maintain it via next_value
-            function.recompute_next_value_id(&optimized.tree);
-            function.rebuild_instruction_index(&optimized.tree);
-
-            for pass in &self.passes {
-                let mutation = pass.run(&mut function, optimized, ctx, &mut analyses);
-
-                // drop the analyses this pass's mutation invalidates
-                analyses.invalidate(mutation);
-                if !mutation.is_none() {
-                    function.rebuild_instruction_index(&optimized.tree);
-                    any_changed = true;
-                }
-            }
-
-            // write function back
-            *optimized.tree.get_mut(function_id) = function;
+            let passes = self.passes.iter().map(|pass| pass.as_ref());
+            any_changed |= run_function_passes(function_id, optimized, ctx, passes);
         }
 
         any_changed
@@ -143,7 +120,7 @@ impl Pipeline for ModulePipeline {
         let mut any_changed = false;
 
         // retain analyses across the module pass sequence
-        let mut analyses = mir::ModuleAnalyses::with_options(ctx.options.analysis);
+        let mut analyses = mir::AnalysisCache::with_options(ctx.options.analysis);
 
         for pass in &self.passes {
             let mutation = pass.run(optimized, ctx, &mut analyses);
@@ -342,47 +319,9 @@ mod tests {
             _func: &mut mir::Function,
             _optimized: &mut MirOptimized,
             _ctx: &PipelineContext<'_>,
-            _analyses: &mut mir::FunctionAnalyses,
+            _analyses: &mut mir::FunctionCache,
         ) -> Mutation {
             Mutation::NONE
-        }
-
-        fn name(&self) -> &'static str {
-            "NoOp"
-        }
-    }
-
-    /// Return a function pass that claims to make changes.
-    #[allow(dead_code)]
-    struct ChangesFunctionPass;
-
-    /// Changes pass metadata.
-    #[allow(dead_code)]
-    static CHANGES_METADATA: PassMetadata = PassMetadata {
-        id: "changes",
-        name: "ChangesFunctionPass",
-        description: "Changes pass.",
-    };
-
-    impl Pass for ChangesFunctionPass {
-        fn metadata(&self) -> &'static PassMetadata {
-            &CHANGES_METADATA
-        }
-    }
-
-    impl FunctionPass for ChangesFunctionPass {
-        fn run(
-            &self,
-            _func: &mut mir::Function,
-            _optimized: &mut MirOptimized,
-            _ctx: &PipelineContext<'_>,
-            _analyses: &mut mir::FunctionAnalyses,
-        ) -> Mutation {
-            Mutation::ALL
-        }
-
-        fn name(&self) -> &'static str {
-            "Changes"
         }
     }
 

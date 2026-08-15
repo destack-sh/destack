@@ -4,7 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
-use destack_mir::{Mutation, RangeAnalysis, RangeMap, ValueRange, ValueTypes};
+use destack_mir::{Mutation, RangeState, RangeTable, ValueRange, ValueTypeTable};
 
 /// Integer widths supported by the textual MIR primitive type grammar.
 const SUPPORTED_INTEGER_WIDTHS: [u16; 6] = [8, 16, 32, 64, 128, 256];
@@ -12,13 +12,10 @@ const SUPPORTED_INTEGER_WIDTHS: [u16; 6] = [8, 16, 32, 64, 128, 256];
 declare_pass! {
     /// NarrowValues integer operands for comparisons and bounds checks.
     ///
-    /// This pass inserts truncating casts where the upper bits are provably unused.
-    /// This reduces comparison operand widths without changing observable semantics.
-    ///
     /// ```mir
     /// function before(v0: uint32, v1: uint32): boolean {
     /// b0(v0: uint32, v1: uint32):
-    ///     v2 = int.lt.u v0, v1
+    ///     v2: boolean = lt v0, v1
     ///     return v2
     /// }
     /// ```
@@ -26,9 +23,9 @@ declare_pass! {
     /// ```mir
     /// function after(v0: uint32, v1: uint32): boolean {
     /// b0(v0: uint32, v1: uint32):
-    ///     v2 = cast.truncate v0 -> uint8
-    ///     v3 = cast.truncate v1 -> uint8
-    ///     v4 = int.lt.u v2, v3
+    ///     v2: uint8 = cast.truncate v0 -> uint8
+    ///     v3: uint8 = cast.truncate v1 -> uint8
+    ///     v4: boolean = lt v2, v3
     ///     return v4
     /// }
     /// ```
@@ -44,7 +41,7 @@ impl FunctionPass for NarrowValues {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -54,8 +51,8 @@ impl FunctionPass for NarrowValues {
         }
 
         // gather analyses
-        let ranges = analyses.ranges(function, tree).clone();
-        let value_types = analyses.value_types(function, tree);
+        let ranges = analyses.range(function, tree).clone();
+        let value_types = analyses.value_type(function, tree);
 
         // apply narrowing
         let changed = run_narrow(function, tree, &ranges, &value_types);
@@ -64,16 +61,6 @@ impl FunctionPass for NarrowValues {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the display name for this pass.
-    fn name(&self) -> &'static str {
-        "NarrowValues"
-    }
-
-    /// Return the pipeline identifier for this pass.
-    fn id(&self) -> &'static str {
-        "narrow-values"
     }
 }
 
@@ -92,8 +79,8 @@ struct IntegerInfo {
 fn run_narrow(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    ranges: &RangeAnalysis,
-    value_types: &ValueTypes,
+    ranges: &RangeTable,
+    value_types: &ValueTypeTable,
 ) -> bool {
     // refresh value ids before inserting casts
     function.recompute_next_value_id(tree);
@@ -272,8 +259,8 @@ fn supported_integer_width(required_width: u16, original_width: u16) -> Option<u
 /// Return integer range and type details needed for narrowing.
 fn integer_info_for_value(
     value: mir::Value,
-    ranges: &RangeMap,
-    value_types: &ValueTypes,
+    ranges: &RangeState,
+    value_types: &ValueTypeTable,
     tree: &mut mir::Tree,
 ) -> Option<IntegerInfo> {
     // fetch the integer range for this value
@@ -327,8 +314,8 @@ fn narrow_pair(
     cast_cache: &mut HashMap<(mir::Value, u16, bool), mir::Value>,
     type_cache: &mut HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
     value_cast_width: &mut HashMap<mir::Value, u16>,
-    ranges: &RangeMap,
-    value_types: &ValueTypes,
+    ranges: &RangeState,
+    value_types: &ValueTypeTable,
 ) -> Option<(mir::Value, mir::Value)> {
     // compute range info for both operands
     let left_info = integer_info_for_value(left, ranges, value_types, tree)?;
@@ -430,9 +417,9 @@ function test(): boolean {
 entry:
     v0: uint32 = 3
     v1: uint32 = 4
-    v2: boolean = int.lt.u v0, v1
-    v3: boolean = int.lt.u v0, v0
-    v4: boolean = int.and v2, v3
+    v2: boolean = lt v0, v1
+    v3: boolean = lt v0, v0
+    v4: boolean = and v2, v3
     return v4
 }
 "#;
@@ -444,9 +431,9 @@ entry:
     v1: uint32 = 4
     v5: uint8 = cast.truncate v0 -> uint8
     v6: uint8 = cast.truncate v1 -> uint8
-    v2: boolean = int.lt.u v5, v6
-    v3: boolean = int.lt.u v5, v5
-    v4: boolean = int.and v2, v3
+    v2: boolean = lt v5, v6
+    v3: boolean = lt v5, v5
+    v4: boolean = and v2, v3
     return v4
 }
 "#;
@@ -464,7 +451,7 @@ function test(): boolean {
 entry:
     v0: int32 = 0
     v1: int32 = 1
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     return v2
 }
 "#;
@@ -476,7 +463,7 @@ entry:
     v1: int32 = 1
     v3: int8 = cast.truncate v0 -> int8
     v4: int8 = cast.truncate v1 -> int8
-    v2: boolean = int.lt.s v3, v4
+    v2: boolean = lt v3, v4
     return v2
 }
 "#;
@@ -494,7 +481,7 @@ function test(v0: [uint8; 8]): uint8 {
 entry(v0: [uint8; 8]):
     v1: uint32 = 2
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
@@ -513,7 +500,7 @@ entry(v0: [uint8; 8]):
     v2: uint32 = 4
     v5: uint8 = cast.truncate v1 -> uint8
     v6: uint8 = cast.truncate v2 -> uint8
-    v3: boolean = int.lt.u v5, v6
+    v3: boolean = lt v5, v6
     check bounds.u v5, v6, v0 => b1 | b2
 
 b1:
@@ -536,7 +523,7 @@ b2:
         let input = r#"
 function test(v0: uint32, v1: uint32): boolean {
 entry(v0: uint32, v1: uint32):
-    v2: boolean = int.lt.u v0, v1
+    v2: boolean = lt v0, v1
     return v2
 }
 "#;
@@ -554,7 +541,7 @@ function test(v0: [uint8; 8]): void {
 entry(v0: [uint8; 8]):
     v1: uint32 = 2
     v2: uint64 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
@@ -578,7 +565,7 @@ function test(): boolean {
 entry:
     v0: int32 = -2147483648
     v1: int32 = 2147483647
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     return v2
 }
 "#;

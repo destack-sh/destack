@@ -5,26 +5,23 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantPropagation, ControlFlowGraph, DominatorTree, Mutation, ValueRange,
+    ConstantTable, ControlTable, DominatorTable, Mutation, ValueRange,
     apply_substitutions_in_dominated_blocks, build_use_def_maps, build_value_instruction_map,
 };
 
 declare_pass! {
     /// Propagate equalities implied by dominating conditions.
     ///
-    /// When a branch condition proves two values are equal, this pass replaces
-    /// uses of one value with the other within the dominated region.
-    ///
     /// ```mir
     /// function before(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
-    ///     v2 = int.eq v0, v1
+    ///     v2: boolean = eq v0, v1
     ///     branch v2 => b1 | b2
     /// b1:
-    ///     v3 = int.add v0, v1
+    ///     v3: int32 = add v0, v1
     ///     jump b3(v3)
     /// b2:
-    ///     v4 = int.sub v0, v1
+    ///     v4: int32 = sub v0, v1
     ///     jump b3(v4)
     /// b3(v5: int32):
     ///     return v5
@@ -34,23 +31,18 @@ declare_pass! {
     /// ```mir
     /// function after(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
-    ///     v2 = int.eq v0, v1
+    ///     v2: boolean = eq v0, v1
     ///     branch v2 => b1 | b2
     /// b1:
-    ///     v3 = int.add v0, v0
+    ///     v3: int32 = add v0, v0
     ///     jump b3(v3)
     /// b2:
-    ///     v4 = int.sub v0, v1
+    ///     v4: int32 = sub v0, v1
     ///     jump b3(v4)
     /// b3(v5: int32):
     ///     return v5
     /// }
     /// ```
-    ///
-    /// Restrictions:
-    /// - Only propagates integer and pointer equality
-    /// - Does not propagate float equality due to NaN and signed zero
-    /// - Folds dominated integer comparisons using branch range constraints
     #[pass(id = "propagate-correlated-values")]
     pub PropagateCorrelatedValues,
     "Propagate correlated values from dominating conditions"
@@ -62,10 +54,10 @@ impl FunctionPass for PropagateCorrelatedValues {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip imported functions
         if function.entry().is_none() {
@@ -73,13 +65,13 @@ impl FunctionPass for PropagateCorrelatedValues {
         }
 
         // gather analyses
-        let domtree = analyses.dominators(function, tree).clone();
-        let cfg = analyses.control_flow(function, tree).clone();
-        let constants = analyses.constants(function, tree).clone();
+        let domtree = analyses.dominator(function, tree).clone();
+        let cfg = analyses.control(function, tree).clone();
+        let constants = analyses.constant(function, tree).clone();
 
         // run correlated propagation
         let changed =
-            run_propagate_correlated_values(function, tree, memory, &domtree, &cfg, &constants);
+            run_propagate_correlated_values(function, tree, accesses, &domtree, &cfg, &constants);
 
         // report what this pass changed
         if changed {
@@ -88,24 +80,16 @@ impl FunctionPass for PropagateCorrelatedValues {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "PropagateCorrelatedValues"
-    }
-
-    fn id(&self) -> &'static str {
-        "propagate-correlated-values"
-    }
 }
 
 /// Propagate equalities implied by conditional branches.
 fn run_propagate_correlated_values(
     function: &mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    domtree: &DominatorTree,
-    cfg: &ControlFlowGraph,
-    constants: &ConstantPropagation,
+    accesses: &mut mir::AccessTable,
+    domtree: &DominatorTable,
+    cfg: &ControlTable,
+    constants: &ConstantTable,
 ) -> bool {
     // build definition map for dominance checks
     let use_def = build_use_def_maps(function, tree);
@@ -138,7 +122,8 @@ fn run_propagate_correlated_values(
         };
 
         // extract an equality condition
-        if let Some(equality) = equality_condition(condition, &value_to_instruction) {
+        if let Some(equality) = equality_condition(condition, function, tree, &value_to_instruction)
+        {
             // decide which successor is the equality path
             let equality_block = if equality.is_equal_on_then {
                 then_target
@@ -176,7 +161,7 @@ fn run_propagate_correlated_values(
                     let applied = apply_substitutions_in_dominated_blocks(
                         function,
                         tree,
-                        memory,
+                        accesses,
                         domtree,
                         equality_block,
                         &substitutions,
@@ -257,6 +242,8 @@ struct RangeConstraintPair {
 /// Extract equality information from a condition value.
 fn equality_condition(
     condition: mir::Value,
+    function: &mir::Function,
+    tree: &mir::Tree,
     value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
 ) -> Option<EqualityCondition> {
     // look up the defining instruction
@@ -273,6 +260,11 @@ fn equality_condition(
         // map equality operators to the condition
         let left = *left;
         let right = *right;
+        let ty = function.expect_value_type(left);
+        let is_float = tree.get(ty).is_float(tree);
+        if is_float {
+            return None;
+        }
 
         return match operator {
             mir::BinaryOperator::Equal => Some(EqualityCondition {
@@ -295,7 +287,6 @@ fn equality_condition(
         argument,
         ..
     } = instruction
-        && true
         && let Some(nested) = value_to_instruction.get(argument)
         && let mir::Instruction::Binary {
             operator,
@@ -307,6 +298,11 @@ fn equality_condition(
         // invert equality operators for the negated condition
         let left = *left;
         let right = *right;
+        let ty = function.expect_value_type(left);
+        let is_float = tree.get(ty).is_float(tree);
+        if is_float {
+            return None;
+        }
 
         return match operator {
             mir::BinaryOperator::Equal => Some(EqualityCondition {
@@ -433,25 +429,25 @@ fn integer_range_constraints(
 
     // derive range for the true edge
     let (then_min, then_max, else_min, else_max) = match operator {
-        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => (
+        mir::BinaryOperator::LessThan => (
             full_min,
             constant_value.saturating_sub(1),
             constant_value,
             full_max,
         ),
-        mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => (
+        mir::BinaryOperator::LessEqual => (
             full_min,
             constant_value,
             constant_value.saturating_add(1),
             full_max,
         ),
-        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => (
+        mir::BinaryOperator::GreaterThan => (
             constant_value.saturating_add(1),
             full_max,
             full_min,
             constant_value,
         ),
-        mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => (
+        mir::BinaryOperator::GreaterEqual => (
             constant_value,
             full_max,
             full_min,
@@ -525,7 +521,7 @@ fn integer_range_from_bounds(
 fn apply_range_constraint(
     function: &mir::Function,
     tree: &mut mir::Tree,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
     root: mir::LocalNodeId<mir::Block>,
     constraint: &RangeConstraint,
     value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
@@ -626,7 +622,7 @@ fn comparison_from_range(
 
     // evaluate comparison outcome
     match operator {
-        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
+        mir::BinaryOperator::LessThan => {
             if max < constant_value {
                 Some(true)
             } else if min >= constant_value {
@@ -635,7 +631,7 @@ fn comparison_from_range(
                 None
             }
         }
-        mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
+        mir::BinaryOperator::LessEqual => {
             if max <= constant_value {
                 Some(true)
             } else if min > constant_value {
@@ -644,7 +640,7 @@ fn comparison_from_range(
                 None
             }
         }
-        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
+        mir::BinaryOperator::GreaterThan => {
             if min > constant_value {
                 Some(true)
             } else if max <= constant_value {
@@ -653,7 +649,7 @@ fn comparison_from_range(
                 None
             }
         }
-        mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
+        mir::BinaryOperator::GreaterEqual => {
             if min >= constant_value {
                 Some(true)
             } else if max < constant_value {
@@ -701,7 +697,7 @@ fn choose_replacement(
     right: mir::Value,
     block: mir::LocalNodeId<mir::Block>,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> Option<(mir::Value, mir::Value)> {
     // treat parameters as available at function entry
     let entry_block = entry?;
@@ -730,7 +726,7 @@ fn choose_replacement(
 
 /// Pick a constant operand as the canonical value when safe.
 fn constant_substitution(
-    constants: &ConstantPropagation,
+    constants: &ConstantTable,
     block_id: mir::LocalNodeId<mir::Block>,
     left: mir::Value,
     right: mir::Value,
@@ -762,7 +758,7 @@ fn constant_is_integer_like(constant: &mir::Constant) -> bool {
 
 /// Check whether a block has a single predecessor and it matches the expected block.
 fn is_single_predecessor(
-    cfg: &ControlFlowGraph,
+    cfg: &ControlTable,
     block: mir::LocalNodeId<mir::Block>,
     expected: mir::LocalNodeId<mir::Block>,
 ) -> bool {
@@ -785,15 +781,15 @@ mod tests {
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     jump b3(v3)
 
 b2:
-    v4: int32 = int.sub v0, v1
+    v4: int32 = sub v0, v1
     jump b3(v4)
 
 b3(v5: int32):
@@ -805,15 +801,15 @@ b3(v5: int32):
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v0
+    v3: int32 = add v0, v0
     jump b3(v3)
 
 b2:
-    v4: int32 = int.sub v0, v1
+    v4: int32 = sub v0, v1
     jump b3(v4)
 
 b3(v5: int32):
@@ -834,15 +830,15 @@ b3(v5: int32):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.ne v0, v1
+    v2: boolean = ne v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     return v3
 
 b2:
-    v4: int32 = int.sub v0, v1
+    v4: int32 = sub v0, v1
     return v4
 }
 "#;
@@ -851,15 +847,15 @@ b2:
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.ne v0, v1
+    v2: boolean = ne v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     return v3
 
 b2:
-    v4: int32 = int.sub v0, v0
+    v4: int32 = sub v0, v0
     return v4
 }
 "#;
@@ -878,11 +874,11 @@ b2:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 7
-    v3: boolean = int.eq v0, v2
+    v3: boolean = eq v0, v2
     branch v3 => b1 | b2
 
 b1:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     return v4
 
 b2:
@@ -895,11 +891,11 @@ b2:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 7
-    v3: boolean = int.eq v0, v2
+    v3: boolean = eq v0, v2
     branch v3 => b1 | b2
 
 b1:
-    v4: int32 = int.add v2, v1
+    v4: int32 = add v2, v1
     return v4
 
 b2:
@@ -920,15 +916,15 @@ b2:
         let input = r#"
 function test(v0: float64, v1: float64): float64 {
 entry(v0: float64, v1: float64):
-    v2: boolean = float.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v3: float64 = float.add v0, v1
+    v3: float64 = add v0, v1
     return v3
 
 b2:
-    v4: float64 = float.sub v0, v1
+    v4: float64 = sub v0, v1
     return v4
 }
 "#;
@@ -946,7 +942,7 @@ b2:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -956,7 +952,7 @@ b2:
     return v0
 
 b3:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     return v3
 }
 "#;
@@ -965,7 +961,7 @@ b3:
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -975,7 +971,7 @@ b2:
     return v0
 
 b3:
-    v3: int32 = int.add v0, v0
+    v3: int32 = add v0, v0
     return v3
 }
 "#;
@@ -993,16 +989,16 @@ b3:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    v3: boolean = int.not v2
+    v2: boolean = eq v0, v1
+    v3: boolean = not v2
     branch v3 => b1 | b2
 
 b1:
-    v4: int32 = int.sub v0, v1
+    v4: int32 = sub v0, v1
     return v4
 
 b2:
-    v5: int32 = int.add v0, v1
+    v5: int32 = add v0, v1
     return v5
 }
 "#;
@@ -1011,16 +1007,16 @@ b2:
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    v3: boolean = int.not v2
+    v2: boolean = eq v0, v1
+    v3: boolean = not v2
     branch v3 => b1 | b2
 
 b1:
-    v4: int32 = int.sub v0, v1
+    v4: int32 = sub v0, v1
     return v4
 
 b2:
-    v5: int32 = int.add v0, v0
+    v5: int32 = add v0, v0
     return v5
 }
 "#;
@@ -1038,11 +1034,11 @@ b2:
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
+    v3: boolean = eq v0, v1
     check bounds.u v0, v1, v2 => b1 | b2
 
 b1:
-    v4: uint32 = int.add v0, v1
+    v4: uint32 = add v0, v1
     return v4
 
 b2:
@@ -1054,11 +1050,11 @@ b2:
         let expected = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
+    v3: boolean = eq v0, v1
     check bounds.u v0, v1, v2 => b1 | b2
 
 b1:
-    v4: uint32 = int.add v0, v1
+    v4: uint32 = add v0, v1
     return v4
 
 b2:
@@ -1079,11 +1075,11 @@ b2:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     return v3
 
 b2:
@@ -1105,11 +1101,11 @@ b2:
 function test(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 5
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v3: boolean = int.lt.s v0, v1
+    v3: boolean = lt v0, v1
     return v3
 
 b2:
@@ -1122,7 +1118,7 @@ b2:
 function test(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 5
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1148,14 +1144,14 @@ b2:
 function test(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 5
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     branch v2 => b1 | b2
 
 b1:
     return v2
 
 b2:
-    v3: boolean = int.lt.s v0, v1
+    v3: boolean = lt v0, v1
     return v3
 }
 "#;
@@ -1165,7 +1161,7 @@ b2:
 function test(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 5
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     branch v2 => b1 | b2
 
 b1:

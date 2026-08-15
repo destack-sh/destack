@@ -5,24 +5,17 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, MemoryLocation, MemorySSA, Mutation, instruction_has_side_effects,
+    AliasTable, MemoryLocation, MemoryTable, Mutation, instruction_has_side_effects,
 };
 
 declare_pass! {
     /// Aggressive Dead Code Elimination (ADCE).
     ///
-    /// Uses LLVM-style reverse dataflow analysis to efficiently identify and remove dead
-    /// instructions. An instruction is live if:
-    /// - It has side effects (calls, stores, etc.)
-    /// - Its result is used by a live instruction or terminator
-    ///
-    /// Also removes local or memory stores that are overwritten before any read.
-    ///
     /// ```mir
     /// function before(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = 42int32
-    ///     v2 = int.add v0, v1
+    ///     v1: int32 = 42
+    ///     v2: int32 = add v0, v1
     ///     return v0
     /// }
     /// ```
@@ -44,18 +37,18 @@ impl FunctionPass for EliminateDeadCode {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &optimized.effects;
 
         // build memory analyses for local dead store elimination
         let alias = analyses.alias(function, tree);
-        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+        let memory = analyses.memory(function, tree, accesses, effects);
 
         // run dead code elimination
-        let changed = run_dead_code_elimination(function, tree, memory, &alias, &memory_ssa);
+        let changed = run_dead_code_elimination(function, tree, accesses, &alias, &memory);
 
         // report what this pass changed
         if changed {
@@ -64,26 +57,18 @@ impl FunctionPass for EliminateDeadCode {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "EliminateDeadCode"
-    }
-
-    fn id(&self) -> &'static str {
-        "eliminate-dead-code"
-    }
 }
 
 /// Core dead code elimination logic (shared by both pass implementations).
 fn run_dead_code_elimination(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mir::MemoryTable,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    accesses: &mir::AccessTable,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> bool {
     // drop dead stores before liveness
-    let mut changed = remove_dead_stores(function, tree, memory, alias, memory_ssa);
+    let mut changed = remove_dead_stores(function, tree, accesses, alias, memory);
 
     // build value to defining instruction map
     let mut value_to_instruction: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> =
@@ -114,7 +99,7 @@ fn run_dead_code_elimination(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             if (instruction_has_side_effects(instruction)
-                || memory.instruction_requires_exact_access(tree, instruction_id))
+                || accesses.requires_exact_position(instruction_id, tree))
                 && live.insert(instruction_id)
             {
                 worklist.push_back(instruction_id);
@@ -183,9 +168,9 @@ fn run_dead_code_elimination(
 fn remove_dead_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mir::MemoryTable,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    accesses: &mir::AccessTable,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> bool {
     // collect locals that are read anywhere
     let mut locals_read = HashSet::new();
@@ -222,7 +207,7 @@ fn remove_dead_stores(
                 mir::Instruction::Store { pointer, .. } => {
                     let pointer = *pointer;
 
-                    if memory.instruction_requires_exact_access(tree, instruction_id) {
+                    if accesses.requires_exact_position(instruction_id, tree) {
                         continue;
                     }
 
@@ -232,7 +217,7 @@ fn remove_dead_stores(
                         pointer,
                         tree,
                         alias,
-                        memory_ssa,
+                        memory,
                     ) {
                         dead_stores.insert(instruction_id);
                     }
@@ -296,8 +281,8 @@ fn store_overwritten_in_block(
     start: usize,
     pointer: mir::Value,
     tree: &mir::Tree,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> bool {
     // build a memory location for the stored pointer
     let location = MemoryLocation::from_address(pointer);
@@ -325,7 +310,7 @@ fn store_overwritten_in_block(
         }
 
         // stop when any later memory effect can observe or clobber the store
-        let touches_location = memory_ssa
+        let touches_location = memory
             .instruction_effects(instruction_id)
             .any(|effect| effect.may_touch_location(&location, alias));
         if touches_location {
@@ -350,7 +335,7 @@ function test(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = 2
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v0
 }
 "#;
@@ -379,7 +364,7 @@ function test(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = 2
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;
@@ -400,7 +385,7 @@ entry:
     v0: int32 = 1
     v1: int32 = 2
     v2: int32 = 3
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     v4: int32 = 4
     return v0
 }
@@ -578,7 +563,7 @@ function test(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = 2
-    v2: boolean = int.gt.s v0, v1
+    v2: boolean = gt v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -604,9 +589,9 @@ function test(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = 2
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.mul v2, v0
-    v4: int32 = int.sub v3, v1
+    v2: int32 = add v0, v1
+    v3: int32 = mul v2, v0
+    v4: int32 = sub v3, v1
     return v0
 }
 "#;
@@ -671,7 +656,7 @@ function test(): void {
 entry:
     v0: int32 = 1
     v1: int32 = 2
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return
 }
 "#;
@@ -702,13 +687,13 @@ entry:
     jump b1
 
 b1:
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     v3: int32 = 999
     branch v2 => b2 | b3
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.mul v3, v3
+    v5: int32 = mul v3, v3
     jump b1
 
 b3:
@@ -726,7 +711,7 @@ entry:
     jump b1
 
 b1:
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     branch v2 => b2 | b3
 
 b2:

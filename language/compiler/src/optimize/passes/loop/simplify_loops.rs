@@ -4,29 +4,12 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext, declare_pass};
 use destack_mir::{
-    ControlFlowGraph, LoopAnalysis, Mutation, instruction_substitute_uses_in_tree,
+    ControlTable, LoopTable, Mutation, instruction_substitute_uses_in_tree,
     terminator_substitute_uses,
 };
 
 declare_pass! {
     /// Canonicalize loops into a simplified form.
-    ///
-    /// This pass transforms loops to have:
-    /// 1. A preheader: a single dedicated block that precedes the loop header
-    /// 2. A single latch: one back edge to the header
-    /// 3. Dedicated exit blocks: exit edges go to blocks only reachable from the loop
-    ///
-    /// These properties simplify subsequent loop transformations like LICM,
-    /// loop rotation, and unrolling.
-    ///
-    /// A preheader is inserted when the loop header has:
-    /// - Multiple predecessors from outside the loop
-    /// - A single predecessor that also branches elsewhere (not a dedicated entry)
-    /// - Is the function entry block
-    ///
-    /// Latches are merged when a loop has multiple back edges to its header.
-    ///
-    /// Exit blocks are split when they have predecessors from outside the loop.
     #[pass(id = "simplify-loops")]
     pub SimplifyLoops,
     "Canonicalize loops (preheaders, single latch, dedicated exits)"
@@ -38,7 +21,7 @@ impl FunctionPass for SimplifyLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -51,7 +34,7 @@ impl FunctionPass for SimplifyLoops {
         let (loops, cfg) = {
             (
                 analyses.loops(function, tree).clone(),
-                analyses.control_flow(function, tree).clone(),
+                analyses.control(function, tree).clone(),
             )
         };
         if loops.num_loops() == 0 {
@@ -66,14 +49,6 @@ impl FunctionPass for SimplifyLoops {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "SimplifyLoops"
-    }
-
-    fn id(&self) -> &'static str {
-        "simplify-loops"
-    }
 }
 
 /// Core loop simplification logic. Returns true if changes were made.
@@ -81,8 +56,8 @@ fn run_simplify_loops(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    loops: &LoopAnalysis,
-    cfg: &ControlFlowGraph,
+    loops: &LoopTable,
+    cfg: &ControlTable,
 ) -> bool {
     // collect work items using loop indices (avoids cloning)
     let mut preheader_work: Vec<usize> = Vec::new();
@@ -226,7 +201,7 @@ fn fresh_parameters_like(
 /// - A single outside predecessor also branches elsewhere
 fn needs_preheader(
     lp: &mir::Loop,
-    cfg: &ControlFlowGraph,
+    cfg: &ControlTable,
     tree: &mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
 ) -> bool {
@@ -264,7 +239,7 @@ fn needs_preheader(
 fn needs_dedicated_exit(
     exit_block: mir::LocalNodeId<mir::Block>,
     lp: &mir::Loop,
-    cfg: &ControlFlowGraph,
+    cfg: &ControlTable,
 ) -> bool {
     // check if any predecessor is from outside the loop
     let preds = cfg.predecessors(exit_block);
@@ -1013,7 +988,7 @@ b1(v3: int32):
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     jump b1(v5)
 
 b3:
@@ -1021,7 +996,7 @@ b3:
 
 b4:
     v6: int32 = 10
-    v7: int32 = int.add v3, v6
+    v7: int32 = add v3, v6
     jump b1(v7)
 
 b5:
@@ -1040,7 +1015,7 @@ b1(v3: int32):
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     jump b6(v5)
 
 b3:
@@ -1048,7 +1023,7 @@ b3:
 
 b4:
     v6: int32 = 10
-    v7: int32 = int.add v3, v6
+    v7: int32 = add v3, v6
     jump b6(v7)
 
 b5:
@@ -1115,7 +1090,7 @@ entry(v0: boolean, v1: boolean):
 
 b1(v3: int32):
     v4: int32 = 1
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     branch v1 => b1(v5) | b2(v5)
 
 b2(v6: int32):
@@ -1131,7 +1106,7 @@ entry(v0: boolean, v1: boolean):
 
 b1(v3: int32):
     v4: int32 = 1
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     branch v1 => b1(v5) | b4(v5)
 
 b2(v6: int32):

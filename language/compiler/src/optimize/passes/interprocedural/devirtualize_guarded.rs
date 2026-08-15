@@ -19,7 +19,7 @@ impl ModulePass for DevirtualizeGuarded {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mut mir::ModuleAnalyses,
+        _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         let Some(profile) = ctx.profile() else {
             return Mutation::NONE;
@@ -38,16 +38,6 @@ impl ModulePass for DevirtualizeGuarded {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass display name.
-    fn name(&self) -> &'static str {
-        "DevirtualizeGuarded"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "devirtualize-guarded"
     }
 }
 
@@ -631,7 +621,7 @@ entry(v0: dynamic<Reader, managed, mutable>):
 function test(v0: dynamic<Reader, managed, mutable>): int32 {
 entry(v0: dynamic<Reader, managed, mutable>):
     v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable>) => int32
-    v2: int32 = int.add v1, v1
+    v2: int32 = add v1, v1
     return v2
 }
 "#;
@@ -672,7 +662,7 @@ b2:
     invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable>) => int32 => b3 | b4
 
 b3(v1: int32):
-    v2: int32 = int.add v1, v1
+    v2: int32 = add v1, v1
     return v2
 
 b4:

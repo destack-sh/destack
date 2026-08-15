@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, MemoryAccessId, MemoryNode,
-    MemorySSA, Mutation, append_edge_arguments, apply_substitutions_in_function,
+    AliasTable, ControlTable, DominatorTable, EdgeSplitPolicy, MemoryAccessId, MemoryNode,
+    MemoryTable, Mutation, append_edge_arguments, apply_substitutions_in_function,
     build_use_def_maps, ensure_edge_block, instruction_allows_read_only_motion,
     instruction_has_side_effects, instruction_is_read_only_access, instruction_is_speculatable,
     resolve_edge_value, value_available_in_block,
@@ -15,21 +15,18 @@ use destack_mir::{
 declare_pass! {
     /// Eliminate partially redundant loads using MemorySSA.
     ///
-    /// Loads whose memory state flows through a MemorySSA phi can be
-    /// replaced by per predecessor loads and a block parameter.
-    ///
     /// ```mir
     /// function before(v0: boolean): int32 {
     ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1 = local.address l0 -> ref<int32, borrowed, mutable, frame>
+    ///     v1: ref<int32, borrowed, mutable, frame> = local.address l0
     ///     branch v0 => b1 | b2
     /// b1:
     ///     jump b3
     /// b2:
     ///     jump b3
     /// b3:
-    ///     v2 = load v1 -> int32
+    ///     v2: int32 = load v1
     ///     return v2
     /// }
     /// ```
@@ -38,13 +35,13 @@ declare_pass! {
     /// function after(v0: boolean): int32 {
     ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1 = local.address l0 -> ref<int32, borrowed, mutable, frame>
+    ///     v1: ref<int32, borrowed, mutable, frame> = local.address l0
     ///     branch v0 => b1 | b2
     /// b1:
-    ///     v4 = load v1 -> int32
+    ///     v4: int32 = load v1
     ///     jump b3(v4)
     /// b2:
-    ///     v5 = load v1 -> int32
+    ///     v5: int32 = load v1
     ///     jump b3(v5)
     /// b3(v3: int32):
     ///     return v3
@@ -61,10 +58,10 @@ impl FunctionPass for EliminatePartialRedundantLoads {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &mut optimized.effects;
 
         // skip imported functions
@@ -74,7 +71,7 @@ impl FunctionPass for EliminatePartialRedundantLoads {
 
         // run load PRE
         let changed =
-            run_eliminate_partial_redundant_loads(function, tree, memory, effects, ctx, analyses);
+            run_eliminate_partial_redundant_loads(function, tree, accesses, effects, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -82,14 +79,6 @@ impl FunctionPass for EliminatePartialRedundantLoads {
         } else {
             Mutation::NONE
         }
-    }
-
-    fn name(&self) -> &'static str {
-        "EliminatePartialRedundantLoads"
-    }
-
-    fn id(&self) -> &'static str {
-        "eliminate-partial-redundant-loads"
     }
 }
 
@@ -108,10 +97,10 @@ struct LoadCandidate {
     result_type: mir::LocalNodeId<mir::Type>,
 }
 
-/// MemorySSA data for a candidate load.
+/// MemoryTable data for a candidate load.
 #[derive(Clone, Copy)]
 struct LoadAccessInfo {
-    /// MemorySSA phi access for the load block.
+    /// MemoryTable phi access for the load block.
     phi_access: MemoryAccessId,
 }
 
@@ -130,15 +119,15 @@ struct EdgeInsertion {
 fn run_eliminate_partial_redundant_loads(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     effects: &mir::EffectTable,
     _ctx: &PipelineContext<'_>,
-    analyses: &mut mir::FunctionAnalyses,
+    analyses: &mut mir::FunctionCache,
 ) -> bool {
     // gather analyses
-    let cfg = analyses.control_flow(function, tree).clone();
-    let domtree = analyses.dominators(function, tree).clone();
-    let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+    let cfg = analyses.control(function, tree).clone();
+    let domtree = analyses.dominator(function, tree).clone();
+    let memory = analyses.memory(function, tree, accesses, effects);
     let alias = analyses.alias(function, tree);
 
     // build value definition info
@@ -199,7 +188,7 @@ fn run_eliminate_partial_redundant_loads(
 
             // validate load eligibility
             let Some(access_info) =
-                load_access_info(&load, &block, tree, effects, memory_ssa.as_ref())
+                load_access_info(&load, &block, function, tree, effects, memory.as_ref())
             else {
                 continue;
             };
@@ -214,7 +203,7 @@ fn run_eliminate_partial_redundant_loads(
                 &use_def.def_block,
                 &function_params,
                 &param_indices,
-                memory_ssa.as_ref(),
+                memory.as_ref(),
                 &alias,
             ) else {
                 continue;
@@ -271,7 +260,7 @@ fn run_eliminate_partial_redundant_loads(
                     );
 
                     // clone memory access entries when present
-                    clone_load_metadata(memory, load.load_id, load_id, insertion.pointer);
+                    clone_load_metadata(accesses, load.load_id, load_id, insertion.pointer);
                     load_value
                 };
 
@@ -292,35 +281,36 @@ fn run_eliminate_partial_redundant_loads(
 
     // apply substitutions and removals
     let updated =
-        apply_substitutions_in_function(function, tree, memory, &substitutions, Some(&to_remove));
+        apply_substitutions_in_function(function, tree, accesses, &substitutions, Some(&to_remove));
 
     // drop memory tables for removed loads
     for load_id in &to_remove {
-        memory.remove_memory_accesses(*load_id);
+        accesses.remove(*load_id);
     }
 
     changed || updated
 }
 
-/// Return MemorySSA data when a load is eligible for load PRE.
+/// Return MemoryTable data when a load is eligible for load PRE.
 fn load_access_info(
     load: &LoadCandidate,
     block: &mir::Block,
+    function: &mir::Function,
     tree: &mir::Tree,
     effects: &mir::EffectTable,
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
 ) -> Option<LoadAccessInfo> {
     // resolve the memory ssa use access
-    let use_access_id = memory_ssa.first_use_access(load.load_id)?;
+    let use_access_id = memory.first_use_access(load.load_id)?;
 
     // require a memory phi at the block entry
-    let phi_access = memory_ssa.block_phi(load.block)?;
-    if memory_ssa.defining_access(use_access_id) != Some(phi_access) {
+    let phi_access = memory.block_phi(load.block)?;
+    if memory.defining_access(use_access_id) != Some(phi_access) {
         return None;
     }
 
     // require a known reference location
-    let MemoryNode::Use(use_access) = memory_ssa.access(use_access_id) else {
+    let MemoryNode::Use(use_access) = memory.access(use_access_id) else {
         return None;
     };
     // require a trackable effect
@@ -329,7 +319,7 @@ fn load_access_info(
     }
 
     // ensure the load can move to block entry
-    if !load_can_move_to_entry(load.load_id, block, tree, effects, memory_ssa) {
+    if !load_can_move_to_entry(load.load_id, block, function, tree, effects, memory) {
         return None;
     }
 
@@ -340,9 +330,10 @@ fn load_access_info(
 fn load_can_move_to_entry(
     load_id: mir::LocalNodeId<mir::Instruction>,
     block: &mir::Block,
+    function: &mir::Function,
     tree: &mir::Tree,
     effects: &mir::EffectTable,
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
 ) -> bool {
     // inspect instructions before the load
     for &instruction_id in &block.instructions {
@@ -355,7 +346,7 @@ fn load_can_move_to_entry(
         let instruction = tree.get(instruction_id);
 
         // allow read only accesses with safe tables
-        let read_only_access = instruction_is_read_only_access(instruction_id, memory_ssa);
+        let read_only_access = instruction_is_read_only_access(instruction_id, memory);
 
         // reject side effecting instructions
         if instruction_has_side_effects(instruction) {
@@ -368,7 +359,7 @@ fn load_can_move_to_entry(
         }
 
         // accept speculatable instructions
-        if instruction_is_speculatable(instruction, tree) {
+        if instruction_is_speculatable(instruction, function, tree) {
             continue;
         }
 
@@ -392,14 +383,14 @@ fn load_can_move_to_entry(
 fn collect_edge_insertions(
     load: &LoadCandidate,
     access_info: &LoadAccessInfo,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
     tree: &mir::Tree,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     function_params: &HashSet<mir::Value>,
     param_indices: &HashMap<mir::Value, usize>,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
+    memory: &MemoryTable,
+    alias: &AliasTable,
 ) -> Option<Vec<EdgeInsertion>> {
     // collect predecessor edge insertions
     let mut insertions = Vec::new();
@@ -411,7 +402,7 @@ fn collect_edge_insertions(
     }
 
     // resolve incoming memory accesses for the load block
-    let MemoryNode::Phi(phi) = memory_ssa.access(access_info.phi_access) else {
+    let MemoryNode::Phi(phi) = memory.access(access_info.phi_access) else {
         return None;
     };
     let incoming_by_pred: HashMap<_, _> = phi
@@ -456,7 +447,7 @@ fn collect_edge_insertions(
             load.result_type,
             incoming_access,
             tree,
-            memory_ssa,
+            memory,
             alias,
         );
 
@@ -478,8 +469,8 @@ fn reusable_predecessor_load(
     result_type: mir::LocalNodeId<mir::Type>,
     incoming_access: MemoryAccessId,
     tree: &mir::Tree,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
+    memory: &MemoryTable,
+    alias: &AliasTable,
 ) -> Option<mir::Value> {
     // scan loads in order and reuse the latest matching load
     let block = tree.get(predecessor);
@@ -502,10 +493,10 @@ fn reusable_predecessor_load(
         }
 
         // require a memory ssa use for this load
-        let Some(use_access_id) = memory_ssa.first_use_access(instruction_id) else {
+        let Some(use_access_id) = memory.first_use_access(instruction_id) else {
             continue;
         };
-        let MemoryNode::Use(use_access) = memory_ssa.access(use_access_id) else {
+        let MemoryNode::Use(use_access) = memory.access(use_access_id) else {
             continue;
         };
 
@@ -515,7 +506,7 @@ fn reusable_predecessor_load(
         }
 
         // require the same incoming memory state
-        let load_clobber = memory_ssa.clobbering_use(use_access_id, alias);
+        let load_clobber = memory.clobbering_use(use_access_id, alias);
         if load_clobber == incoming_access {
             reusable = Some(*destination);
         }
@@ -526,19 +517,19 @@ fn reusable_predecessor_load(
 
 /// Clone load tables to a new instruction.
 fn clone_load_metadata(
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     source: mir::LocalNodeId<mir::Instruction>,
     destination: mir::LocalNodeId<mir::Instruction>,
     pointer: mir::Value,
 ) {
     // skip when there is no tables to clone
-    let Some(accesses) = memory.memory_accesses(source) else {
+    let Some(entries) = accesses.get(source) else {
         return;
     };
 
     // update reference targets for cloned tables
-    let mut cloned = Vec::with_capacity(accesses.len());
-    for access in accesses {
+    let mut cloned = Vec::with_capacity(entries.len());
+    for access in entries {
         let mut updated = access.clone();
         if matches!(updated.target, mir::MemoryTarget::Address(_)) {
             updated.target = mir::MemoryTarget::Address(pointer);
@@ -546,7 +537,7 @@ fn clone_load_metadata(
         cloned.push(updated);
     }
 
-    memory.insert_memory_accesses(destination, cloned);
+    accesses.insert(destination, cloned);
 }
 
 #[cfg(test)]

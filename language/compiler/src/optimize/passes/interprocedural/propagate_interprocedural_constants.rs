@@ -5,27 +5,24 @@ use destack_mir as mir;
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{
-    Mutation, SignatureKey, ValueDefinitions, apply_constant_parameters, constant_for_value,
+    DefinitionTable, Mutation, SignatureKey, apply_constant_parameters, constant_for_value,
     constant_matches_type, constant_type_of,
 };
 
 declare_pass! {
     /// Propagate constants across direct callsites.
     ///
-    /// This pass substitutes parameters in a callee when all direct callsites
-    /// pass the same constant, then leaves dead argument removal to later passes.
-    ///
     /// ```mir
     /// function callee(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
-    ///     v2 = int.add v0, v1
+    ///     v2: int32 = add v0, v1
     ///     return v2
     /// }
     /// function root(): int32 {
     /// b0:
-    ///     v0 = 40int32
-    ///     v1 = 2int32
-    ///     v2 = call callee(v0, v1)
+    ///     v0: int32 = 40
+    ///     v1: int32 = 2
+    ///     v2: int32 = call callee(v0, v1): (int32, int32) => int32
     ///     return v2
     /// }
     /// ```
@@ -33,16 +30,16 @@ declare_pass! {
     /// ```mir
     /// function callee(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
-    ///     v3 = 40int32
-    ///     v4 = 2int32
-    ///     v2 = int.add v3, v4
+    ///     v3: int32 = 40
+    ///     v4: int32 = 2
+    ///     v2: int32 = add v3, v4
     ///     return v2
     /// }
     /// function root(): int32 {
     /// b0:
-    ///     v0 = 40int32
-    ///     v1 = 2int32
-    ///     v2 = call callee(v0, v1)
+    ///     v0: int32 = 40
+    ///     v1: int32 = 2
+    ///     v2: int32 = call callee(v0, v1): (int32, int32) => int32
     ///     return v2
     /// }
     /// ```
@@ -57,13 +54,13 @@ impl ModulePass for PropagateInterproceduralConstants {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mut mir::ModuleAnalyses,
+        _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         let pointer_width_bits = ctx.options.target_layout().pointer_bits();
-        let changed = run_interprocedural_constant_prop(tree, memory, pointer_width_bits);
+        let changed = run_interprocedural_constant_prop(tree, accesses, pointer_width_bits);
 
         // report what this pass changed
         if changed {
@@ -72,16 +69,6 @@ impl ModulePass for PropagateInterproceduralConstants {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass display name.
-    fn name(&self) -> &'static str {
-        "PropagateInterproceduralConstants"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "propagate-interprocedural-constants"
     }
 }
 
@@ -106,7 +93,7 @@ struct CallData {
 /// Run interprocedural constant propagation over the module.
 fn run_interprocedural_constant_prop(
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     pointer_width_bits: u16,
 ) -> bool {
     // collect callsites up front
@@ -156,7 +143,7 @@ fn run_interprocedural_constant_prop(
         }
 
         // insert constants and rewrite uses inside the callee
-        if apply_constant_parameters(function_id, &constants, tree, memory) {
+        if apply_constant_parameters(function_id, &constants, tree, accesses) {
             changed = true;
         }
     }
@@ -250,7 +237,7 @@ fn build_definition_cache(
 
         cache.insert(
             function_id,
-            ValueDefinitions::build(function, tree).instruction_map(),
+            DefinitionTable::build(function, tree).instruction_map(),
         );
     }
 
@@ -328,7 +315,7 @@ mod tests {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 
@@ -346,7 +333,7 @@ function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v3: int32 = 40
     v4: int32 = 2
-    v2: int32 = int.add v3, v4
+    v2: int32 = add v3, v4
     return v2
 }
 
@@ -370,7 +357,7 @@ entry:
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 
@@ -392,7 +379,7 @@ entry:
         let expected = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 
@@ -422,7 +409,7 @@ entry:
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 
@@ -438,7 +425,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         let expected = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 

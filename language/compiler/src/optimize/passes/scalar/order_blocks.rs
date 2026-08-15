@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, Mutation,
+    ControlTable, DominatorTable, EdgeSplitPolicy, Hotness, Mutation,
     block_parameters_used_outside_block, block_uses_available_in_predecessor, build_use_def_maps,
     clone_instruction_tables, collect_reachable_blocks, ensure_edge_block,
     instruction_is_speculatable, instruction_map, terminator_substitute_uses,
@@ -14,17 +14,15 @@ use destack_mir::{
 declare_pass! {
     /// Reorder blocks based on profile hotness.
     ///
-    /// Hot paths are laid out contiguously and cold blocks are placed last.
-    ///
     /// ```mir
     /// function before(v0: boolean): int32 {
     /// b0(v0: boolean):
     ///     branch v0 => b1 | b2
     /// b2:
-    ///     v1 = 2int32
+    ///     v1: int32 = 2
     ///     return v1
     /// b1:
-    ///     v2 = 1int32
+    ///     v2: int32 = 1
     ///     return v2
     /// }
     /// ```
@@ -34,10 +32,10 @@ declare_pass! {
     /// b0(v0: boolean):
     ///     branch v0 => b1 | b2
     /// b1:
-    ///     v2 = 1int32
+    ///     v2: int32 = 1
     ///     return v2
     /// b2:
-    ///     v1 = 2int32
+    ///     v1: int32 = 2
     ///     return v1
     /// }
     /// ```
@@ -52,10 +50,10 @@ impl FunctionPass for OrderBlocks {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip imported functions
         let Some(entry) = function.entry() else {
@@ -71,7 +69,7 @@ impl FunctionPass for OrderBlocks {
         }
 
         // compute a new layout
-        let changed = order_blocks(function, tree, memory, entry, profile, ctx, analyses);
+        let changed = order_blocks(function, tree, accesses, entry, profile, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -79,14 +77,6 @@ impl FunctionPass for OrderBlocks {
         } else {
             Mutation::NONE
         }
-    }
-
-    fn name(&self) -> &'static str {
-        "OrderBlocks"
-    }
-
-    fn id(&self) -> &'static str {
-        "order-blocks"
     }
 }
 
@@ -116,11 +106,11 @@ struct EdgePredecessor {
 fn order_blocks(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     entry: mir::LocalNodeId<mir::Block>,
     profile: &mir::Profile,
     ctx: &PipelineContext<'_>,
-    analyses: &mut mir::FunctionAnalyses,
+    analyses: &mut mir::FunctionCache,
 ) -> bool {
     // derive block counts and hotness
     let execution_counts = mir::ExecutionCounts::new(function, tree, Some(profile), analyses);
@@ -135,20 +125,20 @@ fn order_blocks(
     cold_blocks.remove(&entry);
 
     // fetch required analyses
-    let domtree = analyses.dominators(function, tree).clone();
+    let domtree = analyses.dominator(function, tree).clone();
 
     // duplicate hot edges into small blocks
     let duplicated = duplicate_hot_edges(
         function,
         tree,
-        memory,
+        accesses,
         execution_counts.edges(),
         &domtree,
         &mut block_counts,
     );
 
     // rebuild cfg after duplication for cold edge outlining
-    let cfg = ControlFlowGraph::build(function, tree);
+    let cfg = ControlTable::build(function, tree);
 
     // outline hot to cold edges for layout
     let outlined = outline_cold_edges(function, tree, &cfg, &mut cold_blocks, &mut block_counts);
@@ -255,7 +245,7 @@ fn classify_cold_blocks(
     let mut cold = HashSet::new();
     for (&block, &count) in block_counts {
         // record blocks below cold thresholds
-        if matches!(hotness.classify(count, entry_count), CallsiteHotness::Cold) {
+        if matches!(hotness.classify(count, entry_count), Hotness::Cold) {
             cold.insert(block);
         }
     }
@@ -267,7 +257,7 @@ fn classify_cold_blocks(
 fn outline_cold_edges(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    cfg: &ControlFlowGraph,
+    cfg: &ControlTable,
     cold_blocks: &mut HashSet<mir::LocalNodeId<mir::Block>>,
     block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> bool {
@@ -323,9 +313,9 @@ fn outline_cold_edges(
 fn duplicate_hot_edges(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     edge_counts: &HashMap<mir::Edge, u64>,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
     block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> bool {
     // build definition tables
@@ -437,7 +427,7 @@ fn duplicate_hot_edges(
         let mut all_speculatable = true;
         for instruction_id in &block.instructions {
             let instruction = tree.get(*instruction_id);
-            if !instruction_is_speculatable(instruction, tree) {
+            if !instruction_is_speculatable(instruction, function, tree) {
                 all_speculatable = false;
                 break;
             }
@@ -504,7 +494,7 @@ fn duplicate_hot_edges(
 
                 let cloned = instruction_map(&instruction, &value_map, tree);
                 let new_id = tree.insert(cloned);
-                clone_instruction_tables(tree, memory, *instruction_id, new_id, &value_map);
+                clone_instruction_tables(tree, accesses, *instruction_id, new_id, &value_map);
                 new_instructions.push(new_id);
             }
 
@@ -983,7 +973,7 @@ b3:
 function test(v0: uint32, v1: [uint32; 8]): int32 {
 entry(v0: uint32, v1: [uint32; 8]):
     v2: uint32 = 1
-    v3: boolean = int.lt.u v0, v2
+    v3: boolean = lt v0, v2
     check bounds.u v0, v2, v1 => b2 | b1
 
 b1:
@@ -1000,7 +990,7 @@ b2:
 function test(v0: uint32, v1: [uint32; 8]): int32 {
 entry(v0: uint32, v1: [uint32; 8]):
     v2: uint32 = 1
-    v3: boolean = int.lt.u v0, v2
+    v3: boolean = lt v0, v2
     check bounds.u v0, v2, v1 => b1 | b3
 
 b1:

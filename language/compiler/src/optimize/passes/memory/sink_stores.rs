@@ -5,26 +5,23 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, EdgeSplitPolicy, MemoryAccessId, MemoryNode, MemoryRegionBuilder, MemorySSA,
+    AliasTable, EdgeSplitPolicy, MemoryAccessId, MemoryNode, MemoryRegionBuilder, MemoryTable,
     Mutation, ensure_edge_block,
 };
 
 declare_pass! {
     /// SinkInstructions stores down to the successors that use them.
     ///
-    /// When a store feeds memory uses only along a subset of outgoing edges,
-    /// move the store to those edges and remove it from the predecessor block.
-    ///
     /// ```mir
     /// function before(v0: boolean): int32 {
     ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1 = local.address l0 -> ref<int32, borrowed, mutable, frame>
-    ///     v2 = 7int32
+    ///     v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v2: int32 = 7
     ///     store v1, v2
     ///     branch v0 => b1 | b2
     /// b1:
-    ///     v3 = load v1 -> int32
+    ///     v3: int32 = load v1
     ///     return v3
     /// b2:
     ///     return v2
@@ -35,12 +32,12 @@ declare_pass! {
     /// function after(v0: boolean): int32 {
     ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1 = local.address l0 -> ref<int32, borrowed, mutable, frame>
-    ///     v2 = 7int32
+    ///     v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v2: int32 = 7
     ///     branch v0 => b1 | b2
     /// b1:
     ///     store v1, v2
-    ///     v3 = load v1 -> int32
+    ///     v3: int32 = load v1
     ///     return v3
     /// b2:
     ///     return v2
@@ -58,10 +55,10 @@ impl FunctionPass for SinkStores {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &optimized.effects;
 
         // skip imported functions
@@ -70,7 +67,7 @@ impl FunctionPass for SinkStores {
         }
 
         // run store sinking
-        let changed = run_sink_stores(function, tree, memory, effects, ctx, analyses);
+        let changed = run_sink_stores(function, tree, accesses, effects, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -78,16 +75,6 @@ impl FunctionPass for SinkStores {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "SinkStores"
-    }
-
-    /// Return the pass id.
-    fn id(&self) -> &'static str {
-        "sink-stores"
     }
 }
 
@@ -123,17 +110,17 @@ struct StoreCandidate {
 fn run_sink_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     effects: &mir::EffectTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mut mir::FunctionAnalyses,
+    analyses: &mut mir::FunctionCache,
 ) -> bool {
     // gather analyses
-    let cfg = analyses.control_flow(function, tree).clone();
-    let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+    let cfg = analyses.control(function, tree).clone();
+    let memory = analyses.memory(function, tree, accesses, effects);
     let alias = analyses.alias(function, tree).clone();
-    let definitions = analyses.value_definitions(function, tree);
-    let value_types = analyses.value_types(function, tree);
+    let definitions = analyses.definition(function, tree);
+    let value_types = analyses.value_type(function, tree);
 
     // resolve reference provenance once for all candidates
     let mut regions = MemoryRegionBuilder::new(
@@ -146,13 +133,13 @@ fn run_sink_stores(
 
     // collect store candidates
     let candidates =
-        collect_store_candidates(function, tree, memory, memory_ssa.as_ref(), &mut regions);
+        collect_store_candidates(function, tree, accesses, memory.as_ref(), &mut regions);
     if candidates.is_empty() {
         return false;
     }
 
     // map clobbering defs to the blocks that read from them
-    let use_blocks_by_def = collect_use_blocks_by_def(function, tree, memory_ssa.as_ref(), &alias);
+    let use_blocks_by_def = collect_use_blocks_by_def(function, tree, memory.as_ref(), &alias);
 
     // track modifications
     let mut edge_blocks: HashMap<
@@ -208,7 +195,7 @@ fn run_sink_stores(
             );
 
             let store_id = insert_store_for_candidate(function, tree, insertion_block, &candidate);
-            clone_store_metadata(memory, candidate.instruction, store_id, candidate.pointer);
+            clone_store_metadata(accesses, candidate.instruction, store_id, candidate.pointer);
         }
 
         // remove the original store
@@ -229,7 +216,7 @@ fn run_sink_stores(
 
     // drop memory tables for removed stores
     for instruction_id in &to_remove {
-        memory.remove_memory_accesses(*instruction_id);
+        accesses.remove(*instruction_id);
     }
 
     true
@@ -239,8 +226,8 @@ fn run_sink_stores(
 fn collect_store_candidates(
     function: &mir::Function,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
-    memory_ssa: &MemorySSA,
+    accesses: &mir::AccessTable,
+    memory: &MemoryTable,
     regions: &mut MemoryRegionBuilder<'_>,
 ) -> Vec<StoreCandidate> {
     // scan blocks for store candidates
@@ -267,12 +254,12 @@ fn collect_store_candidates(
                 _ => continue,
             };
 
-            // read the MemorySSA access
-            let access_id = match memory_ssa.instruction_access(instruction_id) {
+            // read the MemoryTable access
+            let access_id = match memory.instruction_access(instruction_id) {
                 Some(access_id) => access_id,
                 None => continue,
             };
-            let MemoryNode::Def(def_access) = memory_ssa.access(access_id) else {
+            let MemoryNode::Def(def_access) = memory.access(access_id) else {
                 continue;
             };
 
@@ -282,7 +269,7 @@ fn collect_store_candidates(
             }
 
             // skip ordered stores
-            if memory.instruction_has_atomic_ordering(tree, instruction_id) {
+            if accesses.is_ordered(instruction_id, tree) {
                 continue;
             }
 
@@ -346,8 +333,8 @@ fn terminator_allows_sinking(terminator: &mir::Terminator) -> bool {
 fn collect_use_blocks_by_def(
     function: &mir::Function,
     tree: &mir::Tree,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
+    memory: &MemoryTable,
+    alias: &AliasTable,
 ) -> HashMap<MemoryAccessId, HashSet<mir::LocalNodeId<mir::Block>>> {
     // collect clobbering use blocks
     let mut blocks_by_def: HashMap<_, HashSet<_>> = HashMap::new();
@@ -356,16 +343,16 @@ fn collect_use_blocks_by_def(
         let block = tree.get(block_id);
 
         for &instruction_id in &block.instructions {
-            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
+            let Some(accesses) = memory.instruction_accesses(instruction_id) else {
                 continue;
             };
 
             for &access_id in accesses {
-                let MemoryNode::Use(_) = memory_ssa.access(access_id) else {
+                let MemoryNode::Use(_) = memory.access(access_id) else {
                     continue;
                 };
 
-                let clobber = memory_ssa.clobbering_use(access_id, alias);
+                let clobber = memory.clobbering_use(access_id, alias);
                 blocks_by_def.entry(clobber).or_default().insert(block_id);
             }
         }
@@ -433,19 +420,19 @@ fn insert_store_for_candidate(
 
 /// Clone store tables to a new instruction.
 fn clone_store_metadata(
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     source: mir::LocalNodeId<mir::Instruction>,
     destination: mir::LocalNodeId<mir::Instruction>,
     pointer: Option<mir::Value>,
 ) {
     // skip when there is no tables to clone
-    let Some(accesses) = memory.memory_accesses(source) else {
+    let Some(entries) = accesses.get(source) else {
         return;
     };
 
     // update reference targets for cloned tables
-    let mut cloned = Vec::with_capacity(accesses.len());
-    for access in accesses {
+    let mut cloned = Vec::with_capacity(entries.len());
+    for access in entries {
         let mut updated = access.clone();
         if let (Some(pointer), mir::MemoryTarget::Address(_)) = (pointer, updated.target) {
             updated.target = mir::MemoryTarget::Address(pointer);
@@ -453,7 +440,7 @@ fn clone_store_metadata(
         cloned.push(updated);
     }
 
-    memory.insert_memory_accesses(destination, cloned);
+    accesses.insert(destination, cloned);
 }
 
 #[cfg(test)]

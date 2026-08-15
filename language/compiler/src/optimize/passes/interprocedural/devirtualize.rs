@@ -2,7 +2,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
-use mir::{DispatchAnalysis, Mutation};
+use mir::{Mutation, ResolutionTable};
 
 declare_pass! {
     /// Rewrite statically proven virtual and dynamic calls to direct calls.
@@ -17,11 +17,11 @@ impl ModulePass for Devirtualize {
         &self,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::ModuleAnalyses,
+        analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
-        let dispatch = analyses.dispatch(tree, &optimized.dispatch);
+        let dispatch = analyses.resolution(tree, &optimized.dispatch);
         let rewrites = Devirtualization::collect(tree, &dispatch);
         let changed = rewrites.apply(tree);
 
@@ -30,16 +30,6 @@ impl ModulePass for Devirtualize {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass display name.
-    fn name(&self) -> &'static str {
-        "Devirtualize"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "devirtualize"
     }
 }
 
@@ -54,7 +44,7 @@ struct Devirtualization {
 
 impl Devirtualization {
     /// Collect all statically proven call rewrites.
-    fn collect(tree: &mir::Tree, dispatch: &DispatchAnalysis) -> Self {
+    fn collect(tree: &mir::Tree, dispatch: &ResolutionTable) -> Self {
         let mut devirtualization = Self::default();
 
         // scan defined functions
@@ -89,7 +79,7 @@ impl Devirtualization {
     fn collect_function(
         &mut self,
         tree: &mir::Tree,
-        dispatch: &DispatchAnalysis,
+        dispatch: &ResolutionTable,
         function: &mir::Function,
     ) {
         for &block in function.blocks() {
@@ -98,12 +88,7 @@ impl Devirtualization {
     }
 
     /// Collect rewrites in one block.
-    fn collect_block(
-        &mut self,
-        tree: &mir::Tree,
-        dispatch: &DispatchAnalysis,
-        block: mir::BlockId,
-    ) {
+    fn collect_block(&mut self, tree: &mir::Tree, dispatch: &ResolutionTable, block: mir::BlockId) {
         let node = tree.get(block);
 
         // collect instruction calls

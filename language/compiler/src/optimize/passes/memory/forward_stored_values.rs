@@ -5,37 +5,24 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, DominatorTree, MemoryAccessEffect, MemoryAccessId, MemoryNode, MemoryRegion,
-    MemorySSA, Mutation, TargetLayout, ValueTypes, apply_substitutions_in_function,
+    AliasTable, DominatorTable, MemoryAccessEffect, MemoryAccessId, MemoryNode, MemoryRegion,
+    MemoryTable, Mutation, TargetLayout, ValueTypeTable, apply_substitutions_in_function,
     resolve_substitution_chains,
 };
 
 declare_pass! {
     /// Forward stored values to subsequent loads.
     ///
-    /// This pass performs three optimizations:
-    /// 1) **Store to load forwarding**: When a store is followed by a load from the same
-    /// location (with no intervening clobbers), replace the load with the stored value.
-    /// 2) **Load to load forwarding**: When the same region is loaded twice with no
-    /// intervening clobbers, replace the second load with the first load's result.
-    /// 3) **Cross block forwarding**: Forward values across basic blocks when the store
-    /// or load dominates the use with no intervening clobbers.
-    ///
-    /// The pass handles:
-    /// 1) Volatile and atomic operations that act as memory barriers.
-    /// 2) Calls and intrinsics that may clobber memory.
-    /// 3) Aliasing through field and element access.
-    ///
     /// ```mir
     /// function before(): int32 {
     ///     local l0: int32
     /// b0:
-    ///     v0 = local.address l0
-    ///     v1 = 42int32
+    ///     v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v1: int32 = 42
     ///     store v0, v1
-    ///     v2 = load v0       // forwarded from store
-    ///     v3 = load v0       // forwarded from store load to load
-    ///     v4 = int.add v2, v3
+    ///     v2: int32 = load v0       // forwarded from store
+    ///     v3: int32 = load v0       // forwarded from store load to load
+    ///     v4: int32 = add v2, v3
     ///     return v4
     /// }
     /// ```
@@ -44,10 +31,10 @@ declare_pass! {
     /// function after(): int32 {
     ///     local l0: int32
     /// b0:
-    ///     v0 = local.address l0
-    ///     v1 = 42int32
+    ///     v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v1: int32 = 42
     ///     store v0, v1
-    ///     v4 = int.add v1, v1
+    ///     v4: int32 = add v1, v1
     ///     return v4
     /// }
     /// ```
@@ -56,7 +43,7 @@ declare_pass! {
     "Forward stored values to subsequent loads"
 }
 
-/// An available value tied to a MemorySSA clobber.
+/// An available value tied to a MemoryTable clobber.
 #[derive(Clone)]
 struct MemoryEntry {
     /// The clobbering access id for the memory state.
@@ -73,10 +60,10 @@ impl FunctionPass for ForwardStoredValues {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &optimized.effects;
 
         // skip empty functions
@@ -86,24 +73,24 @@ impl FunctionPass for ForwardStoredValues {
         };
 
         // get analyses
-        let (aa, memory_ssa, dom_children) = {
-            let domtree = analyses.dominators(function, tree);
+        let (aa, memory, dom_children) = {
+            let domtree = analyses.dominator(function, tree);
             let aa = analyses.alias(function, tree).clone();
-            let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+            let memory = analyses.memory(function, tree, accesses, effects);
             let dom_children = build_dominator_children(function, &domtree);
-            (aa, memory_ssa, dom_children)
+            (aa, memory, dom_children)
         };
 
-        let value_types = analyses.value_types(function, tree);
+        let value_types = analyses.value_type(function, tree);
 
         // run load store forwarding
         let changed = run_forward_stored_values(
             entry,
             function,
             tree,
-            memory,
+            accesses,
             &aa,
-            memory_ssa.as_ref(),
+            memory.as_ref(),
             &dom_children,
             &value_types,
             ctx.target_layout(),
@@ -116,14 +103,6 @@ impl FunctionPass for ForwardStoredValues {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "ForwardStoredValues"
-    }
-
-    fn id(&self) -> &'static str {
-        "forward-stored-values"
-    }
 }
 
 /// Core load store forwarding logic. Returns true if changes were made.
@@ -131,11 +110,11 @@ fn run_forward_stored_values(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    aa: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    accesses: &mut mir::AccessTable,
+    aa: &AliasTable,
+    memory: &MemoryTable,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    value_types: &ValueTypes,
+    value_types: &ValueTypeTable,
     target_layout: TargetLayout,
 ) -> bool {
     // run forwarding using dominator tree traversal
@@ -143,7 +122,7 @@ fn run_forward_stored_values(
         entry,
         tree,
         aa,
-        memory_ssa,
+        memory,
         dom_children,
         value_types,
         target_layout,
@@ -158,7 +137,7 @@ fn run_forward_stored_values(
     let substitutions = resolve_substitution_chains(substitutions);
 
     // apply substitutions and remove forwarded loads
-    apply_substitutions_in_function(function, tree, memory, &substitutions, Some(&to_remove));
+    apply_substitutions_in_function(function, tree, accesses, &substitutions, Some(&to_remove));
 
     true
 }
@@ -166,7 +145,7 @@ fn run_forward_stored_values(
 /// Build a map from each block to its children in the dominator tree.
 fn build_dominator_children(
     function: &mir::Function,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
     // prepare the child mapping
     let mut children: HashMap<_, Vec<_>> = HashMap::new();
@@ -188,7 +167,7 @@ fn build_dominator_children(
 
 /// Scoped table of available memory values.
 ///
-/// Tracks values by MemorySSA clobbering access.
+/// Tracks values by MemoryTable clobbering access.
 struct AvailableMemory {
     /// Stack of scopes, each holding memory entries.
     scopes: Vec<Vec<MemoryEntry>>,
@@ -221,7 +200,7 @@ impl AvailableMemory {
         &self,
         clobber: MemoryAccessId,
         use_effect: &MemoryAccessEffect,
-        aa: &AliasAnalysis,
+        aa: &AliasTable,
     ) -> Option<mir::Value> {
         // skip untrackable effects
         if !use_effect.is_trackable() {
@@ -306,10 +285,10 @@ impl AvailableMemory {
 fn find_forwardable_loads(
     entry: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
-    aa: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    aa: &AliasTable,
+    memory: &MemoryTable,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    value_types: &ValueTypes,
+    value_types: &ValueTypeTable,
     target_layout: TargetLayout,
 ) -> (
     HashMap<mir::Value, mir::Value>,
@@ -339,7 +318,7 @@ fn find_forwardable_loads(
                     block_id,
                     tree,
                     aa,
-                    memory_ssa,
+                    memory,
                     value_types,
                     target_layout,
                     &mut available,
@@ -370,9 +349,9 @@ fn find_forwardable_loads(
 fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
-    aa: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
-    value_types: &ValueTypes,
+    aa: &AliasTable,
+    memory: &MemoryTable,
+    value_types: &ValueTypeTable,
     _target_layout: TargetLayout,
     available: &mut AvailableMemory,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
@@ -392,12 +371,12 @@ fn process_block(
                 let value = *value;
 
                 // resolve the memory def access
-                let Some(def_access_id) = def_access_id(memory_ssa, instruction_id) else {
+                let Some(def_access_id) = def_access_id(memory, instruction_id) else {
                     continue;
                 };
 
                 // read the def access data
-                let MemoryNode::Def(def_access) = memory_ssa.access(def_access_id) else {
+                let MemoryNode::Def(def_access) = memory.access(def_access_id) else {
                     continue;
                 };
 
@@ -418,12 +397,12 @@ fn process_block(
                 let destination = *destination;
 
                 // resolve the memory use access
-                let Some(use_access_id) = use_access_id(memory_ssa, instruction_id) else {
+                let Some(use_access_id) = use_access_id(memory, instruction_id) else {
                     continue;
                 };
 
                 // read the use access data
-                let MemoryNode::Use(use_access) = memory_ssa.access(use_access_id) else {
+                let MemoryNode::Use(use_access) = memory.access(use_access_id) else {
                     continue;
                 };
 
@@ -433,8 +412,8 @@ fn process_block(
                 }
 
                 // compute the clobbering access for this read
-                let clobber = memory_ssa.clobbering_use(use_access_id, aa);
-                let Some(clobber) = resolve_trivial_clobber(memory_ssa, clobber) else {
+                let clobber = memory.clobbering_use(use_access_id, aa);
+                let Some(clobber) = resolve_trivial_clobber(memory, clobber) else {
                     continue;
                 };
 
@@ -457,12 +436,12 @@ fn process_block(
                 let destination = *destination;
 
                 // resolve the memory use access
-                let Some(use_access_id) = use_access_id(memory_ssa, instruction_id) else {
+                let Some(use_access_id) = use_access_id(memory, instruction_id) else {
                     continue;
                 };
 
                 // read the use access data
-                let MemoryNode::Use(use_access) = memory_ssa.access(use_access_id) else {
+                let MemoryNode::Use(use_access) = memory.access(use_access_id) else {
                     continue;
                 };
 
@@ -472,8 +451,8 @@ fn process_block(
                 }
 
                 // compute the clobbering access for this read
-                let clobber = memory_ssa.clobbering_use(use_access_id, aa);
-                let Some(clobber) = resolve_trivial_clobber(memory_ssa, clobber) else {
+                let clobber = memory.clobbering_use(use_access_id, aa);
+                let Some(clobber) = resolve_trivial_clobber(memory, clobber) else {
                     continue;
                 };
 
@@ -515,13 +494,13 @@ fn process_block(
 }
 
 fn def_access_id(
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Option<MemoryAccessId> {
     // find the first def access for the instruction
-    let accesses = memory_ssa.instruction_accesses(instruction_id)?;
+    let accesses = memory.instruction_accesses(instruction_id)?;
     for &access_id in accesses {
-        if matches!(memory_ssa.access(access_id), MemoryNode::Def(_)) {
+        if matches!(memory.access(access_id), MemoryNode::Def(_)) {
             return Some(access_id);
         }
     }
@@ -530,13 +509,13 @@ fn def_access_id(
 }
 
 fn use_access_id(
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Option<MemoryAccessId> {
     // find the first use access for the instruction
-    let accesses = memory_ssa.instruction_accesses(instruction_id)?;
+    let accesses = memory.instruction_accesses(instruction_id)?;
     for &access_id in accesses {
-        if matches!(memory_ssa.access(access_id), MemoryNode::Use(_)) {
+        if matches!(memory.access(access_id), MemoryNode::Use(_)) {
             return Some(access_id);
         }
     }
@@ -545,10 +524,7 @@ fn use_access_id(
 }
 
 /// Resolve trivial memory phi nodes to a single clobbering access.
-fn resolve_trivial_clobber(
-    memory_ssa: &MemorySSA,
-    access: MemoryAccessId,
-) -> Option<MemoryAccessId> {
+fn resolve_trivial_clobber(memory: &MemoryTable, access: MemoryAccessId) -> Option<MemoryAccessId> {
     let mut current = access;
     let mut visited = HashSet::new();
 
@@ -557,7 +533,7 @@ fn resolve_trivial_clobber(
             return None;
         }
 
-        let MemoryNode::Phi(phi) = memory_ssa.access(current) else {
+        let MemoryNode::Phi(phi) = memory.access(current) else {
             return Some(current);
         };
 
@@ -676,7 +652,7 @@ entry:
     store v0, v1
     v2: int32 = load v0
     v3: int32 = load v0
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
@@ -688,7 +664,7 @@ entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 42
     store v0, v1
-    v4: int32 = int.add v1, v1
+    v4: int32 = add v1, v1
     return v4
 }
 "#;
@@ -905,7 +881,7 @@ entry:
     store v2, v4
     v5: int32 = load v1
     v6: int32 = load v2
-    v7: int32 = int.add v5, v6
+    v7: int32 = add v5, v6
     return v7
 }
 "#;
@@ -926,7 +902,7 @@ entry:
     v4: int32 = 20
     store v1, v3
     store v2, v4
-    v7: int32 = int.add v3, v4
+    v7: int32 = add v3, v4
     return v7
 }
 "#;
@@ -944,7 +920,7 @@ function test(v0: ref<int32, borrowed, mutable>): int32 {
 entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = load v0
     v2: int32 = load v0
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
@@ -952,7 +928,7 @@ entry(v0: ref<int32, borrowed, mutable>):
 function test(v0: ref<int32, borrowed, mutable>): int32 {
 entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = load v0
-    v3: int32 = int.add v1, v1
+    v3: int32 = add v1, v1
     return v3
 }
 "#;
@@ -972,7 +948,7 @@ entry(v0: ref<int32, borrowed, mutable>):
     v2: int32 = 99
     store v0, v2
     v3: int32 = load v0
-    v4: int32 = int.add v1, v3
+    v4: int32 = add v1, v3
     return v4
 }
 "#;
@@ -982,7 +958,7 @@ entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = load v0
     v2: int32 = 99
     store v0, v2
-    v4: int32 = int.add v1, v2
+    v4: int32 = add v1, v2
     return v4
 }
 "#;
@@ -1166,7 +1142,7 @@ entry(v0: ref<int32, borrowed, mutable>):
 
 b1:
     v2: int32 = load v0
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
@@ -1177,7 +1153,7 @@ entry(v0: ref<int32, borrowed, mutable>):
     jump b1
 
 b1:
-    v3: int32 = int.add v1, v1
+    v3: int32 = add v1, v1
     return v3
 }
 "#;
@@ -1295,7 +1271,7 @@ entry:
     store v0, v2
     v3: int32 = load v1
     v4: int32 = load v0
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     return v5
 }
 "#;
@@ -1310,7 +1286,7 @@ entry:
     v2: int32 = 42
     store v0, v2
     v3: int32 = load v1
-    v5: int32 = int.add v3, v2
+    v5: int32 = add v3, v2
     return v5
 }
 "#;
@@ -1396,7 +1372,7 @@ entry:
     store v0, v2
     v3: int32 = atomic.load v1, acquire, scope(device)
     v4: int32 = load v0
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     return v5
 }
 "#;
@@ -1509,7 +1485,7 @@ entry:
     store v0, v1
     v2: int32 = load v0
     v3: int32 = load v0
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
@@ -1521,7 +1497,7 @@ entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 42
     store v0, v1
-    v4: int32 = int.add v1, v1
+    v4: int32 = add v1, v1
     return v4
 }
 "#;
@@ -1550,7 +1526,7 @@ external function imported(): void
         let input = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 "#;

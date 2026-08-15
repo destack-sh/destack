@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, MemoryLocation, MemorySSA, Mutation, PureExpression,
+    AliasTable, MemoryLocation, MemoryTable, Mutation, PureExpression,
     instruction_has_side_effects, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -13,18 +13,12 @@ use destack_mir::{
 declare_pass! {
     /// Local Common Subexpression Elimination.
     ///
-    /// Eliminates redundant computations within a single basic block by tracking
-    /// expressions and replacing duplicates with the original result. This is a
-    /// lightweight, fast pass that runs in O(n) per block.
-    ///
-    /// For cross-block elimination, see redundant-expression elimination.
-    ///
     /// ```mir
     /// function before(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
-    ///     v2 = int.add v0, v1
-    ///     v3 = int.add v0, v1
-    ///     v4 = int.add v2, v3
+    ///     v2: int32 = add v0, v1
+    ///     v3: int32 = add v0, v1
+    ///     v4: int32 = add v2, v3
     ///     return v4
     /// }
     /// ```
@@ -32,8 +26,8 @@ declare_pass! {
     /// ```mir
     /// function after(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
-    ///     v2 = int.add v0, v1
-    ///     v4 = int.add v2, v2
+    ///     v2: int32 = add v0, v1
+    ///     v4: int32 = add v2, v2
     ///     return v4
     /// }
     /// ```
@@ -48,19 +42,19 @@ impl FunctionPass for EliminateLocalCommonSubexpressions {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &optimized.effects;
 
         // build memory analyses
         let alias = analyses.alias(function, tree);
-        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+        let memory = analyses.memory(function, tree, accesses, effects);
 
         // run local CSE
         let changed =
-            run_eliminate_local_common_subexpressions(function, tree, memory, &alias, &memory_ssa);
+            run_eliminate_local_common_subexpressions(function, tree, accesses, &alias, &memory);
 
         // report what this pass changed
         if changed {
@@ -69,23 +63,15 @@ impl FunctionPass for EliminateLocalCommonSubexpressions {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "EliminateLocalCommonSubexpressions"
-    }
-
-    fn id(&self) -> &'static str {
-        "eliminate-local-common-subexpressions"
-    }
 }
 
 /// Run local CSE on all blocks in a function.
 fn run_eliminate_local_common_subexpressions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    accesses: &mut mir::AccessTable,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> bool {
     // track whether any block changes
     let mut changed = false;
@@ -94,7 +80,7 @@ fn run_eliminate_local_common_subexpressions(
     let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         changed |= eliminate_common_subexpressions_in_block(
-            function, block_id, tree, memory, alias, memory_ssa,
+            function, block_id, tree, accesses, alias, memory,
         );
     }
     changed
@@ -107,9 +93,9 @@ fn eliminate_common_subexpressions_in_block(
     function: &mut mir::Function,
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    accesses: &mut mir::AccessTable,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> bool {
     // expression table: key -> defining value
     let mut expression_table: HashMap<PureExpression, mir::Value> = HashMap::new();
@@ -135,7 +121,7 @@ fn eliminate_common_subexpressions_in_block(
         let instruction = tree.get(instruction_id);
 
         // treat exact accesses as barriers for load forwarding
-        if memory.instruction_requires_exact_access(tree, instruction_id) {
+        if accesses.requires_exact_position(instruction_id, tree) {
             load_table.clear();
             continue;
         }
@@ -186,8 +172,8 @@ fn eliminate_common_subexpressions_in_block(
         }
 
         // invalidate load entries on memory clobbers
-        if instruction_may_clobber_memory(instruction_id, &load_table, alias, memory_ssa) {
-            load_table = prune_load_table(instruction_id, &load_table, alias, memory_ssa);
+        if instruction_may_clobber_memory(instruction_id, &load_table, alias, memory) {
+            load_table = prune_load_table(instruction_id, &load_table, alias, memory);
         }
 
         // skip instructions with side effects (don't CSE across side effects)
@@ -242,7 +228,7 @@ fn eliminate_common_subexpressions_in_block(
             instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
         if new_instruction != instruction {
             tree.set(instruction_id, new_instruction);
-            remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
+            remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
         }
     }
 
@@ -273,7 +259,7 @@ struct LoadEntry {
 fn find_load_redundancy(
     load_table: &[LoadEntry],
     location: &MemoryLocation,
-    alias: &AliasAnalysis,
+    alias: &AliasTable,
 ) -> Option<mir::Value> {
     // scan load table from most recent to oldest
     for entry in load_table.iter().rev() {
@@ -300,12 +286,12 @@ fn find_load_redundancy(
 fn instruction_may_clobber_memory(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     load_table: &[LoadEntry],
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> bool {
     // check if any tracked load is clobbered
     for entry in load_table {
-        let is_clobbered = memory_ssa
+        let is_clobbered = memory
             .instruction_effects(instruction_id)
             .any(|effect| effect.clobbers_location(&entry.location, alias));
         if is_clobbered {
@@ -320,14 +306,14 @@ fn instruction_may_clobber_memory(
 fn prune_load_table(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     load_table: &[LoadEntry],
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> Vec<LoadEntry> {
     // retain only loads not clobbered by the instruction
     load_table
         .iter()
         .filter(|entry| {
-            memory_ssa
+            memory
                 .instruction_effects(instruction_id)
                 .all(|effect| !effect.clobbers_location(&entry.location, alias))
         })
@@ -346,17 +332,17 @@ mod tests {
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v2, v3
+    v2: int32 = add v0, v1
+    v3: int32 = add v0, v1
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v4: int32 = int.add v2, v2
+    v2: int32 = add v0, v1
+    v4: int32 = add v2, v2
     return v4
 }
 "#;
@@ -371,17 +357,17 @@ entry(v0: int32, v1: int32):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.add v1, v0
-    v4: int32 = int.add v2, v3
+    v2: int32 = add v0, v1
+    v3: int32 = add v1, v0
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v4: int32 = int.add v2, v2
+    v2: int32 = add v0, v1
+    v4: int32 = add v2, v2
     return v4
 }
 "#;
@@ -396,21 +382,21 @@ entry(v0: int32, v1: int32):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.mul v2, v2
-    v5: int32 = int.mul v3, v3
-    v6: int32 = int.add v4, v5
+    v2: int32 = add v0, v1
+    v3: int32 = add v0, v1
+    v4: int32 = mul v2, v2
+    v5: int32 = mul v3, v3
+    v6: int32 = add v4, v5
     return v6
 }
 "#;
-        // v3 -> v2, then v5 = int.mul v2, v2 = v4
+        // v3 -> v2, then v5 = mul v2, v2 = v4
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v4: int32 = int.mul v2, v2
-    v6: int32 = int.add v4, v4
+    v2: int32 = add v0, v1
+    v4: int32 = mul v2, v2
+    v6: int32 = add v4, v4
     return v6
 }
 "#;
@@ -427,7 +413,7 @@ function test(): int32 {
 entry:
     v0: int32 = 42
     v1: int32 = 42
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;
@@ -443,12 +429,12 @@ entry:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     jump b1
 
 b1:
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v2, v3
+    v3: int32 = add v0, v1
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
@@ -464,9 +450,9 @@ b1:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.sub v0, v1
-    v3: int32 = int.sub v1, v0
-    v4: int32 = int.add v2, v3
+    v2: int32 = sub v0, v1
+    v3: int32 = sub v1, v0
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
@@ -482,17 +468,17 @@ entry(v0: int32, v1: int32):
         let input = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.negate v0
-    v2: int32 = int.negate v0
-    v3: int32 = int.add v1, v2
+    v1: int32 = negate v0
+    v2: int32 = negate v0
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
         let expected = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.negate v0
-    v3: int32 = int.add v1, v1
+    v1: int32 = negate v0
+    v3: int32 = add v1, v1
     return v3
 }
 "#;
@@ -507,20 +493,20 @@ entry(v0: int32):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v0, v1
-    v6: int32 = int.add v2, v5
+    v2: int32 = add v0, v1
+    v3: int32 = add v0, v1
+    v4: int32 = add v0, v1
+    v5: int32 = add v0, v1
+    v6: int32 = add v2, v5
     return v6
 }
 "#;
-        // all int.add v0, v1 collapse to v2
+        // all add v0, v1 collapse to v2
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v6: int32 = int.add v2, v2
+    v2: int32 = add v0, v1
+    v6: int32 = add v2, v2
     return v6
 }
 "#;
@@ -537,7 +523,7 @@ function test(v0: (int32, int32)): int32 {
 entry(v0: (int32, int32)):
     v1: int32 = field.get v0, 0
     v2: int32 = field.get v0, 0
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
@@ -545,7 +531,7 @@ entry(v0: (int32, int32)):
 function test(v0: (int32, int32)): int32 {
 entry(v0: (int32, int32)):
     v1: int32 = field.get v0, 0
-    v3: int32 = int.add v1, v1
+    v3: int32 = add v1, v1
     return v3
 }
 "#;
@@ -564,7 +550,7 @@ entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
     v2: int32 = load v0
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
@@ -575,7 +561,7 @@ function test(): int32 {
 entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
-    v3: int32 = int.add v1, v1
+    v3: int32 = add v1, v1
     return v3
 }
 "#;
@@ -597,7 +583,7 @@ entry:
     v2: int32 = 1
     store v0, v2
     v3: int32 = load v0
-    v4: int32 = int.add v1, v3
+    v4: int32 = add v1, v3
     return v4
 }
 "#;
@@ -615,7 +601,7 @@ function test(v0: (int32, int32)): int32 {
 entry(v0: (int32, int32)):
     v1: int32 = field.get v0, 0
     v2: int32 = field.get v0, 1
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
@@ -633,7 +619,7 @@ function test(v0: [int32; 10], v1: int64): int32 {
 entry(v0: [int32; 10], v1: int64):
     v2: int32 = element.get v0, 0
     v3: int32 = element.get v0, 0
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
@@ -641,7 +627,7 @@ entry(v0: [int32; 10], v1: int64):
 function test(v0: [int32; 10], v1: int64): int32 {
 entry(v0: [int32; 10], v1: int64):
     v2: int32 = element.get v0, 0
-    v4: int32 = int.add v2, v2
+    v4: int32 = add v2, v2
     return v4
 }
 "#;
@@ -658,7 +644,7 @@ function test(v0: int32): int64 {
 entry(v0: int32):
     v1: int64 = cast.extend.s v0 -> int64
     v2: int64 = cast.extend.s v0 -> int64
-    v3: int64 = int.add v1, v2
+    v3: int64 = add v1, v2
     return v3
 }
 "#;
@@ -666,7 +652,7 @@ entry(v0: int32):
 function test(v0: int32): int64 {
 entry(v0: int32):
     v1: int64 = cast.extend.s v0 -> int64
-    v3: int64 = int.add v1, v1
+    v3: int64 = add v1, v1
     return v3
 }
 "#;
@@ -681,9 +667,9 @@ entry(v0: int32):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.sub v0, v1
-    v4: int32 = int.mul v2, v3
+    v2: int32 = add v0, v1
+    v3: int32 = sub v0, v1
+    v4: int32 = mul v2, v3
     return v4
 }
 "#;
@@ -698,8 +684,8 @@ entry(v0: int32, v1: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
+    v4: int32 = add v0, v1
     branch v2 => b1(v4) | b2(v4)
 
 b1(v5: int32):
@@ -713,7 +699,7 @@ b2(v6: int32):
         let expected = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     branch v2 => b1(v3) | b2(v3)
 
 b1(v5: int32):

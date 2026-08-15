@@ -5,20 +5,13 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlFlowGraph, DominatorTree, Mutation, compute_dominance_frontiers,
+    ControlTable, DominatorTable, Mutation, compute_dominance_frontiers,
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     terminator_substitute_uses,
 };
 
 declare_pass! {
     /// Memory to register promotion pass.
-    ///
-    /// Promotes local variables (stack slots) to SSA values when they:
-    /// - Are only accessed by LocalGet and LocalSet (no address taken)
-    /// - Have no volatile or atomic access requirements
-    ///
-    /// This is a traditional SSA construction pass that eliminates memory
-    /// operations in favor of direct value flow through block parameters.
     ///
     /// ```mir
     /// function before(v0: int32): int32 {
@@ -27,7 +20,7 @@ declare_pass! {
     ///     local.set l0, v0
     ///     jump b1
     /// b1:
-    ///     v1 = local.get l0
+    ///     v1: int32 = local.get l0
     ///     return v1
     /// }
     /// ```
@@ -52,10 +45,10 @@ impl FunctionPass for PromoteMemoryToRegisters {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip functions without locals
         if function.locals().is_empty() {
@@ -65,13 +58,13 @@ impl FunctionPass for PromoteMemoryToRegisters {
         // get analyses
         let (cfg, domtree) = {
             (
-                analyses.control_flow(function, tree).clone(),
-                analyses.dominators(function, tree).clone(),
+                analyses.control(function, tree).clone(),
+                analyses.dominator(function, tree).clone(),
             )
         };
 
         // run promote-memory-to-registers
-        let changed = run_promote_memory_to_registers(function, tree, memory, &cfg, &domtree);
+        let changed = run_promote_memory_to_registers(function, tree, accesses, &cfg, &domtree);
 
         // report what this pass changed
         if changed {
@@ -80,25 +73,15 @@ impl FunctionPass for PromoteMemoryToRegisters {
             Mutation::NONE
         }
     }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "PromoteMemoryToRegisters"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "promote-memory-to-registers"
-    }
 }
 
 /// Core promote memory to registers logic. Returns true if changes were made.
 fn run_promote_memory_to_registers(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    accesses: &mut mir::AccessTable,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
 ) -> bool {
     // find promotable locals (only LocalGet/LocalSet, no address taken)
     let promotable = find_promotable_locals(function, tree);
@@ -137,7 +120,7 @@ fn run_promote_memory_to_registers(
         &block_params,
         function,
         tree,
-        memory,
+        accesses,
         cfg,
         domtree,
         entry,
@@ -430,9 +413,9 @@ fn rename_variables(
     >,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    _cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    accesses: &mut mir::AccessTable,
+    _cfg: &ControlTable,
+    domtree: &DominatorTable,
     entry: mir::LocalNodeId<mir::Block>,
 ) {
     // current value for each local during renaming (stack for each local)
@@ -540,7 +523,7 @@ fn rename_variables(
                 instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             if new_instruction != instruction {
                 tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
+                remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
             }
         }
 
@@ -1068,14 +1051,14 @@ entry(v0: int32, v1: int32):
     local.set l1, v1
     v2: int32 = local.get l0
     v3: int32 = local.get l1
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     return v4
 }
 "#;
@@ -1132,12 +1115,12 @@ entry(v0: int32):
 
 b1:
     v2: int32 = local.get l0
-    v3: boolean = int.lt.s v2, v0
+    v3: boolean = lt v2, v0
     branch v3 => b2 | b3
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.add v2, v4
+    v5: int32 = add v2, v4
     local.set l0, v5
     jump b1
 
@@ -1155,12 +1138,12 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v7: int32):
-    v3: boolean = int.lt.s v7, v0
+    v3: boolean = lt v7, v0
     branch v3 => b2 | b3
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.add v7, v4
+    v5: int32 = add v7, v4
     jump b1(v5)
 
 b3:
@@ -1214,7 +1197,7 @@ entry(v0: int32, v1: int32):
 
 b1(v2: int32):
     v3: int32 = local.get l0
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
@@ -1225,7 +1208,7 @@ entry(v0: int32, v1: int32):
     jump b1(v1)
 
 b1(v2: int32):
-    v4: int32 = int.add v2, v0
+    v4: int32 = add v2, v0
     return v4
 }
 "#;

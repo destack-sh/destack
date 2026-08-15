@@ -5,23 +5,20 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantMap, ConstantPropagation, InstructionRef, Mutation, ValueTypes,
+    ConstantState, ConstantTable, InstructionRef, Mutation, ValueTypeTable,
     build_value_instruction_refs, fold_binary,
 };
 
 declare_pass! {
     /// ReassociateExpressions associative expressions to expose constant folding.
     ///
-    /// This pass combines constants across associative binary chains,
-    /// enabling later constant folding and CSE.
-    ///
     /// ```mir
     /// function before(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = 1int32
-    ///     v2 = 2int32
-    ///     v3 = int.add v0, v1
-    ///     v4 = int.add v3, v2
+    ///     v1: int32 = 1
+    ///     v2: int32 = 2
+    ///     v3: int32 = add v0, v1
+    ///     v4: int32 = add v3, v2
     ///     return v4
     /// }
     /// ```
@@ -29,18 +26,14 @@ declare_pass! {
     /// ```mir
     /// function after(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = 1int32
-    ///     v2 = 2int32
-    ///     v3 = int.add v0, v1
-    ///     v5 = 3int32
-    ///     v4 = int.add v0, v5
+    ///     v1: int32 = 1
+    ///     v2: int32 = 2
+    ///     v3: int32 = add v0, v1
+    ///     v5: int32 = 3
+    ///     v4: int32 = add v0, v5
     ///     return v4
     /// }
     /// ```
-    ///
-    /// Restrictions:
-    /// - Only handles associative and commutative integer operators
-    /// - Only reassociates when constants can be combined safely
     #[pass(id = "reassociate-expressions")]
     pub ReassociateExpressions,
     "ReassociateExpressions associative expressions"
@@ -52,13 +45,13 @@ impl FunctionPass for ReassociateExpressions {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
         // collect constant propagation state
-        let constants = { analyses.constants(function, tree).clone() };
-        let value_types = analyses.value_types(function, tree);
+        let constants = { analyses.constant(function, tree).clone() };
+        let value_types = analyses.value_type(function, tree);
 
         // run reassociation
         let changed = run_reassociate(function, tree, &constants, &value_types);
@@ -70,22 +63,14 @@ impl FunctionPass for ReassociateExpressions {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "ReassociateExpressions"
-    }
-
-    fn id(&self) -> &'static str {
-        "reassociate-expressions"
-    }
 }
 
 /// ReassociateExpressions binary operations within each block.
 fn run_reassociate(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    constants: &ConstantPropagation,
-    value_types: &ValueTypes,
+    constants: &ConstantTable,
+    value_types: &ValueTypeTable,
 ) -> bool {
     // build lookup for value definitions
     let mut value_to_instruction = build_value_instruction_refs(function, tree);
@@ -117,23 +102,21 @@ fn run_reassociate(
                 right,
             } = instruction
             {
-                let (Some(destination), Some(left), Some(right)) =
-                    (Some(destination), Some(left), Some(right))
-                else {
-                    new_instructions.push(*instruction_id);
-                    continue;
-                };
-
                 // build a reassociation plan
-                let plan = reassociate_binary(
-                    operator,
-                    left,
-                    right,
-                    block_id,
-                    instruction_index,
-                    &block_constants,
-                    &value_to_instruction,
-                );
+                let ty = value_types.expect_value_type(left);
+                let plan = if tree.get(ty).is_float(tree) {
+                    None
+                } else {
+                    reassociate_binary(
+                        operator,
+                        left,
+                        right,
+                        block_id,
+                        instruction_index,
+                        &block_constants,
+                        &value_to_instruction,
+                    )
+                };
 
                 // apply reassociation when available
                 let mut left_value = left;
@@ -256,7 +239,7 @@ struct CollectContext<'a> {
     /// Instruction index within the block.
     instruction_index: usize,
     /// Constant information for the current block.
-    constants: &'a ConstantMap,
+    constants: &'a ConstantState,
     /// Definition lookup for values.
     value_to_instruction: &'a HashMap<mir::Value, InstructionRef>,
 }
@@ -268,7 +251,7 @@ fn reassociate_binary(
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
     instruction_index: usize,
-    constants: &ConstantMap,
+    constants: &ConstantState,
     value_to_instruction: &HashMap<mir::Value, InstructionRef>,
 ) -> Option<ReassociateExpressionsPlan> {
     // only reassociate associative and commutative operators
@@ -506,7 +489,7 @@ fn resolve_constant_value(
     result_type: mir::LocalNodeId<mir::Type>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    block_constants: &ConstantMap,
+    block_constants: &ConstantState,
 ) -> ResolvedConstant {
     // reuse an existing constant when available
     for (value, existing) in block_constants.iter() {
@@ -558,8 +541,8 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
     v2: int32 = 2
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v3, v2
+    v3: int32 = add v0, v1
+    v4: int32 = add v3, v2
     return v4
 }
 "#;
@@ -568,9 +551,9 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
     v2: int32 = 2
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     v5: int32 = 3
-    v4: int32 = int.add v0, v5
+    v4: int32 = add v0, v5
     return v4
 }
 "#;
@@ -588,8 +571,8 @@ function test(v0: float64): float64 {
 entry(v0: float64):
     v1: float64 = 1
     v2: float64 = 2
-    v3: float64 = float.add v0, v1
-    v4: float64 = float.add v3, v2
+    v3: float64 = add v0, v1
+    v4: float64 = add v3, v2
     return v4
 }
 "#;
@@ -605,8 +588,8 @@ entry(v0: float64):
         let input = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v3, v2
+    v3: int32 = add v0, v1
+    v4: int32 = add v3, v2
     return v4
 }
 "#;
@@ -626,9 +609,9 @@ entry(v0: int32):
     v1: int32 = 1
     v2: int32 = 2
     v3: int32 = 3
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v4, v2
-    v6: int32 = int.add v5, v3
+    v4: int32 = add v0, v1
+    v5: int32 = add v4, v2
+    v6: int32 = add v5, v3
     return v6
 }
 "#;
@@ -639,10 +622,10 @@ entry(v0: int32):
     v1: int32 = 1
     v2: int32 = 2
     v3: int32 = 3
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v0, v3
+    v4: int32 = add v0, v1
+    v5: int32 = add v0, v3
     v7: int32 = 6
-    v6: int32 = int.add v0, v7
+    v6: int32 = add v0, v7
     return v6
 }
 "#;
@@ -662,9 +645,9 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 4
     v3: int32 = 5
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v4, v2
-    v6: int32 = int.add v5, v3
+    v4: int32 = add v0, v1
+    v5: int32 = add v4, v2
+    v6: int32 = add v5, v3
     return v6
 }
 "#;
@@ -674,10 +657,10 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 4
     v3: int32 = 5
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v4, v2
+    v4: int32 = add v0, v1
+    v5: int32 = add v4, v2
     v7: int32 = 9
-    v6: int32 = int.add v4, v7
+    v6: int32 = add v4, v7
     return v6
 }
 "#;
@@ -697,9 +680,9 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 1
     v3: int32 = 2
-    v4: int32 = int.add v0, v2
-    v5: int32 = int.add v1, v3
-    v6: int32 = int.add v4, v5
+    v4: int32 = add v0, v2
+    v5: int32 = add v1, v3
+    v6: int32 = add v4, v5
     return v6
 }
 "#;
@@ -709,11 +692,11 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 1
     v3: int32 = 2
-    v4: int32 = int.add v0, v2
-    v5: int32 = int.add v1, v3
+    v4: int32 = add v0, v2
+    v5: int32 = add v1, v3
     v7: int32 = 3
-    v8: int32 = int.add v0, v1
-    v6: int32 = int.add v8, v7
+    v8: int32 = add v0, v1
+    v6: int32 = add v8, v7
     return v6
 }
 "#;
@@ -733,8 +716,8 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 2
     v2: int32 = 3
-    v3: int32 = int.mul v0, v1
-    v4: int32 = int.mul v3, v2
+    v3: int32 = mul v0, v1
+    v4: int32 = mul v3, v2
     return v4
 }
 "#;
@@ -744,9 +727,9 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 2
     v2: int32 = 3
-    v3: int32 = int.mul v0, v1
+    v3: int32 = mul v0, v1
     v5: int32 = 6
-    v4: int32 = int.mul v0, v5
+    v4: int32 = mul v0, v5
     return v4
 }
 "#;
@@ -766,8 +749,8 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
     v2: int32 = 2
-    v3: int32 = int.and v0, v1
-    v4: int32 = int.and v3, v2
+    v3: int32 = and v0, v1
+    v4: int32 = and v3, v2
     return v4
 }
 "#;
@@ -777,9 +760,9 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
     v2: int32 = 2
-    v3: int32 = int.and v0, v1
+    v3: int32 = and v0, v1
     v5: int32 = 0
-    v4: int32 = int.and v0, v5
+    v4: int32 = and v0, v5
     return v4
 }
 "#;

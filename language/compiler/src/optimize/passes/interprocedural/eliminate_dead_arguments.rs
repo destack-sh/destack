@@ -9,10 +9,6 @@ use destack_mir::{Mutation, ParameterRemap, SignatureKey, build_use_def_maps};
 declare_pass! {
     /// Remove unused parameters from local functions and their callsites.
     ///
-    /// This pass removes parameters that are not used by a function body, updates
-    /// direct callsites, and trims any callsite tables. Indirect calls are
-    /// treated conservatively and block changes for matching signatures.
-    ///
     /// ```mir
     /// function before(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
@@ -20,7 +16,7 @@ declare_pass! {
     /// }
     /// function root(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
-    ///     v2 = call before(v0, v1)
+    ///     v2: int32 = call before(v0, v1): (int32, int32) => int32
     ///     return v2
     /// }
     /// ```
@@ -32,7 +28,7 @@ declare_pass! {
     /// }
     /// function root(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
-    ///     v2 = call after(v0)
+    ///     v2: int32 = call after(v0): (int32) => int32
     ///     return v2
     /// }
     /// ```
@@ -47,7 +43,7 @@ impl ModulePass for EliminateDeadArguments {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mut mir::ModuleAnalyses,
+        _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let layouts = &mut optimized.layouts;
@@ -62,16 +58,6 @@ impl ModulePass for EliminateDeadArguments {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass display name.
-    fn name(&self) -> &'static str {
-        "EliminateDeadArguments"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "eliminate-dead-arguments"
     }
 }
 

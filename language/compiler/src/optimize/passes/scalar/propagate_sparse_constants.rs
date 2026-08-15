@@ -13,25 +13,19 @@ use destack_mir::{
 declare_pass! {
     /// Perform sparse conditional constant propagation.
     ///
-    /// This pass tracks constant values along executable paths and folds
-    /// operations where all operands are constant.
-    /// It also uses constant branch conditions to mark unreachable blocks for removal.
-    /// Aggregate values and immutable global initializers are propagated when they can be
-    /// represented in the lattice.
-    ///
     /// ```mir
     /// function before(): int32 {
     /// b0:
-    ///     v0 = true
+    ///     v0: boolean = true
     ///     branch v0 => b1 | b2
     /// b1:
-    ///     v1 = 10int32
+    ///     v1: int32 = 10
     ///     jump b3(v1)
     /// b2:
-    ///     v2 = 20int32
+    ///     v2: int32 = 20
     ///     jump b3(v2)
     /// b3(v3: int32):
-    ///     v4 = int.add v3, v3
+    ///     v4: int32 = add v3, v3
     ///     return v4
     /// }
     /// ```
@@ -39,13 +33,13 @@ declare_pass! {
     /// ```mir
     /// function after(): int32 {
     /// b0:
-    ///     v0 = true
+    ///     v0: boolean = true
     ///     jump b1
     /// b1:
-    ///     v1 = 10int32
+    ///     v1: int32 = 10
     ///     jump b2(v1)
     /// b2(v3: int32):
-    ///     v4 = 20int32
+    ///     v4: int32 = 20
     ///     return v4
     /// }
     /// ```
@@ -60,14 +54,14 @@ impl FunctionPass for PropagateSparseConstants {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mut mir::FunctionAnalyses,
+        _analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // run SCCP
         let (cfg_changed, value_changed) =
-            run_propagate_sparse_constants(function, tree, memory, ctx.target_layout());
+            run_propagate_sparse_constants(function, tree, accesses, ctx.target_layout());
 
         if cfg_changed || value_changed {
             Mutation::CONTROL | Mutation::VALUE
@@ -75,21 +69,13 @@ impl FunctionPass for PropagateSparseConstants {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "PropagateSparseConstants"
-    }
-
-    fn id(&self) -> &'static str {
-        "propagate-sparse-constants"
-    }
 }
 
 /// SCCP logic. Returns (cfg_changed, value_changed).
 fn run_propagate_sparse_constants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     target_layout: TargetLayout,
 ) -> (bool, bool) {
     // skip external functions
@@ -107,7 +93,7 @@ fn run_propagate_sparse_constants(
     let result = state.run();
 
     // apply constant folding and reachability
-    apply_propagate_sparse_constants_result(function, tree, memory, &result)
+    apply_propagate_sparse_constants_result(function, tree, accesses, &result)
 }
 
 /// Lattice state for SCCP values.
@@ -876,7 +862,7 @@ fn select_switch_target(value: i128, cases: &[mir::SwitchCase]) -> Option<&mir::
 fn apply_propagate_sparse_constants_result(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     result: &PropagateSparseConstantsResult,
 ) -> (bool, bool) {
     // track cfg and value changes
@@ -949,7 +935,8 @@ fn apply_propagate_sparse_constants_result(
 
     // substitute constant uses after folding
     if !substitutions.is_empty() {
-        value_changed |= function_substitute_constant_uses(function, tree, memory, &substitutions);
+        value_changed |=
+            function_substitute_constant_uses(function, tree, accesses, &substitutions);
     }
 
     // remove unreachable blocks
@@ -1048,7 +1035,7 @@ fn function_insert_block_param_constants(
 fn function_substitute_constant_uses(
     function: &mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> bool {
     // track whether any substitutions occur
@@ -1079,7 +1066,7 @@ fn function_substitute_constant_uses(
             // update instruction when rewritten
             if new_instruction != instruction {
                 tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(memory, instruction_id, substitutions);
+                remap_instruction_memory_accesses(accesses, instruction_id, substitutions);
                 changed = true;
             }
         }
@@ -1206,7 +1193,7 @@ b2:
     jump b3(v2)
 
 b3(v3: int32):
-    v4: int32 = int.add v3, v3
+    v4: int32 = add v3, v3
     return v4
 }
 "#;
@@ -1249,7 +1236,7 @@ b2:
     jump b3(v2)
 
 b3(v3: int32):
-    v4: int32 = int.add v3, v3
+    v4: int32 = add v3, v3
     return v4
 }
 "#;
@@ -1295,7 +1282,7 @@ b2:
     jump b3(v2)
 
 b3(v3: int32):
-    v4: int32 = int.add v3, v3
+    v4: int32 = add v3, v3
     return v4
 }
 "#;
@@ -1316,7 +1303,7 @@ entry(v0: boolean):
     branch v0 => b1(v1) | b1(v2)
 
 b1(v3: int32):
-    v4: int32 = int.add v3, v3
+    v4: int32 = add v3, v3
     return v4
 }
 "#;

@@ -5,25 +5,21 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlFlowGraph, Mutation, clone_instruction_tables, instruction_is_speculatable,
-    instruction_map,
+    ControlTable, Mutation, clone_instruction_tables, instruction_is_speculatable, instruction_map,
 };
 
 declare_pass! {
     /// Convert simple diamonds into select instructions.
-    ///
-    /// This removes branches by speculatively executing both sides of a small
-    /// conditional and selecting the result with a `select`.
     ///
     /// ```mir
     /// function before(v0: boolean, v1: int32, v2: int32): int32 {
     /// b0(v0: boolean, v1: int32, v2: int32):
     ///     branch v0 => b1(v1, v2) | b2(v1, v2)
     /// b1(v3: int32, v4: int32):
-    ///     v5 = int.add v3, v4
+    ///     v5: int32 = add v3, v4
     ///     jump b3(v5)
     /// b2(v6: int32, v7: int32):
-    ///     v8 = int.sub v6, v7
+    ///     v8: int32 = sub v6, v7
     ///     jump b3(v8)
     /// b3(v9: int32):
     ///     return v9
@@ -33,25 +29,20 @@ declare_pass! {
     /// ```mir
     /// function after(v0: boolean, v1: int32, v2: int32): int32 {
     /// b0(v0: boolean, v1: int32, v2: int32):
-    ///     v10 = int.add v1, v2
-    ///     v11 = int.sub v1, v2
-    ///     v12 = select v0, v10, v11
+    ///     v10: int32 = add v1, v2
+    ///     v11: int32 = sub v1, v2
+    ///     v12: int32 = select v0, v10, v11
     ///     jump b3(v12)
     /// b1(v3: int32, v4: int32):
-    ///     v5 = int.add v3, v4
+    ///     v5: int32 = add v3, v4
     ///     jump b3(v5)
     /// b2(v6: int32, v7: int32):
-    ///     v8 = int.sub v6, v7
+    ///     v8: int32 = sub v6, v7
     ///     jump b3(v8)
     /// b3(v9: int32):
     ///     return v9
     /// }
     /// ```
-    ///
-    /// Restrictions:
-    /// - Only converts diamonds with a single predecessor per side block
-    /// - Requires both branches to contain only speculatable instructions
-    /// - Requires both branches to jump to a single common merge block
     #[pass(id = "convert-branches")]
     pub ConvertBranches,
     "Convert small diamonds into select instructions"
@@ -71,10 +62,10 @@ impl FunctionPass for ConvertBranches {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip imported functions
         if function.entry().is_none() {
@@ -82,7 +73,7 @@ impl FunctionPass for ConvertBranches {
         }
 
         // run if conversion
-        let changed = run_convert_branches(function, tree, memory, ctx, analyses);
+        let changed = run_convert_branches(function, tree, accesses, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -90,16 +81,6 @@ impl FunctionPass for ConvertBranches {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "ConvertBranches"
-    }
-
-    /// Return the pass id.
-    fn id(&self) -> &'static str {
-        "convert-branches"
     }
 }
 
@@ -140,12 +121,12 @@ impl ConvertBranchesCandidate {
 fn run_convert_branches(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mut mir::FunctionAnalyses,
+    analyses: &mut mir::FunctionCache,
 ) -> bool {
     // build control flow graph
-    let cfg = analyses.control_flow(function, tree).clone();
+    let cfg = analyses.control(function, tree).clone();
 
     // collect candidates before mutation
     let mut candidates = Vec::new();
@@ -179,7 +160,7 @@ fn run_convert_branches(
             &candidate,
             function,
             tree,
-            memory,
+            accesses,
             execution_counts.edges(),
             &cost,
         );
@@ -197,7 +178,7 @@ fn find_convert_branches_candidate(
     header: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     tree: &mir::Tree,
-    cfg: &ControlFlowGraph,
+    cfg: &ControlTable,
 ) -> Option<ConvertBranchesCandidate> {
     // read header terminator
     let header_block = tree.get(header);
@@ -287,17 +268,17 @@ fn apply_convert_branches(
     candidate: &ConvertBranchesCandidate,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     edge_counts: &HashMap<mir::Edge, u64>,
-    cost: &mir::CostModel,
+    cost: &mir::CostTable,
 ) -> bool {
     // build value maps for each branch
     let then_block = tree.get(candidate.then_block).clone();
     let else_block = tree.get(candidate.else_block).clone();
 
     // ensure both sides are speculatable
-    if !instructions_speculatable(&then_block.instructions, tree)
-        || !instructions_speculatable(&else_block.instructions, tree)
+    if !instructions_speculatable(&then_block.instructions, function, tree)
+        || !instructions_speculatable(&else_block.instructions, function, tree)
     {
         return false;
     }
@@ -318,14 +299,14 @@ fn apply_convert_branches(
     let mut new_instructions = tree.get(candidate.header).instructions.clone();
     clone_block_instructions(
         tree,
-        memory,
+        accesses,
         &then_block,
         &then_value_map,
         &mut new_instructions,
     );
     clone_block_instructions(
         tree,
-        memory,
+        accesses,
         &else_block,
         &else_value_map,
         &mut new_instructions,
@@ -389,7 +370,7 @@ fn should_convert(
     candidate: &ConvertBranchesCandidate,
     merge_args: usize,
     edge_counts: &HashMap<mir::Edge, u64>,
-    cost: &mir::CostModel,
+    cost: &mir::CostTable,
 ) -> bool {
     // compute instruction costs for each branch
     let then_cost = cost.block(candidate.then_block) as usize;
@@ -490,7 +471,7 @@ fn build_value_map(
 /// Clone a block's instructions into a header instruction list.
 fn clone_block_instructions(
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     block: &mir::Block,
     value_map: &HashMap<mir::Value, mir::Value>,
     target: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
@@ -500,7 +481,7 @@ fn clone_block_instructions(
         let instruction = tree.get(instruction_id).clone();
         let cloned = instruction_map(&instruction, value_map, tree);
         let cloned_id = tree.insert(cloned);
-        clone_instruction_tables(tree, memory, instruction_id, cloned_id, value_map);
+        clone_instruction_tables(tree, accesses, instruction_id, cloned_id, value_map);
         target.push(cloned_id);
     }
 }
@@ -508,12 +489,13 @@ fn clone_block_instructions(
 /// Check whether all instructions are speculatable.
 fn instructions_speculatable(
     instructions: &[mir::LocalNodeId<mir::Instruction>],
+    function: &mir::Function,
     tree: &mir::Tree,
 ) -> bool {
     // scan instructions for unsafe operations
     for &instruction_id in instructions {
         let instruction = tree.get(instruction_id);
-        if !instruction_is_speculatable(instruction, tree) {
+        if !instruction_is_speculatable(instruction, function, tree) {
             return false;
         }
     }
@@ -548,11 +530,11 @@ entry(v0: boolean, v1: int32, v2: int32):
     branch v0 => b1(v1, v2) | b2(v1, v2)
 
 b1(v3: int32, v4: int32):
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     jump b3(v5)
 
 b2(v6: int32, v7: int32):
-    v8: int32 = int.sub v6, v7
+    v8: int32 = sub v6, v7
     jump b3(v8)
 
 b3(v9: int32):
@@ -562,17 +544,17 @@ b3(v9: int32):
         let expected = r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
-    v10: int32 = int.add v1, v2
-    v11: int32 = int.sub v1, v2
+    v10: int32 = add v1, v2
+    v11: int32 = sub v1, v2
     v12: int32 = select v0, v10, v11
     jump b3(v12)
 
 b1(v3: int32, v4: int32):
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     jump b3(v5)
 
 b2(v6: int32, v7: int32):
-    v8: int32 = int.sub v6, v7
+    v8: int32 = sub v6, v7
     jump b3(v8)
 
 b3(v9: int32):
@@ -594,11 +576,11 @@ entry(v0: boolean, v1: int32, v2: int32):
     branch v0 => b1(v1, v2) | b2(v1, v2)
 
 b1(v3: int32, v4: int32):
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     jump b3(v5)
 
 b2(v6: int32, v7: int32):
-    v8: int32 = int.sub v6, v7
+    v8: int32 = sub v6, v7
     jump b3(v8)
 
 b3(v9: int32):
@@ -652,8 +634,8 @@ b3(v9: int32):
                 } => {
                     let accesses = test
                         .optimized
-                        .memory
-                        .memory_accesses(instruction_id)
+                        .accesses
+                        .get(instruction_id)
                         .expect("missing tables for hoisted add");
                     assert_eq!(accesses.len(), 1);
                     assert_eq!(accesses[0].target, mir::MemoryTarget::Address(then_arg));
@@ -665,8 +647,8 @@ b3(v9: int32):
                 } => {
                     let accesses = test
                         .optimized
-                        .memory
-                        .memory_accesses(instruction_id)
+                        .accesses
+                        .get(instruction_id)
                         .expect("missing tables for hoisted sub");
                     assert_eq!(accesses.len(), 1);
                     assert_eq!(accesses[0].target, mir::MemoryTarget::Address(else_arg));
@@ -689,27 +671,27 @@ entry(v0: boolean, v1: int32):
     branch v0 => b1(v1) | b2(v1)
 
 b1(v2: int32):
-    v3: int32 = int.add v2, v2
-    v4: int32 = int.add v3, v2
-    v5: int32 = int.add v4, v2
-    v6: int32 = int.add v5, v2
-    v7: int32 = int.add v6, v2
-    v8: int32 = int.add v7, v2
-    v9: int32 = int.add v8, v2
-    v10: int32 = int.add v9, v2
-    v11: int32 = int.add v10, v2
+    v3: int32 = add v2, v2
+    v4: int32 = add v3, v2
+    v5: int32 = add v4, v2
+    v6: int32 = add v5, v2
+    v7: int32 = add v6, v2
+    v8: int32 = add v7, v2
+    v9: int32 = add v8, v2
+    v10: int32 = add v9, v2
+    v11: int32 = add v10, v2
     jump b3(v11)
 
 b2(v12: int32):
-    v13: int32 = int.sub v12, v12
-    v14: int32 = int.add v13, v12
-    v15: int32 = int.add v14, v12
-    v16: int32 = int.add v15, v12
-    v17: int32 = int.add v16, v12
-    v18: int32 = int.add v17, v12
-    v19: int32 = int.add v18, v12
-    v20: int32 = int.add v19, v12
-    v21: int32 = int.add v20, v12
+    v13: int32 = sub v12, v12
+    v14: int32 = add v13, v12
+    v15: int32 = add v14, v12
+    v16: int32 = add v15, v12
+    v17: int32 = add v16, v12
+    v18: int32 = add v17, v12
+    v19: int32 = add v18, v12
+    v20: int32 = add v19, v12
+    v21: int32 = add v20, v12
     jump b3(v21)
 
 b3(v22: int32):
@@ -719,49 +701,49 @@ b3(v22: int32):
         let expected = r#"
 function test(v0: boolean, v1: int32): int32 {
 entry(v0: boolean, v1: int32):
-    v23: int32 = int.add v1, v1
-    v24: int32 = int.add v23, v1
-    v25: int32 = int.add v24, v1
-    v26: int32 = int.add v25, v1
-    v27: int32 = int.add v26, v1
-    v28: int32 = int.add v27, v1
-    v29: int32 = int.add v28, v1
-    v30: int32 = int.add v29, v1
-    v31: int32 = int.add v30, v1
-    v32: int32 = int.sub v1, v1
-    v33: int32 = int.add v32, v1
-    v34: int32 = int.add v33, v1
-    v35: int32 = int.add v34, v1
-    v36: int32 = int.add v35, v1
-    v37: int32 = int.add v36, v1
-    v38: int32 = int.add v37, v1
-    v39: int32 = int.add v38, v1
-    v40: int32 = int.add v39, v1
+    v23: int32 = add v1, v1
+    v24: int32 = add v23, v1
+    v25: int32 = add v24, v1
+    v26: int32 = add v25, v1
+    v27: int32 = add v26, v1
+    v28: int32 = add v27, v1
+    v29: int32 = add v28, v1
+    v30: int32 = add v29, v1
+    v31: int32 = add v30, v1
+    v32: int32 = sub v1, v1
+    v33: int32 = add v32, v1
+    v34: int32 = add v33, v1
+    v35: int32 = add v34, v1
+    v36: int32 = add v35, v1
+    v37: int32 = add v36, v1
+    v38: int32 = add v37, v1
+    v39: int32 = add v38, v1
+    v40: int32 = add v39, v1
     v41: int32 = select v0, v31, v40
     jump b3(v41)
 
 b1(v2: int32):
-    v3: int32 = int.add v2, v2
-    v4: int32 = int.add v3, v2
-    v5: int32 = int.add v4, v2
-    v6: int32 = int.add v5, v2
-    v7: int32 = int.add v6, v2
-    v8: int32 = int.add v7, v2
-    v9: int32 = int.add v8, v2
-    v10: int32 = int.add v9, v2
-    v11: int32 = int.add v10, v2
+    v3: int32 = add v2, v2
+    v4: int32 = add v3, v2
+    v5: int32 = add v4, v2
+    v6: int32 = add v5, v2
+    v7: int32 = add v6, v2
+    v8: int32 = add v7, v2
+    v9: int32 = add v8, v2
+    v10: int32 = add v9, v2
+    v11: int32 = add v10, v2
     jump b3(v11)
 
 b2(v12: int32):
-    v13: int32 = int.sub v12, v12
-    v14: int32 = int.add v13, v12
-    v15: int32 = int.add v14, v12
-    v16: int32 = int.add v15, v12
-    v17: int32 = int.add v16, v12
-    v18: int32 = int.add v17, v12
-    v19: int32 = int.add v18, v12
-    v20: int32 = int.add v19, v12
-    v21: int32 = int.add v20, v12
+    v13: int32 = sub v12, v12
+    v14: int32 = add v13, v12
+    v15: int32 = add v14, v12
+    v16: int32 = add v15, v12
+    v17: int32 = add v16, v12
+    v18: int32 = add v17, v12
+    v19: int32 = add v18, v12
+    v20: int32 = add v19, v12
+    v21: int32 = add v20, v12
     jump b3(v21)
 
 b3(v22: int32):
@@ -783,11 +765,11 @@ entry(v0: boolean, v1: int32, v2: int32):
     branch v0 => b1(v1, v2) | b2(v1, v2)
 
 b1(v3: int32, v4: int32):
-    v5: int32 = int.div.s v3, v4
+    v5: int32 = div v3, v4
     jump b3(v5)
 
 b2(v6: int32, v7: int32):
-    v8: int32 = int.sub v6, v7
+    v8: int32 = sub v6, v7
     jump b3(v8)
 
 b3(v9: int32):
@@ -837,11 +819,11 @@ b1(v4: boolean, v5: int32, v6: int32):
     branch v4 => b2(v5, v6) | b3(v5, v6)
 
 b2(v7: int32, v8: int32):
-    v9: int32 = int.add v7, v8
+    v9: int32 = add v7, v8
     jump b5(v9)
 
 b3(v10: int32, v11: int32):
-    v12: int32 = int.sub v10, v11
+    v12: int32 = sub v10, v11
     jump b5(v12)
 
 b4(v13: int32):
@@ -868,15 +850,15 @@ entry(v0: boolean, v1: int32, v2: int32):
     branch v0 => b1(v1, v2) | b2(v1, v2)
 
 b1(v3: int32, v4: int32):
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     jump b3(v5, v3)
 
 b2(v6: int32, v7: int32):
-    v8: int32 = int.sub v6, v7
+    v8: int32 = sub v6, v7
     jump b3(v8, v7)
 
 b3(v9: int32, v10: int32):
-    v11: int32 = int.add v9, v10
+    v11: int32 = add v9, v10
     return v11
 }
 "#;
@@ -884,22 +866,22 @@ b3(v9: int32, v10: int32):
         let expected = r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
-    v12: int32 = int.add v1, v2
-    v13: int32 = int.sub v1, v2
+    v12: int32 = add v1, v2
+    v13: int32 = sub v1, v2
     v14: int32 = select v0, v12, v13
     v15: int32 = select v0, v1, v2
     jump b3(v14, v15)
 
 b1(v3: int32, v4: int32):
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     jump b3(v5, v3)
 
 b2(v6: int32, v7: int32):
-    v8: int32 = int.sub v6, v7
+    v8: int32 = sub v6, v7
     jump b3(v8, v7)
 
 b3(v9: int32, v10: int32):
-    v11: int32 = int.add v9, v10
+    v11: int32 = add v9, v10
     return v11
 }
 "#;

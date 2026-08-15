@@ -5,23 +5,20 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, MemoryAccessEffect,
-    MemoryAccessId, MemoryNode, MemoryRegion, MemorySSA, Mutation, ValueDefinitions,
-    ValueEquivalence, build_use_def_maps, ensure_edge_block, instruction_is_read_only_access,
+    AliasTable, ControlTable, DefinitionTable, DominatorTable, EdgeSplitPolicy, MemoryAccessEffect,
+    MemoryAccessId, MemoryNode, MemoryRegion, MemoryTable, Mutation, ValueEquivalence,
+    build_use_def_maps, ensure_edge_block, instruction_is_read_only_access,
     instruction_is_speculatable, resolve_edge_value, value_available_in_block,
 };
 
 declare_pass! {
     /// Eliminate partially redundant stores by sinking them to predecessor edges.
     ///
-    /// When a join block stores a value that is already stored on some incoming paths,
-    /// insert stores on the missing edges and remove the redundant join store.
-    ///
     /// ```mir
     /// function before(v0: boolean, v1: int32): void {
     ///     local l0: int32
     /// b0(v0: boolean, v1: int32):
-    ///     v2 = local.address l0 -> ref<int32, borrowed, mutable, frame>
+    ///     v2: ref<int32, borrowed, mutable, frame> = local.address l0
     ///     branch v0 => b1 | b2
     /// b1:
     ///     store v2, v1
@@ -38,7 +35,7 @@ declare_pass! {
     /// function after(v0: boolean, v1: int32): void {
     ///     local l0: int32
     /// b0(v0: boolean, v1: int32):
-    ///     v2 = local.address l0 -> ref<int32, borrowed, mutable, frame>
+    ///     v2: ref<int32, borrowed, mutable, frame> = local.address l0
     ///     branch v0 => b1 | b2
     /// b1:
     ///     store v2, v1
@@ -62,10 +59,10 @@ impl FunctionPass for EliminatePartialRedundantStores {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &optimized.effects;
 
         // skip imported functions
@@ -74,8 +71,9 @@ impl FunctionPass for EliminatePartialRedundantStores {
         }
 
         // run store PRE
-        let changed =
-            run_eliminate_partial_redundant_stores(function, tree, memory, effects, ctx, analyses);
+        let changed = run_eliminate_partial_redundant_stores(
+            function, tree, accesses, effects, ctx, analyses,
+        );
 
         // report what this pass changed
         if changed {
@@ -83,16 +81,6 @@ impl FunctionPass for EliminatePartialRedundantStores {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "EliminatePartialRedundantStores"
-    }
-
-    /// Return the pass id.
-    fn id(&self) -> &'static str {
-        "eliminate-partial-redundant-stores"
     }
 }
 
@@ -143,21 +131,21 @@ struct EdgeStorePlan {
 fn run_eliminate_partial_redundant_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     effects: &mir::EffectTable,
     _ctx: &PipelineContext<'_>,
-    analyses: &mut mir::FunctionAnalyses,
+    analyses: &mut mir::FunctionCache,
 ) -> bool {
     // gather analyses
-    let cfg = analyses.control_flow(function, tree).clone();
-    let domtree = analyses.dominators(function, tree).clone();
-    let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+    let cfg = analyses.control(function, tree).clone();
+    let domtree = analyses.dominator(function, tree).clone();
+    let memory = analyses.memory(function, tree, accesses, effects);
     let alias = analyses.alias(function, tree).clone();
-    let constants = analyses.constants(function, tree);
+    let constants = analyses.constant(function, tree);
 
     // build value definition info
     let use_def = build_use_def_maps(function, tree);
-    let definitions = ValueDefinitions::build(function, tree).instruction_map();
+    let definitions = DefinitionTable::build(function, tree).instruction_map();
     let function_params: HashSet<_> = function
         .parameters
         .iter()
@@ -210,9 +198,10 @@ fn run_eliminate_partial_redundant_stores(
                 local,
                 value,
                 kind,
+                function,
                 tree,
-                memory,
-                memory_ssa.as_ref(),
+                accesses,
+                memory.as_ref(),
             ) else {
                 continue;
             };
@@ -234,8 +223,8 @@ fn run_eliminate_partial_redundant_stores(
                     &use_def.def_block,
                     &function_params,
                     &param_indices,
-                    memory,
-                    memory_ssa.as_ref(),
+                    accesses,
+                    memory.as_ref(),
                     &alias,
                     &mut equivalence,
                 )
@@ -271,7 +260,7 @@ fn run_eliminate_partial_redundant_stores(
                 // insert a new store at the edge block
                 let store_id =
                     insert_store_for_plan(function, tree, insertion_block, plan, candidate.kind);
-                clone_store_metadata(memory, candidate.instruction, store_id, plan.pointer);
+                clone_store_metadata(accesses, candidate.instruction, store_id, plan.pointer);
             }
 
             // record removal of the original store
@@ -293,13 +282,13 @@ fn run_eliminate_partial_redundant_stores(
 
     // drop memory tables for removed stores
     for instruction_id in &to_remove {
-        memory.remove_memory_accesses(*instruction_id);
+        accesses.remove(*instruction_id);
     }
 
     true
 }
 
-/// Return MemorySSA data when a store is eligible for PRE.
+/// Return MemoryTable data when a store is eligible for PRE.
 fn store_access_info(
     block_id: mir::LocalNodeId<mir::Block>,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
@@ -307,13 +296,14 @@ fn store_access_info(
     local: Option<mir::LocalNodeId<mir::Local>>,
     value: mir::Value,
     kind: StoreKind,
+    function: &mir::Function,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
-    memory_ssa: &MemorySSA,
+    accesses: &mir::AccessTable,
+    memory: &MemoryTable,
 ) -> Option<StoreCandidate> {
     // resolve the memory ssa def access
-    let access_id = memory_ssa.instruction_access(instruction_id)?;
-    let MemoryNode::Def(def_access) = memory_ssa.access(access_id) else {
+    let access_id = memory.instruction_access(instruction_id)?;
+    let MemoryNode::Def(def_access) = memory.access(access_id) else {
         return None;
     };
 
@@ -323,7 +313,7 @@ fn store_access_info(
     }
 
     // skip ordered stores
-    if memory.instruction_has_atomic_ordering(tree, instruction_id) {
+    if accesses.is_ordered(instruction_id, tree) {
         return None;
     }
 
@@ -357,14 +347,14 @@ fn store_access_info(
     }
 
     // require a memory phi at the block entry
-    let phi_access = memory_ssa.block_phi(block_id)?;
-    if memory_ssa.defining_access(access_id) != Some(phi_access) {
+    let phi_access = memory.block_phi(block_id)?;
+    if memory.defining_access(access_id) != Some(phi_access) {
         return None;
     }
 
     // ensure the store can move to the block entry
     let block = tree.get(block_id);
-    if !store_can_move_to_entry(instruction_id, block, tree, memory_ssa) {
+    if !store_can_move_to_entry(instruction_id, block, function, tree, memory) {
         return None;
     }
 
@@ -383,8 +373,9 @@ fn store_access_info(
 fn store_can_move_to_entry(
     store_id: mir::LocalNodeId<mir::Instruction>,
     block: &mir::Block,
+    function: &mir::Function,
     tree: &mir::Tree,
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
 ) -> bool {
     // inspect instructions before the store
     for &instruction_id in &block.instructions {
@@ -397,12 +388,12 @@ fn store_can_move_to_entry(
         let instruction = tree.get(instruction_id);
 
         // require speculatable instructions before the store
-        if !instruction_is_speculatable(instruction, tree) {
+        if !instruction_is_speculatable(instruction, function, tree) {
             return false;
         }
 
         // reject memory reads before the store
-        if instruction_is_read_only_access(instruction_id, memory_ssa) {
+        if instruction_is_read_only_access(instruction_id, memory) {
             return false;
         }
     }
@@ -413,15 +404,15 @@ fn store_can_move_to_entry(
 /// Collect edge insertions for each predecessor of the store block.
 fn collect_edge_insertions(
     store: &StoreCandidate,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
     tree: &mir::Tree,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     function_params: &HashSet<mir::Value>,
     param_indices: &HashMap<mir::Value, usize>,
-    memory: &mir::MemoryTable,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
+    accesses: &mir::AccessTable,
+    memory: &MemoryTable,
+    alias: &AliasTable,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> Option<Vec<EdgeStorePlan>> {
     // collect predecessor edge insertions
@@ -434,7 +425,7 @@ fn collect_edge_insertions(
     }
 
     // resolve incoming memory accesses for the store block
-    let MemoryNode::Phi(phi) = memory_ssa.access(memory_ssa.block_phi(store.block)?) else {
+    let MemoryNode::Phi(phi) = memory.access(memory.block_phi(store.block)?) else {
         return None;
     };
     let incoming_by_pred: HashMap<_, _> = phi
@@ -486,8 +477,8 @@ fn collect_edge_insertions(
             incoming_access,
             pointer,
             value,
+            accesses,
             memory,
-            memory_ssa,
             alias,
             tree,
             equivalence,
@@ -512,14 +503,14 @@ fn incoming_def_matches(
     incoming_access: MemoryAccessId,
     pointer: Option<mir::Value>,
     value: mir::Value,
-    memory: &mir::MemoryTable,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
+    accesses: &mir::AccessTable,
+    memory: &MemoryTable,
+    alias: &AliasTable,
     tree: &mir::Tree,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // require a memory def on the edge
-    let MemoryNode::Def(def_access) = memory_ssa.access(incoming_access) else {
+    let MemoryNode::Def(def_access) = memory.access(incoming_access) else {
         return false;
     };
 
@@ -544,7 +535,7 @@ fn incoming_def_matches(
     };
 
     // require the instruction to match the store kind
-    if memory.instruction_has_atomic_ordering(tree, def_instruction) {
+    if accesses.is_ordered(def_instruction, tree) {
         return false;
     }
     let (def_kind, def_pointer, def_local, def_value) = match tree.get(def_instruction) {
@@ -608,19 +599,19 @@ fn insert_store_for_plan(
 
 /// Clone store tables to a new instruction.
 fn clone_store_metadata(
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     source: mir::LocalNodeId<mir::Instruction>,
     destination: mir::LocalNodeId<mir::Instruction>,
     pointer: Option<mir::Value>,
 ) {
     // skip when there is no tables to clone
-    let Some(accesses) = memory.memory_accesses(source) else {
+    let Some(entries) = accesses.get(source) else {
         return;
     };
 
     // update reference targets for cloned tables
-    let mut cloned = Vec::with_capacity(accesses.len());
-    for access in accesses {
+    let mut cloned = Vec::with_capacity(entries.len());
+    for access in entries {
         let mut updated = access.clone();
         if let (Some(pointer), mir::MemoryTarget::Address(_)) = (pointer, updated.target) {
             updated.target = mir::MemoryTarget::Address(pointer);
@@ -628,7 +619,7 @@ fn clone_store_metadata(
         cloned.push(updated);
     }
 
-    memory.insert_memory_accesses(destination, cloned);
+    accesses.insert(destination, cloned);
 }
 
 #[cfg(test)]

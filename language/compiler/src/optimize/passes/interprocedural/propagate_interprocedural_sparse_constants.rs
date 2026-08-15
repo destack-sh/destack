@@ -4,17 +4,16 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::passes::scalar::{PropagateSparseConstants, SimplifyControlFlow};
-use crate::optimize::{MirOptimized, ModulePass, PipelineContext, run_function_passes};
+use crate::optimize::{
+    FunctionPass, MirOptimized, ModulePass, PipelineContext, run_function_passes,
+};
 use destack_mir::{
-    ConstantPropagation, FunctionEffectAnalysis, Mutation, SignatureKey, apply_constant_parameters,
+    ConstantTable, EffectTable, Mutation, SignatureKey, apply_constant_parameters,
     constant_arguments_for_parameters, constant_matches_type, constant_type_of,
 };
 
 declare_pass! {
     /// Propagate constants across call edges and prune dead paths.
-    ///
-    /// This pass discovers constant arguments for direct callsites and applies them to callees.
-    /// It then runs SCCP locally to prune dead edges and replace constant returns.
     ///
     /// ```mir
     /// function callee(v0: int32): int32 {
@@ -23,8 +22,8 @@ declare_pass! {
     /// }
     /// function root(): int32 {
     /// b0:
-    ///     v0 = 7int32
-    ///     v1 = call callee(v0)
+    ///     v0: int32 = 7
+    ///     v1: int32 = call callee(v0): (int32) => int32
     ///     return v1
     /// }
     /// ```
@@ -32,13 +31,13 @@ declare_pass! {
     /// ```mir
     /// function callee(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = 7int32
+    ///     v1: int32 = 7
     ///     return v1
     /// }
     /// function root(): int32 {
     /// b0:
-    ///     v0 = 7int32
-    ///     v1 = call callee(v0)
+    ///     v0: int32 = 7
+    ///     v1: int32 = call callee(v0): (int32) => int32
     ///     return v1
     /// }
     /// ```
@@ -53,23 +52,24 @@ impl ModulePass for PropagateInterproceduralSparseConstants {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::ModuleAnalyses,
+        analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         // run the interprocedural pass
         let function_effects =
-            analyses.function_effects(&optimized.tree, &optimized.memory, &optimized.effects);
+            analyses.effect(&optimized.tree, &optimized.accesses, &optimized.effects);
         let (mut changed, cleanup_functions) = {
             let tree = &mut optimized.tree;
-            let memory = &mut optimized.memory;
+            let accesses = &mut optimized.accesses;
             let effects = &optimized.effects;
-            run_interprocedural_sccp(tree, memory, effects, ctx, &function_effects)
+            run_interprocedural_sccp(tree, accesses, effects, ctx, &function_effects)
         };
 
         // clean up functions changed by interprocedural propagation
         for function_id in cleanup_functions {
             let sccp = PropagateSparseConstants;
             let simplify = SimplifyControlFlow;
-            if run_function_passes(function_id, optimized, ctx, &[&sccp, &simplify]) {
+            let passes: [&dyn FunctionPass; 2] = [&sccp, &simplify];
+            if run_function_passes(function_id, optimized, ctx, passes) {
                 changed = true;
             }
         }
@@ -82,16 +82,6 @@ impl ModulePass for PropagateInterproceduralSparseConstants {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass display name.
-    fn name(&self) -> &'static str {
-        "PropagateInterproceduralSparseConstants"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "propagate-interprocedural-sparse-constants"
     }
 }
 
@@ -154,10 +144,10 @@ struct CallData {
 /// Run interprocedural SCCP over the module.
 fn run_interprocedural_sccp(
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     effects: &mir::EffectTable,
     ctx: &PipelineContext<'_>,
-    function_effects: &FunctionEffectAnalysis,
+    function_effects: &EffectTable,
 ) -> (bool, HashSet<mir::FunctionId>) {
     // collect callsite information up front
     let call_data = collect_call_data(tree);
@@ -212,7 +202,7 @@ fn run_interprocedural_sccp(
 
         // apply constant substitutions and track updates
         let constants = state_constants(state);
-        if apply_constant_parameters(*function_id, &constants, tree, memory) {
+        if apply_constant_parameters(*function_id, &constants, tree, accesses) {
             cleanup_functions.insert(*function_id);
             changed = true;
         }
@@ -221,7 +211,7 @@ fn run_interprocedural_sccp(
     // replace pure constant calls with literals
     if replace_constant_calls(
         tree,
-        memory,
+        accesses,
         &call_data,
         &states,
         ctx.target_layout(),
@@ -282,7 +272,7 @@ fn update_parameter_states(
     tree: &mir::Tree,
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
     call_data: &CallData,
-    constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation>,
+    constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantTable>,
     states: &mut HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
 ) -> bool {
@@ -384,7 +374,7 @@ fn merge_param_constants(constants: &[Option<mir::Constant>], states: &mut [Latt
 fn update_return_states(
     tree: &mir::Tree,
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
-    constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation>,
+    constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantTable>,
     states: &mut HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
 ) -> bool {
@@ -421,7 +411,7 @@ fn update_return_states(
 /// Compute the return lattice value for a function.
 fn return_state_for_function(
     function: &mir::Function,
-    constants: &ConstantPropagation,
+    constants: &ConstantTable,
     tree: &mir::Tree,
     target_layout: mir::TargetLayout,
 ) -> LatticeConstant {
@@ -488,7 +478,7 @@ fn build_constant_maps(
     tree: &mir::Tree,
     states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
-) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation> {
+) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantTable> {
     // prepare the result map
     let mut maps = HashMap::new();
 
@@ -496,7 +486,7 @@ fn build_constant_maps(
     for (function_id, state) in states {
         let function = tree.get(*function_id);
         let param_constants = param_constants_for_function(function, state);
-        let constants = ConstantPropagation::with_parameter_constants(
+        let constants = ConstantTable::with_parameter_constants(
             function,
             tree,
             target_layout,
@@ -541,12 +531,12 @@ fn state_constants(state: &FunctionState) -> Vec<Option<mir::Constant>> {
 /// Replace pure callsites with constant returns.
 fn replace_constant_calls(
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     call_data: &CallData,
     states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
     effects: &mir::EffectTable,
-    function_effects: &FunctionEffectAnalysis,
+    function_effects: &EffectTable,
 ) -> bool {
     // track whether any calls were replaced
     let mut changed = false;
@@ -605,7 +595,7 @@ fn replace_constant_calls(
                 value: constant.clone(),
             },
         );
-        memory.remove_memory_accesses(call_instruction);
+        accesses.remove(call_instruction);
         changed = true;
     }
 
@@ -690,7 +680,7 @@ fn call_is_pure(
     call_instruction: mir::LocalNodeId<mir::Instruction>,
     callee: mir::LocalNodeId<mir::Function>,
     effects: &mir::EffectTable,
-    function_effects: &FunctionEffectAnalysis,
+    function_effects: &EffectTable,
 ) -> bool {
     // resolve callsite effects when present
     let callsite = mir::CallSite::Instruction(call_instruction);

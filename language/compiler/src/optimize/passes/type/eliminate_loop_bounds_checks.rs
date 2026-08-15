@@ -5,31 +5,28 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, DominatorTree, Loop, LoopAnalysis, Mutation, RangeAnalysis, RangeMap,
-    ScalarEvolution, Scev, ValueRange, constant_zero_like,
+    BlockParamForwarding, DominatorTable, EvolutionTable, Loop, LoopTable, Mutation, RangeState,
+    RangeTable, Scev, ValueRange, constant_zero_like,
 };
 
 declare_pass! {
     /// Eliminate bounds checks dominated by loop guards.
     ///
-    /// Uses loop guard comparisons to remove redundant bounds checks inside
-    /// loop bodies when the guard implies the bounds check is satisfied.
-    ///
     /// ```mir
     /// function before(v0: [int32; 4]): void {
     /// b0(v0: [int32; 4]):
-    ///     v1 = 0uint32
-    ///     v2 = 1uint32
-    ///     v3 = 4uint32
+    ///     v1: uint32 = 0
+    ///     v2: uint32 = 1
+    ///     v3: uint32 = 4
     ///     jump b1(v1)
     /// b1(v4: uint32):
-    ///     v5 = int.lt.u v4, v3
+    ///     v5: boolean = lt v4, v3
     ///     branch v5 => b2 | b3
     /// b2:
-    ///     v6 = int.lt.u v4, v3
+    ///     v6: boolean = lt v4, v3
     ///     check bounds.u v4, v3, v0 => b4 | b5
     /// b4:
-    ///     v7 = int.add v4, v2
+    ///     v7: uint32 = add v4, v2
     ///     jump b1(v7)
     /// b5:
     ///     unreachable
@@ -41,18 +38,18 @@ declare_pass! {
     /// ```mir
     /// function after(v0: [int32; 4]): void {
     /// b0(v0: [int32; 4]):
-    ///     v1 = 0uint32
-    ///     v2 = 1uint32
-    ///     v3 = 4uint32
+    ///     v1: uint32 = 0
+    ///     v2: uint32 = 1
+    ///     v3: uint32 = 4
     ///     jump b1(v1)
     /// b1(v4: uint32):
-    ///     v5 = int.lt.u v4, v3
+    ///     v5: boolean = lt v4, v3
     ///     branch v5 => b2 | b3
     /// b2:
-    ///     v6 = int.lt.u v4, v3
+    ///     v6: boolean = lt v4, v3
     ///     jump b4
     /// b4:
-    ///     v7 = int.add v4, v2
+    ///     v7: uint32 = add v4, v2
     ///     jump b1(v7)
     /// b5:
     ///     unreachable
@@ -72,7 +69,7 @@ impl FunctionPass for EliminateLoopBoundsChecks {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -83,10 +80,10 @@ impl FunctionPass for EliminateLoopBoundsChecks {
 
         // gather analyses
         let loops = analyses.loops(function, tree).clone();
-        let cfg = analyses.control_flow(function, tree).clone();
-        let domtree = analyses.dominators(function, tree).clone();
-        let ranges = analyses.ranges(function, tree).clone();
-        let scev = analyses.scalar_evolution(function, tree).clone();
+        let cfg = analyses.control(function, tree).clone();
+        let domtree = analyses.dominator(function, tree).clone();
+        let ranges = analyses.range(function, tree).clone();
+        let scev = analyses.evolution(function, tree).clone();
 
         // skip when no loops are present
         if loops.num_loops() == 0 {
@@ -94,11 +91,12 @@ impl FunctionPass for EliminateLoopBoundsChecks {
         }
 
         // build helper state
-        let definitions = ValueDefinitions::build(function, tree);
+        let definitions = DefinitionTable::build(function, tree);
         let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
         // run the elimination pass
         let changed = run_eliminate_loop_bounds_checks(
+            function,
             tree,
             &loops,
             &domtree,
@@ -112,16 +110,6 @@ impl FunctionPass for EliminateLoopBoundsChecks {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the display name for this pass.
-    fn name(&self) -> &'static str {
-        "EliminateLoopBoundsChecks"
-    }
-
-    /// Return the stable id for this pass.
-    fn id(&self) -> &'static str {
-        "eliminate-loop-bounds-checks"
     }
 }
 
@@ -145,12 +133,12 @@ struct ValueDefinition {
 
 /// Map of values to definitions.
 #[derive(Debug)]
-struct ValueDefinitions {
+struct DefinitionTable {
     /// Definitions keyed by value.
     definitions: HashMap<mir::Value, ValueDefinition>,
 }
 
-impl ValueDefinitions {
+impl DefinitionTable {
     /// Build a definition map for a function.
     fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         // collect parameter and instruction definitions
@@ -246,12 +234,13 @@ struct NonNegativeGuard {
 
 /// Eliminate redundant bounds checks inside loops.
 fn run_eliminate_loop_bounds_checks(
+    function: &mir::Function,
     tree: &mut mir::Tree,
-    loops: &LoopAnalysis,
-    domtree: &DominatorTree,
-    ranges: &RangeAnalysis,
-    scev: &ScalarEvolution,
-    definitions: &ValueDefinitions,
+    loops: &LoopTable,
+    domtree: &DominatorTable,
+    ranges: &RangeTable,
+    scev: &EvolutionTable,
+    definitions: &DefinitionTable,
     forwarding: &BlockParamForwarding,
 ) -> bool {
     // collect guards for each loop
@@ -259,7 +248,7 @@ fn run_eliminate_loop_bounds_checks(
 
     for (loop_index, lp) in loops.loops().iter().enumerate() {
         // derive guards from exiting blocks
-        let guards = collect_loop_guards(lp, tree, definitions, ranges);
+        let guards = collect_loop_guards(lp, function, tree, definitions, ranges);
 
         // record non empty guard sets
         if !guards.bounds.is_empty() || !guards.non_negative.is_empty() {
@@ -363,9 +352,10 @@ fn run_eliminate_loop_bounds_checks(
 /// Collect guard comparisons that imply index less than length.
 fn collect_loop_guards(
     lp: &Loop,
+    function: &mir::Function,
     tree: &mir::Tree,
-    definitions: &ValueDefinitions,
-    ranges: &RangeAnalysis,
+    definitions: &DefinitionTable,
+    ranges: &RangeTable,
 ) -> LoopGuards {
     // collect guard comparisons
     let mut bounds = Vec::new();
@@ -442,8 +432,15 @@ fn collect_loop_guards(
             });
         }
 
+        // resolve the integer comparison domain
+        let operand_type = function.expect_value_type(left);
+        let Some(is_signed) = tree.get(operand_type).integer_signedness() else {
+            continue;
+        };
+
         // normalize to a strict less than guard
-        let Some(guard_info) = guard_less_than(operator, left, right, guard_is_true) else {
+        let Some(guard_info) = guard_less_than(operator, left, right, guard_is_true, is_signed)
+        else {
             continue;
         };
 
@@ -466,7 +463,7 @@ fn collect_loop_guards(
 fn guard_comparison(
     condition: mir::Value,
     guard_is_true: bool,
-    definitions: &ValueDefinitions,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
 ) -> Option<(mir::BinaryOperator, mir::Value, mir::Value, bool)> {
     // resolve the condition instruction
@@ -569,38 +566,24 @@ fn guard_less_than(
     left: mir::Value,
     right: mir::Value,
     guard_is_true: bool,
+    is_signed: bool,
 ) -> Option<GuardLessThan> {
     // map comparisons to strict less than forms
     match (operator, guard_is_true) {
-        (mir::BinaryOperator::SignedLessThan, true) => Some(GuardLessThan {
+        (mir::BinaryOperator::LessThan, true) => Some(GuardLessThan {
             index: left,
             length: right,
-            is_signed: true,
+            is_signed,
         }),
-        (mir::BinaryOperator::UnsignedLessThan, true) => Some(GuardLessThan {
-            index: left,
-            length: right,
-            is_signed: false,
-        }),
-        (mir::BinaryOperator::SignedGreaterThan, true) => Some(GuardLessThan {
+        (mir::BinaryOperator::GreaterThan, true) => Some(GuardLessThan {
             index: right,
             length: left,
-            is_signed: true,
+            is_signed,
         }),
-        (mir::BinaryOperator::UnsignedGreaterThan, true) => Some(GuardLessThan {
-            index: right,
-            length: left,
-            is_signed: false,
-        }),
-        (mir::BinaryOperator::SignedGreaterEqual, false) => Some(GuardLessThan {
+        (mir::BinaryOperator::GreaterEqual, false) => Some(GuardLessThan {
             index: left,
             length: right,
-            is_signed: true,
-        }),
-        (mir::BinaryOperator::UnsignedGreaterEqual, false) => Some(GuardLessThan {
-            index: left,
-            length: right,
-            is_signed: false,
+            is_signed,
         }),
         _ => None,
     }
@@ -612,7 +595,7 @@ fn guard_non_negative(
     left: mir::Value,
     right: mir::Value,
     guard_is_true: bool,
-    ranges: &RangeMap,
+    ranges: &RangeState,
 ) -> Option<mir::Value> {
     // map comparisons into value >= bound when possible
     let right_constant = signed_constant_from_range(right, ranges);
@@ -630,10 +613,10 @@ fn guard_non_negative(
 
     // derive a lower bound from the guard
     let (inclusive, bound) = match (operator, guard_is_true) {
-        (mir::BinaryOperator::SignedGreaterEqual, true) => (true, constant),
-        (mir::BinaryOperator::SignedGreaterThan, true) => (false, constant),
-        (mir::BinaryOperator::SignedLessThan, false) => (true, constant),
-        (mir::BinaryOperator::SignedLessEqual, false) => (false, constant),
+        (mir::BinaryOperator::GreaterEqual, true) => (true, constant),
+        (mir::BinaryOperator::GreaterThan, true) => (false, constant),
+        (mir::BinaryOperator::LessThan, false) => (true, constant),
+        (mir::BinaryOperator::LessEqual, false) => (false, constant),
         _ => return None,
     };
 
@@ -669,10 +652,10 @@ fn guard_non_negative(
 fn flip_signed_comparison(operator: mir::BinaryOperator) -> Option<mir::BinaryOperator> {
     // map signed comparisons to flipped operators
     match operator {
-        mir::BinaryOperator::SignedLessThan => Some(mir::BinaryOperator::SignedGreaterThan),
-        mir::BinaryOperator::SignedLessEqual => Some(mir::BinaryOperator::SignedGreaterEqual),
-        mir::BinaryOperator::SignedGreaterThan => Some(mir::BinaryOperator::SignedLessThan),
-        mir::BinaryOperator::SignedGreaterEqual => Some(mir::BinaryOperator::SignedLessEqual),
+        mir::BinaryOperator::LessThan => Some(mir::BinaryOperator::GreaterThan),
+        mir::BinaryOperator::LessEqual => Some(mir::BinaryOperator::GreaterEqual),
+        mir::BinaryOperator::GreaterThan => Some(mir::BinaryOperator::LessThan),
+        mir::BinaryOperator::GreaterEqual => Some(mir::BinaryOperator::LessEqual),
         _ => None,
     }
 }
@@ -681,7 +664,7 @@ fn flip_signed_comparison(operator: mir::BinaryOperator) -> Option<mir::BinaryOp
 fn affine_value_for_loop(
     value: mir::Value,
     loop_index: usize,
-    scev: &ScalarEvolution,
+    scev: &EvolutionTable,
     forwarding: &BlockParamForwarding,
 ) -> AffineValue {
     // resolve forwarded values
@@ -809,9 +792,9 @@ fn index_non_negative_from_guards(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
     loop_index: usize,
-    scev: &ScalarEvolution,
+    scev: &EvolutionTable,
     forwarding: &BlockParamForwarding,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
     non_negative: &[NonNegativeGuard],
 ) -> bool {
     // build the affine form for the index
@@ -844,7 +827,7 @@ fn index_non_negative_from_guards(
 fn index_non_negative(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    ranges: &RangeAnalysis,
+    ranges: &RangeTable,
     forwarding: &BlockParamForwarding,
 ) -> bool {
     // use the forwarded value for range queries
@@ -866,7 +849,7 @@ fn index_non_negative(
 }
 
 /// Extract an integer constant from a value range.
-fn signed_constant_from_range(value: mir::Value, ranges: &RangeMap) -> Option<i128> {
+fn signed_constant_from_range(value: mir::Value, ranges: &RangeState) -> Option<i128> {
     // read the constant range when available
     let range = ranges.get(value)?;
     let constant = range.as_constant()?;
@@ -879,7 +862,7 @@ fn signed_constant_from_range(value: mir::Value, ranges: &RangeMap) -> Option<i1
 }
 
 /// Extract the minimum signed bound for a value range.
-fn signed_range_min(value: mir::Value, ranges: &RangeMap) -> Option<i128> {
+fn signed_range_min(value: mir::Value, ranges: &RangeState) -> Option<i128> {
     // resolve the integer range for the value
     let range = ranges.get(value)?;
     let ValueRange::Integer { min, is_signed, .. } = range else {
@@ -924,15 +907,15 @@ entry(v0: [int32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2 | b5
 
 b2:
-    v6: boolean = int.lt.u v4, v3
+    v6: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
-    v7: uint32 = int.add v4, v2
+    v7: uint32 = add v4, v2
     jump b1(v7)
 
 b4:
@@ -953,15 +936,15 @@ entry(v0: [int32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2 | b5
 
 b2:
-    v6: boolean = int.lt.u v4, v3
+    v6: boolean = lt v4, v3
     jump b3
 
 b3:
-    v7: uint32 = int.add v4, v2
+    v7: uint32 = add v4, v2
     jump b1(v7)
 
 b4:
@@ -991,12 +974,12 @@ entry(v0: [int32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b2 | b3
 
 b2:
-    v6: uint32 = int.add v4, v2
-    v7: boolean = int.lt.u v6, v3
+    v6: uint32 = add v4, v2
+    v7: boolean = lt v6, v3
     branch v7 => b1(v6) | b4
 
 b3:
@@ -1017,12 +1000,12 @@ entry(v0: [int32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b2 | b3
 
 b2:
-    v6: uint32 = int.add v4, v2
-    v7: boolean = int.lt.u v6, v3
+    v6: uint32 = add v4, v2
+    v7: boolean = lt v6, v3
     branch v7 => b1(v6) | b4
 
 b3:
@@ -1052,15 +1035,15 @@ entry(v0: [int32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.ge.u v4, v3
+    v5: boolean = ge v4, v3
     branch v5 => b5 | b2
 
 b2:
-    v6: boolean = int.lt.u v4, v3
+    v6: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
-    v7: uint32 = int.add v4, v2
+    v7: uint32 = add v4, v2
     jump b1(v7)
 
 b4:
@@ -1081,15 +1064,15 @@ entry(v0: [int32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.ge.u v4, v3
+    v5: boolean = ge v4, v3
     branch v5 => b5 | b2
 
 b2:
-    v6: boolean = int.lt.u v4, v3
+    v6: boolean = lt v4, v3
     jump b3
 
 b3:
-    v7: uint32 = int.add v4, v2
+    v7: uint32 = add v4, v2
     jump b1(v7)
 
 b4:
@@ -1118,15 +1101,15 @@ entry(v0: [int32; 4], v1: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.lt.s v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2 | b5
 
 b2:
-    v6: boolean = int.lt.s v4, v3
+    v6: boolean = lt v4, v3
     check bounds.s v4, v3, v0 => b3 | b4
 
 b3:
-    v7: int32 = int.add v4, v2
+    v7: int32 = add v4, v2
     jump b1(v7)
 
 b4:
@@ -1146,15 +1129,15 @@ entry(v0: [int32; 4], v1: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.lt.s v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2 | b5
 
 b2:
-    v6: boolean = int.lt.s v4, v3
+    v6: boolean = lt v4, v3
     check bounds.s v4, v3, v0 => b3 | b4
 
 b3:
-    v7: int32 = int.add v4, v2
+    v7: int32 = add v4, v2
     jump b1(v7)
 
 b4:
@@ -1184,15 +1167,15 @@ entry(v0: [int32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2(v4) | b5
 
 b2(v6: uint32):
-    v7: boolean = int.lt.u v6, v3
+    v7: boolean = lt v6, v3
     check bounds.u v6, v3, v0 => b3 | b4
 
 b3:
-    v8: uint32 = int.add v6, v2
+    v8: uint32 = add v6, v2
     jump b1(v8)
 
 b4:
@@ -1213,15 +1196,15 @@ entry(v0: [int32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2(v4) | b5
 
 b2(v6: uint32):
-    v7: boolean = int.lt.u v6, v3
+    v7: boolean = lt v6, v3
     jump b3
 
 b3:
-    v8: uint32 = int.add v6, v2
+    v8: uint32 = add v6, v2
     jump b1(v8)
 
 b4:
@@ -1250,20 +1233,20 @@ entry(v0: [int32; 8], v1: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.ge.s v4, v2
+    v5: boolean = ge v4, v2
     branch v5 => b2 | b6
 
 b2:
-    v6: boolean = int.lt.s v4, v3
+    v6: boolean = lt v4, v3
     branch v6 => b3 | b6
 
 b3:
-    v7: boolean = int.lt.s v4, v3
+    v7: boolean = lt v4, v3
     check bounds.s v4, v3, v0 => b4 | b5
 
 b4:
     v8: int32 = 1
-    v9: int32 = int.add v4, v8
+    v9: int32 = add v4, v8
     jump b1(v9)
 
 b5:
@@ -1283,20 +1266,20 @@ entry(v0: [int32; 8], v1: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.ge.s v4, v2
+    v5: boolean = ge v4, v2
     branch v5 => b2 | b6
 
 b2:
-    v6: boolean = int.lt.s v4, v3
+    v6: boolean = lt v4, v3
     branch v6 => b3 | b6
 
 b3:
-    v7: boolean = int.lt.s v4, v3
+    v7: boolean = lt v4, v3
     jump b4
 
 b4:
     v8: int32 = 1
-    v9: int32 = int.add v4, v8
+    v9: int32 = add v4, v8
     jump b1(v9)
 
 b5:
@@ -1325,20 +1308,20 @@ entry(v0: [int32; 8], v1: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.ge.s v4, v2
+    v5: boolean = ge v4, v2
     branch v5 => b2 | b6
 
 b2:
-    v6: boolean = int.lt.s v4, v3
+    v6: boolean = lt v4, v3
     branch v6 => b3 | b6
 
 b3:
-    v7: boolean = int.lt.s v4, v3
+    v7: boolean = lt v4, v3
     check bounds.s v4, v3, v0 => b4 | b5
 
 b4:
     v8: int32 = 1
-    v9: int32 = int.add v4, v8
+    v9: int32 = add v4, v8
     jump b1(v9)
 
 b5:
@@ -1358,20 +1341,20 @@ entry(v0: [int32; 8], v1: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.ge.s v4, v2
+    v5: boolean = ge v4, v2
     branch v5 => b2 | b6
 
 b2:
-    v6: boolean = int.lt.s v4, v3
+    v6: boolean = lt v4, v3
     branch v6 => b3 | b6
 
 b3:
-    v7: boolean = int.lt.s v4, v3
+    v7: boolean = lt v4, v3
     jump b4
 
 b4:
     v8: int32 = 1
-    v9: int32 = int.add v4, v8
+    v9: int32 = add v4, v8
     jump b1(v9)
 
 b5:
@@ -1400,20 +1383,20 @@ entry(v0: [int32; 8], v1: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.le.s v2, v4
+    v5: boolean = le v2, v4
     branch v5 => b2 | b6
 
 b2:
-    v6: boolean = int.lt.s v4, v3
+    v6: boolean = lt v4, v3
     branch v6 => b3 | b6
 
 b3:
-    v7: boolean = int.lt.s v4, v3
+    v7: boolean = lt v4, v3
     check bounds.s v4, v3, v0 => b4 | b5
 
 b4:
     v8: int32 = 1
-    v9: int32 = int.add v4, v8
+    v9: int32 = add v4, v8
     jump b1(v9)
 
 b5:
@@ -1433,20 +1416,20 @@ entry(v0: [int32; 8], v1: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.le.s v2, v4
+    v5: boolean = le v2, v4
     branch v5 => b2 | b6
 
 b2:
-    v6: boolean = int.lt.s v4, v3
+    v6: boolean = lt v4, v3
     branch v6 => b3 | b6
 
 b3:
-    v7: boolean = int.lt.s v4, v3
+    v7: boolean = lt v4, v3
     jump b4
 
 b4:
     v8: int32 = 1
-    v9: int32 = int.add v4, v8
+    v9: int32 = add v4, v8
     jump b1(v9)
 
 b5:
@@ -1476,19 +1459,19 @@ entry(v0: [uint32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    v6: boolean = int.not v5
+    v5: boolean = lt v4, v3
+    v6: boolean = not v5
     branch v6 => b2 | b3
 
 b2:
     return
 
 b3:
-    v7: boolean = int.lt.u v4, v3
+    v7: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b4 | b5
 
 b4:
-    v8: uint32 = int.add v4, v2
+    v8: uint32 = add v4, v2
     jump b1(v8)
 
 b5:
@@ -1505,19 +1488,19 @@ entry(v0: [uint32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    v6: boolean = int.not v5
+    v5: boolean = lt v4, v3
+    v6: boolean = not v5
     branch v6 => b2 | b3
 
 b2:
     return
 
 b3:
-    v7: boolean = int.lt.u v4, v3
+    v7: boolean = lt v4, v3
     jump b4
 
 b4:
-    v8: uint32 = int.add v4, v2
+    v8: uint32 = add v4, v2
     jump b1(v8)
 
 b5:
@@ -1544,15 +1527,15 @@ entry(v0: [int32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b2 | b5
 
 b2:
-    v6: boolean = int.lt.u v4, v3
+    v6: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
-    v7: uint32 = int.add v4, v2
+    v7: uint32 = add v4, v2
     jump b1(v7)
 
 b4:
@@ -1573,15 +1556,15 @@ entry(v0: [int32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b2 | b5
 
 b2:
-    v6: boolean = int.lt.u v4, v3
+    v6: boolean = lt v4, v3
     jump b3
 
 b3:
-    v7: uint32 = int.add v4, v2
+    v7: uint32 = add v4, v2
     jump b1(v7)
 
 b4:
@@ -1610,15 +1593,15 @@ entry(v0: [int32; 4], v1: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2 | b5
 
 b2:
-    v6: boolean = int.lt.s v4, v3
+    v6: boolean = lt v4, v3
     check bounds.s v4, v3, v0 => b3 | b4
 
 b3:
-    v7: int32 = int.add v4, v2
+    v7: int32 = add v4, v2
     jump b1(v7)
 
 b4:
@@ -1638,15 +1621,15 @@ entry(v0: [int32; 4], v1: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2 | b5
 
 b2:
-    v6: boolean = int.lt.s v4, v3
+    v6: boolean = lt v4, v3
     check bounds.s v4, v3, v0 => b3 | b4
 
 b3:
-    v7: int32 = int.add v4, v2
+    v7: int32 = add v4, v2
     jump b1(v7)
 
 b4:
@@ -1676,16 +1659,16 @@ entry(v0: [int32; 8]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: uint32 = int.add v4, v2
-    v6: boolean = int.lt.u v5, v3
+    v5: uint32 = add v4, v2
+    v6: boolean = lt v5, v3
     branch v6 => b2 | b5
 
 b2:
-    v7: boolean = int.lt.u v4, v3
+    v7: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
-    v8: uint32 = int.add v4, v2
+    v8: uint32 = add v4, v2
     jump b1(v8)
 
 b4:
@@ -1706,16 +1689,16 @@ entry(v0: [int32; 8]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: uint32 = int.add v4, v2
-    v6: boolean = int.lt.u v5, v3
+    v5: uint32 = add v4, v2
+    v6: boolean = lt v5, v3
     branch v6 => b2 | b5
 
 b2:
-    v7: boolean = int.lt.u v4, v3
+    v7: boolean = lt v4, v3
     jump b3
 
 b3:
-    v8: uint32 = int.add v4, v2
+    v8: uint32 = add v4, v2
     jump b1(v8)
 
 b4:
@@ -1745,16 +1728,16 @@ entry(v0: [int32; 8]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2 | b5
 
 b2:
-    v6: uint32 = int.add v4, v2
-    v7: boolean = int.lt.u v6, v3
+    v6: uint32 = add v4, v2
+    v7: boolean = lt v6, v3
     check bounds.u v6, v3, v0 => b3 | b4
 
 b3:
-    v8: uint32 = int.add v4, v2
+    v8: uint32 = add v4, v2
     jump b1(v8)
 
 b4:
@@ -1775,16 +1758,16 @@ entry(v0: [int32; 8]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2 | b5
 
 b2:
-    v6: uint32 = int.add v4, v2
-    v7: boolean = int.lt.u v6, v3
+    v6: uint32 = add v4, v2
+    v7: boolean = lt v6, v3
     check bounds.u v6, v3, v0 => b3 | b4
 
 b3:
-    v8: uint32 = int.add v4, v2
+    v8: uint32 = add v4, v2
     jump b1(v8)
 
 b4:
@@ -1814,16 +1797,16 @@ entry(v0: [int32; 8]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: uint32 = int.sub v3, v2
-    v6: boolean = int.lt.u v4, v5
+    v5: uint32 = sub v3, v2
+    v6: boolean = lt v4, v5
     branch v6 => b2 | b5
 
 b2:
-    v7: boolean = int.lt.u v4, v3
+    v7: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
-    v8: uint32 = int.add v4, v2
+    v8: uint32 = add v4, v2
     jump b1(v8)
 
 b4:
@@ -1844,16 +1827,16 @@ entry(v0: [int32; 8]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: uint32 = int.sub v3, v2
-    v6: boolean = int.lt.u v4, v5
+    v5: uint32 = sub v3, v2
+    v6: boolean = lt v4, v5
     branch v6 => b2 | b5
 
 b2:
-    v7: boolean = int.lt.u v4, v3
+    v7: boolean = lt v4, v3
     jump b3
 
 b3:
-    v8: uint32 = int.add v4, v2
+    v8: uint32 = add v4, v2
     jump b1(v8)
 
 b4:
@@ -1883,16 +1866,16 @@ entry(v0: [int32; 8]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: uint32 = int.add v3, v2
-    v6: boolean = int.lt.u v4, v5
+    v5: uint32 = add v3, v2
+    v6: boolean = lt v4, v5
     branch v6 => b2 | b5
 
 b2:
-    v7: boolean = int.lt.u v4, v3
+    v7: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
-    v8: uint32 = int.add v4, v2
+    v8: uint32 = add v4, v2
     jump b1(v8)
 
 b4:
@@ -1913,16 +1896,16 @@ entry(v0: [int32; 8]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: uint32 = int.add v3, v2
-    v6: boolean = int.lt.u v4, v5
+    v5: uint32 = add v3, v2
+    v6: boolean = lt v4, v5
     branch v6 => b2 | b5
 
 b2:
-    v7: boolean = int.lt.u v4, v3
+    v7: boolean = lt v4, v3
     check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
-    v8: uint32 = int.add v4, v2
+    v8: uint32 = add v4, v2
     jump b1(v8)
 
 b4:

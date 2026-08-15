@@ -5,29 +5,20 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantPropagation, DominatorTree, Loop, LoopAnalysis, Mutation, instruction_has_side_effects,
+    ConstantTable, DominatorTable, Loop, LoopTable, Mutation, instruction_has_side_effects,
 };
 
 declare_pass! {
     /// Delete loops that are proven to be skipped.
     ///
-    /// A loop can be deleted if:
-    /// 1. The header branch condition is a constant that selects an exit
-    /// 2. The selected exit block is outside the loop
-    /// 3. The loop has no side effects
-    /// 4. No values defined in the loop are used outside the loop
-    ///
-    /// When deleted, the loop is replaced with a direct jump from the preheader
-    /// to the selected exit block, passing the initial values of any exit block parameters.
-    ///
     /// ```mir
     /// function before(): void {
     /// b0:
-    ///     v0 = false
+    ///     v0: boolean = false
     ///     jump b1
     /// b1:
-    ///     v1 = 1int32
-    ///     v2 = int.add v1, v1
+    ///     v1: int32 = 1
+    ///     v2: int32 = add v1, v1
     ///     branch v0 => b1 | b2
     /// b2:
     ///     return
@@ -37,7 +28,7 @@ declare_pass! {
     /// ```mir
     /// function after(): void {
     /// b0:
-    ///     v0 = false
+    ///     v0: boolean = false
     ///     jump b1
     /// b1:
     ///     return
@@ -54,7 +45,7 @@ impl FunctionPass for EliminateDeadLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -66,8 +57,8 @@ impl FunctionPass for EliminateDeadLoops {
         let (loops, domtree, constants) = {
             (
                 analyses.loops(function, tree).clone(),
-                analyses.dominators(function, tree).clone(),
-                analyses.constants(function, tree).clone(),
+                analyses.dominator(function, tree).clone(),
+                analyses.constant(function, tree).clone(),
             )
         };
         if loops.num_loops() == 0 {
@@ -82,23 +73,15 @@ impl FunctionPass for EliminateDeadLoops {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "EliminateDeadLoops"
-    }
-
-    fn id(&self) -> &'static str {
-        "eliminate-dead-loops"
-    }
 }
 
 /// Core loop deletion logic. Returns true if changes were made.
 fn run_eliminate_dead_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    loops: &LoopAnalysis,
-    domtree: &DominatorTree,
-    constants: &ConstantPropagation,
+    loops: &LoopTable,
+    domtree: &DominatorTable,
+    constants: &ConstantTable,
 ) -> bool {
     // collect deletable loops (innermost first to avoid invalidation issues)
     let mut deletable: Vec<DeleteCandidate> = Vec::new();
@@ -138,8 +121,8 @@ fn find_deletable_loop(
     lp: &Loop,
     function: &mir::Function,
     tree: &mir::Tree,
-    domtree: &DominatorTree,
-    constants: &ConstantPropagation,
+    domtree: &DominatorTable,
+    constants: &ConstantTable,
 ) -> Option<DeleteCandidate> {
     // need a preheader (immediate dominator outside the loop)
     let preheader = domtree.immediate_dominator(lp.header)?;
@@ -239,7 +222,7 @@ fn find_constant_exit(
     lp: &Loop,
     tree: &mir::Tree,
     preheader: mir::LocalNodeId<mir::Block>,
-    constants: &ConstantPropagation,
+    constants: &ConstantTable,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     let header_block = tree.get(lp.header);
     let header_terminator = tree.get(header_block.terminator);
@@ -413,7 +396,7 @@ entry(v0: int32):
 
 b1(v3: int32):
     v4: int32 = 1
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     branch v1 => b1(v5) | b2
 
 b2:
@@ -529,7 +512,7 @@ b1:
     branch v0 => b1 | b2
 
 b2:
-    v2: int32 = int.add v1, v1
+    v2: int32 = add v1, v1
     return v2
 }
 "#;
@@ -611,7 +594,7 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;
@@ -638,7 +621,7 @@ b2:
 
 b3:
     v5: int32 = 1
-    v6: int32 = int.add v3, v5
+    v6: int32 = add v3, v5
     branch v0 => b1(v6) | b4(v6)
 
 b4(v7: int32):
@@ -657,7 +640,7 @@ b1(v3: int32):
 
 b3:
     v5: int32 = 1
-    v6: int32 = int.add v3, v5
+    v6: int32 = add v3, v5
     branch v0 => b1(v6) | b4(v6)
 
 b4(v7: int32):
@@ -682,7 +665,7 @@ entry(v0: int32):
 
 b1(v3: int32):
     v4: int32 = 1
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     branch v1 => b1(v5) | b2(v3)
 
 b2(v6: int32):

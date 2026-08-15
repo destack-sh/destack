@@ -5,27 +5,22 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AliasResult, ConstantPropagation, MemoryAccessEffect, MemoryAccessId, MemoryDef,
-    MemoryNode, MemoryRegion, MemorySSA, Mutation, ValueDefinitions, ValueEquivalence,
+    AliasResult, AliasTable, ConstantTable, DefinitionTable, MemoryAccessEffect, MemoryAccessId,
+    MemoryDef, MemoryNode, MemoryRegion, MemoryTable, Mutation, ValueEquivalence,
 };
 
 declare_pass! {
     /// Remove redundant memory stores.
     ///
-    /// Eliminates stores that write the same value as the last clobbering definition of the same region.
-    /// This is distinct from dead store elimination:
-    ///  the store can be removed even if the value is later read,
-    ///  because the memory contents are unchanged.
-    ///
     /// ```mir
     /// function before(): int32 {
     ///     local l0: int32
     /// b0:
-    ///     v0 = local.address l0
-    ///     v1 = 7int32
+    ///     v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v1: int32 = 7
     ///     store v0, v1
     ///     store v0, v1
-    ///     v2 = load v0
+    ///     v2: int32 = load v0
     ///     return v2
     /// }
     /// ```
@@ -34,10 +29,10 @@ declare_pass! {
     /// function after(): int32 {
     ///     local l0: int32
     /// b0:
-    ///     v0 = local.address l0
-    ///     v1 = 7int32
+    ///     v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v1: int32 = 7
     ///     store v0, v1
-    ///     v2 = load v0
+    ///     v2: int32 = load v0
     ///     return v2
     /// }
     /// ```
@@ -52,10 +47,10 @@ impl FunctionPass for EliminateRedundantMemory {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &optimized.effects;
 
         // skip empty functions
@@ -65,11 +60,11 @@ impl FunctionPass for EliminateRedundantMemory {
         };
 
         // get analyses
-        let (alias, memory_ssa, constants) = {
+        let (alias, memory, constants) = {
             (
                 analyses.alias(function, tree).clone(),
-                analyses.memory_ssa(function, tree, memory, effects),
-                analyses.constants(function, tree),
+                analyses.memory(function, tree, accesses, effects),
+                analyses.constant(function, tree),
             )
         };
 
@@ -77,8 +72,8 @@ impl FunctionPass for EliminateRedundantMemory {
         let changed = run_eliminate_redundant_memory(
             function,
             tree,
-            memory,
-            memory_ssa.as_ref(),
+            accesses,
+            memory.as_ref(),
             &alias,
             constants.as_ref(),
         );
@@ -89,14 +84,6 @@ impl FunctionPass for EliminateRedundantMemory {
         } else {
             Mutation::NONE
         }
-    }
-
-    fn name(&self) -> &'static str {
-        "EliminateRedundantMemory"
-    }
-
-    fn id(&self) -> &'static str {
-        "eliminate-redundant-memory"
     }
 }
 
@@ -162,13 +149,13 @@ struct SourceAccess {
 fn run_eliminate_redundant_memory(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mir::MemoryTable,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
-    constants: &ConstantPropagation,
+    accesses: &mir::AccessTable,
+    memory: &MemoryTable,
+    alias: &AliasTable,
+    constants: &ConstantTable,
 ) -> bool {
     // collect candidate definitions
-    let candidates = collect_candidates(function, tree, memory_ssa);
+    let candidates = collect_candidates(function, tree, memory);
 
     // exit early when there is nothing to do
     if candidates.is_empty() {
@@ -176,7 +163,7 @@ fn run_eliminate_redundant_memory(
     }
 
     // build definition map for value equivalence checks
-    let definitions = ValueDefinitions::build(function, tree).instruction_map();
+    let definitions = DefinitionTable::build(function, tree).instruction_map();
 
     // prepare value equivalence
     let mut equivalence =
@@ -187,14 +174,7 @@ fn run_eliminate_redundant_memory(
 
     // evaluate candidates for redundancy
     for candidate in candidates {
-        if candidate_is_redundant(
-            &candidate,
-            memory_ssa,
-            alias,
-            tree,
-            memory,
-            &mut equivalence,
-        ) {
+        if candidate_is_redundant(&candidate, memory, alias, tree, accesses, &mut equivalence) {
             redundant.insert(candidate.instruction);
         }
     }
@@ -218,7 +198,7 @@ fn run_eliminate_redundant_memory(
 fn collect_candidates(
     function: &mir::Function,
     tree: &mir::Tree,
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
 ) -> Vec<DefCandidate> {
     let mut candidates = Vec::new();
 
@@ -233,11 +213,11 @@ fn collect_candidates(
                 continue;
             };
 
-            let Some(access_id) = instruction_def_access(memory_ssa, instruction_id) else {
+            let Some(access_id) = instruction_def_access(memory, instruction_id) else {
                 continue;
             };
 
-            let MemoryNode::Def(def_access) = memory_ssa.access(access_id) else {
+            let MemoryNode::Def(def_access) = memory.access(access_id) else {
                 continue;
             };
 
@@ -299,15 +279,15 @@ fn def_kind_for_instruction(tree: &mir::Tree, instruction: &mir::Instruction) ->
 
 /// Find the single memory def access for an instruction.
 fn instruction_def_access(
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Option<MemoryAccessId> {
     // locate the single memory def access for this instruction
-    let accesses = memory_ssa.instruction_accesses(instruction_id)?;
+    let accesses = memory.instruction_accesses(instruction_id)?;
     let mut def_access = None;
 
     for access_id in accesses {
-        if matches!(memory_ssa.access(*access_id), MemoryNode::Def(_)) {
+        if matches!(memory.access(*access_id), MemoryNode::Def(_)) {
             if def_access.is_some() {
                 return None;
             }
@@ -321,10 +301,10 @@ fn instruction_def_access(
 /// Determine whether the candidate definition is redundant.
 fn candidate_is_redundant(
     candidate: &DefCandidate,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
+    memory: &MemoryTable,
+    alias: &AliasTable,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
+    accesses: &mir::AccessTable,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // skip untrackable candidates
@@ -333,13 +313,13 @@ fn candidate_is_redundant(
     }
 
     // skip atomically ordered candidates
-    if memory.instruction_has_atomic_ordering(tree, candidate.instruction) {
+    if accesses.is_ordered(candidate.instruction, tree) {
         return false;
     }
 
     // resolve the clobbering access for this definition
-    let clobber = memory_ssa.clobbering_def(candidate.access, alias);
-    let Some(clobber_defs) = clobber_def_accesses(memory_ssa, clobber) else {
+    let clobber = memory.clobbering_def(candidate.access, alias);
+    let Some(clobber_defs) = clobber_def_accesses(memory, clobber) else {
         return false;
     };
 
@@ -369,7 +349,7 @@ fn candidate_is_redundant(
             candidate,
             &clobber_kind,
             clobber_def,
-            memory_ssa,
+            memory,
             alias,
             equivalence,
         ) {
@@ -380,20 +360,17 @@ fn candidate_is_redundant(
     true
 }
 
-/// Collect clobbering def accesses for a MemorySSA clobber id.
-fn clobber_def_accesses(
-    memory_ssa: &MemorySSA,
-    clobber: MemoryAccessId,
-) -> Option<Vec<&MemoryDef>> {
+/// Collect clobbering def accesses for a MemoryTable clobber id.
+fn clobber_def_accesses(memory: &MemoryTable, clobber: MemoryAccessId) -> Option<Vec<&MemoryDef>> {
     // resolve the clobber access kind
-    match memory_ssa.access(clobber) {
+    match memory.access(clobber) {
         MemoryNode::Def(def_access) => Some(vec![def_access]),
         MemoryNode::Phi(phi) => {
             // collect incoming defs for a phi
             let mut defs = Vec::new();
 
             for (_, incoming) in &phi.incoming {
-                let MemoryNode::Def(def_access) = memory_ssa.access(*incoming) else {
+                let MemoryNode::Def(def_access) = memory.access(*incoming) else {
                     return None;
                 };
                 defs.push(def_access);
@@ -411,8 +388,8 @@ fn def_kinds_equivalent(
     candidate: &DefCandidate,
     clobber_kind: &DefKind,
     clobber_def: &MemoryDef,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
+    memory: &MemoryTable,
+    alias: &AliasTable,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // compare candidate and clobber kinds
@@ -454,15 +431,14 @@ fn def_kinds_equivalent(
             }
 
             // resolve source effects for both memops
-            let Some(candidate_source) = memop_source_access(memory_ssa, candidate.instruction)
-            else {
+            let Some(candidate_source) = memop_source_access(memory, candidate.instruction) else {
                 return false;
             };
 
             let Some(clobber_instruction) = clobber_def.instruction() else {
                 return false;
             };
-            let Some(clobber_source) = memop_source_access(memory_ssa, clobber_instruction) else {
+            let Some(clobber_source) = memop_source_access(memory, clobber_instruction) else {
                 return false;
             };
 
@@ -477,7 +453,7 @@ fn def_kinds_equivalent(
             }
 
             // require the source memory to be stable
-            if !memop_source_is_stable(&candidate_source, &clobber_source, memory_ssa, alias) {
+            if !memop_source_is_stable(&candidate_source, &clobber_source, memory, alias) {
                 return false;
             }
 
@@ -491,16 +467,16 @@ fn def_kinds_equivalent(
 /// Return true when a memory access is atomically ordered.
 /// Return the source memory access for a memcpy or memmove instruction.
 fn memop_source_access(
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Option<SourceAccess> {
     // collect access ids for the instruction
-    let accesses = memory_ssa.instruction_accesses(instruction_id)?;
+    let accesses = memory.instruction_accesses(instruction_id)?;
     let mut source_access = None;
 
     // locate the single read access
     for access_id in accesses {
-        let MemoryNode::Use(use_access) = memory_ssa.access(*access_id) else {
+        let MemoryNode::Use(use_access) = memory.access(*access_id) else {
             continue;
         };
 
@@ -523,12 +499,12 @@ fn memop_source_access(
 fn memop_source_is_stable(
     candidate: &SourceAccess,
     clobber: &SourceAccess,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
+    memory: &MemoryTable,
+    alias: &AliasTable,
 ) -> bool {
     // compare clobbering accesses for the source
-    let candidate_clobber = memory_ssa.clobbering_use(candidate.access, alias);
-    let clobber_clobber = memory_ssa.clobbering_use(clobber.access, alias);
+    let candidate_clobber = memory.clobbering_use(candidate.access, alias);
+    let clobber_clobber = memory.clobbering_use(clobber.access, alias);
 
     candidate_clobber == clobber_clobber
 }
@@ -547,7 +523,7 @@ fn memop_sources_do_not_overlap(alias_result: AliasResult, allow_must_alias: boo
 fn memop_alias_result(
     dest_effect: &MemoryAccessEffect,
     source_effect: &MemoryAccessEffect,
-    alias: &AliasAnalysis,
+    alias: &AliasTable,
 ) -> AliasResult {
     // apply location sets
     if !dest_effect
@@ -651,9 +627,9 @@ entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     store v0, v3
-    v4: int32 = int.add v1, v2
+    v4: int32 = add v1, v2
     store v0, v4
     v5: int32 = load v0
     return v5
@@ -666,9 +642,9 @@ entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     store v0, v3
-    v4: int32 = int.add v1, v2
+    v4: int32 = add v1, v2
     v5: int32 = load v0
     return v5
 }
@@ -689,9 +665,9 @@ entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     store v0, v3
-    v4: int32 = int.add v2, v1
+    v4: int32 = add v2, v1
     store v0, v4
     v5: int32 = load v0
     return v5
@@ -704,9 +680,9 @@ entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     store v0, v3
-    v4: int32 = int.add v2, v1
+    v4: int32 = add v2, v1
     v5: int32 = load v0
     return v5
 }
@@ -727,7 +703,7 @@ entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     v4: int32 = 5
     store v0, v3
     store v0, v4
@@ -742,7 +718,7 @@ entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     v4: int32 = 5
     store v0, v3
     v5: int32 = load v0

@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantMap, ConstantPropagation, Mutation, RangeAnalysis, RangeMap, TargetLayout,
+    ConstantState, ConstantTable, Mutation, RangeState, RangeTable, TargetLayout,
     constant_all_ones_like, constant_is_all_ones, constant_is_one, constant_is_zero,
     constant_zero_like, fold_binary, fold_cast, fold_unary, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
@@ -17,21 +17,11 @@ const MAX_AGGREGATE_CHAIN_DEPTH: usize = 64;
 declare_pass! {
     /// Algebraic simplification of instructions.
     ///
-    /// Applies identity and annihilator rules to simplify expressions:
-    /// - `x + 0 = x`, `x * 1 = x`, `x * 0 = 0`
-    /// - `x & 0 = 0`, `x | 0 = x`, `x ^ 0 = x`
-    /// - `x - x = 0`, `x ^ x = 0`, `x & x = x`
-    /// - `x == x = true`, `x != x = false`
-    /// - `!!x = x`
-    /// - `field.get(struct/tuple/array(...), i)` = operand i
-    /// - `field.get(field.set(..., i, v), i)` = v
-    /// - `field.get(field.set(..., i, v), j)` = field.get(original, j) when i != j
-    ///
     /// ```mir
     /// function before(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = 0int32
-    ///     v2 = int.add v0, v1
+    ///     v1: int32 = 0
+    ///     v2: int32 = add v0, v1
     ///     return v2
     /// }
     /// ```
@@ -61,18 +51,18 @@ impl FunctionPass for CombineInstructions {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // collect analyses and options
-        let constants = analyses.constants(function, tree).clone();
-        let ranges = analyses.ranges(function, tree).clone();
+        let constants = analyses.constant(function, tree).clone();
+        let ranges = analyses.range(function, tree).clone();
         let changed = run_combine_instructions(
             function,
             tree,
-            memory,
+            accesses,
             &constants,
             &ranges,
             ctx.target_layout(),
@@ -84,14 +74,6 @@ impl FunctionPass for CombineInstructions {
         } else {
             Mutation::NONE
         }
-    }
-
-    fn name(&self) -> &'static str {
-        "CombineInstructions"
-    }
-
-    fn id(&self) -> &'static str {
-        "combine-instructions"
     }
 }
 
@@ -117,9 +99,9 @@ struct FieldGetEntry {
 fn run_combine_instructions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    constants: &ConstantPropagation,
-    ranges: &RangeAnalysis,
+    accesses: &mut mir::AccessTable,
+    constants: &ConstantTable,
+    ranges: &RangeTable,
     target_layout: TargetLayout,
 ) -> bool {
     let mut value_to_instruction: HashMap<mir::Value, mir::Instruction> = HashMap::new();
@@ -224,6 +206,8 @@ fn run_combine_instructions(
                         *operator,
                         *left,
                         *right,
+                        function,
+                        tree,
                         &constant_lookup,
                         &block_ranges,
                     ),
@@ -329,7 +313,7 @@ fn run_combine_instructions(
                     instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
                 if new_instruction != instruction {
                     tree.set(instruction_id, new_instruction);
-                    remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
+                    remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
                 }
             }
         }
@@ -364,14 +348,18 @@ fn simplify_binary_operator(
     operator: mir::BinaryOperator,
     left: mir::Value,
     right: mir::Value,
+    function: &mir::Function,
+    tree: &mir::Tree,
     constants: &ConstantLookup<'_>,
-    ranges: &RangeMap,
+    ranges: &RangeState,
 ) -> Option<Simplification> {
     // read constant operands
     let left_const = constants.get(left);
     let right_const = constants.get(right);
     let left_const_ref = left_const.as_ref();
     let right_const_ref = right_const.as_ref();
+    let ty = function.expect_value_type(left);
+    let is_float = tree.get(ty).is_float(tree);
 
     // fold comparisons using range evidence
     if let Some(left_range) = ranges.get(left)
@@ -384,8 +372,13 @@ fn simplify_binary_operator(
     }
 
     // same operand simplifications (x op x)
-    if left == right {
+    if left == right && !is_float {
         return simplify_same_binary_operand(destination, operator, left, left_const_ref);
+    }
+
+    // preserve IEEE floating point behavior
+    if is_float {
+        return None;
     }
 
     // identity and annihilator rules with constants
@@ -427,15 +420,15 @@ fn simplify_binary_operator(
             }
         }
 
-        // x / 1 = x (signed)
-        mir::BinaryOperator::SignedDivide | mir::BinaryOperator::UnsignedDivide => {
+        // x / 1 = x
+        mir::BinaryOperator::Divide => {
             if constant_is_one(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
         }
 
-        // x % 1 = 0 (signed and unsigned)
-        mir::BinaryOperator::SignedRemainder | mir::BinaryOperator::UnsignedRemainder => {
+        // x % 1 = 0
+        mir::BinaryOperator::Remainder => {
             if constant_is_one(right_const_ref) {
                 return Some(Simplification::Constant(constant_zero_like(
                     right_const_ref.unwrap(),
@@ -497,8 +490,8 @@ fn simplify_binary_operator(
 
         // x << 0 = x, x >> 0 = x
         mir::BinaryOperator::ShiftLeft
-        | mir::BinaryOperator::ArithmeticShiftRight
-        | mir::BinaryOperator::LogicalShiftRight => {
+        | mir::BinaryOperator::ShiftRight
+        | mir::BinaryOperator::UnsignedShiftRight => {
             if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
@@ -549,10 +542,8 @@ fn simplify_same_binary_operand(
 
         // x == x = true
         mir::BinaryOperator::Equal
-        | mir::BinaryOperator::SignedLessEqual
-        | mir::BinaryOperator::SignedGreaterEqual
-        | mir::BinaryOperator::UnsignedLessEqual
-        | mir::BinaryOperator::UnsignedGreaterEqual => {
+        | mir::BinaryOperator::LessEqual
+        | mir::BinaryOperator::GreaterEqual => {
             Some(Simplification::Constant(mir::Constant::Boolean {
                 value: true,
             }))
@@ -560,10 +551,8 @@ fn simplify_same_binary_operand(
 
         // x != x = false, x < x = false, x > x = false
         mir::BinaryOperator::NotEqual
-        | mir::BinaryOperator::SignedLessThan
-        | mir::BinaryOperator::SignedGreaterThan
-        | mir::BinaryOperator::UnsignedLessThan
-        | mir::BinaryOperator::UnsignedGreaterThan => {
+        | mir::BinaryOperator::LessThan
+        | mir::BinaryOperator::GreaterThan => {
             Some(Simplification::Constant(mir::Constant::Boolean {
                 value: false,
             }))
@@ -576,14 +565,14 @@ fn simplify_same_binary_operand(
 /// Lookup for constants from propagation and range analysis.
 struct ConstantLookup<'a> {
     /// Constants derived from propagation.
-    block_constants: &'a mir::ConstantMap,
+    block_constants: &'a mir::ConstantState,
     /// Ranges for the block.
-    ranges: &'a RangeMap,
+    ranges: &'a RangeState,
 }
 
 impl<'a> ConstantLookup<'a> {
     /// Create a new lookup for a block.
-    fn new(block_constants: &'a mir::ConstantMap, ranges: &'a RangeMap) -> Self {
+    fn new(block_constants: &'a mir::ConstantState, ranges: &'a RangeState) -> Self {
         Self {
             block_constants,
             ranges,
@@ -607,8 +596,8 @@ impl<'a> ConstantLookup<'a> {
 fn update_constant_map(
     instruction: &mir::Instruction,
     tree: &mir::Tree,
-    block_constants: &mut ConstantMap,
-    ranges: &RangeMap,
+    block_constants: &mut ConstantState,
+    ranges: &RangeState,
     target_layout: TargetLayout,
 ) {
     // skip instructions without destinations
@@ -670,7 +659,6 @@ fn update_constant_map(
             // fold casts when possible
             let argument = constant_for(*argument);
             if let Some(argument) = argument
-                && true
                 && let Some(result) = fold_cast(
                     *operator,
                     argument,
@@ -806,11 +794,11 @@ mod tests {
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;
-        // v2 is substituted with v0, the int.add is removed
+        // v2 is substituted with v0, the add is removed
         let expected = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
@@ -831,7 +819,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.add v1, v0
+    v2: int32 = add v1, v0
     return v2
 }
 "#;
@@ -855,7 +843,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.mul v0, v1
+    v2: int32 = mul v0, v1
     return v2
 }
 "#;
@@ -879,7 +867,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.mul v0, v1
+    v2: int32 = mul v0, v1
     return v2
 }
 "#;
@@ -904,7 +892,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.and v0, v1
+    v2: int32 = and v0, v1
     return v2
 }
 "#;
@@ -929,7 +917,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.or v0, v1
+    v2: int32 = or v0, v1
     return v2
 }
 "#;
@@ -953,7 +941,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.xor v0, v1
+    v2: int32 = xor v0, v1
     return v2
 }
 "#;
@@ -978,7 +966,7 @@ entry(v0: int32):
 function test(): int32 {
 entry:
     v0: int32 = 42
-    v1: int32 = int.sub v0, v0
+    v1: int32 = sub v0, v0
     return v1
 }
 "#;
@@ -1004,7 +992,7 @@ entry:
 function test(): int32 {
 entry:
     v0: int32 = 42
-    v1: int32 = int.xor v0, v0
+    v1: int32 = xor v0, v0
     return v1
 }
 "#;
@@ -1028,7 +1016,7 @@ entry:
         let input = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.sub v0, v0
+    v1: int32 = sub v0, v0
     return v1
 }
 "#;
@@ -1045,7 +1033,7 @@ entry(v0: int32):
         let input = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.and v0, v0
+    v1: int32 = and v0, v0
     return v1
 }
 "#;
@@ -1067,7 +1055,7 @@ entry(v0: int32):
         let input = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.or v0, v0
+    v1: int32 = or v0, v0
     return v1
 }
 "#;
@@ -1089,7 +1077,7 @@ entry(v0: int32):
         let input = r#"
 function test(v0: int32): boolean {
 entry(v0: int32):
-    v1: boolean = int.eq v0, v0
+    v1: boolean = eq v0, v0
     return v1
 }
 "#;
@@ -1112,7 +1100,7 @@ entry(v0: int32):
         let input = r#"
 function test(v0: int32): boolean {
 entry(v0: int32):
-    v1: boolean = int.ne v0, v0
+    v1: boolean = ne v0, v0
     return v1
 }
 "#;
@@ -1135,7 +1123,7 @@ entry(v0: int32):
         let input = r#"
 function test(v0: int32): boolean {
 entry(v0: int32):
-    v1: boolean = int.lt.s v0, v0
+    v1: boolean = lt v0, v0
     return v1
 }
 "#;
@@ -1158,7 +1146,7 @@ entry(v0: int32):
         let input = r#"
 function test(v0: int32): boolean {
 entry(v0: int32):
-    v1: boolean = int.le.s v0, v0
+    v1: boolean = le v0, v0
     return v1
 }
 "#;
@@ -1182,7 +1170,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.shl v0, v1
+    v2: int32 = shl v0, v1
     return v2
 }
 "#;
@@ -1206,7 +1194,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.shl v1, v0
+    v2: int32 = shl v1, v0
     return v2
 }
 "#;
@@ -1231,7 +1219,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.div.s v0, v1
+    v2: int32 = div v0, v1
     return v2
 }
 "#;
@@ -1255,7 +1243,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.rem.s v0, v1
+    v2: int32 = rem v0, v1
     return v2
 }
 "#;
@@ -1280,7 +1268,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 5
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;
@@ -1297,9 +1285,9 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     v3: int32 = 1
-    v4: int32 = int.mul v2, v3
+    v4: int32 = mul v2, v3
     return v4
 }
 "#;
@@ -1325,19 +1313,19 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     v3: int32 = 5
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
-        // v2 -> v0, so v4 = int.add v0, v3
+        // v2 -> v0, so v4 = add v0, v3
         let expected = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
     v3: int32 = 5
-    v4: int32 = int.add v0, v3
+    v4: int32 = add v0, v3
     return v4
 }
 "#;
@@ -1354,7 +1342,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = -1
-    v2: int32 = int.and v0, v1
+    v2: int32 = and v0, v1
     return v2
 }
 "#;
@@ -1378,7 +1366,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = -1
-    v2: int32 = int.or v0, v1
+    v2: int32 = or v0, v1
     return v2
 }
 "#;
@@ -1403,7 +1391,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.shr.s v0, v1
+    v2: int32 = shr v0, v1
     return v2
 }
 "#;
@@ -1427,7 +1415,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: int32 = int.shr.u v0, v1
+    v2: int32 = ushr v0, v1
     return v2
 }
 "#;
@@ -1451,7 +1439,7 @@ entry(v0: int32):
 function test(v0: uint32): uint32 {
 entry(v0: uint32):
     v1: uint32 = 1
-    v2: uint32 = int.div.u v0, v1
+    v2: uint32 = div v0, v1
     return v2
 }
 "#;
@@ -1475,7 +1463,7 @@ entry(v0: uint32):
 function test(v0: uint32): uint32 {
 entry(v0: uint32):
     v1: uint32 = 1
-    v2: uint32 = int.rem.u v0, v1
+    v2: uint32 = rem v0, v1
     return v2
 }
 "#;
@@ -1500,7 +1488,7 @@ entry(v0: uint32):
 function test(v0: float32): float32 {
 entry(v0: float32):
     v1: float32 = 0
-    v2: float32 = float.add v0, v1
+    v2: float32 = add v0, v1
     return v2
 }
 "#;
@@ -1516,15 +1504,15 @@ entry(v0: float32):
         let input = r#"
 function test(v0: boolean): boolean {
 entry(v0: boolean):
-    v1: boolean = int.not v0
-    v2: boolean = int.not v1
+    v1: boolean = not v0
+    v2: boolean = not v1
     return v2
 }
 "#;
         let expected = r#"
 function test(v0: boolean): boolean {
 entry(v0: boolean):
-    v1: boolean = int.not v0
+    v1: boolean = not v0
     return v0
 }
 "#;
@@ -1596,7 +1584,7 @@ entry(v0: int32, v1: int32):
     v2: Point = aggregate (v0, v1)
     v3: int32 = field.get v2, 0
     v4: int32 = field.get v2, 1
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     return v5
 }
 "#;
@@ -1610,7 +1598,7 @@ type Point {
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: Point = aggregate (v0, v1)
-    v5: int32 = int.add v0, v1
+    v5: int32 = add v0, v1
     return v5
 }
 "#;
@@ -1750,7 +1738,7 @@ entry(v0: Point, v1: int32, v2: int32):
     v4: Point = field.set v3, 1, v2
     v5: int32 = field.get v4, 0
     v6: int32 = field.get v4, 1
-    v7: int32 = int.add v5, v6
+    v7: int32 = add v5, v6
     return v7
 }
 "#;
@@ -1765,7 +1753,7 @@ function test(v0: Point, v1: int32, v2: int32): int32 {
 entry(v0: Point, v1: int32, v2: int32):
     v3: Point = field.set v0, 0, v1
     v4: Point = field.set v3, 1, v2
-    v7: int32 = int.add v1, v2
+    v7: int32 = add v1, v2
     return v7
 }
 "#;

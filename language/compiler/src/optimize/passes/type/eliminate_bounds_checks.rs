@@ -5,25 +5,22 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, ConstantPropagation, DominatorTree, Mutation, RangeAnalysis, RangeMap,
+    BlockParamForwarding, ConstantTable, DominatorTable, Mutation, RangeState, RangeTable,
     ValueRange, fold_binary,
 };
 
 declare_pass! {
     /// Eliminate bounds checks that are proven redundant.
     ///
-    /// Uses range analysis, dominator based constraints, and assume tables
-    /// to remove checks that are guaranteed to succeed.
-    ///
     /// ```mir
     /// function before(v0: [int32; 4]): void {
     /// b0(v0: [int32; 4]):
-    ///     v1 = 2uint32
-    ///     v2 = 4uint32
-    ///     v3 = int.lt.u v1, v2
+    ///     v1: uint32 = 2
+    ///     v2: uint32 = 4
+    ///     v3: boolean = lt v1, v2
     ///     check bounds.u v1, v2, v0 => b1 | b2
     /// b1:
-    ///     v4 = int.lt.u v1, v2
+    ///     v4: boolean = lt v1, v2
     ///     check bounds.u v1, v2, v0 => b3 | b2
     /// b3:
     ///     return
@@ -35,12 +32,12 @@ declare_pass! {
     /// ```mir
     /// function after(v0: [int32; 4]): void {
     /// b0(v0: [int32; 4]):
-    ///     v1 = 2uint32
-    ///     v2 = 4uint32
-    ///     v3 = int.lt.u v1, v2
+    ///     v1: uint32 = 2
+    ///     v2: uint32 = 4
+    ///     v3: boolean = lt v1, v2
     ///     check bounds.u v1, v2, v0 => b1 | b2
     /// b1:
-    ///     v4 = int.lt.u v1, v2
+    ///     v4: boolean = lt v1, v2
     ///     jump b3
     /// b3:
     ///     return
@@ -60,7 +57,7 @@ impl FunctionPass for EliminateBoundsChecks {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -70,13 +67,13 @@ impl FunctionPass for EliminateBoundsChecks {
         };
 
         // gather analyses
-        let constants = analyses.constants(function, tree);
-        let cfg = analyses.control_flow(function, tree);
-        let ranges = analyses.ranges(function, tree);
-        let domtree = analyses.dominators(function, tree);
+        let constants = analyses.constant(function, tree);
+        let cfg = analyses.control(function, tree);
+        let ranges = analyses.range(function, tree);
+        let domtree = analyses.dominator(function, tree);
 
         // build value definition tables
-        let definitions = ValueDefinitions::build(function, tree);
+        let definitions = DefinitionTable::build(function, tree);
 
         // build block parameter forwarding
         let forwarding = BlockParamForwarding::build(function, tree, &cfg);
@@ -146,6 +143,7 @@ impl FunctionPass for EliminateBoundsChecks {
                     condition,
                     candidate.in_bounds_truth,
                     block_id,
+                    function,
                     &definitions,
                     tree,
                     constants.as_ref(),
@@ -183,16 +181,6 @@ impl FunctionPass for EliminateBoundsChecks {
             Mutation::NONE
         }
     }
-
-    /// Return the display name for this pass.
-    fn name(&self) -> &'static str {
-        "EliminateBoundsChecks"
-    }
-
-    /// Return the stable id for this pass.
-    fn id(&self) -> &'static str {
-        "eliminate-bounds-checks"
-    }
 }
 
 /// Definition kind for an SSA value.
@@ -214,12 +202,12 @@ enum ValueDefinition {
 
 /// Definition map for SSA values.
 #[derive(Debug)]
-struct ValueDefinitions {
+struct DefinitionTable {
     /// Mapping from SSA value to its definition.
     definitions: HashMap<mir::Value, ValueDefinition>,
 }
 
-impl ValueDefinitions {
+impl DefinitionTable {
     /// Build the definition map for a function.
     fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         // seed value definitions from parameters and instructions
@@ -500,10 +488,10 @@ fn build_block_constraints(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     tree: &mir::Tree,
-    definitions: &ValueDefinitions,
-    constants: &ConstantPropagation,
-    ranges: &RangeAnalysis,
-    domtree: &DominatorTree,
+    definitions: &DefinitionTable,
+    constants: &ConstantTable,
+    ranges: &RangeTable,
+    domtree: &DominatorTable,
 ) -> BlockConstraints {
     // create dominator tree children map
     let mut children: HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> =
@@ -537,8 +525,14 @@ fn build_block_constraints(
         // extend with assume constraints in the block
         let block_ranges = ranges.exit(block_id);
         let mut exit_constraints = entry_constraints;
-        let mut assume_constraints =
-            constraints_from_assumes(block_id, tree, definitions, constants, block_ranges);
+        let mut assume_constraints = constraints_from_assumes(
+            block_id,
+            function,
+            tree,
+            definitions,
+            constants,
+            block_ranges,
+        );
         exit_constraints.append(&mut assume_constraints);
         constraints.exit.insert(block_id, exit_constraints.clone());
 
@@ -553,6 +547,7 @@ fn build_block_constraints(
             let mut edge_constraints = constraints_for_edge(
                 block_id,
                 child,
+                function,
                 tree,
                 definitions,
                 constants,
@@ -570,10 +565,11 @@ fn build_block_constraints(
 /// Collect constraints from assume instructions in a block.
 fn constraints_from_assumes(
     block_id: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
     tree: &mir::Tree,
-    definitions: &ValueDefinitions,
-    constants: &ConstantPropagation,
-    ranges: &RangeMap,
+    definitions: &DefinitionTable,
+    constants: &ConstantTable,
+    ranges: &RangeState,
 ) -> Vec<BoundsConstraint> {
     // scan instructions for assume operations
     let block = tree.get(block_id);
@@ -589,6 +585,7 @@ fn constraints_from_assumes(
             condition,
             true,
             block_id,
+            function,
             definitions,
             tree,
             constants,
@@ -605,10 +602,11 @@ fn constraints_from_assumes(
 fn constraints_for_edge(
     block_id: mir::LocalNodeId<mir::Block>,
     child: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
     tree: &mir::Tree,
-    definitions: &ValueDefinitions,
-    constants: &ConstantPropagation,
-    ranges: &RangeMap,
+    definitions: &DefinitionTable,
+    constants: &ConstantTable,
+    ranges: &RangeState,
     reachability: &mut ReachabilityCache,
 ) -> Vec<BoundsConstraint> {
     // derive truth value for this edge
@@ -640,6 +638,7 @@ fn constraints_for_edge(
                 condition,
                 truth_value,
                 block_id,
+                function,
                 definitions,
                 tree,
                 constants,
@@ -686,7 +685,7 @@ fn constraints_for_edge(
 fn constraints_imply_requirements(
     known: &[BoundsConstraint],
     required: &[BoundsConstraint],
-    ranges: &RangeMap,
+    ranges: &RangeState,
     forwarding: &BlockParamForwarding,
 ) -> bool {
     // normalize known constraints once for this block
@@ -726,7 +725,7 @@ fn constraint_implies(existing: &BoundsConstraint, required: &BoundsConstraint) 
 /// Normalize constraint bounds using range constants and forwarding.
 fn normalize_constraint(
     constraint: &BoundsConstraint,
-    ranges: &RangeMap,
+    ranges: &RangeState,
     forwarding: &BlockParamForwarding,
 ) -> BoundsConstraint {
     // normalize the value side
@@ -745,7 +744,7 @@ fn normalize_constraint(
 /// Normalize a bound key using constant range information.
 fn normalize_bound_key(
     bound: &BoundKey,
-    ranges: &RangeMap,
+    ranges: &RangeState,
     forwarding: &BlockParamForwarding,
 ) -> BoundKey {
     // resolve value and constant bounds into canonical keys
@@ -929,7 +928,7 @@ fn constant_key_as_unsigned(constant: &ConstantKey) -> Option<u128> {
 }
 
 /// Check whether range analysis implies a constraint.
-fn constraint_implied_by_ranges(constraint: &BoundsConstraint, ranges: &RangeMap) -> bool {
+fn constraint_implied_by_ranges(constraint: &BoundsConstraint, ranges: &RangeState) -> bool {
     // extract integer ranges for the value and bound
     let Some(value_range) = integer_range_for_bound(&constraint.value, ranges) else {
         return false;
@@ -973,7 +972,7 @@ struct IntegerRangeSnapshot {
 }
 
 /// Convert a bound key into an integer range snapshot.
-fn integer_range_for_bound(bound: &BoundKey, ranges: &RangeMap) -> Option<IntegerRangeSnapshot> {
+fn integer_range_for_bound(bound: &BoundKey, ranges: &RangeState) -> Option<IntegerRangeSnapshot> {
     // resolve range information for values or constants
     match bound {
         BoundKey::Value(value) => {
@@ -1030,8 +1029,8 @@ fn constant_integer_range(constant: &ConstantKey) -> Option<IntegerRangeSnapshot
 /// Evaluate a condition when range analysis proves a constant truth value.
 fn condition_truth_value(
     condition: mir::Value,
-    ranges: &RangeMap,
-    definitions: &ValueDefinitions,
+    ranges: &RangeState,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
 ) -> Option<bool> {
     // check range analysis for constant booleans
@@ -1092,7 +1091,7 @@ fn evaluate_comparison(
     operator: mir::BinaryOperator,
     left: mir::Value,
     right: mir::Value,
-    ranges: &RangeMap,
+    ranges: &RangeState,
 ) -> Option<bool> {
     // compare constant ranges when possible
     let left_range = ranges.get(left)?;
@@ -1108,18 +1107,10 @@ fn evaluate_comparison(
     }
 
     // compare integer ranges
-    match operator {
-        mir::BinaryOperator::SignedLessThan
-        | mir::BinaryOperator::SignedLessEqual
-        | mir::BinaryOperator::SignedGreaterThan
-        | mir::BinaryOperator::SignedGreaterEqual
-        | mir::BinaryOperator::UnsignedLessThan
-        | mir::BinaryOperator::UnsignedLessEqual
-        | mir::BinaryOperator::UnsignedGreaterThan
-        | mir::BinaryOperator::UnsignedGreaterEqual
-        | mir::BinaryOperator::Equal
-        | mir::BinaryOperator::NotEqual => left_range.compare_integer(operator, right_range),
-        _ => None,
+    if operator.is_comparison() {
+        left_range.compare_integer(operator, right_range)
+    } else {
+        None
     }
 }
 
@@ -1128,10 +1119,10 @@ fn constraints_for_check_kind(
     kind: &mir::CheckConstraint,
     truth_value: bool,
     block_id: mir::LocalNodeId<mir::Block>,
-    definitions: &ValueDefinitions,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
-    constants: &ConstantPropagation,
-    ranges: &RangeMap,
+    constants: &ConstantTable,
+    ranges: &RangeState,
 ) -> Option<Vec<BoundsConstraint>> {
     // only bounds constraints are handled here
     let mir::CheckConstraint::Bounds {
@@ -1189,10 +1180,11 @@ fn constraints_for_condition(
     condition: mir::Value,
     truth_value: bool,
     block_id: mir::LocalNodeId<mir::Block>,
-    definitions: &ValueDefinitions,
+    function: &mir::Function,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
-    constants: &ConstantPropagation,
-    ranges: &RangeMap,
+    constants: &ConstantTable,
+    ranges: &RangeState,
 ) -> Option<Vec<BoundsConstraint>> {
     // resolve the condition definition
     let definition = definitions.get(condition)?;
@@ -1219,6 +1211,7 @@ fn constraints_for_condition(
                             *left,
                             true,
                             block_id,
+                            function,
                             definitions,
                             tree,
                             constants,
@@ -1229,6 +1222,7 @@ fn constraints_for_condition(
                             *right,
                             true,
                             block_id,
+                            function,
                             definitions,
                             tree,
                             constants,
@@ -1251,6 +1245,7 @@ fn constraints_for_condition(
                             *left,
                             false,
                             block_id,
+                            function,
                             definitions,
                             tree,
                             constants,
@@ -1261,6 +1256,7 @@ fn constraints_for_condition(
                             *right,
                             false,
                             block_id,
+                            function,
                             definitions,
                             tree,
                             constants,
@@ -1296,8 +1292,9 @@ fn constraints_for_condition(
                             ranges,
                         );
 
-                        // require compatible signedness
-                        let is_signed = signedness_for_bounds(&left_key, &right_key, ranges)?;
+                        // preserve the explicit integer domain
+                        let operand_type = function.expect_value_type(*left);
+                        let is_signed = tree.get(operand_type).integer_signedness()?;
 
                         // emit inclusive lower and upper constraints
                         let constraints = vec![
@@ -1335,10 +1332,18 @@ fn constraints_for_condition(
                             constants,
                             ranges,
                         );
+                        let operand_type = function.expect_value_type(*left);
+                        let is_signed = tree.get(operand_type).integer_signedness()?;
 
                         // build the comparison constraint
-                        comparison_constraint(*operator, left_key, right_key, truth_value)
-                            .map(|constraint| vec![constraint])
+                        comparison_constraint(
+                            *operator,
+                            left_key,
+                            right_key,
+                            truth_value,
+                            is_signed,
+                        )
+                        .map(|constraint| vec![constraint])
                     }
                 },
                 mir::Instruction::Unary {
@@ -1351,6 +1356,7 @@ fn constraints_for_condition(
                         *argument,
                         !truth_value,
                         block_id,
+                        function,
                         definitions,
                         tree,
                         constants,
@@ -1364,58 +1370,10 @@ fn constraints_for_condition(
     }
 }
 
-/// Determine signedness for equality constraints.
-fn signedness_for_bounds(left: &BoundKey, right: &BoundKey, ranges: &RangeMap) -> Option<bool> {
-    // check constants first
-    if let BoundKey::Constant(constant) = left {
-        return constant_signedness(constant);
-    }
-    if let BoundKey::Constant(constant) = right {
-        return constant_signedness(constant);
-    }
-
-    // fall back to range analysis
-    let left_signedness = integer_signedness_for_bound(left, ranges)?;
-    let right_signedness = integer_signedness_for_bound(right, ranges)?;
-
-    // require matching signedness
-    if left_signedness == right_signedness {
-        Some(left_signedness)
-    } else {
-        None
-    }
-}
-
-/// Determine signedness for a constant.
-fn constant_signedness(constant: &ConstantKey) -> Option<bool> {
-    // map constants to their signedness
-    match constant {
-        ConstantKey::Int { is_signed, .. } => Some(*is_signed),
-        ConstantKey::UInt { .. } => Some(false),
-        ConstantKey::Boolean(_) => None,
-    }
-}
-
-/// Determine signedness for a bound using range analysis.
-fn integer_signedness_for_bound(bound: &BoundKey, ranges: &RangeMap) -> Option<bool> {
-    // require value based bounds
-    let BoundKey::Value(value) = bound else {
-        return None;
-    };
-
-    // extract integer signedness from ranges
-    let range = ranges.get(*value)?;
-    let ValueRange::Integer { is_signed, .. } = range else {
-        return None;
-    };
-
-    Some(*is_signed)
-}
-
 /// Build a zero bound key for a value.
 fn zero_bound_key_for_value(
     value: mir::Value,
-    ranges: &RangeMap,
+    ranges: &RangeState,
     is_signed: bool,
 ) -> Option<BoundKey> {
     // resolve integer range details for the value
@@ -1455,10 +1413,10 @@ fn zero_bound_key_for_value(
 fn bound_key_for_value(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    definitions: &ValueDefinitions,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
-    constants: &ConstantPropagation,
-    ranges: &RangeMap,
+    constants: &ConstantTable,
+    ranges: &RangeState,
 ) -> BoundKey {
     // prefer constant propagation results
     if let Some(constant_key) = constants
@@ -1528,17 +1486,14 @@ fn comparison_constraint(
     left: BoundKey,
     right: BoundKey,
     truth_value: bool,
+    is_signed: bool,
 ) -> Option<BoundsConstraint> {
-    // map the operator into a base relation and signedness
-    let (relation, is_signed) = match operator {
-        mir::BinaryOperator::SignedLessThan => (ConstraintRelation::UpperExclusive, true),
-        mir::BinaryOperator::SignedLessEqual => (ConstraintRelation::UpperInclusive, true),
-        mir::BinaryOperator::SignedGreaterThan => (ConstraintRelation::LowerExclusive, true),
-        mir::BinaryOperator::SignedGreaterEqual => (ConstraintRelation::LowerInclusive, true),
-        mir::BinaryOperator::UnsignedLessThan => (ConstraintRelation::UpperExclusive, false),
-        mir::BinaryOperator::UnsignedLessEqual => (ConstraintRelation::UpperInclusive, false),
-        mir::BinaryOperator::UnsignedGreaterThan => (ConstraintRelation::LowerExclusive, false),
-        mir::BinaryOperator::UnsignedGreaterEqual => (ConstraintRelation::LowerInclusive, false),
+    // map the operator into a base relation
+    let relation = match operator {
+        mir::BinaryOperator::LessThan => ConstraintRelation::UpperExclusive,
+        mir::BinaryOperator::LessEqual => ConstraintRelation::UpperInclusive,
+        mir::BinaryOperator::GreaterThan => ConstraintRelation::LowerExclusive,
+        mir::BinaryOperator::GreaterEqual => ConstraintRelation::LowerInclusive,
         _ => return None,
     };
 
@@ -1576,7 +1531,7 @@ function test(v0: [int32; 4]): int32 {
 entry(v0: [int32; 4]):
     v1: uint32 = 2
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     branch v3 => b1 | b2
 
 b1:
@@ -1605,7 +1560,7 @@ function test(v0: [int32; 4]): int32 {
 entry(v0: [int32; 4]):
     v1: uint32 = 2
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
@@ -1623,7 +1578,7 @@ function test(v0: [int32; 4]): int32 {
 entry(v0: [int32; 4]):
     v1: uint32 = 2
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     jump b1
 
 b1:
@@ -1649,11 +1604,11 @@ b2:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     branch v3 => b1 | b2
 
 b1:
-    v4: boolean = int.lt.u v1, v2
+    v4: boolean = lt v1, v2
     branch v4 => b3 | b2
 
 b2:
@@ -1681,11 +1636,11 @@ b3:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
-    v4: boolean = int.lt.u v1, v2
+    v4: boolean = lt v1, v2
     check bounds.u v1, v2, v0 => b3 | b2
 
 b2:
@@ -1702,11 +1657,11 @@ b3:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
-    v4: boolean = int.lt.u v1, v2
+    v4: boolean = lt v1, v2
     jump b3
 
 b2:
@@ -1732,7 +1687,7 @@ b3:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     branch v3 => b1 | b2
 
 b1:
@@ -1760,9 +1715,9 @@ entry(v0: [int32; 8]):
     v1: int32 = 3
     v2: int32 = 0
     v3: int32 = 8
-    v4: boolean = int.ge.s v1, v2
-    v5: boolean = int.lt.s v1, v3
-    v6: boolean = int.and v4, v5
+    v4: boolean = ge v1, v2
+    v5: boolean = lt v1, v3
+    v6: boolean = and v4, v5
     branch v6 => b1 | b2
 
 b1:
@@ -1790,9 +1745,9 @@ b2:
 function test(v0: [int32; 16], v1: uint32): int32 {
 entry(v0: [int32; 16], v1: uint32):
     v2: uint32 = 16
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     assume v3
-    v4: boolean = int.lt.u v1, v2
+    v4: boolean = lt v1, v2
     check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
@@ -1809,9 +1764,9 @@ b2:
 function test(v0: [int32; 16], v1: uint32): int32 {
 entry(v0: [int32; 16], v1: uint32):
     v2: uint32 = 16
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     assume v3
-    v4: boolean = int.lt.u v1, v2
+    v4: boolean = lt v1, v2
     jump b1
 
 b1:
@@ -1838,9 +1793,9 @@ function test(v0: [int32; 8], v1: int32): int32 {
 entry(v0: [int32; 8], v1: int32):
     v2: int32 = 0
     v3: int32 = 8
-    v4: boolean = int.ge.s v1, v2
-    v5: boolean = int.lt.s v1, v3
-    v6: boolean = int.and v4, v5
+    v4: boolean = ge v1, v2
+    v5: boolean = lt v1, v3
+    v6: boolean = and v4, v5
     branch v6 => b1 | b2
 
 b1:
@@ -1861,9 +1816,9 @@ function test(v0: [int32; 8], v1: int32): int32 {
 entry(v0: [int32; 8], v1: int32):
     v2: int32 = 0
     v3: int32 = 8
-    v4: boolean = int.ge.s v1, v2
-    v5: boolean = int.lt.s v1, v3
-    v6: boolean = int.and v4, v5
+    v4: boolean = ge v1, v2
+    v5: boolean = lt v1, v3
+    v6: boolean = and v4, v5
     branch v6 => b1 | b2
 
 b1:
@@ -1892,7 +1847,7 @@ b3:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     branch v3 => b1 | b2
 
 b1:
@@ -1902,7 +1857,7 @@ b2:
     unreachable
 
 b3:
-    v4: boolean = int.lt.u v1, v2
+    v4: boolean = lt v1, v2
     check bounds.u v1, v2, v0 => b4 | b2
 
 b4:
@@ -1916,7 +1871,7 @@ b4:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     branch v3 => b1 | b2
 
 b1:
@@ -1926,7 +1881,7 @@ b2:
     unreachable
 
 b3:
-    v4: boolean = int.lt.u v1, v2
+    v4: boolean = lt v1, v2
     jump b4
 
 b4:
@@ -1949,11 +1904,11 @@ b4:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     branch v3 => b1(v1) | b2
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v2
+    v5: boolean = lt v4, v2
     check bounds.u v4, v2, v0 => b3 | b2
 
 b2:
@@ -1970,11 +1925,11 @@ b3:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     branch v3 => b1(v1) | b2
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v2
+    v5: boolean = lt v4, v2
     jump b3
 
 b2:
@@ -2001,7 +1956,7 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 2
     v3: uint32 = 4
-    v4: boolean = int.ge.u v2, v3
+    v4: boolean = ge v2, v3
     branch v4 => b2 | b1
 
 b1:
@@ -2029,12 +1984,12 @@ b2:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     assume v3
     jump b1
 
 b1:
-    v4: boolean = int.lt.u v1, v2
+    v4: boolean = lt v1, v2
     check bounds.u v1, v2, v0 => b2 | b3
 
 b2:
@@ -2051,12 +2006,12 @@ b3:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     assume v3
     jump b1
 
 b1:
-    v4: boolean = int.lt.u v1, v2
+    v4: boolean = lt v1, v2
     jump b2
 
 b2:
@@ -2082,11 +2037,11 @@ b3:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     branch v3 => b1(v1) | b2
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v2
+    v5: boolean = lt v4, v2
     check bounds.u v4, v2, v0 => b3 | b4
 
 b2:
@@ -2115,11 +2070,11 @@ b4:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     branch v3 => b1(v1) | b2
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v2
+    v5: boolean = lt v4, v2
     check bounds.u v4, v2, v0 => b3 | b4
 
 b2:
@@ -2149,7 +2104,7 @@ b4:
 function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
-    v3: boolean = int.lt.u v1, v2
+    v3: boolean = lt v1, v2
     branch v3 => b1 | b2
 
 b1:
@@ -2177,11 +2132,11 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 3
     v3: uint32 = 4
-    v4: boolean = int.le.u v1, v2
+    v4: boolean = le v1, v2
     branch v4 => b1 | b2
 
 b1:
-    v5: boolean = int.lt.u v1, v3
+    v5: boolean = lt v1, v3
     check bounds.u v1, v3, v0 => b3 | b2
 
 b2:
@@ -2199,11 +2154,11 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 3
     v3: uint32 = 4
-    v4: boolean = int.le.u v1, v2
+    v4: boolean = le v1, v2
     branch v4 => b1 | b2
 
 b1:
-    v5: boolean = int.lt.u v1, v3
+    v5: boolean = lt v1, v3
     jump b3
 
 b2:

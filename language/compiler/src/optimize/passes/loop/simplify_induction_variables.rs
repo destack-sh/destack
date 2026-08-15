@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, ControlFlowGraph, LoopAnalysis, Mutation, ScalarEvolution, Scev,
+    BlockParamForwarding, ControlTable, EvolutionTable, LoopTable, Mutation, Scev,
     constant_is_zero, fold_binary, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -13,19 +13,16 @@ use destack_mir::{
 declare_pass! {
     /// Simplify redundant induction variables in loop headers.
     ///
-    /// Identifies header parameters with identical recurrence patterns and
-    /// rewrites uses to the canonical parameter.
-    ///
     /// ```mir
     /// function before(): int32 {
     /// b0:
-    ///     v0 = 0int32
+    ///     v0: int32 = 0
     ///     jump b1(v0, v0)
     /// b1(v1: int32, v2: int32):
-    ///     v3 = int.add v1, v2
-    ///     v4 = 1int32
-    ///     v5 = int.add v1, v4
-    ///     v6 = int.lt.s v5, v0
+    ///     v3: int32 = add v1, v2
+    ///     v4: int32 = 1
+    ///     v5: int32 = add v1, v4
+    ///     v6: boolean = lt v5, v0
     ///     branch v6 => b1(v5, v5) | b2(v2)
     /// b2(v7: int32):
     ///     return v7
@@ -35,13 +32,13 @@ declare_pass! {
     /// ```mir
     /// function after(): int32 {
     /// b0:
-    ///     v0 = 0int32
+    ///     v0: int32 = 0
     ///     jump b1(v0)
     /// b1(v1: int32):
-    ///     v3 = int.add v1, v1
-    ///     v4 = 1int32
-    ///     v5 = int.add v1, v4
-    ///     v6 = int.lt.s v5, v0
+    ///     v3: int32 = add v1, v1
+    ///     v4: int32 = 1
+    ///     v5: int32 = add v1, v4
+    ///     v6: boolean = lt v5, v0
     ///     branch v6 => b1(v5) | b2(v1)
     /// b2(v7: int32):
     ///     return v7
@@ -59,10 +56,10 @@ impl FunctionPass for SimplifyInductionVariables {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip imported functions
         if function.entry().is_none() {
@@ -71,8 +68,8 @@ impl FunctionPass for SimplifyInductionVariables {
 
         // gather analyses
         let loops = analyses.loops(function, tree).clone();
-        let scev = analyses.scalar_evolution(function, tree).clone();
-        let cfg = analyses.control_flow(function, tree).clone();
+        let scev = analyses.evolution(function, tree).clone();
+        let cfg = analyses.control(function, tree).clone();
 
         // skip when no loops are present
         if loops.num_loops() == 0 {
@@ -81,22 +78,13 @@ impl FunctionPass for SimplifyInductionVariables {
 
         // run the simplification pass
         function.recompute_next_value_id(tree);
-        let changed = run_simplify_induction_variables(function, tree, memory, &loops, &scev, &cfg);
+        let changed =
+            run_simplify_induction_variables(function, tree, accesses, &loops, &scev, &cfg);
         if changed {
             Mutation::VALUE
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the display name for this pass.
-    fn name(&self) -> &'static str {
-        "SimplifyInductionVariables"
-    }
-
-    /// Return the stable id for this pass.
-    fn id(&self) -> &'static str {
-        "simplify-induction-variables"
     }
 }
 
@@ -133,10 +121,10 @@ struct ParamSignature {
 fn run_simplify_induction_variables(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    loops: &LoopAnalysis,
-    scev: &ScalarEvolution,
-    cfg: &ControlFlowGraph,
+    accesses: &mut mir::AccessTable,
+    loops: &LoopTable,
+    scev: &EvolutionTable,
+    cfg: &ControlTable,
 ) -> bool {
     // collect substitutions for redundant induction variables
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
@@ -343,7 +331,7 @@ fn run_simplify_induction_variables(
             // replace instructions that changed
             if new_instruction != instruction {
                 tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
+                remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
             }
         }
     }
@@ -585,7 +573,7 @@ fn param_signature(
     header: mir::LocalNodeId<mir::Block>,
     param_index: usize,
     tree: &mir::Tree,
-    cfg: &ControlFlowGraph,
+    cfg: &ControlTable,
     forwarding: &BlockParamForwarding,
 ) -> Option<ParamSignature> {
     // collect argument values from each predecessor
@@ -593,7 +581,10 @@ fn param_signature(
     for &pred in cfg.predecessors(header) {
         let pred_block = tree.get(pred);
         let pred_terminator = tree.get(pred_block.terminator);
-        let args = pred_terminator.successor_arguments(tree, header);
+        let mir::EdgeArguments::Found(args) = pred_terminator.successor_arguments(tree, header)
+        else {
+            return None;
+        };
         let arg = *args.get(param_index)?;
         let arg = forwarding.resolve(arg);
         arguments.push((pred, arg));
@@ -621,10 +612,10 @@ entry(v0: int32):
     jump b1(v1, v1)
 
 b1(v2: int32, v3: int32):
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     v5: int32 = 1
-    v6: int32 = int.add v2, v5
-    v7: boolean = int.lt.s v6, v0
+    v6: int32 = add v2, v5
+    v7: boolean = lt v6, v0
     branch v7 => b1(v6, v6) | b2(v3)
 
 b2(v8: int32):
@@ -640,10 +631,10 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v2: int32):
-    v4: int32 = int.add v2, v2
+    v4: int32 = add v2, v2
     v5: int32 = 1
-    v6: int32 = int.add v2, v5
-    v7: boolean = int.lt.s v6, v0
+    v6: int32 = add v2, v5
+    v7: boolean = lt v6, v0
     branch v7 => b1(v6) | b2(v2)
 
 b2(v8: int32):
@@ -670,9 +661,9 @@ entry(v0: int32):
     jump b1(v1, v1)
 
 b1(v4: int32, v5: int32):
-    v6: int32 = int.add v4, v2
-    v7: int32 = int.add v5, v3
-    v8: boolean = int.lt.s v6, v0
+    v6: int32 = add v4, v2
+    v7: int32 = add v5, v3
+    v8: boolean = lt v6, v0
     branch v8 => b1(v6, v7) | b2(v5)
 
 b2(v9: int32):
@@ -697,11 +688,11 @@ entry(v0: int32):
     jump b1(v1, v1, v1)
 
 b1(v2: int32, v3: int32, v4: int32):
-    v5: int32 = int.add v2, v3
-    v6: int32 = int.add v3, v4
+    v5: int32 = add v2, v3
+    v6: int32 = add v3, v4
     v7: int32 = 1
-    v8: int32 = int.add v2, v7
-    v9: boolean = int.lt.s v8, v0
+    v8: int32 = add v2, v7
+    v9: boolean = lt v8, v0
     branch v9 => b1(v8, v8, v8) | b2(v4)
 
 b2(v10: int32):
@@ -717,11 +708,11 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v2: int32):
-    v5: int32 = int.add v2, v2
-    v6: int32 = int.add v2, v2
+    v5: int32 = add v2, v2
+    v6: int32 = add v2, v2
     v7: int32 = 1
-    v8: int32 = int.add v2, v7
-    v9: boolean = int.lt.s v8, v0
+    v8: int32 = add v2, v7
+    v9: boolean = lt v8, v0
     branch v9 => b1(v8) | b2(v2)
 
 b2(v10: int32):
@@ -749,10 +740,10 @@ b1(v2: int32, v3: int32):
     jump b2(v2, v3)
 
 b2(v4: int32, v5: int32):
-    v6: int32 = int.add v4, v5
+    v6: int32 = add v4, v5
     v7: int32 = 1
-    v8: int32 = int.add v4, v7
-    v9: boolean = int.lt.s v8, v0
+    v8: int32 = add v4, v7
+    v9: boolean = lt v8, v0
     branch v9 => b2(v8, v8) | b3(v5)
 
 b3(v10: int32):
@@ -771,10 +762,10 @@ b1(v2: int32, v3: int32):
     jump b2(v2)
 
 b2(v4: int32):
-    v6: int32 = int.add v4, v4
+    v6: int32 = add v4, v4
     v7: int32 = 1
-    v8: int32 = int.add v4, v7
-    v9: boolean = int.lt.s v8, v0
+    v8: int32 = add v4, v7
+    v9: boolean = lt v8, v0
     branch v9 => b2(v8) | b3(v4)
 
 b3(v10: int32):
@@ -802,9 +793,9 @@ entry(v0: int32):
     jump b1(v1, v2)
 
 b1(v5: int32, v6: uint32):
-    v7: int32 = int.add v5, v3
-    v8: uint32 = int.add v6, v4
-    v9: boolean = int.lt.s v7, v0
+    v7: int32 = add v5, v3
+    v8: uint32 = add v6, v4
+    v9: boolean = lt v7, v0
     branch v9 => b1(v7, v8) | b2(v5)
 
 b2(v10: int32):
@@ -831,8 +822,8 @@ entry(v0: [int32; 4]):
     jump b1(v1, v1)
 
 b1(v4: uint32, v5: uint32):
-    v6: uint32 = int.add v4, v2
-    v7: boolean = int.lt.u v6, v3
+    v6: uint32 = add v4, v2
+    v7: boolean = lt v6, v3
     check bounds.u v6, v3, v0 => b1(v6, v6) | b2
 
 b2:
@@ -850,8 +841,8 @@ entry(v0: [int32; 4]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v6: uint32 = int.add v4, v2
-    v7: boolean = int.lt.u v6, v3
+    v6: uint32 = add v4, v2
+    v7: boolean = lt v6, v3
     check bounds.u v6, v3, v0 => b1(v6) | b2
 
 b2:
@@ -877,9 +868,9 @@ entry(v0: int32):
     jump b1(v1, v1)
 
 b1(v3: int32, v4: int32):
-    v5: int32 = int.add v3, v2
-    v6: int32 = int.add v4, v2
-    v7: boolean = int.lt.s v5, v0
+    v5: int32 = add v3, v2
+    v6: int32 = add v4, v2
+    v7: boolean = lt v5, v0
     switch v7, b2, 0 => b1(v5, v6), 1 => b2
 
 b2:
@@ -896,9 +887,9 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v3: int32):
-    v5: int32 = int.add v3, v2
-    v6: int32 = int.add v3, v2
-    v7: boolean = int.lt.s v5, v0
+    v5: int32 = add v3, v2
+    v6: int32 = add v3, v2
+    v7: boolean = lt v5, v0
     switch v7, b2, 0 => b1(v5), 1 => b2
 
 b2:
@@ -925,9 +916,9 @@ entry(v0: int32):
     jump b1(v1, v2)
 
 b1(v4: int32, v5: int32):
-    v6: int32 = int.add v4, v2
-    v7: int32 = int.add v5, v2
-    v8: boolean = int.lt.s v6, v3
+    v6: int32 = add v4, v2
+    v7: int32 = add v5, v2
+    v8: boolean = lt v6, v3
     branch v8 => b1(v6, v7) | b2(v5)
 
 b2(v9: int32):
@@ -945,10 +936,10 @@ entry(v0: int32):
 
 b1(v4: int32):
     v10: int32 = 1
-    v11: int32 = int.add v4, v10
-    v6: int32 = int.add v4, v2
-    v7: int32 = int.add v11, v2
-    v8: boolean = int.lt.s v6, v3
+    v11: int32 = add v4, v10
+    v6: int32 = add v4, v2
+    v7: int32 = add v11, v2
+    v8: boolean = lt v6, v3
     branch v8 => b1(v6) | b2(v11)
 
 b2(v9: int32):
@@ -974,9 +965,9 @@ entry(v0: int32):
     jump b1(v1, v1)
 
 b1(v3: int32, v4: int32):
-    v5: int32 = int.add v3, v2
-    v6: int32 = int.add v4, v2
-    v7: boolean = int.lt.s v5, v0
+    v5: int32 = add v3, v2
+    v6: int32 = add v4, v2
+    v7: boolean = lt v5, v0
     branch v7 => b1(v5, v6) | b2(v4)
 
 b2(v8: int32):
@@ -993,9 +984,9 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v3: int32):
-    v5: int32 = int.add v3, v2
-    v6: int32 = int.add v3, v2
-    v7: boolean = int.lt.s v5, v0
+    v5: int32 = add v3, v2
+    v6: int32 = add v3, v2
+    v7: boolean = lt v5, v0
     branch v7 => b1(v5) | b2(v3)
 
 b2(v8: int32):
@@ -1020,10 +1011,10 @@ entry(v0: int32):
     jump b1(v1, v1)
 
 b1(v2: int32, v3: int32):
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     v5: int32 = 1
-    v6: int32 = int.add v2, v5
-    v7: boolean = int.lt.s v6, v0
+    v6: int32 = add v2, v5
+    v7: boolean = lt v6, v0
     branch v7 => b1(v6, v6) | b2(v3)
 
 b2(v8: int32):
@@ -1041,8 +1032,8 @@ b2(v8: int32):
             .unwrap()
             .0;
         let function = test.optimized.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let cfg = analyses.control_flow(function, &test.optimized.tree);
+        let mut analyses = test.function_cache();
+        let cfg = analyses.control(function, &test.optimized.tree);
         let loops = analyses.loops(function, &test.optimized.tree);
         let forwarding = BlockParamForwarding::build(function, &test.optimized.tree, &cfg);
         let header = function.block(1);

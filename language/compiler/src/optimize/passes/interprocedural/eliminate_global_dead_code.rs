@@ -10,21 +10,21 @@ declare_pass! {
     /// Remove unused local globals from the module.
     ///
     /// ```mir
-    /// readonly global live: int32 = 1int32
-    /// readonly global dead: int32 = 2int32
-    /// function root(): int32 {
+    /// readonly global live: int32 = 1
+    /// readonly global dead: int32 = 2
+    /// function root(): ref<int32, borrowed, readonly> {
     /// b0:
-    ///     v0 = global.address live
+    ///     v0: ref<int32, borrowed, readonly> = global.address live
     ///     return v0
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// readonly global live: int32 = 1int32
+    /// readonly global live: int32 = 1
     /// external readonly global dead: int32
-    /// function root(): int32 {
+    /// function root(): ref<int32, borrowed, readonly> {
     /// b0:
-    ///     v0 = global.address live
+    ///     v0: ref<int32, borrowed, readonly> = global.address live
     ///     return v0
     /// }
     /// ```
@@ -39,7 +39,7 @@ impl ModulePass for EliminateGlobalDeadCode {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mut mir::ModuleAnalyses,
+        _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -52,16 +52,6 @@ impl ModulePass for EliminateGlobalDeadCode {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass display name.
-    fn name(&self) -> &'static str {
-        "EliminateGlobalDeadCode"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "eliminate-global-dead-code"
     }
 }
 

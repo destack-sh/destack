@@ -11,19 +11,17 @@ use destack_mir::Mutation;
 declare_pass! {
     /// Run interprocedural cleanup after cross function optimizations.
     ///
-    /// This pass prunes dead functions and globals.
-    ///
     /// ```mir
-    /// readonly global dead: int32 = 1int32
+    /// readonly global dead: int32 = 1
     /// function dead(): int32 {
     /// b0:
-    ///     v0 = 2int32
+    ///     v0: int32 = 2
     ///     return v0
     /// }
     /// function root(): int32 {
     /// b0:
-    ///     v0 = 1int32
-    ///     v1 = int.add v0, v0
+    ///     v0: int32 = 1
+    ///     v1: int32 = add v0, v0
     ///     return v0
     /// }
     /// ```
@@ -33,8 +31,8 @@ declare_pass! {
     /// external function dead(): int32
     /// function root(): int32 {
     /// b0:
-    ///     v0 = 1int32
-    ///     v1 = int.add v0, v0
+    ///     v0: int32 = 1
+    ///     v1: int32 = add v0, v0
     ///     return v0
     /// }
     /// ```
@@ -49,13 +47,13 @@ impl ModulePass for EliminateInterproceduralDeadCode {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mut mir::ModuleAnalyses,
+        _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // run the cleanup pass
-        let changed = run_interprocedural_dce_cleanup(tree, memory, ctx.program_analysis());
+        let changed = run_interprocedural_dce_cleanup(tree, accesses, ctx.program_analysis());
 
         // report what this pass changed
         if changed {
@@ -65,27 +63,17 @@ impl ModulePass for EliminateInterproceduralDeadCode {
             Mutation::NONE
         }
     }
-
-    /// Return the pass display name.
-    fn name(&self) -> &'static str {
-        "EliminateInterproceduralDeadCode"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "eliminate-interprocedural-dead-code"
-    }
 }
 
 /// Run interprocedural cleanup over the module.
 fn run_interprocedural_dce_cleanup(
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     program: &ProgramAnalysis,
 ) -> bool {
     let mut changed = false;
 
-    if run_eliminate_dead_functions(tree, memory, program) {
+    if run_eliminate_dead_functions(tree, accesses, program) {
         changed = true;
     }
 
@@ -116,7 +104,7 @@ entry:
 export function root(): int32 {
 entry:
     v0: int32 = 1
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v0
 }
 "#;
@@ -129,7 +117,7 @@ external function dead(): int32
 export function root(): int32 {
 entry:
     v0: int32 = 1
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v0
 }
 "#;

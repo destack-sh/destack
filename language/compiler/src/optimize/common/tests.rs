@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_mir::{FunctionAnalyses, ModuleAnalyses};
+use destack_mir::{AnalysisCache, FunctionCache};
 use destack_source::{File, FileId, FileType, ModuleId, PackageId, ProfileId, TargetId, Uri};
 
 use crate::optimize::{FunctionPass, MirOptimized, ModulePass, PipelineContext, PipelineOptions};
@@ -99,7 +99,6 @@ pub(crate) struct TestProgram {
     warnings: Vec<OptimizeWarning>,
 }
 
-#[allow(dead_code)]
 impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
@@ -119,7 +118,7 @@ impl TestProgram {
             layouts,
             dispatch,
             drops,
-            memory,
+            accesses,
             effects,
             profile,
             strings,
@@ -160,7 +159,7 @@ impl TestProgram {
                 layouts,
                 dispatch,
                 drops,
-                memory,
+                accesses,
                 effects,
                 profile,
             },
@@ -173,16 +172,7 @@ impl TestProgram {
 
     /// Apply a function pass to all functions in the program.
     pub(crate) fn run_pass<P: FunctionPass + ?Sized>(&mut self, pass: &P) {
-        self.run_pass_with_options_impl(pass, PipelineOptions::default(), None);
-    }
-
-    /// Apply a function pass with custom options.
-    pub(crate) fn run_pass_with_options<P: FunctionPass + ?Sized>(
-        &mut self,
-        pass: &P,
-        options: PipelineOptions,
-    ) {
-        self.run_pass_with_options_impl(pass, options, None);
+        self.run_function_pass(pass, None);
     }
 
     /// Apply a function pass with profile data.
@@ -191,7 +181,7 @@ impl TestProgram {
         pass: &P,
         profile: mir::Profile,
     ) {
-        self.run_pass_with_options_impl(pass, PipelineOptions::default(), Some(Arc::new(profile)));
+        self.run_function_pass(pass, Some(Arc::new(profile)));
     }
 
     /// Return the entry function id for this program.
@@ -232,64 +222,9 @@ impl TestProgram {
         &self,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> mir::LocalNodeId<mir::Block> {
-        // read the function
+        // require the defined function entry
         let function = self.optimized.tree.get(function_id);
-
-        // use the explicit entry when present
-        if let Some(entry) = function.entry() {
-            return entry;
-        }
-
-        // fall back to the first block when no entry exists
-        *function.blocks().first().expect("missing block")
-    }
-
-    /// Return the first intrinsic instruction in a function.
-    pub(crate) fn first_intrinsic_in_function(
-        &self,
-        function_id: mir::LocalNodeId<mir::Function>,
-        intrinsic: mir::Intrinsic,
-    ) -> mir::LocalNodeId<mir::Instruction> {
-        // read the function blocks
-        let function = self.optimized.tree.get(function_id);
-
-        // scan blocks in order
-        for block_id in function.blocks() {
-            let block = self.optimized.tree.get(*block_id);
-            for instruction_id in &block.instructions {
-                if matches!(
-                    self.optimized.tree.get(*instruction_id),
-                    mir::Instruction::Intrinsic { intrinsic: inst, .. } if *inst == intrinsic
-                ) {
-                    return *instruction_id;
-                }
-            }
-        }
-
-        panic!("missing intrinsic instruction");
-    }
-
-    /// Return the first intrinsic instruction in the entry block.
-    pub(crate) fn first_intrinsic_in_entry(
-        &self,
-        function_id: mir::LocalNodeId<mir::Function>,
-        intrinsic: mir::Intrinsic,
-    ) -> mir::LocalNodeId<mir::Instruction> {
-        // read the entry block
-        let block_id = self.entry_block_id(function_id);
-        let block = self.optimized.tree.get(block_id);
-
-        // scan instructions in order
-        for instruction_id in &block.instructions {
-            if matches!(
-                self.optimized.tree.get(*instruction_id),
-                mir::Instruction::Intrinsic { intrinsic: inst, .. } if *inst == intrinsic
-            ) {
-                return *instruction_id;
-            }
-        }
-
-        panic!("missing intrinsic instruction");
+        function.entry().expect("missing function entry")
     }
 
     /// Return the instruction ids in a block.
@@ -308,30 +243,6 @@ impl TestProgram {
     ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
         // read the entry block and clone the instruction ids
         self.instructions_in_block(self.entry_block_id(function_id))
-    }
-
-    /// Return call instruction ids in a function.
-    pub(crate) fn call_instructions_in_function(
-        &self,
-        function_id: mir::LocalNodeId<mir::Function>,
-    ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
-        // scan instructions in order
-        let function = self.optimized.tree.get(function_id);
-        let mut call_ids = Vec::new();
-
-        for block_id in function.blocks() {
-            let block = self.optimized.tree.get(*block_id);
-            for instruction_id in &block.instructions {
-                if matches!(
-                    self.optimized.tree.get(*instruction_id),
-                    mir::Instruction::Call { .. }
-                ) {
-                    call_ids.push(*instruction_id);
-                }
-            }
-        }
-
-        call_ids
     }
 
     /// Return local address destinations from the entry block.
@@ -393,18 +304,6 @@ impl TestProgram {
         self.insert_pointer_access_with_options(instruction, kind, pointer, size, false, None);
     }
 
-    /// Attach memory access entries to an instruction.
-    pub(crate) fn insert_memory_accesses(
-        &mut self,
-        instruction: mir::LocalNodeId<mir::Instruction>,
-        accesses: Vec<mir::MemoryAccess>,
-    ) {
-        // insert the memory table entries
-        self.optimized
-            .memory
-            .insert_memory_accesses(instruction, accesses);
-    }
-
     /// Attach pointer memory accesses to an instruction with ordering.
     pub(crate) fn insert_pointer_access_with_options(
         &mut self,
@@ -434,9 +333,7 @@ impl TestProgram {
         };
 
         // insert the memory access
-        self.optimized
-            .memory
-            .insert_memory_accesses(instruction, vec![access]);
+        self.optimized.accesses.insert(instruction, vec![access]);
     }
 
     /// Attach one virtual method table with a method at slot 0.
@@ -499,40 +396,15 @@ impl TestProgram {
         (call_inst, callee)
     }
 
-    /// Insert a function reference type for a callee signature.
-    pub(crate) fn call_signature_for_callee(
-        &mut self,
-        callee: mir::LocalNodeId<mir::Function>,
-    ) -> mir::LocalNodeId<mir::Type> {
-        // read the callee signature
-        let callee_function = self.optimized.tree.get(callee);
-        let param_tys = callee_function
-            .parameters
-            .iter()
-            .map(mir::FunctionParameter::signature_parameter)
-            .collect::<Vec<_>>();
-        let return_ty = callee_function.return_type;
-
-        // insert the function reference type
-        self.optimized
-            .tree
-            .intern_type(mir::Type::FunctionSignature {
-                lifetimes: Vec::new(),
-                parameters: param_tys,
-                result: return_ty,
-            })
-    }
-
-    /// Internal implementation that handles the borrow correctly.
-    fn run_pass_with_options_impl<P: FunctionPass + ?Sized>(
+    /// Apply a function pass with optional profile data.
+    fn run_function_pass<P: FunctionPass + ?Sized>(
         &mut self,
         pass: &P,
-        options: PipelineOptions,
         profile: Option<Arc<mir::Profile>>,
     ) {
         let context = PipelineContext::new(
             &self.strings_pool,
-            options,
+            PipelineOptions::default(),
             test_module_id(),
             test_profile_id(),
             test_target_id(),
@@ -559,7 +431,7 @@ impl TestProgram {
 
             // recompute next_value_id so passes can allocate fresh values
             function.recompute_next_value_id(&self.optimized.tree);
-            let mut analyses = self.function_analyses();
+            let mut analyses = self.function_cache();
             pass.run(&mut function, &mut self.optimized, &context, &mut analyses);
             *self.optimized.tree.get_mut(function_id) = function;
         }
@@ -585,46 +457,6 @@ impl TestProgram {
             .next()
             .expect("missing function")
             .0
-    }
-
-    /// Return entry branch targets for a function.
-    pub(crate) fn entry_branch_targets(
-        &self,
-        function: &mir::Function,
-    ) -> (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>) {
-        // read the entry block
-        let entry = function.entry().expect("missing entry block");
-        let entry_block = self.optimized.tree.get(entry);
-        let terminator = self.optimized.tree.get(entry_block.terminator);
-
-        // extract the branch targets
-        let mir::Terminator::Branch {
-            then_target,
-            else_target,
-            ..
-        } = terminator
-        else {
-            panic!("expected entry branch");
-        };
-
-        // return the targets
-        (then_target.block, else_target.block)
-    }
-
-    /// Return the jump target for a block.
-    pub(crate) fn jump_target(
-        &self,
-        block_id: mir::LocalNodeId<mir::Block>,
-    ) -> mir::LocalNodeId<mir::Block> {
-        // read the block terminator
-        let block = self.optimized.tree.get(block_id);
-        let terminator = self.optimized.tree.get(block.terminator);
-        let mir::Terminator::Jump { target, .. } = terminator else {
-            panic!("expected jump terminator");
-        };
-
-        // return the target
-        target.block
     }
 
     /// Record a function's profiled entry execution count, keyed by its symbol.
@@ -825,8 +657,8 @@ impl TestProgram {
     ///
     /// A test module is a standalone program, so its exported symbols are the roots.
     fn module_program_analysis(&self) -> Arc<destack_artifact::ProgramAnalysis> {
-        let mut analyses = self.module_analyses();
-        let links = analyses.link_graph(&self.optimized.tree, &self.optimized.effects);
+        let mut analyses = self.analysis_cache();
+        let links = analyses.link(&self.optimized.tree, &self.optimized.effects);
         let roots: Vec<_> = links
             .nodes()
             .filter(|(_, node)| node.linkage().is_exported())
@@ -854,41 +686,7 @@ impl TestProgram {
         );
 
         // run the pass against the whole optimized artifact
-        let mut analyses = self.module_analyses();
-        pass.run(&mut self.optimized, &context, &mut analyses);
-
-        // collect diagnostics after pass completes
-        self.errors = context
-            .take_errors()
-            .into_iter()
-            .map(|diagnostic| diagnostic.into_inner())
-            .collect();
-        self.warnings = context
-            .take_warnings()
-            .into_iter()
-            .map(|diagnostic| diagnostic.into_inner())
-            .collect();
-    }
-
-    /// Apply a module pass with custom options.
-    pub(crate) fn run_module_pass_with_options<P: ModulePass + ?Sized>(
-        &mut self,
-        pass: &P,
-        options: PipelineOptions,
-    ) {
-        let program_analysis = self.module_program_analysis();
-        let context = PipelineContext::new(
-            &self.strings_pool,
-            options,
-            test_module_id(),
-            test_profile_id(),
-            test_target_id(),
-            None,
-            program_analysis,
-        );
-
-        // run the pass against the whole optimized artifact
-        let mut analyses = self.module_analyses();
+        let mut analyses = self.analysis_cache();
         pass.run(&mut self.optimized, &context, &mut analyses);
 
         // collect diagnostics after pass completes
@@ -922,7 +720,7 @@ impl TestProgram {
         );
 
         // run the pass against the whole optimized artifact
-        let mut analyses = self.module_analyses();
+        let mut analyses = self.analysis_cache();
         pass.run(&mut self.optimized, &context, &mut analyses);
 
         // collect diagnostics after pass completes
@@ -949,21 +747,6 @@ impl TestProgram {
         )
         .format()
         .expect("format MIR")
-    }
-
-    /// Get string by id from the string pool.
-    pub(crate) fn get_string(&self, id: destack_core::StringId) -> &str {
-        self.strings.get(id)
-    }
-
-    /// Get errors from the last pass run.
-    pub(crate) fn errors(&self) -> &[OptimizeError] {
-        &self.errors
-    }
-
-    /// Get warnings from the last pass run.
-    pub(crate) fn warnings(&self) -> &[OptimizeWarning] {
-        &self.warnings
     }
 
     /// Assert that the current MIR matches the expected output.
@@ -997,76 +780,14 @@ impl TestProgram {
         self.assert_output(&expected);
     }
 
-    /// Assert that no errors were emitted.
-    #[track_caller]
-    pub(crate) fn assert_no_errors(&self) {
-        if !self.errors.is_empty() {
-            panic!("expected no errors, got: {:?}", self.errors);
-        }
+    /// Create a function analysis cache.
+    pub(crate) fn function_cache(&self) -> FunctionCache {
+        FunctionCache::new()
     }
 
-    /// Assert that no warnings were emitted.
-    #[track_caller]
-    pub(crate) fn assert_no_warnings(&self) {
-        if !self.warnings.is_empty() {
-            panic!("expected no warnings, got: {:?}", self.warnings);
-        }
-    }
-
-    /// Assert that at least one error matches the predicate.
-    #[track_caller]
-    pub(crate) fn assert_error<F>(&self, predicate: F)
-    where
-        F: Fn(&OptimizeError) -> bool,
-    {
-        let has_match = self.errors.iter().any(predicate);
-        if !has_match {
-            panic!(
-                "expected an error matching predicate, got: {:?}",
-                self.errors
-            );
-        }
-    }
-
-    /// Assert that at least one warning matches the predicate.
-    #[track_caller]
-    pub(crate) fn assert_warning<F>(&self, predicate: F)
-    where
-        F: Fn(&OptimizeWarning) -> bool,
-    {
-        let has_match = self.warnings.iter().any(predicate);
-        if !has_match {
-            panic!(
-                "expected a warning matching predicate, got: {:?}",
-                self.warnings
-            );
-        }
-    }
-
-    // ================================================================================
-    // old pass helpers
-    // ================================================================================
-
-    /// Apply a function pass and return any errors emitted.
-    ///
-    /// Prefer using `run_pass` followed by `assert_*` methods instead.
-    #[allow(dead_code)]
-    pub(crate) fn run_pass_collecting_errors<P: FunctionPass + ?Sized>(
-        &mut self,
-        pass: &P,
-    ) -> Vec<OptimizeError> {
-        self.run_pass(pass);
-        self.errors.clone()
-    }
-
-    /// Create function analyses for this test program.
-    pub(crate) fn function_analyses(&self) -> FunctionAnalyses {
-        FunctionAnalyses::new()
-    }
-
-    /// Create module analyses for this test program.
-    pub(crate) fn module_analyses(&self) -> ModuleAnalyses {
-        ModuleAnalyses::new()
+    /// Create a module analysis cache.
+    pub(crate) fn analysis_cache(&self) -> AnalysisCache {
+        AnalysisCache::new()
     }
 }
 
@@ -1074,11 +795,47 @@ impl TestProgram {
 mod tests {
     use std::sync::Arc;
 
-    use destack_core::StringPool;
+    use destack_core::{StringId, StringPool};
     use destack_mir as mir;
     use destack_mir::{Mutation, instruction_is_speculatable};
 
     use super::*;
+
+    /// Build one function with the requested SSA value types.
+    fn test_function(
+        tree: &mut mir::Tree,
+        value_types: &[mir::LocalNodeId<mir::Type>],
+    ) -> mir::Function {
+        let terminator = tree.insert(mir::Terminator::Return { value: None });
+        let entry = tree.insert(mir::Block {
+            parameters: Vec::new(),
+            instructions: Vec::new(),
+            terminator,
+        });
+        let body = mir::FunctionBody::new(
+            entry,
+            vec![entry],
+            Vec::new(),
+            value_types.iter().copied().map(Some).collect(),
+            value_types.len() as u32,
+            tree,
+        );
+        let name = StringId::for_text("test");
+
+        mir::Function {
+            name,
+            arguments: Vec::new(),
+            symbol: mir::Symbol::named(name),
+            linkage: mir::Linkage::Local,
+            allocation: mir::AllocationMode::Any,
+            parameters: Vec::new(),
+            lifetimes: Vec::new(),
+            return_type: mir::TypeId::from(value_types[0]),
+            environment: None,
+            binding: None,
+            body: Some(body),
+        }
+    }
 
     /// Pipeline context exposes profile data when provided.
     #[test]
@@ -1141,6 +898,7 @@ mod tests {
             pointee,
             nullability: mir::Nullability::None,
         });
+        let function = test_function(&mut tree, &[pointee]);
 
         let destination = mir::Value::new(0);
         let local = mir::LocalNodeId::new(0);
@@ -1153,14 +911,14 @@ mod tests {
             local,
             result_type: pointer,
         };
-        assert!(instruction_is_speculatable(&pointer_addr, &tree));
+        assert!(instruction_is_speculatable(&pointer_addr, &function, &tree));
 
         let local_addr = mir::Instruction::LocalAddr {
             destination,
             local,
             result_type: borrowed_ref,
         };
-        assert!(instruction_is_speculatable(&local_addr, &tree));
+        assert!(instruction_is_speculatable(&local_addr, &function, &tree));
 
         let field_addr = mir::Instruction::FieldAddr {
             destination,
@@ -1168,7 +926,7 @@ mod tests {
             field: 0,
             result_type: borrowed_ref,
         };
-        assert!(instruction_is_speculatable(&field_addr, &tree));
+        assert!(instruction_is_speculatable(&field_addr, &function, &tree));
 
         let element_addr = mir::Instruction::ElementAddr {
             destination,
@@ -1176,7 +934,7 @@ mod tests {
             index,
             result_type: borrowed_ref,
         };
-        assert!(instruction_is_speculatable(&element_addr, &tree));
+        assert!(instruction_is_speculatable(&element_addr, &function, &tree));
     }
 
     /// Managed reference results pin address computations in place.
@@ -1196,6 +954,7 @@ mod tests {
             pointee,
             nullability: mir::Nullability::None,
         });
+        let function = test_function(&mut tree, &[pointee]);
 
         let field_addr = mir::Instruction::FieldAddr {
             destination: mir::Value::new(0),
@@ -1203,6 +962,42 @@ mod tests {
             field: 0,
             result_type: managed_ref,
         };
-        assert!(!instruction_is_speculatable(&field_addr, &tree));
+        assert!(!instruction_is_speculatable(&field_addr, &function, &tree));
+    }
+
+    /// Floating division and remainder can move across control flow without trapping.
+    #[test]
+    fn test_instruction_is_speculatable_distinguishes_numeric_types() {
+        let mut tree = mir::Tree::new();
+        let int = tree.intern_type(mir::Type::Int {
+            width: 32,
+            is_signed: true,
+        });
+        let float = tree.intern_type(mir::Type::FLOAT64);
+        let function = test_function(&mut tree, &[int, int, float, float]);
+
+        let integer_divide = mir::Instruction::Binary {
+            destination: mir::Value::new(1),
+            operator: mir::BinaryOperator::Divide,
+            left: mir::Value::new(0),
+            right: mir::Value::new(0),
+        };
+        let float_remainder = mir::Instruction::Binary {
+            destination: mir::Value::new(3),
+            operator: mir::BinaryOperator::Remainder,
+            left: mir::Value::new(2),
+            right: mir::Value::new(2),
+        };
+
+        assert!(!instruction_is_speculatable(
+            &integer_divide,
+            &function,
+            &tree
+        ));
+        assert!(instruction_is_speculatable(
+            &float_remainder,
+            &function,
+            &tree
+        ));
     }
 }

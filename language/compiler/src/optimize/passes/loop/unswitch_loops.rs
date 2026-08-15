@@ -5,16 +5,13 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeArguments, Loop, Mutation, RangeAnalysis,
-    ValueDefinitions, clone_instruction_tables, clone_loop_blocks, instruction_is_speculatable,
+    ControlTable, DefinitionTable, DominatorTable, EdgeArguments, Hotness, Loop, Mutation,
+    RangeTable, clone_instruction_tables, clone_loop_blocks, instruction_is_speculatable,
     instruction_map_with_locals, terminator_remap,
 };
 
 declare_pass! {
     /// Move loop invariant conditionals outside of loops by duplicating the loop.
-    ///
-    /// This eliminates the branch inside the loop, improving branch prediction
-    /// and enabling further optimizations on each specialized copy.
     ///
     /// ```mir
     /// function before(v0: boolean): void {
@@ -45,13 +42,6 @@ declare_pass! {
     ///     return
     /// }
     /// ```
-    ///
-    /// Restrictions:
-    /// 1) Only unswitches branches with loop invariant conditions.
-    /// 2) Only unswitches small loops to avoid excessive code growth.
-    /// 3) Limits unswitching to a small number of disjoint loops per run.
-    /// 4) Avoids cold unswitching when profile data is present.
-    /// 5) Requires canonical loop form from SimplifyLoops.
     #[pass(id = "unswitch-loops")]
     pub UnswitchLoops,
     "Loop unswitching for invariant conditionals"
@@ -75,10 +65,10 @@ impl FunctionPass for UnswitchLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip empty functions
         if function.entry().is_none() {
@@ -86,7 +76,7 @@ impl FunctionPass for UnswitchLoops {
         }
 
         // run loop unswitching
-        let changed = run_unswitch_loops(function, tree, memory, ctx, analyses);
+        let changed = run_unswitch_loops(function, tree, accesses, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -95,25 +85,15 @@ impl FunctionPass for UnswitchLoops {
             Mutation::NONE
         }
     }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "UnswitchLoops"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "unswitch-loops"
-    }
 }
 
 /// Core loop unswitching logic. Returns true if changes were made.
 fn run_unswitch_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mut mir::FunctionAnalyses,
+    analyses: &mut mir::FunctionCache,
 ) -> bool {
     // track progress and exclusions
     let mut changed = false;
@@ -127,9 +107,9 @@ fn run_unswitch_loops(
         let (loops, domtree, cfg, ranges) = {
             (
                 analyses.loops(function, tree).clone(),
-                analyses.dominators(function, tree).clone(),
-                analyses.control_flow(function, tree).clone(),
-                analyses.ranges(function, tree).clone(),
+                analyses.dominator(function, tree).clone(),
+                analyses.control(function, tree).clone(),
+                analyses.range(function, tree).clone(),
             )
         };
 
@@ -177,7 +157,7 @@ fn run_unswitch_loops(
         function.recompute_next_value_id(tree);
         unswitched_headers.insert(candidate.header);
         unswitched_blocks.push(candidate.loop_blocks.clone());
-        unswitch_loop(function, tree, memory, &candidate);
+        unswitch_loop(function, tree, accesses, &candidate);
         unswitched += 1;
         changed = true;
     }
@@ -270,7 +250,7 @@ impl UnswitchHeuristics {
         function: &mir::Function,
         tree: &mir::Tree,
         profile: Option<&mir::Profile>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
         hotness: mir::HotnessThresholds,
     ) -> Self {
         // compute block counts from profile data
@@ -294,9 +274,9 @@ impl UnswitchHeuristics {
     }
 
     /// Return the hotness for a block when profile data is available.
-    fn block_hotness(&self, block: mir::LocalNodeId<mir::Block>) -> CallsiteHotness {
+    fn block_hotness(&self, block: mir::LocalNodeId<mir::Block>) -> Hotness {
         let Some(count) = self.block_counts.get(&block).copied() else {
-            return CallsiteHotness::Unknown;
+            return Hotness::Unknown;
         };
 
         self.hotness.classify(count, self.entry_count)
@@ -309,9 +289,9 @@ impl UnswitchHeuristics {
         }
 
         match self.block_hotness(header) {
-            CallsiteHotness::Hot => MAX_LOOP_SIZE_HOT,
-            CallsiteHotness::Cold => MAX_LOOP_SIZE_COLD,
-            CallsiteHotness::Unknown => MAX_LOOP_SIZE,
+            Hotness::Hot => MAX_LOOP_SIZE_HOT,
+            Hotness::Cold => MAX_LOOP_SIZE_COLD,
+            Hotness::Unknown => MAX_LOOP_SIZE,
         }
     }
 
@@ -322,8 +302,7 @@ impl UnswitchHeuristics {
         }
 
         let count = self.block_counts.get(&branch).copied().unwrap_or(0);
-        count < MIN_BRANCH_COUNT_FOR_UNSWITCH
-            || matches!(self.block_hotness(branch), CallsiteHotness::Cold)
+        count < MIN_BRANCH_COUNT_FOR_UNSWITCH || matches!(self.block_hotness(branch), Hotness::Cold)
     }
 }
 
@@ -332,9 +311,9 @@ fn find_unswitchable_loop(
     lp: &Loop,
     function: &mir::Function,
     tree: &mir::Tree,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
-    ranges: &RangeAnalysis,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
+    ranges: &RangeTable,
     heuristics: &UnswitchHeuristics,
 ) -> Option<UnswitchCandidate> {
     // need a preheader
@@ -381,7 +360,7 @@ fn find_unswitchable_loop(
         preheader_values.insert(*arg);
     }
 
-    let value_definitions = ValueDefinitions::build(function, tree).instruction_map();
+    let value_definitions = DefinitionTable::build(function, tree).instruction_map();
 
     // scan all loop blocks for an invariant branch (prefer header first for stability)
     let mut sorted_blocks: Vec<_> = lp.blocks.iter().copied().collect();
@@ -426,6 +405,7 @@ fn find_unswitchable_loop(
                 &value_definitions,
                 &header_param_rewrites,
                 &preheader_values,
+                function,
                 tree,
             )
         };
@@ -515,12 +495,13 @@ fn try_hoist_invariant_condition(
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     header_param_rewrites: &HashMap<mir::Value, mir::Value>,
     invariant_values: &HashSet<mir::Value>,
+    function: &mir::Function,
     tree: &mir::Tree,
 ) -> Option<HoistedCondition> {
     // resolve the instruction defining the condition
     let instruction_id = value_definitions.get(&condition)?;
     let instruction = tree.get(*instruction_id);
-    if !instruction_is_speculatable(instruction, tree) {
+    if !instruction_is_speculatable(instruction, function, tree) {
         return None;
     }
 
@@ -552,7 +533,7 @@ fn try_hoist_invariant_condition(
 fn collect_header_param_rewrites(
     lp: &Loop,
     tree: &mir::Tree,
-    cfg: &ControlFlowGraph,
+    cfg: &ControlTable,
     invariant_values: &HashSet<mir::Value>,
     preheader_args: &[mir::Value],
 ) -> HashMap<mir::Value, mir::Value> {
@@ -584,7 +565,7 @@ fn collect_header_param_rewrites(
             // read arguments flowing into the header
             let pred_block = tree.get(pred);
             let pred_terminator = tree.get(pred_block.terminator);
-            let args = match pred_terminator.edge_arguments(tree, lp.header) {
+            let args = match pred_terminator.successor_arguments(tree, lp.header) {
                 EdgeArguments::Found(args) => args,
                 EdgeArguments::Missing | EdgeArguments::Conflict => {
                     return HashMap::new();
@@ -622,11 +603,12 @@ fn collect_header_param_rewrites(
 fn unswitch_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     candidate: &UnswitchCandidate,
 ) {
     // clone all loop blocks with fresh IDs and values
-    let (block_map, value_map) = clone_loop_blocks(&candidate.loop_blocks, function, tree, memory);
+    let (block_map, value_map) =
+        clone_loop_blocks(&candidate.loop_blocks, function, tree, accesses);
 
     // get the cloned header and cloned branch block
     let cloned_header = block_map[&candidate.header];
@@ -672,7 +654,13 @@ fn unswitch_loop(
         let hoisted_inst =
             instruction_map_with_locals(&hoisted.instruction, &value_map, &local_map, tree);
         let hoisted_id = tree.insert(hoisted_inst);
-        clone_instruction_tables(tree, memory, hoisted.instruction_id, hoisted_id, &value_map);
+        clone_instruction_tables(
+            tree,
+            accesses,
+            hoisted.instruction_id,
+            hoisted_id,
+            &value_map,
+        );
         let mut instructions = preheader.instructions.clone();
         instructions.push(hoisted_id);
         function.replace_block_instructions(candidate.preheader, instructions, tree);
@@ -856,12 +844,12 @@ entry(v0: int32, v1: boolean):
 
 b1(v3: int32):
     v4: int32 = 10
-    v5: boolean = int.lt.s v3, v4
+    v5: boolean = lt v3, v4
     branch v5 => b2 | b3
 
 b2:
     v6: int32 = 1
-    v7: int32 = int.add v3, v6
+    v7: int32 = add v3, v6
     jump b1(v7)
 
 b3:
@@ -1028,7 +1016,7 @@ b5:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;
@@ -1051,13 +1039,13 @@ b1(v3: int32):
 
 b2(v4: int32):
     v5: int32 = 1
-    v6: int32 = int.add v4, v5
+    v6: int32 = add v4, v5
     jump b1(v6)
 
 b3(v7: int32):
     v8: int32 = 2
-    v9: int32 = int.add v7, v8
-    v10: boolean = int.lt.s v9, v1
+    v9: int32 = add v7, v8
+    v10: boolean = lt v9, v1
     branch v10 => b1(v9) | b4(v9)
 
 b4(v11: int32):
@@ -1076,13 +1064,13 @@ b1(v3: int32):
 
 b2(v4: int32):
     v5: int32 = 1
-    v6: int32 = int.add v4, v5
+    v6: int32 = add v4, v5
     jump b5(v6)
 
 b3(v7: int32):
     v8: int32 = 2
-    v9: int32 = int.add v7, v8
-    v10: boolean = int.lt.s v9, v1
+    v9: int32 = add v7, v8
+    v10: boolean = lt v9, v1
     branch v10 => b5(v9) | b4(v9)
 
 b4(v11: int32):
@@ -1096,13 +1084,13 @@ b6(v13: int32):
 
 b7(v14: int32):
     v15: int32 = 1
-    v16: int32 = int.add v14, v15
+    v16: int32 = add v14, v15
     jump b9(v16)
 
 b8(v17: int32):
     v18: int32 = 2
-    v19: int32 = int.add v17, v18
-    v20: boolean = int.lt.s v19, v1
+    v19: int32 = add v17, v18
+    v20: boolean = lt v19, v1
     branch v20 => b9(v19) | b4(v19)
 
 b9(v21: int32):

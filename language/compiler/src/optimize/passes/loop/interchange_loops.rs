@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlFlowGraph, DominatorTree, LoopAnalysis, LoopEffectPolicy, MemorySSA, Mutation,
+    ControlTable, DominatorTable, LoopEffectPolicy, LoopTable, MemoryTable, Mutation,
     build_value_definition_blocks, collect_loop_effects, loop_guard_branch, loop_preheader,
     value_available_in_block,
 };
@@ -13,30 +13,27 @@ use destack_mir::{
 declare_pass! {
     /// Interchange perfectly nested read-only loops.
     ///
-    /// This pass swaps the order of two perfectly nested loops when the body
-    /// contains only read effects and the induction starts are loop invariant.
-    ///
     /// ```mir
     /// function before(v0: uint32): int32 {
     ///     local l0: int32
     /// b0(v0: uint32):
-    ///     v1 = 0uint32
-    ///     v2 = 4uint32
-    ///     v3 = 1uint32
-    ///     v4 = local.address l0 -> ref<int32, borrowed, mutable, frame>
+    ///     v1: uint32 = 0
+    ///     v2: uint32 = 4
+    ///     v3: uint32 = 1
+    ///     v4: ref<int32, borrowed, mutable, frame> = local.address l0
     ///     jump b1(v1)
     /// b1(v5: uint32):
-    ///     v6 = int.lt.u v5, v2
+    ///     v6: boolean = lt v5, v2
     ///     branch v6 => b2(v1) | b6
     /// b2(v7: uint32):
-    ///     v8 = int.lt.u v7, v2
+    ///     v8: boolean = lt v7, v2
     ///     branch v8 => b3(v7) | b4
     /// b3(v9: uint32):
-    ///     v10 = load v4 -> int32
-    ///     v11 = int.add v9, v3
+    ///     v10: int32 = load v4
+    ///     v11: uint32 = add v9, v3
     ///     jump b2(v11)
     /// b4:
-    ///     v12 = int.add v5, v3
+    ///     v12: uint32 = add v5, v3
     ///     jump b1(v12)
     /// b6:
     ///     return v10
@@ -47,23 +44,23 @@ declare_pass! {
     /// function after(v0: uint32): int32 {
     ///     local l0: int32
     /// b0(v0: uint32):
-    ///     v1 = 0uint32
-    ///     v2 = 4uint32
-    ///     v3 = 1uint32
-    ///     v4 = local.address l0 -> ref<int32, borrowed, mutable, frame>
+    ///     v1: uint32 = 0
+    ///     v2: uint32 = 4
+    ///     v3: uint32 = 1
+    ///     v4: ref<int32, borrowed, mutable, frame> = local.address l0
     ///     jump b2(v1)
     /// b1(v5: uint32):
-    ///     v6 = int.lt.u v5, v2
+    ///     v6: boolean = lt v5, v2
     ///     branch v6 => b4 | b3
     /// b2(v7: uint32):
-    ///     v8 = int.lt.u v7, v2
+    ///     v8: boolean = lt v7, v2
     ///     branch v8 => b1(v1) | b6
     /// b3(v9: uint32):
-    ///     v10 = load v4 -> int32
-    ///     v11 = int.add v9, v3
+    ///     v10: int32 = load v4
+    ///     v11: uint32 = add v9, v3
     ///     jump b1(v11)
     /// b4:
-    ///     v12 = int.add v5, v3
+    ///     v12: uint32 = add v5, v3
     ///     jump b2(v12)
     /// b6:
     ///     return v10
@@ -81,26 +78,26 @@ impl FunctionPass for InterchangeLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &optimized.effects;
 
         // gather analyses
         let loops = analyses.loops(function, tree).clone();
-        let cfg = analyses.control_flow(function, tree).clone();
-        let domtree = analyses.dominators(function, tree).clone();
-        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+        let cfg = analyses.control(function, tree).clone();
+        let domtree = analyses.dominator(function, tree).clone();
+        let memory = analyses.memory(function, tree, accesses, effects);
         // run loop interchange
         let changed = run_interchange_loops(
             function,
             tree,
-            memory,
+            accesses,
             &loops,
             &cfg,
             &domtree,
-            memory_ssa.as_ref(),
+            memory.as_ref(),
         );
 
         // report what this pass changed
@@ -109,16 +106,6 @@ impl FunctionPass for InterchangeLoops {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "InterchangeLoops"
-    }
-
-    /// Return the pass id.
-    fn id(&self) -> &'static str {
-        "interchange-loops"
     }
 }
 
@@ -146,11 +133,11 @@ struct InterchangeCandidate {
 fn run_interchange_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mir::MemoryTable,
-    loops: &LoopAnalysis,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
-    memory_ssa: &MemorySSA,
+    accesses: &mir::AccessTable,
+    loops: &LoopTable,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
+    memory: &MemoryTable,
 ) -> bool {
     // build definition info
     let def_blocks = build_value_definition_blocks(function, tree);
@@ -168,11 +155,12 @@ fn run_interchange_loops(
         build_interchange_candidate(
             outer,
             inner,
+            function,
             cfg,
             domtree,
             tree,
+            accesses,
             memory,
-            memory_ssa,
             &def_blocks,
             &function_params,
         )
@@ -189,11 +177,12 @@ fn run_interchange_loops(
 fn build_interchange_candidate(
     outer: &mir::Loop,
     inner: &mir::Loop,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    function: &mir::Function,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
-    memory_ssa: &MemorySSA,
+    accesses: &mir::AccessTable,
+    memory: &MemoryTable,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     function_params: &HashSet<mir::Value>,
 ) -> Option<InterchangeCandidate> {
@@ -300,7 +289,7 @@ fn build_interchange_candidate(
     }
 
     // reject non speculatable instructions
-    if !loops_are_read_only(outer, inner, tree, memory, memory_ssa) {
+    if !loops_are_read_only(outer, inner, function, tree, accesses, memory) {
         return None;
     }
 
@@ -317,7 +306,7 @@ fn build_interchange_candidate(
 }
 
 /// Check whether the inner loop is perfectly nested.
-fn is_perfectly_nested(outer: &mir::Loop, inner: &mir::Loop, cfg: &ControlFlowGraph) -> bool {
+fn is_perfectly_nested(outer: &mir::Loop, inner: &mir::Loop, cfg: &ControlTable) -> bool {
     // locate the inner preheader
     let mut inner_preheader = None;
     for &pred in cfg.predecessors(inner.header) {
@@ -352,24 +341,27 @@ fn is_perfectly_nested(outer: &mir::Loop, inner: &mir::Loop, cfg: &ControlFlowGr
 fn loops_are_read_only(
     outer: &mir::Loop,
     inner: &mir::Loop,
+    function: &mir::Function,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
-    memory_ssa: &MemorySSA,
+    accesses: &mir::AccessTable,
+    memory: &MemoryTable,
 ) -> bool {
     // require read only effects for each loop
     collect_loop_effects(
         &outer.blocks,
+        function,
         tree,
+        accesses,
         memory,
-        memory_ssa,
         LoopEffectPolicy::ReadOnly,
     )
     .is_some()
         && collect_loop_effects(
             &inner.blocks,
+            function,
             tree,
+            accesses,
             memory,
-            memory_ssa,
             LoopEffectPolicy::ReadOnly,
         )
         .is_some()
@@ -481,20 +473,20 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v2
+    v7: boolean = lt v6, v2
     branch v7 => b2(v1) | b5
 
 b2(v8: uint32):
-    v9: boolean = int.lt.u v8, v2
+    v9: boolean = lt v8, v2
     branch v9 => b3 | b4
 
 b3:
     v10: int32 = load v4
-    v11: uint32 = int.add v8, v3
+    v11: uint32 = add v8, v3
     jump b2(v11)
 
 b4:
-    v12: uint32 = int.add v6, v3
+    v12: uint32 = add v6, v3
     jump b1(v12)
 
 b5:
@@ -514,20 +506,20 @@ entry(v0: uint32):
     jump b2(v1)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v2
+    v7: boolean = lt v6, v2
     branch v7 => b4 | b3
 
 b2(v8: uint32):
-    v9: boolean = int.lt.u v8, v2
+    v9: boolean = lt v8, v2
     branch v9 => b1(v1) | b5
 
 b3:
     v10: int32 = load v4
-    v11: uint32 = int.add v8, v3
+    v11: uint32 = add v8, v3
     jump b2(v11)
 
 b4:
-    v12: uint32 = int.add v6, v3
+    v12: uint32 = add v6, v3
     jump b1(v12)
 
 b5:
@@ -554,20 +546,20 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2(v1) | b5
 
 b2(v7: uint32):
-    v8: boolean = int.lt.u v7, v2
+    v8: boolean = lt v7, v2
     branch v8 => b3(v7) | b4
 
 b3(v9: uint32):
     store v4, v9
-    v10: uint32 = int.add v9, v3
+    v10: uint32 = add v9, v3
     jump b2(v10)
 
 b4:
-    v11: uint32 = int.add v5, v3
+    v11: uint32 = add v5, v3
     jump b1(v11)
 
 b5:
@@ -594,23 +586,23 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2(v1) | b6
 
 b2(v7: uint32):
-    v8: boolean = int.lt.u v7, v2
+    v8: boolean = lt v7, v2
     branch v8 => b3 | b4
 
 b3:
     v9: int32 = load v4
-    v10: uint32 = int.add v7, v3
+    v10: uint32 = add v7, v3
     jump b2(v10)
 
 b4:
     jump b5
 
 b5:
-    v11: uint32 = int.add v5, v3
+    v11: uint32 = add v5, v3
     jump b1(v11)
 
 b6:
@@ -638,21 +630,21 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v2
-    v8: uint32 = int.add v6, v3
+    v7: boolean = lt v6, v2
+    v8: uint32 = add v6, v3
     branch v7 => b2(v1, v8) | b5
 
 b2(v9: uint32, v10: uint32):
-    v11: boolean = int.lt.u v9, v2
+    v11: boolean = lt v9, v2
     branch v11 => b3 | b4
 
 b3:
     v12: int32 = load v4
-    v13: uint32 = int.add v9, v3
+    v13: uint32 = add v9, v3
     jump b2(v13, v10)
 
 b4:
-    v14: uint32 = int.add v6, v3
+    v14: uint32 = add v6, v3
     jump b1(v14)
 
 b5:
@@ -680,21 +672,21 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v2
+    v7: boolean = lt v6, v2
     branch v7 => b2(v1) | b5
 
 b2(v8: uint32):
-    v9: boolean = int.lt.u v8, v2
+    v9: boolean = lt v8, v2
     branch v9 => b3 | b4
 
 b3:
     v10: int32 = load v4
-    v11: uint32 = int.add v8, v3
-    v12: boolean = int.lt.u v8, v2
+    v11: uint32 = add v8, v3
+    v12: boolean = lt v8, v2
     branch v12 => b2(v11) | b4
 
 b4:
-    v13: uint32 = int.add v6, v3
+    v13: uint32 = add v6, v3
     jump b1(v13)
 
 b5:
@@ -722,20 +714,20 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v2
+    v7: boolean = lt v6, v2
     branch v7 => b2(v1) | b5
 
 b2(v8: uint32):
-    v9: boolean = int.lt.u v8, v2
+    v9: boolean = lt v8, v2
     branch v9 => b3 | b4(v8)
 
 b3:
     v10: int32 = load v4
-    v11: uint32 = int.add v8, v3
+    v11: uint32 = add v8, v3
     jump b2(v11)
 
 b4(v12: uint32):
-    v13: uint32 = int.add v6, v3
+    v13: uint32 = add v6, v3
     jump b1(v13)
 
 b5:
@@ -766,20 +758,20 @@ b1(v7: uint32):
     jump b2(v7)
 
 b2(v8: uint32):
-    v9: boolean = int.lt.u v8, v3
+    v9: boolean = lt v8, v3
     branch v9 => b3(v2) | b6
 
 b3(v10: uint32):
-    v11: boolean = int.lt.u v10, v3
+    v11: boolean = lt v10, v3
     branch v11 => b4 | b5
 
 b4:
     v12: int32 = load v5
-    v13: uint32 = int.add v10, v4
+    v13: uint32 = add v10, v4
     jump b3(v13)
 
 b5:
-    v14: uint32 = int.add v8, v4
+    v14: uint32 = add v8, v4
     jump b2(v14)
 
 b6:
@@ -802,20 +794,20 @@ b1(v7: uint32):
     jump b2(v7)
 
 b2(v8: uint32):
-    v9: boolean = int.lt.u v8, v3
+    v9: boolean = lt v8, v3
     branch v9 => b3(v2) | b6
 
 b3(v10: uint32):
-    v11: boolean = int.lt.u v10, v3
+    v11: boolean = lt v10, v3
     branch v11 => b4 | b5
 
 b4:
     v12: int32 = load v5
-    v13: uint32 = int.add v10, v4
+    v13: uint32 = add v10, v4
     jump b3(v13)
 
 b5:
-    v14: uint32 = int.add v8, v4
+    v14: uint32 = add v8, v4
     jump b2(v14)
 
 b6:
@@ -843,20 +835,20 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v2
+    v7: boolean = lt v6, v2
     branch v7 => b2(v1) | b6
 
 b2(v8: uint32):
-    v9: boolean = int.lt.u v8, v2
+    v9: boolean = lt v8, v2
     branch v9 => b3 | b4
 
 b3:
     v10: int32 = load v4
-    v11: uint32 = int.add v8, v3
+    v11: uint32 = add v8, v3
     jump b2(v11)
 
 b4:
-    v12: uint32 = int.add v6, v3
+    v12: uint32 = add v6, v3
     jump b5(v12)
 
 b5(v13: uint32):
@@ -887,20 +879,20 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v2
+    v7: boolean = lt v6, v2
     branch v7 => b2(v1) | b5
 
 b2(v8: uint32):
-    v9: boolean = int.lt.u v8, v2
+    v9: boolean = lt v8, v2
     branch v9 => b3 | b4(v8)
 
 b3:
     v10: int32 = load v4
-    v11: uint32 = int.add v8, v3
+    v11: uint32 = add v8, v3
     jump b2(v11)
 
 b4(v12: uint32):
-    v13: uint32 = int.add v6, v3
+    v13: uint32 = add v6, v3
     jump b1(v13)
 
 b5:
@@ -920,20 +912,20 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v2
+    v7: boolean = lt v6, v2
     branch v7 => b2(v1) | b5
 
 b2(v8: uint32):
-    v9: boolean = int.lt.u v8, v2
+    v9: boolean = lt v8, v2
     branch v9 => b3 | b4(v8)
 
 b3:
     v10: int32 = load v4
-    v11: uint32 = int.add v8, v3
+    v11: uint32 = add v8, v3
     jump b2(v11)
 
 b4(v12: uint32):
-    v13: uint32 = int.add v6, v3
+    v13: uint32 = add v6, v3
     jump b1(v13)
 
 b5:
@@ -961,20 +953,20 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v2
+    v7: boolean = lt v6, v2
     branch v7 => b2(v1) | b5(v6)
 
 b2(v8: uint32):
-    v9: boolean = int.lt.u v8, v2
+    v9: boolean = lt v8, v2
     branch v9 => b3 | b4
 
 b3:
     v10: int32 = load v4
-    v11: uint32 = int.add v8, v3
+    v11: uint32 = add v8, v3
     jump b2(v11)
 
 b4:
-    v12: uint32 = int.add v6, v3
+    v12: uint32 = add v6, v3
     jump b1(v12)
 
 b5(v13: uint32):
@@ -994,20 +986,20 @@ entry(v0: uint32):
     jump b1(v1)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v2
+    v7: boolean = lt v6, v2
     branch v7 => b2(v1) | b5(v6)
 
 b2(v8: uint32):
-    v9: boolean = int.lt.u v8, v2
+    v9: boolean = lt v8, v2
     branch v9 => b3 | b4
 
 b3:
     v10: int32 = load v4
-    v11: uint32 = int.add v8, v3
+    v11: uint32 = add v8, v3
     jump b2(v11)
 
 b4:
-    v12: uint32 = int.add v6, v3
+    v12: uint32 = add v6, v3
     jump b1(v12)
 
 b5(v13: uint32):

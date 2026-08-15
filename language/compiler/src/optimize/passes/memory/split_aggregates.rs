@@ -5,45 +5,41 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantPropagation, Mutation, instruction_substitute_uses_in_tree,
+    ConstantTable, Mutation, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, terminator_substitute_uses,
 };
 
 declare_pass! {
     /// Scalar Replacement of Aggregates.
     ///
-    /// Breaks addressable aggregate locals into scalar locals so each scalar can be promoted.
-    ///
     /// ```mir
-    /// // before SROA
     /// function before(): int32 {
-    /// b0:
     ///     local l0: { int32, int32 }
-    ///     v0 = local.address l0
-    ///     v1 = field.address v0, 0
-    ///     v2 = 1int32
+    /// b0:
+    ///     v0: ref<{ int32, int32 }, borrowed, mutable, frame> = local.address l0
+    ///     v1: ref<int32, borrowed, mutable, frame> = field.address v0, 0
+    ///     v2: int32 = 1
     ///     store v1, v2
-    ///     v3 = field.address v0, 1
-    ///     v4 = 2int32
+    ///     v3: ref<int32, borrowed, mutable, frame> = field.address v0, 1
+    ///     v4: int32 = 2
     ///     store v3, v4
-    ///     v5 = load v1
+    ///     v5: int32 = load v1
     ///     return v5
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// // after SROA
     /// function after(): int32 {
-    /// b0:
     ///     local l0: int32
     ///     local l1: int32
-    ///     v0 = local.address l0
-    ///     v1 = local.address l1
-    ///     v2 = 1int32
+    /// b0:
+    ///     v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    ///     v2: int32 = 1
     ///     store v0, v2
-    ///     v3 = 2int32
+    ///     v3: int32 = 2
     ///     store v1, v3
-    ///     v4 = load v0
+    ///     v4: int32 = load v0
     ///     return v4
     /// }
     /// ```
@@ -59,11 +55,11 @@ impl FunctionPass for SplitAggregates {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let layouts = &mut optimized.layouts;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip empty functions
         let entry = match function.entry() {
@@ -72,14 +68,14 @@ impl FunctionPass for SplitAggregates {
         };
 
         // get constant propagation analysis
-        let constants = { analyses.constants(function, tree).clone() };
+        let constants = { analyses.constant(function, tree).clone() };
 
         // run SROA
         let changed = run_split_aggregates(
             function,
             tree,
             layouts,
-            memory,
+            accesses,
             entry,
             ctx.options.split_aggregates_max_array_elements,
             &constants,
@@ -92,16 +88,6 @@ impl FunctionPass for SplitAggregates {
             Mutation::NONE
         }
     }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "SplitAggregates"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "split-aggregates"
-    }
 }
 
 /// Core SROA logic. Returns true if changes were made.
@@ -109,13 +95,13 @@ fn run_split_aggregates(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     layouts: &mut mir::LayoutTable,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     entry: mir::LocalNodeId<mir::Block>,
     max_array_elements: usize,
-    constants: &ConstantPropagation,
+    constants: &ConstantTable,
 ) -> bool {
     // find splittable locals
-    let candidates = find_candidates(function, tree, memory, max_array_elements, constants);
+    let candidates = find_candidates(function, tree, accesses, max_array_elements, constants);
     if candidates.is_empty() {
         return false;
     }
@@ -126,7 +112,7 @@ fn run_split_aggregates(
     // split each candidate
     let mut made_changes = false;
     for candidate in candidates {
-        if split_local(&candidate, function, tree, layouts, memory, entry) {
+        if split_local(&candidate, function, tree, layouts, accesses, entry) {
             made_changes = true;
         }
     }
@@ -217,9 +203,9 @@ struct LocalUses {
 fn find_candidates(
     function: &mir::Function,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
+    accesses: &mir::AccessTable,
     max_array_elements: usize,
-    constants: &ConstantPropagation,
+    constants: &ConstantTable,
 ) -> Vec<SplitCandidate> {
     let mut candidates = Vec::new();
 
@@ -269,7 +255,7 @@ fn find_candidates(
                 };
 
                 // reject escaping or unsupported address uses
-                let uses = match analyze_uses(destination, function, tree, memory, constants) {
+                let uses = match analyze_uses(destination, function, tree, accesses, constants) {
                     Some(uses) => uses,
                     None => continue,
                 };
@@ -356,8 +342,8 @@ fn analyze_uses(
     local_address: mir::Value,
     function: &mir::Function,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
-    constants: &ConstantPropagation,
+    accesses: &mir::AccessTable,
+    constants: &ConstantTable,
 ) -> Option<LocalUses> {
     let mut uses = Vec::new();
     let mut base_loads = Vec::new();
@@ -417,7 +403,7 @@ fn analyze_uses(
 
                     // loads and stores are allowed, base reference uses are recorded
                     mir::Instruction::Load { pointer, .. } if *pointer == value => {
-                        if memory.instruction_requires_exact_access(tree, inst_id) {
+                        if accesses.requires_exact_position(inst_id, tree) {
                             return None;
                         }
                         if value == local_address {
@@ -426,7 +412,7 @@ fn analyze_uses(
                     }
 
                     mir::Instruction::Store { pointer, .. } if *pointer == value => {
-                        if memory.instruction_requires_exact_access(tree, inst_id) {
+                        if accesses.requires_exact_position(inst_id, tree) {
                             return None;
                         }
                         if value == local_address {
@@ -477,7 +463,7 @@ fn analyze_uses(
 fn resolve_constant_index(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    constants: &ConstantPropagation,
+    constants: &ConstantTable,
 ) -> Option<usize> {
     // read constant at block exit
     let constant = constants.constant_at_exit(block_id, value)?;
@@ -510,7 +496,7 @@ fn split_local(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     layouts: &mut mir::LayoutTable,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     entry: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // create scalar locals and their addresses
@@ -567,7 +553,7 @@ fn split_local(
     }
 
     // apply substitutions to all instructions
-    apply_substitutions(&substitutions, function, tree, memory);
+    apply_substitutions(&substitutions, function, tree, accesses);
 
     // remove the original local address and its derived projections
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
@@ -746,7 +732,7 @@ fn apply_substitutions(
     substitutions: &HashMap<mir::Value, mir::Value>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
 ) {
     if substitutions.is_empty() {
         return;
@@ -764,7 +750,7 @@ fn apply_substitutions(
             let new_instruction =
                 instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
             tree.set(inst_id, new_instruction);
-            remap_instruction_memory_accesses(memory, inst_id, substitutions);
+            remap_instruction_memory_accesses(accesses, inst_id, substitutions);
         }
 
         // substitute in terminator
@@ -1029,7 +1015,7 @@ entry:
     store v3, v4
     v5: int32 = load v1
     v6: int32 = load v3
-    v7: int32 = int.add v5, v6
+    v7: int32 = add v5, v6
     return v7
 }
 "#;
@@ -1052,7 +1038,7 @@ entry:
     store v9, v4
     v5: int32 = load v8
     v6: int32 = load v9
-    v7: int32 = int.add v5, v6
+    v7: int32 = add v5, v6
     return v7
 }
 "#;

@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantPropagation, DominatorTree, Mutation, RangeAnalysis, RangeMap, ValueRange,
+    ConstantTable, DominatorTable, Mutation, RangeState, RangeTable, ValueRange,
     apply_substitutions_in_dominated_blocks, block_parameters_used_outside_block,
     block_uses_available_in_predecessor, build_use_def_maps, build_value_instruction_map,
     build_value_use_counts, clone_instruction_tables, function_thread_jumps,
@@ -36,29 +36,15 @@ const MAX_SIMPLIFY_CFG_ITERATIONS: usize = 8;
 declare_pass! {
     /// Simplify the control flow graph.
     ///
-    /// This pass performs several CFG simplifications:
-    /// 1. Branch folding: converts `branch cond, A, B` to `jump` when cond is constant or range proven
-    /// 2. Path sensitive threading: threads edges using edge specific range state
-    /// 3. Jump threading: threads jumps through empty or passthrough blocks
-    /// 4. Return canonicalization: merges empty return blocks into one
-    /// 5. Switch canonicalization: folds constant/range switches and lowers single case switches
-    /// 6. Same target folding: replaces branches to the same target with `select` + `jump`
-    /// 7. Tail duplication: duplicates small jump targets into jump predecessors
-    /// 8. Block merging: merges blocks with single predecessor/successor
-    /// 9. Unreachable block elimination: removes blocks not reachable from entry
-    /// 10. Critical edge splitting: splits edges from multi successor blocks into multi predecessor blocks
-    ///
-    /// The pass iterates to a bounded fixed point.
-    ///
     /// ```mir
     /// function before(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = true
+    ///     v1: boolean = true
     ///     branch v1 => b1 | b2
     /// b1:
     ///     return v0
     /// b2:
-    ///     v2 = 0int32
+    ///     v2: int32 = 0
     ///     return v2
     /// }
     /// ```
@@ -81,7 +67,7 @@ declare_pass! {
     /// ```mir
     /// function afterSelect(v0: boolean, v1: int32, v2: int32): int32 {
     /// b0(v0: boolean, v1: int32, v2: int32):
-    ///     v4 = select v0, v1, v2
+    ///     v4: int32 = select v0, v1, v2
     ///     return v4
     /// }
     /// ```
@@ -97,14 +83,14 @@ impl FunctionPass for SimplifyControlFlow {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // run simplify cfg with bounded fixed point
         let changed =
-            run_simplify_control_flow(function, tree, memory, ctx.profile(), ctx, analyses);
+            run_simplify_control_flow(function, tree, accesses, ctx.profile(), ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -113,26 +99,16 @@ impl FunctionPass for SimplifyControlFlow {
             Mutation::NONE
         }
     }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "SimplifyControlFlow"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "simplify-control-flow"
-    }
 }
 
 /// SimplifyCFG logic. Returns true if changes were made.
 fn run_simplify_control_flow(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     profile: Option<&mir::Profile>,
     _ctx: &PipelineContext<'_>,
-    analyses: &mut mir::FunctionAnalyses,
+    analyses: &mut mir::FunctionCache,
 ) -> bool {
     // track whether any changes were made
     let mut changed = false;
@@ -149,9 +125,9 @@ fn run_simplify_control_flow(
         // refresh analyses for this iteration
         let (constants, ranges, domtree, loop_blocks) = {
             (
-                analyses.constants(function, tree).clone(),
-                analyses.ranges(function, tree).clone(),
-                analyses.dominators(function, tree).clone(),
+                analyses.constant(function, tree).clone(),
+                analyses.range(function, tree).clone(),
+                analyses.dominator(function, tree).clone(),
                 analyses
                     .loops(function, tree)
                     .loops()
@@ -200,7 +176,7 @@ fn run_simplify_control_flow(
         // phase 7: block merging
         // merges blocks with single predecessor/successor
         if let Some(entry) = function.entry()
-            && merge_blocks(function, tree, memory, entry, &domtree)
+            && merge_blocks(function, tree, accesses, entry, &domtree)
         {
             changed = true;
             analyses.invalidate(rewrite_mutation);
@@ -232,7 +208,7 @@ fn run_simplify_control_flow(
         if tail_duplicate_blocks(
             function,
             tree,
-            memory,
+            accesses,
             profile,
             analyses,
             &domtree,
@@ -264,8 +240,8 @@ fn run_simplify_control_flow(
 fn fold_branches(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    constants: &ConstantPropagation,
-    ranges: &RangeAnalysis,
+    constants: &ConstantTable,
+    ranges: &RangeTable,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // track whether any changes were made
@@ -433,9 +409,9 @@ fn fold_branches(
 fn thread_edge_conditions(
     function: &mir::Function,
     tree: &mut mir::Tree,
-    constants: &ConstantPropagation,
-    ranges: &RangeAnalysis,
-    domtree: &DominatorTree,
+    constants: &ConstantTable,
+    ranges: &RangeTable,
+    domtree: &DominatorTable,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // build definition tables
@@ -547,12 +523,12 @@ fn resolve_edge_if_available(
     is_true: bool,
     target: &mir::BlockTarget,
     tree: &mut mir::Tree,
-    constants: &ConstantPropagation,
-    ranges: &RangeAnalysis,
+    constants: &ConstantTable,
+    ranges: &RangeTable,
     value_definitions: &HashMap<mir::Value, mir::Instruction>,
     value_use_counts: &HashMap<mir::Value, usize>,
     value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> Option<mir::BlockTarget> {
     // resolve the edge target
     let resolved = resolve_edge_target(
@@ -583,8 +559,8 @@ fn resolve_edge_target(
     is_true: bool,
     target: &mir::BlockTarget,
     tree: &mut mir::Tree,
-    constants: &ConstantPropagation,
-    ranges: &RangeAnalysis,
+    constants: &ConstantTable,
+    ranges: &RangeTable,
     value_definitions: &HashMap<mir::Value, mir::Instruction>,
     value_use_counts: &HashMap<mir::Value, usize>,
 ) -> Option<mir::BlockTarget> {
@@ -743,10 +719,10 @@ fn edge_ranges_for_condition(
     block_id: mir::LocalNodeId<mir::Block>,
     condition: mir::Value,
     is_true: bool,
-    ranges: &RangeAnalysis,
-    constants: &ConstantPropagation,
+    ranges: &RangeTable,
+    constants: &ConstantTable,
     value_definitions: &HashMap<mir::Value, mir::Instruction>,
-) -> RangeMap {
+) -> RangeState {
     // seed ranges from the source block exit
     let mut edge_ranges = ranges.exit(block_id).clone();
 
@@ -775,9 +751,9 @@ fn apply_comparison_constraint(
     condition: mir::Value,
     is_true: bool,
     block_id: mir::LocalNodeId<mir::Block>,
-    constants: &ConstantPropagation,
+    constants: &ConstantTable,
     value_definitions: &HashMap<mir::Value, mir::Instruction>,
-    edge_ranges: &mut RangeMap,
+    edge_ranges: &mut RangeState,
 ) {
     // look up the condition definition
     let Some(instruction) = value_definitions.get(&condition) else {
@@ -793,7 +769,7 @@ fn apply_comparison_constraint(
         return;
     };
     // ignore non comparison instructions
-    if !operator.is_comparison() || operator.is_float() {
+    if !operator.is_comparison() {
         return;
     }
 
@@ -819,8 +795,8 @@ fn apply_comparison_constraint(
 fn apply_block_param_ranges_for_edge(
     block: &mir::Block,
     arguments: &[mir::Value],
-    source_ranges: &RangeMap,
-    target_ranges: &mut RangeMap,
+    source_ranges: &RangeState,
+    target_ranges: &mut RangeState,
 ) {
     // map each parameter to the range of its incoming argument
     for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
@@ -836,8 +812,8 @@ fn apply_block_param_ranges_for_edge(
 fn resolve_condition_value(
     condition: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    ranges: &RangeMap,
-    constants: &ConstantPropagation,
+    ranges: &RangeState,
+    constants: &ConstantTable,
     value_definitions: &HashMap<mir::Value, mir::Instruction>,
 ) -> Option<bool> {
     // check constant propagation state
@@ -867,7 +843,7 @@ fn resolve_condition_value(
     else {
         return None;
     };
-    if !operator.is_comparison() || operator.is_float() {
+    if !operator.is_comparison() {
         return None;
     }
 
@@ -882,8 +858,8 @@ fn resolve_switch_target(
     block_id: mir::LocalNodeId<mir::Block>,
     default: &mir::BlockTarget,
     cases: &[mir::SwitchCase],
-    constants: &ConstantPropagation,
-    ranges: &RangeMap,
+    constants: &ConstantTable,
+    ranges: &RangeState,
 ) -> Option<mir::BlockTarget> {
     // check constant propagation first
     let constant = constants
@@ -937,8 +913,8 @@ fn extract_switch_target(terminator: mir::Terminator) -> Option<mir::BlockTarget
 /// Resolve an integer constant from range or constant propagation.
 fn resolve_integer_constant(
     value: mir::Value,
-    ranges: &RangeMap,
-    constants: &ConstantPropagation,
+    ranges: &RangeState,
+    constants: &ConstantTable,
     block_id: mir::LocalNodeId<mir::Block>,
 ) -> Option<i128> {
     // consult constant propagation first
@@ -965,7 +941,7 @@ fn integer_constant_to_i128(constant: &mir::Constant) -> Option<i128> {
 
 /// Refine an integer range based on a comparison with a constant.
 fn refine_range_for_comparison(
-    ranges: &mut RangeMap,
+    ranges: &mut RangeState,
     value: mir::Value,
     operator: mir::BinaryOperator,
     is_true: bool,
@@ -989,29 +965,8 @@ fn refine_range_for_comparison(
     let width = *width;
     let is_signed = *is_signed;
 
-    // reject comparisons that do not match signedness
-    let expects_signed = matches!(
-        operator,
-        mir::BinaryOperator::SignedLessThan
-            | mir::BinaryOperator::SignedLessEqual
-            | mir::BinaryOperator::SignedGreaterThan
-            | mir::BinaryOperator::SignedGreaterEqual
-    );
-    let expects_unsigned = matches!(
-        operator,
-        mir::BinaryOperator::UnsignedLessThan
-            | mir::BinaryOperator::UnsignedLessEqual
-            | mir::BinaryOperator::UnsignedGreaterThan
-            | mir::BinaryOperator::UnsignedGreaterEqual
-    );
-    if expects_unsigned && is_signed {
-        return;
-    }
-    if expects_signed && !is_signed {
-        return;
-    }
-    // reject negative constants for unsigned comparisons
-    if expects_unsigned && constant < 0 {
+    // reject negative bounds for unsigned values
+    if !is_signed && constant < 0 {
         return;
     }
 
@@ -1047,28 +1002,28 @@ fn comparison_bounds(
     match operator {
         mir::BinaryOperator::Equal if is_true => Some((constant, constant)),
         mir::BinaryOperator::NotEqual if !is_true => Some((constant, constant)),
-        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
+        mir::BinaryOperator::LessThan => {
             if is_true {
                 Some((i128::MIN, constant.saturating_sub(1)))
             } else {
                 Some((constant, i128::MAX))
             }
         }
-        mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
+        mir::BinaryOperator::LessEqual => {
             if is_true {
                 Some((i128::MIN, constant))
             } else {
                 Some((constant.saturating_add(1), i128::MAX))
             }
         }
-        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
+        mir::BinaryOperator::GreaterThan => {
             if is_true {
                 Some((constant.saturating_add(1), i128::MAX))
             } else {
                 Some((i128::MIN, constant))
             }
         }
-        mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
+        mir::BinaryOperator::GreaterEqual => {
             if is_true {
                 Some((constant, i128::MAX))
             } else {
@@ -2001,10 +1956,10 @@ struct JumpPredecessor {
 fn tail_duplicate_blocks(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     profile: Option<&mir::Profile>,
-    analyses: &mut mir::FunctionAnalyses,
-    domtree: &DominatorTree,
+    analyses: &mut mir::FunctionCache,
+    domtree: &DominatorTable,
     profiled_targets: &mut HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // build definition tables
@@ -2083,7 +2038,7 @@ fn tail_duplicate_blocks(
         let mut all_speculatable = true;
         for instruction_id in &block.instructions {
             let instruction = tree.get(*instruction_id);
-            if !instruction_is_speculatable(instruction, tree) {
+            if !instruction_is_speculatable(instruction, function, tree) {
                 all_speculatable = false;
                 break;
             }
@@ -2171,7 +2126,7 @@ fn tail_duplicate_blocks(
 
                 let cloned = instruction_map(&instruction, &value_map, tree);
                 let new_id = tree.insert(cloned);
-                clone_instruction_tables(tree, memory, *instruction_id, new_id, &value_map);
+                clone_instruction_tables(tree, accesses, *instruction_id, new_id, &value_map);
                 new_instructions.push(new_id);
             }
 
@@ -2208,7 +2163,7 @@ fn values_available_in_block(
     block_id: mir::LocalNodeId<mir::Block>,
     values: &[mir::Value],
     value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> bool {
     // ensure each value definition dominates the block
     for value in values {
@@ -2561,9 +2516,9 @@ fn split_critical_edge_target(
 fn merge_blocks(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     entry: mir::LocalNodeId<mir::Block>,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> bool {
     let value_def_blocks = build_use_def_maps(function, tree).def_block;
 
@@ -2663,7 +2618,7 @@ fn merge_blocks(
             apply_substitutions_in_dominated_blocks(
                 function,
                 tree,
-                memory,
+                accesses,
                 domtree,
                 target,
                 &param_to_arg,
@@ -3026,11 +2981,11 @@ entry(v0: boolean):
     branch v0 => b1 | b2
 
 b1:
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 
 b2:
-    v4: int32 = int.sub v2, v1
+    v4: int32 = sub v2, v1
     return v4
 }
 "#;
@@ -3129,12 +3084,12 @@ entry:
 
 b1(v1: int32):
     v2: int32 = 10
-    v3: boolean = int.lt.s v1, v2
+    v3: boolean = lt v1, v2
     branch v3 => b2 | b3
 
 b2:
     v4: int32 = 1
-    v5: int32 = int.add v1, v4
+    v5: int32 = add v1, v4
     jump b1(v5)
 
 b3:
@@ -3338,7 +3293,7 @@ entry(v0: boolean):
         let input = r#"
 function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): uint32 {
 entry(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
-    v4: boolean = int.lt.u v1, v2
+    v4: boolean = lt v1, v2
     assume v4
     check bounds.u v1, v2, v3 => b1 | b2
 
@@ -3352,7 +3307,7 @@ b2:
         let expected = r#"
 function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): uint32 {
 entry(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
-    v4: boolean = int.lt.u v1, v2
+    v4: boolean = lt v1, v2
     assume v4
     check bounds.u v1, v2, v3 => b1 | b2
 
@@ -3477,7 +3432,7 @@ entry:
     jump b1
 
 b1:
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     jump b2
 
 b2:
@@ -3489,7 +3444,7 @@ b2:
 function test(): int32 {
 entry:
     v0: int32 = 1
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 "#;
@@ -3626,11 +3581,11 @@ entry(v0: boolean):
     v3: uint32 = select v0, v1, v2
     v4: uint32 = 10
     v5: uint32 = 15
-    v6: boolean = int.lt.u v3, v4
+    v6: boolean = lt v3, v4
     branch v6 => b1 | b2
 
 b1:
-    v7: boolean = int.lt.u v3, v5
+    v7: boolean = lt v3, v5
     branch v7 => b3 | b4
 
 b2:
@@ -3654,7 +3609,7 @@ entry(v0: boolean):
     v3: uint32 = select v0, v1, v2
     v4: uint32 = 10
     v5: uint32 = 15
-    v6: boolean = int.lt.u v3, v4
+    v6: boolean = lt v3, v4
     branch v6 => b2 | b1
 
 b1:
@@ -3721,7 +3676,7 @@ b1:
     jump b2(v1)
 
 b2(v3: int32):
-    v4: int32 = int.add v3, v2
+    v4: int32 = add v3, v2
     return v4
 }
 "#;
@@ -3732,11 +3687,11 @@ entry(v0: boolean, v1: int32):
     branch v0 => b1 | b2(v1)
 
 b1:
-    v5: int32 = int.add v1, v2
+    v5: int32 = add v1, v2
     return v5
 
 b2(v3: int32):
-    v4: int32 = int.add v3, v2
+    v4: int32 = add v3, v2
     return v4
 }
 "#;
@@ -3764,7 +3719,7 @@ b2(v4: int32):
     jump b3(v4)
 
 b3(v5: int32):
-    v6: int32 = int.mul v5, v5
+    v6: int32 = mul v5, v5
     return v6
 }
 "#;
@@ -3780,14 +3735,14 @@ b1(v3: int32):
     jump b2
 
 b2:
-    v7: int32 = int.mul v3, v3
+    v7: int32 = mul v3, v3
     return v7
 
 b3(v4: int32):
     jump b4(v4)
 
 b4(v5: int32):
-    v6: int32 = int.mul v5, v5
+    v6: int32 = mul v5, v5
     return v6
 }
 "#;
@@ -3801,8 +3756,8 @@ b4(v5: int32):
         let entry_block = function.entry().unwrap();
 
         // build dominance data for tail duplication
-        let mut analyses = test.function_analyses();
-        let domtree = analyses.dominators(&function, &test.optimized.tree).clone();
+        let mut analyses = test.function_cache();
+        let domtree = analyses.dominator(&function, &test.optimized.tree).clone();
 
         // weight the then predecessor hot so only its edge into the tail duplicates
         let mut profile = mir::Profile::new();
@@ -3815,7 +3770,7 @@ b4(v5: int32):
         let changed = tail_duplicate_blocks(
             &mut function,
             &mut test.optimized.tree,
-            &mut test.optimized.memory,
+            &mut test.optimized.accesses,
             Some(&profile),
             &mut analyses,
             &domtree,
@@ -3841,7 +3796,7 @@ b1(v3: int32):
     return v3
 
 b2(v4: int32):
-    v5: int32 = int.add v4, v2
+    v5: int32 = add v4, v2
     jump b1(v5)
 }
 "#;
@@ -3858,7 +3813,7 @@ b2(v3: int32):
     return v3
 
 b3(v4: int32):
-    v5: int32 = int.add v4, v2
+    v5: int32 = add v4, v2
     jump b2(v5)
 }
 "#;
@@ -3878,7 +3833,7 @@ entry(v0: boolean):
     v2: uint32 = 1
     v3: uint32 = select v0, v1, v2
     v4: uint32 = 2
-    v5: boolean = int.lt.u v3, v4
+    v5: boolean = lt v3, v4
     v6: int32 = 10
     v7: int32 = 20
     branch v5 => b1 | b2
@@ -3897,7 +3852,7 @@ entry(v0: boolean):
     v2: uint32 = 1
     v3: uint32 = select v0, v1, v2
     v4: uint32 = 2
-    v5: boolean = int.lt.u v3, v4
+    v5: boolean = lt v3, v4
     v6: int32 = 10
     v7: int32 = 20
     return v6
@@ -4017,7 +3972,7 @@ entry(v0: boolean):
     v2: uint32 = 1
     v3: uint32 = select v0, v1, v2
     v6: uint32 = 1
-    v7: boolean = int.eq v3, v6
+    v7: boolean = eq v3, v6
     branch v7 => b2 | b1
 
 b1:
@@ -4042,7 +3997,7 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     switch v2, b1, 1 => b2
 
 b1:
@@ -4058,7 +4013,7 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b2 | b1
 
 b1:
@@ -4082,34 +4037,34 @@ b2:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     v3: int32 = 7
     v4: int32 = 9
     switch v2, b1(v3), 1 => b2(v4)
 
 b1(v5: int32):
-    v6: int32 = int.add v5, v5
+    v6: int32 = add v5, v5
     return v6
 
 b2(v7: int32):
-    v8: int32 = int.add v7, v7
+    v8: int32 = add v7, v7
     return v8
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     v3: int32 = 7
     v4: int32 = 9
     branch v2 => b2(v4) | b1(v3)
 
 b1(v5: int32):
-    v6: int32 = int.add v5, v5
+    v6: int32 = add v5, v5
     return v6
 
 b2(v7: int32):
-    v8: int32 = int.add v7, v7
+    v8: int32 = add v7, v7
     return v8
 }
 "#;
@@ -4126,7 +4081,7 @@ b2(v7: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     switch v2, b1, 0 => b2, 1 => b3
 
 b1:
@@ -4146,7 +4101,7 @@ b3:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b2 | b1
 
 b1:
@@ -4178,11 +4133,11 @@ entry(v0: boolean):
     switch v3, b1(v4), 1 => b2(v5)
 
 b1(v6: int32):
-    v7: int32 = int.mul v6, v6
+    v7: int32 = mul v6, v6
     return v7
 
 b2(v8: int32):
-    v9: int32 = int.mul v8, v8
+    v9: int32 = mul v8, v8
     return v9
 }
 "#;
@@ -4195,15 +4150,15 @@ entry(v0: boolean):
     v4: int32 = 4
     v5: int32 = 8
     v10: int32 = 1
-    v11: boolean = int.eq v3, v10
+    v11: boolean = eq v3, v10
     branch v11 => b2(v5) | b1(v4)
 
 b1(v6: int32):
-    v7: int32 = int.mul v6, v6
+    v7: int32 = mul v6, v6
     return v7
 
 b2(v8: int32):
-    v9: int32 = int.mul v8, v8
+    v9: int32 = mul v8, v8
     return v9
 }
 "#;
@@ -4442,11 +4397,11 @@ entry(v0: boolean, v1: int32, v2: int32):
     branch v0 => b1(v1) | b2(v2)
 
 b1(v3: int32):
-    v4: int32 = int.add v3, v2
+    v4: int32 = add v3, v2
     jump b3(v4)
 
 b2(v5: int32):
-    v6: int32 = int.add v5, v1
+    v6: int32 = add v5, v1
     jump b3(v6)
 
 b3(v7: int32):

@@ -5,29 +5,26 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis,
-    Mutation, ScalarEvolution, Scev, ValueTypes, build_use_def_maps, clone_instruction_tables,
+    BlockParamForwarding, ControlTable, DominatorTable, EvolutionTable, Hotness, Loop, LoopTable,
+    Mutation, Scev, ValueTypeTable, build_use_def_maps, clone_instruction_tables,
     clone_loop_blocks, instruction_is_speculatable, instruction_map, terminator_remap,
 };
 
 declare_pass! {
     /// Unroll loops with a constant trip count.
     ///
-    /// Replaces the loop backedge with a chain of unrolled iterations.
-    /// This eliminates loop control overhead and exposes instruction level parallelism for further scalar optimizations.
-    ///
     /// ```mir
     /// function before(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = 0int32
-    ///     v2 = 3int32
+    ///     v1: int32 = 0
+    ///     v2: int32 = 3
     ///     jump b1(v1)
     /// b1(v3: int32):
-    ///     v4 = int.lt.s v3, v2
+    ///     v4: boolean = lt v3, v2
     ///     branch v4 => b2 | b3
     /// b2:
-    ///     v5 = int.add v3, v1
-    ///     v6 = int.add v3, v1
+    ///     v5: int32 = add v3, v1
+    ///     v6: int32 = add v3, v1
     ///     jump b1(v6)
     /// b3:
     ///     return v3
@@ -37,32 +34,28 @@ declare_pass! {
     /// ```mir
     /// function after(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = 0int32
-    ///     v2 = 3int32
+    ///     v1: int32 = 0
+    ///     v2: int32 = 3
     ///     jump b1(v1)
     /// b1(v3: int32):
-    ///     v4 = int.lt.s v3, v2
-    ///     v5 = int.add v3, v1
-    ///     v6 = int.add v3, v1
+    ///     v4: boolean = lt v3, v2
+    ///     v5: int32 = add v3, v1
+    ///     v6: int32 = add v3, v1
     ///     jump b4(v6)
     /// b4(v7: int32):
-    ///     v8 = int.lt.s v7, v2
-    ///     v9 = int.add v7, v1
-    ///     v10 = int.add v7, v1
+    ///     v8: boolean = lt v7, v2
+    ///     v9: int32 = add v7, v1
+    ///     v10: int32 = add v7, v1
     ///     jump b7(v10)
     /// b7(v11: int32):
-    ///     v12 = int.lt.s v11, v2
-    ///     v13 = int.add v11, v1
-    ///     v14 = int.add v11, v1
+    ///     v12: boolean = lt v11, v2
+    ///     v13: int32 = add v11, v1
+    ///     v14: int32 = add v11, v1
     ///     jump b3(v11)
     /// b3:
     ///     return v3
     /// }
     /// ```
-    ///
-    /// Requires a single latch and a single exiting block.
-    /// Requires a constant trip count computed from scalar evolution.
-    /// Only unrolls loops with speculatable guards.
     #[pass(id = "unroll-loops")]
     pub UnrollLoops,
     "Unroll loops with constant trip counts"
@@ -71,71 +64,34 @@ declare_pass! {
 declare_pass! {
     /// Unroll and jam perfectly nested loops.
     ///
-    /// The outer loop is unrolled and the inner loop body is duplicated so that
-    /// each inner iteration executes multiple outer iterations.
-    ///
     /// ```mir
-    /// function before(v0: uint32, v1: uint32, v2: [uint32; 8]): void {
-    /// b0(v0: uint32, v1: uint32, v2: [uint32; 8]):
-    ///     v3 = 0uint32
-    ///     v4 = 1uint32
-    ///     jump b1(v3)
-    /// b1(v5: uint32):
-    ///     v6 = int.lt.u v5, v0
-    ///     branch v6 => b2 | b6
+    /// function before(v0: [uint32; 8]): void {
+    /// b0(v0: [uint32; 8]):
+    ///     v1: uint32 = 0
+    ///     v2: uint32 = 2
+    ///     v3: uint32 = 1
+    ///     jump b1(v1)
+    /// b1(v4: uint32):
+    ///     v5: boolean = lt v4, v2
+    ///     branch v5 => b2 | b6
     /// b2:
-    ///     v7 = 0uint32
-    ///     jump b3(v5, v7)
-    /// b3(v8: uint32, v9: uint32):
-    ///     v10 = int.lt.u v9, v1
-    ///     branch v10 => b4(v8, v9) | b5(v8)
-    /// b4(v11: uint32, v12: uint32):
-    ///     v13 = element.address v2, v12 -> ref<uint32, borrowed, mutable>
-    ///     store v13, v11
-    ///     v14 = int.add v12, v4
-    ///     jump b3(v11, v14)
-    /// b5(v15: uint32):
-    ///     v16 = int.add v15, v4
-    ///     jump b1(v16)
+    ///     v6: uint32 = 0
+    ///     jump b3(v4, v6)
+    /// b3(v7: uint32, v8: uint32):
+    ///     v9: boolean = lt v8, v2
+    ///     branch v9 => b4(v7, v8) | b5(v7)
+    /// b4(v10: uint32, v11: uint32):
+    ///     v12: ref<uint32, borrowed, mutable> = element.address v0, v11
+    ///     store v12, v10
+    ///     v13: uint32 = add v11, v3
+    ///     jump b3(v10, v13)
+    /// b5(v14: uint32):
+    ///     v15: uint32 = add v14, v3
+    ///     jump b1(v15)
     /// b6:
     ///     return
     /// }
     /// ```
-    /// becomes (with factor = 2):
-    /// ```mir
-    /// function after(v0: uint32, v1: uint32, v2: [uint32; 8]): void {
-    /// b0(v0: uint32, v1: uint32, v2: [uint32; 8]):
-    ///     v3 = 0uint32
-    ///     v4 = 1uint32
-    ///     jump b1(v3)
-    /// b1(v5: uint32):
-    ///     v6 = int.lt.u v5, v0
-    ///     branch v6 => b2 | b6
-    /// b2:
-    ///     v7 = 0uint32
-    ///     jump b3(v5, v7)
-    /// b3(v8: uint32, v9: uint32):
-    ///     v10 = int.lt.u v9, v1
-    ///     branch v10 => b4(v8, v9) | b5(v8)
-    /// b4(v11: uint32, v12: uint32):
-    ///     v13 = element.address v2, v12 -> ref<uint32, borrowed, mutable>
-    ///     store v13, v11
-    ///     v14 = 1uint32
-    ///     v15 = int.add v11, v14
-    ///     v16 = element.address v2, v12 -> ref<uint32, borrowed, mutable>
-    ///     store v16, v15
-    ///     v17 = int.add v12, v4
-    ///     jump b3(v11, v17)
-    /// b5(v18: uint32):
-    ///     v19 = 2uint32
-    ///     v20 = int.add v18, v19
-    ///     jump b1(v20)
-    /// b6:
-    ///     return
-    /// }
-    /// ```
-    ///
-    /// Requires perfectly nested loops with a constant outer trip count.
     #[pass(id = "unroll-and-jam-loops")]
     pub UnrollAndJamLoops,
     "Unroll and jam perfectly nested loops"
@@ -159,10 +115,10 @@ impl FunctionPass for UnrollLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip imported functions
         if function.entry().is_none() {
@@ -170,7 +126,7 @@ impl FunctionPass for UnrollLoops {
         }
 
         // run loop unrolling
-        let changed = run_unroll_loops(function, tree, memory, ctx, analyses);
+        let changed = run_unroll_loops(function, tree, accesses, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -178,16 +134,6 @@ impl FunctionPass for UnrollLoops {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "UnrollLoops"
-    }
-
-    /// Return the pass id.
-    fn id(&self) -> &'static str {
-        "unroll-loops"
     }
 }
 
@@ -198,10 +144,10 @@ impl FunctionPass for UnrollAndJamLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip imported functions
         if function.entry().is_none() {
@@ -209,7 +155,7 @@ impl FunctionPass for UnrollAndJamLoops {
         }
 
         // run loop unroll and jam
-        let changed = run_unroll_loops_and_jam(function, tree, memory, ctx, analyses);
+        let changed = run_unroll_loops_and_jam(function, tree, accesses, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -217,16 +163,6 @@ impl FunctionPass for UnrollAndJamLoops {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "UnrollAndJamLoops"
-    }
-
-    /// Return the pass id.
-    fn id(&self) -> &'static str {
-        "unroll-and-jam-loops"
     }
 }
 
@@ -356,9 +292,9 @@ struct UnrollIteration {
 fn run_unroll_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mut mir::FunctionAnalyses,
+    analyses: &mut mir::FunctionCache,
 ) -> bool {
     // read the unroll threshold from the pipeline options
     let unroll_threshold = ctx.unroll_threshold();
@@ -383,9 +319,9 @@ fn run_unroll_loops(
     loop {
         // gather analyses
         let loops = analyses.loops(function, tree).clone();
-        let cfg = analyses.control_flow(function, tree).clone();
-        let scev = analyses.scalar_evolution(function, tree).clone();
-        let domtree = analyses.dominators(function, tree).clone();
+        let cfg = analyses.control(function, tree).clone();
+        let scev = analyses.evolution(function, tree).clone();
+        let domtree = analyses.dominator(function, tree).clone();
 
         // bail out when no loops exist
         if loops.num_loops() == 0 {
@@ -447,7 +383,7 @@ fn run_unroll_loops(
 
         // apply transformation
         function.recompute_next_value_id(tree);
-        if !unroll_loop(function, tree, memory, &candidate, mode, &cfg, &domtree) {
+        if !unroll_loop(function, tree, accesses, &candidate, mode, &cfg, &domtree) {
             break;
         }
 
@@ -470,9 +406,9 @@ fn run_unroll_loops(
 fn run_unroll_loops_and_jam(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mut mir::FunctionAnalyses,
+    analyses: &mut mir::FunctionCache,
 ) -> bool {
     // read the unroll threshold from the pipeline options
     let unroll_threshold = ctx.unroll_threshold();
@@ -497,10 +433,10 @@ fn run_unroll_loops_and_jam(
     loop {
         // gather analyses
         let loops = analyses.loops(function, tree).clone();
-        let cfg = analyses.control_flow(function, tree).clone();
-        let scev = analyses.scalar_evolution(function, tree).clone();
-        let domtree = analyses.dominators(function, tree).clone();
-        let value_types = analyses.value_types(function, tree);
+        let cfg = analyses.control(function, tree).clone();
+        let scev = analyses.evolution(function, tree).clone();
+        let domtree = analyses.dominator(function, tree).clone();
+        let value_types = analyses.value_type(function, tree);
 
         // bail out when no loops exist
         if loops.num_loops() == 0 {
@@ -577,7 +513,7 @@ fn run_unroll_loops_and_jam(
         if !unroll_and_jam_loop(
             function,
             tree,
-            memory,
+            accesses,
             ctx,
             &candidate,
             plan,
@@ -609,7 +545,7 @@ fn find_unroll_candidate(
     loop_index: usize,
     function: &mir::Function,
     tree: &mir::Tree,
-    scev: &ScalarEvolution,
+    scev: &EvolutionTable,
     forwarding: &BlockParamForwarding,
     unroll_threshold: usize,
 ) -> Option<UnrollCandidate> {
@@ -672,8 +608,6 @@ fn find_unroll_candidate(
     if !latch_terminator.successors(tree).contains(&lp.header) {
         return None;
     }
-    let _latch_arguments = latch_terminator.successor_arguments(tree, lp.header);
-
     // require guard either in header or latch
     let guard_at_latch = exiting_block == latch;
     if !guard_at_latch && exiting_block != lp.header {
@@ -720,7 +654,7 @@ fn find_unroll_candidate(
 }
 
 /// Build a map from loop indices to their child loop indices.
-fn build_loop_children_map(loops: &LoopAnalysis) -> Vec<Vec<usize>> {
+fn build_loop_children_map(loops: &LoopTable) -> Vec<Vec<usize>> {
     // initialize child lists
     let mut children = vec![Vec::new(); loops.num_loops()];
 
@@ -735,7 +669,7 @@ fn build_loop_children_map(loops: &LoopAnalysis) -> Vec<Vec<usize>> {
 }
 
 /// Find the nearest nested loop index when parent links are missing.
-fn nearest_nested_loop(loops: &LoopAnalysis, outer_index: usize) -> Option<usize> {
+fn nearest_nested_loop(loops: &LoopTable, outer_index: usize) -> Option<usize> {
     // collect nested loop candidates
     let outer = &loops.loops()[outer_index];
     let mut candidates: Vec<(usize, u32)> = Vec::new();
@@ -782,9 +716,9 @@ fn find_jam_candidate(
     inner: &Loop,
     function: &mir::Function,
     tree: &mir::Tree,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
-    scev: &ScalarEvolution,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
+    scev: &EvolutionTable,
     forwarding: &BlockParamForwarding,
 ) -> Option<JamCandidate> {
     // require single latch and exit on both loops
@@ -945,7 +879,11 @@ fn find_jam_candidate(
     let entry_block = inner_preheader.unwrap_or(outer_header);
     let entry_block_data = tree.get(entry_block);
     let entry_terminator = tree.get(entry_block_data.terminator);
-    let entry_args = entry_terminator.successor_arguments(tree, inner_header);
+    let mir::EdgeArguments::Found(entry_args) =
+        entry_terminator.successor_arguments(tree, inner_header)
+    else {
+        return None;
+    };
     let outer_entry_index = entry_args
         .iter()
         .position(|&arg| forwarding.resolve(arg) == forwarding.resolve(outer_guard.induction))?;
@@ -958,7 +896,11 @@ fn find_jam_candidate(
     // locate the outer latch parameter carrying the induction
     let inner_header_block = tree.get(inner_header);
     let inner_header_terminator = tree.get(inner_header_block.terminator);
-    let exit_args = inner_header_terminator.successor_arguments(tree, inner_exit);
+    let mir::EdgeArguments::Found(exit_args) =
+        inner_header_terminator.successor_arguments(tree, inner_exit)
+    else {
+        return None;
+    };
     let outer_latch_index = exit_args
         .iter()
         .position(|&arg| forwarding.resolve(arg) == forwarding.resolve(inner_outer_param))?;
@@ -1135,7 +1077,7 @@ fn outer_equivalent_values(
 fn outer_step_for_guard(
     loop_index: usize,
     induction: mir::Value,
-    scev: &ScalarEvolution,
+    scev: &EvolutionTable,
 ) -> Option<i128> {
     // read the scalar evolution recurrence
     let scev_expr = scev.value_scev(loop_index, induction)?;
@@ -1162,7 +1104,9 @@ fn outer_step_from_latch(
     // read the latch argument for the induction parameter
     let latch_block = tree.get(latch);
     let latch_terminator = tree.get(latch_block.terminator);
-    let args = latch_terminator.successor_arguments(tree, header);
+    let mir::EdgeArguments::Found(args) = latch_terminator.successor_arguments(tree, header) else {
+        return None;
+    };
     let update_value = *args.get(param_index)?;
     let update_value = forwarding.resolve(update_value);
     let induction = forwarding.resolve(induction);
@@ -1173,7 +1117,7 @@ fn outer_step_from_latch(
     }
 
     // locate the defining instruction
-    let definitions = ValueDefinitions::build(function, tree);
+    let definitions = DefinitionTable::build(function, tree);
     let instruction_id = definitions.definition_for(update_value)?;
     let instruction = tree.get(instruction_id);
 
@@ -1217,7 +1161,7 @@ fn trip_count_from_header(
     header: mir::LocalNodeId<mir::Block>,
     param_index: usize,
     step: i128,
-    cfg: &ControlFlowGraph,
+    cfg: &ControlTable,
     function: &mir::Function,
     tree: &mir::Tree,
     forwarding: &BlockParamForwarding,
@@ -1236,7 +1180,9 @@ fn trip_count_from_header(
     // read the starting induction argument
     let entry_block = tree.get(entry_pred);
     let entry_terminator = tree.get(entry_block.terminator);
-    let args = entry_terminator.successor_arguments(tree, header);
+    let mir::EdgeArguments::Found(args) = entry_terminator.successor_arguments(tree, header) else {
+        return None;
+    };
     let start_value = *args.get(param_index)?;
     let start_const = constant_value_for(start_value, function, tree, forwarding)?;
     let bound_const = constant_value_for(guard.bound, function, tree, forwarding)?;
@@ -1263,11 +1209,11 @@ fn inner_body_is_jammable(
     outer_induction: mir::Value,
     function: &mir::Function,
     tree: &mir::Tree,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> bool {
     // gather definition maps for dependency checks
     let def_maps = build_use_def_maps(function, tree);
-    let def_map = mir::ValueDefinitions::build(function, tree).instruction_map();
+    let def_map = mir::DefinitionTable::build(function, tree).instruction_map();
 
     // cache outer block parameters for dependency checks
     let outer_block_params: HashSet<_> = outer
@@ -1555,13 +1501,13 @@ fn select_jam_plan(
 fn unroll_and_jam_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     plan: JamPlan,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
-    value_types: &ValueTypes,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
+    value_types: &ValueTypeTable,
 ) -> bool {
     // reject degenerate factors
     if plan.factor < 2 {
@@ -1573,7 +1519,7 @@ fn unroll_and_jam_loop(
         let peeled = peel_jam_remainder(
             function,
             tree,
-            memory,
+            accesses,
             candidate,
             cfg,
             domtree,
@@ -1585,8 +1531,8 @@ fn unroll_and_jam_loop(
     }
 
     // locate the inner update instruction
-    let def_map = mir::ValueDefinitions::build(function, tree).instruction_map();
-    let Some(update_info) = inner_update_info(candidate, tree, &def_map) else {
+    let def_map = mir::DefinitionTable::build(function, tree).instruction_map();
+    let Some(update_info) = inner_update_info(candidate, function, tree, &def_map) else {
         return false;
     };
 
@@ -1599,7 +1545,7 @@ fn unroll_and_jam_loop(
     if !jam_inner_body(
         function,
         tree,
-        memory,
+        accesses,
         ctx,
         candidate,
         plan.factor,
@@ -1615,8 +1561,8 @@ fn unroll_and_jam_loop(
 /// Locate the outer loop preheader for unroll and jam.
 fn find_jam_preheader(
     candidate: &JamCandidate,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
     tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     // collect predecessors outside the loop
@@ -1655,10 +1601,10 @@ fn find_jam_preheader(
 fn peel_jam_remainder(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     candidate: &JamCandidate,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
     remainder: u64,
 ) -> bool {
     // find a preheader outside of the loop
@@ -1672,7 +1618,7 @@ fn peel_jam_remainder(
     for _ in 0..remainder {
         // clone loop blocks and values
         let (block_map, value_map) =
-            clone_loop_blocks(&candidate.outer_blocks, function, tree, memory);
+            clone_loop_blocks(&candidate.outer_blocks, function, tree, accesses);
 
         // remap cloned terminators
         for &cloned_id in block_map.values() {
@@ -1741,15 +1687,19 @@ struct InnerUpdateInfo {
 /// Find the inner loop induction update instruction information.
 fn inner_update_info(
     candidate: &JamCandidate,
+    function: &mir::Function,
     tree: &mir::Tree,
     def_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<InnerUpdateInfo> {
     // find the update value passed to the header
     let latch_block = tree.get(candidate.inner_latch);
     let latch_terminator = tree.get(latch_block.terminator);
-    let update_value = latch_terminator
-        .successor_arguments(tree, candidate.inner_header)
-        .get(candidate.inner_param_index)?;
+    let mir::EdgeArguments::Found(arguments) =
+        latch_terminator.successor_arguments(tree, candidate.inner_header)
+    else {
+        return None;
+    };
+    let update_value = arguments.get(candidate.inner_param_index)?;
 
     // locate the defining instruction
     let update_instruction = *def_map.get(update_value)?;
@@ -1769,7 +1719,7 @@ fn inner_update_info(
         // reject trailing instructions that depend on outer induction values
         for instruction_id in &trailing_instructions {
             let instruction = tree.get(*instruction_id);
-            if !instruction_is_speculatable(instruction, tree) {
+            if !instruction_is_speculatable(instruction, function, tree) {
                 return None;
             }
 
@@ -1825,7 +1775,7 @@ fn rewrite_outer_latch_step(
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     factor: u64,
-    value_types: &ValueTypes,
+    value_types: &ValueTypeTable,
 ) -> bool {
     // resolve the outer induction type
     let outer_type = value_types.expect_value_type(candidate.outer_induction);
@@ -1894,12 +1844,12 @@ fn rewrite_outer_latch_step(
 fn jam_inner_body(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     factor: u64,
     update_info: &InnerUpdateInfo,
-    value_types: &ValueTypes,
+    value_types: &ValueTypeTable,
 ) -> bool {
     // resolve the outer induction type
     let outer_type = value_types.expect_value_type(candidate.outer_induction);
@@ -1955,7 +1905,7 @@ fn jam_inner_body(
 
             let cloned = instruction_map(&instruction, &value_map, tree);
             let cloned_id = tree.insert(cloned);
-            clone_instruction_tables(tree, memory, instruction_id, cloned_id, &value_map);
+            clone_instruction_tables(tree, accesses, instruction_id, cloned_id, &value_map);
             new_instructions.push(cloned_id);
         }
     }
@@ -2039,7 +1989,7 @@ fn unroll_limits_for_loop(
     // classify loop hotness from the header count
     let header_count = block_counts.get(&header).copied().unwrap_or(0);
     let hotness = hotness.classify(header_count, entry_count);
-    if matches!(hotness, CallsiteHotness::Cold) {
+    if matches!(hotness, Hotness::Cold) {
         return None;
     }
 
@@ -2053,7 +2003,7 @@ fn unroll_limits_for_loop(
         _ => 4,
     };
 
-    let hotness_boost: u64 = if matches!(hotness, CallsiteHotness::Hot) {
+    let hotness_boost: u64 = if matches!(hotness, Hotness::Hot) {
         2
     } else {
         1
@@ -2103,17 +2053,17 @@ fn select_unroll_mode(candidate: &UnrollCandidate, limits: &UnrollLimits) -> Opt
 fn unroll_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     candidate: &UnrollCandidate,
     mode: UnrollMode,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
 ) -> bool {
     // peel remainder iterations before unrolling
     if let UnrollMode::Partial { remainder, .. } = mode
         && remainder > 0
     {
-        let peeled = peel_remainder(function, tree, memory, candidate, cfg, domtree, remainder);
+        let peeled = peel_remainder(function, tree, accesses, candidate, cfg, domtree, remainder);
         if !peeled {
             return false;
         }
@@ -2141,7 +2091,7 @@ fn unroll_loop(
     for _ in 1..iterations {
         // clone blocks and values
         let (block_map, value_map) =
-            clone_loop_blocks(&candidate.loop_blocks, function, tree, memory);
+            clone_loop_blocks(&candidate.loop_blocks, function, tree, accesses);
 
         // remap terminators to cloned targets
         for &cloned_id in block_map.values() {
@@ -2201,10 +2151,10 @@ fn unroll_loop(
 fn peel_remainder(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     candidate: &UnrollCandidate,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
     remainder: u64,
 ) -> bool {
     // reject non latch guarded loops
@@ -2222,7 +2172,7 @@ fn peel_remainder(
     for _ in 0..remainder {
         // clone loop blocks and values
         let (block_map, value_map) =
-            clone_loop_blocks(&candidate.loop_blocks, function, tree, memory);
+            clone_loop_blocks(&candidate.loop_blocks, function, tree, accesses);
 
         // remap cloned terminators
         for &cloned_id in block_map.values() {
@@ -2281,8 +2231,8 @@ fn peel_remainder(
 /// Locate a loop preheader and its arguments.
 fn find_preheader(
     candidate: &UnrollCandidate,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
     tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     // collect predecessors outside the loop
@@ -2330,7 +2280,10 @@ fn rewrite_latch_to_jump(
     if !latch_has_edge {
         return false;
     }
-    let latch_args = terminator.successor_arguments(tree, header).to_vec();
+    let mir::EdgeArguments::Found(latch_args) = terminator.successor_arguments(tree, header) else {
+        return false;
+    };
+    let latch_args = latch_args.to_vec();
     let latch_args = tree.add_values(&latch_args);
 
     // replace the latch terminator with a jump
@@ -2359,9 +2312,12 @@ fn rewrite_latch_block(
     if !latch_has_edge {
         return false;
     }
-    let latch_args = terminator
-        .successor_arguments(tree, iteration.header)
-        .to_vec();
+    let mir::EdgeArguments::Found(latch_args) =
+        terminator.successor_arguments(tree, iteration.header)
+    else {
+        return false;
+    };
+    let latch_args = latch_args.to_vec();
 
     // handle non last iterations
     if !is_last {
@@ -2465,7 +2421,7 @@ fn guard_from_condition(
     let condition = forwarding.resolve(condition);
 
     // look up the instruction defining the condition
-    let definitions = ValueDefinitions::build(function, tree);
+    let definitions = DefinitionTable::build(function, tree);
     let instruction_id = definitions.definition_for(condition)?;
     let instruction = tree.get(instruction_id);
 
@@ -2483,7 +2439,10 @@ fn guard_from_condition(
     // normalize to a guard comparison
     let left = forwarding.resolve(*left);
     let right = forwarding.resolve(*right);
-    normalize_guard(operator, left, right, guard_is_true)
+    let operand_type = function.expect_value_type(left);
+    let is_signed = tree.get(operand_type).integer_signedness()?;
+
+    normalize_guard(operator, left, right, guard_is_true, is_signed)
 }
 
 /// Normalize a comparison into a guard description.
@@ -2492,6 +2451,7 @@ fn normalize_guard(
     left: mir::Value,
     right: mir::Value,
     guard_is_true: bool,
+    is_signed: bool,
 ) -> Option<GuardComparison> {
     // flip operator when guard is false
     let operator = if guard_is_true {
@@ -2502,45 +2462,31 @@ fn normalize_guard(
 
     // map operators to a comparison description
     match operator {
-        mir::BinaryOperator::SignedLessThan => Some(GuardComparison {
+        mir::BinaryOperator::LessThan => Some(GuardComparison {
             induction: left,
             bound: right,
-            is_signed: true,
+            is_signed,
             is_strict: true,
             direction: GuardDirection::Increasing,
         }),
-        mir::BinaryOperator::SignedLessEqual => Some(GuardComparison {
+        mir::BinaryOperator::LessEqual => Some(GuardComparison {
             induction: left,
             bound: right,
-            is_signed: true,
+            is_signed,
             is_strict: false,
             direction: GuardDirection::Increasing,
         }),
-        mir::BinaryOperator::UnsignedLessThan => Some(GuardComparison {
+        mir::BinaryOperator::GreaterThan => Some(GuardComparison {
             induction: left,
             bound: right,
-            is_signed: false,
-            is_strict: true,
-            direction: GuardDirection::Increasing,
-        }),
-        mir::BinaryOperator::UnsignedLessEqual => Some(GuardComparison {
-            induction: left,
-            bound: right,
-            is_signed: false,
-            is_strict: false,
-            direction: GuardDirection::Increasing,
-        }),
-        mir::BinaryOperator::SignedGreaterThan => Some(GuardComparison {
-            induction: left,
-            bound: right,
-            is_signed: true,
+            is_signed,
             is_strict: true,
             direction: GuardDirection::Decreasing,
         }),
-        mir::BinaryOperator::SignedGreaterEqual => Some(GuardComparison {
+        mir::BinaryOperator::GreaterEqual => Some(GuardComparison {
             induction: left,
             bound: right,
-            is_signed: true,
+            is_signed,
             is_strict: false,
             direction: GuardDirection::Decreasing,
         }),
@@ -2551,14 +2497,10 @@ fn normalize_guard(
 /// Invert a comparison operator.
 fn invert_comparison(operator: mir::BinaryOperator) -> Option<mir::BinaryOperator> {
     match operator {
-        mir::BinaryOperator::SignedLessThan => Some(mir::BinaryOperator::SignedGreaterEqual),
-        mir::BinaryOperator::SignedLessEqual => Some(mir::BinaryOperator::SignedGreaterThan),
-        mir::BinaryOperator::SignedGreaterThan => Some(mir::BinaryOperator::SignedLessEqual),
-        mir::BinaryOperator::SignedGreaterEqual => Some(mir::BinaryOperator::SignedLessThan),
-        mir::BinaryOperator::UnsignedLessThan => Some(mir::BinaryOperator::UnsignedGreaterEqual),
-        mir::BinaryOperator::UnsignedLessEqual => Some(mir::BinaryOperator::UnsignedGreaterThan),
-        mir::BinaryOperator::UnsignedGreaterThan => Some(mir::BinaryOperator::UnsignedLessEqual),
-        mir::BinaryOperator::UnsignedGreaterEqual => Some(mir::BinaryOperator::UnsignedLessThan),
+        mir::BinaryOperator::LessThan => Some(mir::BinaryOperator::GreaterEqual),
+        mir::BinaryOperator::LessEqual => Some(mir::BinaryOperator::GreaterThan),
+        mir::BinaryOperator::GreaterThan => Some(mir::BinaryOperator::LessEqual),
+        mir::BinaryOperator::GreaterEqual => Some(mir::BinaryOperator::LessThan),
         _ => None,
     }
 }
@@ -2567,7 +2509,7 @@ fn invert_comparison(operator: mir::BinaryOperator) -> Option<mir::BinaryOperato
 fn trip_count_for_guard(
     guard: &GuardComparison,
     loop_index: usize,
-    scev: &ScalarEvolution,
+    scev: &EvolutionTable,
     forwarding: &BlockParamForwarding,
     function: &mir::Function,
     tree: &mir::Tree,
@@ -2625,7 +2567,7 @@ fn constant_value_for(
     let value = forwarding.resolve(value);
 
     // build a definition map for constants
-    let definitions = ValueDefinitions::build(function, tree);
+    let definitions = DefinitionTable::build(function, tree);
     let instruction_id = definitions.definition_for(value)?;
     let instruction = tree.get(instruction_id);
 
@@ -2653,29 +2595,12 @@ fn constant_to_u128(constant: &mir::Constant) -> Option<u128> {
     }
 }
 
-/// Return the ceil division for a non negative signed span and positive step.
-#[allow(clippy::manual_div_ceil)]
-fn div_ceil_signed(span: i128, step: i128) -> i128 {
-    // validate preconditions
-    debug_assert!(span >= 0);
-    debug_assert!(step > 0);
+/// Divide a nonnegative span by a positive step and round up.
+fn divide_ceil(span: i128, step: i128) -> i128 {
+    let quotient = span / step;
+    let remainder = span % step;
 
-    // compute the adjusted numerator
-    let adjusted = span.saturating_add(step - 1);
-
-    adjusted / step
-}
-
-/// Return the ceil division for a non negative unsigned span and positive step.
-#[allow(clippy::manual_div_ceil)]
-fn div_ceil_unsigned(span: u128, step: u128) -> u128 {
-    // validate preconditions
-    debug_assert!(step > 0);
-
-    // compute the adjusted numerator
-    let adjusted = span.saturating_add(step - 1);
-
-    adjusted / step
+    quotient + i128::from(remainder != 0)
 }
 
 /// Compute trip count for signed induction variables.
@@ -2704,7 +2629,7 @@ fn trip_count_signed(
                 }
 
                 let span = bound - start;
-                div_ceil_signed(span, step)
+                divide_ceil(span, step)
             } else {
                 if start > bound {
                     return Some(0);
@@ -2726,7 +2651,7 @@ fn trip_count_signed(
                 }
 
                 let span = start - bound;
-                div_ceil_signed(span, step)
+                divide_ceil(span, step)
             } else {
                 if start < bound {
                     return Some(0);
@@ -2755,7 +2680,7 @@ fn trip_count_unsigned(start: u128, bound: u128, step: u128, is_strict: bool) ->
         }
 
         let span = bound - start;
-        div_ceil_unsigned(span, step)
+        span.div_ceil(step)
     } else {
         if start > bound {
             return Some(0);
@@ -2770,12 +2695,12 @@ fn trip_count_unsigned(start: u128, bound: u128, step: u128, is_strict: bool) ->
 
 /// Map from values to the instructions that define them.
 #[derive(Debug)]
-struct ValueDefinitions {
+struct DefinitionTable {
     /// Definition sites by value.
     definitions: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 }
 
-impl ValueDefinitions {
+impl DefinitionTable {
     /// Build a value definition map for a function.
     fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         let mut definitions = HashMap::new();
@@ -2785,9 +2710,7 @@ impl ValueDefinitions {
             let block = tree.get(block_id);
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination()
-                    && true
-                {
+                if let Some(destination) = instruction.destination() {
                     definitions.insert(destination, instruction_id);
                 }
             }
@@ -2848,11 +2771,11 @@ entry:
     jump b1(v0)
 
 b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
+    v4: boolean = lt v3, v1
     branch v4 => b2(v3) | b3(v3)
 
 b2(v5: int32):
-    v6: int32 = int.add v5, v2
+    v6: int32 = add v5, v2
     jump b1(v6)
 
 b3(v7: int32):
@@ -2868,30 +2791,30 @@ entry:
     jump b1(v0)
 
 b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
+    v4: boolean = lt v3, v1
     branch v4 => b2(v3) | b3(v3)
 
 b2(v5: int32):
-    v6: int32 = int.add v5, v2
+    v6: int32 = add v5, v2
     jump b4(v6)
 
 b3(v7: int32):
     return v7
 
 b4(v8: int32):
-    v9: boolean = int.lt.s v8, v1
+    v9: boolean = lt v8, v1
     branch v9 => b5(v8) | b3(v8)
 
 b5(v10: int32):
-    v11: int32 = int.add v10, v2
+    v11: int32 = add v10, v2
     jump b6(v11)
 
 b6(v12: int32):
-    v13: boolean = int.lt.s v12, v1
+    v13: boolean = lt v12, v1
     branch v13 => b7(v12) | b3(v12)
 
 b7(v14: int32):
-    v15: int32 = int.add v14, v2
+    v15: int32 = add v14, v2
     jump b3(v15)
 }
 "#;
@@ -2914,11 +2837,11 @@ entry:
     jump b1(v0)
 
 b1(v3: int32):
-    v4: boolean = int.gt.s v3, v1
+    v4: boolean = gt v3, v1
     branch v4 => b2(v3) | b3(v3)
 
 b2(v5: int32):
-    v6: int32 = int.sub v5, v2
+    v6: int32 = sub v5, v2
     jump b1(v6)
 
 b3(v7: int32):
@@ -2935,30 +2858,30 @@ entry:
     jump b1(v0)
 
 b1(v3: int32):
-    v4: boolean = int.gt.s v3, v1
+    v4: boolean = gt v3, v1
     branch v4 => b2(v3) | b3(v3)
 
 b2(v5: int32):
-    v6: int32 = int.sub v5, v2
+    v6: int32 = sub v5, v2
     jump b4(v6)
 
 b3(v7: int32):
     return v7
 
 b4(v8: int32):
-    v9: boolean = int.gt.s v8, v1
+    v9: boolean = gt v8, v1
     branch v9 => b5(v8) | b3(v8)
 
 b5(v10: int32):
-    v11: int32 = int.sub v10, v2
+    v11: int32 = sub v10, v2
     jump b6(v11)
 
 b6(v12: int32):
-    v13: boolean = int.gt.s v12, v1
+    v13: boolean = gt v12, v1
     branch v13 => b7(v12) | b3(v12)
 
 b7(v14: int32):
-    v15: int32 = int.sub v14, v2
+    v15: int32 = sub v14, v2
     jump b3(v15)
 }
 "#;
@@ -2980,11 +2903,11 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v3: int32):
-    v4: boolean = int.lt.s v3, v0
+    v4: boolean = lt v3, v0
     branch v4 => b2(v3) | b3(v3)
 
 b2(v5: int32):
-    v6: int32 = int.add v5, v2
+    v6: int32 = add v5, v2
     jump b1(v6)
 
 b3(v7: int32):
@@ -3010,8 +2933,8 @@ entry:
     jump b1(v0)
 
 b1(v3: int32):
-    v4: int32 = int.add v3, v2
-    v5: boolean = int.lt.s v4, v1
+    v4: int32 = add v3, v2
+    v5: boolean = lt v4, v1
     branch v5 => b1(v4) | b2(v4)
 
 b2(v6: int32):
@@ -3027,36 +2950,36 @@ entry:
     jump b3(v0)
 
 b1(v3: int32):
-    v4: int32 = int.add v3, v2
-    v5: boolean = int.lt.s v4, v1
+    v4: int32 = add v3, v2
+    v5: boolean = lt v4, v1
     jump b5(v4)
 
 b2(v6: int32):
     return v6
 
 b3(v7: int32):
-    v8: int32 = int.add v7, v2
-    v9: boolean = int.lt.s v8, v1
+    v8: int32 = add v7, v2
+    v9: boolean = lt v8, v1
     jump b4(v8)
 
 b4(v10: int32):
-    v11: int32 = int.add v10, v2
-    v12: boolean = int.lt.s v11, v1
+    v11: int32 = add v10, v2
+    v12: boolean = lt v11, v1
     jump b1(v11)
 
 b5(v13: int32):
-    v14: int32 = int.add v13, v2
-    v15: boolean = int.lt.s v14, v1
+    v14: int32 = add v13, v2
+    v15: boolean = lt v14, v1
     jump b6(v14)
 
 b6(v16: int32):
-    v17: int32 = int.add v16, v2
-    v18: boolean = int.lt.s v17, v1
+    v17: int32 = add v16, v2
+    v18: boolean = lt v17, v1
     jump b7(v17)
 
 b7(v19: int32):
-    v20: int32 = int.add v19, v2
-    v21: boolean = int.lt.s v20, v1
+    v20: int32 = add v19, v2
+    v21: boolean = lt v20, v1
     branch v21 => b1(v20) | b2(v20)
 }
 "#;
@@ -3079,11 +3002,11 @@ entry:
     jump b1(v0)
 
 b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
+    v4: boolean = lt v3, v1
     branch v4 => b2(v3) | b3(v3)
 
 b2(v5: int32):
-    v6: int32 = int.add v5, v2
+    v6: int32 = add v5, v2
     jump b1(v6)
 
 b3(v7: int32):
@@ -3099,38 +3022,38 @@ entry:
     jump b1(v0)
 
 b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
+    v4: boolean = lt v3, v1
     branch v4 => b2(v3) | b3(v3)
 
 b2(v5: int32):
-    v6: int32 = int.add v5, v2
+    v6: int32 = add v5, v2
     jump b4(v6)
 
 b3(v7: int32):
     return v7
 
 b4(v8: int32):
-    v9: boolean = int.lt.s v8, v1
+    v9: boolean = lt v8, v1
     branch v9 => b5(v8) | b3(v8)
 
 b5(v10: int32):
-    v11: int32 = int.add v10, v2
+    v11: int32 = add v10, v2
     jump b6(v11)
 
 b6(v12: int32):
-    v13: boolean = int.lt.s v12, v1
+    v13: boolean = lt v12, v1
     branch v13 => b7(v12) | b3(v12)
 
 b7(v14: int32):
-    v15: int32 = int.add v14, v2
+    v15: int32 = add v14, v2
     jump b8(v15)
 
 b8(v16: int32):
-    v17: boolean = int.lt.s v16, v1
+    v17: boolean = lt v16, v1
     branch v17 => b9(v16) | b3(v16)
 
 b9(v18: int32):
-    v19: int32 = int.add v18, v2
+    v19: int32 = add v18, v2
     jump b1(v19)
 }
 "#;
@@ -3153,11 +3076,11 @@ entry:
     jump b1(v0)
 
 b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
+    v4: boolean = lt v3, v1
     branch v4 => b2(v3) | b3(v3)
 
 b2(v5: int32):
-    v6: int32 = int.add v5, v2
+    v6: int32 = add v5, v2
     jump b1(v6)
 
 b3(v7: int32):
@@ -3174,30 +3097,30 @@ entry:
     jump b1(v0)
 
 b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
+    v4: boolean = lt v3, v1
     branch v4 => b2(v3) | b3(v3)
 
 b2(v5: int32):
-    v6: int32 = int.add v5, v2
+    v6: int32 = add v5, v2
     jump b4(v6)
 
 b3(v7: int32):
     return v7
 
 b4(v8: int32):
-    v9: boolean = int.lt.s v8, v1
+    v9: boolean = lt v8, v1
     branch v9 => b5(v8) | b3(v8)
 
 b5(v10: int32):
-    v11: int32 = int.add v10, v2
+    v11: int32 = add v10, v2
     jump b6(v11)
 
 b6(v12: int32):
-    v13: boolean = int.lt.s v12, v1
+    v13: boolean = lt v12, v1
     branch v13 => b7(v12) | b3(v12)
 
 b7(v14: int32):
-    v15: int32 = int.add v14, v2
+    v15: int32 = add v14, v2
     jump b3(v15)
 }
 "#;
@@ -3220,14 +3143,14 @@ entry(v0: boolean):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.lt.s v4, v2
+    v5: boolean = lt v4, v2
     branch v5 => b2(v4) | b5(v4)
 
 b2(v6: int32):
     branch v0 => b3(v6) | b4(v6)
 
 b3(v7: int32):
-    v8: int32 = int.add v7, v3
+    v8: int32 = add v7, v3
     jump b1(v8)
 
 b4(v9: int32):
@@ -3256,11 +3179,11 @@ entry:
     jump b1(v0)
 
 b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
+    v4: boolean = lt v3, v1
     branch v4 => b2(v3) | b3(v3)
 
 b2(v5: int32):
-    v6: int32 = int.add v5, v2
+    v6: int32 = add v5, v2
     jump b1(v6)
 
 b3(v7: int32):
@@ -3296,7 +3219,7 @@ entry(v0: [uint32; 8]):
     jump b1(v1)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b6
 
 b2:
@@ -3304,17 +3227,17 @@ b2:
     jump b3(v5, v7)
 
 b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
+    v10: boolean = lt v9, v3
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
     v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
-    v14: uint32 = int.add v12, v4
+    v14: uint32 = add v12, v4
     jump b3(v11, v14)
 
 b5(v15: uint32):
-    v16: uint32 = int.add v15, v4
+    v16: uint32 = add v15, v4
     jump b1(v16)
 
 b6:
@@ -3332,7 +3255,7 @@ entry(v0: [uint32; 8]):
     jump b1(v1)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b6
 
 b2:
@@ -3340,23 +3263,23 @@ b2:
     jump b3(v5, v7)
 
 b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
+    v10: boolean = lt v9, v3
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
     v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
     v19: uint32 = 1
-    v20: uint32 = int.add v8, v19
+    v20: uint32 = add v8, v19
     v21: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v21, v20
-    v14: uint32 = int.add v12, v4
+    v14: uint32 = add v12, v4
     jump b3(v11, v14)
 
 b5(v15: uint32):
-    v16: uint32 = int.add v15, v4
+    v16: uint32 = add v15, v4
     v17: uint32 = 2
-    v18: uint32 = int.add v15, v17
+    v18: uint32 = add v15, v17
     jump b1(v18)
 
 b6:
@@ -3383,26 +3306,26 @@ entry(v0: [uint32; 8]):
     jump b1(v1)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b6
 
 b2:
     v7: uint32 = 0
-    v8: uint32 = int.add v5, v4
+    v8: uint32 = add v5, v4
     jump b3(v5, v7, v8)
 
 b3(v9: uint32, v10: uint32, v11: uint32):
-    v12: boolean = int.lt.u v10, v3
+    v12: boolean = lt v10, v3
     branch v12 => b4(v9, v10, v11) | b5(v9)
 
 b4(v13: uint32, v14: uint32, v15: uint32):
     v16: ref<uint32, borrowed, mutable> = element.address v0, v15
     store v16, v13
-    v17: uint32 = int.add v14, v4
+    v17: uint32 = add v14, v4
     jump b3(v13, v17, v15)
 
 b5(v18: uint32):
-    v19: uint32 = int.add v18, v4
+    v19: uint32 = add v18, v4
     jump b1(v19)
 
 b6:
@@ -3431,7 +3354,7 @@ entry(v0: [uint32; 8]):
     jump b1(v1)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b6
 
 b2:
@@ -3439,18 +3362,18 @@ b2:
     jump b3(v5, v7)
 
 b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
+    v10: boolean = lt v9, v3
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
     v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
-    v14: uint32 = int.add v12, v4
-    v15: uint32 = int.add v11, v4
+    v14: uint32 = add v12, v4
+    v15: uint32 = add v11, v4
     jump b3(v15, v14)
 
 b5(v16: uint32):
-    v17: uint32 = int.add v16, v4
+    v17: uint32 = add v16, v4
     jump b1(v17)
 
 b6:
@@ -3479,7 +3402,7 @@ entry(v0: [uint32; 8]):
     jump b1(v1)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b6
 
 b2:
@@ -3487,18 +3410,18 @@ b2:
     jump b3(v5, v7)
 
 b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
+    v10: boolean = lt v9, v3
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
     v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
-    v14: uint32 = int.add v12, v4
-    v15: uint32 = int.add v14, v4
+    v14: uint32 = add v12, v4
+    v15: uint32 = add v14, v4
     jump b3(v11, v14)
 
 b5(v16: uint32):
-    v17: uint32 = int.add v16, v4
+    v17: uint32 = add v16, v4
     jump b1(v17)
 
 b6:
@@ -3516,7 +3439,7 @@ entry(v0: [uint32; 8]):
     jump b1(v1)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b6
 
 b2:
@@ -3524,24 +3447,24 @@ b2:
     jump b3(v5, v7)
 
 b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
+    v10: boolean = lt v9, v3
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
     v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
     v20: uint32 = 1
-    v21: uint32 = int.add v8, v20
+    v21: uint32 = add v8, v20
     v22: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v22, v21
-    v14: uint32 = int.add v12, v4
-    v15: uint32 = int.add v14, v4
+    v14: uint32 = add v12, v4
+    v15: uint32 = add v14, v4
     jump b3(v11, v14)
 
 b5(v16: uint32):
-    v17: uint32 = int.add v16, v4
+    v17: uint32 = add v16, v4
     v18: uint32 = 2
-    v19: uint32 = int.add v16, v18
+    v19: uint32 = add v16, v18
     jump b1(v19)
 
 b6:
@@ -3568,7 +3491,7 @@ entry(v0: [uint32; 8]):
     jump b1(v1)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b6
 
 b2:
@@ -3576,17 +3499,17 @@ b2:
     jump b3(v5, v7)
 
 b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
+    v10: boolean = lt v9, v3
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
     v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
-    v14: uint32 = int.add v12, v4
+    v14: uint32 = add v12, v4
     jump b3(v11, v14)
 
 b5(v15: uint32):
-    v16: uint32 = int.add v15, v4
+    v16: uint32 = add v15, v4
     jump b1(v16)
 
 b6:
@@ -3603,7 +3526,7 @@ entry(v0: [uint32; 8]):
     jump b7(v1)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b6
 
 b2:
@@ -3611,38 +3534,38 @@ b2:
     jump b3(v5, v7)
 
 b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
+    v10: boolean = lt v9, v3
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
     v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
     v31: uint32 = 1
-    v32: uint32 = int.add v8, v31
+    v32: uint32 = add v8, v31
     v33: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v33, v32
     v34: uint32 = 2
-    v35: uint32 = int.add v8, v34
+    v35: uint32 = add v8, v34
     v36: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v36, v35
     v37: uint32 = 3
-    v38: uint32 = int.add v8, v37
+    v38: uint32 = add v8, v37
     v39: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v39, v38
-    v14: uint32 = int.add v12, v4
+    v14: uint32 = add v12, v4
     jump b3(v11, v14)
 
 b5(v15: uint32):
-    v16: uint32 = int.add v15, v4
+    v16: uint32 = add v15, v4
     v29: uint32 = 4
-    v30: uint32 = int.add v15, v29
+    v30: uint32 = add v15, v29
     jump b1(v30)
 
 b6:
     return
 
 b7(v17: uint32):
-    v18: boolean = int.lt.u v17, v2
+    v18: boolean = lt v17, v2
     branch v18 => b8 | b6
 
 b8:
@@ -3650,17 +3573,17 @@ b8:
     jump b9(v17, v19)
 
 b9(v20: uint32, v21: uint32):
-    v22: boolean = int.lt.u v21, v3
+    v22: boolean = lt v21, v3
     branch v22 => b10(v20, v21) | b11(v20)
 
 b10(v23: uint32, v24: uint32):
     v25: ref<uint32, borrowed, mutable> = element.address v0, v24
     store v25, v23
-    v26: uint32 = int.add v24, v4
+    v26: uint32 = add v24, v4
     jump b9(v23, v26)
 
 b11(v27: uint32):
-    v28: uint32 = int.add v27, v4
+    v28: uint32 = add v27, v4
     jump b1(v28)
 }
 "#;

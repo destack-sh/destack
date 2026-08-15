@@ -4,30 +4,10 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
-use destack_mir::{ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation};
+use destack_mir::{ControlTable, DominatorTable, Loop, LoopTable, Mutation};
 
 declare_pass! {
     /// Rotate loops to expose optimization opportunities.
-    ///
-    /// Loop rotation transforms a while-loop (test-at-top) into a do-while loop
-    /// (test-at-bottom) guarded by an initial condition check:
-    ///
-    /// ```text
-    /// Before (while):              After (do-while with guard):
-    /// preheader -> header          preheader: if(cond) body else exit
-    /// header: if(cond) body exit   body: ... -> latch
-    /// body: ... -> header          latch: if(cond) body else exit
-    /// ```
-    ///
-    /// Benefits:
-    /// - Eliminates one branch per loop entry
-    /// - Exposes the loop body to more optimizations
-    /// - Enables better LICM (invariants can be hoisted above guard)
-    /// - Simplifies loop analysis (single back edge to body, not header)
-    ///
-    /// Prerequisites:
-    /// - Canonical loop form (preheader, single latch) from SimplifyLoops
-    /// - Header must be a simple conditional (no instructions, just branch)
     #[pass(id = "rotate-loops")]
     pub RotateLoops,
     "Loop rotation"
@@ -39,7 +19,7 @@ impl FunctionPass for RotateLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -52,8 +32,8 @@ impl FunctionPass for RotateLoops {
         let (loops, cfg, domtree) = {
             (
                 analyses.loops(function, tree).clone(),
-                analyses.control_flow(function, tree).clone(),
-                analyses.dominators(function, tree).clone(),
+                analyses.control(function, tree).clone(),
+                analyses.dominator(function, tree).clone(),
             )
         };
         if loops.num_loops() == 0 {
@@ -67,14 +47,6 @@ impl FunctionPass for RotateLoops {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "RotateLoops"
-    }
-
-    fn id(&self) -> &'static str {
-        "rotate-loops"
-    }
 }
 
 /// Core loop rotation logic. Returns true if changes were made.
@@ -82,9 +54,9 @@ fn run_rotate_loops(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    loops: &LoopAnalysis,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    loops: &LoopTable,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
 ) -> bool {
     // collect rotation candidates, innermost first
     let mut candidates: Vec<RotationCandidate> = Vec::new();
@@ -137,8 +109,8 @@ struct RotationCandidate {
 /// Check if a loop can be rotated and gather the necessary information.
 fn find_rotation_candidate(
     lp: &Loop,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
     tree: &mir::Tree,
     _entry: mir::LocalNodeId<mir::Block>,
 ) -> Option<RotationCandidate> {
@@ -415,7 +387,7 @@ b3:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
-    v3: boolean = int.lt.s v2, v1
+    v3: boolean = lt v2, v1
     jump b1(v2, v3)
 
 b1(v4: int32, v5: boolean):
@@ -423,8 +395,8 @@ b1(v4: int32, v5: boolean):
 
 b2(v6: int32, v7: boolean):
     v8: int32 = 1
-    v9: int32 = int.add v6, v8
-    v10: boolean = int.lt.s v9, v1
+    v9: int32 = add v6, v8
+    v10: boolean = lt v9, v1
     jump b1(v9, v10)
 
 b3(v11: int32):
@@ -440,7 +412,7 @@ b3(v11: int32):
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
-    v3: boolean = int.lt.s v2, v1
+    v3: boolean = lt v2, v1
     branch v3 => b2(v2, v3) | b1(v2)
 
 b1(v14: int32):
@@ -451,8 +423,8 @@ b2(v12: int32, v13: boolean):
 
 b3(v6: int32, v7: boolean):
     v8: int32 = 1
-    v9: int32 = int.add v6, v8
-    v10: boolean = int.lt.s v9, v1
+    v9: int32 = add v6, v8
+    v10: boolean = lt v9, v1
     branch v10 => b5(v9, v10) | b4(v9)
 
 b4(v17: int32):
@@ -533,7 +505,7 @@ entry(v0: boolean, v1: int32):
 
 b1:
     v2: int32 = 1
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     branch v0 => b2 | b3
 
 b2:
@@ -615,7 +587,7 @@ b1(v2: int32):
 
 b2:
     v3: int32 = 1
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     jump b1(v4)
 
 b3:
@@ -637,7 +609,7 @@ b3:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;
@@ -657,20 +629,20 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
     v3: int32 = 1
-    v4: boolean = int.lt.s v2, v0
+    v4: boolean = lt v2, v0
     jump b1(v2, v3, v4)
 
 b1(v5: int32, v6: int32, v7: boolean):
     branch v7 => b2(v5, v6, v7) | b3(v5, v6)
 
 b2(v8: int32, v9: int32, v10: boolean):
-    v11: int32 = int.add v8, v9
-    v12: int32 = int.add v9, v3
-    v13: boolean = int.lt.s v11, v0
+    v11: int32 = add v8, v9
+    v12: int32 = add v9, v3
+    v13: boolean = lt v11, v0
     jump b1(v11, v12, v13)
 
 b3(v14: int32, v15: int32):
-    v16: int32 = int.add v14, v15
+    v16: int32 = add v14, v15
     return v16
 }
 "#;
@@ -684,7 +656,7 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
     v3: int32 = 1
-    v4: boolean = int.lt.s v2, v0
+    v4: boolean = lt v2, v0
     branch v4 => b2(v2, v3, v4) | b1(v2, v3)
 
 b1(v20: int32, v21: int32):
@@ -694,9 +666,9 @@ b2(v17: int32, v18: int32, v19: boolean):
     jump b3(v17, v18, v19)
 
 b3(v8: int32, v9: int32, v10: boolean):
-    v11: int32 = int.add v8, v9
-    v12: int32 = int.add v9, v3
-    v13: boolean = int.lt.s v11, v0
+    v11: int32 = add v8, v9
+    v12: int32 = add v9, v3
+    v13: boolean = lt v11, v0
     branch v13 => b5(v11, v12, v13) | b4(v11, v12)
 
 b4(v25: int32, v26: int32):
@@ -706,7 +678,7 @@ b5(v22: int32, v23: int32, v24: boolean):
     jump b3(v22, v23, v24)
 
 b6(v14: int32, v15: int32):
-    v16: int32 = int.add v14, v15
+    v16: int32 = add v14, v15
     return v16
 }
 "#;

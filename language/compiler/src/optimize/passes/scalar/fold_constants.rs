@@ -5,24 +5,20 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantPropagation, Mutation, TargetLayout, fold_binary, fold_cast, fold_intrinsic,
-    fold_unary, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    ConstantTable, Mutation, TargetLayout, fold_binary, fold_cast, fold_intrinsic, fold_unary,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     resolve_substitution_chains, terminator_substitute_uses,
 };
 
 declare_pass! {
     /// Fold constant expressions at compile time.
     ///
-    /// Evaluates operations on constant values and replaces them with the
-    /// computed result. This includes arithmetic, comparisons, and logical
-    /// operations where all operands are known constants.
-    ///
     /// ```mir
     /// function before(): int32 {
     /// b0:
-    ///     v0 = 2int32
-    ///     v1 = 3int32
-    ///     v2 = int.add v0, v1
+    ///     v0: int32 = 2
+    ///     v1: int32 = 3
+    ///     v2: int32 = add v0, v1
     ///     return v2
     /// }
     /// ```
@@ -30,7 +26,7 @@ declare_pass! {
     /// ```mir
     /// function after(): int32 {
     /// b0:
-    ///     v0 = 5int32
+    ///     v0: int32 = 5
     ///     return v0
     /// }
     /// ```
@@ -45,16 +41,16 @@ impl FunctionPass for FoldConstants {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // get constant propagation analysis
-        let constants = { analyses.constants(function, tree).clone() };
+        let constants = { analyses.constant(function, tree).clone() };
 
         // run constant folding
-        let changed = run_fold_constants(function, tree, memory, &constants, ctx.target_layout());
+        let changed = run_fold_constants(function, tree, accesses, &constants, ctx.target_layout());
 
         // report what this pass changed
         if changed {
@@ -63,22 +59,14 @@ impl FunctionPass for FoldConstants {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "FoldConstants"
-    }
-
-    fn id(&self) -> &'static str {
-        "fold-constants"
-    }
 }
 
 /// Core constant folding logic. Returns true if changes were made.
 fn run_fold_constants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    constants: &ConstantPropagation,
+    accesses: &mut mir::AccessTable,
+    constants: &ConstantTable,
     target_layout: TargetLayout,
 ) -> bool {
     // track pass state and pending rewrites
@@ -290,7 +278,7 @@ fn run_fold_constants(
                 // replace instructions when substitutions apply
                 if updated != instruction {
                     tree.set(instruction_id, updated);
-                    remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
+                    remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
                 }
             }
         }
@@ -329,7 +317,7 @@ fn run_fold_constants(
 fn fold_terminators(
     function: &mir::Function,
     tree: &mut mir::Tree,
-    constants: &ConstantPropagation,
+    constants: &ConstantTable,
 ) -> bool {
     // track whether any terminators change
     let mut changed = false;
@@ -421,7 +409,7 @@ mod tests {
         );
 
         assert_eq!(
-            fold_binary_signed(10, 0, 32, mir::BinaryOperator::SignedDivide),
+            fold_binary_signed(10, 0, 32, mir::BinaryOperator::Divide),
             None
         );
     }
@@ -454,7 +442,7 @@ function test(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = 2
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;
@@ -482,9 +470,9 @@ function test(): int32 {
 entry:
     v0: int32 = 2
     v1: int32 = 3
-    v2: int32 = int.mul v0, v1
+    v2: int32 = mul v0, v1
     v3: int32 = 4
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
@@ -513,7 +501,7 @@ function test(): boolean {
 entry:
     v0: int32 = 5
     v1: int32 = 3
-    v2: boolean = int.gt.s v0, v1
+    v2: boolean = gt v0, v1
     return v2
 }
 "#;
@@ -540,7 +528,7 @@ entry:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 2
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;
@@ -557,7 +545,7 @@ entry(v0: int32):
 function test(): int32 {
 entry:
     v0: int32 = 42
-    v1: int32 = int.negate v0
+    v1: int32 = negate v0
     return v1
 }
 "#;
@@ -582,7 +570,7 @@ entry:
 function test(): boolean {
 entry:
     v0: boolean = true
-    v1: boolean = int.not v0
+    v1: boolean = not v0
     return v1
 }
 "#;
@@ -608,7 +596,7 @@ function test(): uint32 {
 entry:
     v0: uint32 = 10
     v1: uint32 = 3
-    v2: uint32 = int.div.u v0, v1
+    v2: uint32 = div v0, v1
     return v2
 }
 "#;
@@ -635,7 +623,7 @@ function test(): int32 {
 entry:
     v0: int32 = 10
     v1: int32 = 0
-    v2: int32 = int.div.s v0, v1
+    v2: int32 = div v0, v1
     return v2
 }
 "#;
@@ -656,11 +644,11 @@ entry(v0: boolean):
     branch v0 => b1 | b2
 
 b1:
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 
 b2:
-    v4: int32 = int.mul v1, v2
+    v4: int32 = mul v1, v2
     return v4
 }
 "#;
@@ -696,7 +684,7 @@ function test(): boolean {
 entry:
     v0: ref<boolean, borrowed, readonly> = global.address flag
     v1: boolean = load v0
-    v2: boolean = int.not v1
+    v2: boolean = not v1
     return v2
 }
 "#;
@@ -716,7 +704,7 @@ function test(): boolean {
 entry:
     v0: ref<boolean, borrowed, mutable> = global.address flag
     v1: boolean = load v0
-    v2: boolean = int.not v1
+    v2: boolean = not v1
     return v2
 }
 "#;
@@ -736,7 +724,7 @@ entry:
     jump b1(v0)
 
 b1(v1: int32):
-    v2: int32 = int.add v1, v1
+    v2: int32 = add v1, v1
     return v2
 }
 "#;
@@ -816,9 +804,9 @@ function test(): int32 {
 entry:
     v0: int32 = 10
     v1: int32 = 12
-    v2: int32 = int.and v0, v1
-    v3: int32 = int.or v0, v1
-    v4: int32 = int.xor v0, v1
+    v2: int32 = and v0, v1
+    v3: int32 = or v0, v1
+    v4: int32 = xor v0, v1
     return v2
 }
 "#;
@@ -848,8 +836,8 @@ function test(): int32 {
 entry:
     v0: int32 = 8
     v1: int32 = 2
-    v2: int32 = int.shl v0, v1
-    v3: int32 = int.shr.s v0, v1
+    v2: int32 = shl v0, v1
+    v3: int32 = shr v0, v1
     return v2
 }
 "#;
@@ -878,8 +866,8 @@ function test(): boolean {
 entry:
     v0: boolean = true
     v1: boolean = false
-    v2: boolean = int.and v0, v1
-    v3: boolean = int.or v0, v1
+    v2: boolean = and v0, v1
+    v3: boolean = or v0, v1
     return v2
 }
 "#;
@@ -982,7 +970,7 @@ entry(v0: boolean):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: boolean = true
-    v2: int32 = int.add v0, v0
+    v2: int32 = add v0, v0
     v3: int32 = select v1, v2, v0
     return v3
 }
@@ -991,7 +979,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: boolean = true
-    v2: int32 = int.add v0, v0
+    v2: int32 = add v0, v0
     return v2
 }
 "#;

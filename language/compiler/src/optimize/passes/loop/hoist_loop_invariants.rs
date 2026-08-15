@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, MemoryAccessId,
-    MemoryAccessSource, MemoryNode, MemoryRegion, MemorySSA, Mutation, RangeAnalysis, ValueRange,
+    AliasTable, ConstantTable, DominatorTable, Loop, LoopTable, MemoryAccessId, MemoryAccessSource,
+    MemoryNode, MemoryRegion, MemoryTable, Mutation, RangeTable, ValueRange,
     instruction_allows_read_only_motion, instruction_is_read_only_access,
     instruction_is_speculatable,
 };
@@ -14,24 +14,13 @@ use destack_mir::{
 declare_pass! {
     /// Move loop invariant computations outside of loops.
     ///
-    /// An instruction is loop invariant if all its operands are defined outside the loop or by other loop invariant instructions.
-    /// Loop invariant instructions can be hoisted to the loop preheader, reducing redundant computation.
-    ///
-    /// This pass hoists pure arithmetic, casts, and selects.
-    /// It hoists constants and immutable global constants.
-    /// It hoists address computations for fields and elements.
-    /// It hoists loads and local gets that are invariant and not clobbered in the loop.
-    ///
-    /// Load invariance is checked with Memory SSA and alias analysis.
-    /// Potentially trapping instructions such as integer division are only hoisted when range analysis proves the operation is safe and the block executes on every iteration.
-    ///
     /// ```mir
     /// function before(v0: boolean, v1: int32): int32 {
     /// b0(v0: boolean, v1: int32):
-    ///     v2 = 3int32
+    ///     v2: int32 = 3
     ///     jump b1
     /// b1:
-    ///     v3 = int.add v1, v2
+    ///     v3: int32 = add v1, v2
     ///     branch v0 => b1 | b2
     /// b2:
     ///     return v3
@@ -41,8 +30,8 @@ declare_pass! {
     /// ```mir
     /// function after(v0: boolean, v1: int32): int32 {
     /// b0(v0: boolean, v1: int32):
-    ///     v2 = 3int32
-    ///     v3 = int.add v1, v2
+    ///     v2: int32 = 3
+    ///     v3: int32 = add v1, v2
     ///     jump b1
     /// b1:
     ///     branch v0 => b1 | b2
@@ -50,8 +39,6 @@ declare_pass! {
     ///     return v3
     /// }
     /// ```
-    ///
-    /// Requires canonical loop form from SimplifyLoops.
     #[pass(id = "hoist-loop-invariants")]
     pub HoistLoopInvariants,
     "Loop invariant code motion"
@@ -64,10 +51,10 @@ impl FunctionPass for HoistLoopInvariants {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &optimized.memory;
+        let accesses = &optimized.accesses;
         let effects = &mut optimized.effects;
 
         let entry = match function.entry() {
@@ -76,14 +63,14 @@ impl FunctionPass for HoistLoopInvariants {
         };
 
         // get analyses
-        let (loops, domtree, ranges, constants, alias, memory_ssa) = {
+        let (loops, domtree, ranges, constants, alias, memory) = {
             (
                 analyses.loops(function, tree).clone(),
-                analyses.dominators(function, tree).clone(),
-                analyses.ranges(function, tree).clone(),
-                analyses.constants(function, tree).clone(),
+                analyses.dominator(function, tree).clone(),
+                analyses.range(function, tree).clone(),
+                analyses.constant(function, tree).clone(),
                 analyses.alias(function, tree).clone(),
-                analyses.memory_ssa(function, tree, memory, effects),
+                analyses.memory(function, tree, accesses, effects),
             )
         };
         if loops.num_loops() == 0 {
@@ -101,7 +88,7 @@ impl FunctionPass for HoistLoopInvariants {
             &ranges,
             &constants,
             &alias,
-            memory_ssa.as_ref(),
+            memory.as_ref(),
         );
 
         // report what this pass changed
@@ -111,16 +98,6 @@ impl FunctionPass for HoistLoopInvariants {
             Mutation::NONE
         }
     }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "HoistLoopInvariants"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "hoist-loop-invariants"
-    }
 }
 
 /// Core LICM logic. Returns true if changes were made.
@@ -129,12 +106,12 @@ fn run_hoist_loop_invariants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     effects: &mir::EffectTable,
-    loops: &LoopAnalysis,
-    domtree: &DominatorTree,
-    ranges: &RangeAnalysis,
-    constants: &ConstantPropagation,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    loops: &LoopTable,
+    domtree: &DominatorTable,
+    ranges: &RangeTable,
+    constants: &ConstantTable,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> bool {
     // order loops from inner to outer
     let mut loop_order: Vec<&Loop> = loops.loops().iter().collect();
@@ -204,7 +181,7 @@ fn run_hoist_loop_invariants(
                         tree,
                         effects,
                         alias,
-                        memory_ssa,
+                        memory,
                         block_id,
                         ranges,
                         constants,
@@ -250,7 +227,7 @@ fn run_hoist_loop_invariants(
                     tree,
                     effects,
                     alias,
-                    memory_ssa,
+                    memory,
                     block_id,
                     ranges,
                     constants,
@@ -317,7 +294,7 @@ fn run_hoist_loop_invariants(
 /// Collect loop blocks owned by this loop and not by subloops.
 fn collect_loop_blocks(
     function: &mir::Function,
-    loops: &LoopAnalysis,
+    loops: &LoopTable,
     lp: &Loop,
 ) -> Vec<mir::LocalNodeId<mir::Block>> {
     let mut blocks = Vec::new();
@@ -384,7 +361,7 @@ fn collect_invariant_seed_values(
 /// Compute blocks that execute on every iteration of the loop.
 fn compute_guaranteed_blocks(
     lp: &Loop,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> HashSet<mir::LocalNodeId<mir::Block>> {
     let mut guaranteed = HashSet::new();
 
@@ -416,7 +393,7 @@ fn compute_guaranteed_blocks(
 fn build_dominator_preorder(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> HashMap<mir::LocalNodeId<mir::Block>, usize> {
     let mut children: HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> =
         HashMap::new();
@@ -472,14 +449,14 @@ fn instruction_is_hoistable(
     guaranteed_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
     effects: &mir::EffectTable,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    alias: &AliasTable,
+    memory: &MemoryTable,
     block_id: mir::LocalNodeId<mir::Block>,
-    ranges: &RangeAnalysis,
-    constants: &ConstantPropagation,
+    ranges: &RangeTable,
+    constants: &ConstantTable,
 ) -> bool {
     // accept speculatable instructions immediately
-    if instruction_is_speculatable(instruction, tree) {
+    if instruction_is_speculatable(instruction, function, tree) {
         return true;
     }
 
@@ -493,18 +470,11 @@ fn instruction_is_hoistable(
         instruction,
         mir::Instruction::Load { .. } | mir::Instruction::LocalGet { .. }
     ) {
-        return load_is_hoistable(
-            instruction_id,
-            function,
-            loop_blocks,
-            tree,
-            alias,
-            memory_ssa,
-        );
+        return load_is_hoistable(instruction_id, function, loop_blocks, tree, alias, memory);
     }
 
     // handle other read only memory operations
-    if instruction_is_read_only_access(instruction_id, memory_ssa) {
+    if instruction_is_read_only_access(instruction_id, memory) {
         if !instruction_allows_read_only_motion(instruction_id, instruction, effects) {
             return false;
         }
@@ -515,34 +485,18 @@ fn instruction_is_hoistable(
             loop_blocks,
             tree,
             alias,
-            memory_ssa,
+            memory,
         );
     }
 
     // handle divisions with explicit safety checks
     match instruction {
         mir::Instruction::Binary {
-            operator,
+            operator: mir::BinaryOperator::Divide | mir::BinaryOperator::Remainder,
             left,
             right,
             ..
-        } if matches!(
-            operator,
-            mir::BinaryOperator::SignedDivide
-                | mir::BinaryOperator::UnsignedDivide
-                | mir::BinaryOperator::SignedRemainder
-                | mir::BinaryOperator::UnsignedRemainder
-        ) =>
-        {
-            let Some(left) = Some(left) else {
-                return false;
-            };
-            let Some(right) = Some(right) else {
-                return false;
-            };
-
-            division_is_safe(*operator, *left, *right, block_id, ranges, constants)
-        }
+        } => division_is_safe(*left, *right, block_id, ranges, constants),
         _ => false,
     }
 }
@@ -553,17 +507,17 @@ fn load_is_hoistable(
     function: &mir::Function,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> bool {
     // read memory ssa access for the load
-    let Some(accesses) = memory_ssa.instruction_accesses(load_id) else {
+    let Some(accesses) = memory.instruction_accesses(load_id) else {
         return false;
     };
 
     let mut load_access = None;
     for access_id in accesses {
-        if matches!(memory_ssa.access(*access_id), MemoryNode::Use(_)) {
+        if matches!(memory.access(*access_id), MemoryNode::Use(_)) {
             if load_access.is_some() {
                 return false;
             }
@@ -575,7 +529,7 @@ fn load_is_hoistable(
         return false;
     };
 
-    let MemoryNode::Use(use_access) = memory_ssa.access(load_access) else {
+    let MemoryNode::Use(use_access) = memory.access(load_access) else {
         return false;
     };
 
@@ -588,13 +542,13 @@ fn load_is_hoistable(
     }
 
     // reject loads when the loop clobbers the access
-    if loop_clobbers_access(load_id, load_access, loop_blocks, tree, memory_ssa, alias) {
+    if loop_clobbers_access(load_id, load_access, loop_blocks, tree, memory, alias) {
         return false;
     }
 
     // resolve the clobbering access before the load
-    let clobber = memory_ssa.clobbering_use(load_access, alias);
-    match memory_ssa.access(clobber) {
+    let clobber = memory.clobbering_use(load_access, alias);
+    match memory.access(clobber) {
         MemoryNode::LiveOnEntry => true,
         MemoryNode::Def(def_access) => {
             let block_id = match def_access.source {
@@ -619,8 +573,8 @@ fn loop_clobbers_access(
     use_access: MemoryAccessId,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
+    memory: &MemoryTable,
+    alias: &AliasTable,
 ) -> bool {
     // scan loop blocks for clobbering defs
     for block_id in loop_blocks {
@@ -631,23 +585,23 @@ fn loop_clobbers_access(
                 continue;
             }
 
-            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
+            let Some(accesses) = memory.instruction_accesses(instruction_id) else {
                 continue;
             };
 
             for access_id in accesses {
-                if memory_ssa.def_clobbers_access(*access_id, use_access, alias) {
+                if memory.def_clobbers_access(*access_id, use_access, alias) {
                     return true;
                 }
             }
         }
 
-        let Some(accesses) = memory_ssa.terminator_accesses(*block_id) else {
+        let Some(accesses) = memory.terminator_accesses(*block_id) else {
             continue;
         };
 
         for access_id in accesses {
-            if memory_ssa.def_clobbers_access(*access_id, use_access, alias) {
+            if memory.def_clobbers_access(*access_id, use_access, alias) {
                 return true;
             }
         }
@@ -662,18 +616,18 @@ fn read_only_access_is_hoistable(
     function: &mir::Function,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> bool {
     // read memory ssa access for the instruction
-    let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
+    let Some(accesses) = memory.instruction_accesses(instruction_id) else {
         return false;
     };
 
     // collect use accesses
     let mut use_accesses = Vec::new();
     for access_id in accesses {
-        match memory_ssa.access(*access_id) {
+        match memory.access(*access_id) {
             MemoryNode::Use(use_access) => {
                 if use_access.effect.is_volatile || use_access.effect.is_barrier {
                     return false;
@@ -699,14 +653,14 @@ fn read_only_access_is_hoistable(
             *use_access,
             loop_blocks,
             tree,
-            memory_ssa,
+            memory,
             alias,
         ) {
             return false;
         }
 
-        let clobber = memory_ssa.clobbering_use(*use_access, alias);
-        match memory_ssa.access(clobber) {
+        let clobber = memory.clobbering_use(*use_access, alias);
+        match memory.access(clobber) {
             MemoryNode::LiveOnEntry => {}
             MemoryNode::Def(def_access) => {
                 let block_id = match def_access.source {
@@ -731,12 +685,11 @@ fn read_only_access_is_hoistable(
 
 /// Return true when a division or remainder cannot trap in the loop.
 fn division_is_safe(
-    operator: mir::BinaryOperator,
     left: mir::Value,
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    ranges: &RangeAnalysis,
-    constants: &ConstantPropagation,
+    ranges: &RangeTable,
+    constants: &ConstantTable,
 ) -> bool {
     // resolve operand ranges
     let left_range = integer_range_for_value(left, block_id, ranges, constants);
@@ -759,10 +712,7 @@ fn division_is_safe(
     }
 
     // reject signed overflow case min value divided by negative one
-    if matches!(
-        operator,
-        mir::BinaryOperator::SignedDivide | mir::BinaryOperator::SignedRemainder
-    ) {
+    if left_range.is_signed {
         let Some(min_value) = signed_min_for_width(left_range.width) else {
             return false;
         };
@@ -782,8 +732,8 @@ fn division_is_safe(
 fn integer_range_for_value(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    ranges: &RangeAnalysis,
-    constants: &ConstantPropagation,
+    ranges: &RangeTable,
+    constants: &ConstantTable,
 ) -> Option<IntegerRange> {
     // prefer constant propagation state
     let constant = constants
@@ -905,7 +855,7 @@ struct HoistWork {
 /// Find the preheader of a loop.
 ///
 /// The preheader is the immediate dominator of the header that is outside the loop.
-fn find_preheader(lp: &Loop, domtree: &DominatorTree) -> Option<mir::LocalNodeId<mir::Block>> {
+fn find_preheader(lp: &Loop, domtree: &DominatorTable) -> Option<mir::LocalNodeId<mir::Block>> {
     let idom = domtree.immediate_dominator(lp.header)?;
     if lp.blocks.contains(&idom) {
         // idom is inside the loop, no proper preheader
@@ -966,18 +916,18 @@ entry(v0: boolean, v1: int32, v2: int32):
     jump b1
 
 b1:
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     branch v0 => b1 | b2
 
 b2:
     return v3
 }
 "#;
-        // v3 = int.add v1, v2 is invariant (v1, v2 are function params)
+        // v3 = add v1, v2 is invariant (v1, v2 are function params)
         let expected = r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     jump b1
 
 b1:
@@ -1003,8 +953,8 @@ entry(v0: boolean, v1: int32):
 
 b1:
     v2: int32 = 10
-    v3: int32 = int.add v1, v2
-    v4: int32 = int.mul v3, v2
+    v3: int32 = add v1, v2
+    v4: int32 = mul v3, v2
     branch v0 => b1 | b2
 
 b2:
@@ -1016,8 +966,8 @@ b2:
 function test(v0: boolean, v1: int32): int32 {
 entry(v0: boolean, v1: int32):
     v2: int32 = 10
-    v3: int32 = int.add v1, v2
-    v4: int32 = int.mul v3, v2
+    v3: int32 = add v1, v2
+    v4: int32 = mul v3, v2
     jump b1
 
 b1:
@@ -1043,7 +993,7 @@ entry(v0: boolean, v1: int32):
 
 b1(v2: int32):
     v3: int32 = 1
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     branch v0 => b1(v4) | b2
 
 b2:
@@ -1059,7 +1009,7 @@ entry(v0: boolean, v1: int32):
     jump b1(v1)
 
 b1(v2: int32):
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     branch v0 => b1(v4) | b2
 
 b2:
@@ -1078,7 +1028,7 @@ b2:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;
@@ -1093,7 +1043,7 @@ entry(v0: int32, v1: int32):
         let input = r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     jump b1
 
 b1:
@@ -1122,7 +1072,7 @@ b1:
 
 b2:
     v3: int32 = 5
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     branch v1 => b2 | b3
 
 b3:
@@ -1139,7 +1089,7 @@ entry(v0: boolean, v1: boolean, v2: int32):
 
 b1:
     v3: int32 = 5
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     jump b2
 
 b2:
@@ -1486,11 +1436,11 @@ b2:
 
 b3:
     v4: int32 = 20
-    v5: int32 = int.add v2, v4
+    v5: int32 = add v2, v4
     branch v1 => b3 | b4
 
 b4:
-    v6: int32 = int.add v3, v5
+    v6: int32 = add v3, v5
     return v6
 }
 "#;
@@ -1507,14 +1457,14 @@ b1:
 
 b2:
     v4: int32 = 20
-    v5: int32 = int.add v2, v4
+    v5: int32 = add v2, v4
     jump b3
 
 b3:
     branch v1 => b3 | b4
 
 b4:
-    v6: int32 = int.add v3, v5
+    v6: int32 = add v3, v5
     return v6
 }
 "#;
@@ -1537,12 +1487,12 @@ entry:
     jump b1(v0)
 
 b1(v4: int32):
-    v5: int32 = int.div.s v2, v3
-    v6: boolean = int.lt.s v4, v1
+    v5: int32 = div v2, v3
+    v6: boolean = lt v4, v1
     branch v6 => b2 | b3
 
 b2:
-    v7: int32 = int.add v4, v1
+    v7: int32 = add v4, v1
     jump b1(v7)
 
 b3:
@@ -1556,15 +1506,15 @@ entry:
     v1: int32 = 1
     v2: int32 = 10
     v3: int32 = 2
-    v5: int32 = int.div.s v2, v3
+    v5: int32 = div v2, v3
     jump b1(v0)
 
 b1(v4: int32):
-    v6: boolean = int.lt.s v4, v1
+    v6: boolean = lt v4, v1
     branch v6 => b2 | b3
 
 b2:
-    v7: int32 = int.add v4, v1
+    v7: int32 = add v4, v1
     jump b1(v7)
 
 b3:
@@ -1590,12 +1540,12 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: int32 = int.div.s v3, v0
-    v6: boolean = int.lt.s v4, v2
+    v5: int32 = div v3, v0
+    v6: boolean = lt v4, v2
     branch v6 => b2 | b3
 
 b2:
-    v7: int32 = int.add v4, v2
+    v7: int32 = add v4, v2
     jump b1(v7)
 
 b3:

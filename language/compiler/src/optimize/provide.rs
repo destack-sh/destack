@@ -98,7 +98,7 @@ impl Compiler {
             layouts: elaborated.layouts.clone(),
             dispatch: elaborated.dispatch.clone(),
             drops: elaborated.drops.clone(),
-            memory: elaborated.memory.clone(),
+            accesses: elaborated.accesses.clone(),
             effects: elaborated.effects.clone(),
             profile: elaborated.profile.clone(),
         };
@@ -181,7 +181,7 @@ impl Compiler {
 ///
 /// Compiled alone, a module is an open world: anything it exports may be called from
 /// outside, so every exported symbol is a root and reachability stays within the module.
-fn module_scoped_analysis(links: &mir::LinkGraph) -> ProgramAnalysis {
+fn module_scoped_analysis(links: &mir::LinkTable) -> ProgramAnalysis {
     let roots: Vec<mir::Symbol> = links
         .nodes()
         .filter(|(_, node)| node.linkage().is_exported())

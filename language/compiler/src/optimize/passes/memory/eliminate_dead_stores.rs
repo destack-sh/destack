@@ -5,32 +5,25 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ByteRange, MemoryAccessId, MemoryNode, MemoryPlace, MemoryRegion,
-    MemoryRegionBuilder, MemorySSA, Mutation, PostDominatorTree, RangeRelation, TargetLayout,
-    ValueDefinitions, ValueTypes,
+    AliasTable, ByteRange, DefinitionTable, MemoryAccessId, MemoryNode, MemoryPlace, MemoryRegion,
+    MemoryRegionBuilder, MemoryTable, Mutation, PostdominatorTable, RangeRelation, TargetLayout,
+    ValueTypeTable,
 };
 
 declare_pass! {
     /// Dead Store Elimination.
-    ///
-    /// Removes stores to memory locations that are never read:
-    /// 1. Stores overwritten on all paths before any read
-    /// 2. Stores to non escaping stack locations that are never read
-    ///
-    /// This pass uses MemorySSA, alias analysis, and post dominance to
-    /// identify clobbering stores and preserve externally visible writes.
     ///
     /// ```mir
     /// // before DSE
     /// function before(): int32 {
     ///     local l0: int32
     /// b0:
-    ///     v0 = local.address l0
-    ///     v1 = 1int32
+    ///     v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v1: int32 = 1
     ///     store v0, v1        // dead: overwritten below
-    ///     v2 = 2int32
+    ///     v2: int32 = 2
     ///     store v0, v2
-    ///     v3 = load v0
+    ///     v3: int32 = load v0
     ///     return v3
     /// }
     /// ```
@@ -40,12 +33,12 @@ declare_pass! {
     /// function after(): int32 {
     ///     local l0: int32
     /// b0:
-    ///     v0 = local.address l0
-    ///     v1 = 1int32
+    ///     v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v1: int32 = 1
     ///     // store removed
-    ///     v2 = 2int32
+    ///     v2: int32 = 2
     ///     store v0, v2
-    ///     v3 = load v0
+    ///     v3: int32 = load v0
     ///     return v3
     /// }
     /// ```
@@ -61,11 +54,12 @@ impl FunctionPass for EliminateDeadStores {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &optimized.memory;
+        let accesses = &optimized.accesses;
         let effects = &optimized.effects;
+
         // skip empty functions
         let _entry = match function.entry() {
             Some(entry) => entry,
@@ -74,18 +68,16 @@ impl FunctionPass for EliminateDeadStores {
 
         // get analyses
         let aa = analyses.alias(function, tree).clone();
-        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
-        let cfg = analyses.control_flow(function, tree);
-        let postdom = PostDominatorTree::build(function, tree, &cfg);
-
-        let value_types = analyses.value_types(function, tree);
+        let memory = analyses.memory(function, tree, accesses, effects);
+        let postdom = analyses.postdominator(function, tree);
+        let value_types = analyses.value_type(function, tree);
 
         // run dead store elimination
         let changed = run_eliminate_dead_stores(
             function,
             tree,
             &aa,
-            memory_ssa.as_ref(),
+            memory.as_ref(),
             &value_types,
             &postdom,
             ctx.target_layout(),
@@ -98,30 +90,20 @@ impl FunctionPass for EliminateDeadStores {
             Mutation::NONE
         }
     }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "EliminateDeadStores"
-    }
-
-    /// Return the pass id.
-    fn id(&self) -> &'static str {
-        "dse"
-    }
 }
 
 /// Core DSE logic. Returns true if changes were made.
 fn run_eliminate_dead_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    aa: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
-    value_types: &ValueTypes,
-    postdom: &PostDominatorTree,
+    aa: &AliasTable,
+    memory: &MemoryTable,
+    value_types: &ValueTypeTable,
+    postdom: &PostdominatorTable,
     target_layout: TargetLayout,
 ) -> bool {
     // collect store candidates
-    let store_candidates = collect_store_candidates(function, tree, memory_ssa);
+    let store_candidates = collect_store_candidates(function, tree, memory);
 
     // exit early when there are no stores
     if store_candidates.is_empty() {
@@ -129,13 +111,13 @@ fn run_eliminate_dead_stores(
     }
 
     // collect memory definitions
-    let def_accesses = collect_def_accesses(function, tree, memory_ssa);
+    let def_accesses = collect_def_accesses(function, tree, memory);
 
     // collect live definitions from memory reads
-    let live_defs = collect_live_defs(function, tree, memory_ssa, aa);
+    let live_defs = collect_live_defs(function, tree, memory, aa);
 
     // build reusable reference provenance
-    let value_definitions = ValueDefinitions::build(function, tree);
+    let value_definitions = DefinitionTable::build(function, tree);
     let mut regions = MemoryRegionBuilder::new(
         &value_definitions,
         tree,
@@ -175,7 +157,7 @@ fn run_eliminate_dead_stores(
         if store_is_postdominated_by_clobber(
             &store,
             &def_accesses,
-            memory_ssa,
+            memory,
             aa,
             postdom,
             &mut regions,
@@ -229,13 +211,13 @@ struct DefAccessInfo {
     index: usize,
 }
 
-/// Collect store candidates with MemorySSA defs.
+/// Collect store candidates with MemoryTable defs.
 fn collect_store_candidates(
     function: &mir::Function,
     tree: &mir::Tree,
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
 ) -> Vec<StoreCandidate> {
-    // collect store instructions with MemorySSA defs
+    // collect store instructions with MemoryTable defs
     let mut stores = Vec::new();
 
     // scan blocks for store instructions
@@ -264,13 +246,13 @@ fn collect_store_candidates(
             }
 
             // read memory accesses for this instruction
-            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
+            let Some(accesses) = memory.instruction_accesses(instruction_id) else {
                 continue;
             };
 
-            // record each MemorySSA def access
+            // record each MemoryTable def access
             for &access_id in accesses {
-                let MemoryNode::Def(def_access) = memory_ssa.access(access_id) else {
+                let MemoryNode::Def(def_access) = memory.access(access_id) else {
                     continue;
                 };
 
@@ -291,13 +273,13 @@ fn collect_store_candidates(
     stores
 }
 
-/// Collect MemorySSA def accesses for the function.
+/// Collect MemoryTable def accesses for the function.
 fn collect_def_accesses(
     function: &mir::Function,
     tree: &mir::Tree,
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
 ) -> Vec<DefAccessInfo> {
-    // collect all MemorySSA def accesses
+    // collect all MemoryTable def accesses
     let mut defs = Vec::new();
 
     // scan blocks for def accesses
@@ -308,13 +290,13 @@ fn collect_def_accesses(
         // scan instructions in the block
         for (index, &instruction_id) in block.instructions.iter().enumerate() {
             // read the access list
-            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
+            let Some(accesses) = memory.instruction_accesses(instruction_id) else {
                 continue;
             };
 
             // record each def access
             for &access_id in accesses {
-                let MemoryNode::Def(_def_access) = memory_ssa.access(access_id) else {
+                let MemoryNode::Def(_def_access) = memory.access(access_id) else {
                     continue;
                 };
 
@@ -334,10 +316,10 @@ fn collect_def_accesses(
 fn collect_live_defs(
     function: &mir::Function,
     tree: &mir::Tree,
-    memory_ssa: &MemorySSA,
-    aa: &AliasAnalysis,
+    memory: &MemoryTable,
+    aa: &AliasTable,
 ) -> HashSet<MemoryAccessId> {
-    // collect MemorySSA defs that feed reads
+    // collect MemoryTable defs that feed reads
     let mut live_defs = HashSet::new();
 
     // scan blocks for read accesses
@@ -348,17 +330,17 @@ fn collect_live_defs(
         // scan instructions in the block
         for &instruction_id in &block.instructions {
             // read the access list
-            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
+            let Some(accesses) = memory.instruction_accesses(instruction_id) else {
                 continue;
             };
 
             // mark clobbering defs for reads
             for &access_id in accesses {
-                match memory_ssa.access(access_id) {
+                match memory.access(access_id) {
                     MemoryNode::Use(_use_access) => {
                         // record the def that feeds this use
-                        let clobber = memory_ssa.clobbering_use(access_id, aa);
-                        record_live_clobber(clobber, memory_ssa, &mut live_defs);
+                        let clobber = memory.clobbering_use(access_id, aa);
+                        record_live_clobber(clobber, memory, &mut live_defs);
                     }
                     MemoryNode::Def(def_access) => {
                         // skip defs that do not read memory
@@ -368,8 +350,8 @@ fn collect_live_defs(
 
                         // record the def that feeds the read portion
                         let clobber =
-                            memory_ssa.clobbering_read(access_id, &def_access.effect.region, aa);
-                        record_live_clobber(clobber, memory_ssa, &mut live_defs);
+                            memory.clobbering_read(access_id, &def_access.effect.region, aa);
+                        record_live_clobber(clobber, memory, &mut live_defs);
                     }
                     _ => {}
                 }
@@ -383,7 +365,7 @@ fn collect_live_defs(
 /// Record live memory defs reachable from a clobber access.
 fn record_live_clobber(
     access_id: MemoryAccessId,
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
     live_defs: &mut HashSet<MemoryAccessId>,
 ) {
     // seed the traversal state
@@ -397,7 +379,7 @@ fn record_live_clobber(
         }
 
         // record defs and expand through phis and uses
-        match memory_ssa.access(current) {
+        match memory.access(current) {
             MemoryNode::Def(_) => {
                 live_defs.insert(current);
             }
@@ -420,9 +402,9 @@ fn record_live_clobber(
 fn store_is_postdominated_by_clobber(
     store: &StoreCandidate,
     def_accesses: &[DefAccessInfo],
-    memory_ssa: &MemorySSA,
-    aa: &AliasAnalysis,
-    postdom: &PostDominatorTree,
+    memory: &MemoryTable,
+    aa: &AliasTable,
+    postdom: &PostdominatorTable,
     regions: &mut MemoryRegionBuilder<'_>,
 ) -> bool {
     // search for clobbering defs that postdominate the store
@@ -439,7 +421,7 @@ fn store_is_postdominated_by_clobber(
         if !postdom.postdominates(def.block, store.block) {
             continue;
         }
-        let MemoryNode::Def(def_access) = memory_ssa.access(def.access) else {
+        let MemoryNode::Def(def_access) = memory.access(def.access) else {
             continue;
         };
 
@@ -452,7 +434,7 @@ fn store_is_postdominated_by_clobber(
         if let Some(overwrites) =
             def_fully_overwrites_store(&def_access.effect.region, &store.region, regions)
         {
-            if overwrites && memory_ssa.def_clobbers_access(def.access, store.access, aa) {
+            if overwrites && memory.def_clobbers_access(def.access, store.access, aa) {
                 return true;
             }
 
@@ -460,7 +442,7 @@ fn store_is_postdominated_by_clobber(
         }
 
         if matches!(store.region, MemoryRegion::Local(_))
-            && memory_ssa.def_clobbers_access(def.access, store.access, aa)
+            && memory.def_clobbers_access(def.access, store.access, aa)
         {
             return true;
         }
@@ -843,7 +825,7 @@ entry:
     store v1, v3
     v4: int32 = load v0
     v5: int32 = load v1
-    v6: int32 = int.add v4, v5
+    v6: int32 = add v4, v5
     return v6
 }
 "#;

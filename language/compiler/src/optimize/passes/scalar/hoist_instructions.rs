@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlFlowGraph, DominatorTree, Mutation, PureExpression,
+    ControlTable, DominatorTable, Mutation, PureExpression,
     apply_substitutions_in_dominated_blocks, build_use_def_maps, clone_instruction_tables,
     instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
 };
@@ -13,18 +13,15 @@ use destack_mir::{
 declare_pass! {
     /// Hoist common instructions out of diamonds.
     ///
-    /// Finds identical, speculatable instruction prefixes in both sides of a
-    /// branch and hoists them into the branching block.
-    ///
     /// ```mir
     /// function before(v0: int32, v1: int32, v2: boolean): int32 {
     /// b0(v0: int32, v1: int32, v2: boolean):
     ///     branch v2 => b1 | b2
     /// b1:
-    ///     v3 = int.add v0, v1
+    ///     v3: int32 = add v0, v1
     ///     jump b3(v3)
     /// b2:
-    ///     v4 = int.add v0, v1
+    ///     v4: int32 = add v0, v1
     ///     jump b3(v4)
     /// b3(v5: int32):
     ///     return v5
@@ -34,7 +31,7 @@ declare_pass! {
     /// ```mir
     /// function after(v0: int32, v1: int32, v2: boolean): int32 {
     /// b0(v0: int32, v1: int32, v2: boolean):
-    ///     v6 = int.add v0, v1
+    ///     v6: int32 = add v0, v1
     ///     branch v2 => b1 | b2
     /// b1:
     ///     jump b3(v6)
@@ -44,12 +41,6 @@ declare_pass! {
     ///     return v5
     /// }
     /// ```
-    ///
-    /// Restrictions:
-    /// - Only hoists identical speculatable instructions present in both arms
-    /// - Only hoists instructions whose operands dominate the header
-    /// - Requires branch successors with a single predecessor
-    /// - Limits hoisting per diamond to keep compile time predictable
     #[pass(id = "hoist-instructions")]
     pub HoistInstructions,
     "Hoist redundant instructions"
@@ -64,10 +55,10 @@ impl FunctionPass for HoistInstructions {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip imported functions
         if function.entry().is_none() {
@@ -78,11 +69,11 @@ impl FunctionPass for HoistInstructions {
         function.recompute_next_value_id(tree);
 
         // gather analyses
-        let cfg = analyses.control_flow(function, tree).clone();
-        let domtree = analyses.dominators(function, tree).clone();
+        let cfg = analyses.control(function, tree).clone();
+        let domtree = analyses.dominator(function, tree).clone();
 
         // run the hoisting pass
-        let changed = run_hoist_instructions(function, tree, memory, &cfg, &domtree);
+        let changed = run_hoist_instructions(function, tree, accesses, &cfg, &domtree);
 
         // report what this pass changed
         if changed {
@@ -91,23 +82,15 @@ impl FunctionPass for HoistInstructions {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "HoistInstructions"
-    }
-
-    fn id(&self) -> &'static str {
-        "hoist"
-    }
 }
 
 /// Hoist common instructions out of branch diamonds.
 fn run_hoist_instructions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    accesses: &mut mir::AccessTable,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
 ) -> bool {
     // build definition tables
     let use_def = build_use_def_maps(function, tree);
@@ -152,7 +135,7 @@ fn run_hoist_instructions(
         let hoisted = hoist_common_prefix(
             function,
             tree,
-            memory,
+            accesses,
             domtree,
             &use_def.def_block,
             block_id,
@@ -173,8 +156,8 @@ fn run_hoist_instructions(
 fn hoist_common_prefix(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    domtree: &DominatorTree,
+    accesses: &mut mir::AccessTable,
+    domtree: &DominatorTable,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     header: mir::LocalNodeId<mir::Block>,
     then_block: mir::LocalNodeId<mir::Block>,
@@ -219,8 +202,8 @@ fn hoist_common_prefix(
         let mut else_value_map = else_param_rewrites.clone();
         else_value_map.extend(else_substitutions.clone());
 
-        let then_index = build_expression_index(&then_data, &then_value_map, tree);
-        let else_index = build_expression_index(&else_data, &else_value_map, tree);
+        let then_index = build_expression_index(&then_data, &then_value_map, function, tree);
+        let else_index = build_expression_index(&else_data, &else_value_map, function, tree);
 
         // collect matching expression pairs
         let mut candidates = Vec::new();
@@ -282,7 +265,7 @@ fn hoist_common_prefix(
             // clone instruction with updated destinations and operands
             let hoisted_instruction = instruction_map(&candidate.instruction, &value_map, tree);
             let hoisted_id = tree.insert(hoisted_instruction);
-            clone_instruction_tables(tree, memory, candidate.then_id, hoisted_id, &value_map);
+            clone_instruction_tables(tree, accesses, candidate.then_id, hoisted_id, &value_map);
             new_header_instructions.push(hoisted_id);
 
             // record substitutions for both branches
@@ -313,7 +296,7 @@ fn hoist_common_prefix(
     let then_changed = apply_substitutions_in_dominated_blocks(
         function,
         tree,
-        memory,
+        accesses,
         domtree,
         then_block,
         &then_substitutions,
@@ -321,7 +304,7 @@ fn hoist_common_prefix(
     let else_changed = apply_substitutions_in_dominated_blocks(
         function,
         tree,
-        memory,
+        accesses,
         domtree,
         else_block,
         &else_substitutions,
@@ -373,7 +356,7 @@ fn instruction_operands_available(
     instruction: &mir::Instruction,
     header: mir::LocalNodeId<mir::Block>,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
     hoisted_values: &HashSet<mir::Value>,
 ) -> bool {
     // scan all operands
@@ -441,6 +424,7 @@ struct HoistCandidate {
 fn build_expression_index(
     block: &mir::Block,
     value_rewrites: &HashMap<mir::Value, mir::Value>,
+    function: &mir::Function,
     tree: &mut mir::Tree,
 ) -> HashMap<PureExpression, ExpressionEntry> {
     // allocate the index map
@@ -457,7 +441,7 @@ fn build_expression_index(
         };
 
         // skip non speculatable instructions
-        if !instruction_is_speculatable(&instruction, tree) {
+        if !instruction_is_speculatable(&instruction, function, tree) {
             continue;
         }
 
@@ -495,11 +479,11 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     jump b3(v3)
 
 b2:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     jump b3(v4)
 
 b3(v5: int32):
@@ -511,7 +495,7 @@ b3(v5: int32):
         let expected = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v6: int32 = int.add v0, v1
+    v6: int32 = add v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -541,11 +525,11 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.div.s v0, v1
+    v3: int32 = div v0, v1
     jump b3(v3)
 
 b2:
-    v4: int32 = int.div.s v0, v1
+    v4: int32 = div v0, v1
     jump b3(v4)
 
 b3(v5: int32):
@@ -569,11 +553,11 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     jump b3(v3)
 
 b2:
-    v4: int32 = int.sub v0, v1
+    v4: int32 = sub v0, v1
     jump b3(v4)
 
 b3(v5: int32):
@@ -597,13 +581,13 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v3, v1
+    v3: int32 = add v0, v1
+    v4: int32 = add v3, v1
     jump b3(v4)
 
 b2:
-    v5: int32 = int.add v0, v1
-    v6: int32 = int.add v5, v1
+    v5: int32 = add v0, v1
+    v6: int32 = add v5, v1
     jump b3(v6)
 
 b3(v7: int32):
@@ -615,8 +599,8 @@ b3(v7: int32):
         let expected = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v8: int32 = int.add v0, v1
-    v9: int32 = int.add v8, v1
+    v8: int32 = add v0, v1
+    v9: int32 = add v8, v1
     branch v2 => b1 | b2
 
 b1:
@@ -646,11 +630,11 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1(v0, v1) | b2(v0, v1)
 
 b1(v3: int32, v4: int32):
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     jump b3(v5)
 
 b2(v6: int32, v7: int32):
-    v8: int32 = int.add v6, v7
+    v8: int32 = add v6, v7
     jump b3(v8)
 
 b3(v9: int32):
@@ -662,7 +646,7 @@ b3(v9: int32):
         let expected = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v10: int32 = int.add v0, v1
+    v10: int32 = add v0, v1
     branch v2 => b1(v0, v1) | b2(v0, v1)
 
 b1(v3: int32, v4: int32):
@@ -692,13 +676,13 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.mul v0, v1
-    v4: int32 = int.add v0, v1
+    v3: int32 = mul v0, v1
+    v4: int32 = add v0, v1
     jump b3(v4)
 
 b2:
-    v5: int32 = int.sub v0, v1
-    v6: int32 = int.add v0, v1
+    v5: int32 = sub v0, v1
+    v6: int32 = add v0, v1
     jump b3(v6)
 
 b3(v7: int32):
@@ -710,15 +694,15 @@ b3(v7: int32):
         let expected = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v8: int32 = int.add v0, v1
+    v8: int32 = add v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.mul v0, v1
+    v3: int32 = mul v0, v1
     jump b3(v8)
 
 b2:
-    v5: int32 = int.sub v0, v1
+    v5: int32 = sub v0, v1
     jump b3(v8)
 
 b3(v7: int32):
@@ -742,11 +726,11 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     jump b3(v3)
 
 b2:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     jump b3(v4)
 
 b3(v5: int32):

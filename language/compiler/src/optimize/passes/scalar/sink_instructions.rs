@@ -5,23 +5,19 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis, MemoryLocation, MemorySSA,
-    Mutation, ValueDefinitions, build_use_def_maps, instruction_is_memory_read,
+    AliasTable, ControlTable, DefinitionTable, DominatorTable, LoopTable, MemoryLocation,
+    MemoryTable, Mutation, build_use_def_maps, instruction_is_memory_read,
     instruction_is_speculatable,
 };
 
 declare_pass! {
     /// SinkInstructions instructions closer to their uses.
     ///
-    /// Code sinking moves instructions from a block into successors where
-    /// their results are used. This reduces register pressure and avoids
-    /// executing instructions on code paths that don't need their results.
-    ///
     /// ```mir
     /// function before(v0: int32, v1: boolean): int32 {
     /// b0(v0: int32, v1: boolean):
-    ///     v2 = 1int32
-    ///     v3 = int.add v0, v2
+    ///     v2: int32 = 1
+    ///     v3: int32 = add v0, v2
     ///     branch v1 => b1 | b2
     /// b1:
     ///     return v3
@@ -33,23 +29,15 @@ declare_pass! {
     /// ```mir
     /// function after(v0: int32, v1: boolean): int32 {
     /// b0(v0: int32, v1: boolean):
-    ///     v2 = 1int32
+    ///     v2: int32 = 1
     ///     branch v1 => b1 | b2
     /// b1:
-    ///     v3 = int.add v0, v2
+    ///     v3: int32 = add v0, v2
     ///     return v3
     /// b2:
     ///     return v0
     /// }
     /// ```
-    ///
-    /// Restrictions:
-    /// - Only sinks pure instructions OR memory reads with no intervening memory ops
-    /// - Only sinks when ALL uses are in a single successor
-    /// - Does not sink from outside a loop to inside (would increase execution frequency)
-    /// - Does not sink into blocks with multiple predecessors
-    ///
-    /// Loads can be sunk when intervening memory effects cannot clobber the read location.
     #[pass(id = "sink-instructions")]
     pub SinkInstructions,
     "Code sinking"
@@ -62,10 +50,10 @@ impl FunctionPass for SinkInstructions {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &optimized.effects;
 
         // skip empty functions
@@ -75,23 +63,15 @@ impl FunctionPass for SinkInstructions {
         };
 
         // get analyses
-        let cfg = analyses.control_flow(function, tree).clone();
-        let domtree = analyses.dominators(function, tree).clone();
+        let cfg = analyses.control(function, tree).clone();
+        let domtree = analyses.dominator(function, tree).clone();
         let loops = analyses.loops(function, tree).clone();
         let alias = analyses.alias(function, tree);
-        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+        let memory = analyses.memory(function, tree, accesses, effects);
 
         // run sink
         let changed = run_sink(
-            entry,
-            function,
-            tree,
-            memory,
-            &cfg,
-            &domtree,
-            &loops,
-            &alias,
-            &memory_ssa,
+            entry, function, tree, accesses, &cfg, &domtree, &loops, &alias, &memory,
         );
 
         // report what this pass changed
@@ -101,16 +81,6 @@ impl FunctionPass for SinkInstructions {
             Mutation::NONE
         }
     }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "SinkInstructions"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "sink-instructions"
-    }
 }
 
 /// SinkInstructions logic. Returns true if changes were made.
@@ -118,12 +88,12 @@ fn run_sink(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mir::MemoryTable,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
-    loops: &LoopAnalysis,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    accesses: &mir::AccessTable,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
+    loops: &LoopTable,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> bool {
     // collect all blocks that are in any loop
     let loop_blocks: HashSet<mir::LocalNodeId<mir::Block>> = loops
@@ -134,7 +104,7 @@ fn run_sink(
 
     // build value->uses map and value->defining-block map
     let use_def = build_use_def_maps(function, tree);
-    let definition_map = ValueDefinitions::build(function, tree).instruction_map();
+    let definition_map = DefinitionTable::build(function, tree).instruction_map();
 
     // collect sinking work
     let mut work: Vec<SinkInstructionsWork> = Vec::new();
@@ -155,17 +125,17 @@ fn run_sink(
             let instruction = tree.get(instruction_id);
 
             // do not sink instructions that require exact access semantics
-            if memory.instruction_requires_exact_access(tree, instruction_id) {
+            if accesses.requires_exact_position(instruction_id, tree) {
                 continue;
             }
 
             // determine if the instruction can be sunk
-            let can_sink = if instruction_is_speculatable(instruction, tree) {
+            let can_sink = if instruction_is_speculatable(instruction, function, tree) {
                 // pure instructions can always be sunk
                 true
             } else if instruction_is_memory_read(instruction) {
                 // memory reads can be sunk if intervening operations do not clobber
-                memory_read_can_sink(block, idx, tree, alias, memory_ssa)
+                memory_read_can_sink(block, idx, tree, alias, memory)
             } else {
                 // other instructions (stores, calls, etc.) cannot be sunk
                 false
@@ -333,8 +303,8 @@ fn memory_read_can_sink(
     block: &mir::Block,
     index: usize,
     tree: &mir::Tree,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
+    alias: &AliasTable,
+    memory: &MemoryTable,
 ) -> bool {
     // load the instruction to sink
     let instruction_id = block.instructions[index];
@@ -345,7 +315,7 @@ fn memory_read_can_sink(
             // check for clobbering memory operations
             let location = MemoryLocation::from_address(*pointer);
             for &later_id in &block.instructions[index + 1..] {
-                let is_clobbered = memory_ssa
+                let is_clobbered = memory
                     .instruction_effects(later_id)
                     .any(|effect| effect.clobbers_location(&location, alias));
                 if is_clobbered {
@@ -390,7 +360,7 @@ mod tests {
 function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 1
-    v3: int32 = int.add v0, v2
+    v3: int32 = add v0, v2
     branch v1 => b1 | b2
 
 b1:
@@ -407,7 +377,7 @@ entry(v0: int32, v1: boolean):
     branch v1 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v2
+    v3: int32 = add v0, v2
     return v3
 
 b2:
@@ -426,9 +396,9 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     v3: int32 = 10
-    v4: boolean = int.lt.s v2, v3
+    v4: boolean = lt v2, v3
     branch v4 => b1 | b2
 
 b1:
@@ -493,7 +463,7 @@ b2:
 function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 1
-    v3: int32 = int.add v0, v2
+    v3: int32 = add v0, v2
     branch v1 => b1 | b2
 
 b1:
@@ -516,9 +486,9 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     v3: int32 = 2
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     jump b1
 
 b1:
@@ -533,12 +503,12 @@ b1:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     v3: int32 = 2
     jump b1
 
 b1:
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
@@ -600,7 +570,7 @@ b2:
 function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 1
-    v3: int32 = int.add v0, v2
+    v3: int32 = add v0, v2
     branch v1 => b1 | b2
 
 b1:
@@ -626,14 +596,14 @@ b3:
 function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 1
-    v3: int32 = int.add v0, v2
+    v3: int32 = add v0, v2
     jump b1
 
 b1:
     branch v1 => b2 | b3
 
 b2:
-    v4: int32 = int.add v3, v3
+    v4: int32 = add v3, v3
     jump b1
 
 b3:
@@ -671,8 +641,8 @@ entry:
 function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 1
-    v3: int32 = int.add v0, v2
-    v4: int32 = int.add v3, v2
+    v3: int32 = add v0, v2
+    v4: int32 = add v3, v2
     branch v1 => b1 | b2
 
 b1:
@@ -689,11 +659,11 @@ b2:
 function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 1
-    v3: int32 = int.add v0, v2
+    v3: int32 = add v0, v2
     branch v1 => b1 | b2
 
 b1:
-    v4: int32 = int.add v3, v2
+    v4: int32 = add v3, v2
     return v4
 
 b2:
@@ -712,7 +682,7 @@ b2:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#;
@@ -732,11 +702,11 @@ entry(v0: int32, v1: boolean):
 
 b1:
     v2: int32 = 1
-    v3: int32 = int.add v0, v2
+    v3: int32 = add v0, v2
     branch v1 => b2 | b3
 
 b2:
-    v4: int32 = int.add v3, v2
+    v4: int32 = add v3, v2
     jump b1
 
 b3:
@@ -764,7 +734,7 @@ entry(v0: int32, v1: boolean):
 
 b1:
     v2: int32 = 1
-    v3: int32 = int.add v0, v2
+    v3: int32 = add v0, v2
     jump b2
 
 b2:
@@ -858,7 +828,7 @@ b2:
 function test(v0: int32, v1: ref<int32, borrowed, mutable>, v2: boolean): int32 {
 entry(v0: int32, v1: ref<int32, borrowed, mutable>, v2: boolean):
     v3: int32 = 1
-    v4: int32 = int.add v0, v3
+    v4: int32 = add v0, v3
     store v1, v0
     branch v2 => b1 | b2
 
@@ -869,7 +839,7 @@ b2:
     return v0
 }
 "#;
-        // v4 is a pure computation (int.add) used only in b1
+        // v4 is a pure computation (add) used only in b1
         // it can be sunk past the store since it doesn't read memory
         let expected = r#"
 function test(v0: int32, v1: ref<int32, borrowed, mutable>, v2: boolean): int32 {
@@ -879,7 +849,7 @@ entry(v0: int32, v1: ref<int32, borrowed, mutable>, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v4: int32 = int.add v0, v3
+    v4: int32 = add v0, v3
     return v4
 
 b2:

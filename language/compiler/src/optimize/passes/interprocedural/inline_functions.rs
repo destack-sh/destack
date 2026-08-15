@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{
-    CallGraph, CallsiteHotness, Mutation, ValueDefinitions, ValueTypes, clone_instruction_tables,
+    CallTable, DefinitionTable, Hotness, Mutation, ValueTypeTable, clone_instruction_tables,
     constant_for_value, instruction_map_with_locals, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, terminator_remap, terminator_substitute_uses,
 };
@@ -13,18 +13,16 @@ use destack_mir::{
 declare_pass! {
     /// InlineFunctions direct calls into their callers when the callee is small.
     ///
-    /// This pass clones callee blocks into the caller, rewires returns to a continuation block, and skips recursive components and functions with tail calls.
-    ///
     /// ```mir
     /// function callee(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = int.add v0, v0
+    ///     v1: int32 = add v0, v0
     ///     return v1
     /// }
     /// function caller(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = call callee(v0)
-    ///     v2 = int.add v1, v0
+    ///     v1: int32 = call callee(v0): (int32) => int32
+    ///     v2: int32 = add v1, v0
     ///     return v2
     /// }
     /// ```
@@ -34,10 +32,10 @@ declare_pass! {
     /// b0(v0: int32):
     ///     jump b1(v0)
     /// b1(v1: int32):
-    ///     v2 = int.add v1, v1
+    ///     v2: int32 = add v1, v1
     ///     jump b2(v2)
     /// b2(v3: int32):
-    ///     v4 = int.add v3, v0
+    ///     v4: int32 = add v3, v0
     ///     return v4
     /// }
     /// ```
@@ -52,13 +50,13 @@ impl ModulePass for InlineFunctions {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::ModuleAnalyses,
+        analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &mut optimized.effects;
 
-        let changed = run_inline(tree, memory, effects, ctx, analyses);
+        let changed = run_inline(tree, accesses, effects, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -66,16 +64,6 @@ impl ModulePass for InlineFunctions {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass display name.
-    fn name(&self) -> &'static str {
-        "InlineFunctions"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "inline-functions"
     }
 }
 
@@ -139,19 +127,19 @@ const INLINE_ALWAYS_INLINE_COST: u64 = 40;
 /// InlineFunctions pass main entry.
 fn run_inline(
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     effects: &mir::EffectTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mut mir::ModuleAnalyses,
+    analyses: &mut mir::AnalysisCache,
 ) -> bool {
     // load module analysis state
-    let callgraph = analyses.call_graph(tree, effects);
+    let callgraph = analyses.call(tree, effects);
     let inline_budget_scale_percent = ctx.inline_budget_scale_percent();
     let mut module_budget =
         inline_budget_for_module(tree, ctx.profile(), inline_budget_scale_percent);
     let mut component_budgets =
         inline_component_budgets(tree, &callgraph, ctx.profile(), inline_budget_scale_percent);
-    let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionAnalyses> = HashMap::new();
+    let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionCache> = HashMap::new();
 
     // collect function ids for stable iteration
     let function_ids: Vec<_> = tree
@@ -188,7 +176,7 @@ fn run_inline(
             .unwrap_or(INLINE_COMPONENT_BUDGET_BASE);
         let analyses = function_analyses
             .entry(function_id)
-            .or_insert_with(|| mir::FunctionAnalyses::with_options(ctx.options.analysis));
+            .or_insert_with(|| mir::FunctionCache::with_options(ctx.options.analysis));
         let execution_counts = mir::ExecutionCounts::new(&function, tree, ctx.profile(), analyses);
 
         // iterate inline sites until the budget is exhausted
@@ -204,7 +192,7 @@ fn run_inline(
             }
 
             // build value definitions for constant argument detection
-            let value_definitions = ValueDefinitions::build(&function, tree).instruction_map();
+            let value_definitions = DefinitionTable::build(&function, tree).instruction_map();
             let available_budget = inline_budget.min(module_budget).min(component_budget);
 
             // find the next candidate callsite
@@ -229,7 +217,7 @@ fn run_inline(
             let did_inline = inline_callsite(
                 &mut function,
                 tree,
-                memory,
+                accesses,
                 &site.site,
                 ctx,
                 &mut function_analyses,
@@ -301,12 +289,12 @@ fn find_inline_site(
     function_id: mir::LocalNodeId<mir::Function>,
     function: &mir::Function,
     tree: &mir::Tree,
-    callgraph: &CallGraph,
+    callgraph: &CallTable,
     ctx: &PipelineContext<'_>,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     inline_budget: u64,
 ) -> Option<InlineFunctionsCandidate> {
@@ -374,13 +362,13 @@ fn inline_candidate(
     tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
     callee_id: mir::LocalNodeId<mir::Function>,
-    callgraph: &CallGraph,
+    callgraph: &CallTable,
     ctx: &PipelineContext<'_>,
     argument_count: usize,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     site: InlineFunctionsSite,
 ) -> Option<InlineFunctionsCandidate> {
@@ -435,13 +423,13 @@ fn inline_score(
     tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
     callee_id: mir::LocalNodeId<mir::Function>,
-    callgraph: &CallGraph,
+    callgraph: &CallTable,
     ctx: &PipelineContext<'_>,
     argument_count: usize,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
     block_count: u64,
     arguments: &[mir::Value],
 ) -> Option<InlineFunctionsScore> {
@@ -453,11 +441,11 @@ fn inline_score(
     // hotness comes from the callsite block's frequency relative to entry
     let hotness = if profile.is_some() {
         match ctx.hotness_thresholds().classify(block_count, entry_count) {
-            CallsiteHotness::Unknown => CallsiteHotness::Cold,
+            Hotness::Unknown => Hotness::Cold,
             hotness => hotness,
         }
     } else {
-        CallsiteHotness::Unknown
+        Hotness::Unknown
     };
 
     // compute size metrics
@@ -501,7 +489,7 @@ fn inline_score(
     );
     let mut score = benefit as i64 - callee_cost.score as i64;
 
-    if matches!(hotness, CallsiteHotness::Hot) {
+    if matches!(hotness, Hotness::Hot) {
         score = score.saturating_add(INLINE_HOT_SCORE_BONUS);
     }
 
@@ -542,11 +530,11 @@ fn should_inline(
     tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
     callee_id: mir::LocalNodeId<mir::Function>,
-    callgraph: &CallGraph,
+    callgraph: &CallTable,
     argument_count: usize,
     callee_size: &mir::OperationCost,
     caller_size: &mir::OperationCost,
-    hotness: CallsiteHotness,
+    hotness: Hotness,
     inline_budget_scale_percent: u64,
 ) -> bool {
     // load the callee tables
@@ -577,7 +565,7 @@ fn should_inline(
     }
 
     // handle cold callsites with strict limits
-    if matches!(hotness, CallsiteHotness::Cold) {
+    if matches!(hotness, Hotness::Cold) {
         let max_instructions =
             scale_inline_limit(INLINE_COLD_MAX_INSTRUCTIONS, inline_budget_scale_percent);
         let max_blocks = scale_inline_limit(INLINE_COLD_MAX_BLOCKS, inline_budget_scale_percent);
@@ -588,7 +576,7 @@ fn should_inline(
     }
 
     // select thresholds for hot or unknown callsites
-    let (max_instructions, max_blocks, max_calls) = if matches!(hotness, CallsiteHotness::Hot) {
+    let (max_instructions, max_blocks, max_calls) = if matches!(hotness, Hotness::Hot) {
         (
             scale_inline_limit(INLINE_HOT_MAX_INSTRUCTIONS, inline_budget_scale_percent),
             scale_inline_limit(INLINE_HOT_MAX_BLOCKS, inline_budget_scale_percent),
@@ -618,10 +606,10 @@ fn should_inline(
 fn inline_callsite(
     caller: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     site: &InlineFunctionsSite,
     ctx: &PipelineContext<'_>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
 ) -> bool {
     // load the callee and entry block
     let callee = tree.get(site.callee_id).clone();
@@ -667,8 +655,8 @@ fn inline_callsite(
     let local_map = clone_locals(caller, tree, &callee);
     let callee_analyses = function_analyses
         .entry(site.callee_id)
-        .or_insert_with(|| mir::FunctionAnalyses::with_options(ctx.options.analysis));
-    let callee_value_types = callee_analyses.value_types(&callee, tree);
+        .or_insert_with(|| mir::FunctionCache::with_options(ctx.options.analysis));
+    let callee_value_types = callee_analyses.value_type(&callee, tree);
     let (block_map, value_map) =
         clone_callee_blocks(caller, tree, &callee, &argument_map, &callee_value_types);
 
@@ -692,14 +680,14 @@ fn inline_callsite(
 
     // substitute the call result in the continuation block
     if let (Some(destination), Some(result_value)) = (site.destination, split.result_value) {
-        substitute_value_in_function(tree, memory, caller, destination, result_value);
+        substitute_value_in_function(tree, accesses, caller, destination, result_value);
     }
 
     // remap the inlined blocks and rewrite returns
     let call_source = tree.get_source(site.call_instruction_id.id);
     remap_inline_blocks(
         tree,
-        memory,
+        accesses,
         &callee,
         &block_map,
         &value_map,
@@ -714,7 +702,7 @@ fn inline_callsite(
     );
 
     // clean up tables for the removed call instruction
-    memory.remove_memory_accesses(site.call_instruction_id);
+    accesses.remove(site.call_instruction_id);
     true
 }
 
@@ -751,7 +739,7 @@ fn clone_callee_blocks(
     tree: &mut mir::Tree,
     callee: &mir::Function,
     argument_map: &HashMap<mir::Value, mir::Value>,
-    callee_value_types: &ValueTypes,
+    callee_value_types: &ValueTypeTable,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,
@@ -886,7 +874,7 @@ fn split_block_for_inline(
 /// Substitute a value inside a single block.
 fn substitute_value_in_function(
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     function: &mir::Function,
     from: mir::Value,
     to: mir::Value,
@@ -902,7 +890,7 @@ fn substitute_value_in_function(
             let instruction = tree.get(*instruction_id).clone();
             let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             tree.set(*instruction_id, updated);
-            remap_instruction_memory_accesses(memory, *instruction_id, &substitutions);
+            remap_instruction_memory_accesses(accesses, *instruction_id, &substitutions);
         }
 
         let terminator = tree.get(block.terminator).clone();
@@ -916,7 +904,7 @@ fn substitute_value_in_function(
 /// Remap values and locals in inlined blocks.
 fn remap_inline_blocks(
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     callee: &mir::Function,
     block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     value_map: &HashMap<mir::Value, mir::Value>,
@@ -941,7 +929,7 @@ fn remap_inline_blocks(
             let new_id = tree.insert(remapped);
 
             // clone memory access entries onto the new instruction
-            clone_instruction_tables(tree, memory, instruction_id, new_id, value_map);
+            clone_instruction_tables(tree, accesses, instruction_id, new_id, value_map);
 
             // use call source when the callee instruction has no source
             if tree.get_source(new_id.id).is_none()
@@ -1015,7 +1003,7 @@ fn has_tail_calls(tree: &mir::Tree, function: &mir::Function) -> bool {
 fn is_recursive_call(
     caller: mir::LocalNodeId<mir::Function>,
     callee: mir::LocalNodeId<mir::Function>,
-    callgraph: &CallGraph,
+    callgraph: &CallTable,
 ) -> bool {
     // load the caller component
     let Some(caller_component) = callgraph.component(caller) else {
@@ -1042,11 +1030,11 @@ fn function_cost_for(
     function_id: mir::FunctionId,
     function: &mir::Function,
     ctx: &PipelineContext<'_>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
 ) -> mir::OperationCost {
     let analyses = function_analyses
         .entry(function_id)
-        .or_insert_with(|| mir::FunctionAnalyses::with_options(ctx.options.analysis));
+        .or_insert_with(|| mir::FunctionCache::with_options(ctx.options.analysis));
     let cost = analyses.cost(function, tree);
 
     *cost.function()
@@ -1114,7 +1102,7 @@ fn inline_budget_for_function(
 /// Compute the inline benefit for a callsite.
 // allow many arguments to keep the inline heuristics explicit
 fn inline_benefit(
-    hotness: CallsiteHotness,
+    hotness: Hotness,
     arguments: &[mir::Value],
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     tree: &mir::Tree,
@@ -1155,7 +1143,7 @@ fn inline_benefit(
     };
     let mut multiplier = count_multiplier.max(ratio_multiplier);
 
-    if matches!(hotness, CallsiteHotness::Hot) {
+    if matches!(hotness, Hotness::Hot) {
         multiplier = (multiplier * 2).min(INLINE_BENEFIT_COUNT_MAX_MULTIPLIER);
     }
 
@@ -1199,7 +1187,7 @@ fn inline_budget_for_module(
 /// Compute inline budgets per component.
 fn inline_component_budgets(
     tree: &mir::Tree,
-    callgraph: &CallGraph,
+    callgraph: &CallTable,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
 ) -> HashMap<usize, u64> {
@@ -1249,14 +1237,14 @@ mod tests {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = call callee(v0): (int32) => int32
-    v2: int32 = int.add v1, v0
+    v2: int32 = add v1, v0
     return v2
 }
 "#;
@@ -1264,7 +1252,7 @@ entry(v0: int32):
         let expected = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 
@@ -1273,11 +1261,11 @@ entry(v0: int32):
     jump b1(v0)
 
 b1(v3: int32):
-    v4: int32 = int.add v3, v3
+    v4: int32 = add v3, v3
     jump b2(v4)
 
 b2(v5: int32):
-    v2: int32 = int.add v5, v0
+    v2: int32 = add v5, v0
     return v2
 }
 "#;
@@ -1354,7 +1342,7 @@ function callee(v0: int32): int32 {
 
 entry(v0: int32):
     v1: int32 = local.get l0
-    v2: int32 = int.add v1, v0
+    v2: int32 = add v1, v0
     return v2
 }
 
@@ -1371,7 +1359,7 @@ function callee(v0: int32): int32 {
 
 entry(v0: int32):
     v1: int32 = local.get l0
-    v2: int32 = int.add v1, v0
+    v2: int32 = add v1, v0
     return v2
 }
 
@@ -1383,7 +1371,7 @@ entry(v0: int32):
 
 b1(v2: int32):
     v3: int32 = local.get l0
-    v4: int32 = int.add v3, v2
+    v4: int32 = add v3, v2
     jump b2(v4)
 
 b2(v5: int32):
@@ -1473,8 +1461,8 @@ entry:
         let inlined_pointer = inlined_pointer.expect("missing inlined pointer");
         let accesses = test
             .optimized
-            .memory
-            .memory_accesses(inlined_load)
+            .accesses
+            .get(inlined_load)
             .expect("missing inlined access entries");
         assert_eq!(accesses.len(), 1);
         match accesses[0].target {
@@ -1490,12 +1478,9 @@ entry:
     fn test_inline_skips_large_callee() {
         let mut input = String::from("function callee(v0: int32): int32 {\n");
         input.push_str("b0(v0: int32):\n");
-        input.push_str("    v1: int32 = int.add v0, v0\n");
+        input.push_str("    v1: int32 = add v0, v0\n");
         for index in 2..=97 {
-            input.push_str(&format!(
-                "    v{index}: int32 = int.add v{}, v0\n",
-                index - 1
-            ));
+            input.push_str(&format!("    v{index}: int32 = add v{}, v0\n", index - 1));
         }
         input.push_str("    return v97\n");
         input.push_str("}\n");
@@ -1516,7 +1501,7 @@ entry:
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 
@@ -1530,7 +1515,7 @@ entry(v0: int32):
         let expected = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 
@@ -1539,7 +1524,7 @@ entry(v0: int32):
     jump b1(v0)
 
 b1(v1: int32):
-    v2: int32 = int.add v1, v1
+    v2: int32 = add v1, v1
     jump b2
 
 b2:
@@ -1558,15 +1543,15 @@ b2:
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
-    v2: int32 = int.add v1, v0
-    v3: int32 = int.add v2, v0
-    v4: int32 = int.add v3, v0
-    v5: int32 = int.add v4, v0
-    v6: int32 = int.add v5, v0
-    v7: int32 = int.add v6, v0
-    v8: int32 = int.add v7, v0
-    v9: int32 = int.add v8, v0
+    v1: int32 = add v0, v0
+    v2: int32 = add v1, v0
+    v3: int32 = add v2, v0
+    v4: int32 = add v3, v0
+    v5: int32 = add v4, v0
+    v6: int32 = add v5, v0
+    v7: int32 = add v6, v0
+    v8: int32 = add v7, v0
+    v9: int32 = add v8, v0
     return v9
 }
 
@@ -1594,15 +1579,15 @@ entry(v0: int32):
         let input = r#"
 function helper(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
-    v2: int32 = int.add v1, v0
-    v3: int32 = int.add v2, v0
-    v4: int32 = int.add v3, v0
-    v5: int32 = int.add v4, v0
-    v6: int32 = int.add v5, v0
-    v7: int32 = int.add v6, v0
-    v8: int32 = int.add v7, v0
-    v9: int32 = int.add v8, v0
+    v1: int32 = add v0, v0
+    v2: int32 = add v1, v0
+    v3: int32 = add v2, v0
+    v4: int32 = add v3, v0
+    v5: int32 = add v4, v0
+    v6: int32 = add v5, v0
+    v7: int32 = add v6, v0
+    v8: int32 = add v7, v0
+    v9: int32 = add v8, v0
     return v9
 }
 
@@ -1626,15 +1611,15 @@ entry(v0: int32):
         let expected = r#"
 function helper(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
-    v2: int32 = int.add v1, v0
-    v3: int32 = int.add v2, v0
-    v4: int32 = int.add v3, v0
-    v5: int32 = int.add v4, v0
-    v6: int32 = int.add v5, v0
-    v7: int32 = int.add v6, v0
-    v8: int32 = int.add v7, v0
-    v9: int32 = int.add v8, v0
+    v1: int32 = add v0, v0
+    v2: int32 = add v1, v0
+    v3: int32 = add v2, v0
+    v4: int32 = add v3, v0
+    v5: int32 = add v4, v0
+    v6: int32 = add v5, v0
+    v7: int32 = add v6, v0
+    v8: int32 = add v7, v0
+    v9: int32 = add v8, v0
     return v9
 }
 
@@ -1696,8 +1681,8 @@ entry0:
         let hot = hotness.classify(100, 100);
         let cold = hotness.classify(1, 100);
 
-        assert_eq!(hot, CallsiteHotness::Hot);
-        assert_eq!(cold, CallsiteHotness::Cold);
+        assert_eq!(hot, Hotness::Hot);
+        assert_eq!(cold, Hotness::Cold);
     }
 
     /// InlineFunctions replaces multiple returns with a continuation.
@@ -1709,11 +1694,11 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     return v3
 
 b2:
-    v4: int32 = int.sub v0, v1
+    v4: int32 = sub v0, v1
     return v4
 }
 
@@ -1730,11 +1715,11 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     return v3
 
 b2:
-    v4: int32 = int.sub v0, v1
+    v4: int32 = sub v0, v1
     return v4
 }
 
@@ -1746,11 +1731,11 @@ b1(v4: int32, v5: int32, v6: boolean):
     branch v6 => b2 | b3
 
 b2:
-    v7: int32 = int.add v4, v5
+    v7: int32 = add v4, v5
     jump b4(v7)
 
 b3:
-    v8: int32 = int.sub v4, v5
+    v8: int32 = sub v4, v5
     jump b4(v8)
 
 b4(v9: int32):
@@ -1769,7 +1754,7 @@ b4(v9: int32):
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 
@@ -1786,7 +1771,7 @@ b1(v2: int32):
         let expected = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 
@@ -1798,7 +1783,7 @@ b1(v2: int32):
     return v2
 
 b2(v3: int32):
-    v4: int32 = int.add v3, v3
+    v4: int32 = add v3, v3
     jump b3(v4)
 
 b3(v5: int32):
@@ -1817,7 +1802,7 @@ b3(v5: int32):
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 

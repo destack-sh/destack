@@ -5,48 +5,45 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, BlockParamForwarding, ConstantPropagation, ControlFlowGraph, DominatorTree,
-    LoopAnalysis, LoopEffectPolicy, MemoryAccessEffect, MemorySSA, Mutation, ValueDefinitions,
-    ValueEquivalence, block_is_speculatable_no_reads, clone_instruction_tables,
-    collect_loop_effects, control_instructions_for_latch, instruction_is_speculatable,
-    instruction_map, loop_guard_branch, loop_preheader,
+    AliasTable, BlockParamForwarding, ConstantTable, ControlTable, DefinitionTable, DominatorTable,
+    LoopEffectPolicy, LoopTable, MemoryAccessEffect, MemoryTable, Mutation, ValueEquivalence,
+    block_is_speculatable_no_reads, clone_instruction_tables, collect_loop_effects,
+    control_instructions_for_latch, instruction_is_speculatable, instruction_map,
+    loop_guard_branch, loop_preheader,
 };
 
 declare_pass! {
     /// Fuse adjacent loops with identical bounds and independent bodies.
-    ///
-    /// This pass merges two sequential loops into one by interleaving their bodies
-    /// per iteration when they share the same induction bounds and do not alias.
     ///
     /// ```mir
     /// function before(v0: uint32): void {
     ///     local l0: [int32; 16]
     ///     local l1: [int32; 16]
     /// b0(v0: uint32):
-    ///     v1 = local.address l0 -> ref<[int32; 16], borrowed, mutable, frame>
-    ///     v2 = local.address l1 -> ref<[int32; 16], borrowed, mutable, frame>
-    ///     v3 = 0uint32
-    ///     v4 = 1uint32
+    ///     v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
+    ///     v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l1
+    ///     v3: uint32 = 0
+    ///     v4: uint32 = 1
     ///     jump b1(v3)
     /// b1(v5: uint32):
-    ///     v6 = int.lt.u v5, v0
+    ///     v6: boolean = lt v5, v0
     ///     branch v6 => b2(v5) | b3
     /// b2(v7: uint32):
-    ///     v8 = element.address v1, v7 -> ref<int32, borrowed, mutable, frame>
-    ///     v9 = 1int32
+    ///     v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
+    ///     v9: int32 = 1
     ///     store v8, v9
-    ///     v10 = int.add v7, v4
+    ///     v10: uint32 = add v7, v4
     ///     jump b1(v10)
     /// b3:
     ///     jump b4(v3)
     /// b4(v11: uint32):
-    ///     v12 = int.lt.u v11, v0
+    ///     v12: boolean = lt v11, v0
     ///     branch v12 => b5(v11) | b6
     /// b5(v13: uint32):
-    ///     v14 = element.address v2, v13 -> ref<int32, borrowed, mutable, frame>
-    ///     v15 = 2int32
+    ///     v14: ref<int32, borrowed, mutable, frame> = element.address v2, v13
+    ///     v15: int32 = 2
     ///     store v14, v15
-    ///     v16 = int.add v13, v4
+    ///     v16: uint32 = add v13, v4
     ///     jump b4(v16)
     /// b6:
     ///     return
@@ -58,22 +55,22 @@ declare_pass! {
     ///     local l0: [int32; 16]
     ///     local l1: [int32; 16]
     /// b0(v0: uint32):
-    ///     v1 = local.address l0 -> ref<[int32; 16], borrowed, mutable, frame>
-    ///     v2 = local.address l1 -> ref<[int32; 16], borrowed, mutable, frame>
-    ///     v3 = 0uint32
-    ///     v4 = 1uint32
+    ///     v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
+    ///     v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l1
+    ///     v3: uint32 = 0
+    ///     v4: uint32 = 1
     ///     jump b1(v3)
     /// b1(v5: uint32):
-    ///     v6 = int.lt.u v5, v0
+    ///     v6: boolean = lt v5, v0
     ///     branch v6 => b2(v5) | b6
     /// b2(v7: uint32):
-    ///     v8 = element.address v1, v7 -> ref<int32, borrowed, mutable, frame>
-    ///     v9 = 1int32
+    ///     v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
+    ///     v9: int32 = 1
     ///     store v8, v9
-    ///     v14 = element.address v2, v7 -> ref<int32, borrowed, mutable, frame>
-    ///     v15 = 2int32
+    ///     v14: ref<int32, borrowed, mutable, frame> = element.address v2, v7
+    ///     v15: int32 = 2
     ///     store v14, v15
-    ///     v10 = int.add v7, v4
+    ///     v10: uint32 = add v7, v4
     ///     jump b1(v10)
     /// b6:
     ///     return
@@ -91,29 +88,29 @@ impl FunctionPass for FuseLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &optimized.effects;
 
         // gather analyses
         let loops = analyses.loops(function, tree).clone();
-        let cfg = analyses.control_flow(function, tree).clone();
-        let domtree = analyses.dominators(function, tree).clone();
-        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+        let cfg = analyses.control(function, tree).clone();
+        let domtree = analyses.dominator(function, tree).clone();
+        let memory = analyses.memory(function, tree, accesses, effects);
         let alias = analyses.alias(function, tree).clone();
-        let constants = analyses.constants(function, tree);
+        let constants = analyses.constant(function, tree);
 
         // run loop fusion
         let changed = run_fuse_loops(
             function,
             tree,
-            memory,
+            accesses,
             &loops,
             &cfg,
             &domtree,
-            memory_ssa.as_ref(),
+            memory.as_ref(),
             &alias,
             constants.as_ref(),
         );
@@ -124,16 +121,6 @@ impl FunctionPass for FuseLoops {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "FuseLoops"
-    }
-
-    /// Return the pass id.
-    fn id(&self) -> &'static str {
-        "fuse-loops"
     }
 }
 
@@ -183,16 +170,16 @@ struct GuardInfo {
 fn run_fuse_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    loops: &LoopAnalysis,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
-    constants: &ConstantPropagation,
+    accesses: &mut mir::AccessTable,
+    loops: &LoopTable,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
+    memory: &MemoryTable,
+    alias: &AliasTable,
+    constants: &ConstantTable,
 ) -> bool {
     // build definition maps
-    let definitions = ValueDefinitions::build(function, tree).instruction_map();
+    let definitions = DefinitionTable::build(function, tree).instruction_map();
     let forwarding = BlockParamForwarding::build(function, tree, cfg);
 
     // locate a fusion candidate
@@ -206,10 +193,10 @@ fn run_fuse_loops(
             function,
             loops,
             tree,
-            memory,
+            accesses,
             cfg,
             domtree,
-            memory_ssa,
+            memory,
             alias,
             constants,
             &forwarding,
@@ -222,7 +209,7 @@ fn run_fuse_loops(
     };
 
     // apply the fusion
-    apply_fusion(function, tree, memory, cfg, &candidate, &definitions)
+    apply_fusion(function, tree, accesses, cfg, &candidate, &definitions)
 }
 
 /// Build a fusion candidate from a loop.
@@ -230,14 +217,14 @@ fn build_fusion_candidate(
     loop_index: usize,
     lp: &mir::Loop,
     function: &mir::Function,
-    loops: &LoopAnalysis,
+    loops: &LoopTable,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
-    memory_ssa: &MemorySSA,
-    alias: &AliasAnalysis,
-    constants: &ConstantPropagation,
+    accesses: &mir::AccessTable,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
+    memory: &MemoryTable,
+    alias: &AliasTable,
+    constants: &ConstantTable,
     forwarding: &BlockParamForwarding,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     equivalence: &mut ValueEquivalence<'_>,
@@ -273,10 +260,18 @@ fn build_fusion_candidate(
     }
 
     // resolve guard info
-    let loop_guard = guard_info(lp.header, latch, tree, constants, forwarding, definitions)?;
+    let loop_guard = guard_info(
+        lp.header,
+        latch,
+        function,
+        tree,
+        constants,
+        forwarding,
+        definitions,
+    )?;
 
     // reject non speculatable instructions in the latch
-    if !latch_is_speculatable(latch, tree, memory, memory_ssa) {
+    if !latch_is_speculatable(latch, function, tree, accesses, memory) {
         return None;
     }
 
@@ -286,9 +281,10 @@ fn build_fusion_candidate(
     let body_instructions = latch_body_instructions(latch, tree, &control_instructions);
     let body_effects = collect_loop_effects(
         &lp.blocks,
+        function,
         tree,
+        accesses,
         memory,
-        memory_ssa,
         LoopEffectPolicy::ReadWrite,
     )?;
 
@@ -366,7 +362,7 @@ fn build_fusion_candidate(
     }
 
     // require droppable header instructions
-    if !block_is_speculatable_no_reads(second_loop.header, tree, memory_ssa) {
+    if !block_is_speculatable_no_reads(second_loop.header, function, tree, memory) {
         return None;
     }
 
@@ -374,6 +370,7 @@ fn build_fusion_candidate(
     let second_guard_info = guard_info(
         second_loop.header,
         *second_loop.latches.first()?,
+        function,
         tree,
         constants,
         forwarding,
@@ -381,7 +378,13 @@ fn build_fusion_candidate(
     )?;
 
     // reject non speculatable instructions in the latch
-    if !latch_is_speculatable(*second_loop.latches.first()?, tree, memory, memory_ssa) {
+    if !latch_is_speculatable(
+        *second_loop.latches.first()?,
+        function,
+        tree,
+        accesses,
+        memory,
+    ) {
         return None;
     }
 
@@ -396,9 +399,10 @@ fn build_fusion_candidate(
     let second_body = latch_body_instructions(*second_loop.latches.first()?, tree, &second_control);
     let second_effects = collect_loop_effects(
         &second_loop.blocks,
+        function,
         tree,
+        accesses,
         memory,
-        memory_ssa,
         LoopEffectPolicy::ReadWrite,
     )?;
 
@@ -441,8 +445,9 @@ fn build_fusion_candidate(
 fn guard_info(
     header: mir::LocalNodeId<mir::Block>,
     latch: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
     tree: &mir::Tree,
-    constants: &ConstantPropagation,
+    constants: &ConstantTable,
     forwarding: &BlockParamForwarding,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<GuardInfo> {
@@ -467,16 +472,13 @@ fn guard_info(
         return None;
     };
 
-    // require strict comparisons
-    let (is_signed, is_strict) = match operator {
-        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::SignedGreaterThan => {
-            (true, true)
-        }
-        mir::BinaryOperator::UnsignedLessThan | mir::BinaryOperator::UnsignedGreaterThan => {
-            (false, true)
-        }
+    // require a strict integer comparison
+    match operator {
+        mir::BinaryOperator::LessThan | mir::BinaryOperator::GreaterThan => {}
         _ => return None,
-    };
+    }
+    let operand_type = function.expect_value_type(*left);
+    let is_signed = tree.get(operand_type).integer_signedness()?;
 
     // resolve the induction parameter
     let induction_index = header_block
@@ -499,35 +501,22 @@ fn guard_info(
     }
 
     // reject less than guards with non positive steps
-    if matches!(
-        *operator,
-        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan
-    ) && step <= 0
-    {
+    if matches!(*operator, mir::BinaryOperator::LessThan) && step <= 0 {
         return None;
     }
 
     // reject greater than guards with non negative steps
-    if matches!(
-        *operator,
-        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan
-    ) && step >= 0
-    {
+    if matches!(*operator, mir::BinaryOperator::GreaterThan) && step >= 0 {
         return None;
     }
 
-    // build guard info for strict comparisons
-    if is_strict {
-        Some(GuardInfo {
-            induction_index,
-            bound: *right,
-            operator: *operator,
-            step,
-            is_signed,
-        })
-    } else {
-        None
-    }
+    Some(GuardInfo {
+        induction_index,
+        bound: *right,
+        operator: *operator,
+        step,
+        is_signed,
+    })
 }
 
 /// Resolve the induction step for a header parameter.
@@ -536,7 +525,7 @@ fn induction_step(
     latch: mir::LocalNodeId<mir::Block>,
     induction_index: usize,
     tree: &mir::Tree,
-    constants: &ConstantPropagation,
+    constants: &ConstantTable,
     forwarding: &BlockParamForwarding,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<i64> {
@@ -589,9 +578,10 @@ fn induction_step(
 /// Check whether a latch contains only speculatable instructions.
 fn latch_is_speculatable(
     latch: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
-    memory_ssa: &MemorySSA,
+    accesses: &mir::AccessTable,
+    memory: &MemoryTable,
 ) -> bool {
     // scan latch instructions
     let block = tree.get(latch);
@@ -599,7 +589,7 @@ fn latch_is_speculatable(
         let instruction = tree.get(*instruction_id);
 
         // accept speculatable instructions
-        if instruction_is_speculatable(instruction, tree) {
+        if instruction_is_speculatable(instruction, function, tree) {
             continue;
         }
 
@@ -622,9 +612,10 @@ fn latch_is_speculatable(
     blocks.insert(latch);
     collect_loop_effects(
         &blocks,
+        function,
         tree,
+        accesses,
         memory,
-        memory_ssa,
         LoopEffectPolicy::ReadWrite,
     )
     .is_some()
@@ -650,7 +641,7 @@ fn latch_body_instructions(
 fn effects_are_independent(
     first: &[MemoryAccessEffect],
     second: &[MemoryAccessEffect],
-    alias: &AliasAnalysis,
+    alias: &AliasTable,
 ) -> bool {
     // compare each pair
     for effect in first {
@@ -737,7 +728,7 @@ fn preheader_args_match(
 fn const_i64(
     value: mir::Value,
     block: mir::LocalNodeId<mir::Block>,
-    constants: &ConstantPropagation,
+    constants: &ConstantTable,
 ) -> Option<i64> {
     // resolve the constant for this block
     let constant = constants.exit(block).get(value)?;
@@ -752,8 +743,8 @@ fn const_i64(
 fn apply_fusion(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    cfg: &ControlFlowGraph,
+    accesses: &mut mir::AccessTable,
+    cfg: &ControlTable,
     candidate: &FusionCandidate,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> bool {
@@ -853,7 +844,13 @@ fn apply_fusion(
         let original = tree.get(instruction_id).clone();
         let new_instruction = instruction_map(&original, &value_map, tree);
         let new_instruction_id = tree.insert(new_instruction);
-        clone_instruction_tables(tree, memory, instruction_id, new_instruction_id, &value_map);
+        clone_instruction_tables(
+            tree,
+            accesses,
+            instruction_id,
+            new_instruction_id,
+            &value_map,
+        );
         new_instructions.push(new_instruction_id);
     }
 
@@ -935,28 +932,28 @@ entry(v0: uint32):
     jump b1(v3)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
-    v10: uint32 = int.add v7, v4
+    v10: uint32 = add v7, v4
     jump b1(v10)
 
 b3:
     jump b4(v3)
 
 b4(v11: uint32):
-    v12: boolean = int.lt.u v11, v0
+    v12: boolean = lt v11, v0
     branch v12 => b5(v11) | b6
 
 b5(v13: uint32):
     v14: ref<int32, borrowed, mutable, frame> = element.address v2, v13
     v15: int32 = 2
     store v14, v15
-    v16: uint32 = int.add v13, v4
+    v16: uint32 = add v13, v4
     jump b4(v16)
 
 b6:
@@ -977,7 +974,7 @@ entry(v0: uint32):
     jump b1(v3)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
@@ -987,7 +984,7 @@ b2(v7: uint32):
     v17: ref<int32, borrowed, mutable, frame> = element.address v2, v7
     v18: int32 = 2
     store v17, v18
-    v10: uint32 = int.add v7, v4
+    v10: uint32 = add v7, v4
     jump b1(v10)
 
 b3:
@@ -1016,26 +1013,26 @@ entry(v0: uint32):
     jump b1(v3, v5)
 
 b1(v6: uint32, v7: uint32):
-    v8: boolean = int.lt.u v6, v0
+    v8: boolean = lt v6, v0
     branch v8 => b2(v6, v7) | b3
 
 b2(v9: uint32, v10: uint32):
     v11: ref<int32, borrowed, mutable, frame> = element.address v1, v9
     store v11, v10
-    v12: uint32 = int.add v9, v4
+    v12: uint32 = add v9, v4
     jump b1(v12, v10)
 
 b3:
     jump b4(v3, v5)
 
 b4(v13: uint32, v14: uint32):
-    v15: boolean = int.lt.u v13, v0
+    v15: boolean = lt v13, v0
     branch v15 => b5(v13, v14) | b6
 
 b5(v16: uint32, v17: uint32):
     v18: ref<int32, borrowed, mutable, frame> = element.address v2, v16
     store v18, v17
-    v19: uint32 = int.add v16, v4
+    v19: uint32 = add v16, v4
     jump b4(v19, v17)
 
 b6:
@@ -1057,7 +1054,7 @@ entry(v0: uint32):
     jump b1(v3, v5)
 
 b1(v6: uint32, v7: uint32):
-    v8: boolean = int.lt.u v6, v0
+    v8: boolean = lt v6, v0
     branch v8 => b2(v6, v7) | b3
 
 b2(v9: uint32, v10: uint32):
@@ -1065,7 +1062,7 @@ b2(v9: uint32, v10: uint32):
     store v11, v10
     v20: ref<int32, borrowed, mutable, frame> = element.address v2, v9
     store v20, v10
-    v12: uint32 = int.add v9, v4
+    v12: uint32 = add v9, v4
     jump b1(v12, v10)
 
 b3:
@@ -1091,28 +1088,28 @@ entry(v0: uint32):
     jump b1(v2)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v0
+    v5: boolean = lt v4, v0
     branch v5 => b2(v4) | b3
 
 b2(v6: uint32):
     v7: ref<int32, borrowed, mutable, frame> = element.address v1, v6
     v8: int32 = 1
     store v7, v8
-    v9: uint32 = int.add v6, v3
+    v9: uint32 = add v6, v3
     jump b1(v9)
 
 b3:
     jump b4(v2)
 
 b4(v10: uint32):
-    v11: boolean = int.lt.u v10, v0
+    v11: boolean = lt v10, v0
     branch v11 => b5(v10) | b6
 
 b5(v12: uint32):
     v13: ref<int32, borrowed, mutable, frame> = element.address v1, v12
     v14: int32 = 2
     store v13, v14
-    v15: uint32 = int.add v12, v3
+    v15: uint32 = add v12, v3
     jump b4(v15)
 
 b6:
@@ -1140,14 +1137,14 @@ entry(v0: uint32):
     jump b1(v3)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
-    v10: uint32 = int.add v7, v4
+    v10: uint32 = add v7, v4
     jump b1(v10)
 
 b3:
@@ -1155,14 +1152,14 @@ b3:
     jump b4(v3)
 
 b4(v12: uint32):
-    v13: boolean = int.lt.u v12, v0
+    v13: boolean = lt v12, v0
     branch v13 => b5(v12) | b6
 
 b5(v14: uint32):
     v15: ref<int32, borrowed, mutable, frame> = element.address v2, v14
     v16: int32 = 2
     store v15, v16
-    v17: uint32 = int.add v14, v4
+    v17: uint32 = add v14, v4
     jump b4(v17)
 
 b6:
@@ -1190,28 +1187,28 @@ entry(v0: uint32, v1: uint32):
     jump b1(v4)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v0
+    v7: boolean = lt v6, v0
     branch v7 => b2(v6) | b3
 
 b2(v8: uint32):
     v9: ref<int32, borrowed, mutable, frame> = element.address v2, v8
     v10: int32 = 1
     store v9, v10
-    v11: uint32 = int.add v8, v5
+    v11: uint32 = add v8, v5
     jump b1(v11)
 
 b3:
     jump b4(v4)
 
 b4(v12: uint32):
-    v13: boolean = int.lt.u v12, v1
+    v13: boolean = lt v12, v1
     branch v13 => b5(v12) | b6
 
 b5(v14: uint32):
     v15: ref<int32, borrowed, mutable, frame> = element.address v3, v14
     v16: int32 = 2
     store v15, v16
-    v17: uint32 = int.add v14, v5
+    v17: uint32 = add v14, v5
     jump b4(v17)
 
 b6:
@@ -1239,14 +1236,14 @@ entry(v0: uint32):
     jump b1(v3)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
-    v10: uint32 = int.add v7, v4
+    v10: uint32 = add v7, v4
     jump b1(v10)
 
 b3:
@@ -1254,14 +1251,14 @@ b3:
 
 b4(v11: uint32):
     v12: int32 = load v2
-    v13: boolean = int.lt.u v11, v0
+    v13: boolean = lt v11, v0
     branch v13 => b5(v11) | b6
 
 b5(v14: uint32):
     v15: ref<int32, borrowed, mutable, frame> = element.address v2, v14
     v16: int32 = 2
     store v15, v16
-    v17: uint32 = int.add v14, v4
+    v17: uint32 = add v14, v4
     jump b4(v17)
 
 b6:
@@ -1289,29 +1286,29 @@ entry(v0: uint32):
     jump b1(v3)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
-    v10: uint32 = int.add v7, v4
+    v10: uint32 = add v7, v4
     jump b1(v10)
 
 b3:
     jump b4(v3)
 
 b4(v11: uint32):
-    v12: uint32 = int.add v11, v4
-    v13: boolean = int.lt.u v11, v0
+    v12: uint32 = add v11, v4
+    v13: boolean = lt v11, v0
     branch v13 => b5(v11) | b6
 
 b5(v14: uint32):
     v15: ref<int32, borrowed, mutable, frame> = element.address v2, v14
     v16: int32 = 2
     store v15, v16
-    v17: uint32 = int.add v12, v4
+    v17: uint32 = add v12, v4
     jump b4(v17)
 
 b6:
@@ -1339,21 +1336,21 @@ entry(v0: uint32):
     jump b1(v3)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
-    v10: uint32 = int.add v7, v4
+    v10: uint32 = add v7, v4
     jump b1(v10)
 
 b3:
     jump b4(v3)
 
 b4(v11: uint32):
-    v12: boolean = int.lt.u v11, v0
+    v12: boolean = lt v11, v0
     branch v12 => b5(v11) | b6
 
 b5(v13: uint32):
@@ -1361,7 +1358,7 @@ b5(v13: uint32):
     v14: ref<int32, borrowed, mutable, frame> = element.address v2, v13
     v15: int32 = 2
     store v14, v15
-    v16: uint32 = int.add v13, v4
+    v16: uint32 = add v13, v4
     jump b4(v16)
 
 b6:
@@ -1394,14 +1391,14 @@ entry(v0: uint32):
     jump b1(v3)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
-    v10: uint32 = int.add v7, v4
+    v10: uint32 = add v7, v4
     jump b1(v10)
 
 b3:
@@ -1411,14 +1408,14 @@ b4(v11: uint32):
     jump b5(v11)
 
 b5(v12: uint32):
-    v13: boolean = int.lt.u v12, v0
+    v13: boolean = lt v12, v0
     branch v13 => b6(v12) | b7
 
 b6(v14: uint32):
     v15: ref<int32, borrowed, mutable, frame> = element.address v2, v14
     v16: int32 = 2
     store v15, v16
-    v17: uint32 = int.add v14, v4
+    v17: uint32 = add v14, v4
     jump b5(v17)
 
 b7:
@@ -1448,28 +1445,28 @@ entry(v0: uint32):
     jump b1(v3, v5)
 
 b1(v7: uint32, v8: uint32):
-    v9: boolean = int.lt.u v7, v0
+    v9: boolean = lt v7, v0
     branch v9 => b2(v7, v8) | b3
 
 b2(v10: uint32, v11: uint32):
     v12: ref<int32, borrowed, mutable, frame> = element.address v1, v10
     v13: int32 = 1
     store v12, v13
-    v14: uint32 = int.add v10, v4
+    v14: uint32 = add v10, v4
     jump b1(v14, v11)
 
 b3:
     jump b4(v3, v6)
 
 b4(v15: uint32, v16: uint32):
-    v17: boolean = int.lt.u v15, v0
+    v17: boolean = lt v15, v0
     branch v17 => b5(v15, v16) | b6
 
 b5(v18: uint32, v19: uint32):
     v20: ref<int32, borrowed, mutable, frame> = element.address v2, v18
     v21: int32 = 2
     store v20, v21
-    v22: uint32 = int.add v18, v4
+    v22: uint32 = add v18, v4
     jump b4(v22, v19)
 
 b6:
@@ -1498,28 +1495,28 @@ entry(v0: uint32):
     jump b1(v3)
 
 b1(v6: uint32):
-    v7: boolean = int.lt.u v6, v0
+    v7: boolean = lt v6, v0
     branch v7 => b2(v6) | b3
 
 b2(v8: uint32):
     v9: ref<int32, borrowed, mutable, frame> = element.address v1, v8
     v10: int32 = 1
     store v9, v10
-    v11: uint32 = int.add v8, v4
+    v11: uint32 = add v8, v4
     jump b1(v11)
 
 b3:
     jump b4(v3)
 
 b4(v12: uint32):
-    v13: boolean = int.lt.u v12, v0
+    v13: boolean = lt v12, v0
     branch v13 => b5(v12) | b6
 
 b5(v14: uint32):
     v15: ref<int32, borrowed, mutable, frame> = element.address v2, v14
     v16: int32 = 2
     store v15, v16
-    v17: uint32 = int.add v14, v5
+    v17: uint32 = add v14, v5
     jump b4(v17)
 
 b6:

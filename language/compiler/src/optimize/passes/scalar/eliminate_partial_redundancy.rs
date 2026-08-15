@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AvailableExpressions, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, Mutation,
-    PureExpression, UseDefMaps, ValueTypes, append_edge_arguments, apply_substitutions_in_function,
+    ControlTable, DominatorTable, EdgeSplitPolicy, ExpressionTable, Mutation, PureExpression,
+    UseDefMaps, ValueTypeTable, append_edge_arguments, apply_substitutions_in_function,
     build_use_def_maps, collect_reachable_blocks, compute_dominance_frontiers, ensure_edge_block,
     instruction_has_side_effects, instruction_is_speculatable,
 };
@@ -14,21 +14,17 @@ use destack_mir::{
 declare_pass! {
     /// Eliminate partially redundant expressions by inserting computations.
     ///
-    /// This pass computes SSA like phi values for pure expressions at join points.
-    /// This pass inserts missing computations on incoming edges.
-    /// This pass removes redundant recomputations dominated by the new values.
-    ///
     /// ```mir
     /// function before(v0: int32, v1: int32, v2: boolean): int32 {
     /// b0(v0: int32, v1: int32, v2: boolean):
     ///     branch v2 => b1 | b2
     /// b1:
-    ///     v3 = int.add v0, v1
+    ///     v3: int32 = add v0, v1
     ///     jump b3
     /// b2:
     ///     jump b3
     /// b3:
-    ///     v4 = int.add v0, v1
+    ///     v4: int32 = add v0, v1
     ///     return v4
     /// }
     /// ```
@@ -38,10 +34,10 @@ declare_pass! {
     /// b0(v0: int32, v1: int32, v2: boolean):
     ///     branch v2 => b1 | b2
     /// b1:
-    ///     v3 = int.add v0, v1
+    ///     v3: int32 = add v0, v1
     ///     jump b3(v3)
     /// b2:
-    ///     v4 = int.add v0, v1
+    ///     v4: int32 = add v0, v1
     ///     jump b3(v4)
     /// b3(v5: int32):
     ///     return v5
@@ -59,10 +55,10 @@ impl FunctionPass for EliminatePartialRedundancy {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip imported functions
         let Some(entry) = function.entry() else {
@@ -70,17 +66,17 @@ impl FunctionPass for EliminatePartialRedundancy {
         };
 
         // gather analyses
-        let cfg = analyses.control_flow(function, tree).clone();
-        let domtree = analyses.dominators(function, tree).clone();
-        let available = AvailableExpressions::build(function, tree, &cfg);
-        let value_types = analyses.value_types(function, tree);
+        let cfg = analyses.control(function, tree).clone();
+        let domtree = analyses.dominator(function, tree).clone();
+        let available = analyses.expression(function, tree);
+        let value_types = analyses.value_type(function, tree);
 
         // run PRE
         let changed = run_pre(
             entry,
             function,
             tree,
-            memory,
+            accesses,
             &cfg,
             &domtree,
             &available,
@@ -93,16 +89,6 @@ impl FunctionPass for EliminatePartialRedundancy {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the display name for this pass.
-    fn name(&self) -> &'static str {
-        "EliminatePartialRedundancy"
-    }
-
-    /// Return the pipeline identifier for this pass.
-    fn id(&self) -> &'static str {
-        "eliminate-partial-redundancy"
     }
 }
 
@@ -151,11 +137,11 @@ fn run_pre(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
-    available: &AvailableExpressions,
-    value_types: &ValueTypes,
+    accesses: &mut mir::AccessTable,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
+    available: &ExpressionTable,
+    value_types: &ValueTypeTable,
 ) -> bool {
     // collect reachable blocks
     let reachable = collect_reachable_blocks(function, tree, entry);
@@ -192,7 +178,7 @@ fn run_pre(
             let value_type = value_types.expect_value_type(destination);
 
             // track whether the expression can be speculated
-            let is_speculatable = instruction_is_speculatable(instruction, tree);
+            let is_speculatable = instruction_is_speculatable(instruction, function, tree);
 
             // record template for the expression
             templates
@@ -405,10 +391,10 @@ fn run_pre(
 
     if inserted {
         // inserted instructions may enable more substitutions
-        apply_substitutions_in_function(function, tree, memory, &substitutions, Some(&to_remove));
+        apply_substitutions_in_function(function, tree, accesses, &substitutions, Some(&to_remove));
         true
     } else if changed || !substitutions.is_empty() || !to_remove.is_empty() {
-        apply_substitutions_in_function(function, tree, memory, &substitutions, Some(&to_remove));
+        apply_substitutions_in_function(function, tree, accesses, &substitutions, Some(&to_remove));
         true
     } else {
         false
@@ -461,7 +447,7 @@ fn expression_operands(key: &PureExpression) -> Vec<mir::Value> {
 fn phi_is_useful(
     block: &mir::LocalNodeId<mir::Block>,
     occurrences: &[ExpressionOccurrence],
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> bool {
     // check whether this block dominates any occurrence
     occurrences
@@ -474,9 +460,9 @@ fn phi_is_fillable(
     block: &mir::LocalNodeId<mir::Block>,
     key: &PureExpression,
     function: &mir::Function,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
-    available: &AvailableExpressions,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
+    available: &ExpressionTable,
     use_def: &UseDefMaps,
 ) -> bool {
     // every predecessor must either have the expression available or be able to compute it
@@ -498,7 +484,7 @@ fn operands_available_in_block(
     key: &PureExpression,
     block: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
     use_def: &UseDefMaps,
 ) -> bool {
     // collect operands for the expression
@@ -520,7 +506,7 @@ fn value_available_in_block(
     value: mir::Value,
     block: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
     use_def: &UseDefMaps,
 ) -> bool {
     // function parameters are always available
@@ -543,7 +529,7 @@ fn value_available_in_block(
 /// Build a list of dominator tree children for each block.
 fn build_dominator_children(
     function: &mir::Function,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
     let mut children: HashMap<_, Vec<_>> = HashMap::new();
 
@@ -659,7 +645,7 @@ fn insert_expression_in_block(
     tree: &mut mir::Tree,
     template: Option<&ExpressionTemplate>,
     use_def: &UseDefMaps,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> Option<mir::Value> {
     // require a template describing how to rebuild the expression
     let template = template?;
@@ -759,14 +745,14 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     jump b3
 
 b2:
     jump b3
 
 b3:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     return v4
 }
 "#;
@@ -777,11 +763,11 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     jump b3(v3)
 
 b2:
-    v6: int32 = int.add v0, v1
+    v6: int32 = add v0, v1
     jump b3(v6)
 
 b3(v5: int32):
@@ -803,14 +789,14 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     jump b3
 
 b2:
     branch v2 => b3 | b4
 
 b3:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     return v4
 
 b4:
@@ -824,14 +810,14 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     jump b4(v3)
 
 b2:
     branch v2 => b3 | b5
 
 b3:
-    v6: int32 = int.add v0, v1
+    v6: int32 = add v0, v1
     jump b4(v6)
 
 b4(v5: int32):
@@ -856,11 +842,11 @@ entry(v0: int32, v1: int32, v2: int32):
     switch v2, b2, 0 => b1
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     jump b2
 
 b2:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     return v4
 }
 "#;
@@ -871,11 +857,11 @@ entry(v0: int32, v1: int32, v2: int32):
     switch v2, b1, 0 => b2
 
 b1:
-    v6: int32 = int.add v0, v1
+    v6: int32 = add v0, v1
     jump b3(v6)
 
 b2:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     jump b3(v3)
 
 b3(v5: int32):
@@ -898,7 +884,7 @@ entry(v0: int32, v1: int32, v2: int32):
     switch v2, b2, 0 => b1, 1 => b3(v3)
 
 b1:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     jump b3(v3)
 
 b2:
@@ -906,7 +892,7 @@ b2:
     return v5
 
 b3(v6: int32):
-    v7: int32 = int.add v0, v1
+    v7: int32 = add v0, v1
     return v7
 }
 "#;
@@ -918,11 +904,11 @@ entry(v0: int32, v1: int32, v2: int32):
     switch v2, b3, 0 => b2, 1 => b1
 
 b1:
-    v9: int32 = int.add v0, v1
+    v9: int32 = add v0, v1
     jump b4(v3, v9)
 
 b2:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     jump b4(v3, v4)
 
 b3:
@@ -948,15 +934,15 @@ entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
     branch v2 => b1 | b2
 
 b1:
-    v4: uint32 = int.add v0, v1
-    v5: boolean = int.lt.u v0, v1
+    v4: uint32 = add v0, v1
+    v5: boolean = lt v0, v1
     check bounds.u v0, v1, v3 => b3 | b4
 
 b2:
     jump b3
 
 b3:
-    v6: uint32 = int.add v0, v1
+    v6: uint32 = add v0, v1
     return v6
 
 b4:
@@ -970,15 +956,15 @@ entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
     branch v2 => b1 | b3
 
 b1:
-    v4: uint32 = int.add v0, v1
-    v5: boolean = int.lt.u v0, v1
+    v4: uint32 = add v0, v1
+    v5: boolean = lt v0, v1
     check bounds.u v0, v1, v3 => b2 | b5
 
 b2:
     jump b4(v4)
 
 b3:
-    v8: uint32 = int.add v0, v1
+    v8: uint32 = add v0, v1
     jump b4(v8)
 
 b4(v7: uint32):
@@ -1003,8 +989,8 @@ entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
     branch v2 => b1 | b2
 
 b1:
-    v4: uint32 = int.add v0, v1
-    v5: boolean = int.lt.u v0, v1
+    v4: uint32 = add v0, v1
+    v5: boolean = lt v0, v1
     check bounds.u v0, v1, v3 => b3 | b4
 
 b2:
@@ -1014,7 +1000,7 @@ b3:
     return v4
 
 b4:
-    v6: uint32 = int.add v0, v1
+    v6: uint32 = add v0, v1
     return v6
 }
 "#;
@@ -1025,15 +1011,15 @@ entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
     branch v2 => b1 | b3
 
 b1:
-    v4: uint32 = int.add v0, v1
-    v5: boolean = int.lt.u v0, v1
+    v4: uint32 = add v0, v1
+    v5: boolean = lt v0, v1
     check bounds.u v0, v1, v3 => b4 | b2
 
 b2:
     jump b5(v4)
 
 b3:
-    v8: uint32 = int.add v0, v1
+    v8: uint32 = add v0, v1
     jump b5(v8)
 
 b4:
@@ -1058,14 +1044,14 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.div.s v0, v1
+    v3: int32 = div v0, v1
     jump b3
 
 b2:
     jump b3
 
 b3:
-    v4: int32 = int.div.s v0, v1
+    v4: int32 = div v0, v1
     return v4
 }
 "#;
@@ -1150,7 +1136,7 @@ b2:
     jump b3
 
 b3:
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
@@ -1166,7 +1152,7 @@ b3:
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1176,7 +1162,7 @@ b2:
     jump b3
 
 b3:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     return v4
 }
 "#;

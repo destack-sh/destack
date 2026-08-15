@@ -7,13 +7,10 @@ use destack_mir::Mutation;
 declare_pass! {
     /// Eliminate redundant guard checks when conditions are proven.
     ///
-    /// Uses control flow state, assume instructions, and range analysis to
-    /// remove checks that are guaranteed to take one edge.
-    ///
     /// ```mir
     /// function before(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
     /// b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    ///     v3 = int.eq v0, v1
+    ///     v3: boolean = eq v0, v1
     ///     branch v3 => b1 | b2
     /// b1:
     ///     check bounds.u v0, v1, v2 => b3 | b4
@@ -29,7 +26,7 @@ declare_pass! {
     /// ```mir
     /// function after(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
     /// b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    ///     v3 = int.eq v0, v1
+    ///     v3: boolean = eq v0, v1
     ///     branch v3 => b1 | b2
     /// b1:
     ///     jump b3
@@ -53,7 +50,7 @@ impl FunctionPass for EliminateGuards {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -63,7 +60,7 @@ impl FunctionPass for EliminateGuards {
         };
 
         // gather analyses
-        let ranges = analyses.ranges(function, tree).clone();
+        let ranges = analyses.range(function, tree).clone();
 
         // scan blocks for eliminable checks
         let mut changed = false;
@@ -98,16 +95,6 @@ impl FunctionPass for EliminateGuards {
             Mutation::NONE
         }
     }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "EliminateGuards"
-    }
-
-    /// Return the pass id.
-    fn id(&self) -> &'static str {
-        "eliminate-guards"
-    }
 }
 
 /// Replace a check terminator with a direct jump.
@@ -133,7 +120,7 @@ mod tests {
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
+    v3: boolean = eq v0, v1
     branch v3 => b1 | b2
 
 b1:
@@ -152,7 +139,7 @@ b4:
         let expected = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
+    v3: boolean = eq v0, v1
     branch v3 => b1 | b2
 
 b1:
@@ -180,7 +167,7 @@ b4:
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
+    v3: boolean = eq v0, v1
     assume v3
     check bounds.u v0, v1, v2 => b1 | b2
 
@@ -194,7 +181,7 @@ b2:
         let expected = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
+    v3: boolean = eq v0, v1
     assume v3
     check bounds.u v0, v1, v2 => b1 | b2
 
@@ -252,8 +239,8 @@ b2:
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
-    v4: boolean = int.not v3
+    v3: boolean = eq v0, v1
+    v4: boolean = not v3
     branch v3 => b1 | b2
 
 b1:
@@ -272,8 +259,8 @@ b4:
         let expected = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
-    v4: boolean = int.not v3
+    v3: boolean = eq v0, v1
+    v4: boolean = not v3
     branch v3 => b1 | b2
 
 b1:
@@ -301,7 +288,7 @@ b4:
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
+    v3: boolean = eq v0, v1
     branch v3 => b1(v3) | b2(v3)
 
 b1(v4: boolean):
@@ -320,7 +307,7 @@ b4:
         let expected = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
+    v3: boolean = eq v0, v1
     branch v3 => b1(v3) | b2(v3)
 
 b1(v4: boolean):
@@ -679,7 +666,7 @@ function test(v0: boolean): int8 {
 entry(v0: boolean):
     v1: int8 = 1
     v2: int8 = 2
-    check int.add.overflow.s v1, v2 => b1 | b2
+    check add.overflow.s v1, v2 => b1 | b2
 
 b1:
     return v1
@@ -716,7 +703,7 @@ function test(v0: boolean): int8 {
 entry(v0: boolean):
     v1: int8 = 120
     v2: int8 = 120
-    check int.add.overflow.s v1, v2 => b1 | b2
+    check add.overflow.s v1, v2 => b1 | b2
 
 b1:
     unreachable

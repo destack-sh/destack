@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation, RangeAnalysis, ScalarEvolution,
-    Scev, TargetLayout, ValueRange, ValueTypes, clone_instruction_tables, constant_is_zero,
+    ControlTable, DominatorTable, EvolutionTable, Loop, LoopTable, Mutation, RangeTable, Scev,
+    TargetLayout, ValueRange, ValueTypeTable, clone_instruction_tables, constant_is_zero,
     instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -14,23 +14,20 @@ use destack_mir::{
 declare_pass! {
     /// Reduce strength of loop expressions derived from induction variables.
     ///
-    /// Rewrites loop values with linear recurrences into explicit header
-    /// parameters updated by simple additions in the latch.
-    ///
     /// ```mir
     /// function before(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = 0int32
-    ///     v2 = 4int32
-    ///     v3 = 1int32
+    ///     v1: int32 = 0
+    ///     v2: int32 = 4
+    ///     v3: int32 = 1
     ///     jump b1(v1)
     /// b1(v4: int32):
-    ///     v5 = int.lt.s v4, v0
+    ///     v5: boolean = lt v4, v0
     ///     branch v5 => b2 | b3
     /// b2:
-    ///     v6 = int.mul v4, v2
-    ///     v7 = int.add v6, v3
-    ///     v8 = int.add v4, v3
+    ///     v6: int32 = mul v4, v2
+    ///     v7: int32 = add v6, v3
+    ///     v8: int32 = add v4, v3
     ///     jump b1(v8)
     /// b3:
     ///     return v4
@@ -40,18 +37,18 @@ declare_pass! {
     /// ```mir
     /// function after(v0: int32): int32 {
     /// b0(v0: int32):
-    ///     v1 = 0int32
-    ///     v2 = 4int32
-    ///     v3 = 1int32
+    ///     v1: int32 = 0
+    ///     v2: int32 = 4
+    ///     v3: int32 = 1
     ///     jump b1(v1, v1)
     /// b1(v4: int32, v9: int32):
-    ///     v5 = int.lt.s v4, v0
+    ///     v5: boolean = lt v4, v0
     ///     branch v5 => b2 | b3
     /// b2:
-    ///     v6 = int.mul v4, v2
-    ///     v7 = int.add v9, v3
-    ///     v8 = int.add v4, v3
-    ///     v10 = int.add v9, v2
+    ///     v6: int32 = mul v4, v2
+    ///     v7: int32 = add v9, v3
+    ///     v8: int32 = add v4, v3
+    ///     v10: int32 = add v9, v2
     ///     jump b1(v8, v10)
     /// b3:
     ///     return v4
@@ -69,10 +66,10 @@ impl FunctionPass for ReduceLoopStrength {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip imported functions
         if function.entry().is_none() {
@@ -81,11 +78,11 @@ impl FunctionPass for ReduceLoopStrength {
 
         // gather analyses
         let loops = analyses.loops(function, tree).clone();
-        let cfg = analyses.control_flow(function, tree).clone();
-        let domtree = analyses.dominators(function, tree).clone();
-        let scev = analyses.scalar_evolution(function, tree).clone();
-        let ranges = analyses.ranges(function, tree).clone();
-        let value_types = analyses.value_types(function, tree);
+        let cfg = analyses.control(function, tree).clone();
+        let domtree = analyses.dominator(function, tree).clone();
+        let scev = analyses.evolution(function, tree).clone();
+        let ranges = analyses.range(function, tree).clone();
+        let value_types = analyses.value_type(function, tree);
 
         // skip when no loops are present
         if loops.num_loops() == 0 {
@@ -102,22 +99,12 @@ impl FunctionPass for ReduceLoopStrength {
             ranges: &ranges,
             target_layout: ctx.target_layout(),
         };
-        let changed = run_reduce_loop_strength(function, tree, memory, &context);
+        let changed = run_reduce_loop_strength(function, tree, accesses, &context);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the display name for this pass.
-    fn name(&self) -> &'static str {
-        "ReduceLoopStrength"
-    }
-
-    /// Return the stable id for this pass.
-    fn id(&self) -> &'static str {
-        "reduce-loop-strength"
     }
 }
 
@@ -180,12 +167,12 @@ struct ValueDefinition {
 
 /// Map of values to their definitions.
 #[derive(Debug)]
-struct ValueDefinitions {
+struct DefinitionTable {
     /// Definitions keyed by value.
     definitions: HashMap<mir::Value, ValueDefinition>,
 }
 
-impl ValueDefinitions {
+impl DefinitionTable {
     /// Build a definition map for a function.
     fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         // collect parameter and instruction definitions
@@ -235,12 +222,12 @@ impl ValueDefinitions {
 
 /// Map of values to the blocks where they are used.
 #[derive(Debug)]
-struct ValueUses {
+struct UseTable {
     /// Use sites keyed by value.
     uses: HashMap<mir::Value, HashSet<mir::LocalNodeId<mir::Block>>>,
 }
 
-impl ValueUses {
+impl UseTable {
     /// Build a use map for a function.
     fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         // collect value uses per block
@@ -284,17 +271,17 @@ impl ValueUses {
 /// Shared context for strength reduction.
 struct StrengthReduceContext<'a> {
     /// Loop analysis results.
-    loops: &'a LoopAnalysis,
+    loops: &'a LoopTable,
     /// Control flow graph for the function.
-    cfg: &'a ControlFlowGraph,
+    cfg: &'a ControlTable,
     /// Dominator tree for the function.
-    domtree: &'a DominatorTree,
+    domtree: &'a DominatorTable,
     /// Scalar evolution analysis.
-    scev: &'a ScalarEvolution,
+    scev: &'a EvolutionTable,
     /// Value type lookup for the function.
-    value_types: &'a ValueTypes,
+    value_types: &'a ValueTypeTable,
     /// Range analysis for loop invariants.
-    ranges: &'a RangeAnalysis,
+    ranges: &'a RangeTable,
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
@@ -304,21 +291,21 @@ struct CandidateContext<'a> {
     /// tree for the function.
     tree: &'a mir::Tree,
     /// Loop analysis results.
-    loops: &'a LoopAnalysis,
+    loops: &'a LoopTable,
     /// Control flow graph for the function.
-    cfg: &'a ControlFlowGraph,
+    cfg: &'a ControlTable,
     /// Dominator tree for the function.
-    domtree: &'a DominatorTree,
+    domtree: &'a DominatorTable,
     /// Scalar evolution analysis.
-    scev: &'a ScalarEvolution,
+    scev: &'a EvolutionTable,
     /// Value type lookup for the function.
-    value_types: &'a ValueTypes,
+    value_types: &'a ValueTypeTable,
     /// Value definition tables.
-    definitions: &'a ValueDefinitions,
+    definitions: &'a DefinitionTable,
     /// Value use tables.
-    uses: &'a ValueUses,
+    uses: &'a UseTable,
     /// Range analysis for safety checks.
-    ranges: &'a RangeAnalysis,
+    ranges: &'a RangeTable,
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
@@ -479,12 +466,12 @@ impl<'a> CandidateContext<'a> {
 fn run_reduce_loop_strength(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     context: &StrengthReduceContext<'_>,
 ) -> bool {
     // build definition and use tables
-    let definitions = ValueDefinitions::build(function, tree);
-    let uses = ValueUses::build(function, tree);
+    let definitions = DefinitionTable::build(function, tree);
+    let uses = UseTable::build(function, tree);
 
     // collect candidates across loops
     let candidates_context = CandidateContext {
@@ -536,7 +523,7 @@ fn run_reduce_loop_strength(
         let loop_substitutions = apply_candidates_for_loop(
             function,
             tree,
-            memory,
+            accesses,
             &loop_candidates,
             &definitions,
             context.value_types,
@@ -573,7 +560,7 @@ fn run_reduce_loop_strength(
             // replace instructions that changed
             if new_instruction != instruction {
                 tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
+                remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
             }
         }
     }
@@ -600,12 +587,12 @@ fn run_reduce_loop_strength(
 fn apply_candidates_for_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     candidates: &[StrengthReductionCandidate],
-    definitions: &ValueDefinitions,
-    value_types: &ValueTypes,
-    ranges: &RangeAnalysis,
-    domtree: &DominatorTree,
+    definitions: &DefinitionTable,
+    value_types: &ValueTypeTable,
+    ranges: &RangeTable,
+    domtree: &DominatorTable,
     target_layout: TargetLayout,
 ) -> Vec<(mir::Value, mir::Value)> {
     // skip empty candidate lists
@@ -622,7 +609,7 @@ fn apply_candidates_for_loop(
     // build a materializer for the preheader
     let mut materializer = ScevMaterializer::new(
         tree,
-        memory,
+        accesses,
         preheader,
         loop_blocks,
         definitions,
@@ -739,10 +726,8 @@ fn instruction_is_candidate(instruction: &mir::Instruction) -> bool {
         mir::Instruction::Binary { operator, .. } => matches!(
             operator,
             mir::BinaryOperator::Multiply
-                | mir::BinaryOperator::SignedDivide
-                | mir::BinaryOperator::UnsignedDivide
-                | mir::BinaryOperator::SignedRemainder
-                | mir::BinaryOperator::UnsignedRemainder
+                | mir::BinaryOperator::Divide
+                | mir::BinaryOperator::Remainder
         ),
         _ => false,
     }
@@ -774,13 +759,18 @@ fn division_is_safe(
     left: mir::Value,
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    ranges: &RangeAnalysis,
-    value_types: &ValueTypes,
+    ranges: &RangeTable,
+    value_types: &ValueTypeTable,
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> bool {
+    let operand_type = value_types.expect_value_type(left);
+    let Some(is_signed) = tree.get(operand_type).integer_signedness() else {
+        return false;
+    };
+
     match operator {
-        mir::BinaryOperator::SignedDivide | mir::BinaryOperator::SignedRemainder => {
+        mir::BinaryOperator::Divide | mir::BinaryOperator::Remainder if is_signed => {
             signed_division_is_safe(
                 left,
                 right,
@@ -791,7 +781,7 @@ fn division_is_safe(
                 tree,
             )
         }
-        mir::BinaryOperator::UnsignedDivide | mir::BinaryOperator::UnsignedRemainder => {
+        mir::BinaryOperator::Divide | mir::BinaryOperator::Remainder => {
             unsigned_division_is_safe(right, block_id, ranges)
         }
         _ => true,
@@ -803,8 +793,8 @@ fn signed_division_is_safe(
     left: mir::Value,
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    ranges: &RangeAnalysis,
-    value_types: &ValueTypes,
+    ranges: &RangeTable,
+    value_types: &ValueTypeTable,
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> bool {
@@ -842,7 +832,7 @@ fn signed_division_is_safe(
 fn unsigned_division_is_safe(
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    ranges: &RangeAnalysis,
+    ranges: &RangeTable,
 ) -> bool {
     let Some(range) = unsigned_integer_range(right, block_id, ranges) else {
         return false;
@@ -855,7 +845,7 @@ fn unsigned_division_is_safe(
 fn signed_integer_range(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    ranges: &RangeAnalysis,
+    ranges: &RangeTable,
 ) -> Option<IntegerRange> {
     let range = ranges.exit(block_id).get(value)?;
     let ValueRange::Integer {
@@ -884,7 +874,7 @@ fn signed_integer_range(
 fn unsigned_integer_range(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    ranges: &RangeAnalysis,
+    ranges: &RangeTable,
 ) -> Option<IntegerRange> {
     let range = ranges.exit(block_id).get(value)?;
     let ValueRange::Integer {
@@ -935,7 +925,7 @@ fn integer_range_excludes_minus_one(range: &IntegerRange) -> bool {
 /// Extract the signed minimum for a value type.
 fn signed_min_for_value(
     value: mir::Value,
-    value_types: &ValueTypes,
+    value_types: &ValueTypeTable,
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> Option<i128> {
@@ -973,7 +963,7 @@ fn signed_min_for_width(width: u16) -> Option<i128> {
 fn uses_within_loop(
     value: mir::Value,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    uses: &ValueUses,
+    uses: &UseTable,
 ) -> bool {
     // skip values with no uses
     let Some(use_blocks) = uses.blocks_for(value) else {
@@ -993,8 +983,8 @@ fn uses_within_loop(
 /// Find the loop preheader from dominance information.
 fn find_preheader(
     lp: &Loop,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    domtree: &DominatorTable,
 ) -> Option<mir::LocalNodeId<mir::Block>> {
     // require immediate dominator outside the loop
     let preheader = domtree.immediate_dominator(lp.header)?;
@@ -1179,19 +1169,19 @@ struct ScevMaterializer<'a> {
     /// Mutable tree reference.
     tree: &'a mut mir::Tree,
     /// Mutable memory metadata reference.
-    memory: &'a mut mir::MemoryTable,
+    accesses: &'a mut mir::AccessTable,
     /// Preheader block id.
     preheader: mir::LocalNodeId<mir::Block>,
     /// Blocks inside the loop.
     loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
     /// Value definitions for the function.
-    definitions: &'a ValueDefinitions,
+    definitions: &'a DefinitionTable,
     /// Value type lookup for the function.
-    value_types: &'a ValueTypes,
+    value_types: &'a ValueTypeTable,
     /// Range analysis for invariant checks.
-    ranges: &'a RangeAnalysis,
+    ranges: &'a RangeTable,
     /// Dominator tree for availability checks.
-    domtree: &'a DominatorTree,
+    domtree: &'a DominatorTable,
     /// Cached constants in the preheader.
     constant_cache: Vec<(mir::Constant, mir::Value)>,
     /// Cached scev to value mappings.
@@ -1210,13 +1200,13 @@ impl<'a> ScevMaterializer<'a> {
     /// Create a new materializer for the preheader.
     fn new(
         tree: &'a mut mir::Tree,
-        memory: &'a mut mir::MemoryTable,
+        accesses: &'a mut mir::AccessTable,
         preheader: mir::LocalNodeId<mir::Block>,
         loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
-        definitions: &'a ValueDefinitions,
-        value_types: &'a ValueTypes,
-        ranges: &'a RangeAnalysis,
-        domtree: &'a DominatorTree,
+        definitions: &'a DefinitionTable,
+        value_types: &'a ValueTypeTable,
+        ranges: &'a RangeTable,
+        domtree: &'a DominatorTable,
         target_layout: TargetLayout,
     ) -> Self {
         // collect constants already in the preheader
@@ -1237,7 +1227,7 @@ impl<'a> ScevMaterializer<'a> {
 
         Self {
             tree,
-            memory,
+            accesses,
             preheader,
             loop_blocks,
             definitions,
@@ -1293,7 +1283,7 @@ impl<'a> ScevMaterializer<'a> {
                 let right_value = self.materialize(function, right)?;
                 self.insert_binary(
                     function,
-                    mir::BinaryOperator::SignedDivide,
+                    mir::BinaryOperator::Divide,
                     left_value,
                     right_value,
                 )
@@ -1308,7 +1298,7 @@ impl<'a> ScevMaterializer<'a> {
                 let right_value = self.materialize(function, right)?;
                 self.insert_binary(
                     function,
-                    mir::BinaryOperator::UnsignedDivide,
+                    mir::BinaryOperator::Divide,
                     left_value,
                     right_value,
                 )
@@ -1323,7 +1313,7 @@ impl<'a> ScevMaterializer<'a> {
                 let right_value = self.materialize(function, right)?;
                 self.insert_binary(
                     function,
-                    mir::BinaryOperator::SignedRemainder,
+                    mir::BinaryOperator::Remainder,
                     left_value,
                     right_value,
                 )
@@ -1338,7 +1328,7 @@ impl<'a> ScevMaterializer<'a> {
                 let right_value = self.materialize(function, right)?;
                 self.insert_binary(
                     function,
-                    mir::BinaryOperator::UnsignedRemainder,
+                    mir::BinaryOperator::Remainder,
                     left_value,
                     right_value,
                 )
@@ -1358,7 +1348,7 @@ impl<'a> ScevMaterializer<'a> {
                 let right_value = self.materialize(function, right)?;
                 self.insert_binary(
                     function,
-                    mir::BinaryOperator::ArithmeticShiftRight,
+                    mir::BinaryOperator::ShiftRight,
                     left_value,
                     right_value,
                 )
@@ -1368,7 +1358,7 @@ impl<'a> ScevMaterializer<'a> {
                 let right_value = self.materialize(function, right)?;
                 self.insert_binary(
                     function,
-                    mir::BinaryOperator::LogicalShiftRight,
+                    mir::BinaryOperator::UnsignedShiftRight,
                     left_value,
                     right_value,
                 )
@@ -1532,7 +1522,7 @@ impl<'a> ScevMaterializer<'a> {
                     None
                 } else {
                     let instruction_data = self.tree.get(instruction).clone();
-                    if !instruction_is_speculatable(&instruction_data, self.tree) {
+                    if !instruction_is_speculatable(&instruction_data, function, self.tree) {
                         None
                     } else {
                         self.clone_speculatable_instruction(
@@ -1594,7 +1584,7 @@ impl<'a> ScevMaterializer<'a> {
         let cloned_id = self.insert_instruction(function, cloned);
         clone_instruction_tables(
             self.tree,
-            self.memory,
+            self.accesses,
             instruction_id,
             cloned_id,
             &value_map,
@@ -1851,13 +1841,13 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.lt.s v4, v0
+    v5: boolean = lt v4, v0
     branch v5 => b2 | b3
 
 b2:
-    v6: int32 = int.mul v4, v3
-    v7: int32 = int.add v6, v2
-    v8: int32 = int.add v4, v2
+    v6: int32 = mul v4, v3
+    v7: int32 = add v6, v2
+    v8: int32 = add v4, v2
     jump b1(v8)
 
 b3:
@@ -1875,14 +1865,14 @@ entry(v0: int32):
     jump b1(v1, v1)
 
 b1(v4: int32, v9: int32):
-    v5: boolean = int.lt.s v4, v0
+    v5: boolean = lt v4, v0
     branch v5 => b2 | b3
 
 b2:
-    v6: int32 = int.mul v4, v3
-    v7: int32 = int.add v9, v2
-    v8: int32 = int.add v4, v2
-    v10: int32 = int.add v9, v3
+    v6: int32 = mul v4, v3
+    v7: int32 = add v9, v2
+    v8: int32 = add v4, v2
+    v10: int32 = add v9, v3
     jump b1(v8, v10)
 
 b3:
@@ -1908,13 +1898,13 @@ entry(v0: int32, v1: int32):
     jump b1(v2)
 
 b1(v4: int32):
-    v5: boolean = int.lt.s v4, v0
+    v5: boolean = lt v4, v0
     branch v5 => b2 | b3
 
 b2:
-    v6: int32 = int.mul v4, v1
-    v7: int32 = int.add v6, v3
-    v8: int32 = int.add v4, v3
+    v6: int32 = mul v4, v1
+    v7: int32 = add v6, v3
+    v8: int32 = add v4, v3
     jump b1(v8)
 
 b3:
@@ -1931,14 +1921,14 @@ entry(v0: int32, v1: int32):
     jump b1(v2, v2)
 
 b1(v4: int32, v9: int32):
-    v5: boolean = int.lt.s v4, v0
+    v5: boolean = lt v4, v0
     branch v5 => b2 | b3
 
 b2:
-    v6: int32 = int.mul v4, v1
-    v7: int32 = int.add v9, v3
-    v8: int32 = int.add v4, v3
-    v10: int32 = int.add v9, v1
+    v6: int32 = mul v4, v1
+    v7: int32 = add v9, v3
+    v8: int32 = add v4, v3
+    v10: int32 = add v9, v1
     jump b1(v8, v10)
 
 b3:
@@ -1965,14 +1955,14 @@ entry(v0: int32, v1: int32, v2: boolean):
     jump b1(v3)
 
 b1(v6: int32):
-    v7: boolean = int.lt.s v6, v0
+    v7: boolean = lt v6, v0
     branch v7 => b2 | b3
 
 b2:
     v8: int32 = select v2, v1, v5
-    v9: int32 = int.mul v6, v8
-    v10: int32 = int.add v9, v4
-    v11: int32 = int.add v6, v4
+    v9: int32 = mul v6, v8
+    v10: int32 = add v9, v4
+    v11: int32 = add v6, v4
     jump b1(v11)
 
 b3:
@@ -1991,15 +1981,15 @@ entry(v0: int32, v1: int32, v2: boolean):
     jump b1(v3, v3)
 
 b1(v6: int32, v13: int32):
-    v7: boolean = int.lt.s v6, v0
+    v7: boolean = lt v6, v0
     branch v7 => b2 | b3
 
 b2:
     v8: int32 = select v2, v1, v5
-    v9: int32 = int.mul v6, v8
-    v10: int32 = int.add v13, v4
-    v11: int32 = int.add v6, v4
-    v14: int32 = int.add v13, v12
+    v9: int32 = mul v6, v8
+    v10: int32 = add v13, v4
+    v11: int32 = add v6, v4
+    v14: int32 = add v13, v12
     jump b1(v11, v14)
 
 b3:
@@ -2027,15 +2017,15 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v5: int32):
-    v6: boolean = int.lt.s v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2 | b3
 
 b2:
-    v7: int32 = int.mul v5, v3
-    v8: int32 = int.add v7, v4
-    v9: int32 = int.add v5, v2
-    v10: int32 = int.mul v5, v4
-    v11: int32 = int.add v10, v2
+    v7: int32 = mul v5, v3
+    v8: int32 = add v7, v4
+    v9: int32 = add v5, v2
+    v10: int32 = mul v5, v4
+    v11: int32 = add v10, v2
     jump b1(v9)
 
 b3:
@@ -2054,17 +2044,17 @@ entry(v0: int32):
     jump b1(v1, v1, v1)
 
 b1(v5: int32, v12: int32, v14: int32):
-    v6: boolean = int.lt.s v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2 | b3
 
 b2:
-    v7: int32 = int.mul v5, v3
-    v8: int32 = int.add v12, v4
-    v9: int32 = int.add v5, v2
-    v10: int32 = int.mul v5, v4
-    v11: int32 = int.add v14, v2
-    v13: int32 = int.add v12, v3
-    v15: int32 = int.add v14, v4
+    v7: int32 = mul v5, v3
+    v8: int32 = add v12, v4
+    v9: int32 = add v5, v2
+    v10: int32 = mul v5, v4
+    v11: int32 = add v14, v2
+    v13: int32 = add v12, v3
+    v15: int32 = add v14, v4
     jump b1(v9, v13, v15)
 
 b3:
@@ -2085,7 +2075,7 @@ b3:
         let input = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    v3: boolean = int.eq v0, v0
+    v3: boolean = eq v0, v0
     branch v3 => b1 | b2
 
 b1:
@@ -2096,12 +2086,12 @@ b2:
 
 b3(v4: int32):
     v5: int32 = 1
-    v6: boolean = int.lt.s v4, v0
+    v6: boolean = lt v4, v0
     branch v6 => b4 | b5
 
 b4:
-    v7: int32 = int.mul v4, v5
-    v8: int32 = int.add v4, v5
+    v7: int32 = mul v4, v5
+    v8: int32 = add v4, v5
     jump b3(v8)
 
 b5:
@@ -2125,17 +2115,17 @@ entry(v0: int32):
     v1: int32 = 0
     v2: int32 = 1
     v3: int32 = 4
-    v4: boolean = int.eq v0, v0
+    v4: boolean = eq v0, v0
     branch v4 => b1(v1) | b4
 
 b1(v5: int32):
-    v6: boolean = int.lt.s v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2 | b3
 
 b2:
-    v7: int32 = int.mul v5, v3
-    v8: int32 = int.add v7, v2
-    v9: int32 = int.add v5, v2
+    v7: int32 = mul v5, v3
+    v8: int32 = add v7, v2
+    v9: int32 = add v5, v2
     jump b1(v9)
 
 b3:
@@ -2153,18 +2143,18 @@ entry(v0: int32):
     v1: int32 = 0
     v2: int32 = 1
     v3: int32 = 4
-    v4: boolean = int.eq v0, v0
+    v4: boolean = eq v0, v0
     branch v4 => b1(v1, v1) | b4
 
 b1(v5: int32, v10: int32):
-    v6: boolean = int.lt.s v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2 | b3
 
 b2:
-    v7: int32 = int.mul v5, v3
-    v8: int32 = int.add v10, v2
-    v9: int32 = int.add v5, v2
-    v11: int32 = int.add v10, v3
+    v7: int32 = mul v5, v3
+    v8: int32 = add v10, v2
+    v9: int32 = add v5, v2
+    v11: int32 = add v10, v3
     jump b1(v9, v11)
 
 b3:
@@ -2195,13 +2185,13 @@ entry(v0: int32):
     switch v4, b3, 0 => b1(v1)
 
 b1(v5: int32):
-    v6: boolean = int.lt.s v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2 | b3
 
 b2:
-    v7: int32 = int.mul v5, v3
-    v8: int32 = int.add v7, v2
-    v9: int32 = int.add v5, v2
+    v7: int32 = mul v5, v3
+    v8: int32 = add v7, v2
+    v9: int32 = add v5, v2
     jump b1(v9)
 
 b3:
@@ -2220,14 +2210,14 @@ entry(v0: int32):
     switch v4, b3, 0 => b1(v1, v1)
 
 b1(v5: int32, v10: int32):
-    v6: boolean = int.lt.s v5, v0
+    v6: boolean = lt v5, v0
     branch v6 => b2 | b3
 
 b2:
-    v7: int32 = int.mul v5, v3
-    v8: int32 = int.add v10, v2
-    v9: int32 = int.add v5, v2
-    v11: int32 = int.add v10, v3
+    v7: int32 = mul v5, v3
+    v8: int32 = add v10, v2
+    v9: int32 = add v5, v2
+    v11: int32 = add v10, v3
     jump b1(v9, v11)
 
 b3:
@@ -2254,12 +2244,12 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v4: int32):
-    v5: boolean = int.lt.s v4, v0
+    v5: boolean = lt v4, v0
     branch v5 => b2 | b3(v4)
 
 b2:
-    v6: int32 = int.mul v4, v3
-    v7: int32 = int.add v4, v2
+    v6: int32 = mul v4, v3
+    v7: int32 = add v4, v2
     branch v5 => b1(v7) | b3(v6)
 
 b3(v8: int32):
@@ -2277,13 +2267,13 @@ entry(v0: int32):
     jump b1(v1, v1)
 
 b1(v4: int32, v9: int32):
-    v5: boolean = int.lt.s v4, v0
+    v5: boolean = lt v4, v0
     branch v5 => b2 | b3(v4)
 
 b2:
-    v6: int32 = int.mul v4, v3
-    v7: int32 = int.add v4, v2
-    v10: int32 = int.add v9, v3
+    v6: int32 = mul v4, v3
+    v7: int32 = add v4, v2
+    v10: int32 = add v9, v3
     branch v5 => b1(v7, v10) | b3(v9)
 
 b3(v8: int32):
@@ -2310,14 +2300,14 @@ entry(v0: [int32; 8]):
     jump b1(v1)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2 | b4
 
 b2:
-    v6: uint32 = int.mul v4, v3
-    v7: uint32 = int.add v6, v2
-    v8: uint32 = int.add v4, v2
-    v9: boolean = int.lt.u v8, v3
+    v6: uint32 = mul v4, v3
+    v7: uint32 = add v6, v2
+    v8: uint32 = add v4, v2
+    v9: boolean = lt v8, v3
     check bounds.u v8, v3, v0 => b1(v8) | b3
 
 b3:
@@ -2338,15 +2328,15 @@ entry(v0: [int32; 8]):
     jump b1(v1, v1)
 
 b1(v4: uint32, v10: uint32):
-    v5: boolean = int.lt.u v4, v3
+    v5: boolean = lt v4, v3
     branch v5 => b2 | b4
 
 b2:
-    v6: uint32 = int.mul v4, v3
-    v7: uint32 = int.add v10, v2
-    v8: uint32 = int.add v4, v2
-    v9: boolean = int.lt.u v8, v3
-    v11: uint32 = int.add v10, v3
+    v6: uint32 = mul v4, v3
+    v7: uint32 = add v10, v2
+    v8: uint32 = add v4, v2
+    v9: boolean = lt v8, v3
+    v11: uint32 = add v10, v3
     check bounds.u v8, v3, v0 => b1(v8, v11) | b3
 
 b3:
@@ -2375,12 +2365,12 @@ entry(v0: int32):
     jump b1(v1)
 
 b1(v3: int32):
-    v4: boolean = int.lt.s v3, v0
+    v4: boolean = lt v3, v0
     branch v4 => b2 | b3
 
 b2:
-    v5: int32 = int.add v3, v2
-    v6: int32 = int.add v5, v2
+    v5: int32 = add v3, v2
+    v6: int32 = add v5, v2
     jump b1(v5)
 
 b3:
@@ -2406,13 +2396,13 @@ entry(v0: int32, v1: int32):
     jump b1(v2)
 
 b1(v4: int32):
-    v5: boolean = int.lt.s v4, v0
+    v5: boolean = lt v4, v0
     branch v5 => b2 | b3
 
 b2:
-    v6: int32 = int.div.s v0, v1
-    v7: int32 = int.mul v4, v6
-    v8: int32 = int.add v4, v3
+    v6: int32 = div v0, v1
+    v7: int32 = mul v4, v6
+    v8: int32 = add v4, v3
     jump b1(v8)
 
 b3:
@@ -2438,12 +2428,12 @@ entry(v0: int32):
     jump b1(v0)
 
 b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
+    v4: boolean = lt v3, v1
     branch v4 => b2 | b3
 
 b2:
-    v5: int32 = int.div.s v3, v2
-    v6: int32 = int.add v3, v1
+    v5: int32 = div v3, v2
+    v6: int32 = add v3, v1
     jump b1(v6)
 
 b3:

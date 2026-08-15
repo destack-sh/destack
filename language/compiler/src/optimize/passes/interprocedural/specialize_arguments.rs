@@ -10,9 +10,9 @@ use crate::optimize::{
     FunctionPass, MirOptimized, ModulePass, PipelineContext, run_function_passes,
 };
 use destack_mir::{
-    CallsiteHotness, ConstantPropagation, Mutation, ParameterRemap, SignatureKey,
-    apply_constant_parameters, clone_instruction_tables, constant_arguments_for_parameters,
-    instruction_map_with_locals, terminator_remap,
+    ConstantTable, Hotness, Mutation, ParameterRemap, SignatureKey, apply_constant_parameters,
+    clone_instruction_tables, constant_arguments_for_parameters, instruction_map_with_locals,
+    terminator_remap,
 };
 
 /// Maximum specializations per function.
@@ -23,21 +23,17 @@ const MAX_SPECIALIZE_TOTAL: usize = 32;
 declare_pass! {
     /// Clone functions for constant argument callsites.
     ///
-    /// This pass clones a callee for callsites with constant arguments and
-    /// rewrites those callsites to target the specialized clone. The clone
-    /// substitutes constant parameters and drops removable parameters.
-    ///
     /// ```mir
     /// function callee(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
-    ///     v2 = int.add v0, v1
+    ///     v2: int32 = add v0, v1
     ///     return v2
     /// }
     /// function root(): int32 {
     /// b0:
-    ///     v0 = 2int32
-    ///     v1 = 3int32
-    ///     v2 = call callee(v0, v1)
+    ///     v0: int32 = 2
+    ///     v1: int32 = 3
+    ///     v2: int32 = call callee(v0, v1): (int32, int32) => int32
     ///     return v2
     /// }
     /// ```
@@ -45,21 +41,21 @@ declare_pass! {
     /// ```mir
     /// function callee(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
-    ///     v2 = int.add v0, v1
+    ///     v2: int32 = add v0, v1
     ///     return v2
     /// }
     /// function callee_spec0(): int32 {
     /// b0:
-    ///     v0 = 2int32
-    ///     v1 = 3int32
-    ///     v2 = int.add v0, v1
+    ///     v0: int32 = 2
+    ///     v1: int32 = 3
+    ///     v2: int32 = add v0, v1
     ///     return v2
     /// }
     /// function root(): int32 {
     /// b0:
-    ///     v0 = 2int32
-    ///     v1 = 3int32
-    ///     v2 = call callee_spec0()
+    ///     v0: int32 = 2
+    ///     v1: int32 = 3
+    ///     v2: int32 = call callee_spec0(): () => int32
     ///     return v2
     /// }
     /// ```
@@ -74,7 +70,7 @@ impl ModulePass for SpecializeArguments {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::ModuleAnalyses,
+        analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         // run the specialization pass
         let changed = run_specialize_arguments(optimized, ctx, analyses);
@@ -86,16 +82,6 @@ impl ModulePass for SpecializeArguments {
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the pass display name.
-    fn name(&self) -> &'static str {
-        "SpecializeArguments"
-    }
-
-    /// Return the pass identifier.
-    fn id(&self) -> &'static str {
-        "specialize-arguments"
     }
 }
 
@@ -163,7 +149,7 @@ enum ConstantKey {
 fn run_specialize_arguments(
     optimized: &mut MirOptimized,
     ctx: &PipelineContext<'_>,
-    analyses: &mut mir::ModuleAnalyses,
+    analyses: &mut mir::AnalysisCache,
 ) -> bool {
     let mut specialized_functions = Vec::new();
 
@@ -172,13 +158,13 @@ fn run_specialize_arguments(
         let MirOptimized {
             tree,
             layouts,
-            memory,
+            accesses,
             effects,
             ..
         } = optimized;
 
         let call_data = collect_call_data(tree);
-        let callgraph = analyses.call_graph(tree, effects);
+        let callgraph = analyses.call(tree, effects);
         let constants_by_function = build_constant_maps(tree, ctx.target_layout());
 
         let mut changed = false;
@@ -187,7 +173,7 @@ fn run_specialize_arguments(
         let mut specialization_counts: HashMap<mir::LocalNodeId<mir::Function>, usize> =
             HashMap::new();
         let mut total_specializations = 0usize;
-        let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionAnalyses> = HashMap::new();
+        let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionCache> = HashMap::new();
         let mut caller_counts: HashMap<mir::FunctionId, mir::ExecutionCounts> = HashMap::new();
 
         // process callsites for specialization
@@ -217,7 +203,7 @@ fn run_specialize_arguments(
             caller_counts.entry(callsite.caller).or_insert_with(|| {
                 let analyses = function_analyses
                     .entry(callsite.caller)
-                    .or_insert_with(|| mir::FunctionAnalyses::with_options(ctx.options.analysis));
+                    .or_insert_with(|| mir::FunctionCache::with_options(ctx.options.analysis));
                 mir::ExecutionCounts::new(tree.get(callsite.caller), tree, ctx.profile(), analyses)
             });
             let entry_count = ctx
@@ -228,8 +214,8 @@ fn run_specialize_arguments(
             let block_count = caller_counts[&callsite.caller].block(callsite.block);
             if ctx.profile().is_some() {
                 match ctx.hotness_thresholds().classify(block_count, entry_count) {
-                    CallsiteHotness::Hot => {}
-                    CallsiteHotness::Unknown | CallsiteHotness::Cold => continue,
+                    Hotness::Hot => {}
+                    Hotness::Unknown | Hotness::Cold => continue,
                 }
             }
 
@@ -257,7 +243,7 @@ fn run_specialize_arguments(
                     &constants,
                     &removal_indices,
                     tree,
-                    memory,
+                    accesses,
                     ctx,
                 );
                 specialization_cache.insert(key, new_callee);
@@ -341,7 +327,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 fn build_constant_maps(
     tree: &mir::Tree,
     target_layout: mir::TargetLayout,
-) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation> {
+) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantTable> {
     // prepare the constants map
     let mut maps = HashMap::new();
 
@@ -351,12 +337,8 @@ fn build_constant_maps(
             continue;
         }
 
-        let constants = ConstantPropagation::with_parameter_constants(
-            function,
-            tree,
-            target_layout,
-            &HashMap::new(),
-        );
+        let constants =
+            ConstantTable::with_parameter_constants(function, tree, target_layout, &HashMap::new());
         maps.insert(function_id, constants);
     }
 
@@ -366,7 +348,7 @@ fn build_constant_maps(
 /// Resolve constant arguments for a callsite.
 fn callsite_constants(
     callsite: &DirectCallSite,
-    constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation>,
+    constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantTable>,
     tree: &mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> Option<Vec<Option<mir::Constant>>> {
@@ -445,7 +427,7 @@ fn specialize_callee(
     constants: &[Option<mir::Constant>],
     removal_indices: &[usize],
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
 ) -> mir::LocalNodeId<mir::Function> {
     // build the specialized function name
@@ -454,10 +436,10 @@ fn specialize_callee(
     let name = ctx.strings.intern(&format!("{base_name}{suffix}"));
 
     // clone the function body
-    let new_function_id = clone_function(callee, name, tree, memory);
+    let new_function_id = clone_function(callee, name, tree, accesses);
 
     // insert constant parameters into the clone
-    apply_constant_parameters(new_function_id, constants, tree, memory);
+    apply_constant_parameters(new_function_id, constants, tree, accesses);
 
     // remove parameters that are constant and not required
     if !removal_indices.is_empty() {
@@ -482,7 +464,7 @@ fn simplify_specialized_functions(
 
     let mut changed = false;
     for function_id in function_ids {
-        changed |= run_function_passes(*function_id, optimized, ctx, &passes);
+        changed |= run_function_passes(*function_id, optimized, ctx, passes);
     }
 
     changed
@@ -498,7 +480,7 @@ fn clone_function(
     function_id: mir::LocalNodeId<mir::Function>,
     name: destack_core::StringId,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
 ) -> mir::LocalNodeId<mir::Function> {
     // read the original function
     let original = tree.get(function_id).clone();
@@ -543,7 +525,7 @@ fn clone_function(
             let new_id = tree.insert(remapped);
 
             // preserve memory access entries for the cloned instruction
-            clone_instruction_tables(tree, memory, instruction_id, new_id, &value_map);
+            clone_instruction_tables(tree, accesses, instruction_id, new_id, &value_map);
 
             new_instructions.push(new_id);
         }
@@ -698,7 +680,7 @@ mod tests {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 
@@ -714,7 +696,7 @@ entry:
         let expected = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 
@@ -744,7 +726,7 @@ entry:
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 
@@ -760,7 +742,7 @@ entry:
         let expected = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 
@@ -904,8 +886,8 @@ entry:
         let specialized_pointer = specialized_pointer.expect("missing specialized pointer");
         let accesses = test
             .optimized
-            .memory
-            .memory_accesses(specialized_load)
+            .accesses
+            .get(specialized_load)
             .expect("missing specialized access entries");
         assert_eq!(accesses.len(), 1);
         match accesses[0].target {
@@ -922,7 +904,7 @@ entry:
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 
@@ -952,7 +934,7 @@ entry:
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 
@@ -980,7 +962,7 @@ entry:
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 
@@ -996,7 +978,7 @@ entry:
         let expected = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 
@@ -1027,7 +1009,7 @@ entry:
 function callee(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -1035,7 +1017,7 @@ b1:
 
 b2:
     v3: int32 = 1
-    v4: int32 = int.sub v0, v3
+    v4: int32 = sub v0, v3
     v5: int32 = call callee(v4): (int32) => int32
     return v5
 }

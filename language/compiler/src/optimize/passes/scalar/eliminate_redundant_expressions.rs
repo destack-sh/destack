@@ -5,33 +5,24 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ConstantPropagation, DominatorTree, MemoryAccessEffect, MemoryAccessId,
-    MemoryNode, MemoryRegion, MemorySSA, Mutation, PureExpression, TargetLayout, ValueTypes,
+    AliasTable, ConstantTable, DominatorTable, MemoryAccessEffect, MemoryAccessId, MemoryNode,
+    MemoryRegion, MemoryTable, Mutation, PureExpression, TargetLayout, ValueTypeTable,
     apply_substitutions_in_function, instruction_has_side_effects, resolve_substitution_chains,
 };
 
 declare_pass! {
     /// Redundant expression elimination.
     ///
-    /// Eliminates redundant computations across basic blocks by walking the dominator
-    /// tree and propagating available expressions to dominated blocks. This is more
-    /// powerful than local CSE because it can eliminate an expression in a block if
-    /// the same expression was computed in a dominating block.
-    ///
-    /// Also performs cross-block aggregate forwarding: if a tuple/struct is constructed
-    /// in a dominating block, field extractions in dominated blocks are replaced with
-    /// the original operands.
-    ///
     /// ```mir
     /// function before(v0: int32, v1: int32, v2: boolean): int32 {
     /// b0(v0: int32, v1: int32, v2: boolean):
-    ///     v3 = int.add v0, v1
+    ///     v3: int32 = add v0, v1
     ///     branch v2 => b1 | b2
     /// b1:
-    ///     v4 = int.add v0, v1
+    ///     v4: int32 = add v0, v1
     ///     return v4
     /// b2:
-    ///     v5 = int.add v0, v1
+    ///     v5: int32 = add v0, v1
     ///     return v5
     /// }
     /// ```
@@ -39,7 +30,7 @@ declare_pass! {
     /// ```mir
     /// function after(v0: int32, v1: int32, v2: boolean): int32 {
     /// b0(v0: int32, v1: int32, v2: boolean):
-    ///     v3 = int.add v0, v1
+    ///     v3: int32 = add v0, v1
     ///     branch v2 => b1 | b2
     /// b1:
     ///     return v3
@@ -58,10 +49,10 @@ impl FunctionPass for EliminateRedundantExpressions {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
         let effects = &optimized.effects;
 
         // skip empty functions
@@ -71,22 +62,22 @@ impl FunctionPass for EliminateRedundantExpressions {
         };
 
         // get dominator tree children map for analysis
-        let domtree = analyses.dominators(function, tree);
+        let domtree = analyses.dominator(function, tree);
         let alias = analyses.alias(function, tree);
-        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
-        let constants = analyses.constants(function, tree);
+        let memory = analyses.memory(function, tree, accesses, effects);
+        let constants = analyses.constant(function, tree);
         let dom_children = build_dominator_children(function, domtree.as_ref());
-        let value_types = analyses.value_types(function, tree);
+        let value_types = analyses.value_type(function, tree);
 
         // run redundant-expression elimination
         let changed = run_eliminate_redundant_expressions(
             entry,
             function,
             tree,
-            memory,
+            accesses,
             &dom_children,
             &alias,
-            memory_ssa.as_ref(),
+            memory.as_ref(),
             constants.as_ref(),
             &value_types,
             ctx.target_layout(),
@@ -99,14 +90,6 @@ impl FunctionPass for EliminateRedundantExpressions {
             Mutation::NONE
         }
     }
-
-    fn name(&self) -> &'static str {
-        "EliminateRedundantExpressions"
-    }
-
-    fn id(&self) -> &'static str {
-        "eliminate-redundant-expressions"
-    }
 }
 
 /// Core redundant-expression elimination logic. Returns true if changes were made.
@@ -114,12 +97,12 @@ fn run_eliminate_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
-    constants: &ConstantPropagation,
-    value_types: &ValueTypes,
+    alias: &AliasTable,
+    memory: &MemoryTable,
+    constants: &ConstantTable,
+    value_types: &ValueTypeTable,
     target_layout: TargetLayout,
 ) -> bool {
     // run redundant-expression elimination using dominator tree traversal
@@ -128,7 +111,7 @@ fn run_eliminate_redundant_expressions(
         tree,
         dom_children,
         alias,
-        memory_ssa,
+        memory,
         constants,
         value_types,
         target_layout,
@@ -140,7 +123,7 @@ fn run_eliminate_redundant_expressions(
     }
 
     // apply substitutions and remove redundant instructions
-    apply_substitutions_in_function(function, tree, memory, &substitutions, Some(&to_remove));
+    apply_substitutions_in_function(function, tree, accesses, &substitutions, Some(&to_remove));
 
     true
 }
@@ -148,7 +131,7 @@ fn run_eliminate_redundant_expressions(
 /// Build a map from each block to its immediate children in the dominator tree.
 fn build_dominator_children(
     function: &mir::Function,
-    domtree: &DominatorTree,
+    domtree: &DominatorTable,
 ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
     // allocate the child map
     let mut children: HashMap<_, Vec<_>> = HashMap::new();
@@ -289,7 +272,7 @@ impl ScopedValueTable {
         &self,
         clobber: MemoryAccessId,
         use_effect: &MemoryAccessEffect,
-        alias: &AliasAnalysis,
+        alias: &AliasTable,
     ) -> Option<mir::Value> {
         let region = &use_effect.region;
 
@@ -369,10 +352,10 @@ fn find_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
-    constants: &ConstantPropagation,
-    value_types: &ValueTypes,
+    alias: &AliasTable,
+    memory: &MemoryTable,
+    constants: &ConstantTable,
+    value_types: &ValueTypeTable,
     target_layout: TargetLayout,
 ) -> (
     HashMap<mir::Value, mir::Value>,
@@ -403,7 +386,7 @@ fn find_redundant_expressions(
                     block_id,
                     tree,
                     alias,
-                    memory_ssa,
+                    memory,
                     constants,
                     value_types,
                     target_layout,
@@ -438,10 +421,10 @@ fn find_redundant_expressions(
 fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
-    alias: &AliasAnalysis,
-    memory_ssa: &MemorySSA,
-    _constants: &ConstantPropagation,
-    value_types: &ValueTypes,
+    alias: &AliasTable,
+    memory: &MemoryTable,
+    _constants: &ConstantTable,
+    value_types: &ValueTypeTable,
     _target_layout: TargetLayout,
     value_table: &mut ScopedValueTable,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
@@ -533,12 +516,12 @@ fn process_block(
             let destination = *destination;
 
             // resolve the memory ssa use access
-            let Some(use_access_id) = memory_ssa.first_use_access(instruction_id) else {
+            let Some(use_access_id) = memory.first_use_access(instruction_id) else {
                 continue;
             };
 
             // read the use access data
-            let MemoryNode::Use(use_access) = memory_ssa.access(use_access_id) else {
+            let MemoryNode::Use(use_access) = memory.access(use_access_id) else {
                 continue;
             };
 
@@ -553,8 +536,8 @@ fn process_block(
             }
 
             // compute the clobbering access for the load
-            let clobber = memory_ssa.clobbering_use(use_access_id, alias);
-            if matches!(memory_ssa.access(clobber), MemoryNode::Phi(_)) {
+            let clobber = memory.clobbering_use(use_access_id, alias);
+            if matches!(memory.access(clobber), MemoryNode::Phi(_)) {
                 continue;
             }
 
@@ -619,22 +602,22 @@ mod tests {
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     return v4
 
 b2:
-    v5: int32 = int.add v0, v1
+    v5: int32 = add v0, v1
     return v5
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -659,11 +642,11 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2 => b1 | b2
 
 b1:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     jump b3(v3)
 
 b2:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     jump b3(v4)
 
 b3(v5: int32):
@@ -682,31 +665,31 @@ b3(v5: int32):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     jump b1
 
 b1:
-    v3: int32 = int.mul v2, v2
+    v3: int32 = mul v2, v2
     jump b2
 
 b2:
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v3, v4
+    v4: int32 = add v0, v1
+    v5: int32 = add v3, v4
     return v5
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     jump b1
 
 b1:
-    v3: int32 = int.mul v2, v2
+    v3: int32 = mul v2, v2
     jump b2
 
 b2:
-    v5: int32 = int.add v3, v2
+    v5: int32 = add v3, v2
     return v5
 }
 "#;
@@ -722,23 +705,23 @@ b2:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     jump b1
 
 b1:
-    v3: int32 = int.add v1, v0
-    v4: int32 = int.add v2, v3
+    v3: int32 = add v1, v0
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     jump b1
 
 b1:
-    v4: int32 = int.add v2, v2
+    v4: int32 = add v2, v2
     return v4
 }
 "#;
@@ -754,33 +737,33 @@ b1:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     jump b1
 
 b1:
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.mul v3, v3
+    v3: int32 = add v0, v1
+    v4: int32 = mul v3, v3
     jump b2
 
 b2:
-    v5: int32 = int.add v0, v1
-    v6: int32 = int.mul v5, v5
-    v7: int32 = int.add v4, v6
+    v5: int32 = add v0, v1
+    v6: int32 = mul v5, v5
+    v7: int32 = add v4, v6
     return v7
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     jump b1
 
 b1:
-    v4: int32 = int.mul v2, v2
+    v4: int32 = mul v2, v2
     jump b2
 
 b2:
-    v7: int32 = int.add v4, v4
+    v7: int32 = add v4, v4
     return v7
 }
 "#;
@@ -796,17 +779,17 @@ b2:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v2, v3
+    v2: int32 = add v0, v1
+    v3: int32 = add v0, v1
+    v4: int32 = add v2, v3
     return v4
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v4: int32 = int.add v2, v2
+    v2: int32 = add v0, v1
+    v4: int32 = add v2, v2
     return v4
 }
 "#;
@@ -822,7 +805,7 @@ entry(v0: int32, v1: int32):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     jump b1
 
 b1:
@@ -832,14 +815,14 @@ b2:
     jump b3
 
 b3:
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     return v3
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     jump b1
 
 b1:
@@ -864,15 +847,15 @@ b3:
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     jump b3(v4)
 
 b2:
-    v5: int32 = int.add v0, v1
+    v5: int32 = add v0, v1
     jump b3(v5)
 
 b3(v6: int32):
@@ -882,7 +865,7 @@ b3(v6: int32):
         let expected = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -907,15 +890,15 @@ b3(v6: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
+    v3: int32 = add v0, v1
     branch v2 => b1 | b2
 
 b1:
-    v4: int32 = int.sub v0, v1
+    v4: int32 = sub v0, v1
     return v4
 
 b2:
-    v5: int32 = int.mul v0, v1
+    v5: int32 = mul v0, v1
     return v5
 }
 "#;
@@ -931,23 +914,23 @@ b2:
         let input = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.negate v0
+    v1: int32 = negate v0
     jump b1
 
 b1:
-    v2: int32 = int.negate v0
-    v3: int32 = int.add v1, v2
+    v2: int32 = negate v0
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
         let expected = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.negate v0
+    v1: int32 = negate v0
     jump b1
 
 b1:
-    v3: int32 = int.add v1, v1
+    v3: int32 = add v1, v1
     return v3
 }
 "#;
@@ -968,7 +951,7 @@ entry(v0: (int32, int32)):
 
 b1:
     v2: int32 = field.get v0, 0
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
@@ -979,7 +962,7 @@ entry(v0: (int32, int32)):
     jump b1
 
 b1:
-    v3: int32 = int.add v1, v1
+    v3: int32 = add v1, v1
     return v3
 }
 "#;
@@ -995,26 +978,26 @@ b1:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.mul v0, v1
+    v2: int32 = add v0, v1
+    v3: int32 = mul v0, v1
     jump b1
 
 b1:
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.mul v0, v1
-    v6: int32 = int.add v4, v5
+    v4: int32 = add v0, v1
+    v5: int32 = mul v0, v1
+    v6: int32 = add v4, v5
     return v6
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.mul v0, v1
+    v2: int32 = add v0, v1
+    v3: int32 = mul v0, v1
     jump b1
 
 b1:
-    v6: int32 = int.add v2, v3
+    v6: int32 = add v2, v3
     return v6
 }
 "#;
@@ -1036,7 +1019,7 @@ entry(v0: int32, v1: int32):
 b1:
     v3: int32 = field.get v2, 0
     v4: int32 = field.get v2, 1
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     return v5
 }
 "#;
@@ -1047,7 +1030,7 @@ entry(v0: int32, v1: int32):
     jump b1
 
 b1:
-    v5: int32 = int.add v0, v1
+    v5: int32 = add v0, v1
     return v5
 }
 "#;
@@ -1074,7 +1057,7 @@ entry(v0: int32, v1: int32):
 b1:
     v3: int32 = field.get v2, 0
     v4: int32 = field.get v2, 1
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     return v5
 }
 "#;
@@ -1090,7 +1073,7 @@ entry(v0: int32, v1: int32):
     jump b1
 
 b1:
-    v5: int32 = int.add v0, v1
+    v5: int32 = add v0, v1
     return v5
 }
 "#;
@@ -1237,26 +1220,26 @@ b3(v6: int32):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     v3: (int32, int32) = aggregate (v2, v1)
     jump b1
 
 b1:
-    v4: int32 = int.add v0, v1
+    v4: int32 = add v0, v1
     v5: int32 = field.get v3, 0
-    v6: int32 = int.add v4, v5
+    v6: int32 = add v4, v5
     return v6
 }
 "#;
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     v3: (int32, int32) = aggregate (v2, v1)
     jump b1
 
 b1:
-    v6: int32 = int.add v2, v2
+    v6: int32 = add v2, v2
     return v6
 }
 "#;
@@ -1279,7 +1262,7 @@ entry:
 
 b1:
     v2: int32 = load v0
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
@@ -1293,7 +1276,7 @@ entry:
     jump b1
 
 b1:
-    v3: int32 = int.add v1, v1
+    v3: int32 = add v1, v1
     return v3
 }
 "#;
@@ -1335,7 +1318,7 @@ function test(v0: ref<int32, borrowed, mutable>): int32 {
 entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = load v0
     v2: int32 = load v0
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
@@ -1380,7 +1363,7 @@ entry:
     v1: int32 = load v0
     call imported(v0): (ref<int32, borrowed, mutable>) => void
     v2: int32 = load v0
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 "#;
@@ -1394,7 +1377,7 @@ entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
     call imported(v0): (ref<int32, borrowed, mutable>) => void
-    v3: int32 = int.add v1, v1
+    v3: int32 = add v1, v1
     return v3
 }
 "#;

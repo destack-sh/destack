@@ -5,34 +5,29 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, ControlFlowGraph, Mutation, RangeAnalysis, ScalarEvolution, Scev,
-    UseDefMaps, ValueDefinitions, ValueRange, ValueTypes, build_use_def_maps,
-    build_value_use_counts, constant_for_value, constant_is_zero, instruction_has_side_effects,
+    BlockParamForwarding, ControlTable, DefinitionTable, EvolutionTable, Mutation, RangeTable,
+    Scev, UseDefMaps, ValueRange, ValueTypeTable, build_use_def_maps, build_value_use_counts,
+    constant_for_value, constant_is_zero, instruction_has_side_effects,
     instruction_is_borrow_address, instruction_is_speculatable,
 };
 
 declare_pass! {
     /// Recognize loop idioms and replace them with memory intrinsics.
     ///
-    /// This pass recognizes simple byte memset loops and copy loops with a canonical induction
-    /// variable.
-    /// It requires a single store to `element.address` and, for copies, a single load feeding that
-    /// store.
-    ///
     /// ```mir
-    /// function before(v0: [uint8; 8], v1: uint32): void {
-    /// b0(v0: [uint8; 8], v1: uint32):
-    ///     v2 = 0uint32
-    ///     v3 = 1uint32
+    /// function before(v0: ref<[uint8; 8], borrowed, mutable>, v1: uint32): void {
+    /// b0(v0: ref<[uint8; 8], borrowed, mutable>, v1: uint32):
+    ///     v2: uint32 = 0
+    ///     v3: uint32 = 1
     ///     jump b1(v2)
     /// b1(v4: uint32):
-    ///     v5 = int.lt.u v4, v1
+    ///     v5: boolean = lt v4, v1
     ///     branch v5 => b2 | b3
     /// b2:
-    ///     v6 = element.address v0, v4
-    ///     v7 = 0uint8
+    ///     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    ///     v7: uint8 = 0
     ///     store v6, v7
-    ///     v8 = int.add v4, v3
+    ///     v8: uint32 = add v4, v3
     ///     jump b1(v8)
     /// b3:
     ///     return
@@ -40,22 +35,22 @@ declare_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// function after(v0: [uint8; 8], v1: uint32): void {
-    /// b0(v0: [uint8; 8], v1: uint32):
-    ///     v2 = 0uint32
-    ///     v3 = 1uint32
-    ///     v9 = 0uint8
-    ///     v10 = element.address v0, v2
+    /// function after(v0: ref<[uint8; 8], borrowed, mutable>, v1: uint32): void {
+    /// b0(v0: ref<[uint8; 8], borrowed, mutable>, v1: uint32):
+    ///     v2: uint32 = 0
+    ///     v3: uint32 = 1
+    ///     v9: uint8 = 0
+    ///     v10: ref<uint8, borrowed, mutable> = element.address v0, v2
     ///     intrinsic.memory.raw.setBytes(v10, v9, v1)
     ///     jump b3
     /// b1(v4: uint32):
-    ///     v5 = int.lt.u v4, v1
+    ///     v5: boolean = lt v4, v1
     ///     branch v5 => b2 | b3
     /// b2:
-    ///     v6 = element.address v0, v4
-    ///     v7 = 0uint8
+    ///     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    ///     v7: uint8 = 0
     ///     store v6, v7
-    ///     v8 = int.add v4, v3
+    ///     v8: uint32 = add v4, v3
     ///     jump b1(v8)
     /// b3:
     ///     return
@@ -73,32 +68,22 @@ impl FunctionPass for RecognizeLoopIdioms {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let memory = &mut optimized.memory;
+        let accesses = &mut optimized.accesses;
 
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
         }
 
-        let changed = run_recognize_loop_idioms(function, tree, memory, ctx, analyses);
+        let changed = run_recognize_loop_idioms(function, tree, accesses, ctx, analyses);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
-    }
-
-    /// Return the display name for this pass.
-    fn name(&self) -> &'static str {
-        "RecognizeLoopIdioms"
-    }
-
-    /// Return the pipeline identifier for this pass.
-    fn id(&self) -> &'static str {
-        "recognize-loop-idioms"
     }
 }
 
@@ -115,18 +100,18 @@ struct GuardInfo {
 fn run_recognize_loop_idioms(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mut mir::FunctionAnalyses,
+    analyses: &mut mir::FunctionCache,
 ) -> bool {
     let mut changed = false;
     loop {
         // gather analyses
         let loops = analyses.loops(function, tree).clone();
-        let cfg = analyses.control_flow(function, tree).clone();
-        let domtree = analyses.dominators(function, tree).clone();
-        let scev = analyses.scalar_evolution(function, tree).clone();
-        let ranges = analyses.ranges(function, tree).clone();
+        let cfg = analyses.control(function, tree).clone();
+        let domtree = analyses.dominator(function, tree).clone();
+        let scev = analyses.evolution(function, tree).clone();
+        let ranges = analyses.range(function, tree).clone();
         let aa = analyses.alias(function, tree).clone();
         let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
@@ -137,9 +122,9 @@ fn run_recognize_loop_idioms(
 
         // build use def and definition maps
         let use_def = build_use_def_maps(function, tree);
-        let value_definitions = ValueDefinitions::build(function, tree).instruction_map();
+        let value_definitions = DefinitionTable::build(function, tree).instruction_map();
         let use_counts = build_value_use_counts(function, tree);
-        let value_types = analyses.value_types(function, tree);
+        let value_types = analyses.value_type(function, tree);
 
         // refresh value ids and track per iteration changes
         let mut changed_this_iteration = false;
@@ -165,7 +150,8 @@ fn run_recognize_loop_idioms(
             };
 
             // extract the loop guard from the header
-            let Some(guard) = guard_from_header(header, &lp.blocks, tree, &use_def) else {
+            let Some(guard) = guard_from_header(header, &lp.blocks, function, tree, &use_def)
+            else {
                 continue;
             };
 
@@ -230,9 +216,14 @@ fn run_recognize_loop_idioms(
             }
 
             // attempt to replace the loop with memset
-            if let Some(pattern) =
-                match_memset_pattern(lp, guard.induction, tree, memory, &value_definitions)
-            {
+            if let Some(pattern) = match_memset_pattern(
+                lp,
+                guard.induction,
+                function,
+                tree,
+                accesses,
+                &value_definitions,
+            ) {
                 // require the store to be in this loop, not a nested one
                 let Some(inner_loop) = loops.innermost_loop(pattern.store_block) else {
                     continue;
@@ -350,8 +341,9 @@ fn run_recognize_loop_idioms(
             let Some(pattern) = match_memcpy_pattern(
                 lp,
                 guard.induction,
+                function,
                 tree,
-                memory,
+                accesses,
                 &value_definitions,
                 &use_counts,
             ) else {
@@ -552,8 +544,9 @@ struct MemcpyPattern {
 fn match_memset_pattern(
     lp: &mir::Loop,
     induction: mir::Value,
+    function: &mir::Function,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
+    accesses: &mir::AccessTable,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<MemsetPattern> {
     // scan loop blocks for a single store with a speculatable body
@@ -575,7 +568,7 @@ fn match_memset_pattern(
             let inst = tree.get(inst_id);
 
             // reject volatile or ordered memory accesses
-            if memory.instruction_requires_exact_access(tree, inst_id) {
+            if accesses.requires_exact_position(inst_id, tree) {
                 return None;
             }
 
@@ -593,7 +586,9 @@ fn match_memset_pattern(
                 return None;
             }
 
-            if !instruction_is_speculatable(inst, tree) && !instruction_is_borrow_address(inst) {
+            if !instruction_is_speculatable(inst, function, tree)
+                && !instruction_is_borrow_address(inst)
+            {
                 return None;
             }
         }
@@ -622,8 +617,9 @@ fn match_memset_pattern(
 fn match_memcpy_pattern(
     lp: &mir::Loop,
     induction: mir::Value,
+    function: &mir::Function,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
+    accesses: &mir::AccessTable,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     use_counts: &HashMap<mir::Value, usize>,
 ) -> Option<MemcpyPattern> {
@@ -649,7 +645,7 @@ fn match_memcpy_pattern(
             let inst = tree.get(inst_id);
 
             // reject volatile or ordered memory accesses
-            if memory.instruction_requires_exact_access(tree, inst_id) {
+            if accesses.requires_exact_position(inst_id, tree) {
                 return None;
             }
 
@@ -682,7 +678,9 @@ fn match_memcpy_pattern(
             if instruction_has_side_effects(inst) {
                 return None;
             }
-            if !instruction_is_speculatable(inst, tree) && !instruction_is_borrow_address(inst) {
+            if !instruction_is_speculatable(inst, function, tree)
+                && !instruction_is_borrow_address(inst)
+            {
                 return None;
             }
         }
@@ -748,7 +746,7 @@ fn element_addr_for_pointer(
 }
 
 /// Check whether the array element type is u8.
-fn array_is_u8(array: mir::Value, value_types: &ValueTypes, tree: &mir::Tree) -> bool {
+fn array_is_u8(array: mir::Value, value_types: &ValueTypeTable, tree: &mir::Tree) -> bool {
     // resolve the array element type
     let Some(element) = array_element_type(array, value_types, tree) else {
         return false;
@@ -766,7 +764,7 @@ fn array_is_u8(array: mir::Value, value_types: &ValueTypes, tree: &mir::Tree) ->
 /// Return the element type for an array or array reference value.
 fn array_element_type(
     array: mir::Value,
-    value_types: &ValueTypes,
+    value_types: &ValueTypeTable,
     tree: &mir::Tree,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
     // resolve the fixed array type
@@ -789,7 +787,7 @@ fn array_element_type(
 fn arrays_are_value_types(
     dest_array: mir::Value,
     src_array: mir::Value,
-    value_types: &ValueTypes,
+    value_types: &ValueTypeTable,
     tree: &mir::Tree,
 ) -> bool {
     if dest_array == src_array {
@@ -817,7 +815,7 @@ fn should_guard_copy_bounds(
     bound: mir::Value,
     bound_width: u16,
     preheader: mir::LocalNodeId<mir::Block>,
-    ranges: &RangeAnalysis,
+    ranges: &RangeTable,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     tree: &mir::Tree,
 ) -> bool {
@@ -867,7 +865,7 @@ fn insert_bound_guard(
     let bool_type = tree.boolean_type();
     let guard_inst = tree.insert(mir::Instruction::Binary {
         destination: function.next_typed_value(bool_type),
-        operator: mir::BinaryOperator::UnsignedLessEqual,
+        operator: mir::BinaryOperator::LessEqual,
         left: start,
         right: bound,
     });
@@ -987,7 +985,7 @@ fn emit_memcpy_or_memmove(
 fn unsigned_bounds_for_value(
     value: mir::Value,
     bound_width: u16,
-    ranges: &RangeAnalysis,
+    ranges: &RangeTable,
     preheader: mir::LocalNodeId<mir::Block>,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     tree: &mir::Tree,
@@ -1041,7 +1039,7 @@ fn emit_copy_length(
     bound_width: u16,
     element_size: u64,
     guarded: bool,
-    ranges: &RangeAnalysis,
+    ranges: &RangeTable,
     preheader: mir::LocalNodeId<mir::Block>,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     function: &mut mir::Function,
@@ -1177,7 +1175,7 @@ fn value_is_loop_invariant(
 fn find_preheader(
     header: mir::LocalNodeId<mir::Block>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    cfg: &ControlFlowGraph,
+    cfg: &ControlTable,
     tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     // collect outside predecessors
@@ -1250,6 +1248,7 @@ fn preheader_induction_start(
 fn guard_from_header(
     header: mir::LocalNodeId<mir::Block>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    function: &mir::Function,
     tree: &mir::Tree,
     use_def: &UseDefMaps,
 ) -> Option<GuardInfo> {
@@ -1288,7 +1287,9 @@ fn guard_from_header(
     };
 
     // accept only unsigned less than guards
-    if *operator != mir::BinaryOperator::UnsignedLessThan {
+    let operand_type = function.expect_value_type(*left);
+    let is_unsigned = tree.get(operand_type).integer_signedness() == Some(false);
+    if *operator != mir::BinaryOperator::LessThan || !is_unsigned {
         return None;
     }
 
@@ -1309,7 +1310,7 @@ fn guard_from_header(
 }
 
 /// Check whether the guard describes a simple induction pattern.
-fn guard_is_simple(guard: &GuardInfo, loop_index: usize, scev: &ScalarEvolution) -> bool {
+fn guard_is_simple(guard: &GuardInfo, loop_index: usize, scev: &EvolutionTable) -> bool {
     // require a simple add recurrence for the induction variable
     let Some(Scev::AddRec {
         start,
@@ -1350,14 +1351,14 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b1(v2)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b3
 
 b2:
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
-    v8: uint32 = int.add v4, v3
+    v8: uint32 = add v4, v3
     jump b1(v8)
 
 b3:
@@ -1376,14 +1377,14 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b3
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b3
 
 b2:
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
-    v8: uint32 = int.add v4, v3
+    v8: uint32 = add v4, v3
     jump b1(v8)
 
 b3:
@@ -1407,7 +1408,7 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b1(v2)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b4
 
 b2:
@@ -1417,7 +1418,7 @@ b2:
     jump b3(v4)
 
 b3(v8: uint32):
-    v9: uint32 = int.add v8, v3
+    v9: uint32 = add v8, v3
     jump b1(v9)
 
 b4:
@@ -1436,7 +1437,7 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b4
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b4
 
 b2:
@@ -1446,7 +1447,7 @@ b2:
     jump b3(v4)
 
 b3(v8: uint32):
-    v9: uint32 = int.add v8, v3
+    v9: uint32 = add v8, v3
     jump b1(v9)
 
 b4:
@@ -1470,14 +1471,14 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b1(v2)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b3
 
 b2:
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
-    v8: uint32 = int.add v4, v3
+    v8: uint32 = add v4, v3
     jump b1(v8)
 
 b3:
@@ -1533,7 +1534,7 @@ entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
     jump b1(v3)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b3
 
 b2:
@@ -1541,7 +1542,7 @@ b2:
     v8: ref<uint8, borrowed, mutable> = element.address v1, v5
     v9: uint8 = load v8
     store v7, v9
-    v10: uint32 = int.add v5, v4
+    v10: uint32 = add v5, v4
     jump b1(v10)
 
 b3:
@@ -1560,7 +1561,7 @@ entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
     jump b3
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b3
 
 b2:
@@ -1568,7 +1569,7 @@ b2:
     v8: ref<uint8, borrowed, mutable> = element.address v1, v5
     v9: uint8 = load v8
     store v7, v9
-    v10: uint32 = int.add v5, v4
+    v10: uint32 = add v5, v4
     jump b1(v10)
 
 b3:
@@ -1592,14 +1593,14 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b1(v2)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b3
 
 b2:
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = load v6
     store v6, v7
-    v8: uint32 = int.add v4, v3
+    v8: uint32 = add v4, v3
     jump b1(v8)
 
 b3:
@@ -1618,14 +1619,14 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b3
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b3
 
 b2:
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = load v6
     store v6, v7
-    v8: uint32 = int.add v4, v3
+    v8: uint32 = add v4, v3
     jump b1(v8)
 
 b3:
@@ -1650,7 +1651,7 @@ entry(v0: [uint32; 8], v1: [uint32; 8]):
     jump b1(v2)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v4
+    v6: boolean = lt v5, v4
     branch v6 => b2 | b3
 
 b2:
@@ -1658,7 +1659,7 @@ b2:
     v8: ref<uint32, borrowed, mutable> = element.address v1, v5
     v9: uint32 = load v8
     store v7, v9
-    v10: uint32 = int.add v5, v3
+    v10: uint32 = add v5, v3
     jump b1(v10)
 
 b3:
@@ -1673,14 +1674,14 @@ entry(v0: [uint32; 8], v1: [uint32; 8]):
     v3: uint32 = 1
     v4: uint32 = 4
     v11: uint32 = 4
-    v12: uint32 = int.mul v4, v11
+    v12: uint32 = mul v4, v11
     v13: ref<uint32, borrowed, mutable> = element.address v0, v2
     v14: ref<uint32, borrowed, mutable> = element.address v1, v2
     intrinsic.memory.raw.copyBytes(v13, v14, v12)
     jump b3
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v4
+    v6: boolean = lt v5, v4
     branch v6 => b2 | b3
 
 b2:
@@ -1688,7 +1689,7 @@ b2:
     v8: ref<uint32, borrowed, mutable> = element.address v1, v5
     v9: uint32 = load v8
     store v7, v9
-    v10: uint32 = int.add v5, v3
+    v10: uint32 = add v5, v3
     jump b1(v10)
 
 b3:
@@ -1713,7 +1714,7 @@ entry(v0: [uint32; 8], v1: [uint32; 8]):
     jump b1(v2)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v4
+    v6: boolean = lt v5, v4
     branch v6 => b2 | b3
 
 b2:
@@ -1721,7 +1722,7 @@ b2:
     v8: ref<uint32, borrowed, mutable> = element.address v1, v5
     v9: uint32 = load v8
     store v7, v9
-    v10: uint32 = int.add v5, v3
+    v10: uint32 = add v5, v3
     jump b1(v10)
 
 b3:
@@ -1735,16 +1736,16 @@ entry(v0: [uint32; 8], v1: [uint32; 8]):
     v2: uint32 = 2
     v3: uint32 = 1
     v4: uint32 = 8
-    v11: uint32 = int.sub v4, v2
+    v11: uint32 = sub v4, v2
     v12: uint32 = 4
-    v13: uint32 = int.mul v11, v12
+    v13: uint32 = mul v11, v12
     v14: ref<uint32, borrowed, mutable> = element.address v0, v2
     v15: ref<uint32, borrowed, mutable> = element.address v1, v2
     intrinsic.memory.raw.copyBytes(v14, v15, v13)
     jump b3
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v4
+    v6: boolean = lt v5, v4
     branch v6 => b2 | b3
 
 b2:
@@ -1752,7 +1753,7 @@ b2:
     v8: ref<uint32, borrowed, mutable> = element.address v1, v5
     v9: uint32 = load v8
     store v7, v9
-    v10: uint32 = int.add v5, v3
+    v10: uint32 = add v5, v3
     jump b1(v10)
 
 b3:
@@ -1776,14 +1777,14 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b1(v2)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b3
 
 b2:
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
-    v8: uint32 = int.add v4, v3
+    v8: uint32 = add v4, v3
     jump b1(v8)
 
 b3:
@@ -1796,25 +1797,25 @@ function test(v0: [uint8; 8], v1: uint32): void {
 entry(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 1
     v3: uint32 = 1
-    v12: boolean = int.le.u v2, v1
+    v12: boolean = le v2, v1
     branch v12 => b4 | b3
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b3
 
 b2:
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
-    v8: uint32 = int.add v4, v3
+    v8: uint32 = add v4, v3
     jump b1(v8)
 
 b3:
     return
 
 b4:
-    v9: uint32 = int.sub v1, v2
+    v9: uint32 = sub v1, v2
     v10: uint8 = 0
     v11: ref<uint8, borrowed, mutable> = element.address v0, v2
     intrinsic.memory.raw.setBytes(v11, v10, v9)
@@ -1837,7 +1838,7 @@ entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32):
     jump b1(v2)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v3
+    v6: boolean = lt v5, v3
     branch v6 => b2 | b3
 
 b2:
@@ -1845,7 +1846,7 @@ b2:
     v8: ref<uint8, borrowed, mutable> = element.address v1, v5
     v9: uint8 = load v8
     store v7, v9
-    v10: uint32 = int.add v5, v4
+    v10: uint32 = add v5, v4
     jump b1(v10)
 
 b3:
@@ -1857,11 +1858,11 @@ b3:
 function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32): void {
 entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32):
     v4: uint32 = 1
-    v14: boolean = int.le.u v2, v3
+    v14: boolean = le v2, v3
     branch v14 => b4 | b3
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v3
+    v6: boolean = lt v5, v3
     branch v6 => b2 | b3
 
 b2:
@@ -1869,14 +1870,14 @@ b2:
     v8: ref<uint8, borrowed, mutable> = element.address v1, v5
     v9: uint8 = load v8
     store v7, v9
-    v10: uint32 = int.add v5, v4
+    v10: uint32 = add v5, v4
     jump b1(v10)
 
 b3:
     return
 
 b4:
-    v11: uint32 = int.sub v3, v2
+    v11: uint32 = sub v3, v2
     v12: ref<uint8, borrowed, mutable> = element.address v0, v2
     v13: ref<uint8, borrowed, mutable> = element.address v1, v2
     intrinsic.memory.raw.copyBytes(v12, v13, v11)
@@ -1899,14 +1900,14 @@ entry(v0: [uint8; 8], v1: uint32, v2: uint32):
     jump b1(v2)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b3
 
 b2:
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = load v6
     store v6, v7
-    v8: uint32 = int.add v4, v3
+    v8: uint32 = add v4, v3
     jump b1(v8)
 
 b3:
@@ -1918,25 +1919,25 @@ b3:
 function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
 entry(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 1
-    v12: boolean = int.le.u v2, v1
+    v12: boolean = le v2, v1
     branch v12 => b4 | b3
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b3
 
 b2:
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = load v6
     store v6, v7
-    v8: uint32 = int.add v4, v3
+    v8: uint32 = add v4, v3
     jump b1(v8)
 
 b3:
     return
 
 b4:
-    v9: uint32 = int.sub v1, v2
+    v9: uint32 = sub v1, v2
     v10: ref<uint8, borrowed, mutable> = element.address v0, v2
     v11: ref<uint8, borrowed, mutable> = element.address v0, v2
     intrinsic.memory.raw.moveBytes(v10, v11, v9)
@@ -1960,14 +1961,14 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b1(v2)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b3
 
 b2:
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
-    v8: uint32 = int.add v4, v3
+    v8: uint32 = add v4, v3
     jump b1(v8)
 
 b3:
@@ -1991,7 +1992,7 @@ entry(v0: [uint8; 8], v1: uint32, v2: boolean):
     jump b1(v3)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v1
+    v6: boolean = lt v5, v1
     branch v6 => b2(v5) | b5
 
 b2(v7: uint32):
@@ -2004,7 +2005,7 @@ b3(v8: uint32):
     jump b4(v8)
 
 b4(v11: uint32):
-    v12: uint32 = int.add v11, v4
+    v12: uint32 = add v11, v4
     jump b1(v12)
 
 b5:
@@ -2029,7 +2030,7 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b1(v2)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v1
+    v6: boolean = lt v5, v1
     branch v6 => b2 | b6
 
 b2:
@@ -2040,15 +2041,15 @@ b3(v8: uint32):
     v9: ref<uint8, borrowed, mutable> = element.address v0, v5
     v10: uint8 = 0
     store v9, v10
-    v11: boolean = int.lt.u v8, v4
+    v11: boolean = lt v8, v4
     branch v11 => b4(v8) | b5
 
 b4(v12: uint32):
-    v13: uint32 = int.add v12, v3
+    v13: uint32 = add v12, v3
     jump b3(v13)
 
 b5:
-    v14: uint32 = int.add v5, v3
+    v14: uint32 = add v5, v3
     jump b1(v14)
 
 b6:
@@ -2072,7 +2073,7 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b1(v2, v0)
 
 b1(v4: uint32, v5: [uint8; 8]):
-    v6: boolean = int.lt.u v4, v1
+    v6: boolean = lt v4, v1
     branch v6 => b2 | b3
 
 b2:
@@ -2080,7 +2081,7 @@ b2:
     v8: uint8 = 0
     store v7, v8
     v9: [uint8; 8] = field.set v5, 0, v8
-    v10: uint32 = int.add v4, v3
+    v10: uint32 = add v4, v3
     jump b1(v10, v9)
 
 b3:
@@ -2104,13 +2105,13 @@ entry(v0: [uint8; 8], v1: uint8, v2: uint32):
     jump b1(v3)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b3
 
 b2:
     v7: ref<uint8, borrowed, mutable> = element.address v0, v5
     store v7, v1
-    v8: uint32 = int.add v5, v4
+    v8: uint32 = add v5, v4
     jump b1(v8)
 
 b3:
@@ -2134,7 +2135,7 @@ entry(v0: [uint8; 8], v1: uint32):
     jump b1(v2)
 
 b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v1
+    v5: boolean = lt v4, v1
     branch v5 => b2 | b3
 
 b2:
@@ -2142,7 +2143,7 @@ b2:
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
-    v8: uint32 = int.add v4, v3
+    v8: uint32 = add v4, v3
     jump b1(v8)
 
 b3:
@@ -2171,7 +2172,7 @@ entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
     jump b1(v3)
 
 b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
+    v6: boolean = lt v5, v2
     branch v6 => b2 | b3
 
 b2:
@@ -2180,7 +2181,7 @@ b2:
     store v7, v8
     v9: ref<uint8, borrowed, mutable> = element.address v1, v5
     store v9, v8
-    v10: uint32 = int.add v5, v4
+    v10: uint32 = add v5, v4
     jump b1(v10)
 
 b3:

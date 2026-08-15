@@ -2,21 +2,17 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
-use destack_mir::{Mutation, RangeAnalysis, instruction_is_pure};
+use destack_mir::{Mutation, RangeTable, instruction_is_pure};
 
 declare_pass! {
     /// Fold values that range analysis proves constant.
     ///
-    /// Range analysis can prove that some comparisons are always true or false.
-    /// This pass replaces those values with constants to enable further
-    /// simplification and guard elimination.
-    ///
     /// ```mir
     /// function before(): boolean {
     /// b0:
-    ///     v0 = 1int32
-    ///     v1 = 2int32
-    ///     v2 = int.lt.s v0, v1
+    ///     v0: int32 = 1
+    ///     v1: int32 = 2
+    ///     v2: boolean = lt v0, v1
     ///     return v2
     /// }
     /// ```
@@ -24,9 +20,9 @@ declare_pass! {
     /// ```mir
     /// function after(): boolean {
     /// b0:
-    ///     v0 = 1int32
-    ///     v1 = 2int32
-    ///     v2 = true
+    ///     v0: int32 = 1
+    ///     v1: int32 = 2
+    ///     v2: boolean = true
     ///     return v2
     /// }
     /// ```
@@ -42,7 +38,7 @@ impl FunctionPass for PropagateValueRanges {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mut mir::FunctionAnalyses,
+        analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -52,10 +48,10 @@ impl FunctionPass for PropagateValueRanges {
         }
 
         // gather range analysis
-        let ranges = { analyses.ranges(function, tree).clone() };
+        let ranges = { analyses.range(function, tree).clone() };
 
         // fold instructions with constant ranges
-        let changed = run_propagate_value_rangesagation(function, tree, &ranges);
+        let changed = propagate_value_ranges(function, tree, &ranges);
 
         // report what this pass changed
         if changed {
@@ -64,23 +60,13 @@ impl FunctionPass for PropagateValueRanges {
             Mutation::NONE
         }
     }
-
-    /// Return the pass name.
-    fn name(&self) -> &'static str {
-        "PropagateValueRanges"
-    }
-
-    /// Return the pass id.
-    fn id(&self) -> &'static str {
-        "propagate-value-ranges"
-    }
 }
 
 /// Apply range-based constant folding to a function.
-fn run_propagate_value_rangesagation(
+fn propagate_value_ranges(
     function: &mir::Function,
     tree: &mut mir::Tree,
-    ranges: &RangeAnalysis,
+    ranges: &RangeTable,
 ) -> bool {
     // track whether any instruction was replaced
     let mut changed = false;
@@ -146,7 +132,7 @@ function test(): boolean {
 entry:
     v0: int32 = 1
     v1: int32 = 2
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     return v2
 }
 "#;
@@ -173,7 +159,7 @@ function test(): boolean {
 entry:
     v0: int32 = 4
     v1: int32 = 4
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     return v2
 }
 "#;
@@ -198,7 +184,7 @@ entry:
         let input = r#"
 function test(v0: int32, v1: int32): boolean {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     return v2
 }
 "#;
