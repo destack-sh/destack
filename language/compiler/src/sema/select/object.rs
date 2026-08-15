@@ -1,5 +1,3 @@
-use std::slice;
-
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
@@ -467,18 +465,33 @@ impl BodyState<'_, '_> {
         }))
     }
 
-    /// Collect the member values one object pattern's literal fields test.
+    /// Collect the member chains one object pattern's literal fields test.
     fn object_pattern_tests(
         &mut self,
         module: ModuleId,
         flow: FlowPointId,
         scope: Option<dir::GlobalGenericTemplateId>,
         fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<Vec<(dir::StaticKey, dir::GlobalTypeId)>> {
+    ) -> CompilerResult<Vec<(Vec<dir::StaticKey>, dir::GlobalTypeId)>> {
         let mut tests = Vec::new();
+        let mut prefix = Vec::new();
+        self.collect_object_pattern_tests(module, flow, scope, fields, &mut prefix, &mut tests)?;
 
-        // collect one test per named field carrying an expression sub-pattern
+        Ok(tests)
+    }
+
+    /// Collect the tested member chains beneath one pattern field list.
+    fn collect_object_pattern_tests(
+        &mut self,
+        module: ModuleId,
+        flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
+        fields: &[dir::LocalNodeId<dir::PatternField>],
+        prefix: &mut Vec<dir::StaticKey>,
+        tests: &mut Vec<(Vec<dir::StaticKey>, dir::GlobalTypeId)>,
+    ) -> CompilerResult<()> {
         for field in fields {
+            // follow named fields carrying a sub-pattern
             let dir::PatternField::Named {
                 name,
                 pattern: Some(pattern),
@@ -487,24 +500,33 @@ impl BodyState<'_, '_> {
             else {
                 continue;
             };
-            let dir::Pattern::Expression { value } = *self.module(module).view().get(pattern)
-            else {
-                continue;
-            };
 
-            // singleton-valued sub-patterns test their field exactly
-            let site = FlowSite {
-                node: value.into_global_any(module),
-                flow,
-                scope,
-            };
-            let ty = self.infer_node_type(site, PlaceUse::Read)?;
-            if self.is_singleton_type(ty)? {
-                tests.push((name.into(), ty));
+            prefix.push(name.into());
+            match self.module(module).view().get(pattern).clone() {
+                // singleton-valued sub-patterns test their member exactly
+                dir::Pattern::Expression { value } => {
+                    let site = FlowSite {
+                        node: value.into_global_any(module),
+                        flow,
+                        scope,
+                    };
+                    let ty = self.infer_node_type(site, PlaceUse::Read)?;
+                    if self.is_singleton_type(ty)? {
+                        tests.push((prefix.clone(), ty));
+                    }
+                }
+                // nested object patterns extend the tested chain
+                dir::Pattern::Object { fields } => {
+                    let fields: SmallVec<[_; 4]> = fields.iter().copied().collect();
+                    self.collect_object_pattern_tests(module, flow, scope, &fields, prefix, tests)?;
+                }
+                // every other sub-pattern binds its member
+                _ => {}
             }
+            prefix.pop();
         }
 
-        Ok(tests)
+        Ok(())
     }
 
     /// Narrow one scrutinee to the subset the pattern can match, keeping it whole when stuck.
@@ -512,17 +534,20 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         scrutinee: dir::GlobalTypeId,
-        tests: &[(dir::StaticKey, dir::GlobalTypeId)],
+        tests: &[(Vec<dir::StaticKey>, dir::GlobalTypeId)],
     ) -> CompilerResult<dir::GlobalTypeId> {
         // destructure the physical value beneath nominal wrappers
         let (mut narrowed, _) = self.project_newtype_receiver(origin, scrutinee)?;
 
-        // filter the alternatives through each tested member value
-        for (key, tested) in tests {
-            let keys = slice::from_ref(key);
-            narrowed = match self.narrow_type_alternatives(origin, narrowed, keys, *tested, true)? {
+        // filter the arms through each tested member chain
+        for (keys, tested) in tests {
+            narrowed = match self.narrow_arms(origin, narrowed, keys, *tested, true)? {
+                // continue through the arms this test keeps
                 Ok(Some(next)) => next,
-                Ok(None) | Err(_) => narrowed,
+                // an irreducible test leaves the arms untouched
+                Ok(None) => narrowed,
+                // an open arm keeps the scrutinee whole until selection re-runs
+                Err(_) => narrowed,
             };
         }
 
